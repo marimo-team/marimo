@@ -17,7 +17,7 @@ from marimo._ast.transformers import (
     RemoveReturns,
     clean_to_modules,
     compiled_ast,
-    strip_function,
+    get_hashable_ast,
 )
 
 
@@ -253,14 +253,14 @@ def test_clean_to_modules_no_optional_vars() -> None:
     assert len(with_module.body) == 1
 
 
-def test_strip_function() -> None:
-    """Test the strip_function function."""
+def test_get_hashable_ast() -> None:
+    """Test the get_hashable_ast function."""
 
     def test_function(x: int, y: str) -> int:
         result = x + len(y)
         return result
 
-    module = strip_function(test_function)
+    module = get_hashable_ast(test_function)
     assert isinstance(module, ast.Module)
 
     # The function should be stripped of returns and arguments mangled
@@ -269,6 +269,46 @@ def test_strip_function() -> None:
     assert "return result" not in code
     assert f"{ARG_PREFIX}x" in code
     assert f"{ARG_PREFIX}y" in code
+
+
+def test_get_hashable_ast_with_decorators() -> None:
+    """Test that get_hashable_ast includes decorator AST and can skip specific ones.
+
+    When skip_decorator is provided, that decorator is filtered out while
+    all others are included so their parameters affect the hash.
+    """
+
+    def my_cache(fn):
+        return fn
+
+    def other_decorator(param: str):
+        def wrapper(fn):
+            return fn
+
+        return wrapper
+
+    @other_decorator(param="before")
+    @my_cache
+    @other_decorator(param="after")
+    def decorated_function():
+        return 42
+
+    # Test 1: With skip_decorators, that decorator is filtered out
+    module = get_hashable_ast(decorated_function, skip_decorators={"my_cache"})
+    code = ast.unparse(module)
+
+    assert "my_cache" not in code
+    assert "other_decorator" in code
+    # Only decorators AFTER (inner to) the skipped one should be included
+    assert 'param="before"' not in code and "param='before'" not in code
+    assert 'param="after"' in code or "param='after'" in code
+
+    # Test 2: Without skip_decorator, all decorators are included
+    module_all = get_hashable_ast(decorated_function)
+    code_all = ast.unparse(module_all)
+
+    assert "my_cache" in code_all
+    assert "other_decorator" in code_all
 
 
 def test_mangle_arguments() -> None:
