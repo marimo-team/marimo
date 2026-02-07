@@ -13,6 +13,7 @@ from marimo._utils.health import (
     get_node_version,
     get_optional_modules_list,
     get_required_modules_list,
+    get_uv_version,
 )
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
@@ -98,6 +99,7 @@ def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
         # back-filled in frontend
         "Browser": get_chrome_version() or "--",
         "Node": get_node_version() or "--",
+        "uv": get_uv_version() or "--",
     }
 
     requirements = get_required_modules_list()
