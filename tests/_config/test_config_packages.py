@@ -124,6 +124,10 @@ def test_infer_package_manager(
 
     # Mock environment variables
     with patch.dict(os.environ, env_vars):
+        # When testing non-uv package managers, remove UV if present so it
+        # does not override (e.g. when running via uvx hatch)
+        if expected != "uv" and "UV" in os.environ:
+            del os.environ["UV"]
         # Mock sys attributes
         if sys_attrs:
             with patch.multiple(sys, **sys_attrs):

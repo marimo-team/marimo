@@ -305,8 +305,9 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
 
     mock_popen.assert_called_once()
     call_args, call_kwargs = mock_popen.call_args
-    assert call_args[0] == [
-        "uv",
+    cmd = call_args[0]
+    assert cmd[0].endswith("uv") or cmd[0] == "uv"
+    assert cmd[1:] == [
         "pip",
         "install",
         "package1",
@@ -340,8 +341,9 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
 
     mock_popen.assert_called_once()
     call_args, call_kwargs = mock_popen.call_args
-    assert call_args[0] == [
-        "uv",
+    cmd = call_args[0]
+    assert cmd[0].endswith("uv") or cmd[0] == "uv"
+    assert cmd[1:] == [
         "pip",
         "install",
         "--target=target_path",
@@ -365,9 +367,10 @@ async def test_uv_install_in_project(mock_run: MagicMock):
 
     result = await mgr._install("package1 package2", upgrade=False, group=None)
 
-    mock_run.assert_called_once_with(
-        ["uv", "add", "package1", "package2", "-p", PY_EXE],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == ["add", "package1", "package2", "-p", PY_EXE]
     assert result is True
 
 
@@ -382,18 +385,18 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
         "package1 package2", upgrade=False, group="dev"
     )
 
-    mock_run.assert_called_once_with(
-        [
-            "uv",
-            "add",
-            "--group",
-            "dev",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == [
+        "add",
+        "--group",
+        "dev",
+        "package1",
+        "package2",
+        "-p",
+        PY_EXE,
+    ]
     assert result is True
 
 
@@ -406,17 +409,17 @@ async def test_uv_install_custom_group_in_project(mock_run: MagicMock):
 
     result = await mgr._install("sphinx", upgrade=False, group="docs")
 
-    mock_run.assert_called_once_with(
-        [
-            "uv",
-            "add",
-            "--group",
-            "docs",
-            "sphinx",
-            "-p",
-            PY_EXE,
-        ],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == [
+        "add",
+        "--group",
+        "docs",
+        "sphinx",
+        "-p",
+        PY_EXE,
+    ]
     assert result is True
 
 
@@ -429,15 +432,10 @@ async def test_uv_install_no_group_in_project(mock_run: MagicMock):
 
     result = await mgr._install("requests", upgrade=False, group=None)
 
-    mock_run.assert_called_once_with(
-        [
-            "uv",
-            "add",
-            "requests",
-            "-p",
-            PY_EXE,
-        ],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == ["add", "requests", "-p", PY_EXE]
     assert result is True
 
 
@@ -450,9 +448,17 @@ async def test_uv_uninstall_with_group_in_project(mock_run: MagicMock):
 
     result = await mgr.uninstall("sphinx", group="docs")
 
-    mock_run.assert_called_once_with(
-        ["uv", "remove", "--group", "docs", "sphinx", "-p", PY_EXE],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == [
+        "remove",
+        "--group",
+        "docs",
+        "sphinx",
+        "-p",
+        PY_EXE,
+    ]
     assert result is True
 
 
@@ -465,9 +471,17 @@ async def test_uv_uninstall_not_in_project(mock_run: MagicMock):
 
     result = await mgr.uninstall("package1 package2")
 
-    mock_run.assert_called_once_with(
-        ["uv", "pip", "uninstall", "package1", "package2", "-p", PY_EXE],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == [
+        "pip",
+        "uninstall",
+        "package1",
+        "package2",
+        "-p",
+        PY_EXE,
+    ]
     assert result is True
 
 
@@ -480,9 +494,10 @@ async def test_uv_uninstall_in_project(mock_run: MagicMock):
 
     result = await mgr.uninstall("package1 package2")
 
-    mock_run.assert_called_once_with(
-        ["uv", "remove", "package1", "package2", "-p", PY_EXE],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == ["remove", "package1", "package2", "-p", PY_EXE]
     assert result is True
 
 
@@ -500,12 +515,13 @@ def test_uv_list_packages(mock_run: MagicMock):
 
     packages = mgr.list_packages()
 
-    mock_run.assert_called_once_with(
-        ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == ["pip", "list", "--format=json", "-p", PY_EXE]
+    assert mock_run.call_args[1]["capture_output"] is True
+    assert mock_run.call_args[1]["text"] is True
+    assert mock_run.call_args[1]["encoding"] == "utf-8"
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
     assert packages[1] == PackageDescription(name="package2", version="2.1.0")
@@ -593,12 +609,13 @@ def test_uv_list_packages_tree_fallback_to_pip_list(
     mock_dependency_tree.assert_called_once()
 
     # Should fall back to subprocess call
-    mock_run.assert_called_once_with(
-        ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == ["pip", "list", "--format=json", "-p", PY_EXE]
+    assert mock_run.call_args[1]["capture_output"] is True
+    assert mock_run.call_args[1]["text"] is True
+    assert mock_run.call_args[1]["encoding"] == "utf-8"
 
     # Should return packages from fallback method
     assert len(packages) == 2
@@ -848,9 +865,10 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
     result = await mgr._install("package1", upgrade=False, group=None)
 
     # Should only call run once (no fallback for project mode)
-    mock_run.assert_called_once_with(
-        ["uv", "add", "package1", "-p", PY_EXE],
-    )
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args[0].endswith("uv") or call_args[0] == "uv"
+    assert call_args[1:] == ["add", "package1", "-p", PY_EXE]
 
     # Should fail without retry
     assert result is False

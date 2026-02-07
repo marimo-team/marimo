@@ -351,9 +351,10 @@ async def test_uv_pip_install() -> None:
         pm = UvPackageManager()
         await pm._install("foo", upgrade=False, group=None)
 
-        assert runs_calls == [
-            ["uv", "pip", "install", "foo", "-p", PY_EXE],
-        ]
+        assert len(runs_calls) == 1
+        cmd = runs_calls[0]
+        assert cmd[0].endswith("uv") or cmd[0] == "uv"
+        assert cmd[1:] == ["pip", "install", "foo", "-p", PY_EXE]
 
 
 def test_log_callback_type() -> None:
