@@ -282,6 +282,8 @@ def test_get_hashable_ast_with_decorators() -> None:
         return fn
 
     def other_decorator(param: str):
+        del param
+
         def wrapper(fn):
             return fn
 
@@ -300,7 +302,8 @@ def test_get_hashable_ast_with_decorators() -> None:
     assert "my_cache" not in code
     assert "other_decorator" in code
     # Only decorators AFTER (inner to) the skipped one should be included
-    assert 'param="before"' not in code and "param='before'" not in code
+    assert 'param="before"' not in code
+    assert "param='before'" not in code
     assert 'param="after"' in code or "param='after'" in code
 
     # Test 2: Without skip_decorator, all decorators are included

@@ -2301,6 +2301,8 @@ def test_decorator_params_affect_hash() -> None:
         return fn
 
     def decorator_with_param(param: str):
+        del param
+
         def wrapper(fn):
             return fn
 
