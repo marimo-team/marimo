@@ -227,6 +227,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helperResizeHandle = (
     <PanelResizeHandle
       onDragging={handleDragging}
+      hitAreaMargins={{ coarse: 15, fine: 2 }}
       className={cn(
         "border-border print:hidden z-10",
         isSidebarOpen ? "resize-handle" : "resize-handle-collapsed",
@@ -281,7 +282,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helpPaneBody = (
     <ErrorBoundary>
       <PanelSectionProvider value="sidebar">
-        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
+        <div className="flex flex-col h-full flex-1 overflow-hidden">
           <div className="p-3 border-b flex justify-between items-center">
             {selectedPanel === "dependencies" ? (
               <div className="flex items-center justify-between flex-1">
