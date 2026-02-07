@@ -17,11 +17,16 @@ if TYPE_CHECKING:
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
+    import codecs
+
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
     while True:
-        data = os.read(fd, 1024)
+        data = os.read(fd, 4096)
         if not data:
             break
-        stream_object.write(data.decode())
+        text = decoder.decode(data)
+        if text:
+            stream_object.write(text)
 
 
 def dup2newfd(fd: int) -> tuple[int, int, int]:
