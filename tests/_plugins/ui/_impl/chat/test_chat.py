@@ -522,6 +522,20 @@ def test_chat_with_show_configuration_controls():
     assert chat._component_args["show-configuration-controls"] is True
 
 
+def test_chat_disabled():
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+    assert chat._component_args["disabled"] is False
+
+    chat_disabled = ui.chat(mock_model, disabled=True)
+    assert chat_disabled._component_args["disabled"] is True
+
+
 async def test_chat_clear_messages():
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
