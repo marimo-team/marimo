@@ -160,8 +160,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
               const downloadUrl = await getDownloadUrl(option.format);
               const ext = option.format;
               const rawName = (props.downloadFileName ?? "").trim();
-              const baseName =
-                rawName.replace(/\.[^/.]+$/, "") || "download";
+              const baseName = rawName.replace(/\.[^/.]+$/, "") || "download";
               downloadByURL(downloadUrl, `${baseName}.${ext}`);
             }}
           >
