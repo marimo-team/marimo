@@ -103,9 +103,6 @@ class Exporter:
             request.files, replaced_files
         )
 
-        # Extract model states for anywidget static rendering
-        model_states = session_view.get_static_model_states()
-
         # Generate final HTML
         code_hash = hash_code(app_code)
         html = static_notebook_template(
@@ -120,7 +117,7 @@ class Exporter:
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
-            model_states=model_states,
+            model_notifications=session_view.get_model_notifications(),
             asset_url=request.asset_url,
         )
 

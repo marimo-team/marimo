@@ -40,7 +40,7 @@ import { codeAtom, filenameAtom } from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
 import {
-  getStaticModelStates,
+  getStaticModelNotifications,
   isStaticNotebook,
 } from "./core/static/static-state";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
@@ -343,15 +343,12 @@ function initStore(options: unknown) {
  * render immediately without a kernel connection.
  */
 function hydrateStaticModels(): void {
-  const modelStates = getStaticModelStates();
-  if (!modelStates) {
+  const notifications = getStaticModelNotifications();
+  if (!notifications) {
     return;
   }
-  for (const [modelId, data] of Object.entries(modelStates)) {
-    handleWidgetMessage(MODEL_MANAGER, {
-      model_id: modelId,
-      message: { method: "open", ...data },
-    });
+  for (const notification of notifications) {
+    handleWidgetMessage(MODEL_MANAGER, notification);
   }
 }
 

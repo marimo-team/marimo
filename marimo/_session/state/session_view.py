@@ -94,7 +94,6 @@ class ModelReplayState:
             self.buffers[tuple(path)] = buf
 
     def to_notification(self) -> ModelLifecycleNotification:
-        """Convert back to a ModelOpen notification for replay."""
         paths = list(self.buffers.keys())
         bufs = list(self.buffers.values())
         return ModelLifecycleNotification(
@@ -105,20 +104,6 @@ class ModelReplayState:
                 buffers=bufs,
             ),
         )
-
-    def to_static_wire_format(self) -> dict[str, Any]:
-        """Convert to JSON-safe wire format for static HTML embedding."""
-        import base64
-
-        paths = list(self.buffers.keys())
-        bufs = [
-            base64.b64encode(b).decode("ascii") for b in self.buffers.values()
-        ]
-        return {
-            "state": dict(self.state),
-            "buffer_paths": [list(p) for p in paths],
-            "buffers": bufs,
-        }
 
 
 @dataclass
@@ -535,8 +520,8 @@ class SessionView:
 
         # Model messages must come before cell notifications to ensure
         # the model exists before the view tries to use it.
-        for view in self.model_states.values():
-            all_notifications.append(view.to_notification())
+        for state in self.model_states.values():
+            all_notifications.append(state.to_notification())
 
         if self.ui_element_messages:
             for ui_messages in self.ui_element_messages.values():
@@ -550,16 +535,15 @@ class SessionView:
             all_notifications.append(self.startup_logs)
         return all_notifications
 
-    def get_static_model_states(self) -> dict[str, dict[str, Any]]:
-        """Return all live model states in a JSON-safe wire format.
+    def get_model_notifications(self) -> list[ModelLifecycleNotification]:
+        """Return model-open notifications for all live widget models.
 
         Used to embed model state in static HTML exports so anywidgets
         can render without a running kernel.
         """
-        return {
-            str(model_id): model.to_static_wire_format()
-            for model_id, model in self.model_states.items()
-        }
+        return [
+            state.to_notification() for state in self.model_states.values()
+        ]
 
     def is_empty(self) -> bool:
         return all(

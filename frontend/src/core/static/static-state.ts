@@ -1,10 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
-import type {
-  MarimoStaticState,
-  StaticModelState,
-  StaticVirtualFiles,
-} from "./types";
+import type { ModelLifecycle } from "../kernel/messages";
+import type { MarimoStaticState, StaticVirtualFiles } from "./types";
 
 declare global {
   interface Window {
@@ -22,8 +19,6 @@ export function getStaticVirtualFiles(): StaticVirtualFiles {
   return window.__MARIMO_STATIC__.files;
 }
 
-export function getStaticModelStates():
-  | Record<string, StaticModelState>
-  | undefined {
-  return window?.__MARIMO_STATIC__?.modelStates;
+export function getStaticModelNotifications(): ModelLifecycle[] | undefined {
+  return window?.__MARIMO_STATIC__?.modelNotifications;
 }

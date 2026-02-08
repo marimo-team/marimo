@@ -11,6 +11,7 @@ from typing import Any, Literal, Optional, Union, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
+from marimo._messaging.notification import ModelLifecycleNotification
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -39,7 +40,10 @@ def _html_escape(text: str) -> str:
 def json_script(data: Any) -> str:
     # See https://github.com/django/django/blob/main/django/utils/html.py#L88C1-L92C2
     # Only escape values that can break out of a script tag
-    return json.dumps(data, sort_keys=True).translate(_json_script_escapes)
+    # Uses msgspec encoder to handle msgspec.Struct instances and bytes
+    from marimo._messaging.msgspec_encoder import encode_json_str
+
+    return encode_json_str(data).translate(_json_script_escapes)
 
 
 def _get_mount_config(
@@ -319,7 +323,7 @@ def static_notebook_template(
     session_snapshot: NotebookSessionV1,
     notebook_snapshot: NotebookV1,
     files: dict[str, str],
-    model_states: Optional[dict[str, Any]] = None,
+    model_notifications: Optional[list[ModelLifecycleNotification]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
     if asset_url is None:
@@ -362,7 +366,7 @@ def static_notebook_template(
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.files = {json_script(files)};
-        window.__MARIMO_STATIC__.modelStates = {json_script(model_states or {})};
+        window.__MARIMO_STATIC__.modelNotifications = {json_script(model_notifications or [])};
     </script>
     """
     )
