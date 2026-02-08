@@ -63,7 +63,6 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
         content={tooltip}
         side="top"
         delayDuration={200}
-        usePortal={false}
       >
         {content}
       </Tooltip>
