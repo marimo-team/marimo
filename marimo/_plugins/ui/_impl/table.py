@@ -1350,7 +1350,10 @@ class table(
         # Return cached result if the search args haven't changed.
         # This avoids re-applying format_mapping when the frontend fires
         # a redundant search on mount (see issue #3208).
-        if self._last_search_args == args and self._last_search_result is not None:
+        if (
+            self._last_search_args == args
+            and self._last_search_result is not None
+        ):
             return self._last_search_result
 
         offset = args.page_number * args.page_size

@@ -59,11 +59,7 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
 
   if (tooltip) {
     return (
-      <Tooltip
-        content={tooltip}
-        side="top"
-        delayDuration={200}
-      >
+      <Tooltip content={tooltip} side="top" delayDuration={200}>
         {content}
       </Tooltip>
     );

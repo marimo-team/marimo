@@ -184,7 +184,12 @@ export const TableActions = <TData,>({
         />
       )}
       <div className="ml-auto">
-        {downloadAs && <DownloadAs downloadAs={downloadAs} downloadFileName={downloadFileName} />}
+        {downloadAs && (
+          <DownloadAs
+            downloadAs={downloadAs}
+            downloadFileName={downloadFileName}
+          />
+        )}
       </div>
     </div>
   );

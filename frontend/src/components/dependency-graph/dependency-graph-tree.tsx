@@ -98,7 +98,14 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         settings.hideReusableFunctions,
       ),
     );
-  }, [cellIds, variables, cellAtoms, syncChanges, settings.hidePureMarkdown, settings.hideReusableFunctions]);
+  }, [
+    cellIds,
+    variables,
+    cellAtoms,
+    syncChanges,
+    settings.hidePureMarkdown,
+    settings.hideReusableFunctions,
+  ]);
 
   const [selection, setSelection] = useState<GraphSelection>();
   useFitToViewOnDimensionChange();
