@@ -2604,3 +2604,29 @@ def test_polars_enums_in_list():
         response_next_page.data
         == '[{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]},{"value":["C"]}]'
     )
+
+
+def test_format_mapping_called_once_per_search() -> None:
+    """format_mapping should not be called redundantly for repeated searches."""
+    call_count = 0
+
+    def counting_formatter(x: Any) -> Any:
+        nonlocal call_count
+        call_count += 1
+        return x
+
+    data = {"a": [1, 2, 3]}
+    t = ui.table(data, format_mapping={"a": counting_formatter})
+
+    # The init already calls _search once, which applies format_mapping
+    initial_count = call_count
+
+    # Simulate the frontend's redundant search on mount (same args)
+    t._search(SearchTableArgs(page_size=10, page_number=0))
+
+    # format_mapping should not be called again for identical args
+    assert call_count == initial_count
+
+    # A different page should trigger format_mapping again
+    t._search(SearchTableArgs(page_size=10, page_number=0, query="2"))
+    assert call_count > initial_count
