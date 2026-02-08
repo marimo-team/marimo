@@ -42,10 +42,12 @@ class CompletionConfig(TypedDict):
     - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
     - `codeium_api_key`: the Codeium API key
+    - `close_brackets`: if `False`, brackets won't be auto-closed
     """
 
     activate_on_typing: bool
     signature_hint_on_typing: bool
+    close_brackets: NotRequired[bool]
     copilot: Union[bool, Literal["github", "codeium", "custom"]]
 
     # Codeium
@@ -658,6 +660,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "activate_on_typing": True,
         "signature_hint_on_typing": False,
         "copilot": False,
+        "close_brackets": True,
     },
     "display": {
         "theme": "light",

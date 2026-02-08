@@ -572,6 +572,38 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="completion.close_brackets"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Auto-close brackets
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="close-brackets-checkbox"
+                          checked={field.value ?? true}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.close_brackets"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      Automatically insert closing brackets, parentheses, and
+                      quotes when typing.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Language Servers">
               <FormDescription>
