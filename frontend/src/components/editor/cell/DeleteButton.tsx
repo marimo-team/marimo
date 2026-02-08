@@ -35,7 +35,7 @@ export const DeleteButton = (props: {
   }
 
   return (
-    <Tooltip content={tooltipMsg} usePortal={false}>
+    <Tooltip content={tooltipMsg}>
       <Button
         variant="ghost"
         size="icon"

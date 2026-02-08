@@ -4,6 +4,10 @@
   outline: none;
 }
 
+.resize-handle-collapsed {
+  cursor: default;
+}
+
 .resize-handle.horizontal,
 .resize-handle-collapsed.horizontal {
   height: 4px;
