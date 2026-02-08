@@ -90,7 +90,20 @@ export const DataTableColumnHeader = <TData, TValue>({
 
   // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
-    return <div className={cn(className)}>{header}</div>;
+    return (
+      <div
+        className={cn(
+          justify === "right"
+            ? "text-right"
+            : justify === "center"
+              ? "text-center"
+              : undefined,
+          className,
+        )}
+      >
+        {header}
+      </div>
+    );
   }
 
   const hasFilter = column.getFilterValue() !== undefined;
@@ -104,6 +117,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             className={cn(
               "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-(--slate-3) data-[state=open]:bg-(--slate-3) data-[state=open]:border-border rounded px-1 -mx-1",
               justify === "right" && "flex-row-reverse",
+              justify === "center" && "justify-center",
               className,
             )}
             data-testid="data-table-sort-button"
