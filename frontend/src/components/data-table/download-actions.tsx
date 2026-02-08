@@ -36,6 +36,7 @@ type DownloadFormat = "csv" | "json" | "parquet";
 
 export interface DownloadActionProps {
   downloadAs: (req: { format: DownloadFormat }) => Promise<string>;
+  downloadFileName?: string;
 }
 
 const options = [
@@ -158,7 +159,8 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
             onSelect={async () => {
               const downloadUrl = await getDownloadUrl(option.format);
               const ext = option.format;
-              downloadByURL(downloadUrl, `download.${ext}`);
+              const baseName = props.downloadFileName || "download";
+              downloadByURL(downloadUrl, `${baseName}.${ext}`);
             }}
           >
             <option.icon className="mo-dropdown-icon" />

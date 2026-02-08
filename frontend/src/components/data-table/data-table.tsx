@@ -116,6 +116,7 @@ const DataTableInternal = <TData,>({
   paginationState,
   setPaginationState,
   downloadAs,
+  downloadFileName,
   manualPagination = false,
   pagination = false,
   onRowSelectionChange,
@@ -334,6 +335,7 @@ const DataTableInternal = <TData,>({
         onRowSelectionChange={onRowSelectionChange}
         table={table}
         downloadAs={downloadAs}
+        downloadFileName={downloadFileName}
         getRowIds={getRowIds}
         toggleDisplayHeader={toggleDisplayHeader}
         showChartBuilder={showChartBuilder}
