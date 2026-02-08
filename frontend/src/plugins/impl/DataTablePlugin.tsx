@@ -279,6 +279,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       // If lazy, this will preload the first page of data
       // without user confirmation.
       preload: z.boolean().default(false),
+      downloadFileName: z.string().optional(),
     }),
   )
   .withFunctions<DataTableFunctions>({
