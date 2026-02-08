@@ -85,6 +85,7 @@ export const UserConfigSchema = z
             return copilot;
           }),
         codeium_api_key: z.string().nullish(),
+        close_brackets: z.boolean().prefault(true),
       })
       .prefault({}),
     save: z
