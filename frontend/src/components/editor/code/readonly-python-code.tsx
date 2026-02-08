@@ -101,7 +101,7 @@ const CopyButton = (props: { text: string }) => {
   });
 
   return (
-    <Tooltip content="Copy code" usePortal={false}>
+    <Tooltip content="Copy code" >
       <Button onClick={copy} size="xs" className="py-0" variant="secondary">
         <CopyIcon size={14} strokeWidth={1.5} />
       </Button>
@@ -111,7 +111,7 @@ const CopyButton = (props: { text: string }) => {
 
 const EyeCloseButton = (props: { onClick: () => void }) => {
   return (
-    <Tooltip content="Hide code" usePortal={false}>
+    <Tooltip content="Hide code" >
       <Button
         onClick={props.onClick}
         size="xs"
@@ -131,7 +131,7 @@ export const HideCodeButton = (props: {
 }) => {
   return (
     <div className={props.className} onClick={props.onClick}>
-      <Tooltip usePortal={false} content={props.tooltip}>
+      <Tooltip  content={props.tooltip}>
         <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100 z-20" />
       </Tooltip>
     </div>
@@ -146,7 +146,7 @@ const InsertNewCell = (props: { code: string }) => {
   };
 
   return (
-    <Tooltip content="Add code to notebook" usePortal={false}>
+    <Tooltip content="Add code to notebook" >
       <Button
         onClick={handleClick}
         size="xs"

@@ -736,7 +736,7 @@ components:
         \ the completion hotkey is entered\n    - `signature_hint_on_typing`: if `False`,\
         \ signature hint won't be shown when typing\n    - `copilot`: one of `\"github\"\
         `, `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
-        \ key"
+        \ key\n    - `close_brackets`: if `False`, brackets won't be auto-closed"
       properties:
         activate_on_typing:
           type: boolean
@@ -748,6 +748,8 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        close_brackets:
+          type: boolean
         codeium_api_key:
           anyOf:
           - type: string
@@ -4830,7 +4832,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.7
+  version: 0.19.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

@@ -206,10 +206,10 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     copilotBundle(completionConfig),
     foldGutter(),
     stringsAutoCloseBraces(),
-    closeBrackets(),
+    ...(completionConfig.close_brackets !== false
+      ? [closeBrackets(), Prec.high(keymap.of(closeBracketsKeymap))]
+      : []),
     completionKeymap(),
-    // to avoid clash with charDeleteBackward keymap
-    Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),
     indentOnInput(),
     indentUnit.of("    "),

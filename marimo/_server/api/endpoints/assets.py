@@ -299,18 +299,32 @@ def _inject_service_worker(html: str, file_key: str) -> str:
         f"""
             if ('serviceWorker' in navigator) {{
                 const notebookId = '{uri_encode_component(file_key)}';
-                navigator.serviceWorker.register('./public-files-sw.js?v=2')
-                    .then(registration => {{
+                function sendNotebookId(registration) {{
+                    if (registration.active) {{
                         registration.active.postMessage({{ notebookId }});
+                        return;
+                    }}
+                    var worker = registration.installing || registration.waiting;
+                    if (worker) {{
+                        worker.addEventListener('statechange', function() {{
+                            if (worker.state === 'activated') {{
+                                registration.active.postMessage({{ notebookId }});
+                            }}
+                        }});
+                    }}
+                }}
+                navigator.serviceWorker.register('./public-files-sw.js?v=2')
+                    .then(function(registration) {{
+                        sendNotebookId(registration);
                     }})
-                    .catch(error => {{
+                    .catch(function(error) {{
                         console.error('Error registering service worker:', error);
                     }});
                 navigator.serviceWorker.ready
-                    .then(registration => {{
-                        registration.update().then(() => registration.active.postMessage({{ notebookId }}));
+                    .then(function(registration) {{
+                        registration.update().then(function() {{ sendNotebookId(registration); }});
                     }})
-                    .catch(error => {{
+                    .catch(function(error) {{
                         console.error('Error updating service worker:', error);
                     }});
             }} else {{

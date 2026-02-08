@@ -48,6 +48,7 @@ type TableData<T> = T[] | CsvURL;
 interface Data {
   label?: string | null;
   columns: ColumnDataTypes;
+  dataframeName?: string;
   pageSize: number;
   showDownload: boolean;
   lazy: boolean;
@@ -93,6 +94,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       label: z.string().nullish(),
       pageSize: z.number().default(5),
       showDownload: z.boolean().default(true),
+      dataframeName: z.string().optional(),
       columns: z
         .array(z.tuple([z.string().or(z.number()), z.string(), z.string()]))
         .transform((value) => {
@@ -176,6 +178,7 @@ const EMPTY: Transformations = {
 export const DataFrameComponent = memo(
   ({
     columns,
+    dataframeName,
     pageSize,
     showDownload,
     lazy,
@@ -326,6 +329,7 @@ export const DataFrameComponent = memo(
           fieldTypes={field_types}
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={showDownload}
+          downloadFileName={dataframeName}
           download_as={download_as}
           enableSearch={false}
           showFilters={false}

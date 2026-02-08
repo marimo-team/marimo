@@ -517,8 +517,16 @@ class NarwhalsTableManager(
                     }
                 )
 
+        import warnings
+
         stats = frame.select(**exprs)
-        stats_dict = stats.collect().rows(named=True)[0]
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Mean of empty slice|Degrees of freedom",
+                category=RuntimeWarning,
+            )
+            stats_dict = stats.collect().rows(named=True)[0]
 
         # Maybe add units to the stats
         for key, value in stats_dict.items():

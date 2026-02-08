@@ -43,7 +43,8 @@ export const GraphToolbar: React.FC<Props> = memo(
       onSettingsChange({ ...settings, [key]: value });
     };
 
-    const checkboxId = useId();
+    const markdownCheckboxId = useId();
+    const functionsCheckboxId = useId();
 
     const settingsButton = (
       <Popover>
@@ -54,16 +55,31 @@ export const GraphToolbar: React.FC<Props> = memo(
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2 text-muted-foreground">
           <div className="font-semibold pb-4">Settings</div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              data-testid="hide-pure-markdown-checkbox"
-              id={checkboxId}
-              checked={settings.hidePureMarkdown}
-              onCheckedChange={(checked) =>
-                handleSettingChange("hidePureMarkdown", Boolean(checked))
-              }
-            />
-            <Label htmlFor={checkboxId}>Hide pure markdown</Label>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                data-testid="hide-pure-markdown-checkbox"
+                id={markdownCheckboxId}
+                checked={settings.hidePureMarkdown}
+                onCheckedChange={(checked) =>
+                  handleSettingChange("hidePureMarkdown", Boolean(checked))
+                }
+              />
+              <Label htmlFor={markdownCheckboxId}>Hide pure markdown</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                data-testid="hide-reusable-functions-checkbox"
+                id={functionsCheckboxId}
+                checked={settings.hideReusableFunctions}
+                onCheckedChange={(checked) =>
+                  handleSettingChange("hideReusableFunctions", Boolean(checked))
+                }
+              />
+              <Label htmlFor={functionsCheckboxId}>
+                Hide reusable functions
+              </Label>
+            </div>
           </div>
         </PopoverContent>
       </Popover>

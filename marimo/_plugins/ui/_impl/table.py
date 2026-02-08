@@ -635,6 +635,11 @@ class table(
 
         # We will need this when calling table manager's to_json_str()
         self._format_mapping = format_mapping
+        # Cache the last search result to avoid redundant format_mapping calls.
+        # The frontend fires a search on mount even for the initial page, which
+        # would re-apply format_mapping. Caching prevents the double call.
+        self._last_search_args: Optional[SearchTableArgs] = None
+        self._last_search_result: Optional[SearchTableResponse] = None
 
         if pagination is False and total_rows != "too_many":
             page_size = total_rows
@@ -1342,6 +1347,12 @@ class table(
                 - cell_styles: User defined styling information for each cell in the page
                 - cell_hover_texts: User defined hover text for each cell in the page
         """
+        # Return cached result if the search args haven't changed.
+        # This avoids re-applying format_mapping when the frontend fires
+        # a redundant search on mount (see issue #3208).
+        if self._last_search_args == args and self._last_search_result is not None:
+            return self._last_search_result
+
         offset = args.page_number * args.page_size
         max_columns = args.max_columns
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
@@ -1379,7 +1390,7 @@ class table(
             else:
                 total_rows = self._manager.get_num_rows(force=True) or 0
 
-            return SearchTableResponse(
+            response = SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=total_rows,
                 cell_styles=self._style_cells(
@@ -1389,6 +1400,9 @@ class table(
                     offset, args.page_size, total_rows
                 ),
             )
+            self._last_search_args = args
+            self._last_search_result = response
+            return response
 
         filter_function = (
             self._apply_filters_query_sort_cached
@@ -1416,7 +1430,7 @@ class table(
                 if element.descending:
                     descending = True
 
-        return SearchTableResponse(
+        response = SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
             cell_styles=self._style_cells(
@@ -1426,6 +1440,9 @@ class table(
                 offset, args.page_size, total_rows, descending
             ),
         )
+        self._last_search_args = args
+        self._last_search_result = response
+        return response
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
         """Get row IDs of a table. If searched, return searched rows else all_rows flag is True.
