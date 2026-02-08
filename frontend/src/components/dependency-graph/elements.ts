@@ -178,7 +178,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
       const code = store.get(cellAtom).code.trim();
       const hasEdge = nodesWithEdges.has(cellId);
       const isMarkdown = code.startsWith("mo.md");
-      const isReusableFunction = code.startsWith("def ");
+      const isReusableFunction = /^(async\s+def|def|class)\s/.test(code);
 
       // Apply filters
       if (hidePureMarkdown && isMarkdown && !hasEdge) {
