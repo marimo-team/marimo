@@ -29,6 +29,7 @@ interface ElementsBuilder {
     cellAtoms: Atom<CellData>[],
     variables: Variables,
     hidePureMarkdown: boolean,
+    hideReusableFunctions: boolean,
   ) => { nodes: Node<NodeData>[]; edges: Edge[] };
 }
 
@@ -76,6 +77,7 @@ export class VerticalElementsBuilder implements ElementsBuilder {
     cellAtoms: Atom<CellData>[],
     variables: Variables,
     _hidePureMarkdown: boolean,
+    _hideReusableFunctions: boolean,
   ) {
     let prevY = 0;
     const nodes: Node<NodeData>[] = [];
@@ -143,6 +145,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
     cellAtoms: Atom<CellData>[],
     variables: Variables,
     hidePureMarkdown: boolean,
+    hideReusableFunctions: boolean,
   ) {
     const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
@@ -172,17 +175,21 @@ export class TreeElementsBuilder implements ElementsBuilder {
     }
 
     for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
-      // Show every cell
-      if (!hidePureMarkdown) {
-        nodes.push(this.createNode(cellId, cellAtom));
+      const code = store.get(cellAtom).code.trim();
+      const hasEdge = nodesWithEdges.has(cellId);
+      const isMarkdown = code.startsWith("mo.md");
+      const isReusableFunction = code.startsWith("def ");
+
+      // Apply filters
+      if (hidePureMarkdown && isMarkdown && !hasEdge) {
+        continue;
+      }
+      if (hideReusableFunctions && isReusableFunction && !hasEdge) {
+        continue;
       }
 
-      const hasEdge = nodesWithEdges.has(cellId);
-      const isMarkdown = store.get(cellAtom).code.trim().startsWith("mo.md");
-      // Show only cells with edges or non-markdown cells
-      if (hasEdge || !isMarkdown) {
-        nodes.push(this.createNode(cellId, cellAtom));
-      }
+      // Show every cell that wasn't filtered out
+      nodes.push(this.createNode(cellId, cellAtom));
     }
 
     return { nodes, edges };

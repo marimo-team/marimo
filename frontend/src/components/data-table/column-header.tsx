@@ -69,6 +69,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
   header: React.ReactNode;
   calculateTopKRows?: CalculateTopKRows;
   table?: Table<TData>;
+  justify?: "left" | "center" | "right";
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
@@ -77,6 +78,7 @@ export const DataTableColumnHeader = <TData, TValue>({
   className,
   calculateTopKRows,
   table,
+  justify,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
   const [isFilterValueOpen, setIsFilterValueOpen] = useState(false);
   const { locale } = useLocale();
@@ -101,6 +103,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <div
             className={cn(
               "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-(--slate-3) data-[state=open]:bg-(--slate-3) data-[state=open]:border-border rounded px-1 -mx-1",
+              justify === "right" && "flex-row-reverse",
               className,
             )}
             data-testid="data-table-sort-button"

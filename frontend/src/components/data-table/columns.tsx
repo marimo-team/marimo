@@ -208,12 +208,15 @@ export function generateColumns<T>({
           headerWithType
         );
 
+        const headerJustify = textJustifyColumns?.[key];
+
         const dataTableColumnHeader = (
           <DataTableColumnHeader
             header={headerWithTooltip}
             column={column}
             calculateTopKRows={calculateTopKRows}
             table={table}
+            justify={headerJustify}
           />
         );
 
@@ -223,7 +226,16 @@ export function generateColumns<T>({
         }
 
         return (
-          <div className="flex flex-col h-full pt-0.5 pb-3 justify-between items-start">
+          <div
+            className={cn(
+              "flex flex-col h-full pt-0.5 pb-3 justify-between",
+              headerJustify === "right"
+                ? "items-end"
+                : headerJustify === "center"
+                  ? "items-center"
+                  : "items-start",
+            )}
+          >
             {dataTableColumnHeader}
             <TableColumnSummary columnId={key} />
           </div>
