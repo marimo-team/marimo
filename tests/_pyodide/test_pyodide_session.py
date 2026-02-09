@@ -351,7 +351,7 @@ async def test_pyodide_session_put_input(
         # Notebook operations
         (
             '{"type": "create-notebook", "executionRequests": [{"cellId": "cell-1", "code": "print(1)", "type": "execute-cell"}], '
-            '"setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
+            '"cellIds": ["cell-1"], "setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
             '"autoRun": true}',
             CreateNotebookCommand,
         ),
