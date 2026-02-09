@@ -251,7 +251,7 @@ def test_query_includes_limit() -> None:
 
 
 @patch("marimo._sql.sql.replace")
-@pytest.mark.skipif(not HAS_POLARS and HAS_DUCKDB, reason="polars is required")
+@pytest.mark.requires("polars", "duckdb")
 def test_applies_limit(mock_replace: MagicMock) -> None:
     import duckdb
 
@@ -313,7 +313,7 @@ def test_sql_raises_error_without_duckdb():
 
 
 @patch("marimo._sql.sql.replace")
-@pytest.mark.skipif(not HAS_POLARS and HAS_DUCKDB, reason="polars is required")
+@pytest.mark.requires("polars", "duckdb")
 def test_sql_output_flag(mock_replace: MagicMock) -> None:
     import duckdb
     import polars as pl

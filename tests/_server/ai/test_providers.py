@@ -90,6 +90,9 @@ def test_get_completion_provider(
 ) -> None:
     """Test that the correct provider is returned for a given model."""
 
+    if not DependencyManager.pydantic_ai.has():
+        pytest.skip("requires pydantic_ai")
+
     if dependency and not dependency.has():
         pytest.skip(f"{dependency.pkg} is not installed")
 
@@ -107,6 +110,7 @@ def test_get_completion_provider(
     assert isinstance(provider, provider_type)
 
 
+@pytest.mark.requires("pydantic_ai")
 async def test_azure_openai_provider() -> None:
     """Test that Azure OpenAI provider uses correct parameters."""
     config = AnyProviderConfig(
@@ -272,6 +276,7 @@ def test_anthropic_process_part_text_file() -> None:
         ),
     ],
 )
+@pytest.mark.requires("pydantic_ai")
 def test_is_reasoning_model(
     model_name: str, base_url: str | None, expected: bool
 ) -> None:
