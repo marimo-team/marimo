@@ -2245,8 +2245,8 @@ class Kernel:
         async def handle_receive_model_message(
             request: ModelCommand,
         ) -> None:
-            ui_element_id, state = (
-                WIDGET_COMM_MANAGER.receive_comm_message(request)
+            ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
+                request
             )
 
             # If there's a ui_element_id, trigger a cell re-run

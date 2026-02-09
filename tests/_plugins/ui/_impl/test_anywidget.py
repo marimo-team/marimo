@@ -675,3 +675,61 @@ layer.observe(
         )
 
         assert k.globals["result"] == 42
+
+    @staticmethod
+    async def test_observe_state_no_self_loop(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify that __external__ sentinel doesn't cause self-loops.
+
+        If a cell both defines and reads a state (get_count), plus has
+        an observe callback that calls the setter, the defining cell
+        should NOT re-run — only downstream cells should.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
+
+c = Counter()
+get_count, set_count = mo.state(c.count)
+c.observe(lambda _: set_count(c.count), names="count")
+
+# Read the state in the SAME cell that defines it
+same_cell_value = get_count()
+run_count = globals().get("run_count", 0) + 1
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
+        )
+
+        assert k.globals["same_cell_value"] == 0
+        assert k.globals["result"] == 0
+        initial_run_count = k.globals["run_count"]
+
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 7},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # Downstream cell should update
+        assert k.globals["result"] == 7
+        # The defining cell should NOT have re-run (no self-loop)
+        assert k.globals["run_count"] == initial_run_count
