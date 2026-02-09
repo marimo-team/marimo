@@ -2331,7 +2331,7 @@ def test_decorator_params_affect_hash() -> None:
         "Decorator param change AFTER @cache should invalidate hash"
     )
 
-    # Test 2: Decorator BEFORE @cache - param change should also affect hash
+    # Test 2: Decorator BEFORE @cache - param change should NOT affect hash
     @decorator_with_param(param="value1")
     @cache
     def fn():
