@@ -1,4 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import type * as Plotly from "plotly.js";
 import { describe, expect, it } from "vitest";
 import { createParser } from "../parse-from-template";
 
