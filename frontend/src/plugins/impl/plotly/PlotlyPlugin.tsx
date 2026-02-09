@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Figure, PlotParams } from "react-plotly.js";
+import type * as Plotly from "plotly.js";
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 import { Logger } from "@/utils/Logger";
+import type { Figure } from "./Plot";
 
 import "./plotly.css";
 import "./mapbox.css";
@@ -70,13 +71,8 @@ interface PlotlyPluginProps extends Data {
   host: HTMLElement;
 }
 
-// For whatever reason, the version of vite-rolldown that we are one is not exporting this default export correctly.
-export const LazyPlot = lazy(() =>
-  import("react-plotly.js").then((module) => {
-    return module.default as unknown as {
-      default: React.ComponentType<PlotParams>;
-    };
-  }),
+const LazyPlot = lazy(() =>
+  import("./Plot").then((mod) => ({ default: mod.Plot })),
 );
 
 const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
@@ -176,7 +172,6 @@ export const PlotlyComponent = memo(
             };
           });
         })}
-        // @ts-expect-error We patched this prop here so it doesn't exist in the types
         onTreemapClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
           if (!evt) {
             return;
@@ -215,7 +210,7 @@ export const PlotlyComponent = memo(
         className="w-full"
         useResizeHandler={true}
         frames={figure.frames ?? undefined}
-        onError={useEvent((err) => {
+        onError={useEvent((err: Error) => {
           Logger.error("PlotlyPlugin: ", err);
         })}
       />

@@ -14,9 +14,6 @@ patchedDependencies:
   html-to-image@1.11.13:
     hash: 5fdb1de4a857e2fda0956b7e05a1b32817de8e7008009e71c0120ef02b886219
     path: patches/html-to-image@1.11.13.patch
-  react-plotly.js:
-    hash: e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189
-    path: patches/react-plotly.js.patch
 
 importers:
 
@@ -448,9 +445,6 @@ importers:
       react-markdown:
         specifier: ^9.1.0
         version: 9.1.0(@types/react@19.2.10)(react@19.2.4)
-      react-plotly.js:
-        specifier: ^2.6.0
-        version: 2.6.0(patch_hash=e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189)(plotly.js@2.35.3(mapbox-gl@1.13.3)(webpack@5.100.2(esbuild@0.27.2)))(react@19.2.4)
       react-resizable-panels:
         specifier: 2.1.9
         version: 2.1.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -578,15 +572,15 @@ importers:
       '@types/node':
         specifier: ^24.10.9
         version: 24.10.9
+      '@types/plotly.js':
+        specifier: ^2.33.4
+        version: 2.35.13
       '@types/react':
         specifier: ^19.2.10
         version: 19.2.10
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.10)
-      '@types/react-plotly.js':
-        specifier: ^2.6.4
-        version: 2.6.4
       '@types/timestring':
         specifier: ^6.0.5
         version: 6.0.5
@@ -4195,8 +4189,8 @@ packages:
   '@types/pegjs@0.10.6':
     resolution: {integrity: sha512-eLYXDbZWXh2uxf+w8sXS8d6KSoXTswfps6fvCUuVAGN8eRpfe7h9eSRydxiSJvo9Bf+GzifsDOr9TMQlmJdmkw==}
 
-  '@types/plotly.js@3.0.2':
-    resolution: {integrity: sha512-84eSnXD5gTM36iaOv3/4cduF2X0eptMnK9CcghH56A4uhSiFjAIgqhFGmdq+0yDh2jLQzL1s34CsBU5KD3MvPA==}
+  '@types/plotly.js@2.35.13':
+    resolution: {integrity: sha512-j5G1TJQKOOsEqvypTtWwU1WMcWUmYfgGpz4WVDVJ4/j5giIEgj4uLeG85SFzhlaO2xxtX07Cx/ZpB0LPNqYx7Q==}
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -4208,9 +4202,6 @@ packages:
 
   '@types/react-grid-layout@1.3.6':
     resolution: {integrity: sha512-Cw7+sb3yyjtmxwwJiXtEXcu5h4cgs+sCGkHwHXsFmPyV30bf14LeD/fa2LwQovuD2HWxCcjIdNhDlcYGj95qGA==}
-
-  '@types/react-plotly.js@2.6.4':
-    resolution: {integrity: sha512-AU6w1u3qEGM0NmBA69PaOgNc0KPFA/+qkH6Uu9EBTJ45/WYOUoXi9AF5O15PRM2klpHSiHAAs4WnlI+OZAFmUA==}
 
   '@types/react-transition-group@4.4.12':
     resolution: {integrity: sha512-8TV6R3h2j7a91c+1DXdJi3Syo69zzIZbz7Lg5tORM5LEJG7X/E6a1V3drRyBRZq7/utz7A+c4OgYLiLcYGHG6w==}
@@ -8523,12 +8514,6 @@ packages:
     peerDependencies:
       react: ^19.2.4
       react-dom: ^19.2.4
-
-  react-plotly.js@2.6.0:
-    resolution: {integrity: sha512-g93xcyhAVCSt9kV1svqG1clAEdL6k3U+jjuSzfTV7owaSU9Go6Ph8bl25J+jKfKvIGAEYpe4qj++WHJuc9IaeA==}
-    peerDependencies:
-      plotly.js: '>1.34.0'
-      react: ^19.2.4
 
   react-property@2.0.2:
     resolution: {integrity: sha512-+PbtI3VuDV0l6CleQMsx2gtK0JZbZKbpdu5ynr+lbsuvtmgbNcS3VM0tuY2QjFNOcWxvXeHjDpy42RO+4U2rug==}
@@ -14642,7 +14627,7 @@ snapshots:
 
   '@types/pegjs@0.10.6': {}
 
-  '@types/plotly.js@3.0.2': {}
+  '@types/plotly.js@2.35.13': {}
 
   '@types/prop-types@15.7.15': {}
 
@@ -14652,11 +14637,6 @@ snapshots:
 
   '@types/react-grid-layout@1.3.6':
     dependencies:
-      '@types/react': 19.2.10
-
-  '@types/react-plotly.js@2.6.4':
-    dependencies:
-      '@types/plotly.js': 3.0.2
       '@types/react': 19.2.10
 
   '@types/react-transition-group@4.4.12(@types/react@19.2.10)':
@@ -19797,12 +19777,6 @@ snapshots:
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-
-  react-plotly.js@2.6.0(patch_hash=e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189)(plotly.js@2.35.3(mapbox-gl@1.13.3)(webpack@5.100.2(esbuild@0.27.2)))(react@19.2.4):
-    dependencies:
-      plotly.js: 2.35.3(mapbox-gl@1.13.3)(webpack@5.100.2(esbuild@0.27.2))
-      prop-types: 15.8.1
-      react: 19.2.4
 
   react-property@2.0.2: {}
 

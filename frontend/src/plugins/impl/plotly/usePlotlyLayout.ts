@@ -2,9 +2,10 @@
 
 import { usePrevious } from "@uidotdev/usehooks";
 import { isEqual, pick } from "lodash-es";
+import type * as Plotly from "plotly.js";
 import { useEffect, useState } from "react";
-import type { Figure } from "react-plotly.js";
 import { Objects } from "@/utils/objects";
+import type { Figure } from "./Plot";
 
 /**
  * Keys that are preserved across figure updates when set by user interaction.
