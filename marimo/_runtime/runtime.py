@@ -1448,8 +1448,14 @@ class Kernel:
         from marimo._runtime.threads import is_marimo_thread
 
         ctx = get_context()
-        assert ctx.execution_context is not None
-        setter_cell_id = ctx.execution_context.cell_id
+        if ctx.execution_context is not None:
+            setter_cell_id = ctx.execution_context.cell_id
+        else:
+            # Setter called outside cell execution (e.g. from a widget
+            # callback triggered by a frontend message). Use a sentinel
+            # that won't match any real cell, so self-loop prevention
+            # is skipped.
+            setter_cell_id = CellId_t("__external__")
 
         # When running on the main thread of execution, state updates
         # are just logged in a data structure; it is the runner's
@@ -2239,17 +2245,24 @@ class Kernel:
         async def handle_receive_model_message(
             request: ModelCommand,
         ) -> None:
-            ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
-                request
+            ui_element_id, state = (
+                WIDGET_COMM_MANAGER.receive_comm_message(request)
             )
 
             # If there's a ui_element_id, trigger a cell re-run
+            # via the UI element path (which also processes state updates).
             if ui_element_id and state:
                 await self.set_ui_element_value(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
                     )
                 )
+                broadcast_notification(CompletedRunNotification())
+            elif self.state_updates:
+                # Callbacks during message processing (e.g. widget observe
+                # handlers) may have called mo.state setters. Process
+                # those pending state updates now.
+                await self._run_cells(set())
                 broadcast_notification(CompletedRunNotification())
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:

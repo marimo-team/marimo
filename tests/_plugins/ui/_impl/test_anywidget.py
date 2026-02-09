@@ -15,8 +15,13 @@ from marimo._plugins.ui._impl.from_anywidget import (
     from_anywidget,
     get_anywidget_state,
 )
-from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.commands import (
+    ModelCommand,
+    ModelUpdateMessage,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import WidgetModelId
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = (
@@ -550,3 +555,123 @@ x = as_marimo_element.count
         # Test KeyError propagation
         with pytest.raises(KeyError):
             _ = wrapped["nonexistent"]
+
+    @staticmethod
+    async def test_model_message_with_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that mo.state setters work inside widget observe callbacks.
+
+        Regression test: when a model update message arrives from the
+        frontend, the observe callback must run inside an execution
+        context so that mo.state setters can trigger downstream re-runs.
+        This test does NOT use mo.ui.anywidget() — the model exists
+        without a view, verifying the model-to-cell mapping works
+        independently of the UIElement path.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
+
+c = Counter()
+get_count, set_count = mo.state(c.count)
+
+def _on_count_change(_):
+    set_count(c.count)
+
+c.observe(_on_count_change, names="count")
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
+        )
+
+        assert k.globals["result"] == 0
+
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        # Simulate a model update from the frontend
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 5},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # The observe callback should have fired set_count,
+        # which triggers re-execution of the cell reading get_count()
+        assert k.globals["result"] == 5
+
+    @staticmethod
+    async def test_nested_model_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test observe on a child widget nested inside a parent widget.
+
+        Models the lonboard pattern: a Map widget holds Layer children,
+        and the user observes trait changes on the inner layer. The
+        parent (Map) is displayed via mo.ui.anywidget, but the observe
+        callback is on the child layer which has its own model.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Layer(anywidget.AnyWidget):
+    _esm = ""
+    selected_index = traitlets.Int(0).tag(sync=True)
+
+class Map(anywidget.AnyWidget):
+    _esm = ""
+    layer = traitlets.Instance(Layer).tag(sync=True)
+
+layer = Layer()
+m = Map(layer=layer)
+w = mo.ui.anywidget(m)
+
+get_selected, set_selected = mo.state(layer.selected_index)
+layer.observe(
+    lambda _: set_selected(layer.selected_index),
+    names="selected_index",
+)
+"""
+                ),
+                exec_req.get("result = get_selected()"),
+            ]
+        )
+
+        assert k.globals["result"] == 0
+
+        layer = k.globals["layer"]
+        layer_model_id = WidgetModelId(layer._model_id)
+
+        # Simulate frontend updating the child layer's trait
+        await k.handle_message(
+            ModelCommand(
+                model_id=layer_model_id,
+                message=ModelUpdateMessage(
+                    state={"selected_index": 42},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        assert k.globals["result"] == 42
