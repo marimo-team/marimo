@@ -1,36 +1,42 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as Plotly from "plotly.js";
+import type * as PlotlyTypes from "plotly.js";
+// Import the pre-built dist bundle, not the source entry point.
+// The source entry point requires Node.js polyfills (e.g. `buffer/`)
+// that are unavailable in the browser/bundler environment.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error — no type declarations for dist path, we use PlotlyTypes above
+import Plotly from "plotly.js/dist/plotly";
 import { useEffect, useRef } from "react";
 
 // Plotly attaches `on` and `removeListener` to the DOM element at runtime.
 // The @types/plotly.js PlotlyHTMLElement type includes `on` and `removeAllListeners`
 // but not the per-handler `removeListener`. We extend the type to include it.
-interface PlotlyElement extends Plotly.PlotlyHTMLElement {
+interface PlotlyElement extends PlotlyTypes.PlotlyHTMLElement {
   removeListener(event: string, handler: (...args: never[]) => void): void;
 }
 
 export interface Figure {
-  data: Plotly.Data[];
-  layout: Partial<Plotly.Layout>;
-  frames: Plotly.Frame[] | null;
+  data: PlotlyTypes.Data[];
+  layout: Partial<PlotlyTypes.Layout>;
+  frames: PlotlyTypes.Frame[] | null;
 }
 
 export interface PlotProps {
-  data: Plotly.Data[];
-  layout: Partial<Plotly.Layout>;
-  frames?: Plotly.Frame[];
-  config?: Partial<Plotly.Config>;
+  data: PlotlyTypes.Data[];
+  layout: Partial<PlotlyTypes.Layout>;
+  frames?: PlotlyTypes.Frame[];
+  config?: Partial<PlotlyTypes.Config>;
   className?: string;
   style?: React.CSSProperties;
   useResizeHandler?: boolean;
   divId?: string;
-  onRelayout?: (event: Plotly.PlotRelayoutEvent) => void;
-  onRelayouting?: (event: Plotly.PlotRelayoutEvent) => void;
-  onSelected?: (event: Plotly.PlotSelectionEvent) => void;
+  onRelayout?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
+  onRelayouting?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
+  onSelected?: (event: PlotlyTypes.PlotSelectionEvent) => void;
   onDeselect?: () => void;
-  onSunburstClick?: (event: Plotly.PlotMouseEvent) => void;
-  onTreemapClick?: (event: Plotly.PlotMouseEvent) => void;
+  onSunburstClick?: (event: PlotlyTypes.PlotMouseEvent) => void;
+  onTreemapClick?: (event: PlotlyTypes.PlotMouseEvent) => void;
   onError?: (err: Error) => void;
 }
 
@@ -81,7 +87,7 @@ export const Plot = (props: PlotProps) => {
     Plotly.react(el, data, layout, config)
       .then(() => {
         if (frames && frames.length > 0) {
-          return Plotly.addFrames(el as unknown as Plotly.Root, frames);
+          return Plotly.addFrames(el as unknown as PlotlyTypes.Root, frames);
         }
       })
       .catch((error: Error) => {
@@ -140,7 +146,7 @@ export const Plot = (props: PlotProps) => {
     }
 
     const handler = () => {
-      Plotly.Plots.resize(el as unknown as Plotly.Root);
+      Plotly.Plots.resize(el as unknown as PlotlyTypes.Root);
     };
 
     window.addEventListener("resize", handler);
@@ -154,7 +160,7 @@ export const Plot = (props: PlotProps) => {
     const el = containerRef.current;
     return () => {
       if (el) {
-        Plotly.purge(el as unknown as Plotly.Root);
+        Plotly.purge(el as unknown as PlotlyTypes.Root);
       }
     };
   }, []);
