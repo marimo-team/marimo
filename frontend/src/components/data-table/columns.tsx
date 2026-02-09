@@ -220,6 +220,7 @@ export function generateColumns<T>({
           <DataTableColumnHeader
             header={headerWithTooltip}
             column={column}
+            justify={justify}
             calculateTopKRows={calculateTopKRows}
             table={table}
           />

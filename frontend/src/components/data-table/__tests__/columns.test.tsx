@@ -261,7 +261,7 @@ describe("generateColumns", () => {
       columnDef: { meta: col.meta },
     });
 
-    // Right-justified: parent wrapper should have items-end
+    // Right-justified: parent wrapper should have items-end, sort/filter icons should flip to the left
     const { container: rightContainer } = render(
       <TooltipProvider>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -270,8 +270,12 @@ describe("generateColumns", () => {
     );
     const rightWrapper = rightContainer.firstElementChild;
     expect(rightWrapper?.className).toContain("items-end");
+    const rightHeader = rightContainer.querySelector(
+      "[data-testid='data-table-sort-button']",
+    );
+    expect(rightHeader?.className).toContain("flex-row-reverse");
 
-    // Center-justified: parent wrapper should have items-center
+    // Center-justified: parent wrapper should have items-center, no flex-row-reverse
     const { container: centerContainer } = render(
       <TooltipProvider>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -280,6 +284,10 @@ describe("generateColumns", () => {
     );
     const centerWrapper = centerContainer.firstElementChild;
     expect(centerWrapper?.className).toContain("items-center");
+    const centerHeader = centerContainer.querySelector(
+      "[data-testid='data-table-sort-button']",
+    );
+    expect(centerHeader?.className).not.toContain("flex-row-reverse");
   });
 
   it("should not include index column if it exists", () => {
