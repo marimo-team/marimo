@@ -35,7 +35,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.runner.hooks_post_execution import render_toplevel_defs
+from marimo._runtime.runner.hooks import Priority, create_default_hooks
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -446,13 +446,22 @@ def _launch_pyodide_kernel(
     stdin = PyodideStdin(stream) if is_edit_mode else None
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if is_edit_mode else None
 
-    # Run mode kernels do not need additional rendering for toplevel defs
-    render_hook = render_toplevel_defs if is_edit_mode else None
-
     def _enqueue_control_request(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
         if isinstance(req, UpdateUIElementCommand):
             set_ui_element_queue.put_nowait(req)
+
+    # Create hooks with mode-specific configuration
+    from marimo._runtime.runner.hooks_post_execution import (
+        attempt_pytest,
+        render_toplevel_defs,
+    )
+
+    hooks = create_default_hooks()
+    if user_config["runtime"].get("reactive_tests", False):
+        hooks.add_post_execution(attempt_pytest, Priority.LATE)
+    if is_edit_mode:
+        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -469,7 +478,7 @@ def _launch_pyodide_kernel(
         enqueue_control_request=_enqueue_control_request,
         debugger_override=debugger,
         user_config=user_config,
-        render_hook=render_hook,
+        hooks=hooks,
     )
     ctx = initialize_kernel_context(
         kernel=kernel,

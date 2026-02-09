@@ -13,7 +13,6 @@ from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from marimo._ast.cell import CellImpl
 from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
@@ -49,15 +48,10 @@ from marimo._types.ids import CellId_t
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterator
 
     from marimo._runtime.context.types import ExecutionContext
-    from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-    from marimo._runtime.runner.hooks_post_execution import (
-        PostExecutionHookType,
-    )
-    from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
-    from marimo._runtime.runner.hooks_preparation import PreparationHookType
+    from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
 
 
@@ -116,6 +110,7 @@ class Runner:
         graph: dataflow.DirectedGraph,
         glbls: dict[Any, Any],
         debugger: MarimoPdb | None,
+        hooks: NotebookCellHooks,
         execution_mode: OnCellChangeType = "autorun",
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
@@ -123,10 +118,6 @@ class Runner:
             [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
         ]
         | None = None,
-        preparation_hooks: Sequence[PreparationHookType] | None = None,
-        pre_execution_hooks: Sequence[PreExecutionHookType] | None = None,
-        post_execution_hooks: Sequence[PostExecutionHookType] | None = None,
-        on_finish_hooks: Sequence[OnFinishHookType] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -134,20 +125,8 @@ class Runner:
         self._executor = get_executor(
             ExecutionConfig(is_strict=execution_type == "strict")
         )
-        # injected context and hooks
         self.execution_context = execution_context
-        self.preparation_hooks: Sequence[Callable[[Runner], Any]] = (
-            preparation_hooks or []
-        )
-        self.pre_execution_hooks: Sequence[
-            Callable[[CellImpl, Runner], Any]
-        ] = pre_execution_hooks or []
-        self.post_execution_hooks: Sequence[
-            Callable[[CellImpl, Runner, RunResult], Any]
-        ] = post_execution_hooks or []
-        self.on_finish_hooks: Sequence[Callable[[Runner], Any]] = (
-            on_finish_hooks or []
-        )
+        self._hooks = hooks
 
         # runtime globals
         self.glbls = glbls
@@ -669,7 +648,7 @@ class Runner:
 
     async def run_all(self) -> None:
         LOGGER.debug("Running preparation hooks")
-        for prep_hook in self.preparation_hooks:
+        for prep_hook in self._hooks.preparation_hooks:
             prep_hook(self)
 
         while self.pending():
@@ -698,7 +677,7 @@ class Runner:
                 continue
 
             LOGGER.debug("Running pre_execution hooks")
-            for pre_hook in self.pre_execution_hooks:
+            for pre_hook in self._hooks.pre_execution_hooks:
                 pre_hook(cell, self)
             LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
@@ -709,7 +688,7 @@ class Runner:
                         run_result = await self.run(cell_id)
                         run_result.accumulated_output = exc_ctx.output
                         LOGGER.debug("Running post_execution hooks in context")
-                        for post_hook in self.post_execution_hooks:
+                        for post_hook in self._hooks.post_execution_hooks:
                             post_hook(cell, self, run_result)
                 except KeyboardInterrupt:
                     LOGGER.error(
@@ -721,9 +700,9 @@ class Runner:
             else:
                 run_result = await self.run(cell_id)
                 LOGGER.debug("Running post_execution hooks out of context")
-                for post_hook in self.post_execution_hooks:
+                for post_hook in self._hooks.post_execution_hooks:
                     post_hook(cell, self, run_result)
 
         LOGGER.debug("Running on_finish hooks")
-        for finish_hook in self.on_finish_hooks:
+        for finish_hook in self._hooks.on_finish_hooks:
             finish_hook(self)

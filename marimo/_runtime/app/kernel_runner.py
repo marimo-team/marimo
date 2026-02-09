@@ -70,6 +70,7 @@ class AppKernelRunner:
             KernelRuntimeContext,
             create_kernel_context,
         )
+        from marimo._runtime.runner.hooks import NotebookCellHooks
         from marimo._runtime.runner.hooks_post_execution import (
             _reset_matplotlib_context,
         )
@@ -103,6 +104,12 @@ class AppKernelRunner:
                 self.outputs[cell.cell_id] = run_result.output
 
         filename = app.filename if app.filename is not None else "<unknown>"
+
+        # Create minimal hooks for embedded app execution
+        hooks = NotebookCellHooks()
+        hooks.add_post_execution(cache_output)
+        hooks.add_post_execution(_reset_matplotlib_context)
+
         self._kernel = Kernel(
             cell_configs={},
             app_metadata=AppMetadata(
@@ -121,7 +128,7 @@ class AppKernelRunner:
             ),
             user_config=DEFAULT_CONFIG,
             enqueue_control_request=lambda _: None,
-            post_execution_hooks=[cache_output, _reset_matplotlib_context],
+            hooks=hooks,
         )
 
         # We push a new runtime context onto the "stack", corresponding to this

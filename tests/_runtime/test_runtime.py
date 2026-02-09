@@ -43,6 +43,7 @@ from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
+from marimo._runtime.runner.hooks import create_default_hooks
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.model import SessionMode
@@ -1359,6 +1360,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             initialize_kernel_context(
                 kernel=k,
@@ -1424,6 +1426,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
@@ -1451,6 +1454,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
 
             assert len(sys.argv) == 3
@@ -1484,6 +1488,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             assert argv == sys.argv
         finally:
@@ -1521,6 +1526,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             initialize_kernel_context(
                 kernel=k,
