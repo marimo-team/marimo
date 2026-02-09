@@ -185,7 +185,7 @@ describe("switchLanguage", () => {
     switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
-          f"""
+          rf"""
           mo.md(r\\"""
           print('Hello')
           print('Goodbye')
@@ -214,7 +214,7 @@ describe("switchLanguage", () => {
         "commentLines": [],
         "dataframeName": "_df",
         "engine": "${DUCKDB_ENGINE}",
-        "quotePrefix": "f",
+        "quotePrefix": "rf",
         "showOutput": true,
       }
     `);
@@ -252,7 +252,7 @@ describe("switchLanguage", () => {
       commentLines: [],
       dataframeName: "_df",
       engine: DUCKDB_ENGINE,
-      quotePrefix: "f",
+      quotePrefix: "rf",
       showOutput: true,
     });
 

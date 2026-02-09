@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
+import { SQL_QUOTE_PREFIX } from "@marimo-team/smart-cells";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import {
@@ -49,7 +50,7 @@ const description: ToolDescription = {
 
     For adding code, use the following guidelines:
     - Markdown cells: use mo.md(f"""{content}""") function to insert content.
-    - SQL cells: use mo.sql(f"""{content}""") function to insert content. If a database engine is specified, use mo.sql(f"""{content}""", engine=engine) instead.
+    - SQL cells: use mo.sql(${SQL_QUOTE_PREFIX}"""{content}""") function to insert content. If a database engine is specified, use mo.sql(${SQL_QUOTE_PREFIX}"""{content}""", engine=engine) instead.
 
     Returns:
     - A result object containing standard tool metadata.`,

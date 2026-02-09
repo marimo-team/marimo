@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Union
 
 from marimo._config.config import CopilotMode
+from marimo._convert.common.format import SQL_QUOTE_PREFIX
 from marimo._server.models.completion import (
     AiCompletionContext,
     Language,
@@ -40,7 +41,7 @@ language_rules: dict[Language, list[str]] = {
 
 language_rules_multiple_cells: dict[Language, list[str]] = {
     "sql": [
-        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines. You should always write queries inline as the code snippet above, do not use variables to store queries.',
+        f'SQL cells start with df = mo.sql({SQL_QUOTE_PREFIX}"""<your query>""") for DuckDB, or df = mo.sql({SQL_QUOTE_PREFIX}"""<your query>""", engine=engine) for other SQL engines. You should always write queries inline as the code snippet above, do not use variables to store queries.',
         "This will automatically display the result in the UI. You do not need to return the dataframe in the cell.",
         "The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.",
     ]
@@ -119,7 +120,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
             "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
             "```python\n{PYTHON_CODE}\n```\n\n"
-            '```sql\ndf_name = mo.sql(f"""{SQL_QUERY}""")\n```\n\n'
+            f'```sql\ndf_name = mo.sql({SQL_QUOTE_PREFIX}"""{"{SQL_QUERY}"}""")\n```\n\n'
             '```markdown\nmo.md(f"""{MARKDOWN_CONTENT}""")\n```\n\n'
             "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"
             "Create clear variable names if they will be used in other cells. Do not prefix with underscore.\n"
@@ -416,7 +417,7 @@ chart
 
         system_prompt += "\n\n## Rules for inserting cells:\n"
         system_prompt += 'For markdown cells, use `mo.md(f"""{content}""")`\n'
-        system_prompt += 'For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.\n'
+        system_prompt += f'For sql cells, use `mo.sql({SQL_QUOTE_PREFIX}"""{"{content}"}""")`. If a database engine is specified, use `mo.sql({SQL_QUOTE_PREFIX}"""{"{content}"}""", engine=engine)` instead.\n'
     else:
         for language in language_rules:
             if len(language_rules[language]) == 0:

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._convert.common.format import SQL_QUOTE_PREFIX
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.duckdb import DuckDBEngine
@@ -290,3 +293,204 @@ def test_duckdb_engine_sql_output_formats(
         result = engine.execute("SELECT * FROM test ORDER BY id")
         assert isinstance(result, (pd.DataFrame, pl.DataFrame))
         assert len(result) == 4
+
+
+def _make_sql_string(body: str, **local_vars: object) -> str:
+    """Build and evaluate a SQL string using SQL_QUOTE_PREFIX.
+
+    Simulates what the generated marimo code looks like at runtime:
+        {SQL_QUOTE_PREFIX}\"\"\"{body}\"\"\"
+
+    Args:
+        body: The SQL string body. Use ``{var}`` for interpolation
+            and ``{{`` / ``}}`` for literal braces.
+        **local_vars: Variables available for f-string interpolation.
+
+    Returns:
+        The evaluated string.
+    """
+    # Braces in *body* that should be interpolated are already single,
+    # e.g. "{limit}".  The outer f-string here must not touch them,
+    # so we escape them for the outer layer and let exec handle them.
+    escaped = body.replace("{", "{{").replace("}", "}}")
+    # Now un-escape the ones that were *originally* doubled (literal braces).
+    # Original `{{` in body → `{{{{` after first replace → should become `{{`
+    # But simpler: just build the code string directly without an outer f-string.
+    code = f"__result = {SQL_QUOTE_PREFIX}" + '"""' + body + '"""'
+    ns: dict[str, object] = dict(local_vars)
+    exec(code, ns)  # noqa: S102
+    return str(ns["__result"])
+
+
+@pytest.mark.skipif(
+    not HAS_DUCKDB or not HAS_POLARS,
+    reason="DuckDB and Polars not installed",
+)
+class TestDuckDBWithSqlQuotePrefix:
+    """Test that SQL_QUOTE_PREFIX strings work correctly with DuckDB.
+
+    This verifies the fix for issue #8179: Windows backslash paths in SQL
+    cells causing unicode escape errors. SQL cells now use the prefix
+    defined by SQL_QUOTE_PREFIX (currently ``rf``) instead of plain ``f``.
+
+    Tests focus on backslash handling, escape sequences, curly braces,
+    and f-string interpolation — the behaviors affected by the prefix.
+
+    All string construction goes through ``_make_sql_string`` so the
+    tests automatically adapt if SQL_QUOTE_PREFIX ever changes.
+    """
+
+    def test_preserves_backslashes(self) -> None:
+        """Test that SQL_QUOTE_PREFIX strings preserve literal backslashes.
+
+        This is the core issue from #8179: pasting Windows paths like
+        C:\\Users\\data\\file.csv should not cause unicode escape errors.
+        """
+        path = _make_sql_string(r"C:\Users\data\file.csv")
+        assert path == r"C:\Users\data\file.csv"
+        assert path.count("\\") == 3
+
+    def test_special_escape_sequences(self) -> None:
+        r"""Test that common escape sequences are literal.
+
+        In a plain f-string: \n → newline, \t → tab, \r → carriage return.
+        With SQL_QUOTE_PREFIX: \n, \t, \r remain as two-character sequences.
+        """
+        s = _make_sql_string(r"\n\t\r\0\a\b")
+        assert s == "\\n\\t\\r\\0\\a\\b"
+        assert len(s) == 12  # 6 pairs of 2 chars, not 6 single chars
+
+    def test_unicode_escape_sequences(self) -> None:
+        r"""Test that \U and \u (unicode escapes) are literal.
+
+        This is the exact failure from #8179: plain f-strings interpret \U
+        as a 32-bit unicode escape and \u as a 16-bit unicode escape.
+        """
+        s = _make_sql_string(r"\Users\ubuntu\unique")
+        assert s == "\\Users\\ubuntu\\unique"
+        assert "\\U" in s  # literal backslash + U, not a unicode char
+
+    def test_hex_escape_sequences(self) -> None:
+        r"""Test that \x (hex escape) is literal."""
+        s = _make_sql_string(r"\x00\xff")
+        assert s == "\\x00\\xff"
+        assert len(s) == 8  # Not the 2 bytes from a regular string
+
+    def test_fstring_interpolation_still_works(self) -> None:
+        """Test that {expr} interpolation works."""
+        limit = 5
+        query = _make_sql_string(
+            "SELECT * FROM range(10) LIMIT {limit}", limit=limit
+        )
+        result = sql(query)
+        assert len(result) == 5
+
+    def test_complex_interpolation(self) -> None:
+        """Test complex f-string expressions."""
+        import duckdb
+
+        duckdb.sql(
+            "CREATE OR REPLACE TABLE rf_complex AS "
+            "SELECT * FROM range(20) t(id)"
+        )
+        in_clause = ",".join(str(v) for v in [1, 2, 3])
+        query = _make_sql_string(
+            "SELECT * FROM rf_complex WHERE id IN ({in_clause})",
+            in_clause=in_clause,
+        )
+        result = sql(query)
+        assert len(result) == 3
+        duckdb.sql("DROP TABLE rf_complex")
+
+    def test_escaped_curly_braces(self) -> None:
+        """Test escaped curly braces (literal braces in SQL).
+
+        Double braces {{ }} produce literal { } in f-strings.
+        This must still work with SQL_QUOTE_PREFIX.
+        """
+        query = _make_sql_string("SELECT {{'key': 'value'}} AS json_str")
+        result = sql(query)
+        assert result is not None
+        assert len(result) == 1
+
+    def test_multiple_interpolations(self) -> None:
+        """Test multiple f-string interpolations."""
+        query = _make_sql_string(
+            """
+            SELECT * FROM range(100) t(id)
+            WHERE id >= {min_val} AND id < {max_val}
+            LIMIT {limit}
+        """,
+            min_val=0,
+            max_val=5,
+            limit=3,
+        )
+        result = sql(query)
+        assert len(result) == 3
+
+    def test_backslash_in_like_pattern(self) -> None:
+        """Test backslash in LIKE patterns."""
+        query = _make_sql_string(
+            r"SELECT 'test\path' LIKE '%\%' AS has_backslash"
+        )
+        result = sql(query)
+        assert result is not None
+
+    def test_windows_path_in_string_literal(self) -> None:
+        """Test Windows paths inside SQL string literals."""
+        query = _make_sql_string(r"SELECT 'C:\Users\data\file.csv' AS path")
+        result = sql(query)
+        assert result is not None
+        assert len(result) == 1
+
+    def test_read_csv_with_path(self) -> None:
+        """Test READ_CSV with a real file path."""
+        import polars as pl
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as f:
+            f.write("id,name\n1,Alice\n2,Bob\n")
+            csv_path = f.name
+
+        try:
+            normalized = csv_path.replace("\\", "/")
+            query = _make_sql_string(
+                "SELECT * FROM read_csv('{normalized}')",
+                normalized=normalized,
+            )
+            result = sql(query)
+            assert isinstance(result, pl.DataFrame)
+            assert len(result) == 2
+        finally:
+            os.unlink(csv_path)
+
+    def test_backslash_with_interpolation(self) -> None:
+        """Test that backslashes and interpolation coexist correctly."""
+        query = _make_sql_string(
+            r"SELECT '\Users' AS path, * FROM {table}",
+            table="range(3)",
+        )
+        result = sql(query)
+        assert len(result) == 3
+
+    def test_regex_pattern(self) -> None:
+        """Test regex patterns containing backslashes.
+
+        DuckDB supports regexp_matches which uses backslash-heavy patterns.
+        """
+        query = _make_sql_string(
+            r"SELECT regexp_matches('hello123', '\d+') AS has_digits"
+        )
+        result = sql(query)
+        assert result is not None
+        assert len(result) == 1
+
+    def test_nested_quotes_and_backslashes(self) -> None:
+        """Test a mix of quotes and backslashes."""
+        query = _make_sql_string(
+            r"""SELECT 'it''s a \"test\" with C:\path' AS mixed"""
+        )
+        result = sql(query)
+        assert result is not None
+        assert len(result) == 1
