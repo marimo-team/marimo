@@ -243,6 +243,45 @@ describe("generateColumns", () => {
     expect(cell?.props.className).toContain("center");
   });
 
+  it("should apply text justification to column header parents", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+      textJustifyColumns: { name: "right", age: "center" },
+    });
+
+    const mockColumn = (col: (typeof columns)[number]) => ({
+      id: col.id,
+      getCanSort: () => true,
+      getCanFilter: () => false,
+      getIsSorted: () => false,
+      getSortIndex: () => -1,
+      getFilterValue: () => undefined,
+      columnDef: { meta: col.meta },
+    });
+
+    // Right-justified: parent wrapper should have items-end
+    const { container: rightContainer } = render(
+      <TooltipProvider>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {(columns[0].header as any)({ column: mockColumn(columns[0]) })}
+      </TooltipProvider>,
+    );
+    const rightWrapper = rightContainer.firstElementChild;
+    expect(rightWrapper?.className).toContain("items-end");
+
+    // Center-justified: parent wrapper should have items-center
+    const { container: centerContainer } = render(
+      <TooltipProvider>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {(columns[1].header as any)({ column: mockColumn(columns[1]) })}
+      </TooltipProvider>,
+    );
+    const centerWrapper = centerContainer.firstElementChild;
+    expect(centerWrapper?.className).toContain("items-center");
+  });
+
   it("should not include index column if it exists", () => {
     const columns = generateColumns({
       rowHeaders: [],
