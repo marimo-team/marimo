@@ -5617,7 +5617,7 @@ export interface components {
     StorageEntry: {
       /** @enum {unknown} */
       kind: "directory" | "file" | "object";
-      lastModified: string | null;
+      lastModified: number | null;
       /** @default {} */
       metadata?: Record<string, any>;
       path: string;

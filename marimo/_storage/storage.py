@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
@@ -185,7 +186,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "file"
 
     async def get_entry(self, path: str) -> StorageEntry:
-        entry = self.store.info(path)
+        entry = await asyncio.to_thread(self.store.info, path)
         if not isinstance(entry, dict):
             raise ValueError(f"Entry at {path} is not a dictionary")
         return self._create_storage_entry(entry)
@@ -225,10 +226,13 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         )
 
     async def download(self, path: str) -> bytes:
-        file = self.store.open(path).read()
+        def _read() -> str | bytes:
+            return self.store.open(path).read()  # type: ignore[no-any-return]
+
+        file = await asyncio.to_thread(_read)
         if isinstance(file, str):
             return file.encode("utf-8")
-        return cast(bytes, file)  # typechecker doesn't know that file is bytes
+        return file
 
     @property
     def protocol(self) -> str:

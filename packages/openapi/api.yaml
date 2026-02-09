@@ -4244,7 +4244,7 @@ components:
           - object
         lastModified:
           anyOf:
-          - type: string
+          - type: number
           - type: 'null'
         metadata:
           default: {}
