@@ -750,6 +750,11 @@ class ModelCommand(Command):
         }
 
 
+# Commands that can be batched and merged (last-write-wins) by the
+# SetUIElementRequestManager to avoid redundant cell re-executions.
+BatchableCommand = Union[UpdateUIElementCommand, ModelCommand]
+
+
 class RefreshSecretsCommand(Command):
     """Refresh secrets from the secrets store.
 

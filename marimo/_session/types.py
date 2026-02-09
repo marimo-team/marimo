@@ -35,9 +35,7 @@ class QueueManager(Protocol):
     """Protocol for queue management."""
 
     control_queue: QueueType[commands.CommandMessage]
-    set_ui_element_queue: QueueType[
-        commands.UpdateUIElementCommand | commands.ModelCommand
-    ]
+    set_ui_element_queue: QueueType[commands.BatchableCommand]
     completion_queue: QueueType[commands.CodeCompletionCommand]
     input_queue: QueueType[str]
     stream_queue: Optional[QueueType[Union[KernelMessage, None]]]

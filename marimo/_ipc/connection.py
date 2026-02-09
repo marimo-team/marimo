@@ -18,9 +18,9 @@ if typing.TYPE_CHECKING:
 
     from marimo._messaging.types import KernelMessage
     from marimo._runtime.commands import (
+        BatchableCommand,
         CodeCompletionCommand,
         CommandMessage,
-        UpdateUIElementCommand,
     )
 
 LOGGER = _loggers.marimo_logger()
@@ -86,7 +86,7 @@ class Connection:
     context: zmq.Context[zmq.Socket[bytes]]
 
     control: Channel[CommandMessage]
-    ui_element: Channel[UpdateUIElementCommand]
+    ui_element: Channel[BatchableCommand]
     completion: Channel[CodeCompletionCommand]
     win32_interrupt: Channel[bool] | None
 
