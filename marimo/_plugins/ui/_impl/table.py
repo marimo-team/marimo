@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -512,6 +513,18 @@ class table(
         # Holds the original data
         self._manager = get_table_manager(data)
 
+        # Try to infer the variable name for download filenames
+        download_file_name = "download"
+        try:
+            frame = inspect.currentframe()
+            if frame is not None and frame.f_back is not None:
+                for var_name, var_value in frame.f_back.f_locals.items():
+                    if var_value is data:
+                        download_file_name = var_name
+                        break
+        except Exception:
+            pass
+
         # Handle max_columns: use config default if not provided, None means "all"
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
             self._max_columns = get_default_table_max_columns()
@@ -731,6 +744,7 @@ class table(
                 "max-height": int(max_height)
                 if max_height is not None
                 else None,
+                "download-file-name": download_file_name,
             },
             on_change=on_change,
             functions=(

@@ -1094,6 +1094,12 @@ class TestTableGetValueCounts:
         assert value_counts == [ValueCount(value="1", count=2)]
 
 
+def test_table_download_file_name() -> None:
+    my_data = {"a": [1, 2, 3]}
+    t = ui.table(my_data)
+    assert t._component_args["download-file-name"] == "my_data"
+
+
 def test_table_with_frozen_columns() -> None:
     data = {
         "a": list(range(20)),
