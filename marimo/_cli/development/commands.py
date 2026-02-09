@@ -41,6 +41,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.packages as packages
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
+    import marimo._storage.models as storage
     from marimo._ai._types import ChatMessage
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -90,6 +91,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Storage
+        storage.StorageEntry,
+        storage.StorageNamespace,
         # Secrets
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
@@ -118,6 +122,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.SQLTablePreviewNotification,
         notifications.SQLTableListPreviewNotification,
         notifications.DataSourceConnectionsNotification,
+        notifications.StorageNamespacesNotification,
         notifications.SecretKeysResultNotification,
         notifications.CacheClearedNotification,
         notifications.CacheInfoNotification,

@@ -4546,6 +4546,7 @@ export interface components {
         | components["schemas"]["SQLTableListPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
+        | components["schemas"]["StorageNamespacesNotification"]
         | components["schemas"]["SecretKeysResultNotification"]
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
@@ -5601,6 +5602,56 @@ export interface components {
     StopKernelCommand: {
       /** @enum {unknown} */
       type: "stop-kernel";
+    };
+    /**
+     * StorageEntry
+     * @description A storage entry is a file, directory, or object for external storage systems
+     *
+     *         Attributes:
+     *             path: The path of the storage entry.
+     *             kind: The kind of the storage entry.
+     *             size: The size of the storage entry.
+     *             last_modified: The last modified time of the storage entry.
+     *             metadata: The metadata of the storage entry.
+     */
+    StorageEntry: {
+      /** @enum {unknown} */
+      kind: "directory" | "file" | "object";
+      lastModified: string | null;
+      /** @default {} */
+      metadata?: Record<string, any>;
+      path: string;
+      size: number;
+    };
+    /**
+     * StorageNamespace
+     * @description Represents external storage systems (filesystems and object storage)
+     *
+     *         Attributes:
+     *             name: The variable name of the storage namespace.
+     *             display_name: The display name of the storage namespace.
+     *             source: The source of the storage namespace. E.g. S3, GCS, Google Drive, etc.
+     *             root_path: The root path of the storage namespace.
+     *             storage_entries: The storage entries in the storage namespace.
+     */
+    StorageNamespace: {
+      displayName: string;
+      name: string | null;
+      rootPath: string;
+      source: string;
+      storageEntries: components["schemas"]["StorageEntry"][];
+    };
+    /**
+     * StorageNamespacesNotification
+     * @description Available storage namespaces for storage inspector.
+     *
+     *         Attributes:
+     *             namespaces: Available storage namespaces.
+     */
+    StorageNamespacesNotification: {
+      namespaces: components["schemas"]["StorageNamespace"][];
+      /** @enum {unknown} */
+      op: "storage-namespaces";
     };
     /**
      * StoreConfig

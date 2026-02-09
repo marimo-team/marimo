@@ -31,6 +31,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
+from marimo._storage.models import StorageNamespace
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
@@ -575,6 +576,17 @@ class DataSourceConnectionsNotification(
     connections: list[DataSourceConnection]
 
 
+class StorageNamespacesNotification(Notification, tag="storage-namespaces"):
+    """Available storage namespaces for storage inspector.
+
+    Attributes:
+        namespaces: Available storage namespaces.
+    """
+
+    name: ClassVar[str] = "storage-namespaces"
+    namespaces: list[StorageNamespace]
+
+
 class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
     """SQL query validation result.
 
@@ -754,6 +766,8 @@ NotificationMessage = Union[
     SQLTableListPreviewNotification,
     DataSourceConnectionsNotification,
     ValidateSQLResultNotification,
+    # Storage
+    StorageNamespacesNotification,
     # Secrets
     SecretKeysResultNotification,
     # Cache

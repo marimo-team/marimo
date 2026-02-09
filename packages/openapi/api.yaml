@@ -2440,6 +2440,7 @@ components:
           - $ref: '#/components/schemas/SQLTableListPreviewNotification'
           - $ref: '#/components/schemas/DataSourceConnectionsNotification'
           - $ref: '#/components/schemas/ValidateSQLResultNotification'
+          - $ref: '#/components/schemas/StorageNamespacesNotification'
           - $ref: '#/components/schemas/SecretKeysResultNotification'
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
@@ -2478,6 +2479,7 @@ components:
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
+              storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
               update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
               update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
               validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
@@ -4227,6 +4229,82 @@ components:
       required:
       - type
       title: StopKernelCommand
+      type: object
+    StorageEntry:
+      description: "A storage entry is a file, directory, or object for external storage\
+        \ systems\n\n    Attributes:\n        path: The path of the storage entry.\n\
+        \        kind: The kind of the storage entry.\n        size: The size of the\
+        \ storage entry.\n        last_modified: The last modified time of the storage\
+        \ entry.\n        metadata: The metadata of the storage entry."
+      properties:
+        kind:
+          enum:
+          - directory
+          - file
+          - object
+        lastModified:
+          anyOf:
+          - type: string
+          - type: 'null'
+        metadata:
+          default: {}
+          type: object
+        path:
+          type: string
+        size:
+          type: integer
+      required:
+      - path
+      - kind
+      - size
+      - lastModified
+      title: StorageEntry
+      type: object
+    StorageNamespace:
+      description: "Represents external storage systems (filesystems and object storage)\n\
+        \n    Attributes:\n        name: The variable name of the storage namespace.\n\
+        \        display_name: The display name of the storage namespace.\n      \
+        \  source: The source of the storage namespace. E.g. S3, GCS, Google Drive,\
+        \ etc.\n        root_path: The root path of the storage namespace.\n     \
+        \   storage_entries: The storage entries in the storage namespace."
+      properties:
+        displayName:
+          type: string
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+        rootPath:
+          type: string
+        source:
+          type: string
+        storageEntries:
+          items:
+            $ref: '#/components/schemas/StorageEntry'
+          type: array
+      required:
+      - name
+      - displayName
+      - source
+      - rootPath
+      - storageEntries
+      title: StorageNamespace
+      type: object
+    StorageNamespacesNotification:
+      description: "Available storage namespaces for storage inspector.\n\n    Attributes:\n\
+        \        namespaces: Available storage namespaces."
+      properties:
+        namespaces:
+          items:
+            $ref: '#/components/schemas/StorageNamespace'
+          type: array
+        op:
+          enum:
+          - storage-namespaces
+      required:
+      - op
+      - namespaces
+      title: StorageNamespacesNotification
       type: object
     StoreConfig:
       description: Configuration for cache stores.
@@ -6217,4 +6295,3 @@ paths:
       summary: Submit login form
       tags:
       - auth
-
