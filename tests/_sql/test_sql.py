@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.formatting import Plain
 from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
@@ -646,8 +647,6 @@ class TestDisplayConfigBehavior:
         mock_include_opinionated.return_value = False
         import polars as pl
 
-        from marimo._output.formatting import Plain
-
         # Test query
         result = sql("SELECT 1")
         assert isinstance(result, pl.DataFrame)
@@ -665,20 +664,14 @@ class TestDisplayConfigBehavior:
     @patch("marimo._sql.sql.replace")
     def test_sql_rich_output_when_opinionated(self, mock_replace):
         """Test that SQL uses table() when include_opinionated returns True."""
-        import duckdb
         import polars as pl
-
-        # Create a test table
-        duckdb.sql(
-            "CREATE OR REPLACE TABLE test_rich AS SELECT * FROM range(5)"
-        )
 
         with patch(
             "marimo._output.formatters.df_formatters.include_opinionated",
             return_value=True,
         ):
             # Test query
-            result = sql("SELECT * FROM test_rich")
+            result = sql("SELECT 1")
             assert isinstance(result, pl.DataFrame)
 
             # Should call replace with table (not Plain)
@@ -687,6 +680,3 @@ class TestDisplayConfigBehavior:
 
             # The call should be a table object
             assert isinstance(call_args, ui.table)
-
-        # Clean up
-        duckdb.sql("DROP TABLE test_rich")
