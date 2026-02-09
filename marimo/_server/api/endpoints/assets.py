@@ -304,7 +304,7 @@ def _inject_service_worker(html: str, file_key: str) -> str:
                         registration.active.postMessage({{ notebookId }});
                         return;
                     }}
-                    var worker = registration.installing || registration.waiting;
+                    const worker = registration.installing || registration.waiting;
                     if (worker) {{
                         worker.addEventListener('statechange', function() {{
                             if (worker.state === 'activated') {{
