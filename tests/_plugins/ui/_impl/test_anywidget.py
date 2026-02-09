@@ -15,8 +15,13 @@ from marimo._plugins.ui._impl.from_anywidget import (
     from_anywidget,
     get_anywidget_state,
 )
-from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.commands import (
+    ModelCommand,
+    ModelUpdateMessage,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import WidgetModelId
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = (
@@ -550,3 +555,64 @@ x = as_marimo_element.count
         # Test KeyError propagation
         with pytest.raises(KeyError):
             _ = wrapped["nonexistent"]
+
+    @staticmethod
+    async def test_model_message_with_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that mo.state setters work inside traitlets observe callbacks.
+
+        Regression test: when a model update message arrives from the
+        frontend, comm.handle_msg triggers widget.set_state which fires
+        traitlets observe callbacks. Those callbacks must run inside a
+        cell execution context so that mo.state setters can call
+        register_state_update.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
+
+c = Counter()
+w = mo.ui.anywidget(c)
+get_count, set_count = mo.state(c.count)
+
+def _on_count_change(_):
+    set_count(c.count)
+
+c.observe(_on_count_change, names="count")
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
+        )
+
+        assert k.globals["result"] == 0
+
+        # Get the widget's model_id from the comm
+        ui_element = k.globals["w"]
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        # Simulate a model update from the frontend (like clicking the button)
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 5},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # The observe callback should have fired set_count,
+        # which triggers re-execution of the cell reading get_count()
+        assert k.globals["result"] == 5

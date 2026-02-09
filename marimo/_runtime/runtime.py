@@ -200,7 +200,7 @@ from marimo._sql.get_engines import (
 )
 from marimo._sql.parse import SqlCatalogCheckResult, parse_sql
 from marimo._tracer import kernel_tracer
-from marimo._types.ids import CellId_t, UIElementId, VariableName
+from marimo._types.ids import CellId_t, UIElementId, VariableName, WidgetModelId
 from marimo._types.lifespan import Lifespan
 from marimo._utils.assert_never import assert_never
 from marimo._utils.lifespans import Lifespans
@@ -831,6 +831,36 @@ class Kernel:
                         modules={m: sys.modules[m] for m in new_modules},
                         reload=False,
                     )
+
+    @contextlib.contextmanager
+    def _maybe_install_execution_context_for_model(
+        self, model_id: WidgetModelId
+    ) -> Iterator[None]:
+        """Install an execution context for a widget model's owning cell.
+
+        When a model update arrives from the frontend, processing the
+        message may trigger Python-side callbacks (e.g. observe handlers).
+        Those callbacks may call mo.state setters, which require an active
+        execution context. This context manager provides one using the
+        cell that owns the model's UIElement.
+        """
+        comm = WIDGET_COMM_MANAGER.comms.get(model_id)
+        ui_eid = comm.ui_element_id if comm else None
+        cell_id = None
+        if ui_eid:
+            try:
+                cell_id = get_context().ui_element_registry.get_cell(
+                    UIElementId(ui_eid)
+                )
+            except KeyError:
+                pass
+        if cell_id is not None:
+            with self._install_execution_context(
+                cell_id, setting_element_value=True
+            ):
+                yield
+        else:
+            yield
 
     def _register_cell(
         self,
@@ -2277,9 +2307,12 @@ class Kernel:
         async def handle_receive_model_message(
             request: ModelCommand,
         ) -> None:
-            ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
-                request
-            )
+            with self._maybe_install_execution_context_for_model(
+                request.model_id
+            ):
+                ui_element_id, state = (
+                    WIDGET_COMM_MANAGER.receive_comm_message(request)
+                )
 
             # If there's a ui_element_id, trigger a cell re-run
             if ui_element_id and state:
