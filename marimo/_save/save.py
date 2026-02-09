@@ -31,7 +31,7 @@ from marimo._ast.load import find_cell
 from marimo._ast.transformers import (
     ARG_PREFIX,
     CacheExtractWithBlock,
-    strip_function,
+    get_hashable_ast,
 )
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
@@ -245,7 +245,9 @@ class _cache_call(CacheContext):
     def _build_base_block(
         self, fn: Callable[..., Any], graph: DirectedGraph, cell_id: CellId_t
     ) -> BlockHasher:
-        module = strip_function(fn)
+        module = get_hashable_ast(
+            fn, skip_decorators={"cache", "persistent_cache"}
+        )
 
         return BlockHasher(
             module=module,

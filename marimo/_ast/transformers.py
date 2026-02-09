@@ -81,7 +81,20 @@ def clean_to_modules(
     return (compiled_ast(pre_block), compiled_ast(block.body))
 
 
-def strip_function(fn: Callable[..., Any]) -> ast.Module:
+def _get_decorator_name(node: ast.expr) -> Optional[str]:
+    """Extract the name from a decorator node."""
+    if isinstance(node, ast.Call):
+        node = node.func
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def get_hashable_ast(
+    fn: Callable[..., Any], skip_decorators: Optional[set[str]] = None
+) -> ast.Module:
     code, _ = inspect.getsourcelines(fn)
     args = set(fn.__code__.co_varnames)
     function_ast = ast_parse(textwrap.dedent("".join(code)))
@@ -89,7 +102,29 @@ def strip_function(fn: Callable[..., Any]) -> ast.Module:
     assert isinstance(body, (ast.FunctionDef, ast.AsyncFunctionDef)), (
         "Expected a function definition"
     )
-    extracted = ast.Module(body.body, type_ignores=[])
+
+    # Insert decorator calls as expression statements so they affect the hash.
+    # This ensures changes to decorator parameters invalidate the cache.
+    # Optionally skip specific decorators (e.g., @cache to avoid self-reference).
+    # Only decorators AFTER (inner to) the skipped one should affect the hash.
+    # In Python's AST, decorator_list is ordered outermost to innermost:
+    #   @outer         # decorator_list[0] - should NOT affect hash
+    #   @cache         # decorator_list[1] - skip this
+    #   @inner         # decorator_list[2] - SHOULD affect hash
+    #   def fn(): ...
+    decorator_stmts: list[ast.stmt] = []
+    skip_idx = 0
+    if skip_decorators:
+        for i, dec in enumerate(body.decorator_list):
+            if _get_decorator_name(dec) in skip_decorators:
+                skip_idx = i + 1  # start from the index after
+                break
+    decorator_stmts = [
+        ast.Expr(value=dec) for dec in body.decorator_list[skip_idx:]
+    ]
+
+    extracted = ast.Module(decorator_stmts + body.body, type_ignores=[])
+    ast.fix_missing_locations(extracted)
     module = RemoveReturns().visit(extracted)
     module = MangleArguments(args).visit(module)
     assert isinstance(module, ast.Module), "Expected a module"

@@ -2282,3 +2282,157 @@ va_hits = varargs.hits
         assert k.globals["va_hits"] == 1, (
             f"Expected 1 hit, got {k.globals['va_hits']}"
         )
+
+
+def test_decorator_params_affect_hash() -> None:
+    """Verify that changing decorator parameters changes the function hash.
+
+    When using @mo.cache with nested decorators like:
+        @mo.cache
+        @spl(schema={"a": "int"})
+        def query(): ...
+
+    Changing the schema should invalidate the cache.
+    """
+    from marimo._ast.transformers import get_hashable_ast
+    from marimo._save.hash import hash_raw_module
+
+    def cache(fn):
+        return fn
+
+    def decorator_with_param(param: str):
+        del param
+
+        def wrapper(fn):
+            return fn
+
+        return wrapper
+
+    # Helper to hash with cache skipped (mimics mo.cache behavior)
+    def hash_fn(fn):
+        return hash_raw_module(get_hashable_ast(fn, skip_decorators={"cache"}))
+
+    # Test 1: Decorator AFTER @cache - param change should affect hash
+    @cache
+    @decorator_with_param(param="value1")
+    def fn():
+        return 42
+
+    hash1 = hash_fn(fn)
+
+    @cache
+    @decorator_with_param(param="value2")
+    def fn():
+        return 42
+
+    hash2 = hash_fn(fn)
+
+    assert hash1 != hash2, (
+        "Decorator param change AFTER @cache should invalidate hash"
+    )
+
+    # Test 2: Decorator BEFORE @cache - param change should NOT affect hash
+    @decorator_with_param(param="value1")
+    @cache
+    def fn():
+        return 42
+
+    hash3 = hash_fn(fn)
+
+    @decorator_with_param(param="value2")
+    @cache
+    def fn():
+        return 42
+
+    hash4 = hash_fn(fn)
+
+    assert hash3 == hash4, (
+        "Decorator param change BEFORE @cache should NOT affect hash"
+    )
+
+
+async def test_decorator_ref_tracking_e2e(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """End-to-end test that refs in decorator params affect cache behavior.
+
+    When a decorator parameter references a variable:
+        schema = {"a": "int"}
+        @mo.cache
+        @my_decorator(schema=schema)
+        def query(): ...
+
+    Changing the variable's value should produce different cache hashes.
+    """
+
+    cell_id = "test_cell"
+
+    # First execution with schema_config = "v1"
+    await k.run(
+        [
+            exec_req.get_with_id(
+                cell_id,
+                """
+import marimo as mo
+
+schema_config = "v1"
+
+def my_decorator(schema):
+    def wrapper(fn):
+        fn._schema = schema
+        return fn
+    return wrapper
+
+@mo.cache
+@my_decorator(schema=schema_config)
+def cached_query():
+    return "result"
+
+result = cached_query()
+hash_val = cached_query._last_hash
+            """,
+            )
+        ]
+    )
+
+    assert not k.stderr.messages, k.stderr
+    assert k.globals["result"] == "result"
+    first_hash = k.globals["hash_val"]
+
+    # Second execution with schema_config = "v2"
+    await k.run(
+        [
+            exec_req.get_with_id(
+                cell_id,
+                """
+import marimo as mo
+
+schema_config = "v2"
+
+def my_decorator(schema):
+    def wrapper(fn):
+        fn._schema = schema
+        return fn
+    return wrapper
+
+@mo.cache
+@my_decorator(schema=schema_config)
+def cached_query():
+    return "result"
+
+result = cached_query()
+hash_val = cached_query._last_hash
+            """,
+            )
+        ]
+    )
+
+    assert not k.stderr.messages, k.stderr
+    assert k.globals["result"] == "result"
+    second_hash = k.globals["hash_val"]
+
+    # The hashes should be different because the decorator param changed
+    assert first_hash != second_hash, (
+        f"Expected different hashes when decorator ref changes, "
+        f"got {first_hash} == {second_hash}"
+    )
