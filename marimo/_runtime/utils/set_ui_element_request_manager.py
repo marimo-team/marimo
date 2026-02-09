@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
 from marimo._runtime.commands import (
+    BatchableCommand,
     ModelCommand,
     ModelCustomMessage,
     ModelUpdateMessage,
@@ -14,8 +15,6 @@ from marimo._types.ids import UIElementId, WidgetModelId
 
 if TYPE_CHECKING:
     import asyncio
-
-BatchableCommand = Union[UpdateUIElementCommand, ModelCommand]
 
 A = TypeVar("A")
 B = TypeVar("B")

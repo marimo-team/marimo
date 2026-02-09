@@ -104,6 +104,7 @@ from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.commands import (
     AppMetadata,
+    BatchableCommand,
     ClearCacheCommand,
     CodeCompletionCommand,
     CommandMessage,
@@ -3147,7 +3148,7 @@ class RequestHandler:
 
 def launch_kernel(
     control_queue: QueueType[CommandMessage],
-    set_ui_element_queue: QueueType[UpdateUIElementCommand],
+    set_ui_element_queue: QueueType[BatchableCommand],
     completion_queue: QueueType[CodeCompletionCommand],
     input_queue: QueueType[str],
     stream_queue: QueueType[KernelMessage] | None,

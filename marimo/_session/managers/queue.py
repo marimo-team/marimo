@@ -30,12 +30,9 @@ class QueueManagerImpl(QueueManager):
         # UI element updates and model commands are stored in both the
         # control queue and this queue, so that the backend can
         # merge/batch requests (last-write-wins per element/model ID).
-        _BatchableCommand = Union[
-            commands.UpdateUIElementCommand, commands.ModelCommand
-        ]
         self.set_ui_element_queue: Union[
-            MPQueue[_BatchableCommand],
-            queue.Queue[_BatchableCommand],
+            MPQueue[commands.BatchableCommand],
+            queue.Queue[commands.BatchableCommand],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
