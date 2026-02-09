@@ -158,14 +158,12 @@ Optionally pass CLI args to the notebook:
 @click.option(
     "--include-code/--no-include-code",
     default=True,
-    show_default=True,
     type=bool,
     help="Include notebook code in the exported HTML file.",
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -183,7 +181,6 @@ Optionally pass CLI args to the notebook:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -258,7 +255,6 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -276,7 +272,6 @@ Watch for changes and regenerate the script on modification:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -337,7 +332,6 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -355,7 +349,6 @@ Watch for changes and regenerate the script on modification:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -420,12 +413,10 @@ Requires nbformat to be installed.
     type=click.Choice(["top-down", "topological"]),
     default="topological",
     help="Sort cells top-down or in topological order.",
-    show_default=True,
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -442,7 +433,6 @@ Requires nbformat to be installed.
 @click.option(
     "--include-outputs/--no-include-outputs",
     default=False,
-    show_default=True,
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
@@ -450,7 +440,6 @@ Requires nbformat to be installed.
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -536,14 +525,12 @@ Requires nbformat and nbconvert to be installed.
 @click.option(
     "--include-outputs/--no-include-outputs",
     default=True,
-    show_default=True,
     type=bool,
     help="Run the notebook and include outputs in the exported PDF file.",
 )
 @click.option(
     "--webpdf/--no-webpdf",
     default=True,
-    show_default=True,
     type=bool,
     help=(
         "Use nbconvert's WebPDF exporter (Chromium). If disabled, marimo will "
@@ -553,7 +540,6 @@ Requires nbformat and nbconvert to be installed.
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -568,7 +554,6 @@ Requires nbformat and nbconvert to be installed.
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -716,19 +701,16 @@ and cannot be opened directly from the file system (e.g. file://).
     type=click.Choice(["edit", "run"]),
     default="run",
     help="Whether the notebook code should be editable or readonly.",
-    show_default=True,
     required=True,
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     help=("Whether to watch the original file and export upon change"),
 )
 @click.option(
     "--show-code/--no-show-code",
     default=False,
-    show_default=True,
     help=(
         "Whether to show code by default in the exported HTML file; "
         "only relevant for run mode."
@@ -737,7 +719,6 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "--include-cloudflare/--no-include-cloudflare",
     default=False,
-    show_default=True,
     help=(
         "Whether to include Cloudflare Worker configuration files"
         " (index.js and wrangler.jsonc) for easy deployment."
@@ -747,7 +728,6 @@ and cannot be opened directly from the file system (e.g. file://).
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )

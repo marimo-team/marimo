@@ -428,21 +428,18 @@ async def _generate_thumbnails(
     "--width",
     type=int,
     default=1200,
-    show_default=True,
     help="Viewport width for the screenshot.",
 )
 @click.option(
     "--height",
     type=int,
     default=630,
-    show_default=True,
     help="Viewport height for the screenshot.",
 )
 @click.option(
     "--scale",
     type=click.IntRange(min=1, max=4),
     default=2,
-    show_default=True,
     help=(
         "Device scale factor for screenshots. Output resolution will be "
         "`width*scale` x `height*scale`."
@@ -452,7 +449,6 @@ async def _generate_thumbnails(
     "--timeout-ms",
     type=int,
     default=1500,
-    show_default=True,
     help="Additional time to wait after page load before screenshot.",
 )
 @click.option(
@@ -467,19 +463,16 @@ async def _generate_thumbnails(
 @click.option(
     "--overwrite/--no-overwrite",
     default=False,
-    show_default=True,
     help="Overwrite existing thumbnails.",
 )
 @click.option(
     "--include-code/--no-include-code",
     default=False,
-    show_default=True,
     help="Whether to include code in the rendered HTML before screenshot.",
 )
 @click.option(
     "--execute/--no-execute",
     default=False,
-    show_default=True,
     help=(
         "Execute notebooks and include their outputs in thumbnails. "
         "In --no-execute mode (default), thumbnails are generated from notebook "
@@ -490,14 +483,12 @@ async def _generate_thumbnails(
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
 @click.option(
     "--continue-on-error/--fail-fast",
     default=True,
-    show_default=True,
     help="Continue processing other notebooks if one notebook fails.",
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)

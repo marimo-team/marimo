@@ -162,6 +162,7 @@ except Exception:
     context_settings={
         "help_option_names": ["-h", "--help"],
         "max_content_width": MAX_TERM_WIDTH,
+        "show_default": True,
     },
 )
 @click.version_option(version=__version__, message="%(version)s")
@@ -172,7 +173,6 @@ except Exception:
     type=click.Choice(
         ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"], case_sensitive=False
     ),
-    show_default=True,
     help="Choose logging level.",
 )
 @click.option(
@@ -180,7 +180,6 @@ except Exception:
     "--quiet",
     is_flag=True,
     default=False,
-    show_default=True,
     help="Suppress standard out.",
 )
 @click.option(
@@ -188,7 +187,6 @@ except Exception:
     "--yes",
     is_flag=True,
     default=False,
-    show_default=True,
     help="Automatic yes to prompts, running non-interactively.",
 )
 @click.option(
@@ -196,7 +194,6 @@ except Exception:
     "--development-mode",
     is_flag=True,
     default=False,
-    show_default=True,
     help="Run in development mode; enables debug logs and server autoreload.",
 )
 def main(
@@ -266,14 +263,12 @@ edit_help_msg = "\n".join(
     "-p",
     "--port",
     default=None,
-    show_default=True,
     type=int,
     help="Port to attach to.",
 )
 @click.option(
     "--host",
     default="127.0.0.1",
-    show_default=True,
     type=str,
     help="Host to attach to.",
 )
@@ -287,35 +282,30 @@ edit_help_msg = "\n".join(
     "--headless",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Don't launch a browser.",
 )
 @click.option(
     "--token/--no-token",
     default=True,
-    show_default=True,
     type=bool,
     help=token_message,
 )
 @click.option(
     "--token-password",
     default=None,
-    show_default=True,
     type=str,
     help=token_password_message,
 )
 @click.option(
     "--token-password-file",
     default=None,
-    show_default=True,
     type=str,
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
     "--base-url",
     default="",
-    show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
@@ -330,7 +320,6 @@ edit_help_msg = "\n".join(
     "--skip-update-check",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Don't check if a new version of marimo is available for download.",
 )
@@ -338,7 +327,6 @@ edit_help_msg = "\n".join(
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -346,7 +334,6 @@ edit_help_msg = "\n".join(
     "--trusted/--untrusted",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
 )
@@ -355,7 +342,6 @@ edit_help_msg = "\n".join(
     "--watch",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Watch the file for changes and reload the code when saved in another editor.",
 )
@@ -363,7 +349,6 @@ edit_help_msg = "\n".join(
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
-    show_default=True,
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
@@ -386,7 +371,6 @@ edit_help_msg = "\n".join(
     "--mcp",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     hidden=True,
     help="Enable MCP server endpoint at /mcp/server for LLM integration.",
@@ -409,14 +393,12 @@ edit_help_msg = "\n".join(
     "--timeout",
     required=False,
     default=None,
-    show_default=False,
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
 @click.option(
     "--session-ttl",
     default=None,
-    show_default=False,
     type=int,
     help="Seconds to wait before closing a session on websocket disconnect. If None is provided, sessions are not automatically closed.",
 )
@@ -626,14 +608,12 @@ new_help_msg = "\n".join(
     "-p",
     "--port",
     default=None,
-    show_default=True,
     type=int,
     help="Port to attach to.",
 )
 @click.option(
     "--host",
     default="127.0.0.1",
-    show_default=True,
     type=str,
     help="Host to attach to.",
 )
@@ -647,35 +627,30 @@ new_help_msg = "\n".join(
     "--headless",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Don't launch a browser.",
 )
 @click.option(
     "--token/--no-token",
     default=True,
-    show_default=True,
     type=bool,
     help=token_message,
 )
 @click.option(
     "--token-password",
     default=None,
-    show_default=True,
     type=str,
     help=token_password_message,
 )
 @click.option(
     "--token-password-file",
     default=None,
-    show_default=True,
     type=str,
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
     "--base-url",
     default="",
-    show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
@@ -684,7 +659,6 @@ new_help_msg = "\n".join(
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -692,7 +666,6 @@ new_help_msg = "\n".join(
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
-    show_default=True,
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
@@ -700,7 +673,6 @@ new_help_msg = "\n".join(
     "--timeout",
     required=False,
     default=None,
-    show_default=False,
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
@@ -904,14 +876,12 @@ Example:
     "-p",
     "--port",
     default=None,
-    show_default=True,
     type=int,
     help="Port to attach to.",
 )
 @click.option(
     "--host",
     default="127.0.0.1",
-    show_default=True,
     type=str,
     help="Host to attach to.",
 )
@@ -925,28 +895,24 @@ Example:
     "--headless",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Don't launch a browser.",
 )
 @click.option(
     "--token/--no-token",
     default=False,
-    show_default=True,
     type=bool,
     help=token_message,
 )
 @click.option(
     "--token-password",
     default=None,
-    show_default=True,
     type=str,
     help=token_password_message,
 )
 @click.option(
     "--token-password-file",
     default=None,
-    show_default=True,
     type=str,
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
@@ -954,14 +920,12 @@ Example:
     "--include-code",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Include notebook code in the app.",
 )
 @click.option(
     "--session-ttl",
     default=120,
-    show_default=True,
     type=int,
     help=("Seconds to wait before closing a session on websocket disconnect."),
 )
@@ -969,7 +933,6 @@ Example:
     "--watch",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help=(
         "Watch the file for changes and reload the app. "
@@ -981,14 +944,12 @@ Example:
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
-    show_default=True,
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
 @click.option(
     "--base-url",
     default="",
-    show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
     callback=validators.base_url,
@@ -1003,7 +964,6 @@ Example:
     "--redirect-console-to-browser",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Redirect console logs to the browser console.",
 )
@@ -1011,7 +971,6 @@ Example:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=sandbox_message,
 )
@@ -1019,7 +978,6 @@ Example:
     "--check/--no-check",
     is_flag=True,
     default=True,
-    show_default=False,
     type=bool,
     help=check_message,
 )
@@ -1027,7 +985,6 @@ Example:
     "--trusted/--untrusted",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
 )
@@ -1240,14 +1197,12 @@ Recommended sequence:
     "-p",
     "--port",
     default=None,
-    show_default=True,
     type=int,
     help="Port to attach to.",
 )
 @click.option(
     "--host",
     default="127.0.0.1",
-    show_default=True,
     type=str,
     help="Host to attach to.",
 )
@@ -1261,28 +1216,24 @@ Recommended sequence:
     "--headless",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Don't launch a browser.",
 )
 @click.option(
     "--token/--no-token",
     default=True,
-    show_default=True,
     type=bool,
     help=token_message,
 )
 @click.option(
     "--token-password",
     default=None,
-    show_default=True,
     type=str,
     help=token_password_message,
 )
 @click.option(
     "--token-password-file",
     default=None,
-    show_default=True,
     type=str,
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
@@ -1290,7 +1241,6 @@ Recommended sequence:
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
-    show_default=True,
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
@@ -1395,7 +1345,6 @@ def shell_completion() -> None:
     "--fix",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Whether to in place update files.",
 )
@@ -1403,7 +1352,6 @@ def shell_completion() -> None:
     "--strict",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Whether warnings return a non-zero exit code.",
 )
@@ -1412,7 +1360,6 @@ def shell_completion() -> None:
     "--verbose/--quiet",
     is_flag=True,
     default=True,
-    show_default=True,
     type=bool,
     help="Whether to print detailed messages.",
 )
@@ -1420,7 +1367,6 @@ def shell_completion() -> None:
     "--unsafe-fixes",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Enable fixes that may change code behavior (e.g., removing empty cells).",
 )
@@ -1428,7 +1374,6 @@ def shell_completion() -> None:
     "--ignore-scripts",
     is_flag=True,
     default=False,
-    show_default=True,
     type=bool,
     help="Ignore files that are not recognizable as marimo notebooks.",
 )
@@ -1436,7 +1381,6 @@ def shell_completion() -> None:
     "--format",
     "formatter",
     default="full",
-    show_default=True,
     type=click.Choice(["full", "json"], case_sensitive=False),
     help="Output format for diagnostics.",
 )
