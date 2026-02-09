@@ -16,7 +16,7 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.context.types import get_context
 from marimo._runtime.patches import create_main_module
-from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner import cell_runner, hook_context
 from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
@@ -86,13 +86,13 @@ class AppKernelRunner:
 
         def cache_output(
             cell: CellImpl,
-            runner: cell_runner.Runner,
+            ctx: hook_context.PostExecutionHookContext,
             run_result: cell_runner.RunResult,
         ) -> None:
             """Update the app's cached outputs."""
             from marimo._plugins.stateless.flex import vstack
 
-            del runner
+            del ctx
             if (
                 run_result.output is None
                 and run_result.accumulated_output is not None

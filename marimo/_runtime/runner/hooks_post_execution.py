@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -32,15 +31,15 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import (
     get_context,
     get_global_context,
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner.hook_context import PostExecutionHookContext
+from marimo._runtime.runner.hooks import PostExecutionHook
 from marimo._runtime.side_effect import SideEffect
-from marimo._session.model import SessionMode
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
@@ -56,47 +55,42 @@ from marimo._utils.flatten import contains_instance
 LOGGER = _loggers.marimo_logger()
 
 
-PostExecutionHookType = Callable[
-    [CellImpl, cell_runner.Runner, cell_runner.RunResult], None
-]
-
-
 @kernel_tracer.start_as_current_span("set_imported_defs")
 def _set_imported_defs(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
     LOGGER.debug("Acquiring graph lock to update cell import workspace")
-    with runner.graph.lock:
+    with ctx.graph.lock:
         LOGGER.debug("Acquired graph lock to update import workspace.")
         if cell.import_workspace.is_import_block:
             cell.import_workspace.imported_defs = set(
-                name for name in cell.defs if name in runner.glbls
+                name for name in cell.defs if name in ctx.glbls
             )
 
 
 @kernel_tracer.start_as_current_span("set_status_idle")
 def _set_status_idle(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
-    del runner
+    del ctx
     cell.set_runtime_state(status="idle")
 
 
 @kernel_tracer.start_as_current_span("set_run_result_status")
 def _set_run_result_status(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     if isinstance(run_result.exception, MarimoInterruptionError):
         cell.set_run_result_status("interrupted")
-    elif runner.cancelled(cell.cell_id):
+    elif ctx.cancelled(cell.cell_id):
         cell.set_run_result_status("cancelled")
     elif run_result.exception is not None:
         cell.set_run_result_status(
@@ -114,33 +108,20 @@ def _set_run_result_status(
         cell.set_run_result_status("success")
 
 
-def _should_broadcast_data() -> bool:
-    ctx = get_context()
-    is_edit_mode = (
-        isinstance(ctx, KernelRuntimeContext)
-        and ctx.session_mode == SessionMode.EDIT
-    )
-    # We don't broadcast data in embedded contexts, since the variables panel,
-    # etc. should only show the top-level graph's variables.
-    return is_edit_mode and not ctx.is_embedded()
-
-
 @kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
     values = [
         create_variable_value(
             name=variable,
-            value=(
-                runner.glbls[variable] if variable in runner.glbls else None
-            ),
+            value=(ctx.glbls[variable] if variable in ctx.glbls else None),
         )
         for variable in cell.defs
     ]
@@ -151,18 +132,18 @@ def _broadcast_variables(
 @kernel_tracer.start_as_current_span("broadcast_datasets")
 def _broadcast_datasets(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
     tables = get_datasets_from_variables(
         [
-            (VariableName(variable), runner.glbls[variable])
+            (VariableName(variable), ctx.glbls[variable])
             for variable in cell.defs
-            if variable in runner.glbls
+            if variable in ctx.glbls
         ]
     )
     if tables:
@@ -173,18 +154,18 @@ def _broadcast_datasets(
 @kernel_tracer.start_as_current_span("broadcast_data_source_connection")
 def _broadcast_data_source_connection(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
     engines = get_engines_from_variables(
         [
-            (VariableName(variable), runner.glbls[variable])
+            (VariableName(variable), ctx.glbls[variable])
             for variable in cell.defs
-            if variable in runner.glbls
+            if variable in ctx.glbls
         ]
     )
 
@@ -205,14 +186,13 @@ def _broadcast_data_source_connection(
 @kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
 def _broadcast_duckdb_datasource(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
-    del runner
     if not DependencyManager.duckdb.has():
         return
 
@@ -243,10 +223,10 @@ def _broadcast_duckdb_datasource(
 @kernel_tracer.start_as_current_span("store_reference_to_output")
 def _store_reference_to_output(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    del runner
+    del ctx
 
     # Stores a reference to the output if it contains a UIElement;
     # this is required to make RPCs work for unnamed UI elements.
@@ -259,28 +239,28 @@ def _store_reference_to_output(
 
 def _store_state_reference(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
     # Associate state variables with variable names
-    ctx = get_context()
-    ctx.state_registry.register_scope(runner.glbls, defs=cell.defs)
+    runtime_ctx = get_context()
+    runtime_ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
     privates = set().union(
-        *[cell.temporaries for cell in ctx.graph.cells.values()]
+        *[cell.temporaries for cell in runtime_ctx.graph.cells.values()]
     )
-    ctx.state_registry.retain_active_states(
-        set(runner.graph.definitions.keys()) | privates
+    runtime_ctx.state_registry.retain_active_states(
+        set(ctx.graph.definitions.keys()) | privates
     )
 
 
 @kernel_tracer.start_as_current_span("issue_exception_side_effect")
 def _issue_exception_side_effect(
     _cell: CellImpl,
-    _runner: cell_runner.Runner,
+    _ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    ctx = get_context()
+    runtime_ctx = get_context()
     if run_result.exception is not None:
         exception = run_result.exception
         key = type(exception).__name__
@@ -297,13 +277,13 @@ def _issue_exception_side_effect(
             # was raised.
             key += f":{traceback.tb_lasti}"
         # NB. This is on a cell level.
-        ctx.cell_lifecycle_registry.add(SideEffect(key))
+        runtime_ctx.cell_lifecycle_registry.add(SideEffect(key))
 
 
 @kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     # TODO: clean this logic up ...
@@ -328,12 +308,12 @@ def _broadcast_outputs(
             formatted_output = formatting.try_format(
                 run_result.output, include_opinionated=False
             )
-        # For ImportError and ModuleNotFoundError, store the exception in the runner
-        # so it can be reported by the missing_packages_hook.
+        # For ImportError and ModuleNotFoundError, store the exception in the
+        # context so it can be reported by the missing_packages_hook.
         if isinstance(
             formatted_output.exception, (ImportError, ModuleNotFoundError)
         ):
-            runner.exceptions[cell.cell_id] = formatted_output.exception
+            ctx.exceptions[cell.cell_id] = formatted_output.exception
         if formatted_output.traceback is not None:
             write_traceback(formatted_output.traceback)
 
@@ -402,13 +382,13 @@ def _broadcast_outputs(
 @kernel_tracer.start_as_current_span("render_toplevel_defs")
 def render_toplevel_defs(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
     variable = cell.toplevel_variable
     if variable is not None:
-        extractor = TopLevelExtraction.from_graph(runner.graph, cell=cell)
+        extractor = TopLevelExtraction.from_graph(ctx.graph, cell=cell)
         serialization = list(iter(extractor))[-1]
         CellNotificationUtils.broadcast_serialization(
             serialization=serialization,
@@ -419,7 +399,7 @@ def render_toplevel_defs(
 @kernel_tracer.start_as_current_span("run_pytest")
 def attempt_pytest(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
@@ -427,9 +407,9 @@ def attempt_pytest(
         try:
             import marimo._runtime.pytest as marimo_pytest
 
-            if runner.execution_context is not None:
-                with runner.execution_context(cell.cell_id):
-                    result = marimo_pytest.run_pytest(cell.defs, runner.glbls)
+            if ctx.execution_context is not None:
+                with ctx.execution_context(cell.cell_id):
+                    result = marimo_pytest.run_pytest(cell.defs, ctx.glbls)
                     if result.output:
                         sys.stdout.write(result.output)
         except ImportError:
@@ -439,17 +419,17 @@ def attempt_pytest(
 @kernel_tracer.start_as_current_span("reset_matplotlib_context")
 def _reset_matplotlib_context(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del cell
     del run_result
     if get_global_context().mpl_installed:
         # ensures that every cell gets a fresh axis.
-        exec("__marimo__._output.mpl.close_figures()", runner.glbls)
+        exec("__marimo__._output.mpl.close_figures()", ctx.glbls)
 
 
-POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
+POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _set_imported_defs,
     _set_run_result_status,
     _store_reference_to_output,
