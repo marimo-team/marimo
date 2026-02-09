@@ -1149,9 +1149,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     session_run_enabled = create_session(
         SessionMode.RUN, True, serve_cached_sessions_in_apps=True
     )
-    caching_extension_run_enabled = find_caching_extension(
-        session_run_enabled
-    )
+    caching_extension_run_enabled = find_caching_extension(session_run_enabled)
     assert caching_extension_run_enabled.enabled is True
     assert caching_extension_run_enabled.mode is CacheMode.READ
 

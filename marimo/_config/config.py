@@ -777,18 +777,15 @@ def merge_config(
     # Patches for backward compatibility
     if "runtime" in merged:
         if (
-            merged["runtime"].get("auto_reload")
-            is False  # type:ignore[comparison-overlap]
+            merged["runtime"].get("auto_reload") is False  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "off"
         elif (
-            merged["runtime"].get("auto_reload")
-            is True  # type:ignore[comparison-overlap]
+            merged["runtime"].get("auto_reload") is True  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"
         elif (
-            merged["runtime"].get("auto_reload")
-            == "detect"  # type:ignore[comparison-overlap]
+            merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"
 
