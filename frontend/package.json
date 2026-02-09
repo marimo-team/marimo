@@ -236,7 +236,7 @@
     "babel-plugin-react-compiler": "19.1.0-rc.3",
     "blob-polyfill": "^7.0.20220408",
     "cross-env": "^7.0.3",
-    "eslint": "^8.57.0",
+    "eslint": "^9.26.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.3",
     "eslint-plugin-react-hooks": "^6.0.0-rc.1",
