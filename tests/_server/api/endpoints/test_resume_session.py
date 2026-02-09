@@ -5,8 +5,6 @@ import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional
 
-import pytest
-
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import (
@@ -297,7 +295,6 @@ def test_restart_session(client: TestClient) -> None:
     # Shutdown the kernel
 
 
-@pytest.mark.flaky(reruns=5)
 def test_resume_session_with_watch(client: TestClient) -> None:
     session_manager = get_session_manager(client)
     session_manager.watch = True
@@ -335,8 +332,12 @@ def test_resume_session_with_watch(client: TestClient) -> None:
             },
         }
 
+    # Stop the file watcher before resuming to prevent duplicate filesystem
+    # events from racing with the session replay messages.
+    session_manager._watcher_manager.stop_all()
+    session_manager.watch = False
+
     # Resume session with new ID (simulates refresh)
-    # watcher_on_save is 'autorun', so we should expect the cell to be run
     with client.websocket_connect(_create_ws_url("456")) as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
@@ -347,14 +348,14 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         assert parse_raw(data["data"], KernelReadyNotification)
         messages: list[dict[str, Any]] = []
 
-        # Wait for update-cell-codes message
+        # Wait for update-cell-ids message
         while True:
             data = websocket.receive_json()
             messages.append(data)
             if data["op"] == "update-cell-ids":
                 break
 
-        # 3 messages:
+        # 2 messages:
         # 1. banner
         # 2. update-cell-ids
         assert len(messages) == 2
@@ -368,9 +369,6 @@ def test_resume_session_with_watch(client: TestClient) -> None:
     assert session
     session_view = session.session_view
     assert session_view.last_executed_code == {"MJUe": "x=10; x"}
-
-    session_manager.watch = False
-    session_manager._watcher_manager.stop_all()
 
 
 @contextmanager

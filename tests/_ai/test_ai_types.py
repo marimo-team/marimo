@@ -100,8 +100,8 @@ class TestChatMessageCreate:
         )
 
     @pytest.mark.skipif(
-        not DependencyManager.pydantic.has(),
-        reason="pydantic is not installed",
+        not DependencyManager.pydantic_ai.has(),
+        reason="pydantic_ai is not installed",
     )
     def test_dict_parts_with_dataclass_validator(self):
         """Test converting dict parts using a dataclass validator."""
@@ -123,8 +123,8 @@ class TestChatMessageCreate:
         )
 
     @pytest.mark.skipif(
-        not DependencyManager.pydantic.has(),
-        reason="pydantic is not installed",
+        not DependencyManager.pydantic_ai.has(),
+        reason="pydantic_ai is not installed",
     )
     def test_mixed_parts_with_validator(self):
         """Test with a mix of already-typed and dict parts."""

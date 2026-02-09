@@ -540,6 +540,7 @@ def test_get_datasets_from_variables(df: Any) -> None:
     ]
 
 
+@pytest.mark.requires("duckdb")
 def test_get_table_columns() -> None:
     import duckdb
 
@@ -550,6 +551,7 @@ def test_get_table_columns() -> None:
     assert columns == all_types_tables[0].columns
 
 
+@pytest.mark.requires("duckdb")
 def test_get_databases_agg_query() -> None:
     import duckdb
 

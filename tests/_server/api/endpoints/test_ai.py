@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
@@ -29,10 +28,6 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
-
-HAS_OPEN_AI_DEPS = DependencyManager.openai.has()
-HAS_ANTHROPIC_DEPS = DependencyManager.anthropic.has()
-HAS_GOOGLE_AI_DEPS = DependencyManager.google_ai.has()
 
 
 # Anthropic
@@ -83,9 +78,7 @@ def _create_messages(prompt: str) -> list[dict[str, Any]]:
     ]
 
 
-@pytest.mark.skipif(
-    not HAS_OPEN_AI_DEPS, reason="optional dependencies not installed"
-)
+@pytest.mark.requires("openai", "pydantic_ai")
 class TestOpenAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
@@ -339,9 +332,7 @@ class TestOpenAiEndpoints:
             assert "sql" in call_kwargs["system_prompt"].lower()
 
 
-@pytest.mark.skipif(
-    not HAS_ANTHROPIC_DEPS, reason="optional dependencies not installed"
-)
+@pytest.mark.requires("anthropic", "pydantic_ai")
 class TestAnthropicAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
@@ -443,9 +434,7 @@ class TestAnthropicAiEndpoints:
             )
 
 
-@pytest.mark.skipif(
-    not HAS_GOOGLE_AI_DEPS, reason="optional dependencies not installed"
-)
+@pytest.mark.requires("google_ai", "pydantic_ai")
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
@@ -667,6 +656,7 @@ def _google_ai_config():
     }
 
 
+@pytest.mark.requires("openai", "pydantic_ai")
 @with_session(SESSION_ID)
 @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
 def test_chat_without_code(
@@ -707,6 +697,7 @@ def test_chat_without_code(
         mock_stream_completion.assert_called_once()
 
 
+@pytest.mark.requires("openai", "pydantic_ai")
 @with_session(SESSION_ID)
 @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
 def test_chat_with_code(
