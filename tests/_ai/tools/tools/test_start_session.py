@@ -52,6 +52,21 @@ class MockFileRouter:
 
 
 @dataclass
+class MockSession:
+    """Mock session returned by create_session."""
+
+    _instantiated: bool = False
+
+    def instantiate(self, request: object, http_request: object) -> None:
+        del request, http_request
+        self._instantiated = True
+
+    @property
+    def app_file_manager(self) -> object:
+        return type("obj", (object,), {"path": ""})()
+
+
+@dataclass
 class MockSessionManager:
     sessions: dict[str, object]
     file_router: MockLazyFileRouter | MockFileRouter | None = None
@@ -62,6 +77,19 @@ class MockSessionManager:
 
     def any_clients_connected(self, key: str) -> bool:
         return key in self._connected_paths
+
+    def create_session(
+        self,
+        session_id: str,
+        session_consumer: object,
+        query_params: object,
+        file_key: str,
+        auto_instantiate: bool,
+    ) -> MockSession:
+        del session_consumer, query_params, file_key, auto_instantiate
+        session = MockSession()
+        self.sessions[session_id] = session
+        return session
 
 
 @dataclass
@@ -145,8 +173,29 @@ class TestStartSessionBasic:
             )
 
         assert result.status == "success"
+        assert result.session_id != ""
         assert "localhost:2718" in result.url
         assert "file=test.py" in result.url
+
+    def test_start_session_creates_session(
+        self, tool: StartSession, temp_dir: str
+    ):
+        """Test that a headless session is created and instantiated."""
+        notebook_path = Path(temp_dir) / "test.py"
+        _create_valid_notebook(notebook_path)
+
+        with patch(
+            "marimo._ai._tools.tools.start_session.AppStateBase"
+        ) as mock_app_state:
+            mock_app_state.from_app.return_value = MockAppState()
+
+            result = tool.handle(
+                StartSessionArgs(file_path=str(notebook_path))
+            )
+
+        # Session should exist in the manager
+        session = tool.context.session_manager.sessions[result.session_id]
+        assert session._instantiated is True
 
     def test_start_session_marks_router_stale(
         self, tool: StartSession, temp_dir: str
