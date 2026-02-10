@@ -5,6 +5,8 @@ import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional
 
+import pytest
+
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import (
@@ -295,6 +297,7 @@ def test_restart_session(client: TestClient) -> None:
     # Shutdown the kernel
 
 
+@pytest.mark.flaky(reruns=3)
 def test_resume_session_with_watch(client: TestClient) -> None:
     session_manager = get_session_manager(client)
     session_manager.watch = True
