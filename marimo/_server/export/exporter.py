@@ -117,6 +117,7 @@ class Exporter:
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
+            model_notifications=session_view.get_model_notifications(),
             asset_url=request.asset_url,
         )
 

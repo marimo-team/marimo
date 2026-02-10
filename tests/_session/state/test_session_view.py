@@ -310,6 +310,56 @@ def test_model_multiple_models(session_view: SessionView) -> None:
     assert session_view.model_states[model_id2].state == {"key": "v2"}
 
 
+def test_get_model_notifications(session_view: SessionView) -> None:
+    # Empty initially
+    assert session_view.get_model_notifications() == []
+
+    # Add two models
+    m1 = WidgetModelId("m1")
+    m2 = WidgetModelId("m2")
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=m1,
+            message=ModelOpen(
+                state={"count": 0},
+                buffer_paths=[],
+                buffers=[],
+            ),
+        )
+    )
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=m2,
+            message=ModelOpen(
+                state={"img": None},
+                buffer_paths=[["img"]],
+                buffers=[b"\x89PNG"],
+            ),
+        )
+    )
+
+    result = session_view.get_model_notifications()
+    assert len(result) == 2
+    by_id = {n.model_id: n for n in result}
+
+    assert by_id[m1].message == ModelOpen(
+        state={"count": 0}, buffer_paths=[], buffers=[]
+    )
+    assert by_id[m2].message == ModelOpen(
+        state={"img": None},
+        buffer_paths=[["img"]],
+        buffers=[b"\x89PNG"],
+    )
+
+    # Close m1, only m2 remains
+    session_view.add_notification(
+        ModelLifecycleNotification(model_id=m1, message=ModelClose())
+    )
+    result = session_view.get_model_notifications()
+    assert len(result) == 1
+    assert result[0].model_id == m2
+
+
 class TestModelReplayState:
     """Unit tests for ModelReplayState buffer merging."""
 
@@ -392,26 +442,36 @@ class TestModelReplayState:
         assert view.buffers == {("img",): b"png"}
         assert view.state == {"label": "hi", "img": None}
 
-    def test_to_notification_round_trips(self) -> None:
-        model_id = WidgetModelId("m")
+    def test_to_notification_no_buffers(self) -> None:
         view = ModelReplayState(
-            model_id=model_id,
+            model_id=WidgetModelId("m"),
+            state={"label": "hi", "count": 42},
+            buffers={},
+        )
+        result = view.to_notification()
+        assert result.model_id == WidgetModelId("m")
+        assert result.message == ModelOpen(
+            state={"label": "hi", "count": 42},
+            buffer_paths=[],
+            buffers=[],
+        )
+
+    def test_to_notification_with_buffers(self) -> None:
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
             state={"img": None, "data": None, "label": "hi"},
             buffers={("img",): b"png", ("data",): b"csv"},
         )
-        notif = view.to_notification()
-        assert notif.model_id == model_id
-        assert isinstance(notif.message, ModelOpen)
-        assert notif.message.state == {
-            "img": None,
-            "data": None,
-            "label": "hi",
-        }
+        result = view.to_notification()
+        assert result.model_id == WidgetModelId("m")
+        msg = result.message
+        assert isinstance(msg, ModelOpen)
+        assert msg.state == {"img": None, "data": None, "label": "hi"}
         # buffer_paths and buffers should be parallel and match
         path_buf = dict(
             zip(
-                [tuple(p) for p in notif.message.buffer_paths],
-                notif.message.buffers,
+                [tuple(p) for p in msg.buffer_paths],
+                msg.buffers,
             )
         )
         assert path_buf == {("img",): b"png", ("data",): b"csv"}

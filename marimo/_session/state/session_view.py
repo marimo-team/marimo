@@ -94,7 +94,6 @@ class ModelReplayState:
             self.buffers[tuple(path)] = buf
 
     def to_notification(self) -> ModelLifecycleNotification:
-        """Convert back to a ModelOpen notification for replay."""
         paths = list(self.buffers.keys())
         bufs = list(self.buffers.values())
         return ModelLifecycleNotification(
@@ -521,8 +520,8 @@ class SessionView:
 
         # Model messages must come before cell notifications to ensure
         # the model exists before the view tries to use it.
-        for view in self.model_states.values():
-            all_notifications.append(view.to_notification())
+        for state in self.model_states.values():
+            all_notifications.append(state.to_notification())
 
         if self.ui_element_messages:
             for ui_messages in self.ui_element_messages.values():
@@ -535,6 +534,16 @@ class SessionView:
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)
         return all_notifications
+
+    def get_model_notifications(self) -> list[ModelLifecycleNotification]:
+        """Return model-open notifications for all live widget models.
+
+        Used to embed model state in static HTML exports so anywidgets
+        can render without a running kernel.
+        """
+        return [
+            state.to_notification() for state in self.model_states.values()
+        ]
 
     def is_empty(self) -> bool:
         return all(

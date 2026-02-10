@@ -610,6 +610,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             code_hash=hash_code(code),
             notebook_snapshot=notebook_snapshot,
             files={},
+            model_notifications=session_view.get_model_notifications(),
             asset_url=asset_url,
         )
 

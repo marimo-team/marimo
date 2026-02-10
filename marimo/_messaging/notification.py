@@ -201,6 +201,25 @@ class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
     model_id: WidgetModelId
     message: ModelMessage
 
+    def to_json_serializable(self) -> dict[str, Any]:
+        """Convert to a plain dict that json.dumps can serialize.
+
+        Used by static HTML export to embed model notifications in a
+        <script> tag via json_script().  We use msgspec.to_builtins for
+        the struct conversion, then base64-encode any bytes buffers
+        since raw bytes are not JSON-serializable.
+        """
+        import base64
+
+        d: dict[str, Any] = msgspec.to_builtins(self)
+        # bytes are not JSON-serializable; base64-encode each buffer
+        msg = d.get("message", {})
+        if "buffers" in msg:
+            msg["buffers"] = [
+                base64.b64encode(b).decode("ascii") for b in msg["buffers"]
+            ]
+        return d
+
 
 class InterruptedNotification(Notification, tag="interrupted"):
     """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
