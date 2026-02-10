@@ -101,7 +101,7 @@ class TestExportHTML:
         assert '"mode": "edit"' in html
         assert '<marimo-code hidden=""></marimo-code>' not in html
         assert "<marimo-wasm" in html
-        assert '"showAppCode":false' in html or '"showAppCode": false' in html
+        assert '"showAppCode": false' in html
         assert Path(out_dir / ".nojekyll").exists()
 
     @staticmethod
@@ -182,7 +182,7 @@ class TestExportHTML:
         html = Path(out_dir / "index.html").read_text()
         assert '"mode": "read"' in html
         assert '<marimo-code hidden=""></marimo-code>' not in html
-        assert '"showAppCode":false' in html or '"showAppCode": false' in html
+        assert '"showAppCode": false' in html
         assert "<marimo-wasm" in html
 
     @pytest.mark.skipif(
