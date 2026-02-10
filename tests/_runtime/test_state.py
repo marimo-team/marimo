@@ -218,3 +218,100 @@ async def test_set_state_not_strict_copied(
 
     assert id(k.globals["a"]) == id(k.globals["state"])
     assert id(k.globals["b"]) == id(k.globals["set_state"])
+
+
+async def test_external_state_update(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """State setter called outside cell execution (no execution context).
+
+    Simulates the pattern where a widget callback or async task calls
+    set_state. The __external__ sentinel should skip self-loop prevention
+    and downstream cells should re-run.
+    """
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("state, set_state = mo.state(0)"),
+            exec_req.get("x = state()"),
+        ]
+    )
+    assert k.globals["x"] == 0
+
+    # Call set_state outside any cell execution context,
+    # like a widget callback or async task would.
+    k.globals["set_state"](42)
+
+    # _find_cells_for_state with __external__ should find the
+    # cell that reads state but not loop back to any "setter" cell.
+    from marimo._runtime.state import State
+    from marimo._types.ids import CellId_t
+
+    state_obj = k.globals["state"]
+    assert isinstance(state_obj, State)
+
+    affected = k._find_cells_for_state(state_obj, CellId_t("__external__"))
+    # Should include the cell that reads `state` (x = state())
+    assert len(affected) > 0
+
+    # The cell that defines state should NOT be in affected
+    # (it defines but doesn't read it as a ref)
+    define_cell_id = list(k.graph.cells.keys())[1]  # "state, set_state = ..."
+    assert define_cell_id not in affected
+
+
+async def test_external_set_state_reruns_dependent_cell(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Calling set_state from outside a cell (async task / widget callback)
+    should re-run downstream cells that read the state."""
+    k = execution_kernel
+
+    # Wire enqueue so run_stale_cells can actually flush the update
+    k.enqueue_control_request = lambda _: None  # type: ignore
+
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("state, set_state = mo.state(0)"),
+            exec_req.get("result = state()"),
+        ]
+    )
+    assert k.globals["result"] == 0
+
+    # Simulate a widget callback / async task calling set_state
+    k.globals["set_state"](42)
+
+    # Flush — in production the event loop processes this automatically
+    await k.run_stale_cells()
+
+    assert k.globals["result"] == 42
+
+
+async def test_find_cells_with_multiple_refs_to_same_state(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Cell that references the same state via multiple names is found once."""
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("state, set_state = mo.state(0)"),
+            # alias creates a second ref to the same state object
+            exec_req.get("alias = state; x = state() + alias()"),
+        ]
+    )
+    assert k.globals["x"] == 0
+
+    from marimo._runtime.state import State
+    from marimo._types.ids import CellId_t
+
+    state_obj = k.globals["state"]
+    assert isinstance(state_obj, State)
+
+    affected = k._find_cells_for_state(state_obj, CellId_t("__external__"))
+    reader_cell_id = list(k.graph.cells.keys())[2]
+    # Cell should appear exactly once despite two refs to the same state
+    assert reader_cell_id in affected
+    assert len([c for c in affected if c == reader_cell_id]) == 1

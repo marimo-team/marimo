@@ -359,6 +359,7 @@ class Runner:
                     # by object ID (via is operator)
                     if ref in self.glbls and self.glbls[ref] is state:
                         cids_to_run.add(cid)
+                        break  # cell already matched; skip remaining refs
         return cids_to_run
 
     def pop_cell(self) -> CellId_t:

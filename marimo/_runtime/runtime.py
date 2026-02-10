@@ -1448,20 +1448,43 @@ class Kernel:
         from marimo._runtime.threads import is_marimo_thread
 
         ctx = get_context()
-        assert ctx.execution_context is not None
-        setter_cell_id = ctx.execution_context.cell_id
+        if ctx.execution_context is not None:
+            setter_cell_id = ctx.execution_context.cell_id
+        else:
+            # Setter called outside cell execution (e.g. from a widget
+            # callback triggered by a frontend message, or an async
+            # task). Use a sentinel that won't match any real cell,
+            # so self-loop prevention is skipped.
+            setter_cell_id = CellId_t("__external__")
 
-        # When running on the main thread of execution, state updates
-        # are just logged in a data structure; it is the runner's
-        # job to process these later.
-        if not is_marimo_thread():
-            with self._state_lock:
-                self.state_updates[state] = setter_cell_id
+        # When running in a mo.Thread, eagerly process state updates.
+        if is_marimo_thread():
+            cells_with_stale_state = self._find_cells_for_state(
+                state, setter_cell_id
+            )
+            self.graph.set_stale(cells_with_stale_state, prune_imports=True)
+            if not self.lazy():
+                self._execute_stale_cells_callback()
             return
 
-        # Otherwise, when running in a mo.Thread, we eagerly process
-        # state updates.
-        cells_with_stale_state = set()
+        # On the main thread, queue the update for the runner.
+        with self._state_lock:
+            self.state_updates[state] = setter_cell_id
+
+        # Outside cell execution (async task, widget callback), nothing
+        # else will flush the queue, so enqueue a run.
+        if ctx.execution_context is None and not self.lazy():
+            self._execute_stale_cells_callback()
+
+    def _find_cells_for_state(
+        self, state: State[Any], setter_cell_id: CellId_t
+    ) -> set[CellId_t]:
+        """Find cells that should re-run due to a state update.
+
+        Returns cell IDs whose refs include the given state object,
+        excluding the setter cell (unless allow_self_loops is True).
+        """
+        result: set[CellId_t] = set()
         for cid, cell in self.graph.cells.items():
             # No self-loops
             if cid == setter_cell_id and not state.allow_self_loops:
@@ -1470,11 +1493,9 @@ class Kernel:
                 # run this cell if any of its refs match the state object
                 # by object ID (via is operator)
                 if ref in self.globals and self.globals[ref] is state:
-                    cells_with_stale_state.add(cid)
-                    break
-        self.graph.set_stale(cells_with_stale_state, prune_imports=True)
-        if not self.lazy():
-            self._execute_stale_cells_callback()
+                    result.add(cid)
+                    break  # cell already matched; skip remaining refs
+        return result
 
     @kernel_tracer.start_as_current_span("delete_cell")
     async def delete_cell(self, request: DeleteCellCommand) -> None:
@@ -2244,12 +2265,19 @@ class Kernel:
             )
 
             # If there's a ui_element_id, trigger a cell re-run
+            # via the UI element path (which also processes state updates).
             if ui_element_id and state:
                 await self.set_ui_element_value(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
                     )
                 )
+                broadcast_notification(CompletedRunNotification())
+            elif self.state_updates:
+                # Callbacks during message processing (e.g. widget observe
+                # handlers) may have called mo.state setters. Process
+                # those pending state updates now.
+                await self._run_cells(set())
                 broadcast_notification(CompletedRunNotification())
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:
