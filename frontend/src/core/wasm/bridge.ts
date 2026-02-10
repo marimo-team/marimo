@@ -9,6 +9,7 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { notebookIsRunningAtom } from "../cells/cells";
+import { filenameAtom } from "../saving/file-state";
 import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
@@ -146,7 +147,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
-    const filename = PyodideRouter.getFilename();
+    const filename = store.get(filenameAtom) ?? PyodideRouter.getFilename();
     const userConfig = store.get(userConfigAtom);
 
     const queryParameters: Record<string, string | string[]> = {};

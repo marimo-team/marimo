@@ -4,7 +4,11 @@ import {
   CompositeFileStore,
   domElementFileStore,
   localStorageFileStore,
+  mountConfigFileStore,
+  notebookFileStore,
 } from "../store";
+import { store } from "../../state/jotai";
+import { codeAtom } from "../../saving/file-state";
 
 describe("localStorageFileStore", () => {
   it("calls set with correct contents on saveFile", () => {
@@ -51,5 +55,34 @@ describe("CompositeFileStore", () => {
     composite.saveFile("new content");
     expect(saved).toHaveBeenCalledWith("new content");
     expect(saved).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("mountConfigFileStore", () => {
+  it("returns null when no code is set", () => {
+    store.set(codeAtom, undefined);
+    expect(mountConfigFileStore.readFile()).toBeNull();
+  });
+
+  it("returns code when set", () => {
+    store.set(codeAtom, "print('hello')");
+    expect(mountConfigFileStore.readFile()).toBe("print('hello')");
+  });
+
+  it("does not save files", () => {
+    store.set(codeAtom, "original");
+    mountConfigFileStore.saveFile("new content");
+    expect(mountConfigFileStore.readFile()).toBe("original");
+  });
+});
+
+describe("notebookFileStore priority", () => {
+  it("prefers mount config over marimo-code and URL", () => {
+    store.set(codeAtom, "mount config code");
+    const element = document.createElement("marimo-code");
+    element.textContent = "marimo-code element";
+    document.body.replaceChildren(element);
+
+    expect(notebookFileStore.readFile()).toBe("mount config code");
   });
 });

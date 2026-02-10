@@ -5,6 +5,8 @@ import {
   decompressFromEncodedURIComponent,
 } from "lz-string";
 import { TypedLocalStorage } from "@/utils/storage/typed";
+import { store } from "@/core/state/jotai";
+import { codeAtom } from "@/core/saving/file-state";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {
@@ -67,6 +69,15 @@ const remoteDefaultFileStore: FileStore = {
   },
 };
 
+export const mountConfigFileStore: FileStore = {
+  saveFile(_contents: string) {
+    // Read-only: mount config code is set via codeAtom
+  },
+  readFile() {
+    return store.get(codeAtom) ?? null;
+  },
+};
+
 const emptyFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
@@ -112,7 +123,8 @@ export class CompositeFileStore implements FileStore {
 }
 
 export const notebookFileStore = new CompositeFileStore([
-  // Prefer <marimo-code>, then URL
+  // Prefer mount config, then <marimo-code>, then URL
+  mountConfigFileStore,
   domElementFileStore,
   urlFileStore,
 ]);
