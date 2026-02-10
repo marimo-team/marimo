@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import functools
-import inspect
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -72,6 +71,7 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
 )
+from marimo._utils.variable_name import infer_variable_name
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -504,28 +504,8 @@ class table(
         max_columns_arg: Union[int, str]
 
         # Infer the variable name before add_selection_column() mutates data,
-        # so the identity check (var_value is data) still matches the caller's
-        # original variable.
-        download_file_name = "download"
-        frame = None
-        frame_back = None
-        try:
-            frame = inspect.currentframe()
-            if frame is not None:
-                frame_back = frame.f_back
-            if frame_back is not None:
-                for var_name, var_value in frame_back.f_locals.items():
-                    if var_value is data:
-                        download_file_name = var_name
-                        break
-        except Exception:
-            LOGGER.debug(
-                "Failed to infer download file name from caller frame.",
-                exc_info=True,
-            )
-        finally:
-            del frame
-            del frame_back
+        # so the identity check still matches the caller's original variable.
+        download_file_name = infer_variable_name(data, "download")
 
         has_stable_row_id = False
         if selection is not None:

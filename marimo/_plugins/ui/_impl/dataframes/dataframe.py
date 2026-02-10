@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import inspect
 import sys
 from dataclasses import dataclass
 from typing import (
@@ -51,6 +50,7 @@ from marimo._utils.memoize import memoize_last_value
 from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.variable_name import infer_variable_name
 
 TOO_MANY_ROWS = 100_000
 
@@ -147,20 +147,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         # This will raise an error if the dataframe type is not supported.
         handler = get_handler_for_dataframe(df)
 
-        # HACK: this is a hack to get the name of the variable that was passed
-        dataframe_name = "df"
-        try:
-            frame = inspect.currentframe()
-            if frame is not None and frame.f_back is not None:
-                for (
-                    var_name,
-                    var_value,
-                ) in frame.f_back.f_locals.items():
-                    if var_value is df:
-                        dataframe_name = var_name
-                        break
-        except Exception:
-            pass
+        dataframe_name = infer_variable_name(df, "df")
 
         # Make the dataframe lazy and keep an undo callback to restore original type
         nw_df, self._undo = make_lazy(df)
