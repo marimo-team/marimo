@@ -689,21 +689,6 @@ def test_as_html_with_html_object() -> None:
     assert result.text == "<h1>Hello</h1>"
 
 
-def test_as_html_with_md_object_formats_as_html() -> None:
-    """Test as_html normalizes md objects so __format__ returns HTML."""
-    from marimo._output.md import md
-
-    md_obj = md("# Title")
-    result = as_html(md_obj)
-
-    # Should be a plain Html, not the _md subclass
-    assert type(result).__name__ == "Html"
-    # When used in an f-string, should produce HTML, not raw markdown
-    formatted = f"{result}"
-    assert "# Title" not in formatted
-    assert "<" in formatted  # Should contain HTML tags
-
-
 def test_as_html_with_repr_html() -> None:
     """Test as_html with objects that have _repr_html_ method."""
     register_formatters()

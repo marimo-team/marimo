@@ -304,10 +304,6 @@ def as_html(value: object) -> Html:
         ```
     """
     if isinstance(value, Html):
-        # Normalize Html subclasses (like _md) to plain Html so that
-        # __format__ returns processed HTML instead of raw source text.
-        if type(value) is not Html:
-            return Html(value.text)
         return value
 
     formatter = get_formatter(value)
