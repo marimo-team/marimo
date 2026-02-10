@@ -35,6 +35,7 @@ export interface PlotProps {
   onRelayouting?: (event: PlotlyTypes.PlotRelayoutEvent) => void;
   onSelected?: (event: PlotlyTypes.PlotSelectionEvent) => void;
   onDeselect?: () => void;
+  onClick?: (event: PlotlyTypes.PlotMouseEvent) => void;
   onSunburstClick?: (event: PlotlyTypes.PlotMouseEvent) => void;
   onTreemapClick?: (event: PlotlyTypes.PlotMouseEvent) => void;
   onError?: (err: Error) => void;
@@ -48,6 +49,7 @@ const EVENT_NAMES = [
   "Relayouting",
   "Selected",
   "Deselect",
+  "Click",
   "SunburstClick",
   "TreemapClick",
 ] as const;
