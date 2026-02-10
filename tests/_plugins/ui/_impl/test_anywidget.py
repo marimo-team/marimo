@@ -193,7 +193,6 @@ x = as_marimo_element.count
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
-            "css": "",
             "js-url": "",
             "js-hash": md5(b"").hexdigest(),
         }
@@ -209,7 +208,6 @@ x = as_marimo_element.count
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
-            "css": "",
             "js-url": "",
             "js-hash": md5(b"").hexdigest(),
         }
@@ -344,7 +342,7 @@ x = as_marimo_element.count
             _css = "button { color: red; }"
 
         wrapped = anywidget(CSSWidget())
-        assert wrapped._component_args["css"] == "button { color: red; }"
+        assert "css" not in wrapped._component_args
 
     @staticmethod
     async def test_js_hash() -> None:
