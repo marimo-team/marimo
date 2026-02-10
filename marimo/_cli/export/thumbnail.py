@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import click
 
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import echo, green, red
+from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import run_app_then_export_as_html
 from marimo._server.file_router import flatten_files
@@ -34,6 +34,7 @@ _sandbox_message = (
     "via PEP 723 inline metadata. If already declared, dependencies will "
     "install automatically. Requires uv. Only applies when --execute is used."
 )
+_READINESS_WAIT_TIMEOUT_MS = 30_000
 
 
 def _split_paths_and_args(
@@ -294,6 +295,7 @@ async def _generate_thumbnails(
 
     try:
         from playwright.async_api import (  # type: ignore[import-not-found]
+            TimeoutError as PlaywrightTimeoutError,
             async_playwright,
         )
     except ModuleNotFoundError as e:
@@ -374,23 +376,32 @@ async def _generate_thumbnails(
                         )
                         # Nb renderer starts cell contents as invisible for a short period to avoid flicker
                         # --> we wait for the first cell container to be visible before snapshotting.
-                        await page.wait_for_function(
-                            r"""
+                        try:
+                            await page.wait_for_function(
+                                r"""
 () => {
   const root = document.getElementById("root");
   if (!root) return false;
 
-  const cell = document.querySelector('div[id^="cell-"]');
-  if (cell) {
-    const style = window.getComputedStyle(cell);
-    return style.visibility !== "hidden" && style.display !== "none";
+  const cells = Array.from(document.querySelectorAll('div[id^="cell-"]'));
+  if (cells.length > 0) {
+    const hasVisibleCell = cells.some((cell) => {
+      const style = window.getComputedStyle(cell);
+      return style.visibility !== "hidden" && style.display !== "none";
+    });
+    if (hasVisibleCell) return true;
   }
 
   return root.childElementCount > 0;
 }
 """,
-                            timeout=30_000,
-                        )
+                                timeout=_READINESS_WAIT_TIMEOUT_MS,
+                            )
+                        except PlaywrightTimeoutError:
+                            echo(
+                                yellow("warning")
+                                + ": readiness check timed out; capturing screenshot anyway."
+                            )
                         await page.wait_for_timeout(timeout_ms)
                         await page.screenshot(
                             path=str(out_path), full_page=False
