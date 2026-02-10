@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-import logging
 from typing import Any
 
 from marimo import _loggers
