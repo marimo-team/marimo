@@ -8,6 +8,10 @@ import msgspec
 
 from marimo._types.ids import VariableName
 
+KNOWN_STORAGE_TYPES = Literal[
+    "s3", "gcs", "azure", "http", "file", "in-memory"
+]
+
 
 # Note: We may want to consolidate with FileInfo from _server/models/files.py
 class StorageEntry(msgspec.Struct, rename="camel"):
@@ -34,14 +38,14 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
     Attributes:
         name: The variable name of the storage namespace.
         display_name: The display name of the storage namespace.
-        source: The source of the storage namespace. E.g. S3, GCS, Google Drive, etc.
+        protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
         root_path: The root path of the storage namespace.
         storage_entries: The storage entries in the storage namespace.
     """
 
     name: VariableName | None
     display_name: str
-    source: str
+    protocol: str
     root_path: str
     storage_entries: list[StorageEntry]
 
@@ -81,7 +85,7 @@ class StorageBackend(abc.ABC, Generic[Backend]):
 
     @property
     @abc.abstractmethod
-    def protocol(self) -> str:
+    def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         """Return the protocol of the storage backend."""
 
     @property

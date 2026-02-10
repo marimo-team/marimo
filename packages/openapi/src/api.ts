@@ -5630,15 +5630,15 @@ export interface components {
      *         Attributes:
      *             name: The variable name of the storage namespace.
      *             display_name: The display name of the storage namespace.
-     *             source: The source of the storage namespace. E.g. S3, GCS, Google Drive, etc.
+     *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
      *             root_path: The root path of the storage namespace.
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
       displayName: string;
       name: string | null;
+      protocol: string;
       rootPath: string;
-      source: string;
       storageEntries: components["schemas"]["StorageEntry"][];
     };
     /**

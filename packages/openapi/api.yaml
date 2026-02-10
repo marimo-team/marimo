@@ -4264,9 +4264,9 @@ components:
       description: "Represents external storage systems (filesystems and object storage)\n\
         \n    Attributes:\n        name: The variable name of the storage namespace.\n\
         \        display_name: The display name of the storage namespace.\n      \
-        \  source: The source of the storage namespace. E.g. S3, GCS, Google Drive,\
-        \ etc.\n        root_path: The root path of the storage namespace.\n     \
-        \   storage_entries: The storage entries in the storage namespace."
+        \  protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http,\
+        \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
+        \        storage_entries: The storage entries in the storage namespace."
       properties:
         displayName:
           type: string
@@ -4274,9 +4274,9 @@ components:
           anyOf:
           - type: string
           - type: 'null'
-        rootPath:
+        protocol:
           type: string
-        source:
+        rootPath:
           type: string
         storageEntries:
           items:
@@ -4285,7 +4285,7 @@ components:
       required:
       - name
       - displayName
-      - source
+      - protocol
       - rootPath
       - storageEntries
       title: StorageNamespace

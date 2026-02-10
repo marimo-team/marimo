@@ -8,10 +8,10 @@ from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._storage.models import (
     DEFAULT_FETCH_LIMIT,
+    KNOWN_STORAGE_TYPES,
     StorageBackend,
     StorageEntry,
 )
-from marimo._types.ids import VariableName
 from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
 
@@ -74,7 +74,7 @@ class Obstore(StorageBackend["ObjectStore"]):
         return bytes(bytes_data)
 
     @property
-    def protocol(self) -> str:
+    def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         from obstore.store import (
             AzureStore,
             GCSStore,
@@ -141,20 +141,9 @@ class Obstore(StorageBackend["ObjectStore"]):
 MAX_FILESYSTEM_FETCH_LIMIT = 200
 
 
+# The async implementations has a few unimplemented methods (like ls), so it's better to use synchronous versions and
+# wrap them in asyncio.to_thread
 class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
-    def __init__(
-        self, store: AbstractFileSystem, variable_name: VariableName | None
-    ) -> None:
-        from fsspec.asyn import AsyncFileSystem  # type: ignore[import-untyped]
-
-        # Wrapping in an async filesystem lets us treat it asynchronously, even if the underlying code is synchronous.
-        # https://filesystem-spec.readthedocs.io/en/latest/async.html
-        if not isinstance(store, AsyncFileSystem):
-            self.store = AsyncFileSystem(store)
-        else:
-            self.store = store
-        super().__init__(self.store, variable_name)
-
     def list_entries(
         self,
         prefix: str | None,
@@ -200,7 +189,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "file"
 
     async def get_entry(self, path: str) -> StorageEntry:
-        entry = await self.store._info(path)
+        entry = await asyncio.to_thread(self.store.info, path)
         if not isinstance(entry, dict):
             raise ValueError(f"Entry at {path} is not a dictionary")
         return self._create_storage_entry(entry)
@@ -250,10 +239,10 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         return file
 
     @property
-    def protocol(self) -> str:
+    def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         if isinstance(self.store.protocol, tuple):
-            return "-".join(self.store.protocol)
-        return cast(str, self.store.protocol)
+            return normalize_protocol("-".join(self.store.protocol))
+        return normalize_protocol(self.store.protocol)
 
     @property
     def root_path(self) -> str | None:
@@ -267,3 +256,20 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         from fsspec import AbstractFileSystem
 
         return isinstance(var, AbstractFileSystem)
+
+
+def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | str:
+    """Normalize the protocol to a known storage type."""
+    protocol = protocol.strip().lower()
+    if "s3" in protocol:
+        return "s3"
+    elif "gcs" in protocol:
+        return "gcs"
+    elif "azure" in protocol:
+        return "azure"
+    elif "http" in protocol:
+        return "http"
+    elif "file" in protocol:
+        return "file"
+    else:
+        return protocol

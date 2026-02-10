@@ -30,7 +30,7 @@ def storage_backend_to_storage_namespace(
     return StorageNamespace(
         name=storage_backend.variable_name,
         display_name=storage_backend.variable_name or "",
-        source=storage_backend.protocol,
+        protocol=storage_backend.protocol,
         root_path=storage_backend.root_path or "",
         storage_entries=storage_backend.list_entries(prefix=""),
     )
