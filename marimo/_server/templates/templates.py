@@ -40,10 +40,7 @@ def _html_escape(text: str) -> str:
 def json_script(data: Any) -> str:
     # See https://github.com/django/django/blob/main/django/utils/html.py#L88C1-L92C2
     # Only escape values that can break out of a script tag
-    # Uses msgspec encoder to handle msgspec.Struct instances and bytes
-    from marimo._messaging.msgspec_encoder import encode_json_str
-
-    return encode_json_str(data).translate(_json_script_escapes)
+    return json.dumps(data, sort_keys=True).translate(_json_script_escapes)
 
 
 def _get_mount_config(
@@ -366,7 +363,7 @@ def static_notebook_template(
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.files = {json_script(files)};
-        window.__MARIMO_STATIC__.modelNotifications = {json_script(model_notifications or [])};
+        window.__MARIMO_STATIC__.modelNotifications = {json_script([n.to_json_serializable() for n in model_notifications or []])};
     </script>
     """
     )
