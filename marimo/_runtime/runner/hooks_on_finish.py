@@ -38,8 +38,8 @@ def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
 
 @kernel_tracer.start_as_current_span("send_cancellation_errors")
 def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
-    for raising_cell in ctx.cells_cancelled:
-        for cid in ctx.cells_cancelled[raising_cell]:
+    for raising_cell in ctx.cancelled_cells:
+        for cid in ctx.cancelled_cells[raising_cell]:
             # `cid` was not run
             cell = ctx.graph.cells[cid]
             if cell.runtime_state != "idle":
