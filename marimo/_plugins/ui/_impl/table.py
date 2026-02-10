@@ -503,6 +503,30 @@ class table(
         self._max_columns: Optional[int] = None
         max_columns_arg: Union[int, str]
 
+        # Infer the variable name before add_selection_column() mutates data,
+        # so the identity check (var_value is data) still matches the caller's
+        # original variable.
+        download_file_name = "download"
+        frame = None
+        frame_back = None
+        try:
+            frame = inspect.currentframe()
+            if frame is not None:
+                frame_back = frame.f_back
+            if frame_back is not None:
+                for var_name, var_value in frame_back.f_locals.items():
+                    if var_value is data:
+                        download_file_name = var_name
+                        break
+        except Exception:
+            LOGGER.debug(
+                "Failed to infer download file name from caller frame.",
+                exc_info=True,
+            )
+        finally:
+            del frame
+            del frame_back
+
         has_stable_row_id = False
         if selection is not None:
             data, has_stable_row_id = add_selection_column(data)
@@ -512,18 +536,6 @@ class table(
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-
-        # Try to infer the variable name for download filenames
-        download_file_name = "download"
-        try:
-            frame = inspect.currentframe()
-            if frame is not None and frame.f_back is not None:
-                for var_name, var_value in frame.f_back.f_locals.items():
-                    if var_value is data:
-                        download_file_name = var_name
-                        break
-        except Exception:
-            pass
 
         # Handle max_columns: use config default if not provided, None means "all"
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:

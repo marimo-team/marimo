@@ -14,6 +14,7 @@ import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { prettyError } from "@/utils/errors";
+import { Filenames } from "@/utils/filenames";
 import {
   jsonParseWithSpecialChar,
   jsonToMarkdown,
@@ -160,7 +161,8 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
               const downloadUrl = await getDownloadUrl(option.format);
               const ext = option.format;
               const rawName = (props.downloadFileName ?? "").trim();
-              const baseName = rawName.replace(/\.[^/.]+$/, "") || "download";
+              const baseName =
+                Filenames.withoutExtension(rawName) || "download";
               downloadByURL(downloadUrl, `${baseName}.${ext}`);
             }}
           >
