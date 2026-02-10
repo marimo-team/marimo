@@ -182,8 +182,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
       const hasEdge = nodesWithEdges.has(cellId);
       const isMarkdown = code.startsWith("mo.md");
       const runtime = cellRuntime[cellId];
-      const isReusable =
-        runtime?.serialization?.toLowerCase() === "valid";
+      const isReusable = runtime?.serialization?.toLowerCase() === "valid";
 
       // Apply filters
       if (hidePureMarkdown && isMarkdown && !hasEdge) {
