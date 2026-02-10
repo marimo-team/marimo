@@ -4,9 +4,9 @@ import {
   compressToEncodedURIComponent,
   decompressFromEncodedURIComponent,
 } from "lz-string";
-import { TypedLocalStorage } from "@/utils/storage/typed";
-import { store } from "@/core/state/jotai";
 import { codeAtom } from "@/core/saving/file-state";
+import { store } from "@/core/state/jotai";
+import { TypedLocalStorage } from "@/utils/storage/typed";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {

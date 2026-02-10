@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
+import { codeAtom } from "../../saving/file-state";
+import { store } from "../../state/jotai";
 import {
   CompositeFileStore,
   domElementFileStore,
@@ -7,8 +9,6 @@ import {
   mountConfigFileStore,
   notebookFileStore,
 } from "../store";
-import { store } from "../../state/jotai";
-import { codeAtom } from "../../saving/file-state";
 
 describe("localStorageFileStore", () => {
   it("calls set with correct contents on saveFile", () => {

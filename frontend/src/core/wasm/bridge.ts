@@ -9,7 +9,6 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { notebookIsRunningAtom } from "../cells/cells";
-import { filenameAtom } from "../saving/file-state";
 import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
@@ -30,6 +29,7 @@ import type {
   SaveUserConfigurationRequest,
   Snippets,
 } from "../network/types";
+import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
 import { BasicTransport } from "../websocket/transports/basic";
 import type { IConnectionTransport } from "../websocket/transports/transport";
