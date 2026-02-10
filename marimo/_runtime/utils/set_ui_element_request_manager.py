@@ -173,7 +173,24 @@ class SetUIElementRequestManager:
         ),
     ) -> None:
         self._set_ui_element_queue = set_ui_element_queue
-        self._processed_request_tokens: set[str] = set()
+        # Token-based dedup for both UI commands and model commands.
+        # Each command is placed on both control_queue and
+        # set_ui_element_queue; the token tracks which have already
+        # been processed via the drain so the control_queue copy
+        # can be skipped.
+        self._processed_tokens: set[str] = set()
+
+    def _dedup(
+        self,
+        cmd: BatchableCommand,
+        pending: list[BatchableCommand],
+    ) -> None:
+        token = cmd.token
+        if token not in self._processed_tokens:
+            pending.append(cmd)
+            self._processed_tokens.add(token)
+        else:
+            self._processed_tokens.discard(token)
 
     def process_request(
         self, request: BatchableCommand
@@ -190,26 +207,11 @@ class SetUIElementRequestManager:
         """
         pending: list[BatchableCommand] = []
 
-        # Add the triggering request (with token dedup for UI elements)
-        if isinstance(request, UpdateUIElementCommand):
-            if request.token not in self._processed_request_tokens:
-                pending.append(request)
-                self._processed_request_tokens.add(request.token)
-            else:
-                self._processed_request_tokens.remove(request.token)
-        else:
-            pending.append(request)
+        # Add the triggering request (with token dedup)
+        self._dedup(request, pending)
 
         # Drain everything currently in the queue
         while not self._set_ui_element_queue.empty():
-            r = self._set_ui_element_queue.get_nowait()
-            if isinstance(r, UpdateUIElementCommand):
-                if r.token not in self._processed_request_tokens:
-                    pending.append(r)
-                    self._processed_request_tokens.add(r.token)
-                else:
-                    self._processed_request_tokens.remove(r.token)
-            else:
-                pending.append(r)
+            self._dedup(self._set_ui_element_queue.get_nowait(), pending)
 
         return merge_batchable_commands(pending)

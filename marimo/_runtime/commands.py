@@ -737,11 +737,13 @@ class ModelCommand(Command):
         model_id: Widget model identifier.
         message: Model message (update or custom).
         buffers: Base64-encoded binary buffers.
+        token: Unique identifier for deduplication across dual queues.
     """
 
     model_id: WidgetModelId
     message: ModelMessage
     buffers: list[bytes]
+    token: str = msgspec.field(default_factory=lambda: str(uuid4()))
 
     def into_comm_payload(self) -> dict[str, Any]:
         return {

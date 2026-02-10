@@ -2265,13 +2265,13 @@ class Kernel:
                 request
             )
 
-            # If there's a ui_element_id, enqueue an UpdateUIElementCommand
-            # so it goes through the SetUIElementRequestManager's
-            # drain-and-merge path, just like direct UI element updates.
-            # This prevents rapid model updates from bombarding the kernel
-            # with individual cell re-executions.
+            # Directly handle the UI element update instead of
+            # re-enqueuing it as a separate command. Re-enqueuing
+            # caused Model+UI interleaving that the batch merger
+            # couldn't collapse (different types), leading to every
+            # drag tick getting its own full cell re-execution.
             if ui_element_id and state:
-                self.enqueue_control_request(
+                await self.set_ui_element_value(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
                     )
