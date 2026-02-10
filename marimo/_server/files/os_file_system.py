@@ -107,11 +107,9 @@ class OSFileSystem(FileSystem):
         )
 
     def _is_marimo_file(self, path: str) -> bool:
-        file_path = Path(path)
-        if not file_path.suffix == ".py":
-            return False
+        from marimo._server.files.directory_scanner import is_marimo_app
 
-        return b"app = marimo.App(" in file_path.read_bytes()
+        return is_marimo_app(path)
 
     def open_file(self, path: str, encoding: str | None = None) -> str:
         file_path = Path(path)
@@ -207,9 +205,11 @@ class OSFileSystem(FileSystem):
         if not os.path.exists(search_path):
             return []
 
+        query_lower = query.lower()
+
         # Compile regex pattern for case-insensitive search
         try:
-            pattern = re.compile(re.escape(query.lower()))
+            pattern = re.compile(re.escape(query_lower))
         except re.error:
             # If regex compilation fails, fall back to simple string matching
             pattern = None
@@ -245,7 +245,6 @@ class OSFileSystem(FileSystem):
 
                         # Check if name matches query
                         name_lower = entry.name.lower()
-                        query_lower = query.lower()
 
                         matches = False
                         if pattern:
@@ -304,7 +303,6 @@ class OSFileSystem(FileSystem):
         # Sort results by relevance (exact matches first, then by name)
         def sort_key(file_info: FileInfo) -> tuple[int, str]:
             name_lower = file_info.name.lower()
-            query_lower = query.lower()
 
             # Exact match gets highest priority
             if name_lower == query_lower:
