@@ -3048,7 +3048,8 @@ components:
       description: "Widget model message command.\n\n    Handles widget model communication\
         \ between frontend and backend.\n\n    Attributes:\n        model_id: Widget\
         \ model identifier.\n        message: Model message (update or custom).\n\
-        \        buffers: Base64-encoded binary buffers."
+        \        buffers: Base64-encoded binary buffers.\n        token: Unique identifier\
+        \ for deduplication across dual queues."
       properties:
         buffers:
           items:
@@ -3065,6 +3066,8 @@ components:
               update: '#/components/schemas/ModelUpdateMessage'
             propertyName: method
         modelId:
+          type: string
+        token:
           type: string
         type:
           enum:
@@ -3182,6 +3185,8 @@ components:
               update: '#/components/schemas/ModelUpdateMessage'
             propertyName: method
         modelId:
+          type: string
+        token:
           type: string
       required:
       - modelId
@@ -4839,7 +4844,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.7
+  version: 0.19.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

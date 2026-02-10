@@ -4874,6 +4874,7 @@ export interface components {
      *             model_id: Widget model identifier.
      *             message: Model message (update or custom).
      *             buffers: Base64-encoded binary buffers.
+     *             token: Unique identifier for deduplication across dual queues.
      */
     ModelCommand: {
       buffers: string[];
@@ -4881,6 +4882,7 @@ export interface components {
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
       modelId: string;
+      token?: string;
       /** @enum {unknown} */
       type: "model";
     };
@@ -4944,6 +4946,7 @@ export interface components {
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
       modelId: string;
+      token?: string;
     };
     /**
      * ModelUpdate

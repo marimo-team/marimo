@@ -737,17 +737,24 @@ class ModelCommand(Command):
         model_id: Widget model identifier.
         message: Model message (update or custom).
         buffers: Base64-encoded binary buffers.
+        token: Unique identifier for deduplication across dual queues.
     """
 
     model_id: WidgetModelId
     message: ModelMessage
     buffers: list[bytes]
+    token: str = msgspec.field(default_factory=lambda: str(uuid4()))
 
     def into_comm_payload(self) -> dict[str, Any]:
         return {
             "content": self.message.into_comm_payload_content(),
             "buffers": self.buffers,
         }
+
+
+# Commands that can be batched and merged (last-write-wins) by the
+# SetUIElementRequestManager to avoid redundant cell re-executions.
+BatchableCommand = Union[UpdateUIElementCommand, ModelCommand]
 
 
 class RefreshSecretsCommand(Command):
