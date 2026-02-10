@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
 from marimo._data.get_datasets import (
     _db_type_to_data_type,
+    form_databases_from_dict,
     get_databases_from_duckdb,
     get_datasets_from_variables,
     get_duckdb_databases_agg_query,
@@ -14,14 +16,11 @@ from marimo._data.get_datasets import (
     has_updates_to_datasource,
 )
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import VariableName
 from tests._data.mocks import create_dataframes
 
-HAS_DEPS = DependencyManager.duckdb.has()
 
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_has_updates_to_datasource() -> None:
     assert has_updates_to_datasource("hello") is False
     assert has_updates_to_datasource("ATTACH 'marimo.db'") is True
@@ -390,7 +389,7 @@ DROP SCHEMA s2 CASCADE;
 """
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases() -> None:
     import duckdb
 
@@ -412,7 +411,7 @@ def test_get_databases() -> None:
     duckdb.execute(cleanup_query)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_no_tables() -> None:
     import duckdb
 
@@ -442,7 +441,7 @@ def test_get_databases_with_no_tables() -> None:
     ) == [in_memory_database]
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_connection() -> None:
     import duckdb
 
@@ -576,7 +575,7 @@ def test_get_databases_agg_query() -> None:
     connection.execute(cleanup_query)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_closed_connection() -> None:
     """Test that closed connections are handled gracefully without errors."""
     import duckdb
@@ -595,7 +594,7 @@ def test_get_databases_with_closed_connection() -> None:
     assert result == []
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_context_manager_closed_connection() -> None:
     """Test that connections closed via context manager are handled gracefully."""
     import duckdb
@@ -681,3 +680,74 @@ def test_db_type_to_data_type_various() -> None:
     assert _db_type_to_data_type("null") == "unknown"
     assert _db_type_to_data_type("json") == "unknown"
     assert _db_type_to_data_type("row") == "unknown"
+
+
+@pytest.mark.requires("duckdb")
+def test_form_databases_from_dict_backfill() -> None:
+    """Test that backfill_empty_databases controls whether _get_duckdb_database_names is called."""
+    databases_dict: dict[str, dict[str, list[DataTable]]] = {
+        "memory": {
+            "main": [
+                DataTable(
+                    name="t",
+                    source_type="duckdb",
+                    source="memory",
+                    num_rows=None,
+                    num_columns=1,
+                    variable_name=None,
+                    columns=[],
+                )
+            ]
+        }
+    }
+
+    # With backfill_empty_databases=False, _get_duckdb_database_names should not be called
+    with patch(
+        "marimo._data.get_datasets._get_duckdb_database_names"
+    ) as mock_get_names:
+        result = form_databases_from_dict(
+            databases_dict,
+            connection=None,
+            engine_name=None,
+            backfill_empty_databases=False,
+        )
+        mock_get_names.assert_not_called()
+
+    assert len(result) == 1
+    assert result[0].name == "memory"
+
+    # With backfill_empty_databases=True (default), _get_duckdb_database_names is called
+    with patch(
+        "marimo._data.get_datasets._get_duckdb_database_names",
+        return_value=["memory", "extra_db"],
+    ) as mock_get_names:
+        result = form_databases_from_dict(
+            databases_dict,
+            connection=None,
+            engine_name=None,
+            backfill_empty_databases=True,
+        )
+        mock_get_names.assert_called_once()
+
+    # Should include the extra_db that wasn't in databases_dict
+    assert len(result) == 2
+    assert result[0].name == "memory"
+    assert result[1].name == "extra_db"
+    assert result[1].schemas == []
+
+
+@pytest.mark.requires("duckdb")
+def test_agg_query_does_not_backfill() -> None:
+    """Test that get_duckdb_databases_agg_query does not call _get_duckdb_database_names."""
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    with patch(
+        "marimo._data.get_datasets._get_duckdb_database_names"
+    ) as mock_get_names:
+        get_duckdb_databases_agg_query(connection=connection, engine_name=None)
+        mock_get_names.assert_not_called()
+
+    connection.execute(cleanup_query)
