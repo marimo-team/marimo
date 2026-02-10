@@ -3210,7 +3210,7 @@ def launch_kernel(
     )
 
     hooks = create_default_hooks()
-    if user_config["runtime"].get("reactive_tests", False):
+    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
