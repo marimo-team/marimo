@@ -193,6 +193,24 @@ export const PlotlyComponent = memo(
           }));
         })}
         config={plotlyConfig}
+        onClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
+          if (!evt) {
+            return;
+          }
+          // Only handle clicks for chart types where box/lasso selection
+          // (onSelected) doesn't work, such as heatmaps.
+          const isHeatmap = evt.points.some(
+            (point) => point.data?.type === "heatmap",
+          );
+          if (!isHeatmap) {
+            return;
+          }
+          setValue((prev) => ({
+            ...prev,
+            points: extractPoints(evt.points),
+            indices: evt.points.map((point) => point.pointIndex),
+          }));
+        })}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
             return;
@@ -224,6 +242,17 @@ PlotlyComponent.displayName = "PlotlyComponent";
  * instead of the ones that Plotly uses internally,
  * by using the hovertemplate.
  */
+const STANDARD_POINT_KEYS: string[] = [
+  "x",
+  "y",
+  "z",
+  "lat",
+  "lon",
+  "curveNumber",
+  "pointNumber",
+  "pointIndex",
+];
+
 function extractPoints(
   points: Plotly.PlotDatum[],
 ): Record<AxisName, AxisDatum>[] {
@@ -238,6 +267,13 @@ function extractPoints(
     const hovertemplate = Array.isArray(point.data.hovertemplate)
       ? point.data.hovertemplate[0]
       : point.data.hovertemplate;
+
+    // For chart types with standard point keys (e.g. heatmaps),
+    // or when there's no hovertemplate, pick keys directly from the point.
+    if (!hovertemplate || point.data?.type === "heatmap") {
+      return pick(point, STANDARD_POINT_KEYS);
+    }
+
     // Update or create a parser
     parser = parser
       ? parser.update(hovertemplate)
