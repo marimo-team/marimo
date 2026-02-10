@@ -2,6 +2,7 @@
 
 import type { Atom } from "jotai";
 import { type Edge, MarkerType, type Node, type NodeProps } from "reactflow";
+import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
@@ -174,17 +175,21 @@ export class TreeElementsBuilder implements ElementsBuilder {
       }
     }
 
+    const cellRuntime = getNotebook().cellRuntime;
+
     for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
       const code = store.get(cellAtom).code.trim();
       const hasEdge = nodesWithEdges.has(cellId);
       const isMarkdown = code.startsWith("mo.md");
-      const isReusableFunction = /^(async\s+def|def|class)\s/.test(code);
+      const runtime = cellRuntime[cellId];
+      const isReusable =
+        runtime?.serialization?.toLowerCase() === "valid";
 
       // Apply filters
       if (hidePureMarkdown && isMarkdown && !hasEdge) {
         continue;
       }
-      if (hideReusableFunctions && isReusableFunction && !hasEdge) {
+      if (hideReusableFunctions && isReusable && !hasEdge) {
         continue;
       }
 
