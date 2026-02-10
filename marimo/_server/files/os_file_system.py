@@ -107,6 +107,10 @@ class OSFileSystem(FileSystem):
         )
 
     def _is_marimo_file(self, path: str) -> bool:
+        file_path = Path(path)
+        if not file_path.suffix == ".py":
+            return False
+
         from marimo._server.files.directory_scanner import is_marimo_app
 
         return is_marimo_app(path)
