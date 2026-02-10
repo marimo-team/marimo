@@ -8,6 +8,7 @@ import io
 import signal
 import threading
 import traceback
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -39,6 +40,7 @@ from marimo._runtime.executor import (
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.runner.hook_context import (
+    CancelledCells,
     ExceptionOrError,
     ExecutionContextManager,
 )
@@ -154,15 +156,17 @@ class Runner:
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
         self.roots = roots
-        self.cells_to_run: list[CellId_t]
-
-        self.cells_to_run = Runner.compute_cells_to_run(
-            self.graph, self.roots, self.excluded_cells, self.execution_mode
+        self.cells_to_run: deque[CellId_t] = deque(
+            Runner.compute_cells_to_run(
+                self.graph,
+                self.roots,
+                self.excluded_cells,
+                self.execution_mode,
+            )
         )
 
-        # map from a cell that was cancelled to its descendants that have
-        # not yet run:
-        self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        # tracks cancelled cells: raising cell -> descendants, with O(1) lookup
+        self.cancelled_cells = CancelledCells()
         # whether the runner has been interrupted
         self.interrupted = False
         # mapping from cell_id to exception it raised
@@ -265,19 +269,18 @@ class Runner:
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
-        self.cells_cancelled[cell_id] = set(
+        descendants = set(
             cid
             for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
             if cid in self.cells_to_run
         )
-        for cid in self.cells_cancelled[cell_id]:
+        self.cancelled_cells.add(cell_id, descendants)
+        for cid in descendants:
             self.graph.cells[cid].set_run_result_status("cancelled")
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
-        return any(
-            cell_id in cancelled for cancelled in self.cells_cancelled.values()
-        )
+        return cell_id in self.cancelled_cells
 
     def pending(self) -> bool:
         """Whether there are more cells to run."""
@@ -360,7 +363,7 @@ class Runner:
 
     def pop_cell(self) -> CellId_t:
         """Get the next cell to run."""
-        return self.cells_to_run.pop(0)
+        return self.cells_to_run.popleft()
 
     def _run_result_from_exception(
         self,
@@ -682,12 +685,20 @@ class Runner:
             graph=self.graph,
             execution_mode=self.execution_mode,
         )
+        all_temporaries: frozenset[str] = (
+            frozenset().union(
+                *(cell.temporaries for cell in self.graph.cells.values())
+            )
+            if self.graph.cells
+            else frozenset()
+        )
         post_exec_ctx = PostExecutionHookContext(
             graph=self.graph,
             glbls=self.glbls,
             execution_context=self.execution_context,
             exceptions=self.exceptions,
-            cells_cancelled=self.cells_cancelled,
+            cancelled_cells=self.cancelled_cells,
+            all_temporaries=all_temporaries,
             should_broadcast_data=_should_broadcast_data(),
         )
 
@@ -747,7 +758,7 @@ class Runner:
             graph=self.graph,
             cells_to_run=self.cells_to_run,
             interrupted=self.interrupted,
-            cells_cancelled=self.cells_cancelled,
+            cancelled_cells=self.cancelled_cells,
             exceptions=self.exceptions,
         )
         LOGGER.debug("Running on_finish hooks")

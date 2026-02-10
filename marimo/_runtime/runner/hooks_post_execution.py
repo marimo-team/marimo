@@ -90,7 +90,7 @@ def _set_run_result_status(
 ) -> None:
     if isinstance(run_result.exception, MarimoInterruptionError):
         cell.set_run_result_status("interrupted")
-    elif ctx.cancelled(cell.cell_id):
+    elif cell.cell_id in ctx.cancelled_cells:
         cell.set_run_result_status("cancelled")
     elif run_result.exception is not None:
         cell.set_run_result_status(
@@ -246,11 +246,9 @@ def _store_state_reference(
     # Associate state variables with variable names
     runtime_ctx = get_context()
     runtime_ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
-    privates = set().union(
-        *[cell.temporaries for cell in runtime_ctx.graph.cells.values()]
-    )
+    # Use pre-computed all_temporaries
     runtime_ctx.state_registry.retain_active_states(
-        set(ctx.graph.definitions.keys()) | privates
+        set(ctx.graph.definitions.keys()) | ctx.all_temporaries
     )
 
 

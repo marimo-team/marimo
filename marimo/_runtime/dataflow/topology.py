@@ -103,18 +103,16 @@ class MutableGraphTopology(GraphTopology):
         if cell_id not in self.cells:
             raise ValueError(f"Cell {cell_id} not found")
 
-        # Remove from cells
+        # Remove this node from its parents' children lists
+        for parent_id in self._parents[cell_id]:
+            self._children[parent_id].discard(cell_id)
+        # Remove this node from its children's parent lists
+        for child_id in self._children[cell_id]:
+            self._parents[child_id].discard(cell_id)
+
         del self._cells[cell_id]
         del self._children[cell_id]
         del self._parents[cell_id]
-
-        # Remove from other nodes' parent/child lists
-        for elems in self.parents.values():
-            if cell_id in elems:
-                elems.remove(cell_id)
-        for elems in self.children.values():
-            if cell_id in elems:
-                elems.remove(cell_id)
 
     def add_edge(self, parent: CellId_t, child: CellId_t) -> None:
         """Add an edge from parent to child."""

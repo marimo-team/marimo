@@ -1471,6 +1471,7 @@ class Kernel:
                 # by object ID (via is operator)
                 if ref in self.globals and self.globals[ref] is state:
                     cells_with_stale_state.add(cid)
+                    break
         self.graph.set_stale(cells_with_stale_state, prune_imports=True)
         if not self.lazy():
             self._execute_stale_cells_callback()
