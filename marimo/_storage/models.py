@@ -58,6 +58,7 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         self.store = store
         self.variable_name = variable_name
 
+    # TODO: We can make this async, but currently post_execution_hooks are synchronous.
     @abc.abstractmethod
     def list_entries(
         self,

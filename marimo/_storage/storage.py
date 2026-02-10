@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.utils import remove_none_values
 from marimo._storage.models import (
     DEFAULT_FETCH_LIMIT,
     StorageBackend,
     StorageEntry,
 )
+from marimo._types.ids import VariableName
 from marimo._utils.assert_never import log_never
+from marimo._utils.dicts import remove_none_values
 
 if TYPE_CHECKING:
     from fsspec import (  # type: ignore[import-untyped]
@@ -141,6 +142,19 @@ MAX_FILESYSTEM_FETCH_LIMIT = 200
 
 
 class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
+    def __init__(
+        self, store: AbstractFileSystem, variable_name: VariableName | None
+    ) -> None:
+        from fsspec.asyn import AsyncFileSystem  # type: ignore[import-untyped]
+
+        # Wrapping in an async filesystem lets us treat it asynchronously, even if the underlying code is synchronous.
+        # https://filesystem-spec.readthedocs.io/en/latest/async.html
+        if not isinstance(store, AsyncFileSystem):
+            self.store = AsyncFileSystem(store)
+        else:
+            self.store = store
+        super().__init__(self.store, variable_name)
+
     def list_entries(
         self,
         prefix: str | None,
@@ -186,7 +200,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "file"
 
     async def get_entry(self, path: str) -> StorageEntry:
-        entry = await asyncio.to_thread(self.store.info, path)
+        entry = await self.store._info(path)
         if not isinstance(entry, dict):
             raise ValueError(f"Entry at {path} is not a dictionary")
         return self._create_storage_entry(entry)
@@ -226,8 +240,9 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         )
 
     async def download(self, path: str) -> bytes:
+        # open_async is not implemented, so we wrap the synchronous open method
         def _read() -> str | bytes:
-            return self.store.open(path).read()  # type: ignore[no-any-return]
+            return self.store._open(path).read()  # type: ignore[no-any-return]
 
         file = await asyncio.to_thread(_read)
         if isinstance(file, str):
