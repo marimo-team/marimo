@@ -563,8 +563,9 @@ x = as_marimo_element.count
         """Test that mo.state setters work inside widget observe callbacks.
 
         Regression test: when a model update message arrives from the
-        frontend, the observe callback must run inside an execution
-        context so that mo.state setters can trigger downstream re-runs.
+        frontend, the observe callback fires outside any cell execution
+        context. The __external__ sentinel ensures state setters still
+        trigger downstream re-runs without causing self-loops.
         This test does NOT use mo.ui.anywidget() — the model exists
         without a view, verifying the model-to-cell mapping works
         independently of the UIElement path.

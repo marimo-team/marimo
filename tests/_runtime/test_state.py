@@ -287,3 +287,31 @@ async def test_external_set_state_reruns_dependent_cell(
     await k.run_stale_cells()
 
     assert k.globals["result"] == 42
+
+
+async def test_find_cells_with_multiple_refs_to_same_state(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Cell that references the same state via multiple names is found once."""
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("state, set_state = mo.state(0)"),
+            # alias creates a second ref to the same state object
+            exec_req.get("alias = state; x = state() + alias()"),
+        ]
+    )
+    assert k.globals["x"] == 0
+
+    from marimo._runtime.state import State
+    from marimo._types.ids import CellId_t
+
+    state_obj = k.globals["state"]
+    assert isinstance(state_obj, State)
+
+    affected = k._find_cells_for_state(state_obj, CellId_t("__external__"))
+    reader_cell_id = list(k.graph.cells.keys())[2]
+    # Cell should appear exactly once despite two refs to the same state
+    assert reader_cell_id in affected
+    assert len([c for c in affected if c == reader_cell_id]) == 1
