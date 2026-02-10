@@ -4,7 +4,9 @@ import inspect
 import logging
 from typing import Any
 
-LOGGER = logging.getLogger(__name__)
+from marimo import _loggers
+
+LOGGER = _loggers.marimo_logger()
 
 
 def infer_variable_name(value: Any, fallback: str) -> str:
