@@ -491,6 +491,19 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert isinstance(bool_stats.true, int)
         assert isinstance(bool_stats.false, int)
 
+    def test_summary_all_nan_column_no_warning(self) -> None:
+        import warnings
+
+        import polars as pl
+
+        data = pl.DataFrame({"A": [float("nan"), float("nan"), float("nan")]})
+        manager = NarwhalsTableManager.from_dataframe(data)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            stats = manager.get_stats("A")
+        assert stats is not None
+        assert stats.total == 3
+
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values(
             [SortArgs(by="A", descending=True)]
