@@ -1349,8 +1349,14 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
     def assert_custom_config(contents: bytes | None) -> None:
         assert contents is not None
         # Verify that the custom config is applied
-        assert b'"line_length":111' in contents
-        assert b'"auto_instantiate":false' in contents
+        assert (
+            b'"line_length":111' in contents
+            or b'"line_length": 111' in contents
+        )
+        assert (
+            b'"auto_instantiate":false' in contents
+            or b'"auto_instantiate": false' in contents
+        )
         # Verify that the package manager is switch to uv because we are running in a sandbox
         # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
         # assert b'"manager": "uv"' in contents
@@ -1382,8 +1388,14 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
     def assert_custom_config(contents: bytes | None) -> None:
         assert contents is not None
         # Verify that the custom config is applied
-        assert b'"line_length":111' in contents
-        assert b'"auto_instantiate":false' in contents
+        assert (
+            b'"line_length":111' in contents
+            or b'"line_length": 111' in contents
+        )
+        assert (
+            b'"auto_instantiate":false' in contents
+            or b'"auto_instantiate": false' in contents
+        )
         # Verify that the package manager is switch to uv because we are running in a sandbox
         # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
         # assert b'"manager": "uv"' in contents
