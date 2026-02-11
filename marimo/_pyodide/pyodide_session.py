@@ -467,7 +467,7 @@ def _launch_pyodide_kernel(
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
     if user_config.get("experimental", {}).get("storage_inspector", False):
-        hooks.add_post_execution(broadcast_storage_backends)
+        hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(
         cell_configs=configs,
