@@ -20,12 +20,12 @@ from marimo._runtime.commands import (
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    UpdateWidgetModelCommand,
     ValidateSQLCommand,
 )
 from marimo._types.ids import CellId_t, UIElementId
@@ -76,9 +76,9 @@ class UpdateUIElementRequest(UpdateUIElementCommand, tag=False):
         )
 
 
-class UpdateWidgetModelRequest(UpdateWidgetModelCommand, tag=False):
-    def as_command(self) -> UpdateWidgetModelCommand:
-        return UpdateWidgetModelCommand(
+class ModelRequest(ModelCommand, tag=False):
+    def as_command(self) -> ModelCommand:
+        return ModelCommand(
             model_id=self.model_id,
             message=self.message,
             buffers=self.buffers,

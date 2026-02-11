@@ -8,8 +8,13 @@ from typing import Callable, Literal, Optional
 import click
 
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.thumbnail import thumbnail
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import echo, green
+from marimo._cli.print import (
+    echo,
+    green,
+)
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -42,7 +47,9 @@ _sandbox_message = (
 )
 
 
-@click.group(help="""Export a notebook to various formats.""")
+@click.group(
+    cls=ColoredGroup, help="""Export a notebook to various formats."""
+)
 def export() -> None:
     pass
 
@@ -136,6 +143,7 @@ def watch_and_export(
 
 
 @click.command(
+    cls=ColoredCommand,
     help="""Run a notebook and export it as an HTML file.
 
 Example:
@@ -145,19 +153,17 @@ Example:
 Optionally pass CLI args to the notebook:
 
     marimo export html notebook.py -o notebook.html -- -arg1 foo -arg2 bar
-"""
+""",
 )
 @click.option(
     "--include-code/--no-include-code",
     default=True,
-    show_default=True,
     type=bool,
     help="Include notebook code in the exported HTML file.",
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -175,7 +181,6 @@ Optionally pass CLI args to the notebook:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -234,6 +239,7 @@ def html(
 
 
 @click.command(
+    cls=ColoredCommand,
     help="""
 Export a marimo notebook as a flat script, in topological order.
 
@@ -244,12 +250,11 @@ Example:
 Watch for changes and regenerate the script on modification:
 
     marimo export script notebook.py -o notebook.script.py --watch
-"""
+""",
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -267,7 +272,6 @@ Watch for changes and regenerate the script on modification:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -312,6 +316,7 @@ def script(
 
 
 @click.command(
+    cls=ColoredCommand,
     help="""
 Export a marimo notebook as a code fenced Markdown file.
 
@@ -322,12 +327,11 @@ Example:
 Watch for changes and regenerate the script on modification:
 
     marimo export md notebook.py -o notebook.md --watch
-"""
+""",
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -345,7 +349,6 @@ Watch for changes and regenerate the script on modification:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -390,6 +393,7 @@ def md(
 
 
 @click.command(
+    cls=ColoredCommand,
     help="""
 Export a marimo notebook as a Jupyter notebook in topological order.
 
@@ -402,19 +406,17 @@ Watch for changes and regenerate the script on modification:
     marimo export ipynb notebook.py -o notebook.ipynb --watch
 
 Requires nbformat to be installed.
-"""
+""",
 )
 @click.option(
     "--sort",
     type=click.Choice(["top-down", "topological"]),
     default="topological",
     help="Sort cells top-down or in topological order.",
-    show_default=True,
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -431,7 +433,6 @@ Requires nbformat to be installed.
 @click.option(
     "--include-outputs/--no-include-outputs",
     default=False,
-    show_default=True,
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
@@ -439,7 +440,6 @@ Requires nbformat to be installed.
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -508,6 +508,7 @@ def ipynb(
 
 
 @click.command(
+    cls=ColoredCommand,
     help="""Export a marimo notebook as a PDF file.
 
 Example:
@@ -519,19 +520,17 @@ Optionally pass CLI args to the notebook:
     marimo export pdf notebook.py -o notebook.pdf -- -arg1 foo -arg2 bar
 
 Requires nbformat and nbconvert to be installed.
-"""
+""",
 )
 @click.option(
     "--include-outputs/--no-include-outputs",
     default=True,
-    show_default=True,
     type=bool,
     help="Run the notebook and include outputs in the exported PDF file.",
 )
 @click.option(
     "--webpdf/--no-webpdf",
     default=True,
-    show_default=True,
     type=bool,
     help=(
         "Use nbconvert's WebPDF exporter (Chromium). If disabled, marimo will "
@@ -541,7 +540,6 @@ Requires nbformat and nbconvert to be installed.
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -556,7 +554,6 @@ Requires nbformat and nbconvert to be installed.
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -672,6 +669,7 @@ def pdf(
 
 
 @click.command(
+    cls=ColoredCommand,
     help="""Export a notebook as a WASM-powered standalone HTML file.
 
 Example:
@@ -689,7 +687,7 @@ documentation.
 
 In order for this file to be able to run, it must be served over HTTP,
 and cannot be opened directly from the file system (e.g. file://).
-"""
+""",
 )
 @click.option(
     "-o",
@@ -703,19 +701,16 @@ and cannot be opened directly from the file system (e.g. file://).
     type=click.Choice(["edit", "run"]),
     default="run",
     help="Whether the notebook code should be editable or readonly.",
-    show_default=True,
     required=True,
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     help=("Whether to watch the original file and export upon change"),
 )
 @click.option(
     "--show-code/--no-show-code",
     default=False,
-    show_default=True,
     help=(
         "Whether to show code by default in the exported HTML file; "
         "only relevant for run mode."
@@ -724,7 +719,6 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "--include-cloudflare/--no-include-cloudflare",
     default=False,
-    show_default=True,
     help=(
         "Whether to include Cloudflare Worker configuration files"
         " (index.js and wrangler.jsonc) for easy deployment."
@@ -734,7 +728,6 @@ and cannot be opened directly from the file system (e.g. file://).
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -829,3 +822,4 @@ export.add_command(md)
 export.add_command(ipynb)
 export.add_command(pdf)
 export.add_command(html_wasm)
+export.add_command(thumbnail)

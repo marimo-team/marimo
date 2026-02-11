@@ -27,12 +27,12 @@ class QueueManagerImpl(QueueManager):
             queue.Queue[commands.CommandMessage],
         ] = context.Queue() if context is not None else queue.Queue()
 
-        # Set UI element queues are stored in both the control queue and
-        # this queue, so that the backend can merge/batch set-ui-element
-        # requests.
+        # UI element updates and model commands are stored in both the
+        # control queue and this queue, so that the backend can
+        # merge/batch requests (last-write-wins per element/model ID).
         self.set_ui_element_queue: Union[
-            MPQueue[commands.UpdateUIElementCommand],
-            queue.Queue[commands.UpdateUIElementCommand],
+            MPQueue[commands.BatchableCommand],
+            queue.Queue[commands.BatchableCommand],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
@@ -101,8 +101,12 @@ class QueueManagerImpl(QueueManager):
             return
 
         self.control_queue.put(request)
-        # Update UI elements are on both queues so they can be batched
-        if isinstance(request, commands.UpdateUIElementCommand):
+        # UI element updates and model commands are on both queues
+        # so they can be batched
+        if isinstance(
+            request,
+            (commands.UpdateUIElementCommand, commands.ModelCommand),
+        ):
             self.set_ui_element_queue.put(request)
 
     def put_input(self, text: str) -> None:

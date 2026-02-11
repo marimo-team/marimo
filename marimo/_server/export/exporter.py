@@ -91,9 +91,11 @@ class Exporter:
             session_snapshot
         )
 
+        app_code = app.to_py()
+
         # Prepare code for export
         code = self._prepare_code(
-            request.include_code, app, notebook_snapshot, session_snapshot
+            request.include_code, app_code, notebook_snapshot, session_snapshot
         )
 
         # Build fallback virtual_files dict for files not in HTML outputs
@@ -102,7 +104,7 @@ class Exporter:
         )
 
         # Generate final HTML
-        code_hash = hash_code(app.to_py())
+        code_hash = hash_code(app_code)
         html = static_notebook_template(
             html=index_html,
             user_config=config,
@@ -115,6 +117,7 @@ class Exporter:
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
+            model_notifications=session_view.get_model_notifications(),
             asset_url=request.asset_url,
         )
 
@@ -167,7 +170,7 @@ class Exporter:
     def _prepare_code(
         self,
         include_code: bool,
-        app: InternalApp,
+        app_code: str,
         notebook_snapshot: NotebookV1,
         session_snapshot: NotebookSessionV1,
     ) -> str:
@@ -181,7 +184,7 @@ class Exporter:
                 snapshot_cell["console"] = []
             return ""
 
-        return app.to_py()
+        return app_code
 
     def _normalize_virtual_file_url(self, url: str) -> str:
         """Normalize virtual file URL format from /@file/ to ./@file/."""

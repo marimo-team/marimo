@@ -6,11 +6,16 @@ from typing import Optional
 import msgspec
 
 
+class DependencyTag(msgspec.Struct, rename="camel"):
+    kind: str
+    value: str
+
+
 class DependencyTreeNode(msgspec.Struct, rename="camel"):
     name: str
     version: Optional[str]
     # List of {"kind": "extra"|"group", "value": str}
-    tags: list[dict[str, str]]
+    tags: list[DependencyTag]
     dependencies: list[DependencyTreeNode]
 
 
@@ -61,7 +66,8 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
             content = content[:-3].strip()
 
         # tags (extras/groups)
-        tags: list[dict[str, str]] = []
+        tags: list[DependencyTag] = []
+
         while "(extra:" in content or "(group:" in content:
             start = (
                 content.rfind("(extra:")
@@ -76,14 +82,14 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
             tag_text = content[start + 1 : end]
             kind, value = tag_text.split(":", 1)
             assert kind == "extra" or kind == "group"
-            tags.append({"kind": kind, "value": value.strip()})
+            tags.append(DependencyTag(kind=kind, value=value.strip()))
             content = content[:start].strip()
 
         name, version = parse_name_version(content)
 
         # Add cycle indicator as a special tag
         if is_cycle:
-            tags.append({"kind": "cycle", "value": "true"})
+            tags.append(DependencyTag(kind="cycle", value="true"))
 
         node = DependencyTreeNode(
             name=name,

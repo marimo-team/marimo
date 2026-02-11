@@ -43,6 +43,7 @@ from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
+from marimo._runtime.runner.hooks import create_default_hooks
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.model import SessionMode
@@ -343,6 +344,7 @@ class TestExecution:
                         cell_id="1", code="s = mo.ui.slider(0, 10, value=1)"
                     ),
                 ),
+                cell_ids=("0", "1"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     [(id_provider.take_id(), 2)]
                 ),
@@ -360,6 +362,7 @@ class TestExecution:
                     er1 := ExecuteCellCommand(cell_id="1", code="y=x+1"),
                     er2 := ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -395,6 +398,7 @@ class TestExecution:
                     ExecuteCellCommand(cell_id="1", code="y=x+1"),
                     ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -422,6 +426,7 @@ class TestExecution:
                     er2 := ExecuteCellCommand(cell_id="1", code="y=x+1"),
                     er3 := ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -450,6 +455,7 @@ class TestExecution:
                     ExecuteCellCommand(cell_id="1", code="y=x+1"),
                     ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -492,6 +498,7 @@ class TestExecution:
                     ExecuteCellCommand(cell_id="1", code="y=x+1"),
                     ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -520,6 +527,7 @@ class TestExecution:
                     er1 := ExecuteCellCommand(cell_id="1", code="y=x+1"),
                     er2 := ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -555,6 +563,7 @@ class TestExecution:
                     ExecuteCellCommand(cell_id="2", code="  \n  "),
                     ExecuteCellCommand(cell_id="3", code="y=x+1"),
                 ),
+                cell_ids=("0", "1", "2", "3"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -1351,6 +1360,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             initialize_kernel_context(
                 kernel=k,
@@ -1416,6 +1426,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             assert str(tmp_path) in sys.path
             assert str(tmp_path) == sys.path[0]
@@ -1443,6 +1454,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
 
             assert len(sys.argv) == 3
@@ -1476,6 +1488,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             assert argv == sys.argv
         finally:
@@ -1513,6 +1526,7 @@ except NameError:
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
+                hooks=create_default_hooks(),
             )
             initialize_kernel_context(
                 kernel=k,
@@ -1889,6 +1903,7 @@ except NameError:
                     ExecuteCellCommand(cell_id="1", code="y = 1"),
                     ExecuteCellCommand(cell_id="2", code="z = 2"),
                 ),
+                cell_ids=("0", "1", "2"),
                 set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
@@ -3693,6 +3708,7 @@ class TestMarkdownHandling:
         # Create a creation request with auto_run=False to trigger the markdown handling
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(cell.cell_id for cell in execution_requests),
             auto_run=False,
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
@@ -3790,6 +3806,7 @@ class TestMarkdownHandling:
 
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(cell.cell_id for cell in execution_requests),
             auto_run=False,
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
@@ -3830,6 +3847,7 @@ class TestMarkdownHandling:
 
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(cell.cell_id for cell in execution_requests),
             auto_run=False,
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
@@ -3861,6 +3879,7 @@ class TestMarkdownHandling:
 
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(cell.cell_id for cell in execution_requests),
             auto_run=False,
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
@@ -3920,6 +3939,7 @@ class TestMarkdownHandling:
 
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(cell.cell_id for cell in execution_requests),
             auto_run=False,
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
@@ -3978,6 +3998,7 @@ class TestMarkdownHandling:
 
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(cell.cell_id for cell in execution_requests),
             auto_run=False,
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],

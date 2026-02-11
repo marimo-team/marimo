@@ -57,7 +57,14 @@ def _flex(
         child_flex = child_flexes[idx]
         if child_flex is None:
             return ""
-        return create_style({"flex": f"{child_flex}"})
+        return create_style(
+            {
+                "flex": f"{child_flex}",
+                "display": "flex",
+                "min-width": "0",
+                "min-height": "0",
+            }
+        )
 
     # If there are no child flexes, don't wrap them in an additional <div>
     if child_flexes is None:

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -182,6 +182,7 @@ def _(mo, plt, x):
     def plot_power(exponent):
         plt.plot(x, x**exponent)
         return plt.gca()
+
     return (plot_power,)
 
 
@@ -253,6 +254,7 @@ def _(missing_packages, mo):
     def check_dependencies():
         if missing_packages:
             return module_not_found_explainer
+
     return (check_dependencies,)
 
 
@@ -286,6 +288,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

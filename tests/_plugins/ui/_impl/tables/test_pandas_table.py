@@ -679,6 +679,46 @@ class TestPandasTableManager(unittest.TestCase):
             ("B", ("string", "string")),
         ]
 
+    def test_get_field_types_str_dtype(self) -> None:
+        # Test for pandas 3.0's new "str" dtype (issue #8093)
+        # In pandas 3.0, dtype="str" is the new default for string columns
+        # This test ensures we correctly identify "str" dtype as "string" field type
+        data = pd.DataFrame(
+            {
+                "A": pd.array(["a", "b", "c"], dtype="str"),
+                "B": pd.array(
+                    ["x", "y", "z"], dtype="string"
+                ),  # older StringDtype
+            }
+        )
+
+        manager = self.factory.create()(data)
+        field_types = manager.get_field_types()
+
+        # Both "str" and "string" dtypes should map to "string" field type
+        assert field_types[0][0] == "A"
+        assert (
+            field_types[0][1][0] == "string"
+        )  # field type should be "string"
+        assert field_types[1][0] == "B"
+        assert (
+            field_types[1][1][0] == "string"
+        )  # field type should be "string"
+
+    def test_get_unique_column_values_str_dtype(self) -> None:
+        # Test that unique values work correctly with pandas 3.0's "str" dtype
+        data = pd.DataFrame(
+            {
+                "A": pd.array(["a", "b", "c", "a"], dtype="str"),
+            }
+        )
+        manager = self.factory.create()(data)
+        unique_values = manager.get_unique_column_values("A")
+
+        # Should return Python strings, not pandas StringArray elements
+        assert set(unique_values) == {"a", "b", "c"}
+        assert all(isinstance(v, str) for v in unique_values)
+
     @pytest.mark.xfail(
         reason="Narwhals (wrapped pandas) doesn't support duplicate columns",
     )
@@ -929,6 +969,226 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("alice").get_num_rows() == 1
         assert manager.search("bob").get_num_rows() == 0
         assert manager.search("nan").get_num_rows() == 4
+
+    def test_search_with_index_columns(self) -> None:
+        """
+        Test that search works on index columns (e.g., from value_counts()).
+        See: https://github.com/marimo-team/marimo/issues/7945
+        """
+        # Test with value_counts() - the exact case from the issue
+        df = pd.DataFrame({"name": ["Alice", "Bob", "Alice", "Charlie"]})
+        value_counts_df = df["name"].value_counts().to_frame()
+        manager = self.factory.create()(value_counts_df)
+
+        # Search should find values in the index
+        assert manager.search("Alice").get_num_rows() == 1
+        assert manager.search("Bob").get_num_rows() == 1
+        assert manager.search("Dave").get_num_rows() == 0
+        # Case insensitive
+        assert manager.search("alice").get_num_rows() == 1
+        # Partial match
+        assert manager.search("li").get_num_rows() == 2  # Alice and Charlie
+
+        # Test with a named index
+        df_with_index = pd.DataFrame(
+            {"value": [10, 20, 30]},
+            index=pd.Index(["foo", "bars", "baz"], name="label"),
+        )
+        manager2 = self.factory.create()(df_with_index)
+        assert manager2.search("foo").get_num_rows() == 1
+        assert manager2.search("b").get_num_rows() == 2  # bar and baz
+
+        # Test with MultiIndex
+        df_multi = pd.DataFrame(
+            {"value": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y"), ("B", "x"), ("B", "y")],
+                names=["letter", "symbol"],
+            ),
+        )
+        manager3 = self.factory.create()(df_multi)
+        assert manager3.search("A").get_num_rows() == 2
+        assert manager3.search("x").get_num_rows() == 2
+
+    def test_search_preserves_index_structure(self) -> None:
+        """
+        Test that search preserves the index structure of the DataFrame.
+        The result should have the same index type and names as the original.
+        """
+        # Test with unnamed string index
+        df_unnamed = pd.DataFrame(
+            {"value": [10, 20, 30]},
+            index=pd.Index(["foo", "bars", "bare"]),
+        )
+        manager = self.factory.create()(df_unnamed)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        # Index should be preserved (not converted to a column)
+        expected = pd.DataFrame(
+            {"value": [20, 30]},
+            index=pd.Index(["bars", "bare"]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_named_index(self) -> None:
+        """
+        Test that search preserves named index.
+        """
+        df_named = pd.DataFrame(
+            {"value": [10, 20, 30]},
+            index=pd.Index(["foo", "bars", "bare"], name="label"),
+        )
+        manager = self.factory.create()(df_named)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        # Index name should be preserved
+        expected = pd.DataFrame(
+            {"value": [20, 30]},
+            index=pd.Index(["bars", "bare"], name="label"),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_multiindex(self) -> None:
+        """
+        Test that search preserves MultiIndex structure.
+        """
+        df_multi = pd.DataFrame(
+            {"value": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y"), ("B", "x"), ("B", "y")],
+                names=["letter", "symbol"],
+            ),
+        )
+        manager = self.factory.create()(df_multi)
+        result = manager.search("A")
+        result_df = nw.to_native(result.data)
+
+        # MultiIndex should be preserved
+        expected = pd.DataFrame(
+            {"value": [1, 2]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y")],
+                names=["letter", "symbol"],
+            ),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_unnamed_multiindex(self) -> None:
+        """
+        Test that search preserves unnamed MultiIndex structure.
+        """
+        df_multi_unnamed = pd.DataFrame(
+            {"value": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y"), ("B", "x"), ("B", "y")],
+            ),
+        )
+        manager = self.factory.create()(df_multi_unnamed)
+        result = manager.search("B")
+        result_df = nw.to_native(result.data)
+
+        # MultiIndex should be preserved with None names
+        expected = pd.DataFrame(
+            {"value": [3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("B", "x"), ("B", "y")],
+            ),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_datetime_index(self) -> None:
+        """
+        Test that search preserves DatetimeIndex.
+        """
+        df_datetime = pd.DataFrame(
+            {"value": ["jan", "feb", "march"]},
+            index=pd.to_datetime(["2021-01-01", "2021-02-01", "2021-03-01"]),
+        )
+        manager = self.factory.create()(df_datetime)
+        result = manager.search("jan")
+        result_df = nw.to_native(result.data)
+
+        # DatetimeIndex should be preserved
+        expected = pd.DataFrame(
+            {"value": ["jan"]},
+            index=pd.to_datetime(["2021-01-01"]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_with_trivial_index_no_change(self) -> None:
+        """
+        Test that search with trivial RangeIndex doesn't add extra columns.
+        """
+        df_trivial = pd.DataFrame(
+            {"A": [1, 2, 3], "B": ["foo", "bars", "bare"]},
+        )
+        manager = self.factory.create()(df_trivial)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        # Should have no named index, no extra columns
+        # Note: filtering preserves original row indices (1, 2) not (0, 1)
+        expected = pd.DataFrame(
+            {"A": [2, 3], "B": ["bars", "bare"]},
+            index=pd.Index([1, 2]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_integer_index(self) -> None:
+        """
+        Test that search preserves integer index (non-RangeIndex).
+        This tests the case where index values are integers but not a RangeIndex.
+        """
+        df_int_index = pd.DataFrame(
+            {"value": ["foo", "bars", "bare"]},
+            index=pd.Index([100, 200, 300]),
+        )
+        manager = self.factory.create()(df_int_index)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        expected = pd.DataFrame(
+            {"value": ["bars", "bare"]},
+            index=pd.Index([200, 300]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_multiindex_with_integer_level_names(
+        self,
+    ) -> None:
+        """
+        Test that search works with MultiIndex that has integer level names.
+        This tests the bug where non-string column names cause set_index to fail.
+
+        When reset_index() creates columns from index levels, unnamed levels get
+        default names like 'level_0', 'level_1'. But if the index had non-string
+        names (e.g., integers), those become column names. The
+        _handle_non_string_column_names method converts these to strings,
+        but we need to use the converted names when restoring the index.
+        """
+        # Create a DataFrame with integer column names that will be used as index
+        df = pd.DataFrame(
+            {
+                0: ["A", "A", "B", "B"],
+                1: ["x", "y", "x", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+        df = df.set_index([0, 1])
+        manager = self.factory.create()(df)
+        result = manager.search("A")
+        result_df = nw.to_native(result.data)
+
+        expected = pd.DataFrame(
+            {"value": [1, 2]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y")],
+                names=[0, 1],
+            ),
+        )
+        assert_frame_equal(result_df, expected)
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
@@ -1695,3 +1955,29 @@ class TestPandasTableManager(unittest.TestCase):
         # Polygon geometry
         assert isinstance(json_data[2]["geometry"], str)
         assert "POLYGON" in json_data[2]["geometry"]
+
+    def test_search_with_index_column_name_conflict(self) -> None:
+        df = pd.DataFrame(
+            {"x": [10, 20, 30], "y": ["foo", "bar", "baz"]},
+        )
+        df.index = pd.Index([1, 2, 3], name="x")
+        manager = self.factory.create()(df)
+        # Should not raise ValueError: cannot insert x, already exists
+        result = manager.search("foo")
+        assert result.get_num_rows() == 1
+        # Index should be preserved
+        assert result._original_data.index.name == "x"
+
+    def test_search_with_multiindex_column_name_conflict(self) -> None:
+        df = pd.DataFrame(
+            {"x": [10, 20, 30], "y": ["foo", "bar", "baz"]},
+            index=pd.MultiIndex.from_tuples(
+                [(1, "a"), (2, "b"), (3, "c")], names=["x", "level"]
+            ),
+        )
+        manager = self.factory.create()(df)
+        # Should not raise ValueError: cannot insert x, already exists
+        result = manager.search("bar")
+        assert result.get_num_rows() == 1
+        # MultiIndex should be preserved with original names
+        assert list(result._original_data.index.names) == ["x", "level"]

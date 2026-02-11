@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -127,6 +127,7 @@ def _(functools, mnist, mo, pymde, torch):
         X = mde.embed(verbose=True)
         mo.output.clear()
         return X
+
     return (compute_embedding,)
 
 
@@ -154,6 +155,7 @@ def _(mnist, plt):
             axes.set_xticks([])
         plt.tight_layout()
         return fig
+
     return (show_images,)
 
 
@@ -166,18 +168,21 @@ def _():
     import torch
 
     import marimo as mo
+
     return functools, mo, plt, pymde, torch
 
 
 @app.cell
 def _():
     import altair as alt
+
     return (alt,)
 
 
 @app.cell
 def _():
     import pandas as pd
+
     return (pd,)
 
 

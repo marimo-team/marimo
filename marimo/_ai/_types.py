@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import abc
 import mimetypes
-from dataclasses import dataclass, is_dataclass
+from collections.abc import Iterator
+from dataclasses import asdict, dataclass, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -174,6 +175,8 @@ class StepStartPart:
 
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     ChatPart = Union[
         TextPart,
         ReasoningPart,
@@ -250,6 +253,22 @@ class ChatMessage(msgspec.Struct):
             f"Could not decode part {part}. Ignore if it's a Vercel UI message part."
         )
         return None
+
+    def __iter__(self) -> Iterator[tuple[str, Any]]:
+        """Allow dict(message) to build the serialized dict."""
+        out: ChatMessageDict = {
+            "role": self.role,
+            "id": self.id,
+            "content": self.content,
+            "parts": [cast(ChatPartDict, asdict(part)) for part in self.parts],
+            "attachments": [
+                cast(ChatAttachmentDict, asdict(a)) for a in self.attachments
+            ]
+            if self.attachments
+            else None,
+            "metadata": self.metadata,
+        }
+        return iter(out.items())
 
     @classmethod
     def create(

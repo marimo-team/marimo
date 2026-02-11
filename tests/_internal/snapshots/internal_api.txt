@@ -19,6 +19,7 @@ commands
   ListOrValue
   ListSQLTablesCommand
   ListSecretKeysCommand
+  ModelCommand
   ModelMessage
   PreviewDatasetColumnCommand
   PreviewSQLTableCommand
@@ -32,7 +33,6 @@ commands
   UpdateCellConfigCommand
   UpdateUIElementCommand
   UpdateUserConfigCommand
-  UpdateWidgetModelCommand
   ValidateSQLCommand
   kebab_case
 config

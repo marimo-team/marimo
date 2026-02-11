@@ -12,12 +12,16 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.from_anywidget import (
     WeakCache,
     anywidget,
-    decode_from_wire,
-    encode_to_wire,
     from_anywidget,
+    get_anywidget_state,
 )
-from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.commands import (
+    ModelCommand,
+    ModelUpdateMessage,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import WidgetModelId
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = (
@@ -189,11 +193,10 @@ x = as_marimo_element.count
     @staticmethod
     async def test_initialization() -> None:
         wrapped = anywidget(Widget(arr={"a": 1}))
-        assert wrapped._initial_value == {
-            "state": {"arr": {"a": 1}},
-            "bufferPaths": [],
-            "buffers": [],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
             "css": "",
             "js-url": "",
@@ -202,19 +205,14 @@ x = as_marimo_element.count
 
     @staticmethod
     async def test_initialization_with_dataview() -> None:
-        # Create a simple array-like structure without numpy
-        import base64
-
         arr = [1, 2, 3]
         wrapped = anywidget(
             Widget(arr={"bytes": bytes(arr), "shape": (len(arr),)})
         )
-        # _initial_value is wire format (buffers are extracted to separate array)
-        assert wrapped._initial_value == {
-            "state": {"arr": {"shape": (3,)}},
-            "bufferPaths": [["arr", "bytes"]],
-            "buffers": [base64.b64encode(bytes([1, 2, 3])).decode("utf-8")],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
             "css": "",
             "js-url": "",
@@ -246,14 +244,10 @@ x = as_marimo_element.count
             non_serializable = traitlets.Instance(object, sync=True)
 
         wrapped = anywidget(NonSerializableWidget())
-        assert wrapped._initial_value == {
-            "state": {
-                "serializable": 1,
-                "non_serializable": None,
-            },
-            "bufferPaths": [],
-            "buffers": [],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
 
     @staticmethod
     async def test_skips_non_sync_traits() -> None:
@@ -263,13 +257,11 @@ x = as_marimo_element.count
             sync = traitlets.Int(2).tag(sync=True)
 
         wrapped = anywidget(NonSyncWidget())
-        assert wrapped._initial_value == {
-            "state": {"sync": 2},
-            "bufferPaths": [],
-            "buffers": [],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
 
-    @staticmethod
     @staticmethod
     async def test_frontend_changes(
         k: Kernel, exec_req: ExecReqProvider
@@ -307,8 +299,6 @@ x = as_marimo_element.count
 
     @staticmethod
     async def test_buffers() -> None:
-        import base64
-
         class BufferWidget(_anywidget.AnyWidget):
             _esm = ""
             array = traitlets.Bytes().tag(sync=True)
@@ -316,22 +306,18 @@ x = as_marimo_element.count
         data = bytes([1, 2, 3, 4])
         wrapped = anywidget(BufferWidget(array=data))
 
-        # _initial_value is wire format (buffers are extracted to separate array)
-        assert wrapped._initial_value == {
-            "state": {},
-            "bufferPaths": [["array"]],
-            "buffers": [base64.b64encode(data).decode("utf-8")],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
 
-        # test buffers are inlined as base64 in the wire format
-        assert "AQIDBA==" in wrapped.text
-        assert "array" in wrapped.text
+        # The value property reads directly from the widget
+        assert wrapped.value["array"] == data
 
-        # Test updating the buffer
+        # Test updating the buffer - now updates the widget directly
         new_data = bytes([5, 6, 7, 8])
         wrapped.array = new_data
-        # value property returns decoded state with buffers re-inserted
-        assert wrapped.value["array"] == data
+        assert wrapped.value["array"] == new_data
 
     @staticmethod
     async def test_error_handling() -> None:
@@ -348,11 +334,11 @@ x = as_marimo_element.count
 
         wrapped = anywidget(ErrorWidget())
 
-        # Test invalid update
+        # Test valid update - now the widget is updated directly
         wrapped.value = 5
-        assert wrapped.value == {"value": 0}
+        assert wrapped.value == {"value": 5}
 
-        # Test invalid update
+        # Test invalid update - should raise ValueError
         with pytest.raises(ValueError):
             wrapped.value = -1
 
@@ -493,6 +479,31 @@ x = as_marimo_element.count
         assert len(_cache) == old_len - 1
 
     @staticmethod
+    async def test_get_anywidget_state() -> None:
+        """Test get_anywidget_state filters out system traits."""
+
+        class StateWidget(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            _css = "button { color: red; }"
+            count = traitlets.Int(42).tag(sync=True)
+            name = traitlets.Unicode("test").tag(sync=True)
+
+        widget = StateWidget()
+        state = get_anywidget_state(widget)
+
+        # Should include user-defined traits
+        assert state["count"] == 42
+        assert state["name"] == "test"
+
+        # Should NOT include system traits
+        assert "_esm" not in state
+        assert "_css" not in state
+        assert "comm" not in state
+        assert "layout" not in state
+        assert "_model_module" not in state
+        assert "_view_name" not in state
+
+    @staticmethod
     async def test_partial_state_updates() -> None:
         class MultiTraitWidget(_anywidget.AnyWidget):
             _esm = ""
@@ -514,10 +525,6 @@ x = as_marimo_element.count
         # Test updating all traits
         wrapped._update({"a": 100, "b": 200, "c": 300})
         assert wrapped.value == {"a": 100, "b": 200, "c": 300}
-
-        # Test updating with new traits
-        wrapped._update({"d": 4})
-        assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}
 
     @staticmethod
     async def test_getitem_and_contains() -> None:
@@ -549,199 +556,181 @@ x = as_marimo_element.count
         with pytest.raises(KeyError):
             _ = wrapped["nonexistent"]
 
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-class TestWireFormat:
-    """Tests for encode_to_wire and decode_from_wire functions."""
-
     @staticmethod
-    def test_decode_from_wire_not_wire_format() -> None:
-        """Test that non-wire format dicts are returned as-is."""
-        plain_dict = {"a": 1, "b": 2}
-        result = decode_from_wire(plain_dict)
-        assert result == plain_dict
+    async def test_model_message_with_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that mo.state setters work inside widget observe callbacks.
 
-        # Test with only state
-        partial_wire = {"state": {"a": 1}}
-        result = decode_from_wire(partial_wire)
-        assert result == partial_wire
+        Regression test: when a model update message arrives from the
+        frontend, the observe callback fires outside any cell execution
+        context. The __external__ sentinel ensures state setters still
+        trigger downstream re-runs without causing self-loops.
+        This test does NOT use mo.ui.anywidget() — the model exists
+        without a view, verifying the model-to-cell mapping works
+        independently of the UIElement path.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
 
-    @staticmethod
-    def test_decode_from_wire_empty_buffers() -> None:
-        """Test decoding wire format with no buffers."""
-        wire = {"state": {"a": 1, "b": 2}, "bufferPaths": [], "buffers": []}
-        result = decode_from_wire(wire)
-        assert result == {"a": 1, "b": 2}
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
 
-    @staticmethod
-    def test_decode_from_wire_with_buffers() -> None:
-        """Test decoding wire format with base64 buffers."""
-        import base64
+c = Counter()
+get_count, set_count = mo.state(c.count)
 
-        data = b"Hello, World!"
-        base64_data = base64.b64encode(data).decode("utf-8")
+def _on_count_change(_):
+    set_count(c.count)
 
-        wire = {
-            "state": {"text": base64_data, "number": 42},
-            "bufferPaths": [["text"]],
-            "buffers": [base64_data],
-        }
-
-        result = decode_from_wire(wire)
-        assert result["number"] == 42
-        assert result["text"] == data
-
-    @staticmethod
-    def test_decode_from_wire_nested_buffers() -> None:
-        """Test decoding wire format with nested buffer paths."""
-        import base64
-
-        data1 = b"first"
-        data2 = b"second"
-        base64_1 = base64.b64encode(data1).decode("utf-8")
-        base64_2 = base64.b64encode(data2).decode("utf-8")
-
-        wire = {
-            "state": {
-                "nested": {"buf1": base64_1, "deeper": {"buf2": base64_2}}
-            },
-            "bufferPaths": [["nested", "buf1"], ["nested", "deeper", "buf2"]],
-            "buffers": [base64_1, base64_2],
-        }
-
-        result = decode_from_wire(wire)
-        assert result["nested"]["buf1"] == data1
-        assert result["nested"]["deeper"]["buf2"] == data2
-
-    @staticmethod
-    def test_decode_from_wire_array_buffers() -> None:
-        """Test decoding wire format with buffers in arrays."""
-        import base64
-
-        data = b"test"
-        base64_data = base64.b64encode(data).decode("utf-8")
-
-        wire = {
-            "state": {"items": [base64_data, "middle", base64_data]},
-            "bufferPaths": [["items", 0], ["items", 2]],
-            "buffers": [base64_data, base64_data],
-        }
-
-        result = decode_from_wire(wire)
-        assert result["items"][0] == data
-        assert result["items"][1] == "middle"
-        assert result["items"][2] == data
-
-    @staticmethod
-    def test_encode_to_wire_no_buffers() -> None:
-        """Test encoding state without buffers."""
-        state = {"a": 1, "b": "text", "c": {"d": True}}
-        result = encode_to_wire(state)
-
-        assert result["state"] == state
-        assert result["bufferPaths"] == []
-        assert result["buffers"] == []
-
-    @staticmethod
-    def test_encode_to_wire_with_bytes() -> None:
-        """Test encoding state with bytes."""
-        import base64
-
-        data = b"Hello, World!"
-        state = {"text": data, "number": 42}
-
-        result = encode_to_wire(state)
-
-        assert result["state"]["number"] == 42
-        # The buffer should be extracted
-        assert len(result["buffers"]) == 1
-        assert len(result["bufferPaths"]) == 1
-        # Verify the buffer is base64 encoded
-        decoded = base64.b64decode(result["buffers"][0])
-        assert decoded == data
-
-    @staticmethod
-    def test_encode_to_wire_nested_bytes() -> None:
-        """Test encoding state with nested bytes."""
-        import base64
-
-        data1 = b"first"
-        data2 = b"second"
-        state = {
-            "nested": {"buf1": data1, "deeper": {"buf2": data2}},
-            "regular": "value",
-        }
-
-        result = encode_to_wire(state)
-
-        assert result["state"]["regular"] == "value"
-        assert len(result["buffers"]) == 2
-        assert len(result["bufferPaths"]) == 2
-
-        # Verify buffers are base64 encoded
-        buffers = [base64.b64decode(b) for b in result["buffers"]]
-        assert data1 in buffers
-        assert data2 in buffers
-
-    @staticmethod
-    def test_round_trip_encoding() -> None:
-        """Test that encode -> decode -> encode produces consistent results."""
-        original_state = {
-            "buffer": b"test data",
-            "nested": {"inner_buffer": b"more data"},
-            "text": "plain text",
-            "number": 123,
-        }
-
-        # Encode to wire format
-        encoded = encode_to_wire(original_state)
-
-        # Decode back
-        decoded = decode_from_wire(encoded)
-
-        # Verify decoded state matches original
-        assert decoded["buffer"] == b"test data"
-        assert decoded["nested"]["inner_buffer"] == b"more data"
-        assert decoded["text"] == "plain text"
-        assert decoded["number"] == 123
-
-        # Re-encode
-        re_encoded = encode_to_wire(decoded)
-
-        # Verify structure is consistent
-        assert len(re_encoded["buffers"]) == len(encoded["buffers"])
-        assert len(re_encoded["bufferPaths"]) == len(encoded["bufferPaths"])
-
-        # Verify buffers match (order might differ, so compare sets)
-        encoded_buffers = set(encoded["buffers"])
-        re_encoded_buffers = set(re_encoded["buffers"])
-        assert encoded_buffers == re_encoded_buffers
-
-    @staticmethod
-    def test_encode_to_wire_empty_bytes() -> None:
-        """Test encoding empty bytes."""
-        import base64
-
-        state = {"empty": b"", "data": b"content"}
-        result = encode_to_wire(state)
-
-        assert len(result["buffers"]) == 2
-        # Verify empty bytes is properly encoded
-        assert (
-            base64.b64decode(result["buffers"][0]) == b""
-            or base64.b64decode(result["buffers"][1]) == b""
+c.observe(_on_count_change, names="count")
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
         )
 
-    @staticmethod
-    def test_decode_from_wire_missing_buffers() -> None:
-        """Test decoding when bufferPaths exist but buffers are missing."""
-        wire = {
-            "state": {"a": 1},
-            "bufferPaths": [["a"]],
-            # Missing buffers array
-        }
+        assert k.globals["result"] == 0
 
-        # Should handle gracefully - buffers default to []
-        result = decode_from_wire(wire)
-        # State should be returned but buffers won't be inserted
-        assert "a" in result
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        # Simulate a model update from the frontend
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 5},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # The observe callback should have fired set_count,
+        # which triggers re-execution of the cell reading get_count()
+        assert k.globals["result"] == 5
+
+    @staticmethod
+    async def test_nested_model_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test observe on a child widget nested inside a parent widget.
+
+        Models the lonboard pattern: a Map widget holds Layer children,
+        and the user observes trait changes on the inner layer. The
+        parent (Map) is displayed via mo.ui.anywidget, but the observe
+        callback is on the child layer which has its own model.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Layer(anywidget.AnyWidget):
+    _esm = ""
+    selected_index = traitlets.Int(0).tag(sync=True)
+
+class Map(anywidget.AnyWidget):
+    _esm = ""
+    layer = traitlets.Instance(Layer).tag(sync=True)
+
+layer = Layer()
+m = Map(layer=layer)
+w = mo.ui.anywidget(m)
+
+get_selected, set_selected = mo.state(layer.selected_index)
+layer.observe(
+    lambda _: set_selected(layer.selected_index),
+    names="selected_index",
+)
+"""
+                ),
+                exec_req.get("result = get_selected()"),
+            ]
+        )
+
+        assert k.globals["result"] == 0
+
+        layer = k.globals["layer"]
+        layer_model_id = WidgetModelId(layer._model_id)
+
+        # Simulate frontend updating the child layer's trait
+        await k.handle_message(
+            ModelCommand(
+                model_id=layer_model_id,
+                message=ModelUpdateMessage(
+                    state={"selected_index": 42},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        assert k.globals["result"] == 42
+
+    @staticmethod
+    async def test_observe_state_no_self_loop(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify that __external__ sentinel doesn't cause self-loops.
+
+        If a cell both defines and reads a state (get_count), plus has
+        an observe callback that calls the setter, the defining cell
+        should NOT re-run — only downstream cells should.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
+
+c = Counter()
+get_count, set_count = mo.state(c.count)
+c.observe(lambda _: set_count(c.count), names="count")
+
+# Read the state in the SAME cell that defines it
+same_cell_value = get_count()
+run_count = globals().get("run_count", 0) + 1
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
+        )
+
+        assert k.globals["same_cell_value"] == 0
+        assert k.globals["result"] == 0
+        initial_run_count = k.globals["run_count"]
+
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 7},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # Downstream cell should update
+        assert k.globals["result"] == 7
+        # The defining cell should NOT have re-run (no self-loop)
+        assert k.globals["run_count"] == initial_run_count

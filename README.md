@@ -60,9 +60,9 @@ and deployable as apps.
 pip install marimo && marimo tutorial intro
 ```
 
-_Try marimo at [our online playground](https://marimo.app/l/c7h6pz), which runs entirely in the browser!_
-
-_Jump to the [quickstart](#quickstart) for a primer on our CLI._
+_Get started instantly with [**mo**lab, our free online
+notebook](https://molab.marimo.io/notebooks). Or jump to the
+[quickstart](#quickstart) for a primer on our CLI._
 
 ## A reactive programming environment
 
@@ -213,7 +213,7 @@ See the [FAQ](https://docs.marimo.io/faq.html) at our docs.
 
 marimo is easy to get started with, with lots of room for power users.
 For example, here's an embedding visualizer made in marimo
-([video](https://marimo.io/videos/landing/full.mp4)):
+([try the notebook live on molab!](https://molab.marimo.io/notebooks/nb_jJiFFtznAy4BxkrrZA1o9b/app?show-code=true)):
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
@@ -259,23 +259,23 @@ Check out our [docs](https://docs.marimo.io),
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="https://marimo.app/l/c7h6pz">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_TWVGCgZZK4L8zj5ziUBNVL">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://marimo.app/l/0ue871">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_WuoXgs7mjg5yqrMxJXjRpF">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://marimo.app/l/lxp1jk">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_vXxD13t2RoMTLjC89qdn6c">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://marimo.app/l/14ovyr">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_XpXx8MX99dWAjn4k1b3xiU">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
   </tr>
@@ -301,6 +301,7 @@ We're building a community. Come hang out with us!
 - 🦋 [Follow us on Bluesky](https://bsky.app/profile/marimo.io)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
 - 🎥 [Subscribe on YouTube](https://www.youtube.com/@marimo-team)
+- 🤖 [Follow us on Reddit](https://www.reddit.com/r/marimo_notebook)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
 **A NumFOCUS affiliated project.** marimo is a core part of the broader Python

@@ -17,4 +17,5 @@ export type GraphSelection =
 
 export interface GraphSettings {
   hidePureMarkdown: boolean;
+  hideReusableFunctions: boolean;
 }

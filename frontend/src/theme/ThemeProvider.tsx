@@ -10,8 +10,10 @@ export const ThemeProvider: React.FC<PropsWithChildren> = memo(
     const { theme } = useTheme();
     useLayoutEffect(() => {
       document.body.classList.add(theme, `${theme}-theme`);
+      document.body.dataset.theme = theme;
       return () => {
         document.body.classList.remove(theme, `${theme}-theme`);
+        delete document.body.dataset.theme;
       };
     }, [theme]);
 

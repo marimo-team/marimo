@@ -31,7 +31,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
-from marimo._types.ids import CellId_t, RequestId, WidgetModelId
+from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -144,17 +144,81 @@ class UIElementMessageNotification(
     """Sends a message to a UI element/widget.
 
     Attributes:
-        ui_element: UI element identifier (legacy).
-        model_id: Widget model ID (newer architecture).
+        ui_element: UI element identifier.
         message: Message payload as dictionary.
         buffers: Optional binary buffers for large data.
     """
 
     name: ClassVar[str] = "send-ui-element-message"
-    ui_element: Optional[str]
-    model_id: Optional[WidgetModelId]
+    ui_element: UIElementId
     message: dict[str, Any]
     buffers: Optional[list[bytes]] = None
+
+
+class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
+    """Initial widget state on creation."""
+
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+    buffers: list[bytes]
+
+
+class ModelUpdate(msgspec.Struct, tag="update", tag_field="method"):
+    """State sync - changed traits only."""
+
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+    buffers: list[bytes]
+
+
+class ModelCustom(msgspec.Struct, tag="custom", tag_field="method"):
+    """Custom application message."""
+
+    content: Any
+    buffers: list[bytes]
+
+
+class ModelClose(msgspec.Struct, tag="close", tag_field="method"):
+    """Widget destruction."""
+
+    pass
+
+
+ModelMessage = Union[ModelOpen, ModelUpdate, ModelCustom, ModelClose]
+
+
+class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
+    """Widget model lifecycle message.
+
+    Mirrors the Jupyter widget comm protocol with open/update/custom/close.
+
+    Attributes:
+        model_id: Widget model identifier.
+        message: The lifecycle message (open/update/custom/close).
+    """
+
+    name: ClassVar[str] = "model-lifecycle"
+    model_id: WidgetModelId
+    message: ModelMessage
+
+    def to_json_serializable(self) -> dict[str, Any]:
+        """Convert to a plain dict that json.dumps can serialize.
+
+        Used by static HTML export to embed model notifications in a
+        <script> tag via json_script().  We use msgspec.to_builtins for
+        the struct conversion, then base64-encode any bytes buffers
+        since raw bytes are not JSON-serializable.
+        """
+        import base64
+
+        d: dict[str, Any] = msgspec.to_builtins(self)
+        # bytes are not JSON-serializable; base64-encode each buffer
+        msg = d.get("message", {})
+        if "buffers" in msg:
+            msg["buffers"] = [
+                base64.b64encode(b).decode("ascii") for b in msg["buffers"]
+            ]
+        return d
 
 
 class InterruptedNotification(Notification, tag="interrupted"):
@@ -660,6 +724,7 @@ NotificationMessage = Union[
     CellNotification,
     FunctionCallResultNotification,
     UIElementMessageNotification,
+    ModelLifecycleNotification,
     RemoveUIElementsNotification,
     # Notebook lifecycle
     ReloadNotification,

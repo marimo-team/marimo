@@ -172,6 +172,7 @@ def test_markdown_just_frontmatter() -> None:
     assert app.cell_manager.cell_data_at(ids[0]).code == ""
 
 
+@pytest.mark.requires("duckdb")
 def test_markdown_with_sql() -> None:
     script = dedent(
         remove_empty_lines(

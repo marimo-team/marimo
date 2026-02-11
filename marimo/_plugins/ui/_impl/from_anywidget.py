@@ -1,16 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
-import hashlib
 import weakref
 from copy import deepcopy
-from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    Optional,
+    TypeAlias,
     TypedDict,
     TypeVar,
     cast,
@@ -20,58 +17,25 @@ import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.anywidget.utils import (
-    extract_buffer_paths,
-    insert_buffer_paths,
-)
 from marimo._plugins.ui._impl.comm import MarimoComm
-from marimo._runtime.functions import Function
+from marimo._types.ids import WidgetModelId
+from marimo._utils.code import hash_code
+
+AnyWidgetState: TypeAlias = dict[str, Any]
 
 
 class WireFormat(TypedDict):
-    state: dict[str, Any]
+    """Wire format for anywidget state with binary buffers."""
+
+    state: AnyWidgetState
     bufferPaths: list[list[str | int]]
     buffers: list[str]
 
 
-def decode_from_wire(
-    wire: WireFormat | dict[str, Any],
-) -> dict[str, Any]:
-    """Decode wire format { state, bufferPaths, buffers } to plain state with bytes."""
-    if "state" not in wire or "bufferPaths" not in wire:
-        return wire  # Not wire format, return as-is
+class ModelIdRef(TypedDict):
+    """Reference to a model by its ID. The frontend retrieves state from the open message."""
 
-    state = wire.get("state", {})
-    buffer_paths = wire.get("bufferPaths", [])
-    buffers_base64: list[str] = wire.get("buffers", [])
-
-    if buffer_paths and buffers_base64:
-        decoded_buffers = [base64.b64decode(b) for b in buffers_base64]
-        return insert_buffer_paths(state, buffer_paths, decoded_buffers)
-
-    if buffer_paths or buffers_base64:
-        LOGGER.warning(
-            "Expected wire format to have buffers, but got %s", wire
-        )
-        return state
-
-    return state
-
-
-def encode_to_wire(
-    state: dict[str, Any],
-) -> WireFormat:
-    """Encode plain state with bytes to wire format { state, bufferPaths, buffers }."""
-    state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
-
-    # Convert bytes to base64
-    buffers_base64 = [base64.b64encode(b).decode("utf-8") for b in buffers]
-
-    return WireFormat(
-        state=state_no_buffers,
-        bufferPaths=buffer_paths,
-        buffers=buffers_base64,
-    )
+    model_id: WidgetModelId
 
 
 if TYPE_CHECKING:
@@ -116,23 +80,57 @@ _cache: WeakCache[AnyWidget, UIElement[Any, Any]] = WeakCache()  # type: ignore[
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    if not (el := _cache.get(widget)):
+    el = _cache.get(widget)
+    if el is None:
         el = anywidget(widget)
         _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return el
 
 
-T = dict[str, Any]
+def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
+    """Get the state of an AnyWidget."""
+    # Remove widget-specific system traits not needed for the frontend
+    ignored_traits = {
+        "comm",
+        "layout",
+        "log",
+        "tabbable",
+        "tooltip",
+        "keys",
+        "_esm",
+        "_css",
+        "_anywidget_id",
+        "_msg_callbacks",
+        "_dom_classes",
+        "_model_module",
+        "_model_module_version",
+        "_model_name",
+        "_property_lock",
+        "_states_to_send",
+        "_view_count",
+        "_view_module",
+        "_view_module_version",
+        "_view_name",
+    }
+
+    state: dict[str, Any] = widget.get_state()
+
+    # Filter out system traits from the serialized state
+    # This should include the binary data,
+    # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
+    return {k: v for k, v in state.items() if k not in ignored_traits}
 
 
-@dataclass
-class SendToWidgetArgs:
-    content: Any
-    buffers: Optional[Any] = None
+def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:
+    """Get the model_id of an AnyWidget."""
+    model_id = getattr(widget, "_model_id", None)
+    if not model_id:
+        raise RuntimeError("Widget model_id is not set")
+    return WidgetModelId(model_id)
 
 
 @mddoc
-class anywidget(UIElement[WireFormat, T]):
+class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
     """Create a UIElement from an AnyWidget.
 
     This proxies all the widget's attributes and methods, allowing seamless
@@ -168,93 +166,34 @@ class anywidget(UIElement[WireFormat, T]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        # Get state with custom serializers properly applied
-        state: dict[str, Any] = widget.get_state()
-        _state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
+        js: str = getattr(widget, "_esm", "")  # type: ignore [unused-ignore]
+        css: str = getattr(widget, "_css", "")  # type: ignore [unused-ignore]
 
-        # Remove widget-specific system traits not needed for the frontend
-        ignored_traits = [
-            "comm",
-            "layout",
-            "log",
-            "tabbable",
-            "tooltip",
-            "keys",
-            "_esm",
-            "_css",
-            "_anywidget_id",
-            "_msg_callbacks",
-            "_dom_classes",
-            "_model_module",
-            "_model_module_version",
-            "_model_name",
-            "_property_lock",
-            "_states_to_send",
-            "_view_count",
-            "_view_module",
-            "_view_module_version",
-            "_view_name",
-        ]
+        js_hash = hash_code(js)
 
-        # Filter out system traits from the serialized state
-        # This should include the binary data,
-        # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
-        json_args: T = {
-            k: v for k, v in state.items() if k not in ignored_traits
-        }
+        # Trigger comm initialization early to ensure _model_id is set
+        _ = widget.comm
 
-        js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
-        css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
+        # Get the model_id from the widget (should always be set after comm init)
+        model_id = get_anywidget_model_id(widget)
 
-        def on_change(change: dict[str, Any]) -> None:
-            # Decode wire format to plain state with bytes
-            state = decode_from_wire(change)
-
-            # Only update traits that have actually changed
-            current_state: dict[str, Any] = widget.get_state()
-            changed_state: dict[str, Any] = {}
-
-            for k, v in state.items():
-                if k not in current_state:
-                    changed_state[k] = v
-                elif current_state[k] != v:
-                    changed_state[k] = v
-
-            if changed_state:
-                widget.set_state(changed_state)
-
-        js_hash: str = hashlib.md5(
-            js.encode("utf-8"), usedforsecurity=False
-        ).hexdigest()
-
-        # Store plain state with bytes for merging
-        self._prev_state = json_args
-
-        # Initial value is wire format: { state, bufferPaths, buffers }
-        initial_wire = encode_to_wire(json_args)
-
+        # Initial value is just the model_id reference
+        # The frontend retrieves the actual state from the 'open' message
         super().__init__(
             component_name="marimo-anywidget",
-            initial_value=initial_wire,
-            label="",
+            initial_value=ModelIdRef(model_id=model_id),
+            label=None,
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "js-hash": js_hash,
                 "css": css,
             },
-            on_change=on_change,
-            functions=(
-                Function(
-                    name="send_to_widget",
-                    arg_cls=SendToWidgetArgs,
-                    function=self._receive_from_frontend,
-                ),
-            ),
+            on_change=None,
         )
 
     def _initialize(
         self,
-        initialization_args: InitializationArgs[WireFormat, dict[str, Any]],
+        initialization_args: InitializationArgs[ModelIdRef, AnyWidgetState],
     ) -> None:
         super()._initialize(initialization_args)
         # Add the ui_element_id after the widget is initialized
@@ -262,47 +201,30 @@ class anywidget(UIElement[WireFormat, T]):
         if isinstance(comm, MarimoComm):
             comm.ui_element_id = self._id
 
-    def _receive_from_frontend(self, args: SendToWidgetArgs) -> None:
-        state = decode_from_wire(
-            WireFormat(
-                state=args.content.get("state", {}),
-                bufferPaths=args.content.get("bufferPaths", []),
-                buffers=args.buffers or [],
-            )
-        )
-        self.widget._handle_custom_msg(state, args.buffers)
+    def _convert_value(
+        self, value: ModelIdRef | AnyWidgetState
+    ) -> AnyWidgetState:
+        if not isinstance(value, dict):
+            raise ValueError(f"Expected dict, got {type(value)}")
 
-    def _convert_value(self, value: WireFormat) -> T:
-        if isinstance(value, dict) and isinstance(self._prev_state, dict):
-            # Decode wire format to plain state with bytes
-            decoded_state = decode_from_wire(value)
+        # Check if this is a ModelIdRef (initial value from frontend)
+        model_id = value.get("model_id")
+        if model_id and len(value) == 1:
+            # Initial value - just return empty, the widget manages its own state
+            return {}
 
-            # Merge with previous state
-            merged = {**self._prev_state, **decoded_state}
-            self._prev_state = merged
-
-            # Encode back to wire format for frontend
-            # NB: This needs to be the wire format to work
-            # although the types say it should be the plain state,
-            # otherwise the frontend loses some information
-            return cast(T, encode_to_wire(merged))
-
-        LOGGER.warning(
-            f"Expected anywidget value to be a dict, got {type(value)}"
-        )
-        self._prev_state = value
-        return cast(T, value)
+        # Otherwise, it's a state update from the frontend
+        # Update the widget's state
+        self.widget.set_state(value)
+        return cast(AnyWidgetState, value)
 
     @property
-    def value(self) -> T:
+    def value(self) -> AnyWidgetState:
         """The element's current value as a plain dictionary (wire format decoded)."""
-        # Get the internal value (which is in wire format)
-        internal_value = super().value
-        # Decode it to plain state for user-facing code
-        return decode_from_wire(internal_value)  # type: ignore[return-value]
+        return get_anywidget_state(self.widget)
 
     @value.setter
-    def value(self, value: T) -> None:
+    def value(self, value: AnyWidgetState) -> None:
         del value
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
 

@@ -1568,6 +1568,120 @@ def test_format_tuple_elements() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # Imports - need blank line
+        ("import os", True),
+        ("from os import path", True),
+        ("from module import (\n    a,\n    b,\n)", True),
+        ("from module import (\n    a,\n    b,\n)  # inline comment", True),
+        # Multiline import with trailing comment on new line - NO blank line
+        ("from module import (\n    a,\n    b,\n)\n# trailing comment", False),
+        # Function/class defs - need blank line
+        ("def foo():\n    pass", True),
+        ("async def foo():\n    pass", True),
+        ("class Foo:\n    pass", True),
+        # Trailing whitespace still needs blank line
+        ("import os\n  ", True),
+        # Trailing comment on next line - NO blank line
+        ("def foo():\n    pass\n# comment", False),
+        ("import os\n# comment", False),
+        # Regular statements - NO blank line
+        ("x = 1", False),
+        ("if True:\n    pass", False),
+        # Import followed by other statement - NO blank line
+        ("import os\nx = 1", False),
+        # Empty code - NO blank line
+        ("", False),
+    ],
+    ids=[
+        "import",
+        "from_import",
+        "multiline_import",
+        "multiline_import_inline_comment",
+        "multiline_import_trailing_comment",
+        "function_def",
+        "async_function_def",
+        "class_def",
+        "trailing_whitespace",
+        "function_trailing_comment",
+        "import_trailing_comment",
+        "assignment",
+        "if_statement",
+        "import_then_assignment",
+        "empty",
+    ],
+)
+def test_needs_trailing_blank_line(code: str, expected: bool) -> None:
+    """Test _needs_trailing_blank_line for ruff compatibility.
+
+    Ruff adds a blank line after imports, function defs, and class defs,
+    but NOT when there's trailing content like comments on a new line.
+    Inline comments (same line) are ignored by ruff.
+    """
+    from marimo._ast.codegen import _needs_trailing_blank_line
+    from marimo._ast.parse import ast_parse
+
+    assert _needs_trailing_blank_line(ast_parse(code), code) is expected
+
+
+@pytest.mark.parametrize(
+    ("code", "expected_pattern", "unexpected_pattern"),
+    [
+        # Import only - blank line before return
+        (
+            "import datetime",
+            "    import datetime\n\n    return",
+            None,
+        ),
+        # Import then assignment - no blank line
+        (
+            "import datetime\nx = 1",
+            "    import datetime\n    x = 1\n    return",
+            None,
+        ),
+        # Function def - blank line before return
+        (
+            "def foo():\n    return x",
+            "        return x\n\n    return",
+            None,
+        ),
+        # Function def with trailing comment - no extra blank line
+        (
+            "def foo():\n    pass\n# comment",
+            "    # comment\n    return",
+            "    # comment\n\n    return",
+        ),
+        # Multiline import - blank line before return
+        (
+            "from module import (\n    a,\n    b,\n)",
+            "    )\n\n    return",
+            None,
+        ),
+    ],
+    ids=[
+        "import_only",
+        "import_then_assignment",
+        "function_def",
+        "function_trailing_comment",
+        "multiline_import",
+    ],
+)
+def test_ruff_blank_line_in_generated_code(
+    code: str, expected_pattern: str, unexpected_pattern: Optional[str]
+) -> None:
+    """Test that generated code has blank lines where ruff expects them."""
+    result = codegen.generate_filecontents(
+        codes=[code],
+        names=["_"],
+        cell_configs=[CellConfig()],
+    )
+    assert expected_pattern in result
+    if unexpected_pattern:
+        assert unexpected_pattern not in result
+
+
 CODE_CLASS = """
 class MyClass:
     def method_one(self):
@@ -1790,6 +1904,7 @@ def _():
     @some_decorator(param=True)
     def my_decorated_function():
         return "decorated"
+
     return
 
 
@@ -1818,6 +1933,7 @@ def some_decorator(param):
 def _():
     class Config:
         setting = Dependency()
+
     return
 
 
@@ -1843,6 +1959,7 @@ def _():
     class Processor:
         def process(self, data: Data) -> Result:
             return Result()
+
     return
 
 
@@ -1893,6 +2010,7 @@ def _():
     class Child(Parent):
         def child_method(self):
             pass
+
     return
 
 
@@ -1997,6 +2115,7 @@ def process(formatter=default_formatter()):
 def _():
     def process(formatter=default_formatter()):
         return formatter
+
     return
 
 

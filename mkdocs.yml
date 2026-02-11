@@ -137,6 +137,8 @@ nav:
             - Embedding: guides/publishing/embedding.md
             - From code snippets: guides/publishing/from_code_snippets.md
           - From GitHub: guides/publishing/from_github.md
+          - OpenGraph previews: guides/publishing/opengraph.md
+          - Thumbnails: guides/publishing/thumbnails.md
           - Static sites:
             - GitHub Pages: guides/publishing/github_pages.md
             - Cloudflare: guides/publishing/cloudflare.md

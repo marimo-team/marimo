@@ -19,11 +19,11 @@ components:
 
         /example/foo-0.1.0-py3-none-any.whl'
       properties:
-        dev:
+        group:
           anyOf:
-          - type: boolean
+          - type: string
           - type: 'null'
-          default: false
+          default: null
         package:
           type: string
         upgrade:
@@ -825,12 +825,16 @@ components:
       description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
         \ is first loaded. Contains all cells and initial UI element values.\n\n \
         \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
-        \ cell.\n        set_ui_element_value_request: Initial UI element values.\n\
-        \        auto_run: Whether to automatically execute cells on instantiation.\n\
-        \        request: HTTP request context if available."
+        \ cell.\n        cell_ids: Initial cell IDs in the notebook.\n        set_ui_element_value_request:\
+        \ Initial UI element values.\n        auto_run: Whether to automatically execute\
+        \ cells on instantiation.\n        request: HTTP request context if available."
       properties:
         autoRun:
           type: boolean
+        cellIds:
+          items:
+            type: string
+          type: array
         executionRequests:
           items:
             $ref: '#/components/schemas/ExecuteCellCommand'
@@ -848,6 +852,7 @@ components:
       required:
       - type
       - executionRequests
+      - cellIds
       - setUiElementValueRequest
       - autoRun
       title: CreateNotebookCommand
@@ -1239,6 +1244,17 @@ components:
       - key
       title: DeleteSecretRequest
       type: object
+    DependencyTag:
+      properties:
+        kind:
+          type: string
+        value:
+          type: string
+      required:
+      - kind
+      - value
+      title: DependencyTag
+      type: object
     DependencyTreeNode:
       properties:
         dependencies:
@@ -1249,9 +1265,7 @@ components:
           type: string
         tags:
           items:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/components/schemas/DependencyTag'
           type: array
         version:
           anyOf:
@@ -2316,7 +2330,7 @@ components:
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
           - $ref: '#/components/schemas/InstallPackagesCommand'
           - $ref: '#/components/schemas/UpdateUIElementCommand'
-          - $ref: '#/components/schemas/UpdateWidgetModelCommand'
+          - $ref: '#/components/schemas/ModelCommand'
           - $ref: '#/components/schemas/InvokeFunctionCommand'
           - $ref: '#/components/schemas/UpdateUserConfigCommand'
           - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
@@ -2345,6 +2359,7 @@ components:
               list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
               list-secret-keys: '#/components/schemas/ListSecretKeysCommand'
               list-sql-tables: '#/components/schemas/ListSQLTablesCommand'
+              model: '#/components/schemas/ModelCommand'
               preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
               preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
               refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
@@ -2354,7 +2369,6 @@ components:
               update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
               update-ui-element: '#/components/schemas/UpdateUIElementCommand'
               update-user-config: '#/components/schemas/UpdateUserConfigCommand'
-              update-widget-model: '#/components/schemas/UpdateWidgetModelCommand'
               validate-sql: '#/components/schemas/ValidateSQLCommand'
             propertyName: type
         data_type:
@@ -2403,6 +2417,7 @@ components:
           - $ref: '#/components/schemas/CellNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
           - $ref: '#/components/schemas/UIElementMessageNotification'
+          - $ref: '#/components/schemas/ModelLifecycleNotification'
           - $ref: '#/components/schemas/RemoveUIElementsNotification'
           - $ref: '#/components/schemas/ReloadNotification'
           - $ref: '#/components/schemas/ReconnectedNotification'
@@ -2453,6 +2468,7 @@ components:
               kernel-ready: '#/components/schemas/KernelReadyNotification'
               kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
               missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
+              model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
               query-params-append: '#/components/schemas/QueryParamsAppendNotification'
               query-params-clear: '#/components/schemas/QueryParamsClearNotification'
               query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
@@ -3023,11 +3039,198 @@ components:
       - isolated
       title: MissingPackageAlertNotification
       type: object
-    ModelMessage:
-      description: "Widget model state update message.\n\n    State changes for anywidget\
-        \ models, including state dict and binary buffer paths.\n\n    Attributes:\n\
-        \        state: Model state updates.\n        buffer_paths: Paths within state\
-        \ dict pointing to binary buffers."
+    ModelClose:
+      description: Widget destruction.
+      properties:
+        method:
+          enum:
+          - close
+      required:
+      - method
+      title: ModelClose
+      type: object
+    ModelCommand:
+      description: "Widget model message command.\n\n    Handles widget model communication\
+        \ between frontend and backend.\n\n    Attributes:\n        model_id: Widget\
+        \ model identifier.\n        message: Model message (update or custom).\n\
+        \        buffers: Base64-encoded binary buffers.\n        token: Unique identifier\
+        \ for deduplication across dual queues."
+      properties:
+        buffers:
+          items:
+            contentEncoding: base64
+            type: string
+          type: array
+        message:
+          anyOf:
+          - $ref: '#/components/schemas/ModelUpdateMessage'
+          - $ref: '#/components/schemas/ModelCustomMessage'
+          discriminator:
+            mapping:
+              custom: '#/components/schemas/ModelCustomMessage'
+              update: '#/components/schemas/ModelUpdateMessage'
+            propertyName: method
+        modelId:
+          type: string
+        token:
+          type: string
+        type:
+          enum:
+          - model
+      required:
+      - type
+      - modelId
+      - message
+      - buffers
+      title: ModelCommand
+      type: object
+    ModelCustom:
+      description: Custom application message.
+      properties:
+        buffers:
+          items:
+            contentEncoding: base64
+            type: string
+          type: array
+        content: {}
+        method:
+          enum:
+          - custom
+      required:
+      - method
+      - content
+      - buffers
+      title: ModelCustom
+      type: object
+    ModelCustomMessage:
+      description: "Custom widget message.\n\n    Attributes:\n        content: Arbitrary\
+        \ content for the custom message."
+      properties:
+        content: {}
+        method:
+          enum:
+          - custom
+      required:
+      - method
+      - content
+      title: ModelCustomMessage
+      type: object
+    ModelLifecycleNotification:
+      description: "Widget model lifecycle message.\n\n    Mirrors the Jupyter widget\
+        \ comm protocol with open/update/custom/close.\n\n    Attributes:\n      \
+        \  model_id: Widget model identifier.\n        message: The lifecycle message\
+        \ (open/update/custom/close)."
+      properties:
+        message:
+          anyOf:
+          - $ref: '#/components/schemas/ModelOpen'
+          - $ref: '#/components/schemas/ModelUpdate'
+          - $ref: '#/components/schemas/ModelCustom'
+          - $ref: '#/components/schemas/ModelClose'
+          discriminator:
+            mapping:
+              close: '#/components/schemas/ModelClose'
+              custom: '#/components/schemas/ModelCustom'
+              open: '#/components/schemas/ModelOpen'
+              update: '#/components/schemas/ModelUpdate'
+            propertyName: method
+        model_id:
+          type: string
+        op:
+          enum:
+          - model-lifecycle
+      required:
+      - op
+      - model_id
+      - message
+      title: ModelLifecycleNotification
+      type: object
+    ModelOpen:
+      description: Initial widget state on creation.
+      properties:
+        buffer_paths:
+          items:
+            items:
+              anyOf:
+              - type: string
+              - type: integer
+            type: array
+          type: array
+        buffers:
+          items:
+            contentEncoding: base64
+            type: string
+          type: array
+        method:
+          enum:
+          - open
+        state:
+          type: object
+      required:
+      - method
+      - state
+      - buffer_paths
+      - buffers
+      title: ModelOpen
+      type: object
+    ModelRequest:
+      properties:
+        buffers:
+          items:
+            contentEncoding: base64
+            type: string
+          type: array
+        message:
+          anyOf:
+          - $ref: '#/components/schemas/ModelUpdateMessage'
+          - $ref: '#/components/schemas/ModelCustomMessage'
+          discriminator:
+            mapping:
+              custom: '#/components/schemas/ModelCustomMessage'
+              update: '#/components/schemas/ModelUpdateMessage'
+            propertyName: method
+        modelId:
+          type: string
+        token:
+          type: string
+      required:
+      - modelId
+      - message
+      - buffers
+      title: ModelRequest
+      type: object
+    ModelUpdate:
+      description: State sync - changed traits only.
+      properties:
+        buffer_paths:
+          items:
+            items:
+              anyOf:
+              - type: string
+              - type: integer
+            type: array
+          type: array
+        buffers:
+          items:
+            contentEncoding: base64
+            type: string
+          type: array
+        method:
+          enum:
+          - update
+        state:
+          type: object
+      required:
+      - method
+      - state
+      - buffer_paths
+      - buffers
+      title: ModelUpdate
+      type: object
+    ModelUpdateMessage:
+      description: "Widget model state update message.\n\n    Attributes:\n      \
+        \  state: Model state updates.\n        buffer_paths: Paths within state dict\
+        \ pointing to binary buffers."
       properties:
         bufferPaths:
           items:
@@ -3037,12 +3240,16 @@ components:
               - type: integer
             type: array
           type: array
+        method:
+          enum:
+          - update
         state:
           type: object
       required:
+      - method
       - state
       - bufferPaths
-      title: ModelMessage
+      title: ModelUpdateMessage
       type: object
     MultipleDefinitionError:
       properties:
@@ -3442,11 +3649,11 @@ components:
       type: object
     RemovePackageRequest:
       properties:
-        dev:
+        group:
           anyOf:
-          - type: boolean
+          - type: string
           - type: 'null'
-          default: false
+          default: null
         package:
           type: string
       required:
@@ -3519,14 +3726,16 @@ components:
         \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
         \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
         \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
-        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
-        \    - `pythonpath`: a list of directories to add to the Python search path.\n\
-        \        Directories will be added to the head of sys.path. Similar to the\n\
-        \        `PYTHONPATH` environment variable, the directories will be included\
-        \ in\n        where Python will look for imported modules.\n    - `dotenv`:\
-        \ a list of paths to `.env` files to load.\n        If the file does not exist,\
-        \ it will be silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
+        \ frontend performance\n    - `serve_cached_sessions_in_apps`: if `True`,\
+        \ initialize applications with session cache.\n        The default is `False`.\n\
+        \    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;\n\
+        \      larger values may affect frontend performance\n    - `pythonpath`:\
+        \ a list of directories to add to the Python search path.\n        Directories\
+        \ will be added to the head of sys.path. Similar to the\n        `PYTHONPATH`\
+        \ environment variable, the directories will be included in\n        where\
+        \ Python will look for imported modules.\n    - `dotenv`: a list of paths\
+        \ to `.env` files to load.\n        If the file does not exist, it will be\
+        \ silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
         \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
         \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
@@ -3573,6 +3782,8 @@ components:
             type: string
           type: array
         reactive_tests:
+          type: boolean
+        serve_cached_sessions_in_apps:
           type: boolean
         std_stream_max_bytes:
           type: integer
@@ -4132,9 +4343,8 @@ components:
       type: object
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
-        \       ui_element: UI element identifier (legacy).\n        model_id: Widget\
-        \ model ID (newer architecture).\n        message: Message payload as dictionary.\n\
-        \        buffers: Optional binary buffers for large data."
+        \       ui_element: UI element identifier.\n        message: Message payload\
+        \ as dictionary.\n        buffers: Optional binary buffers for large data."
       properties:
         buffers:
           anyOf:
@@ -4146,21 +4356,14 @@ components:
           default: null
         message:
           type: object
-        model_id:
-          anyOf:
-          - type: string
-          - type: 'null'
         op:
           enum:
           - send-ui-element-message
         ui_element:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
       required:
       - op
       - ui_element
-      - model_id
       - message
       title: UIElementMessageNotification
       type: object
@@ -4385,51 +4588,6 @@ components:
       required:
       - config
       title: UpdateUserConfigRequest
-      type: object
-    UpdateWidgetModelCommand:
-      description: "Update anywidget model state.\n\n    Updates widget model state\
-        \ for bidirectional Python-JavaScript communication.\n\n    Attributes:\n\
-        \        model_id: Widget model identifier.\n        message: Model message\
-        \ with state updates and buffer paths.\n        buffers: Base64-encoded binary\
-        \ buffers referenced by buffer_paths."
-      properties:
-        buffers:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
-        message:
-          $ref: '#/components/schemas/ModelMessage'
-        modelId:
-          type: string
-        type:
-          enum:
-          - update-widget-model
-      required:
-      - type
-      - modelId
-      - message
-      title: UpdateWidgetModelCommand
-      type: object
-    UpdateWidgetModelRequest:
-      properties:
-        buffers:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
-        message:
-          $ref: '#/components/schemas/ModelMessage'
-        modelId:
-          type: string
-      required:
-      - modelId
-      - message
-      title: UpdateWidgetModelRequest
       type: object
     ValidateSQLCommand:
       description: "Validate an SQL query.\n\n    Checks if an SQL query is valid\
@@ -4702,7 +4860,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.7
+  version: 0.19.9
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5673,7 +5831,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateWidgetModelRequest'
+              $ref: '#/components/schemas/ModelRequest'
       responses:
         200:
           content:

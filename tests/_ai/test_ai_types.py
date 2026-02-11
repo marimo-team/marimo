@@ -7,6 +7,7 @@ from typing import Any, Literal, cast
 import pytest
 
 from marimo._ai._types import (
+    ChatAttachment,
     ChatMessage,
     ChatPart,
     FilePart,
@@ -99,8 +100,8 @@ class TestChatMessageCreate:
         )
 
     @pytest.mark.skipif(
-        not DependencyManager.pydantic.has(),
-        reason="pydantic is not installed",
+        not DependencyManager.pydantic_ai.has(),
+        reason="pydantic_ai is not installed",
     )
     def test_dict_parts_with_dataclass_validator(self):
         """Test converting dict parts using a dataclass validator."""
@@ -122,8 +123,8 @@ class TestChatMessageCreate:
         )
 
     @pytest.mark.skipif(
-        not DependencyManager.pydantic.has(),
-        reason="pydantic is not installed",
+        not DependencyManager.pydantic_ai.has(),
+        reason="pydantic_ai is not installed",
     )
     def test_mixed_parts_with_validator(self):
         """Test with a mix of already-typed and dict parts."""
@@ -514,3 +515,34 @@ class TestChatMessagePostInit:
         message = ChatMessage(role="user", content="Hello", id="custom-id")
 
         assert message.id == "custom-id"
+
+
+class TestChatMessageDict:
+    """Tests for ChatMessage serialization via dict()."""
+
+    def test_parts_and_attachments_serialized_to_dict(self):
+        """Parts and attachments are converted to dicts via asdict."""
+        message = ChatMessage(
+            role="user",
+            content="Hello",
+            id="msg-1",
+            parts=[TextPart(type="text", text="Part text")],
+            attachments=[
+                ChatAttachment(url="https://example.com/file.pdf", name="doc"),
+            ],
+        )
+        out = dict[str, Any](message)
+        assert out == {
+            "role": "user",
+            "id": "msg-1",
+            "content": "Hello",
+            "parts": [{"type": "text", "text": "Part text"}],
+            "attachments": [
+                {
+                    "url": "https://example.com/file.pdf",
+                    "name": "doc",
+                    "content_type": "application/pdf",
+                }
+            ],
+            "metadata": None,
+        }

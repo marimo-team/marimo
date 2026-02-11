@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -75,6 +75,7 @@ def _(px, us_cities):
             map.update_layout(mapbox_style="open-street-map")
             map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return map
+
     return (get_map,)
 
 
@@ -95,6 +96,7 @@ def _():
     import plotly.express as px
 
     import marimo as mo
+
     return mo, pd, px
 
 

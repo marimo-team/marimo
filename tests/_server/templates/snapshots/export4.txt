@@ -75,6 +75,7 @@
 <script data-marimo="true">
     window.__MARIMO_STATIC__ = {};
     window.__MARIMO_STATIC__.files = {};
+    window.__MARIMO_STATIC__.modelNotifications = [];
 </script>
 <style title='marimo-custom'>/* custom css */</style></head>
   <body>

@@ -16,7 +16,7 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.context.types import get_context
 from marimo._runtime.patches import create_main_module
-from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner import cell_runner, hook_context
 from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
@@ -70,6 +70,7 @@ class AppKernelRunner:
             KernelRuntimeContext,
             create_kernel_context,
         )
+        from marimo._runtime.runner.hooks import NotebookCellHooks
         from marimo._runtime.runner.hooks_post_execution import (
             _reset_matplotlib_context,
         )
@@ -85,13 +86,13 @@ class AppKernelRunner:
 
         def cache_output(
             cell: CellImpl,
-            runner: cell_runner.Runner,
+            ctx: hook_context.PostExecutionHookContext,
             run_result: cell_runner.RunResult,
         ) -> None:
             """Update the app's cached outputs."""
             from marimo._plugins.stateless.flex import vstack
 
-            del runner
+            del ctx
             if (
                 run_result.output is None
                 and run_result.accumulated_output is not None
@@ -103,6 +104,12 @@ class AppKernelRunner:
                 self.outputs[cell.cell_id] = run_result.output
 
         filename = app.filename if app.filename is not None else "<unknown>"
+
+        # Create minimal hooks for embedded app execution
+        hooks = NotebookCellHooks()
+        hooks.add_post_execution(cache_output)
+        hooks.add_post_execution(_reset_matplotlib_context)
+
         self._kernel = Kernel(
             cell_configs={},
             app_metadata=AppMetadata(
@@ -121,7 +128,7 @@ class AppKernelRunner:
             ),
             user_config=DEFAULT_CONFIG,
             enqueue_control_request=lambda _: None,
-            post_execution_hooks=[cache_output, _reset_matplotlib_context],
+            hooks=hooks,
         )
 
         # We push a new runtime context onto the "stack", corresponding to this

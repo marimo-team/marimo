@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Figure, PlotParams } from "react-plotly.js";
+import type * as Plotly from "plotly.js";
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 import { Logger } from "@/utils/Logger";
+import type { Figure } from "./Plot";
 
 import "./plotly.css";
 import "./mapbox.css";
@@ -70,13 +71,8 @@ interface PlotlyPluginProps extends Data {
   host: HTMLElement;
 }
 
-// For whatever reason, the version of vite-rolldown that we are one is not exporting this default export correctly.
-export const LazyPlot = lazy(() =>
-  import("react-plotly.js").then((module) => {
-    return module.default as unknown as {
-      default: React.ComponentType<PlotParams>;
-    };
-  }),
+const LazyPlot = lazy(() =>
+  import("./Plot").then((mod) => ({ default: mod.Plot })),
 );
 
 const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
@@ -176,7 +172,6 @@ export const PlotlyComponent = memo(
             };
           });
         })}
-        // @ts-expect-error We patched this prop here so it doesn't exist in the types
         onTreemapClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
           if (!evt) {
             return;
@@ -198,6 +193,24 @@ export const PlotlyComponent = memo(
           }));
         })}
         config={plotlyConfig}
+        onClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
+          if (!evt) {
+            return;
+          }
+          // Only handle clicks for chart types where box/lasso selection
+          // (onSelected) doesn't work, such as heatmaps.
+          const isHeatmap = evt.points.some(
+            (point) => point.data?.type === "heatmap",
+          );
+          if (!isHeatmap) {
+            return;
+          }
+          setValue((prev) => ({
+            ...prev,
+            points: extractPoints(evt.points),
+            indices: evt.points.map((point) => point.pointIndex),
+          }));
+        })}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
             return;
@@ -215,7 +228,7 @@ export const PlotlyComponent = memo(
         className="w-full"
         useResizeHandler={true}
         frames={figure.frames ?? undefined}
-        onError={useEvent((err) => {
+        onError={useEvent((err: Error) => {
           Logger.error("PlotlyPlugin: ", err);
         })}
       />
@@ -229,6 +242,17 @@ PlotlyComponent.displayName = "PlotlyComponent";
  * instead of the ones that Plotly uses internally,
  * by using the hovertemplate.
  */
+const STANDARD_POINT_KEYS: string[] = [
+  "x",
+  "y",
+  "z",
+  "lat",
+  "lon",
+  "curveNumber",
+  "pointNumber",
+  "pointIndex",
+];
+
 function extractPoints(
   points: Plotly.PlotDatum[],
 ): Record<AxisName, AxisDatum>[] {
@@ -243,6 +267,13 @@ function extractPoints(
     const hovertemplate = Array.isArray(point.data.hovertemplate)
       ? point.data.hovertemplate[0]
       : point.data.hovertemplate;
+
+    // For chart types with standard point keys (e.g. heatmaps),
+    // or when there's no hovertemplate, pick keys directly from the point.
+    if (!hovertemplate || point.data?.type === "heatmap") {
+      return pick(point, STANDARD_POINT_KEYS);
+    }
+
     // Update or create a parser
     parser = parser
       ? parser.update(hovertemplate)

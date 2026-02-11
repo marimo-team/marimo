@@ -29,6 +29,7 @@ import type {
   SaveUserConfigurationRequest,
   Snippets,
 } from "../network/types";
+import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
 import { BasicTransport } from "../websocket/transports/basic";
 import type { IConnectionTransport } from "../websocket/transports/transport";
@@ -146,7 +147,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
-    const filename = PyodideRouter.getFilename();
+    const filename = store.get(filenameAtom) ?? PyodideRouter.getFilename();
     const userConfig = store.get(userConfigAtom);
 
     const queryParameters: Record<string, string | string[]> = {};
@@ -541,7 +542,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest({
-      type: "update-widget-model",
+      type: "model",
       ...request,
     });
     return null;

@@ -13,6 +13,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.packages.utils import append_version
+from marimo._utils.subprocess import safe_popen
 
 if TYPE_CHECKING:
     from marimo._utils.uv_tree import DependencyTreeNode
@@ -61,7 +62,7 @@ class PackageManager(abc.ABC):
         return False
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         """
         Get the shell command to install a package (where applicable).
@@ -77,12 +78,12 @@ class PackageManager(abc.ABC):
         package: str,
         *,
         upgrade: bool,
-        dev: bool,
+        group: Optional[str] = None,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic."""
         return await self.run(
-            self.install_command(package, upgrade=upgrade, dev=dev),
+            self.install_command(package, upgrade=upgrade, group=group),
             log_callback=log_callback,
         )
 
@@ -91,7 +92,7 @@ class PackageManager(abc.ABC):
         package: str,
         version: Optional[str],
         upgrade: bool = False,
-        dev: bool = False,
+        group: Optional[str] = None,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Attempt to install a package that makes this module available.
@@ -100,7 +101,7 @@ class PackageManager(abc.ABC):
             package: The package to install
             version: Optional version specification
             upgrade: Whether to upgrade the package if already installed
-            dev: Whether to install as a dev dependency (for uv projects)
+            group: Dependency group (for uv projects)
             log_callback: Optional callback to receive log output during installation
 
         Returns True if installation succeeded, else False.
@@ -109,17 +110,19 @@ class PackageManager(abc.ABC):
         return await self._install(
             append_version(package, version),
             upgrade=upgrade,
-            dev=dev,
+            group=group,
             log_callback=log_callback,
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str, dev: bool) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         """Attempt to uninstall a package
 
         Args:
             package: The package to uninstall
-            dev: Whether this is a dev dependency
+            group: dependency group
 
         Returns True if the package was uninstalled, else False.
         """
@@ -147,13 +150,16 @@ class PackageManager(abc.ABC):
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = subprocess.Popen(  # noqa: ASYNC220
+        proc = safe_popen(  # noqa: ASYNC220
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=False,  # Keep as bytes to preserve ANSI codes
             bufsize=0,  # Unbuffered for real-time output
         )
+
+        if proc is None:
+            return False
 
         if proc.stdout:
             for line in iter(proc.stdout.readline, b""):

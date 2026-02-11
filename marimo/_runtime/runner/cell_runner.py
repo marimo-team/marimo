@@ -8,19 +8,18 @@ import io
 import signal
 import threading
 import traceback
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
-from marimo._ast.cell import CellImpl
 from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
-    Error,
     MarimoExceptionRaisedError,
     MarimoSQLError,
     MarimoStrictExecutionError,
@@ -40,6 +39,11 @@ from marimo._runtime.executor import (
     get_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.runner.hook_context import (
+    CancelledCells,
+    ExceptionOrError,
+    ExecutionContextManager,
+)
 from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,
@@ -49,24 +53,34 @@ from marimo._types.ids import CellId_t
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterator
 
-    from marimo._runtime.context.types import ExecutionContext
-    from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-    from marimo._runtime.runner.hooks_post_execution import (
-        PostExecutionHookType,
-    )
-    from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
-    from marimo._runtime.runner.hooks_preparation import PreparationHookType
+    from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
+
+
+def _should_broadcast_data() -> bool:
+    """Whether data (variables, datasets, etc.) should be broadcast.
+
+    Returns True only in edit mode for non-embedded contexts.
+    """
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
+    from marimo._runtime.context.types import get_context
+    from marimo._session.model import SessionMode
+
+    ctx = get_context()
+    is_edit_mode = (
+        isinstance(ctx, KernelRuntimeContext)
+        and ctx.session_mode == SessionMode.EDIT
+    )
+    # We don't broadcast data in embedded contexts, since the variables
+    # panel, etc. should only show the top-level graph's variables.
+    return is_edit_mode and not ctx.is_embedded()
 
 
 def cell_filename(cell_id: CellId_t) -> str:
     """Filename to use when running cells through exec."""
     return f"<cell-{cell_id}>"
-
-
-ExceptionOrError = Union[BaseException, Error]
 
 
 @dataclass
@@ -116,17 +130,11 @@ class Runner:
         graph: dataflow.DirectedGraph,
         glbls: dict[Any, Any],
         debugger: MarimoPdb | None,
+        hooks: NotebookCellHooks,
         execution_mode: OnCellChangeType = "autorun",
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
-        execution_context: Callable[
-            [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
-        ]
-        | None = None,
-        preparation_hooks: Sequence[PreparationHookType] | None = None,
-        pre_execution_hooks: Sequence[PreExecutionHookType] | None = None,
-        post_execution_hooks: Sequence[PostExecutionHookType] | None = None,
-        on_finish_hooks: Sequence[OnFinishHookType] | None = None,
+        execution_context: ExecutionContextManager | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -134,20 +142,8 @@ class Runner:
         self._executor = get_executor(
             ExecutionConfig(is_strict=execution_type == "strict")
         )
-        # injected context and hooks
         self.execution_context = execution_context
-        self.preparation_hooks: Sequence[Callable[[Runner], Any]] = (
-            preparation_hooks or []
-        )
-        self.pre_execution_hooks: Sequence[
-            Callable[[CellImpl, Runner], Any]
-        ] = pre_execution_hooks or []
-        self.post_execution_hooks: Sequence[
-            Callable[[CellImpl, Runner, RunResult], Any]
-        ] = post_execution_hooks or []
-        self.on_finish_hooks: Sequence[Callable[[Runner], Any]] = (
-            on_finish_hooks or []
-        )
+        self._hooks = hooks
 
         # runtime globals
         self.glbls = glbls
@@ -160,15 +156,17 @@ class Runner:
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
         self.roots = roots
-        self.cells_to_run: list[CellId_t]
-
-        self.cells_to_run = Runner.compute_cells_to_run(
-            self.graph, self.roots, self.excluded_cells, self.execution_mode
+        self.cells_to_run: deque[CellId_t] = deque(
+            Runner.compute_cells_to_run(
+                self.graph,
+                self.roots,
+                self.excluded_cells,
+                self.execution_mode,
+            )
         )
 
-        # map from a cell that was cancelled to its descendants that have
-        # not yet run:
-        self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        # tracks cancelled cells: raising cell -> descendants, with O(1) lookup
+        self.cancelled_cells = CancelledCells()
         # whether the runner has been interrupted
         self.interrupted = False
         # mapping from cell_id to exception it raised
@@ -271,19 +269,18 @@ class Runner:
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
-        self.cells_cancelled[cell_id] = set(
+        descendants = set(
             cid
             for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
             if cid in self.cells_to_run
         )
-        for cid in self.cells_cancelled[cell_id]:
+        self.cancelled_cells.add(cell_id, descendants)
+        for cid in descendants:
             self.graph.cells[cid].set_run_result_status("cancelled")
 
     def cancelled(self, cell_id: CellId_t) -> bool:
         """Return whether a cell has been cancelled."""
-        return any(
-            cell_id in cancelled for cancelled in self.cells_cancelled.values()
-        )
+        return cell_id in self.cancelled_cells
 
     def pending(self) -> bool:
         """Whether there are more cells to run."""
@@ -362,11 +359,12 @@ class Runner:
                     # by object ID (via is operator)
                     if ref in self.glbls and self.glbls[ref] is state:
                         cids_to_run.add(cid)
+                        break  # cell already matched; skip remaining refs
         return cids_to_run
 
     def pop_cell(self) -> CellId_t:
         """Get the next cell to run."""
-        return self.cells_to_run.pop(0)
+        return self.cells_to_run.popleft()
 
     def _run_result_from_exception(
         self,
@@ -668,9 +666,42 @@ class Runner:
         return ref, blamed_cell
 
     async def run_all(self) -> None:
+        from marimo._runtime.runner.hook_context import (
+            OnFinishHookContext,
+            PostExecutionHookContext,
+            PreExecutionHookContext,
+            PreparationHookContext,
+        )
+
+        prep_ctx = PreparationHookContext(
+            graph=self.graph,
+            execution_mode=self.execution_mode,
+            cells_to_run=self.cells_to_run,
+        )
         LOGGER.debug("Running preparation hooks")
-        for prep_hook in self.preparation_hooks:
-            prep_hook(self)
+        for prep_hook in self._hooks.preparation_hooks:
+            prep_hook(prep_ctx)
+
+        pre_exec_ctx = PreExecutionHookContext(
+            graph=self.graph,
+            execution_mode=self.execution_mode,
+        )
+        all_temporaries: frozenset[str] = (
+            frozenset().union(
+                *(cell.temporaries for cell in self.graph.cells.values())
+            )
+            if self.graph.cells
+            else frozenset()
+        )
+        post_exec_ctx = PostExecutionHookContext(
+            graph=self.graph,
+            glbls=self.glbls,
+            execution_context=self.execution_context,
+            exceptions=self.exceptions,
+            cancelled_cells=self.cancelled_cells,
+            all_temporaries=all_temporaries,
+            should_broadcast_data=_should_broadcast_data(),
+        )
 
         while self.pending():
             cell_id = self.pop_cell()
@@ -698,8 +729,8 @@ class Runner:
                 continue
 
             LOGGER.debug("Running pre_execution hooks")
-            for pre_hook in self.pre_execution_hooks:
-                pre_hook(cell, self)
+            for pre_hook in self._hooks.pre_execution_hooks:
+                pre_hook(cell, pre_exec_ctx)
             LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
                 try:
@@ -709,8 +740,8 @@ class Runner:
                         run_result = await self.run(cell_id)
                         run_result.accumulated_output = exc_ctx.output
                         LOGGER.debug("Running post_execution hooks in context")
-                        for post_hook in self.post_execution_hooks:
-                            post_hook(cell, self, run_result)
+                        for post_hook in self._hooks.post_execution_hooks:
+                            post_hook(cell, post_exec_ctx, run_result)
                 except KeyboardInterrupt:
                     LOGGER.error(
                         """
@@ -721,9 +752,16 @@ class Runner:
             else:
                 run_result = await self.run(cell_id)
                 LOGGER.debug("Running post_execution hooks out of context")
-                for post_hook in self.post_execution_hooks:
-                    post_hook(cell, self, run_result)
+                for post_hook in self._hooks.post_execution_hooks:
+                    post_hook(cell, post_exec_ctx, run_result)
 
+        finish_ctx = OnFinishHookContext(
+            graph=self.graph,
+            cells_to_run=self.cells_to_run,
+            interrupted=self.interrupted,
+            cancelled_cells=self.cancelled_cells,
+            exceptions=self.exceptions,
+        )
         LOGGER.debug("Running on_finish hooks")
-        for finish_hook in self.on_finish_hooks:
-            finish_hook(self)
+        for finish_hook in self._hooks.on_finish_hooks:
+            finish_hook(finish_ctx)

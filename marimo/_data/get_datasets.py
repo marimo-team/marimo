@@ -68,17 +68,13 @@ def _get_data_table(
         return None
 
 
-def has_updates_to_datasource(query: str) -> bool:
-    import duckdb
+_SKIP_TABLES = frozenset(
+    {"duckdb_functions()", "duckdb_types()", "duckdb_settings()"}
+)
 
-    try:
-        statements = duckdb.extract_statements(query.strip())
-    except Exception:
-        # May not be valid SQL
-        return False
-
-    # duckdb > 1.4.0 added _STATEMENT suffix to the statement types
-    STATEMENT_TYPES = {
+# duckdb > 1.4.0 added _STATEMENT suffix to the statement types
+_STATEMENT_TYPES = frozenset(
+    {
         "ATTACH_STATEMENT",
         "ATTACH",
         "DETACH_STATEMENT",
@@ -89,9 +85,20 @@ def has_updates_to_datasource(query: str) -> bool:
         "CREATE_STATEMENT",
         "CREATE",
     }
+)
+
+
+def has_updates_to_datasource(query: str) -> bool:
+    import duckdb
+
+    try:
+        statements = duckdb.extract_statements(query.strip())
+    except Exception:
+        # May not be valid SQL
+        return False
 
     for statement in statements:
-        if statement.type.name in STATEMENT_TYPES:
+        if statement.type.name in _STATEMENT_TYPES:
             return True
     return False
 
@@ -195,8 +202,6 @@ def _get_databases_from_duckdb_internal(
     # databases_dict[database][schema] = [table1, table2, ...]
     databases_dict: dict[str, dict[str, list[DataTable]]] = {}
 
-    SKIP_TABLES = ["duckdb_functions()", "duckdb_types()", "duckdb_settings()"]
-
     # Bug with Iceberg catalog tables where there is a single column named "__"
     # https://github.com/marimo-team/marimo/issues/6688
     CATALOG_TABLE_COLUMN_NAME = "__"
@@ -209,7 +214,7 @@ def _get_databases_from_duckdb_internal(
         column_types,
         *_rest,
     ) in tables_result:
-        if name in SKIP_TABLES:
+        if name in _SKIP_TABLES:
             continue
 
         assert len(column_names) == len(column_types)
@@ -255,7 +260,9 @@ def _get_databases_from_duckdb_internal(
 
         databases_dict[database][schema].append(table)
 
-    return form_databases_from_dict(databases_dict, connection, engine_name)
+    return form_databases_from_dict(
+        databases_dict, connection, engine_name, backfill_empty_databases=True
+    )
 
 
 def get_table_columns(
@@ -297,6 +304,7 @@ def form_databases_from_dict(
     databases_dict: dict[str, dict[str, list[DataTable]]],
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName],
+    backfill_empty_databases: bool,
 ) -> list[Database]:
     # Convert grouped data into Database objects
     databases: list[Database] = []
@@ -313,18 +321,19 @@ def form_databases_from_dict(
             )
         )
 
-    # There may be remaining databases not surfaced with SHOW ALL TABLES
-    # These db's likely have no tables
-    for database_name in _get_duckdb_database_names(connection):
-        if database_name not in databases_dict:
-            databases.append(
-                Database(
-                    name=database_name,
-                    dialect="duckdb",
-                    schemas=[],
-                    engine=engine_name,
+    if backfill_empty_databases:
+        # There may be remaining databases not surfaced with SHOW ALL TABLES
+        # These db's likely have no tables
+        for database_name in _get_duckdb_database_names(connection):
+            if database_name not in databases_dict:
+                databases.append(
+                    Database(
+                        name=database_name,
+                        dialect="duckdb",
+                        schemas=[],
+                        engine=engine_name,
+                    )
                 )
-            )
     return databases
 
 
@@ -411,7 +420,12 @@ def get_duckdb_databases_agg_query(
 
         databases_dict[database_name][schema_name].append(table)
 
-    return form_databases_from_dict(databases_dict, connection, engine_name)
+    return form_databases_from_dict(
+        databases_dict,
+        connection,
+        engine_name,
+        backfill_empty_databases=False,
+    )
 
 
 def _get_duckdb_database_names(

@@ -441,7 +441,6 @@ class UIElement(Html, Generic[S, T]):
         broadcast_notification(
             UIElementMessageNotification(
                 ui_element=self._id,
-                model_id=None,
                 message=message,
                 buffers=list(buffers or []),
             ),

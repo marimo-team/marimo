@@ -11,6 +11,7 @@ from typing import Any, Literal, Optional, Union, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
+from marimo._messaging.notification import ModelLifecycleNotification
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -319,6 +320,7 @@ def static_notebook_template(
     session_snapshot: NotebookSessionV1,
     notebook_snapshot: NotebookV1,
     files: dict[str, str],
+    model_notifications: Optional[list[ModelLifecycleNotification]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
     if asset_url is None:
@@ -361,6 +363,7 @@ def static_notebook_template(
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.files = {json_script(files)};
+        window.__MARIMO_STATIC__.modelNotifications = {json_script([n.to_json_serializable() for n in model_notifications or []])};
     </script>
     """
     )

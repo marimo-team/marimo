@@ -27,14 +27,17 @@ from marimo._pyodide.streams import (
 from marimo._runtime import commands, handlers, patches
 from marimo._runtime.commands import (
     AppMetadata,
+    BatchableCommand,
     CodeCompletionCommand,
     CommandMessage,
+    ModelCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
 )
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.runner.hooks import Priority, create_default_hooks
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -90,9 +93,7 @@ class AsyncQueueManager:
         self.control_queue = asyncio.Queue[commands.CommandMessage]()
 
         # set UI elements duplicated in another queue so they can be batched
-        self.set_ui_element_queue = asyncio.Queue[
-            commands.UpdateUIElementCommand
-        ]()
+        self.set_ui_element_queue = asyncio.Queue[BatchableCommand]()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue = asyncio.Queue[commands.CodeCompletionCommand]()
@@ -152,7 +153,10 @@ class PyodideSession:
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         self._queue_manager.control_queue.put_nowait(request)
-        if isinstance(request, commands.UpdateUIElementCommand):
+        if isinstance(
+            request,
+            (commands.UpdateUIElementCommand, commands.ModelCommand),
+        ):
             self._queue_manager.set_ui_element_queue.put_nowait(request)
 
     def put_completion_request(
@@ -414,7 +418,7 @@ class PyodideBridge:
 
 def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
-    set_ui_element_queue: asyncio.Queue[UpdateUIElementCommand],
+    set_ui_element_queue: asyncio.Queue[BatchableCommand],
     completion_queue: asyncio.Queue[CodeCompletionCommand],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
@@ -447,8 +451,20 @@ def _launch_pyodide_kernel(
 
     def _enqueue_control_request(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
-        if isinstance(req, UpdateUIElementCommand):
+        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
             set_ui_element_queue.put_nowait(req)
+
+    # Create hooks with mode-specific configuration
+    from marimo._runtime.runner.hooks_post_execution import (
+        attempt_pytest,
+        render_toplevel_defs,
+    )
+
+    hooks = create_default_hooks()
+    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
+        hooks.add_post_execution(attempt_pytest, Priority.LATE)
+    if is_edit_mode:
+        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -465,6 +481,7 @@ def _launch_pyodide_kernel(
         enqueue_control_request=_enqueue_control_request,
         debugger_override=debugger,
         user_config=user_config,
+        hooks=hooks,
     )
     ctx = initialize_kernel_context(
         kernel=kernel,
@@ -484,8 +501,14 @@ def _launch_pyodide_kernel(
         while True:
             request: CommandMessage | None = await control_queue.get()
             LOGGER.debug("received request %s", request)
-            if isinstance(request, commands.UpdateUIElementCommand):
-                request = ui_element_request_mgr.process_request(request)
+            if isinstance(
+                request,
+                (commands.UpdateUIElementCommand, commands.ModelCommand),
+            ):
+                merged = ui_element_request_mgr.process_request(request)
+                for r in merged:
+                    await kernel.handle_message(r)
+                continue
 
             if request is not None:
                 await kernel.handle_message(request)

@@ -1,12 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import {
-  decodeFromWire,
-  isWireFormat,
-  serializeBuffersToBase64,
-  type WireFormat,
-} from "../data-views";
-import type { Base64String } from "../json/base64";
+import type { WireFormat } from "@/plugins/impl/anywidget/types";
+import type { Base64String } from "../../../../utils/json/base64";
+import { decodeFromWire, serializeBuffersToBase64 } from "../serialization";
 
 describe("decodeFromWire with DataViews", () => {
   it("should return the original state if bufferPaths.length === 0", () => {
@@ -108,7 +104,7 @@ describe("Immutability Tests", () => {
     expect(input.array).toBe(input.array); // Array reference unchanged
   });
 
-  it("decodeFromWire (wire format) should not mutate input", () => {
+  it("decodeFromWire (wire format) should decode base64 to DataView", () => {
     const encoder = new TextEncoder();
     const data = encoder.encode("Hello");
     const base64 = btoa(String.fromCharCode(...data)) as Base64String;
@@ -119,19 +115,16 @@ describe("Immutability Tests", () => {
       buffers: [base64],
     };
 
-    const clone = structuredClone(input);
+    const result = decodeFromWire(input);
 
-    decodeFromWire(input);
-
-    // Check deep equality
-    expect(input).toEqual(clone);
-
-    // Check references are unchanged
-    expect(input.state).toBe(input.state);
-    expect(input.state.nested).toBe(input.state.nested);
+    // Result should have DataView instead of base64 string
+    expect(result.text).toBeInstanceOf(DataView);
+    // Other properties should be preserved
+    expect(result.number).toBe(42);
+    expect(result.nested).toEqual({ value: "test" });
   });
 
-  it("decodeFromWire (with DataViews) should not mutate input", () => {
+  it("decodeFromWire (with DataViews) should insert buffers at paths", () => {
     const encoder = new TextEncoder();
     const dataView = new DataView(encoder.encode("data").buffer);
 
@@ -143,21 +136,21 @@ describe("Immutability Tests", () => {
     const bufferPaths = [["data"]];
     const buffers = [dataView];
 
-    const input = { state, bufferPaths, buffers };
-    const clone = structuredClone(input);
+    const result = decodeFromWire({
+      state,
+      bufferPaths,
+      buffers,
+    }) as typeof state & { data: DataView };
 
-    decodeFromWire(input);
-
-    // Check deep equality
-    expect(input).toEqual(clone);
-
-    // Check references are unchanged
-    expect(input.state.nested).toBe(state.nested);
-    expect(input.state.array).toBe(state.array);
-    expect(input.buffers?.[0]).toBe(dataView); // Buffer reference unchanged
+    // Result should have the DataView at the path
+    expect(result.data).toBe(dataView);
+    // Other properties should be preserved
+    expect(result.placeholder).toBe("value");
+    expect(result.nested).toEqual({ key: "test" });
+    expect(result.array).toEqual([1, 2, 3]);
   });
 
-  it("decodeFromWire should return new object, not mutate", () => {
+  it("decodeFromWire should insert buffers and return state", () => {
     const encoder = new TextEncoder();
     const dataView = new DataView(encoder.encode("data").buffer);
 
@@ -165,16 +158,15 @@ describe("Immutability Tests", () => {
     const bufferPaths = [["c"]];
     const buffers = [dataView];
 
-    const result = decodeFromWire({ state, bufferPaths, buffers });
-
-    // Result should be different reference
-    expect(result).not.toBe(state);
-
-    // Input should not have new property
-    expect("c" in state).toBe(false);
+    const result = decodeFromWire({
+      state,
+      bufferPaths,
+      buffers,
+    }) as typeof state & { c: DataView };
 
     // Result should have new property
     expect("c" in result).toBe(true);
+    expect(result.c).toBe(dataView);
   });
 
   it("serializeBuffersToBase64 should return new state object", () => {
@@ -198,7 +190,7 @@ describe("Immutability Tests", () => {
     expect(typeof result.state.buffer).toBe("string");
   });
 
-  it("decodeFromWire with object input should not mutate state", () => {
+  it("decodeFromWire with object input should insert buffers", () => {
     const encoder = new TextEncoder();
     const dataView = new DataView(encoder.encode("data").buffer);
 
@@ -206,16 +198,17 @@ describe("Immutability Tests", () => {
     const bufferPaths = [["d"]];
     const buffers = [dataView];
 
-    const input = { state, bufferPaths, buffers };
-    const clone = structuredClone(input);
+    const result = decodeFromWire({
+      state,
+      bufferPaths,
+      buffers,
+    }) as typeof state & { d: DataView };
 
-    decodeFromWire(input);
-
-    // Check deep equality
-    expect(input).toEqual(clone);
-
-    // Check references are unchanged
-    expect(input.state.b).toBe(state.b);
+    // Result should have the buffer inserted
+    expect(result.d).toBe(dataView);
+    // Original properties should be preserved
+    expect(result.a).toBe(1);
+    expect(result.b).toEqual({ c: 2 });
   });
 
   it("nested objects should maintain independence after serialization", () => {
@@ -339,53 +332,6 @@ describe("serializeBuffersToBase64", () => {
     expect(result.buffers).toHaveLength(2);
     expect(result.bufferPaths).toContainEqual(["array", 0, "nested"]);
     expect(result.bufferPaths).toContainEqual(["array", 1, 0]);
-  });
-});
-
-describe("isWireFormat", () => {
-  it("should return true for valid wire format", () => {
-    const wireFormat: WireFormat = {
-      state: { a: 1 },
-      bufferPaths: [],
-      buffers: [],
-    };
-    expect(isWireFormat(wireFormat)).toBe(true);
-  });
-
-  it("should return true for wire format with data", () => {
-    const wireFormat: WireFormat = {
-      state: { value: "SGVsbG8=" },
-      bufferPaths: [["value"]],
-      buffers: ["SGVsbG8=" as Base64String],
-    };
-    expect(isWireFormat(wireFormat)).toBe(true);
-  });
-
-  it("should return false for null", () => {
-    expect(isWireFormat(null)).toBe(false);
-  });
-
-  it("should return false for non-objects", () => {
-    expect(isWireFormat("string")).toBe(false);
-    expect(isWireFormat(123)).toBe(false);
-    expect(isWireFormat(true)).toBe(false);
-    expect(isWireFormat(undefined)).toBe(false);
-  });
-
-  it("should return false when missing state", () => {
-    expect(isWireFormat({ bufferPaths: [], buffers: [] })).toBe(false);
-  });
-
-  it("should return false when missing bufferPaths", () => {
-    expect(isWireFormat({ state: {}, buffers: [] })).toBe(false);
-  });
-
-  it("should return false when missing buffers", () => {
-    expect(isWireFormat({ state: {}, bufferPaths: [] })).toBe(false);
-  });
-
-  it("should return false for plain objects", () => {
-    expect(isWireFormat({ a: 1, b: 2 })).toBe(false);
   });
 });
 

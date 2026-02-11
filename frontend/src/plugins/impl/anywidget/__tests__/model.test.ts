@@ -9,35 +9,80 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import type { Base64String } from "@/utils/json/base64";
 import {
-  type AnyWidgetMessage,
+  getMarimoInternal,
   handleWidgetMessage,
   Model,
   visibleForTesting,
 } from "../model";
+import type { WidgetModelId } from "../types";
+import { BINDING_MANAGER } from "../widget-binding";
 
 const { ModelManager } = visibleForTesting;
 
+// Helper to create typed model IDs for tests
+const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
+
+// Mock the request client
+const mockSendModelValue = vi.fn().mockResolvedValue(null);
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({
+    sendModelValue: mockSendModelValue,
+  }),
+}));
+
+// Mock isStaticNotebook — default to false (normal mode)
+const mockIsStatic = vi.fn().mockReturnValue(false);
+vi.mock("@/core/static/static-state", () => ({
+  isStaticNotebook: () => mockIsStatic(),
+}));
+
+// Helper to create a mock MarimoComm
+function createMockComm<T>() {
+  return {
+    sendUpdate: vi.fn().mockResolvedValue(undefined),
+    sendCustomMessage: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let onChange: (value: any) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let sendToWidget: (req: {
-    content: unknown;
-    buffers: Base64String[];
-  }) => Promise<null | undefined>;
+  let mockComm: ReturnType<typeof createMockComm<{ foo: string; bar: number }>>;
 
   beforeEach(() => {
-    onChange = vi.fn();
-    sendToWidget = vi.fn().mockResolvedValue(null);
-    model = new Model(
-      { foo: "test", bar: 123 },
-      onChange,
-      sendToWidget,
-      new Set(),
-    );
+    mockComm = createMockComm();
+    mockSendModelValue.mockClear();
+    model = new Model({ foo: "test", bar: 123 }, mockComm);
+  });
+
+  describe("public API", () => {
+    it("should only expose AFM-compliant interface", () => {
+      // Get all enumerable own properties
+      const ownProperties = Object.keys(model).sort();
+      // Get prototype methods (excluding constructor)
+      const prototypeMethods = Object.getOwnPropertyNames(
+        Object.getPrototypeOf(model),
+      )
+        .filter((name) => name !== "constructor")
+        .sort();
+
+      // Snapshot the public API to catch accidental leaks of internal methods
+      expect({ ownProperties, prototypeMethods }).toMatchInlineSnapshot(`
+        {
+          "ownProperties": [
+            "widget_manager",
+          ],
+          "prototypeMethods": [
+            "get",
+            "off",
+            "on",
+            "save_changes",
+            "send",
+            "set",
+          ],
+        }
+      `);
+    });
   });
 
   describe("get/set", () => {
@@ -70,7 +115,7 @@ describe("Model", () => {
       model.set("bar", 456);
       model.save_changes();
 
-      expect(onChange).toHaveBeenCalledWith({
+      expect(mockComm.sendUpdate).toHaveBeenCalledWith({
         foo: "new value",
         bar: 456,
       });
@@ -80,7 +125,7 @@ describe("Model", () => {
       model.set("foo", "new value");
       model.save_changes();
 
-      expect(onChange).toHaveBeenCalledWith({
+      expect(mockComm.sendUpdate).toHaveBeenCalledWith({
         foo: "new value",
       });
 
@@ -88,17 +133,17 @@ describe("Model", () => {
       model.save_changes();
 
       // After clearing, only the newly changed field is sent
-      expect(onChange).toHaveBeenCalledWith({
+      expect(mockComm.sendUpdate).toHaveBeenCalledWith({
         bar: 456,
       });
     });
 
-    it("should not call onChange when no dirty fields", () => {
+    it("should not call sendUpdate when no dirty fields", () => {
       model.set("foo", "new value");
       model.save_changes();
-      model.save_changes(); // Second save should not call onChange
+      model.save_changes(); // Second save should not call sendUpdate
 
-      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(mockComm.sendUpdate).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -145,23 +190,28 @@ describe("Model", () => {
   describe("send", () => {
     it("should send message and handle callbacks", async () => {
       const callback = vi.fn();
-      model.send({ test: true }, callback);
+      await model.send({ test: true }, callback);
 
-      expect(sendToWidget).toHaveBeenCalledWith({
-        content: {
-          state: { test: true },
-          bufferPaths: [],
-        },
-        buffers: [],
-      });
-      await TestUtils.nextTick(); // flush
-      expect(callback).toHaveBeenCalledWith(null);
+      expect(mockComm.sendCustomMessage).toHaveBeenCalledWith(
+        { test: true },
+        [],
+      );
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it("should convert buffers to DataViews", async () => {
+      const buffer = new ArrayBuffer(8);
+      await model.send({ test: true }, undefined, [buffer]);
+
+      expect(mockComm.sendCustomMessage).toHaveBeenCalledWith({ test: true }, [
+        expect.any(DataView),
+      ]);
     });
   });
 
   describe("widget_manager", () => {
-    const childModelId = "test-id";
-    const childModel = new Model({ foo: "test" }, vi.fn(), vi.fn(), new Set());
+    const childModelId = asModelId("test-id");
+    const childModel = new Model({ foo: "test" }, createMockComm());
     const manager = new ModelManager(10);
     let previousModelManager = Model._modelManager;
 
@@ -177,9 +227,9 @@ describe("Model", () => {
     });
 
     it("should throw error when accessing a model that is not registered", async () => {
-      await expect(model.widget_manager.get_model("random-id")).rejects.toThrow(
-        "Model not found for key: random-id",
-      );
+      await expect(
+        model.widget_manager.get_model(asModelId("random-id")),
+      ).rejects.toThrow("Model not found for key: random-id");
     });
 
     it("should return the registered model", async () => {
@@ -194,7 +244,7 @@ describe("Model", () => {
       const callback = vi.fn();
       model.on("change:foo", callback);
 
-      model.updateAndEmitDiffs({ foo: "test", bar: 456 });
+      getMarimoInternal(model).updateAndEmitDiffs({ foo: "test", bar: 456 });
       expect(callback).not.toHaveBeenCalled(); // foo didn't change
       expect(model.get("bar")).toBe(456);
     });
@@ -202,47 +252,33 @@ describe("Model", () => {
     it("should update and emit for deep changes", () => {
       const modelWithObject = new Model<{ foo: { nested: string } }>(
         { foo: { nested: "test" } },
-        onChange,
-        sendToWidget,
-        new Set(),
+        createMockComm(),
       );
       const callback = vi.fn();
       modelWithObject.on("change:foo", callback);
 
-      modelWithObject.updateAndEmitDiffs({ foo: { nested: "changed" } });
+      getMarimoInternal(modelWithObject).updateAndEmitDiffs({
+        foo: { nested: "changed" },
+      });
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
     it("should emit change event for any changes", async () => {
       const callback = vi.fn();
       model.on("change", callback);
-      model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
+      getMarimoInternal(model).updateAndEmitDiffs({ foo: "changed", bar: 456 });
       await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("receiveCustomMessage", () => {
-    it("should handle update messages", () => {
-      model.receiveCustomMessage({
-        method: "update",
-        state: {
-          foo: "updated",
-          bar: 789,
-        },
-        buffer_paths: [],
-      });
-
-      expect(model.get("foo")).toBe("updated");
-      expect(model.get("bar")).toBe(789);
-    });
-
+  describe("emitCustomMessage", () => {
     it("should handle custom messages", () => {
       const callback = vi.fn();
       model.on("msg:custom", callback);
 
       const content = { type: "test" };
-      model.receiveCustomMessage({
+      getMarimoInternal(model).emitCustomMessage({
         method: "custom",
         content,
       });
@@ -256,7 +292,7 @@ describe("Model", () => {
 
       const content = { type: "test" };
       const buffer = new DataView(new ArrayBuffer(8));
-      model.receiveCustomMessage(
+      getMarimoInternal(model).emitCustomMessage(
         {
           method: "custom",
           content,
@@ -266,108 +302,148 @@ describe("Model", () => {
 
       expect(callback).toHaveBeenCalledWith(content, [buffer]);
     });
-
-    it("should log error for invalid messages", () => {
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {
-        // noop
-      });
-      model.receiveCustomMessage({ invalid: "message" });
-
-      expect(consoleSpy).toHaveBeenCalledTimes(2);
-    });
   });
 });
 
 describe("ModelManager", () => {
   let modelManager = new ModelManager(50);
-  const handle = ({
-    modelId,
-    message,
-    buffers,
-  }: {
-    modelId: string;
-    message: AnyWidgetMessage;
-    buffers: readonly DataView[];
-  }) => {
-    return handleWidgetMessage({
-      modelId,
-      msg: message,
-      buffers,
-      modelManager,
-    });
-  };
+  const testId = asModelId("test-id");
 
   beforeEach(() => {
     // Clear the model manager before each test
     modelManager = new ModelManager(50);
+    mockSendModelValue.mockClear();
   });
 
   it("should set and get models", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
-    modelManager.set("test-id", model);
-    const retrievedModel = await modelManager.get("test-id");
+    const model = new Model({ count: 0 }, createMockComm());
+    modelManager.set(testId, model);
+    const retrievedModel = await modelManager.get(testId);
     expect(retrievedModel).toBe(model);
   });
 
   it("should handle model not found", async () => {
-    await expect(modelManager.get("non-existent")).rejects.toThrow(
+    await expect(modelManager.get(asModelId("non-existent"))).rejects.toThrow(
       "Model not found for key: non-existent",
     );
   });
 
   it("should delete models", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
-    modelManager.set("test-id", model);
-    modelManager.delete("test-id");
-    await expect(modelManager.get("test-id")).rejects.toThrow();
+    const model = new Model({ count: 0 }, createMockComm());
+    modelManager.set(testId, model);
+    modelManager.delete(testId);
+    await expect(modelManager.get(testId)).rejects.toThrow();
   });
 
   it("should handle widget messages", async () => {
-    const openMessage: AnyWidgetMessage = {
-      method: "open",
-      state: { count: 0 },
-      buffer_paths: [],
-    };
-
-    await handle({ modelId: "test-id", message: openMessage, buffers: [] });
-    const model = await modelManager.get("test-id");
+    await handleWidgetMessage(modelManager, {
+      model_id: testId,
+      message: {
+        method: "open",
+        state: { count: 0 },
+        buffer_paths: [],
+        buffers: [],
+      },
+    });
+    const model = await modelManager.get(testId);
     expect(model.get("count")).toBe(0);
 
-    const updateMessage: AnyWidgetMessage = {
-      method: "update",
-      state: {
-        count: 1,
+    await handleWidgetMessage(modelManager, {
+      model_id: testId,
+      message: {
+        method: "update",
+        state: { count: 1 },
+        buffer_paths: [],
+        buffers: [],
       },
-      buffer_paths: [],
-    };
-
-    await handle({ modelId: "test-id", message: updateMessage, buffers: [] });
+    });
     expect(model.get("count")).toBe(1);
   });
 
   it("should handle custom messages", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
+    const model = new Model({ count: 0 }, createMockComm());
     const callback = vi.fn();
     model.on("msg:custom", callback);
-    modelManager.set("test-id", model);
+    modelManager.set(testId, model);
 
-    await handle({
-      modelId: "test-id",
-      message: { method: "custom", content: { count: 1 } },
-      buffers: [],
+    await handleWidgetMessage(modelManager, {
+      model_id: testId,
+      message: { method: "custom", content: { count: 1 }, buffers: [] },
     });
     expect(callback).toHaveBeenCalledWith({ count: 1 }, []);
   });
 
   it("should handle close messages", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
-    modelManager.set("test-id", model);
+    const model = new Model({ count: 0 }, createMockComm());
+    modelManager.set(testId, model);
 
-    await handle({
-      modelId: "test-id",
+    await handleWidgetMessage(modelManager, {
+      model_id: testId,
       message: { method: "close" },
-      buffers: [],
     });
-    await expect(modelManager.get("test-id")).rejects.toThrow();
+    await expect(modelManager.get(testId)).rejects.toThrow();
+  });
+
+  it("should destroy binding on close message", async () => {
+    const model = new Model({ count: 0 }, createMockComm());
+    modelManager.set(testId, model);
+
+    // Create a binding for this model
+    BINDING_MANAGER.getOrCreate(testId);
+    expect(BINDING_MANAGER.has(testId)).toBe(true);
+
+    await handleWidgetMessage(modelManager, {
+      model_id: testId,
+      message: { method: "close" },
+    });
+
+    expect(BINDING_MANAGER.has(testId)).toBe(false);
+  });
+
+  describe("static mode", () => {
+    beforeEach(() => {
+      mockIsStatic.mockReturnValue(true);
+    });
+
+    afterAll(() => {
+      mockIsStatic.mockReturnValue(false);
+    });
+
+    it("should create model with no-op comm in static mode", async () => {
+      await handleWidgetMessage(modelManager, {
+        model_id: testId,
+        message: {
+          method: "open",
+          state: { count: 42 },
+          buffer_paths: [],
+          buffers: [],
+        },
+      });
+
+      const model = await modelManager.get(testId);
+      expect(model.get("count")).toBe(42);
+
+      // save_changes should not call the real request client
+      model.set("count", 100);
+      model.save_changes();
+      expect(mockSendModelValue).not.toHaveBeenCalled();
+    });
+
+    it("should not throw on send in static mode", async () => {
+      await handleWidgetMessage(modelManager, {
+        model_id: testId,
+        message: {
+          method: "open",
+          state: { count: 0 },
+          buffer_paths: [],
+          buffers: [],
+        },
+      });
+
+      const model = await modelManager.get(testId);
+      // send() should silently no-op
+      await expect(model.send({ test: true })).resolves.toBeUndefined();
+      expect(mockSendModelValue).not.toHaveBeenCalled();
+    });
   });
 });

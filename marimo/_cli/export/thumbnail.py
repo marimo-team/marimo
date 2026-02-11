@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import click
 
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import echo, green, red
+from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import run_app_then_export_as_html
 from marimo._server.file_router import flatten_files
@@ -34,11 +34,7 @@ _sandbox_message = (
     "via PEP 723 inline metadata. If already declared, dependencies will "
     "install automatically. Requires uv. Only applies when --execute is used."
 )
-
-
-@click.group(help="Generate and manage notebook thumbnails.")
-def thumbnails() -> None:
-    pass
+_READINESS_WAIT_TIMEOUT_MS = 30_000
 
 
 def _split_paths_and_args(
@@ -299,6 +295,7 @@ async def _generate_thumbnails(
 
     try:
         from playwright.async_api import (  # type: ignore[import-not-found]
+            TimeoutError as PlaywrightTimeoutError,
             async_playwright,
         )
     except ModuleNotFoundError as e:
@@ -379,23 +376,32 @@ async def _generate_thumbnails(
                         )
                         # Nb renderer starts cell contents as invisible for a short period to avoid flicker
                         # --> we wait for the first cell container to be visible before snapshotting.
-                        await page.wait_for_function(
-                            r"""
+                        try:
+                            await page.wait_for_function(
+                                r"""
 () => {
   const root = document.getElementById("root");
   if (!root) return false;
 
-  const cell = document.querySelector('div[id^="cell-"]');
-  if (cell) {
-    const style = window.getComputedStyle(cell);
-    return style.visibility !== "hidden" && style.display !== "none";
+  const cells = Array.from(document.querySelectorAll('div[id^="cell-"]'));
+  if (cells.length > 0) {
+    const hasVisibleCell = cells.some((cell) => {
+      const style = window.getComputedStyle(cell);
+      return style.visibility !== "hidden" && style.display !== "none";
+    });
+    if (hasVisibleCell) return true;
   }
 
   return root.childElementCount > 0;
 }
 """,
-                            timeout=30_000,
-                        )
+                                timeout=_READINESS_WAIT_TIMEOUT_MS,
+                            )
+                        except PlaywrightTimeoutError:
+                            echo(
+                                yellow("warning")
+                                + ": readiness check timed out; capturing screenshot anyway."
+                            )
                         await page.wait_for_timeout(timeout_ms)
                         await page.screenshot(
                             path=str(out_path), full_page=False
@@ -420,7 +426,9 @@ async def _generate_thumbnails(
         )
 
 
-@thumbnails.command(help="Generate OpenGraph thumbnails for notebooks.")
+@click.command(
+    "thumbnail", help="Generate OpenGraph thumbnails for notebooks."
+)
 @click.argument(
     "name",
     type=click.Path(
@@ -431,21 +439,18 @@ async def _generate_thumbnails(
     "--width",
     type=int,
     default=1200,
-    show_default=True,
     help="Viewport width for the screenshot.",
 )
 @click.option(
     "--height",
     type=int,
     default=630,
-    show_default=True,
     help="Viewport height for the screenshot.",
 )
 @click.option(
     "--scale",
     type=click.IntRange(min=1, max=4),
     default=2,
-    show_default=True,
     help=(
         "Device scale factor for screenshots. Output resolution will be "
         "`width*scale` x `height*scale`."
@@ -455,7 +460,6 @@ async def _generate_thumbnails(
     "--timeout-ms",
     type=int,
     default=1500,
-    show_default=True,
     help="Additional time to wait after page load before screenshot.",
 )
 @click.option(
@@ -470,19 +474,16 @@ async def _generate_thumbnails(
 @click.option(
     "--overwrite/--no-overwrite",
     default=False,
-    show_default=True,
     help="Overwrite existing thumbnails.",
 )
 @click.option(
     "--include-code/--no-include-code",
     default=False,
-    show_default=True,
     help="Whether to include code in the rendered HTML before screenshot.",
 )
 @click.option(
     "--execute/--no-execute",
     default=False,
-    show_default=True,
     help=(
         "Execute notebooks and include their outputs in thumbnails. "
         "In --no-execute mode (default), thumbnails are generated from notebook "
@@ -493,18 +494,16 @@ async def _generate_thumbnails(
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
 @click.option(
     "--continue-on-error/--fail-fast",
     default=True,
-    show_default=True,
     help="Continue processing other notebooks if one notebook fails.",
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-def generate(
+def thumbnail(
     name: Path,
     width: int,
     height: int,

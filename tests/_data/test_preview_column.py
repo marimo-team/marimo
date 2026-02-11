@@ -500,6 +500,36 @@ def test_get_column_preview_for_duckdb_over_limit() -> None:
 
 
 @pytest.mark.skipif(
+    not HAS_SQL_DEPS, reason="optional dependencies not installed"
+)
+def test_get_column_preview_for_duckdb_stats_total_none() -> None:
+    """Test that when stats.total is None, no chart is generated and no crash occurs."""
+    from marimo._data.models import ColumnStats
+
+    with (
+        patch(
+            "marimo._data.preview_column.get_sql_stats",
+            return_value=ColumnStats(),
+        ),
+        patch(
+            "marimo._data.preview_column.get_column_type",
+            return_value="integer",
+        ),
+    ):
+        result = get_column_preview_for_duckdb(
+            fully_qualified_table_name="tbl",
+            column_name="id",
+        )
+
+    assert result is not None
+    assert result.stats is not None
+    assert result.stats.total is None
+    # No chart should be generated when total is None
+    assert result.chart_spec is None
+    assert result.error is None
+
+
+@pytest.mark.skipif(
     not DependencyManager.narwhals.has() or not DependencyManager.polars.has(),
     reason="narwhals and polars not installed",
 )
@@ -566,7 +596,12 @@ def test_sanitize_dtypes_enum() -> None:
     ),
 )
 def test_preview_column_duration_dtype(df) -> None:
-    for column_name in df.columns:
+    columns = (
+        df.collect_schema().names()
+        if hasattr(df, "collect_schema")
+        else df.columns
+    )
+    for column_name in columns:
         result = get_column_preview_dataset(
             table=get_table_manager(df),
             table_name="table",

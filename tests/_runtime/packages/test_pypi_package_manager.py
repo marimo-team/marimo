@@ -53,7 +53,7 @@ async def test_install(mock_run: MagicMock):
 
     with patch.object(manager, "is_manager_installed", return_value=True):
         result = await manager._install(
-            "package1 package2", upgrade=False, dev=False
+            "package1 package2", upgrade=False, group=None
         )
 
     mock_run.assert_called_once_with(
@@ -67,7 +67,7 @@ async def test_install_failure(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=1)
 
     result = await manager._install(
-        "nonexistent-package", upgrade=False, dev=False
+        "nonexistent-package", upgrade=False, group=None
     )
 
     assert result is False
@@ -78,7 +78,7 @@ async def test_uninstall(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
     with patch.object(manager, "is_manager_installed", return_value=True):
-        result = await manager.uninstall("package1 package2", dev=False)
+        result = await manager.uninstall("package1 package2", group=None)
 
     mock_run.assert_called_once_with(
         [
@@ -291,7 +291,7 @@ def test_uv_is_in_uv_project_cached(mock_exists: MagicMock):
     assert mock_exists.call_count == 2
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_not_in_project(mock_popen: MagicMock):
     """Test UV install uses pip subcommand when not in UV project"""
@@ -301,27 +301,18 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
     mock_popen.return_value = mock_process
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2", upgrade=False, dev=False)
+    result = await mgr._install("package1 package2", upgrade=False, group=None)
 
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    mock_popen.assert_called_once()
+    call_kwargs = mock_popen.call_args[1]
+    assert call_kwargs["stdout"] == subprocess.PIPE
+    assert call_kwargs["stderr"] == subprocess.STDOUT
+    assert call_kwargs["universal_newlines"] is False
+    assert call_kwargs["bufsize"] == 0
     assert result is True
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     """Test UV install uses pip with target"""
@@ -336,25 +327,15 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     import os
 
     os.environ["MARIMO_UV_TARGET"] = "target_path"
-    result = await mgr._install("package1 package2", upgrade=False, dev=False)
+    result = await mgr._install("package1 package2", upgrade=False, group=None)
     del os.environ["MARIMO_UV_TARGET"]
 
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "--target=target_path",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    mock_popen.assert_called_once()
+    call_kwargs = mock_popen.call_args[1]
+    assert call_kwargs["stdout"] == subprocess.PIPE
+    assert call_kwargs["stderr"] == subprocess.STDOUT
+    assert call_kwargs["universal_newlines"] is False
+    assert call_kwargs["bufsize"] == 0
     assert result is True
 
 
@@ -365,7 +346,7 @@ async def test_uv_install_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2", upgrade=False, dev=False)
+    result = await mgr._install("package1 package2", upgrade=False, group=None)
 
     mock_run.assert_called_once_with(
         ["uv", "add", "package1", "package2", "-p", PY_EXE],
@@ -380,18 +361,80 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2", upgrade=False, dev=True)
+    result = await mgr._install(
+        "package1 package2", upgrade=False, group="dev"
+    )
 
     mock_run.assert_called_once_with(
         [
             "uv",
             "add",
-            "--dev",
+            "--group",
+            "dev",
             "package1",
             "package2",
             "-p",
             PY_EXE,
         ],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_custom_group_in_project(mock_run: MagicMock):
+    """Test UV install uses --group flag with custom dependency group"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install("sphinx", upgrade=False, group="docs")
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "add",
+            "--group",
+            "docs",
+            "sphinx",
+            "-p",
+            PY_EXE,
+        ],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_no_group_in_project(mock_run: MagicMock):
+    """Test UV install without group doesn't pass --group flag"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install("requests", upgrade=False, group=None)
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "add",
+            "requests",
+            "-p",
+            PY_EXE,
+        ],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_uninstall_with_group_in_project(mock_run: MagicMock):
+    """Test UV uninstall uses --group flag with dependency group"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr.uninstall("sphinx", group="docs")
+
+    mock_run.assert_called_once_with(
+        ["uv", "remove", "--group", "docs", "sphinx", "-p", PY_EXE],
     )
     assert result is True
 
@@ -708,7 +751,7 @@ def test_has_script_metadata_binary_file(tmp_path: Path):
     assert mgr._has_script_metadata(str(binary_file)) is False
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch("subprocess.run")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_cache_error_fallback(
@@ -731,23 +774,15 @@ async def test_uv_install_cache_error_fallback(
 
     mgr = UvPackageManager()
     with patch.object(mgr, "is_manager_installed", return_value=True):
-        result = await mgr._install("datamapplot", upgrade=False, dev=False)
+        result = await mgr._install("datamapplot", upgrade=False, group=None)
 
-    # First attempt should use Popen
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "datamapplot",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    # First attempt should use Popen (via safe_popen)
+    mock_popen.assert_called_once()
+    call_kwargs = mock_popen.call_args
+    assert call_kwargs[1]["stdout"] == subprocess.PIPE
+    assert call_kwargs[1]["stderr"] == subprocess.STDOUT
+    assert call_kwargs[1]["universal_newlines"] is False
+    assert call_kwargs[1]["bufsize"] == 0
 
     # Retry should add --no-cache flag
     mock_run.assert_called_once_with(
@@ -766,7 +801,7 @@ async def test_uv_install_cache_error_fallback(
     assert result is True
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_no_fallback_on_different_error(
     mock_popen: MagicMock,
@@ -785,7 +820,7 @@ async def test_uv_install_no_fallback_on_different_error(
     mgr = UvPackageManager()
     with patch.object(mgr, "is_manager_installed", return_value=True):
         result = await mgr._install(
-            "nonexistent-package", upgrade=False, dev=False
+            "nonexistent-package", upgrade=False, group=None
         )
 
     # Should only call Popen once (no retry)
@@ -802,7 +837,7 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=1)  # Failure
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1", upgrade=False, dev=False)
+    result = await mgr._install("package1", upgrade=False, group=None)
 
     # Should only call run once (no fallback for project mode)
     mock_run.assert_called_once_with(

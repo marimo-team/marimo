@@ -11,13 +11,14 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -39,7 +40,7 @@ def _():
 
     df = data.iris()
     df
-    return
+    return (df,)
 
 
 @app.cell(hide_code=True)
@@ -90,7 +91,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, species_dropdown):
+def _(df, mo, species_dropdown):
     result = mo.sql(
         f"""
         SELECT * FROM df where species == '{species_dropdown.value}'

@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.19.7"
+version = "0.19.9"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -36,7 +36,7 @@ dependencies = [
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing
-    "loro>=1.5.0; python_version >= '3.11' and python_version < '3.14'",
+    "loro>=1.10.0",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -116,7 +116,7 @@ mcp = [
 
 [dependency-groups]
 dev = [
-    "hatch>=1.15.1",
+    "hatch>=1.16.3",
     "black~=23.12.1",
     # For tracing debugging
     "opentelemetry-api~=1.28.0",
@@ -183,7 +183,7 @@ test-optional = [
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
     "pillow~=10.4.0",
-    "anywidget~=0.9.18",
+    "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
     "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.52.0",
@@ -273,7 +273,7 @@ check = "mypy marimo --exclude=marimo/_tutorials/"
 tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
-dependency-groups = ["dev", "test"]
+dependency-groups = ["test"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -591,12 +591,12 @@ reportUnusedCallResult = false
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 
 [tool.pixi.dependencies]
 nodejs = "22.*"
 pnpm = "10.*"
-hatch = ">=1.14.1,<2"
+hatch = ">=1.16.3,<2"
 make = ">=4.4.1,<5"
 pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"
@@ -605,3 +605,4 @@ pip = ">=25.0.1,<26"
 
 [tool.pixi.pypi-dependencies]
 marimo = {path = ".", editable = true}
+

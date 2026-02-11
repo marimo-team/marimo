@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -17,6 +17,7 @@ def _():
     import marimo as mo
     import os
     from huggingface_hub import InferenceClient
+
     return InferenceClient, mo, os
 
 
@@ -145,6 +146,7 @@ def _(client, mo):
 
         # You can return strings, markdown, charts, tables, dataframes, and more.
         return response.choices[0].message.content
+
     return max_tokens, respond, system_message, temperature, top_p
 
 

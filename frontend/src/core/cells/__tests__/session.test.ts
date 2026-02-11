@@ -7,7 +7,7 @@ import { parseOutline } from "@/core/dom/outline";
 import { MultiColumn, visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import type { CellId } from "../ids";
+import { type CellId, SETUP_CELL_ID } from "../ids";
 import { notebookStateFromSession } from "../session";
 
 // Mock dependencies
@@ -347,6 +347,42 @@ describe("notebookStateFromSession", () => {
         id: "cell-1",
         name: "",
         code: "",
+        edited: false,
+        lastCodeRun: null,
+        lastExecutionTime: null,
+        config: {
+          hide_code: false,
+          disabled: false,
+          column: null,
+        },
+        serializedEditorState: null,
+      });
+    });
+
+    it("uses SETUP_CELL_ID for setup cell with null id", () => {
+      const notebookCell = {
+        id: null,
+        code: "import marimo as mo",
+        name: "setup",
+        code_hash: null,
+        config: {
+          hide_code: null,
+          disabled: null,
+          column: null,
+        },
+      };
+      const notebook = createNotebook([notebookCell as any]);
+      const result = notebookStateFromSession(null, notebook);
+
+      expect(result).not.toBeNull();
+      invariant(result, "result is null");
+      expect(result.cellIds.inOrderIds).toEqual(
+        MultiColumn.from([[SETUP_CELL_ID]]).inOrderIds,
+      );
+      expect(result.cellData[SETUP_CELL_ID]).toEqual({
+        id: SETUP_CELL_ID,
+        name: "setup",
+        code: "import marimo as mo",
         edited: false,
         lastCodeRun: null,
         lastExecutionTime: null,

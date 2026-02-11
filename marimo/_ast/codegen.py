@@ -122,6 +122,33 @@ def format_tuple_elements(
     return maybe_indent(code.replace("(...)", multiline_tuple))
 
 
+def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
+    """Check if AST ends with a statement requiring a blank line after.
+
+    Ruff formatter adds a blank line after imports, function defs, and class defs.
+    Only adds blank line if the statement is truly the last content (no trailing
+    comments).
+    """
+    if not mod.body:
+        return False
+    last_stmt = mod.body[-1]
+    if not isinstance(
+        last_stmt,
+        (
+            ast.Import,
+            ast.ImportFrom,
+            ast.FunctionDef,
+            ast.AsyncFunctionDef,
+            ast.ClassDef,
+        ),
+    ):
+        return False
+    # Check if there's trailing content (like comments) after the last statement
+    # If so, don't add a blank line - the existing formatting should be preserved
+    code_lines = code.rstrip().count("\n") + 1
+    return last_stmt.end_lineno == code_lines
+
+
 def to_decorator(
     config: Optional[CellConfig],
     fn: Decorators = "cell",
@@ -335,6 +362,10 @@ def to_functiondef(
         # maybe consider "return Edges(...)"
         # Such that the return type can simply be 'Edges'
     )
+    # Add blank line before return for ruff compatibility when last statement
+    # is an import, function def, or class def
+    if _needs_trailing_blank_line(cell.mod, cell.code):
+        definition_body.append("")
     definition_body.append(returns)
     return "\n".join(definition_body)
 

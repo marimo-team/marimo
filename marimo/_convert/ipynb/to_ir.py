@@ -403,6 +403,12 @@ class ExclamationMarkResult:
     needs_subprocess: bool
 
 
+def _pass_if_indented(indent_level: int) -> str:
+    if indent_level > 0:
+        return "pass  "
+    return ""
+
+
 def _normalize_git_url_package(package: str) -> str:
     """
     Normalize git URL packages to PEP 508 format.
@@ -456,42 +462,114 @@ def _normalize_git_url_package(package: str) -> str:
 
 
 def _extract_pip_install(
-    command_line: str, command_tokens: list[str]
+    command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
     pip_packages: list[str] = []
     if "install" not in command_tokens:
-        return _shlex_to_subprocess_call(command_line, command_tokens)
+        return _shlex_to_subprocess_call(
+            command_line, command_tokens, indent_level
+        )
 
     install_idx = command_tokens.index("install")
-    packages = [
-        p for p in command_tokens[install_idx + 1 :] if not p.startswith("-")
-    ]
+
+    # Collect packages and items for display, skipping flags
+    packages = []  # Actual packages (no templates)
+    templates = []  # Template placeholders
+    for token in command_tokens[install_idx + 1 :]:
+        # Skip flags (starting with -)
+        if token.startswith("-"):
+            continue
+        # Template placeholders stop package collection
+        if token.startswith("{") and token.endswith("}"):
+            templates.append(token)
+            break
+        packages.append(token)
+
     # Normalize git URLs to PEP 508 format
     pip_packages = [_normalize_git_url_package(p) for p in packages]
 
-    # Comment out the pip command
+    # For display: show templates only if there are no real packages
+    display_items = packages if packages else templates
+
+    # Comment out the pip command, showing items in comment
+    # Add pass for indented commands to prevent empty blocks
     replacement = (
-        "# packages added via marimo's package management: "
-        f"{' '.join(packages)} !{command_line}"
+        f"{_pass_if_indented(indent_level)}# packages added via marimo's "
+        f"package management: {' '.join(display_items)} !{command_line}"
     )
     return ExclamationCommandResult(replacement, pip_packages, False)
 
 
+def _is_compilable_expression(expr: str) -> bool:
+    """Check if expression is valid Python that can be compiled.
+
+    Args:
+        expr: The expression to check (without surrounding braces)
+
+    Returns:
+        True if the expression can be compiled as valid Python, False otherwise
+    """
+    try:
+        compile(expr, "<string>", "eval")
+        return True
+    except (SyntaxError, ValueError):
+        return False
+
+
 def _shlex_to_subprocess_call(
-    command_line: str, command_tokens: list[str]
+    command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
-    """Convert a shell command to subprocess.call([...])"""
+    """Convert a shell command to subprocess.call([...])
+
+    Template placeholders {expr} are converted to str(expr) if expr is valid Python.
+    If any template contains invalid Python, the entire command is commented out.
+
+    Args:
+        command_line: The command string
+        command_tokens: Tokenized command
+        indent_level: Number of indents for the examined line.
+    """
+    # First pass: check if any template is invalid
+    for token in command_tokens:
+        if token.startswith("{") and token.endswith("}"):
+            expr = token[1:-1]
+            if not _is_compilable_expression(expr):
+                # Comment out entire command if any template is invalid
+                # Always add pass to prevent empty blocks
+                return ExclamationCommandResult(
+                    f"# Note: Command contains invalid template expression\n"
+                    f"{_pass_if_indented(indent_level)}# !{command_line}",
+                    [],
+                    False,  # No subprocess needed
+                )
+
+    # Second pass: convert templates to str() calls
+    processed_tokens = []
+    for token in command_tokens:
+        if token.startswith("{") and token.endswith("}"):
+            expr = token[1:-1]
+            # Convert to str() call
+            processed_tokens.append(f"str({expr})")
+        else:
+            processed_tokens.append(repr(token))
+
+    # Build the subprocess call with processed tokens
+    tokens_str = "[" + ", ".join(processed_tokens) + "]"
     command = "\n".join(
-        [f"#! {command_line}", f"subprocess.call({command_tokens!r})"]
+        [f"#! {command_line}", f"subprocess.call({tokens_str})"]
     )
     return ExclamationCommandResult(command, [], True)
 
 
 def _handle_exclamation_command(
-    command_line: str,
+    command_line: str, indent_level: int = 0
 ) -> ExclamationCommandResult:
     """
     Process an exclamation command line.
+
+    Args:
+        command_line: The command to process (without the leading !)
+        indent_level: Column position of the ! (0 = top-level, >0 = indented)
 
     Returns: (replacement_text, pip_packages, needs_subprocess)
     """
@@ -510,10 +588,135 @@ def _handle_exclamation_command(
     # For instance in the case `uv pip install ...`
     for i, token in enumerate(command_tokens):
         if token.startswith("pip"):
-            return _extract_pip_install(command_line, command_tokens[i:])
+            # Pip installs always use marimo's package management (never subprocess)
+            return _extract_pip_install(
+                command_line, command_tokens[i:], indent_level
+            )
 
     # Replace with subprocess.call()
-    return _shlex_to_subprocess_call(command_line, command_tokens)
+    return _shlex_to_subprocess_call(
+        command_line, command_tokens, indent_level
+    )
+
+
+def _normalize_package_name(name: str) -> str:
+    """Normalize a package name per PEP 503.
+
+    PEP 503 specifies that package names should be normalized by:
+    - Converting to lowercase
+    - Replacing underscores, periods, and consecutive dashes with single dashes
+
+    Args:
+        name: Package name to normalize
+
+    Returns:
+        Normalized package name
+    """
+    return re.sub(r"[-_.]+", "-", name.lower())
+
+
+def _extract_package_name(pkg: str) -> str:
+    """Extract and normalize the base package name from a package specification.
+
+    Handles version specifiers, extras, and VCS URLs.
+    Returns normalized names per PEP 503.
+
+    Args:
+        pkg: Package specification (e.g., "numpy>=1.0", "package[extra]", "name @ git+...")
+
+    Returns:
+        Normalized base package name (e.g., "numpy", "package", "name")
+    """
+    # Handle PEP 508 URL format: "name @ git+..."
+    if " @ " in pkg:
+        name = pkg.split(" @ ")[0].strip()
+        return _normalize_package_name(name)
+
+    # Strip version specifiers and extras
+    name = re.split(r"[=<>~\[]+", pkg)[0].strip()
+    return _normalize_package_name(name)
+
+
+def _resolve_pip_packages(packages: list[str]) -> list[str]:
+    """Resolve pip packages using uv for validation, returning only direct packages.
+
+    Uses uv pip compile to validate packages and resolve conflicts, but filters
+    the output to only include packages that were originally requested (not
+    transitive dependencies).
+
+    For git URLs, preserves the full PEP 508 format (e.g., "name @ git+...").
+
+    Args:
+        packages: List of package specifications (may have duplicates/conflicts)
+
+    Returns:
+        Resolved and sorted list of direct packages only
+    """
+    if not packages:
+        return []
+
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    # Build a mapping from normalized name to original package spec
+    # For git URLs, we want to preserve the full URL format
+    original_specs: dict[str, str] = {}
+    for pkg in packages:
+        name = _extract_package_name(pkg)
+        # For git URLs (PEP 508 format), preserve the full spec
+        if " @ " in pkg:
+            original_specs[name] = pkg
+        else:
+            # For regular packages, just use the normalized name
+            original_specs[name] = name
+
+    original_names = set(original_specs.keys())
+
+    # Try using uv pip compile to validate/resolve conflicts
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            req_file = Path(tmpdir) / "requirements.in"
+            out_file = Path(tmpdir) / "requirements.txt"
+
+            # Write packages to temp file
+            req_file.write_text("\n".join(packages))
+
+            # Run uv pip compile
+            result = subprocess.run(
+                [
+                    "uv",
+                    "pip",
+                    "compile",
+                    str(req_file),
+                    "--output-file",
+                    str(out_file),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if result.returncode == 0 and out_file.exists():
+                # Parse resolved requirements, filtering to only direct packages
+                resolved = []
+                for line in out_file.read_text().splitlines():
+                    line = line.strip()
+                    # Skip comments and empty lines
+                    if line and not line.startswith("#"):
+                        # Extract package name
+                        pkg_name = _extract_package_name(line)
+                        # Only include if it was in the original request
+                        if pkg_name in original_names:
+                            # Use the original spec (preserves git URLs)
+                            resolved.append(original_specs[pkg_name])
+                return sorted(set(resolved))
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        # uv not available or failed, fall through to unpinning
+        pass
+
+    # Fallback: deduplicate and return original specs
+    return sorted(original_specs.values())
 
 
 def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
@@ -553,6 +756,7 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
         exclaim_tokens: list[TokenInfo] = []
         trailing_comment = None
         exclaim_line_num = None
+        exclaim_indent_level = 0
 
         for i, token in enumerate(tokens):
             # Check for newline + ! pattern (or ! at start after ENCODING)
@@ -568,6 +772,9 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                 exclaim_tokens = []
                 trailing_comment = None
                 exclaim_line_num = token.start[0]
+                exclaim_indent_level = token.start[
+                    1
+                ]  # Column position = indentation
                 continue  # Skip the ! token
 
             elif in_exclaim:
@@ -577,20 +784,58 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                     if exclaim_tokens and exclaim_tokens[-1].type == COMMENT:
                         trailing_comment = exclaim_tokens.pop()
 
-                    # Extract command from collected tokens by joining their strings
+                    # Extract command from collected tokens by reconstructing from source
                     if exclaim_tokens:
-                        # Reconstruct command from tokens
+                        # Reconstruct command from original source using token positions
+                        # This properly handles multi-line commands with backslash continuations
                         first_token = exclaim_tokens[0]
                         last_token = exclaim_tokens[-1]
-                        # Get the source line and extract the command portion
-                        line_text = first_token.line
+
+                        # Get line numbers (1-indexed)
+                        start_line_num = first_token.start[0]
+                        end_line_num = last_token.end[0]
                         start_col = first_token.start[1]
                         end_col = last_token.end[1]
-                        command_line = line_text[start_col:end_col].strip()
+
+                        # Split cell into lines for extraction
+                        cell_lines = cell.split("\n")
+
+                        if start_line_num == end_line_num:
+                            # Single line command
+                            command_line = cell_lines[start_line_num - 1][
+                                start_col:end_col
+                            ].strip()
+                        else:
+                            # Multi-line command - extract across lines
+                            parts = []
+                            # First line
+                            parts.append(
+                                cell_lines[start_line_num - 1][start_col:]
+                            )
+                            # Middle lines
+                            for line_idx in range(
+                                start_line_num, end_line_num - 1
+                            ):
+                                parts.append(cell_lines[line_idx])
+                            # Last line
+                            parts.append(
+                                cell_lines[end_line_num - 1][:end_col]
+                            )
+
+                            # Join and remove backslash continuations
+                            full_text = "\n".join(parts)
+                            # Remove backslash line continuations
+                            command_line = full_text.replace(
+                                "\\\n", " "
+                            ).strip()
+                            # Normalize whitespace
+                            command_line = " ".join(command_line.split())
                     else:
                         command_line = ""
 
-                    result = _handle_exclamation_command(command_line)
+                    result = _handle_exclamation_command(
+                        command_line, indent_level=exclaim_indent_level
+                    )
 
                     all_pip_packages.extend(result.pip_packages)
                     any_needs_subprocess |= result.needs_subprocess
@@ -605,6 +850,16 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                                 "\n" + trailing_comment.string
                             )
 
+                        # For multi-line commands, mark continuation lines for removal
+                        if exclaim_tokens:
+                            last_token = exclaim_tokens[-1]
+                            end_line_num = last_token.end[0]
+                            # Mark all continuation lines (after the first) as removed
+                            for line_num in range(
+                                exclaim_line_num + 1, end_line_num + 1
+                            ):
+                                line_replacements[line_num] = None  # type: ignore
+
                     in_exclaim = False
                 else:
                     # Collect tokens that are part of the command
@@ -616,9 +871,13 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
             new_lines = []
             for line_num, line in enumerate(lines, start=1):
                 if line_num in line_replacements:
+                    replacement = line_replacements[line_num]
+                    # None means skip this line (multi-line continuation)
+                    if replacement is None:
+                        continue
                     # Preserve indentation from original line
                     indent = (len(line) - len(line.lstrip())) * " "
-                    replacements = line_replacements[line_num].split("\n")
+                    replacements = replacement.split("\n")
                     # Add indentation to replacement
                     indented_replacement = [
                         indent + replacement for replacement in replacements
@@ -630,9 +889,12 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
         else:
             transformed_sources.append(cell)
 
+    # Resolve packages using uv (or unpin if unavailable)
+    resolved_packages = _resolve_pip_packages(all_pip_packages)
+
     return ExclamationMarkResult(
         transformed_sources=transformed_sources,
-        pip_packages=all_pip_packages,
+        pip_packages=resolved_packages,
         needs_subprocess=any_needs_subprocess,
     )
 
