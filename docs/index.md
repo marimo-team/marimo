@@ -345,7 +345,7 @@ We're building a community. Come hang out with us!
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
 - 🎥 [Subscribe on YouTube](https://www.youtube.com/@marimo-team)
 - 💬 [Follow us on Mastodon](https://mastodon.social/@marimo_io)
-- 🤖 [Follow us on Reddit](https://www.reddit.com/marimo_notebook)
+- 🤖 [Follow us on Reddit](https://www.reddit.com/r/marimo_notebook)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
 **A NumFOCUS affiliated project.** marimo is a core part of the broader Python
