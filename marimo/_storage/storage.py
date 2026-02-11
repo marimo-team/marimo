@@ -174,7 +174,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             raise ValueError(f"Files is not a list: {files}")
         total_files = len(files)
         if total_files > limit:
-            LOGGER.info(
+            LOGGER.debug(
                 "Fetched %s files, but limiting to %s",
                 total_files,
                 limit,
