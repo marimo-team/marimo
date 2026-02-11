@@ -6,7 +6,6 @@ import sys
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._ast.toplevel import TopLevelExtraction
-from marimo._config.manager import get_default_config_manager
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
@@ -227,28 +226,22 @@ def _broadcast_duckdb_datasource(
 
 
 @kernel_tracer.start_as_current_span("broadcast_storage_backends")
-def _broadcast_storage_backends(
+def broadcast_storage_backends(
     cell: CellImpl,
-    runner: cell_runner.Runner,
+    ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
     del run_result
 
-    config_manager = get_default_config_manager(current_path=None)
-    storage_inspector_enabled = (
-        config_manager.get_config()
-        .get("experimental", {})
-        .get("storage_inspector")
-    )
-    if not _should_broadcast_data() or not storage_inspector_enabled:
+    if not ctx.should_broadcast_data:
         return
 
     try:
         storage_backends = get_storage_backends_from_variables(
             [
-                (VariableName(variable), runner.glbls[variable])
+                (VariableName(variable), ctx.glbls[variable])
                 for variable in cell.defs
-                if variable in runner.glbls
+                if variable in ctx.glbls
             ]
         )
         if storage_backends:
@@ -481,7 +474,6 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _broadcast_datasets,
     _broadcast_data_source_connection,
     _broadcast_duckdb_datasource,
-    _broadcast_storage_backends,
     _broadcast_outputs,
     _reset_matplotlib_context,
     # set status to idle after all post-processing is done, in case the
