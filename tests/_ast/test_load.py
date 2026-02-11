@@ -408,7 +408,7 @@ class TestGetStatus:
             ("test_decorators", "has_errors"),
             # Syntax errors in code
             ("_test_not_parsable", "broken"),
-            ("_test_parse_error_in_notebook", "broken"),
+            ("_test_parse_error_in_notebook", "has_errors"),
             # A script that is not a marimo notebook, but uses marimo is
             # indeterminant, so throws an exception.
             ("test_non_marimo", "broken"),

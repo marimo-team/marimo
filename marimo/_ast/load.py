@@ -52,7 +52,7 @@ def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
     if filename is None:
         return None
 
-    return Path(filename).read_text(encoding="utf-8").strip()
+    return Path(filename).read_text(encoding="utf-8", errors="replace").strip()
 
 
 def find_cell(filename: str, lineno: int) -> CellDef | None:

@@ -513,12 +513,19 @@ class Parser:
         self.filepath = filepath
 
     def node_stack(self) -> PeekStack[Node]:
-        tree = ast_parse(
-            self.extractor.contents or "",
-            filename=self.filepath,
-            suppress_warnings=False,
-        )
-        return PeekStack(iter(tree.body))
+        try:
+            tree = ast_parse(
+                self.extractor.contents or "",
+                filename=self.filepath,
+                suppress_warnings=False,
+            )
+            return PeekStack(iter(tree.body))
+        except SyntaxError:
+            # File has syntax errors — use scanner to recover individual cells
+            nodes = _scan_parse_fallback(
+                self.extractor.contents or "", self.filepath
+            )
+            return PeekStack(iter(nodes))
 
     def parse_header(self, body: PeekStack[Node]) -> ParseResult[Header]:
         # header? = (docstring | comments)*
@@ -662,7 +669,19 @@ class Parser:
             if is_body_cell(node):
                 cell_result = self.extractor.to_cell(node)
                 violations.extend(cell_result.violations)
-                cells.append(cell_result.unwrap())
+                cell = cell_result.unwrap()
+                # Scanner-generated unparsable cells indicate a syntax
+                # error in the original cell source.
+                if isinstance(cell, UnparsableCell) and getattr(
+                    node, "_scanner_generated", False
+                ):
+                    violations.append(
+                        Violation(
+                            SCANNER_UNPARSABLE_CELL_VIOLATION,
+                            lineno=node.lineno,
+                        )
+                    )
+                cells.append(cell)
             elif is_run_guard(node):
                 break
             else:
@@ -1136,6 +1155,13 @@ def parse_notebook(
     )
 
 
+def _scan_parse_fallback(source: str, filepath: str) -> list[Node]:
+    """When ast.parse() fails, use scanner to recover individual cells."""
+    from marimo._ast.scanner import scan_parse_fallback
+
+    return scan_parse_fallback(source, filepath)
+
+
 # Violation message constants
 MARIMO_ALIAS_VIOLATION = "`marimo` is typically not imported with an alias. "
 UNEXPECTED_STATEMENT_MARIMO_IMPORT_VIOLATION = (
@@ -1157,6 +1183,9 @@ UNEXPECTED_KEYWORD_VALUE_VIOLATION = "Unexpected value for keyword argument"
 ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
 NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
 EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
+SCANNER_UNPARSABLE_CELL_VIOLATION = (
+    "Cell contains a syntax error and could not be parsed"
+)
 
 
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:

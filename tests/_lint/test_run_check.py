@@ -363,3 +363,70 @@ def __():
         assert isinstance(result, Linter)
         assert len(result.files) == 0
         assert result.errored is False
+
+    def test_run_check_encoding_error(self, tmpdir):
+        """Test run_check with a file containing non-UTF-8 bytes.
+
+        Should not crash — the file should be processed gracefully.
+        """
+        bad_file = Path(tmpdir) / "encoding.py"
+        bad_file.write_bytes(
+            b"# -*- coding: ascii -*-\n"
+            b"import marimo\n"
+            b"\n"
+            b'__generated_with = "0.0.0"\n'
+            b"app = marimo.App()\n"
+            b"\n"
+            b"\n"
+            b"@app.cell\n"
+            b"def _():\n"
+            b'    x = "caf\xe9"\n'
+            b"    return\n"
+            b"\n"
+            b"\n"
+            b'if __name__ == "__main__":\n'
+            b"    app.run()\n"
+        )
+
+        result = run_check((str(bad_file),))
+
+        assert len(result.files) == 1
+        assert result.files[0].failed is False
+        assert result.files[0].skipped is False
+
+    def test_run_check_no_duplicate_unparsable_diagnostic(self, tmpdir):
+        """Test that unparsable cells produce only MB001, not a
+        duplicate from MF001 (general-formatting)."""
+        notebook_file = Path(tmpdir) / "broken.py"
+        notebook_file.write_text(
+            "import marimo\n"
+            "\n"
+            '__generated_with = "0.0.0"\n'
+            "app = marimo.App()\n"
+            "\n"
+            "\n"
+            "@app.cell\n"
+            "def _():\n"
+            "    x = 1 + \\\n"
+            "\n"
+            "\n"
+            'if __name__ == "__main__":\n'
+            "    app.run()\n"
+        )
+
+        result = run_check((str(notebook_file),))
+
+        assert len(result.files) == 1
+        file_status = result.files[0]
+        assert not file_status.failed
+
+        # Should have MB001 (unparsable) but NOT a duplicate MF001
+        # for "Cell contains a syntax error"
+        mb001 = [d for d in file_status.diagnostics if d.code == "MB001"]
+        mf001_syntax = [
+            d
+            for d in file_status.diagnostics
+            if d.code == "MF001" and "syntax error" in d.message.lower()
+        ]
+        assert len(mb001) == 1
+        assert len(mf001_syntax) == 0
