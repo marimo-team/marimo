@@ -13,10 +13,8 @@ def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
     except ModuleNotFoundError:
         pass
 
-    if (
-        black_installed
-        and prefix.startswith("class")
-        or prefix.startswith("def")
+    if black_installed and (
+        prefix.startswith("class") or prefix.startswith("def")
     ):
         # Coarse try-except because we're using internal black APIs;
         # many other well-established projects use these APIs, which
@@ -30,9 +28,18 @@ def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
             )
             # replace "def " with actual prefix
             formatted = prefix + formatted[4:]
-            # remove ":\n"...\n", which was inserted to make signature have
-            # valid syntax
-            return ("\n".join(formatted.split("\n")[:-2]))[:-1]
+            # remove ": ..." body that was added to make valid syntax.
+            # Black may keep ": ..." on the same line as the closing
+            # paren (e.g. ") -> Html: ...") or put "..." on its own
+            # indented line.
+            formatted = formatted.rstrip()
+            if formatted.endswith(": ..."):
+                formatted = formatted[:-5]
+            elif formatted.endswith("..."):
+                formatted = formatted.rsplit("\n", 1)[0].rstrip()
+                if formatted.endswith(":"):
+                    formatted = formatted[:-1]
+            return formatted
         except Exception:
             pass
 
