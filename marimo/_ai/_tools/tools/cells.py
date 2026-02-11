@@ -44,6 +44,9 @@ class LightweightCellInfo:
     preview: str
     line_count: int
     cell_type: SupportedCellType
+    runtime_state: Optional[str] = None
+    has_output: bool = False
+    has_console_output: bool = False
 
 
 @dataclass
@@ -77,21 +80,15 @@ class GetCellRuntimeDataData:
     variables: Optional[CellVariables] = None
 
 
-def _default_cell_runtime_data() -> GetCellRuntimeDataData:
-    return GetCellRuntimeDataData(session_id="", cell_id="")
-
-
 @dataclass
 class GetCellRuntimeDataArgs:
     session_id: SessionId
-    cell_id: CellId_t
+    cell_ids: list[CellId_t] = field(default_factory=list)
 
 
 @dataclass
 class GetCellRuntimeDataOutput(SuccessResult):
-    data: GetCellRuntimeDataData = field(
-        default_factory=_default_cell_runtime_data
-    )
+    data: list[GetCellRuntimeDataData] = field(default_factory=list)
 
 
 @dataclass
@@ -103,17 +100,23 @@ class CellVisualOutput:
 
 
 @dataclass
-class GetCellOutputArgs:
-    session_id: SessionId
-    cell_id: CellId_t
-
-
-@dataclass
-class GetCellOutputOutput(SuccessResult):
+class CellOutputData:
+    cell_id: str
     visual_output: CellVisualOutput = field(default_factory=CellVisualOutput)
     console_outputs: MarimoCellConsoleOutputs = field(
         default_factory=MarimoCellConsoleOutputs
     )
+
+
+@dataclass
+class GetCellOutputArgs:
+    session_id: SessionId
+    cell_ids: list[CellId_t] = field(default_factory=list)
+
+
+@dataclass
+class GetCellOutputOutput(SuccessResult):
+    cells: list[CellOutputData] = field(default_factory=list)
 
 
 class GetLightweightCellMap(
@@ -149,6 +152,7 @@ class GetLightweightCellMap(
         context = self.context
         session = context.get_session(session_id)
         cell_manager = session.app_file_manager.app.cell_manager
+        session_view = session.session_view
         notebook_filename = (
             session.app_file_manager.filename or "untitled_notebook.py"
         )
@@ -164,6 +168,20 @@ class GetLightweightCellMap(
             # Determine cell type using compiled cell info when available
             cell_type = self._get_cell_type(cell_data)
 
+            # Get runtime info from cell notifications
+            runtime_state: Optional[str] = None
+            has_output = False
+            has_console_output = False
+            cell_notif = session_view.cell_notifications.get(cell_data.cell_id)
+            if cell_notif is not None:
+                if cell_notif.status is not None:
+                    runtime_state = cell_notif.status
+                has_output = (
+                    cell_notif.output is not None
+                    and cell_notif.output.data is not None
+                )
+                has_console_output = bool(cell_notif.console)
+
             # Add cell to cell map
             cells.append(
                 LightweightCellInfo(
@@ -171,6 +189,9 @@ class GetLightweightCellMap(
                     preview=preview,
                     line_count=len(code_lines),
                     cell_type=cell_type,
+                    runtime_state=runtime_state,
+                    has_output=has_output,
+                    has_console_output=has_console_output,
                 )
             )
 
@@ -223,61 +244,57 @@ class GetLightweightCellMap(
 class GetCellRuntimeData(
     ToolBase[GetCellRuntimeDataArgs, GetCellRuntimeDataOutput]
 ):
-    """Get runtime data for a specific cell including code, errors, and variables.
+    """Get runtime data for one or more cells including code, errors, and variables.
 
-    This tool provides detailed runtime information for a specific cell,
-    including its source code, any execution errors, and the variables
-    defined or modified in that cell.
+    This tool provides detailed runtime information for the given cells,
+    including source code, any execution errors, and the variables
+    defined or modified in each cell.
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
-        cell_id: The specific cell ID to get runtime data for from get_lightweight_cell_map
+        cell_ids: A list of cell IDs to get runtime data for from get_lightweight_cell_map
 
     Returns:
-        A success result containing cell runtime data including code, errors, and variables.
+        A success result containing cell runtime data including code, errors, and variables for each cell.
     """
 
     guidelines = ToolGuidelines(
         when_to_use=[
-            "When inspecting a specific cell's code, errors, or variables",
-            "After identifying a cell of interest from the cell map",
+            "When inspecting one or more cells' code, errors, or variables",
+            "After identifying cells of interest from the cell map",
         ],
         prerequisites=[
             "You must have a valid session id from an active notebook",
-            "You must have a valid cell id from an active notebook",
+            "You must have valid cell ids from an active notebook",
         ],
     )
 
     def handle(self, args: GetCellRuntimeDataArgs) -> GetCellRuntimeDataOutput:
         session_id = args.session_id
-        cell_id = args.cell_id
         context = self.context
         session = context.get_session(session_id)
 
-        # Get cell data using CellManager's existing method
-        cell_data = self._get_cell_data(session, session_id, cell_id)
+        results: list[GetCellRuntimeDataData] = []
+        for cell_id in args.cell_ids:
+            cell_data = self._get_cell_data(session, session_id, cell_id)
+            cell_code = cell_data.code
+            cell_errors = context.get_cell_errors(session_id, cell_id)
+            cell_metadata = self._get_cell_metadata(session, cell_id)
+            cell_variables = self._get_cell_variables(session, cell_data)
 
-        # Get cell code/source
-        cell_code = cell_data.code
-
-        # Get cell errors from session view with actual error details
-        cell_errors = context.get_cell_errors(session_id, cell_id)
-
-        # Get cell runtime metadata
-        cell_metadata = self._get_cell_metadata(session, cell_id)
-
-        # Get variable names and values defined by the cell
-        cell_variables = self._get_cell_variables(session, cell_data)
+            results.append(
+                GetCellRuntimeDataData(
+                    session_id=session_id,
+                    cell_id=cell_id,
+                    code=cell_code,
+                    errors=cell_errors,
+                    metadata=cell_metadata,
+                    variables=cell_variables,
+                )
+            )
 
         return GetCellRuntimeDataOutput(
-            data=GetCellRuntimeDataData(
-                session_id=session_id,
-                cell_id=cell_id,
-                code=cell_code,
-                errors=cell_errors,
-                metadata=cell_metadata,
-                variables=cell_variables,
-            ),
+            data=results,
             next_steps=[
                 "Review cell code for understanding the implementation",
                 "Check errors to identify any execution issues",
@@ -345,24 +362,24 @@ class GetCellRuntimeData(
 
 
 class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
-    """Get cell execution output including visual display and console streams.
+    """Get cell execution outputs including visual display and console streams.
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
-        cell_id: The specific cell ID from get_lightweight_cell_map
+        cell_ids: A list of cell IDs from get_lightweight_cell_map
 
     Returns:
-        Visual output (HTML, charts, tables, etc.) with mimetype and console streams (stdout/stderr).
+        Visual output (HTML, charts, tables, etc.) with mimetype and console streams (stdout/stderr) for each cell.
     """
 
     guidelines = ToolGuidelines(
         when_to_use=[
-            "When you need to see what a cell displayed or printed to the user",
-            "To review charts, visualizations, markdown, HTML, or console output from a cell",
+            "When you need to see what one or more cells displayed or printed",
+            "To review charts, visualizations, markdown, HTML, or console output from cells",
         ],
         prerequisites=[
             "You must have a valid session id from an active notebook",
-            "You must have a valid cell id from an active notebook",
+            "You must have valid cell ids from an active notebook",
         ],
     )
 
@@ -370,26 +387,37 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         context = self.context
         session = context.get_session(args.session_id)
         session_view = session.session_view
-        cell_id = args.cell_id
-        cell_notif = session_view.cell_notifications.get(cell_id)
 
-        if cell_notif is None:
-            raise ToolExecutionError(
-                f"Cell {cell_id} not found in session {args.session_id}",
-                code="CELL_NOT_FOUND",
-                is_retryable=False,
-                suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
+        results: list[CellOutputData] = []
+        for cell_id in args.cell_ids:
+            cell_notif = session_view.cell_notifications.get(cell_id)
+
+            if cell_notif is None:
+                raise ToolExecutionError(
+                    f"Cell {cell_id} not found in session {args.session_id}",
+                    code="CELL_NOT_FOUND",
+                    is_retryable=False,
+                    suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
+                )
+
+            visual_output, visual_mimetype = self._get_visual_output(
+                cell_notif
+            )
+            console_outputs = context.get_cell_console_outputs(cell_notif)
+
+            results.append(
+                CellOutputData(
+                    cell_id=cell_id,
+                    visual_output=CellVisualOutput(
+                        visual_output=visual_output,
+                        visual_mimetype=visual_mimetype,
+                    ),
+                    console_outputs=console_outputs,
+                )
             )
 
-        visual_output, visual_mimetype = self._get_visual_output(cell_notif)
-        console_outputs = context.get_cell_console_outputs(cell_notif)
-
         return GetCellOutputOutput(
-            visual_output=CellVisualOutput(
-                visual_output=visual_output,
-                visual_mimetype=visual_mimetype,
-            ),
-            console_outputs=console_outputs,
+            cells=results,
             next_steps=[
                 "Review visual_output to see what was displayed to the user",
                 "Check stdout/stderr for print statements and warnings",

@@ -16,9 +16,9 @@ These tools are available when using the [chat panel in ask mode](ai_completion.
 | Tool | Description |
 |------|-------------|
 | **get_active_notebooks** | List all currently active marimo notebooks. Returns summary statistics and notebook details including names, paths, and session IDs. Start here to discover which notebooks are available. |
-| **get_lightweight_cell_map** | Get an overview of notebook structure showing a preview of each cell. Takes a `session_id` and optional `preview_lines` parameter. Returns cell IDs, preview text, line counts, and cell types (code, markdown, SQL). |
-| **get_cell_runtime_data** | Get detailed runtime information for a specific cell. Takes `session_id` and `cell_id` parameters. Returns full cell code, error details, runtime metadata (execution time, runtime state), and variables defined by the cell. |
-| **get_cell_outputs** | Get execution output from a specific cell. Takes `session_id` and `cell_id` parameters. Returns visual output (HTML, charts, tables, etc.) with mimetype, stdout messages, and stderr messages. |
+| **get_lightweight_cell_map** | Get an overview of notebook structure showing a preview of each cell. Takes a `session_id` and optional `preview_lines` parameter. Returns cell IDs, preview text, line counts, cell types (code, markdown, SQL), runtime state (`idle`, `running`, `queued`, etc.), and `has_output`/`has_console_output` flags. |
+| **get_cell_runtime_data** | Get detailed runtime information for one or more cells. Takes `session_id` and `cell_ids` (list) parameters. Returns full cell code, error details, runtime metadata (execution time, runtime state), and variables defined by each cell. |
+| **get_cell_outputs** | Get execution output from one or more cells. Takes `session_id` and `cell_ids` (list) parameters. Returns visual output (HTML, charts, tables, etc.) with mimetype, stdout messages, and stderr messages for each cell. |
 
 ### Data
 
