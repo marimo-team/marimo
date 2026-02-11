@@ -50,7 +50,7 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
     storage_entries: list[StorageEntry]
 
 
-DEFAULT_FETCH_LIMIT = 50
+DEFAULT_FETCH_LIMIT = 100
 
 Backend = TypeVar("Backend")
 
@@ -69,7 +69,6 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
-        offset: str | None = None,
     ) -> list[StorageEntry]:
         """
         List the entries at the given prefix. If no prefix is provided, list the root entries.

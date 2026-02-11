@@ -31,17 +31,35 @@ class Obstore(StorageBackend["ObjectStore"]):
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
-        offset: str | None = None,
     ) -> list[StorageEntry]:
-        entries_stream = self.store.list(
-            prefix=prefix, offset=offset, chunk_size=limit, return_arrow=False
-        )
-        entries_chunk = next(entries_stream, [])
+        result = self.store.list_with_delimiter(prefix=prefix)
 
-        storage_entries = []
-        for entry in entries_chunk:
-            storage_entry = self._create_storage_entry(entry)
-            storage_entries.append(storage_entry)
+        storage_entries: list[StorageEntry] = []
+
+        # Common prefixes are virtual directories (e.g., "folder/")
+        # We can't identify the size / last modified time unless we recursively list the entries
+        for common_prefix in result["common_prefixes"]:
+            storage_entries.append(
+                StorageEntry(
+                    path=common_prefix,
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                )
+            )
+
+        # Objects are actual files/objects at this level
+        for entry in result["objects"]:
+            storage_entries.append(self._create_storage_entry(entry))
+
+        if len(storage_entries) > limit:
+            LOGGER.debug(
+                "Fetched %s entries, but limiting to %s",
+                len(storage_entries),
+                limit,
+            )
+            storage_entries = storage_entries[:limit]
+
         return storage_entries
 
     async def get_entry(self, path: str) -> StorageEntry:
@@ -145,10 +163,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
-        offset: str | None = None,
     ) -> list[StorageEntry]:
-        del offset
-
         # If no prefix provided, we use empty string to list root entries
         # Else, an error is raised
         if prefix is None:

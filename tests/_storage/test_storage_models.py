@@ -31,35 +31,41 @@ class TestObstore:
     def test_list_entries(self) -> None:
         now = datetime.now(tz=timezone.utc)
         mock_store = MagicMock()
-        entries = [
-            {
-                "path": "file1.txt",
-                "size": 100,
-                "last_modified": now,
-                "e_tag": "abc",
-                "version": None,
-            },
-            {
-                "path": "dir/file2.txt",
-                "size": 200,
-                "last_modified": now,
-                "e_tag": None,
-                "version": "v1",
-            },
-        ]
-        mock_store.list.return_value = iter([entries])
+        mock_store.list_with_delimiter.return_value = {
+            "common_prefixes": ["subdir/"],
+            "objects": [
+                {
+                    "path": "file1.txt",
+                    "size": 100,
+                    "last_modified": now,
+                    "e_tag": "abc",
+                    "version": None,
+                },
+                {
+                    "path": "dir/file2.txt",
+                    "size": 200,
+                    "last_modified": now,
+                    "e_tag": None,
+                    "version": "v1",
+                },
+            ],
+        }
 
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix="some/prefix", limit=10)
 
-        mock_store.list.assert_called_once_with(
+        mock_store.list_with_delimiter.assert_called_once_with(
             prefix="some/prefix",
-            offset=None,
-            chunk_size=10,
-            return_arrow=False,
         )
         assert result == snapshot(
             [
+                StorageEntry(
+                    path="subdir/",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                ),
                 StorageEntry(
                     path="file1.txt",
                     kind="object",
@@ -79,22 +85,14 @@ class TestObstore:
 
     def test_list_entries_empty(self) -> None:
         mock_store = MagicMock()
-        mock_store.list.return_value = iter([])
+        mock_store.list_with_delimiter.return_value = {
+            "common_prefixes": [],
+            "objects": [],
+        }
 
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix=None)
         assert result == []
-
-    def test_list_entries_with_offset(self) -> None:
-        mock_store = MagicMock()
-        mock_store.list.return_value = iter([])
-
-        backend = self._make_backend(mock_store)
-        backend.list_entries(prefix="p", offset="marker")
-
-        mock_store.list.assert_called_once_with(
-            prefix="p", offset="marker", chunk_size=50, return_arrow=False
-        )
 
     def test_create_storage_entry_missing_fields(self) -> None:
         mock_store = MagicMock()
