@@ -614,7 +614,7 @@ class PyreflyServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "pyrefly-lsp.log"
 
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         # Pyrefly is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pyrefly.has():
             LOGGER.debug("Pyrefly is not installed. Skipping LSP server.")
@@ -644,8 +644,8 @@ class PyreflyServer(BaseLspServer):
             str(self.log_file),
         ]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
             title="Pyrefly: Connection Error",
             description="<span><a class='hyperlink' href='https://github.com/facebook/pyrefly'>Install pyrefly</a> for type checking support.</span>",
             variant="danger",
