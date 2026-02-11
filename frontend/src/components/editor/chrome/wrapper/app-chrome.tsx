@@ -284,7 +284,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helpPaneBody = (
     <ErrorBoundary>
       <PanelSectionProvider value="sidebar">
-        <div className="flex flex-col h-full flex-1 overflow-hidden">
+        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
           <div className="p-3 border-b flex justify-between items-center">
             {selectedPanel === "dependencies" ? (
               <div className="flex items-center justify-between flex-1">
