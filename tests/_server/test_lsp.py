@@ -482,7 +482,7 @@ def test_pyrefly_server_uses_typed_format():
 
     # Mock the entire pyrefly module and its find_pyrefly_bin function
     mock_pyrefly_module = mock.MagicMock()
-    mock_pyrefly_module.find_pyrefly_bin.return_value = (
+    mock_pyrefly_module.get_pyrefly_bin.return_value = (
         "/path/to/pyrefly/binary"
     )
 
