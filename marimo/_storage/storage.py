@@ -137,10 +137,6 @@ class Obstore(StorageBackend["ObjectStore"]):
         return isinstance(var, ObjectStore)  # type: ignore[misc,arg-type]
 
 
-# Temporary limit for filesystem storage. We should play around with this value.
-MAX_FILESYSTEM_FETCH_LIMIT = 200
-
-
 # The async implementations has a few unimplemented methods (like ls), so it's better to use synchronous versions and
 # wrap them in asyncio.to_thread
 class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
@@ -151,7 +147,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         limit: int = DEFAULT_FETCH_LIMIT,
         offset: str | None = None,
     ) -> list[StorageEntry]:
-        del limit, offset
+        del offset
 
         # If no prefix provided, we use empty string to list root entries
         # Else, an error is raised
@@ -162,13 +158,13 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         if not isinstance(files, list):
             raise ValueError(f"Files is not a list: {files}")
         total_files = len(files)
-        if total_files > MAX_FILESYSTEM_FETCH_LIMIT:
+        if total_files > limit:
             LOGGER.info(
                 "Fetched %s files, but limiting to %s",
                 total_files,
-                MAX_FILESYSTEM_FETCH_LIMIT,
+                limit,
             )
-            files = files[:MAX_FILESYSTEM_FETCH_LIMIT]
+            files = files[:limit]
 
         storage_entries = []
         for file in files:
