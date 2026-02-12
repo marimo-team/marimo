@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -270,6 +271,10 @@ class TestBroadcastBufferTypes:
         result = self._roundtrip_buffer(comm, bytearray(self.PAYLOAD))
         assert result.message.buffers == [self.PAYLOAD]
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="__buffer__ dunder requires Python 3.12+",
+    )
     def test_custom_buffer_protocol(self, comm):
         """Custom buffer-protocol objects (like obstore.Bytes) survive the
         roundtrip."""
@@ -279,9 +284,7 @@ class TestBroadcastBufferTypes:
     def test_unsupported_type_raises(self):
         from marimo._plugins.ui._impl.comm import _ensure_bytes
 
-        with pytest.raises(
-            TypeError, match="does not support the buffer protocol"
-        ):
+        with pytest.raises(TypeError):
             _ensure_bytes("not bytes")
 
 

@@ -72,19 +72,18 @@ BufferType = Optional[list[Buffer]]
 
 
 def _ensure_bytes(buf: object) -> bytes:
-    """Coerce a buffer to a type msgspec can base64-encode.
+    """Coerce a buffer to plain ``bytes`` for msgspec serialization.
 
     msgspec natively handles ``bytes``, ``memoryview``, and ``bytearray``.
     Some libraries (e.g. obstore) use custom types that hold binary data
     but aren't subclasses of these, so msgspec can't serialize them directly.
+
+    ``bytes()`` handles memoryview/bytearray on all Python versions, and
+    on Python 3.12+ also handles any object implementing ``__buffer__``.
     """
     if isinstance(buf, bytes):
         return buf
-    if hasattr(buf, "__buffer__") or isinstance(buf, (memoryview, bytearray)):
-        return bytes(buf)  # type: ignore[arg-type]
-    raise TypeError(
-        f"Buffer of type {type(buf).__name__} does not support the buffer protocol"
-    )
+    return bytes(buf)  # type: ignore[call-overload,no-any-return]
 
 
 def _create_model_message(
