@@ -127,6 +127,13 @@ class GetLightweightCellMap(
     This tool provides an overview of notebook structure for initial navigation,
     showing a preview of each cell's content without full code or outputs.
 
+    Each cell includes a runtime_state field with one of the following values:
+    - "idle": cell has executed and is quiescent
+    - "running": cell is actively executing
+    - "queued": cell is waiting on a running dependency
+    - "disabled-transitively": cell is disabled because a parent cell is disabled
+    - null: cell is blocked by a structural error (cycle, duplicate definition) or has never been executed
+
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
         preview_lines: Number of lines to show per cell (default: 3)
@@ -249,6 +256,13 @@ class GetCellRuntimeData(
     This tool provides detailed runtime information for the given cells,
     including source code, any execution errors, and the variables
     defined or modified in each cell.
+
+    Each cell's metadata includes a runtime_state field with one of the following values:
+    - "idle": cell has executed and is quiescent
+    - "running": cell is actively executing
+    - "queued": cell is waiting on a running dependency
+    - "disabled-transitively": cell is disabled because a parent cell is disabled
+    - null: cell is blocked by a structural error (cycle, duplicate definition) or has never been executed
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
