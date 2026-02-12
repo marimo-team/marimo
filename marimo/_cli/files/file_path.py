@@ -429,7 +429,10 @@ def validate_name(
     Returns:
         Path to the file and temporary directory
     """
+    from marimo._cli.files.cloudflare import R2FileHandler
+
     handlers = [
+        R2FileHandler(),
         LocalFileHandler(allow_new_file, allow_directory),
         RemoteFileHandler(),
     ]
