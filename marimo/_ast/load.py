@@ -10,6 +10,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import (
     MarimoFileError,
     NonMarimoPythonScriptError,
+    all_violations_soft,
     is_non_marimo_python_script,
 )
 from marimo._schemas.serialization import (
@@ -38,12 +39,15 @@ class LoadResult:
 
     status can be one of:
      - empty: No content, or only comments / a doc string
-     - has_errors: Parsed, but has marimo-specific errors (**can load!!**)
+     - has_warnings: Parsed, but has soft issues auto-corrected on save
+     - has_errors: Parsed, but has errors that may lose data on save (**can load!!**)
      - invalid: Could not be parsed as a marimo notebook (**cannot load**)
      - valid: Parsed and valid marimo notebook
     """
 
-    status: Literal["empty", "has_errors", "invalid", "valid"] = "empty"
+    status: Literal[
+        "empty", "has_warnings", "has_errors", "invalid", "valid"
+    ] = "empty"
     notebook: Optional[NotebookSerialization] = None
     contents: Optional[str] = None
 
@@ -125,6 +129,10 @@ def get_notebook_status(filename: str) -> LoadResult:
             "Notebook has violations: \n%s",
             "\n".join(map(repr, notebook.violations)),
         )
+        if all_violations_soft(notebook.violations):
+            return LoadResult(
+                status="has_warnings", notebook=notebook, contents=contents
+            )
         return LoadResult(
             status="has_errors", notebook=notebook, contents=contents
         )

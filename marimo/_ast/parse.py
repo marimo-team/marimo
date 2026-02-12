@@ -1158,6 +1158,21 @@ ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
 NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
 EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
 
+# Soft violations are auto-corrected on save with no data loss.
+# Any violation NOT in this set is considered "hard" (potential data loss).
+SOFT_VIOLATIONS: frozenset[str] = frozenset(
+    {
+        MARIMO_ALIAS_VIOLATION,
+        EXPECTED_GENERATED_WITH_VIOLATION,
+        EXPECTED_RUN_GUARD_VIOLATION,
+    }
+)
+
+
+def all_violations_soft(violations: list[Violation]) -> bool:
+    """Check if all violations are soft (auto-corrected on save)."""
+    return all(v.description in SOFT_VIOLATIONS for v in violations)
+
 
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
     return any(
