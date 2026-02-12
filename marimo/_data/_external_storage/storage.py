@@ -5,13 +5,13 @@ import asyncio
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._external_storage.models import (
+from marimo._data._external_storage.models import (
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
     StorageBackend,
     StorageEntry,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
 

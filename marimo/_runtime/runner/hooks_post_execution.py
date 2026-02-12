@@ -6,6 +6,10 @@ import sys
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._ast.toplevel import TopLevelExtraction
+from marimo._data._external_storage.get_storage import (
+    get_storage_backends_from_variables,
+    storage_backend_to_storage_namespace,
+)
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
@@ -48,10 +52,6 @@ from marimo._sql.engines.duckdb import (
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
-)
-from marimo._storage.get_storage import (
-    get_storage_backends_from_variables,
-    storage_backend_to_storage_namespace,
 )
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName

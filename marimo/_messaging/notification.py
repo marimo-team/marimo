@@ -17,6 +17,7 @@ import msgspec
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._data._external_storage.models import StorageNamespace
 from marimo._data.models import (
     ColumnStats,
     DataSourceConnection,
@@ -31,7 +32,6 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
-from marimo._storage.models import StorageNamespace
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows

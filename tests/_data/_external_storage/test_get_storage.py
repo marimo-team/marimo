@@ -7,13 +7,13 @@ from unittest.mock import MagicMock
 import pytest
 from inline_snapshot import snapshot
 
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._external_storage.get_storage import (
+from marimo._data._external_storage.get_storage import (
     get_storage_backends_from_variables,
     storage_backend_to_storage_namespace,
 )
-from marimo._external_storage.models import StorageNamespace
-from marimo._external_storage.storage import FsspecFilesystem, Obstore
+from marimo._data._external_storage.models import StorageNamespace
+from marimo._data._external_storage.storage import FsspecFilesystem, Obstore
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import VariableName
 
 HAS_OBSTORE = DependencyManager.obstore.has()

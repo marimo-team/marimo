@@ -9,13 +9,13 @@ import pytest
 from dirty_equals import IsDatetime, IsPositiveFloat
 from inline_snapshot import snapshot
 
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._external_storage.models import StorageEntry
-from marimo._external_storage.storage import (
+from marimo._data._external_storage.models import StorageEntry
+from marimo._data._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
     normalize_protocol,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import VariableName
 
 HAS_OBSTORE = DependencyManager.obstore.has()

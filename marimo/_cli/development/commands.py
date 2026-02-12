@@ -26,6 +26,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
     import marimo._config.config as config
+    import marimo._data._external_storage.models as storage
     import marimo._data.models as data
     import marimo._messaging.errors as errors
     import marimo._messaging.notification as notifications
@@ -41,7 +42,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.packages as packages
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
-    import marimo._storage.models as storage
     from marimo._ai._types import ChatMessage
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
