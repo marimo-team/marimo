@@ -385,25 +385,28 @@ class TestGetStatus:
             ("test_app_with_only_comments", "invalid"),
             # Invalid (not marimo apps)
             ("test_invalid", "invalid"),
-            # Has errors
+            # Has errors (hard violations — potential data loss)
             ("test_get_codes_messy_toplevel", "has_errors"),
             ("test_get_header_comments_invalid", "has_errors"),
-            ("test_get_bad_kwargs", "has_errors"),
             # Unparsable
             (
                 "test_get_codes_non_marimo_python_script",
                 "invalid",
             ),  # not marimo
-            # Potentially confusing and has_errors
-            ("test_get_alias_import", "has_errors"),  # not official format
-            ("test_get_app_kwargs", "has_errors"),  # Intentionally bad kwargs
+            # Soft violations only (auto-corrected on save)
+            ("test_get_bad_kwargs", "has_warnings"),
+            ("test_get_alias_import", "has_warnings"),  # alias import
+            ("test_get_app_kwargs", "has_warnings"),  # missing version/guard
+            (
+                "test_app_with_no_cells",
+                "has_warnings",
+            ),  # missing version/guard
             # Empty files can still be opened.
             (
                 "test_generate_filecontents_empty_with_config",
                 "has_errors",
             ),  # no body
             ("test_generate_filecontents_empty", "has_errors"),  # no body
-            ("test_app_with_no_cells", "has_errors"),  # No body is an error
             # Invalid decorator order creates an error.
             ("test_decorators", "has_errors"),
             # Syntax errors in code
