@@ -8,7 +8,6 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
-from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
@@ -43,11 +42,6 @@ if TYPE_CHECKING:
     from marimo._types.ids import ConsumerId, SessionId
 
 LOGGER = _loggers.marimo_logger()
-
-
-class CacheMode(Enum):
-    READ = "read"
-    READ_WRITE = "write"
 
 
 class HeartbeatExtension(SessionExtension):
@@ -117,18 +111,15 @@ class CachingExtension(SessionExtension, SessionEventListener):
         *,
         enabled: bool,
         interval: int = SESSION_CACHE_INTERVAL_SECONDS,
-        mode: CacheMode = CacheMode.READ_WRITE,
     ) -> None:
         """Initialize the caching extension.
 
         Args:
             enabled: Whether to enable caching
             interval: How often to write cache (in seconds)
-            mode: Whether to read cache only or read/write.
         """
         self.interval = interval
         self.enabled = enabled
-        self.mode = mode
         self.session_cache_manager: Optional[SessionCacheManager] = None
         self.event_bus: Optional[SessionEventBus] = None
 
@@ -164,8 +155,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
         )
 
         # Start the background task to write the session view to disk
-        if self.mode is CacheMode.READ_WRITE:
-            self.session_cache_manager.start()
+        self.session_cache_manager.start()
 
     def on_detach(self) -> None:
         """Stop cache manager when detached."""
@@ -179,8 +169,6 @@ class CachingExtension(SessionExtension, SessionEventListener):
     ) -> None:
         """Rename the path for the cache manager."""
         del old_path
-        if self.mode is not CacheMode.READ_WRITE:
-            return None
         path = session.app_file_manager.path
         if self.session_cache_manager and path:
             self.session_cache_manager.rename_path(path)
