@@ -251,6 +251,27 @@ def test_get_visual_output_no_output():
     assert mimetype is None
 
 
+def test_get_visual_output_with_error():
+    """Test that error output is returned as structured JSON."""
+    import json
+
+    tool = GetCellOutputs(ToolContext())
+    error = MockError(type="NameError", _message="name 'x' is not defined")
+    output = MockOutput(
+        channel="marimo-error",
+        data=[error],
+        mimetype="application/vnd.marimo+error",
+    )
+    cell_notification = MockCellNotification(output=output)
+
+    visual_output, mimetype = tool._get_visual_output(cell_notification)  # type: ignore[arg-type]
+    assert mimetype == "application/json"
+    parsed = json.loads(visual_output)
+    assert len(parsed) == 1
+    assert parsed[0]["type"] == "NameError"
+    assert parsed[0]["message"] == "name 'x' is not defined"
+
+
 def test_lightweight_cell_map_includes_runtime_info():
     """Test that LightweightCellInfo includes runtime_state, has_output,
     has_console_output, and has_errors from cell notifications."""

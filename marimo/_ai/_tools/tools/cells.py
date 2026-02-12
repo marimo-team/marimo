@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
@@ -478,10 +479,39 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         visual_output = None
         visual_mimetype = None
         if cell_notif.output:
-            data = cell_notif.output.data
-            visual_output = self._get_str_output_data(data)
-            visual_mimetype = cell_notif.output.mimetype
+            if cell_notif.output.channel == CellChannel.MARIMO_ERROR:
+                visual_output = self._get_error_output_data(
+                    cell_notif.output.data
+                )
+                visual_mimetype = "application/json"
+            else:
+                data = cell_notif.output.data
+                visual_output = self._get_str_output_data(data)
+                visual_mimetype = cell_notif.output.mimetype
         return visual_output, visual_mimetype
+
+    def _get_error_output_data(
+        self, data: str | list[Error] | dict[str, Any]
+    ) -> str:
+        """Convert error output data to structured JSON."""
+        if not isinstance(data, list):
+            return str(data)
+
+        errors: list[dict[str, Any]] = []
+        for err in data:
+            if isinstance(err, dict):
+                errors.append(
+                    {
+                        "type": err.get("type", "UnknownError"),
+                        "message": err.get("msg", str(err)),
+                    }
+                )
+            else:
+                err_type: str = getattr(err, "type", type(err).__name__)
+                describe_fn = getattr(err, "describe", None)
+                message = describe_fn() if callable(describe_fn) else str(err)
+                errors.append({"type": err_type, "message": str(message)})
+        return json.dumps(errors)
 
     def _get_str_output_data(
         self, data: str | list[Error] | dict[str, Any]
