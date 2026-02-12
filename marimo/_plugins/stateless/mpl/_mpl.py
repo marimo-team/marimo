@@ -606,6 +606,16 @@ html_content = """
               ondownload,
               // The HTML element in which to place the figure
               document.getElementById("figure"));
+
+          // When the browser tab is hidden (minimized or switched away),
+          // browsers throttle or skip canvas rendering. Any canvas updates
+          // sent by matplotlib while hidden are effectively lost, leaving
+          // blank plots. Re-request the full figure when the tab returns.
+          document.addEventListener("visibilitychange", function() {
+            if (!document.hidden && fig.ws.readyState === 1) {
+              fig.send_message("refresh", {});
+            }
+          });
         }
       );
     </script>
