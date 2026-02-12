@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from marimo._storage.models import StorageBackend, StorageNamespace
-from marimo._storage.storage import FsspecFilesystem, Obstore
+from marimo._external_storage.models import StorageBackend, StorageNamespace
+from marimo._external_storage.storage import FsspecFilesystem, Obstore
 from marimo._types.ids import VariableName
 
 STORAGE_BACKENDS: list[type[StorageBackend[Any]]] = [Obstore, FsspecFilesystem]

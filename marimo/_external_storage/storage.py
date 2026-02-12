@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._storage.models import (
+from marimo._external_storage.models import (
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
     StorageBackend,
@@ -240,9 +240,9 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         )
 
     async def download(self, path: str) -> bytes:
-        # open_async is not implemented, so we wrap the synchronous open method
+        # There is no async version of open, so we wrap the synchronous open method
         def _read() -> str | bytes:
-            return self.store._open(path).read()  # type: ignore[no-any-return]
+            return self.store.open(path).read()  # type: ignore[no-any-return]
 
         file = await asyncio.to_thread(_read)
         if isinstance(file, str):
@@ -274,7 +274,7 @@ def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | str:
     protocol = protocol.strip().lower()
     if "s3" in protocol:
         return "s3"
-    elif "gcs" in protocol:
+    elif "gcs" in protocol or "gs" in protocol:
         return "gcs"
     elif "azure" in protocol:
         return "azure"

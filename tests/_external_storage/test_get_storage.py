@@ -8,12 +8,12 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._storage.get_storage import (
+from marimo._external_storage.get_storage import (
     get_storage_backends_from_variables,
     storage_backend_to_storage_namespace,
 )
-from marimo._storage.models import StorageNamespace
-from marimo._storage.storage import FsspecFilesystem, Obstore
+from marimo._external_storage.models import StorageNamespace
+from marimo._external_storage.storage import FsspecFilesystem, Obstore
 from marimo._types.ids import VariableName
 
 HAS_OBSTORE = DependencyManager.obstore.has()
@@ -178,14 +178,9 @@ class TestStorageBackendToStorageNamespace:
 
     @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")
     def test_with_real_obstore_backend(self) -> None:
-        import asyncio
-
         from obstore.store import MemoryStore
 
         store = MemoryStore()
-        asyncio.get_event_loop().run_until_complete(
-            store.put_async("test.txt", b"data")
-        )
 
         backend = Obstore(store, VariableName("mem_store"))
         result = storage_backend_to_storage_namespace(backend)

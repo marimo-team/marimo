@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
@@ -11,8 +10,8 @@ from dirty_equals import IsDatetime, IsPositiveFloat
 from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._storage.models import StorageEntry
-from marimo._storage.storage import (
+from marimo._external_storage.models import StorageEntry
+from marimo._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
     normalize_protocol,
@@ -141,7 +140,7 @@ class TestObstore:
             )
         )
 
-    def test_get_entry(self) -> None:
+    async def test_get_entry(self) -> None:
         now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
         mock_store = MagicMock()
         head_result = {
@@ -156,9 +155,7 @@ class TestObstore:
         )
 
         backend = self._make_backend(mock_store)
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.get_entry("test.txt")
-        )
+        result = await backend.get_entry("test.txt")
         assert result == snapshot(
             StorageEntry(
                 path="test.txt",
@@ -170,7 +167,7 @@ class TestObstore:
         )
         mock_store.head_async.assert_called_once_with("test.txt")
 
-    def test_download(self) -> None:
+    async def test_download(self) -> None:
         mock_store = MagicMock()
         mock_bytes_result = MagicMock()
         mock_bytes_result.bytes_async = MagicMock(
@@ -181,9 +178,7 @@ class TestObstore:
         )
 
         backend = self._make_backend(mock_store)
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.download("some/path.txt")
-        )
+        result = await backend.download("some/path.txt")
         assert result == b"hello world"
         mock_store.get_async.assert_called_once_with("some/path.txt")
 
@@ -471,7 +466,7 @@ class TestFsspecFilesystem:
             )
         )
 
-    def test_get_entry(self) -> None:
+    async def test_get_entry(self) -> None:
         mock_store = MagicMock()
         mock_store.info.return_value = {
             "name": "test.txt",
@@ -481,9 +476,7 @@ class TestFsspecFilesystem:
         }
 
         backend = self._make_backend(mock_store)
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.get_entry("test.txt")
-        )
+        result = await backend.get_entry("test.txt")
         assert result == snapshot(
             StorageEntry(
                 path="test.txt",
@@ -494,39 +487,33 @@ class TestFsspecFilesystem:
             )
         )
 
-    def test_get_entry_raises_on_non_dict(self) -> None:
+    async def test_get_entry_raises_on_non_dict(self) -> None:
         mock_store = MagicMock()
         mock_store.info.return_value = "not_a_dict"
 
         backend = self._make_backend(mock_store)
         with pytest.raises(ValueError, match="is not a dictionary"):
-            asyncio.get_event_loop().run_until_complete(
-                backend.get_entry("test.txt")
-            )
+            await backend.get_entry("test.txt")
 
-    def test_download_bytes(self) -> None:
+    async def test_download_bytes(self) -> None:
         mock_store = MagicMock()
         mock_file = MagicMock()
         mock_file.read.return_value = b"binary content"
-        mock_store._open.return_value = mock_file
+        mock_store.open.return_value = mock_file
 
         backend = self._make_backend(mock_store)
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.download("path/to/file.bin")
-        )
+        result = await backend.download("path/to/file.bin")
         assert result == b"binary content"
-        mock_store._open.assert_called_once_with("path/to/file.bin")
+        mock_store.open.assert_called_once_with("path/to/file.bin")
 
-    def test_download_string_encoded_to_bytes(self) -> None:
+    async def test_download_string_encoded_to_bytes(self) -> None:
         mock_store = MagicMock()
         mock_file = MagicMock()
         mock_file.read.return_value = "text content"
-        mock_store._open.return_value = mock_file
+        mock_store.open.return_value = mock_file
 
         backend = self._make_backend(mock_store)
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.download("path/to/file.txt")
-        )
+        result = await backend.download("path/to/file.txt")
         assert result == b"text content"
 
     def test_protocol_tuple(self) -> None:
@@ -572,7 +559,7 @@ class TestFsspecFilesystem:
 class TestFsspecFilesystemIntegration:
     """Integration tests using a real fsspec MemoryFileSystem."""
 
-    def test_list_and_download_with_memory_fs(self) -> None:
+    async def test_list_and_download_with_memory_fs(self) -> None:
         from fsspec.implementations.memory import MemoryFileSystem
 
         fs = MemoryFileSystem()
@@ -602,21 +589,17 @@ class TestFsspecFilesystemIntegration:
             ]
         )
 
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.download("/test/hello.txt")
-        )
+        result = await backend.download("/test/hello.txt")
         assert result == b"hello world"
 
-    def test_get_entry_with_memory_fs(self) -> None:
+    async def test_get_entry_with_memory_fs(self) -> None:
         from fsspec.implementations.memory import MemoryFileSystem
 
         fs = MemoryFileSystem()
         fs.pipe("/myfile.txt", b"content here")
 
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
-        entry = asyncio.get_event_loop().run_until_complete(
-            backend.get_entry("/myfile.txt")
-        )
+        entry = await backend.get_entry("/myfile.txt")
         assert entry == snapshot(
             StorageEntry(
                 path="/myfile.txt",
@@ -640,17 +623,13 @@ class TestFsspecFilesystemIntegration:
 class TestObstoreIntegration:
     """Integration tests using a real obstore MemoryStore."""
 
-    def test_list_entries_with_memory_store(self) -> None:
+    async def test_list_entries_with_memory_store(self) -> None:
         from obstore.store import MemoryStore
 
         store = MemoryStore()
         # Put some data
-        asyncio.get_event_loop().run_until_complete(
-            store.put_async("test/file1.txt", b"hello")
-        )
-        asyncio.get_event_loop().run_until_complete(
-            store.put_async("test/file2.txt", b"world!")
-        )
+        await store.put_async("test/file1.txt", b"hello")
+        await store.put_async("test/file2.txt", b"world!")
 
         backend = Obstore(store, VariableName("mem_store"))
         entries = backend.list_entries(prefix="test/")
@@ -673,32 +652,24 @@ class TestObstoreIntegration:
             ]
         )
 
-    def test_download_with_memory_store(self) -> None:
+    async def test_download_with_memory_store(self) -> None:
         from obstore.store import MemoryStore
 
         store = MemoryStore()
-        asyncio.get_event_loop().run_until_complete(
-            store.put_async("data.bin", b"binary data")
-        )
+        await store.put_async("data.bin", b"binary data")
 
         backend = Obstore(store, VariableName("mem_store"))
-        result = asyncio.get_event_loop().run_until_complete(
-            backend.download("data.bin")
-        )
+        result = await backend.download("data.bin")
         assert result == b"binary data"
 
-    def test_get_entry_with_memory_store(self) -> None:
+    async def test_get_entry_with_memory_store(self) -> None:
         from obstore.store import MemoryStore
 
         store = MemoryStore()
-        asyncio.get_event_loop().run_until_complete(
-            store.put_async("info.txt", b"some content")
-        )
+        await store.put_async("info.txt", b"some content")
 
         backend = Obstore(store, VariableName("mem_store"))
-        entry = asyncio.get_event_loop().run_until_complete(
-            backend.get_entry("info.txt")
-        )
+        entry = await backend.get_entry("info.txt")
         assert entry == snapshot(
             StorageEntry(
                 path="info.txt",
