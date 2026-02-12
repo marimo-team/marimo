@@ -478,6 +478,9 @@ class LanguageServersConfig(TypedDict, total=False):
     **Keys.**
 
     - `pylsp`: the pylsp config
+    - `basedpyright`: the basedpyright config
+    - `ty`: the ty config
+    - `pyrefly`: the pyrefly config
     """
 
     pylsp: PythonLanguageServerConfig

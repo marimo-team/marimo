@@ -4562,9 +4562,9 @@ export interface components {
      *         **Keys.**
      *
      *         - `pylsp`: the pylsp config
-     *         - `pyrefly`: the pyrefly config
-     *         - `ty`: the ty config
      *         - `basedpyright`: the basedpyright config
+     *         - `ty`: the ty config
+     *         - `pyrefly`: the pyrefly config
      */
     LanguageServersConfig: {
       basedpyright?: components["schemas"]["BasedpyrightServerConfig"];

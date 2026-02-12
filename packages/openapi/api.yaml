@@ -2496,7 +2496,8 @@ components:
       type: object
     LanguageServersConfig:
       description: "Configuration options for language servers.\n\n    **Keys.**\n\
-        \n    - `pylsp`: the pylsp config\n    - `pyrefly`: the pyrefly config\n    - `ty`: the ty config\n    - `basedpyright`: the basedpyright config"
+        \n    - `pylsp`: the pylsp config\n    - `basedpyright`: the basedpyright\
+        \ config\n    - `ty`: the ty config\n    - `pyrefly`: the pyrefly config"
       properties:
         basedpyright:
           $ref: '#/components/schemas/BasedpyrightServerConfig'
@@ -6233,3 +6234,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
