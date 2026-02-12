@@ -133,11 +133,11 @@ class GetLightweightCellMap(
     showing a preview of each cell's content without full code or outputs.
 
     Each cell includes a runtime_state field with one of the following values:
-    - "idle": cell has executed and is quiescent
+    - "idle": cell has executed and is quiescent (includes cells with errors)
     - "running": cell is actively executing
     - "queued": cell is waiting on a running dependency
     - "disabled-transitively": cell is disabled because a parent cell is disabled
-    - null: cell is blocked by a structural error (cycle, duplicate definition) or has never been executed
+    - null: cell has never been executed
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
@@ -270,11 +270,11 @@ class GetCellRuntimeData(
     defined or modified in each cell.
 
     Each cell's metadata includes a runtime_state field with one of the following values:
-    - "idle": cell has executed and is quiescent
+    - "idle": cell has executed and is quiescent (includes cells with errors)
     - "running": cell is actively executing
     - "queued": cell is waiting on a running dependency
     - "disabled-transitively": cell is disabled because a parent cell is disabled
-    - null: cell is blocked by a structural error (cycle, duplicate definition) or has never been executed
+    - null: cell has never been executed
 
     The execution_time field contains the duration of the last execution in
     milliseconds. It is only populated when runtime_state is "idle"; it is
