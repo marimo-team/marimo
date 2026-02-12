@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from marimo._server.api.endpoints.mpl import figure_endpoints
+from marimo._server.api.endpoints.mpl import WS_MAX_SIZE, figure_endpoints
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -178,3 +178,6 @@ class TestMatplotlibProxyEndpoints:
                 mock_connect.assert_called()
                 call_url = mock_connect.call_args[0][0]
                 assert "localhost:8888" in call_url
+                # Verify max_size is set to handle large matplotlib PNGs
+                call_kwargs = mock_connect.call_args[1]
+                assert call_kwargs.get("max_size") == WS_MAX_SIZE
