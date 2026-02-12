@@ -3572,14 +3572,12 @@ export interface components {
      *
      *         Attributes:
      *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook.
      *             set_ui_element_value_request: Initial UI element values.
      *             auto_run: Whether to automatically execute cells on instantiation.
      *             request: HTTP request context if available.
      */
     CreateNotebookCommand: {
       autoRun: boolean;
-      cellIds: string[];
       executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -5308,8 +5306,6 @@ export interface components {
      *             affected cells as stale, `"autorun"` automatically runs affected cells.
      *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
      *             values may affect frontend performance
-     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
-     *             The default is `False`.
      *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
      *           larger values may affect frontend performance
      *         - `pythonpath`: a list of directories to add to the Python search path.
@@ -5347,7 +5343,6 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
-      serve_cached_sessions_in_apps?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";

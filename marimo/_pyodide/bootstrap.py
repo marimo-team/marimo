@@ -54,7 +54,6 @@ def instantiate(
     session.put_control_request(
         CreateNotebookCommand(
             execution_requests=execution_requests,
-            cell_ids=tuple(app.cell_manager.cell_ids()),
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[], values=[], request=None
             ),

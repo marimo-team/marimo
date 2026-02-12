@@ -322,7 +322,7 @@ async def test_connects_to_existing_session_with_same_file(
             # This can/may change if implementation changes, but this is a snapshot to
             # make sure it doesn't change when we don't expect it to
             assert len(messages1) == 14
-            assert messages1[0]["op"] == "update-cell-ids"
+            assert messages1[0]["op"] == "variables"
 
             # Connect second client - should connect to same session
             with client.websocket_connect(ws_2) as websocket2:
@@ -339,7 +339,7 @@ async def test_connects_to_existing_session_with_same_file(
                 # This can/may change if implementation changes, but this is a snapshot to
                 # make sure it doesn't change when we don't expect it to
                 assert len(messages2) == 4
-                assert messages2[0]["op"] == "update-cell-ids"
+                assert messages2[0]["op"] == "variables"
 
 
 def flush_messages(
