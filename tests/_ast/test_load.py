@@ -382,7 +382,7 @@ class TestGetStatus:
             # Empty files
             ("test_empty", "empty"),
             # No cells
-            ("test_app_with_only_comments", "invalid"),
+            ("test_app_with_only_comments", "empty"),
             # Invalid (not marimo apps)
             ("test_invalid", "invalid"),
             # Has errors

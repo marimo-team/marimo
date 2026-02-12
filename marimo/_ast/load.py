@@ -117,9 +117,12 @@ def get_notebook_status(filename: str) -> LoadResult:
     if notebook is None:
         return LoadResult(status="empty", contents=contents)
     if not notebook.valid:
-        return LoadResult(
-            status="invalid", notebook=notebook, contents=contents
-        )
+        if is_non_marimo_python_script(notebook):
+            return LoadResult(
+                status="invalid", notebook=notebook, contents=contents
+            )
+        # Only comments or a doc string — treat as empty per status definition
+        return LoadResult(status="empty", notebook=notebook, contents=contents)
     if len(notebook.violations) > 0:
         LOGGER.debug(
             "Notebook has violations: \n%s",
