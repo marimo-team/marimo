@@ -22,6 +22,7 @@ from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
+from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -486,11 +487,14 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 
 
 def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+    # Markdown frontmatter may contain non-config metadata (e.g., author,
+    # description). Suppress warnings for unrecognized keys from markdown.
+    silent = MarimoPath(ir.filename).is_markdown() if ir.filename else False
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=[cell.name for cell in ir.cells],
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
-        config=_AppConfig.from_untrusted_dict(ir.app.options),
+        config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
         header_comments=ir.header.value if ir.header else None,
     )
 
