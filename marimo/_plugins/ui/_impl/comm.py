@@ -67,17 +67,35 @@ Msg = dict[str, Any]
 MsgCallback = Callable[[Msg], None]
 DataType = Optional[dict[str, Any]]
 MetadataType = Optional[dict[str, Any]]
-BufferType = Optional[list[bytes]]
+Buffer = bytes | memoryview | bytearray
+BufferType = Optional[list[Buffer]]
+
+
+def _ensure_bytes(buf: object) -> bytes:
+    """Coerce a buffer to a type msgspec can base64-encode.
+
+    msgspec natively handles ``bytes``, ``memoryview``, and ``bytearray``.
+    Some libraries (e.g. obstore) use custom types that hold binary data
+    but aren't subclasses of these, so msgspec can't serialize them directly.
+    """
+    if isinstance(buf, bytes):
+        return buf
+    if hasattr(buf, "__buffer__") or isinstance(buf, (memoryview, bytearray)):
+        return bytes(buf)  # type: ignore[arg-type]
+    raise TypeError(
+        f"Buffer of type {type(buf).__name__} does not support the buffer protocol"
+    )
 
 
 def _create_model_message(
     data: dict[str, Any],
-    buffers: list[bytes],
+    buffers: list[Buffer],
 ) -> Optional[ModelMessage]:
     """Create the appropriate ModelMessage based on the method field.
 
     Returns None for methods that should be skipped (e.g., echo_update).
     """
+    bbuffers = [_ensure_bytes(b) for b in buffers]
     method = data.get("method", "update")
     state = data.get("state", {})
     buffer_paths = data.get("buffer_paths", [])
@@ -86,18 +104,18 @@ def _create_model_message(
         return ModelOpen(
             state=state,
             buffer_paths=buffer_paths,
-            buffers=buffers,
+            buffers=bbuffers,
         )
     elif method == "update":
         return ModelUpdate(
             state=state,
             buffer_paths=buffer_paths,
-            buffers=buffers,
+            buffers=bbuffers,
         )
     elif method == "custom":
         return ModelCustom(
             content=data.get("content"),
-            buffers=buffers,
+            buffers=bbuffers,
         )
     elif method == "echo_update":
         # echo_update is for multi-client sync acknowledgment, skip it
@@ -203,7 +221,7 @@ class MarimoComm:
     def __del__(self) -> None:
         self.close(deleting=True)
 
-    def _broadcast(self, data: dict[str, Any], buffers: list[bytes]) -> None:
+    def _broadcast(self, data: dict[str, Any], buffers: list[Buffer]) -> None:
         """Broadcast a model lifecycle notification."""
         message = _create_model_message(data, buffers)
         if message is None:

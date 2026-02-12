@@ -217,6 +217,74 @@ def test_comm_lifecycle_item_dispose_closes_comm(
     mock_broadcast.assert_called_once()
 
 
+class _CustomBytes:
+    """Simulates obstore.Bytes — implements buffer protocol but not a
+    subclass of bytes/memoryview/bytearray."""
+
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def __buffer__(self, flags: int = 0) -> memoryview:
+        return memoryview(self._data)
+
+
+class TestBroadcastBufferTypes:
+    """Broadcast through the comm with various buffer types and verify the
+    notification carries the right data after a serialize/deserialize
+    roundtrip."""
+
+    PAYLOAD = b"RIFF\x00\x01binary\xff\xfe"
+
+    def _roundtrip_buffer(self, comm, buf):
+        """Broadcast a buffer through the comm and return the deserialized
+        notification."""
+        from marimo._messaging.notification import ModelLifecycleNotification
+        from marimo._messaging.serde import (
+            deserialize_kernel_message,
+            serialize_kernel_message,
+        )
+
+        with patch(
+            "marimo._plugins.ui._impl.comm.broadcast_notification"
+        ) as mock_broadcast:
+            comm._broadcast(
+                {"method": "update", "state": {}, "buffer_paths": []},
+                [buf],
+            )
+            notification = mock_broadcast.call_args[0][0]
+
+        assert isinstance(notification, ModelLifecycleNotification)
+        # Full roundtrip through JSON serialization
+        raw = serialize_kernel_message(notification)
+        return deserialize_kernel_message(raw)
+
+    def test_bytes_buffer(self, comm):
+        result = self._roundtrip_buffer(comm, self.PAYLOAD)
+        assert result.message.buffers == [self.PAYLOAD]
+
+    def test_memoryview_buffer(self, comm):
+        result = self._roundtrip_buffer(comm, memoryview(self.PAYLOAD))
+        assert result.message.buffers == [self.PAYLOAD]
+
+    def test_bytearray_buffer(self, comm):
+        result = self._roundtrip_buffer(comm, bytearray(self.PAYLOAD))
+        assert result.message.buffers == [self.PAYLOAD]
+
+    def test_custom_buffer_protocol(self, comm):
+        """Custom buffer-protocol objects (like obstore.Bytes) survive the
+        roundtrip."""
+        result = self._roundtrip_buffer(comm, _CustomBytes(self.PAYLOAD))
+        assert result.message.buffers == [self.PAYLOAD]
+
+    def test_unsupported_type_raises(self):
+        from marimo._plugins.ui._impl.comm import _ensure_bytes
+
+        with pytest.raises(
+            TypeError, match="does not support the buffer protocol"
+        ):
+            _ensure_bytes("not bytes")
+
+
 def test_comm_lifecycle_item_dispose_idempotent(comm: MarimoComm):
     """Calling dispose twice should not error (comm.close is idempotent)."""
     item = CommLifecycleItem(comm)
