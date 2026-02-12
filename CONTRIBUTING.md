@@ -29,6 +29,11 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 > As an alternative to installing `pixi`, you can try developing in [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
 > Note that developing in Gitpod is not officially supported by the marimo team.
 
+> [!TIP]
+> New to both `pixi` and `hatch`? Pick `pixi`. It installs and manages both the Python and Node toolchains, then drops you into a ready shell with one command. Choose `hatch` only if you already maintain Node 20+/pnpm 9+ yourself and just want a Python environment manager. Typical flows:
+> - `pixi shell` → `make fe && make py` → `make dev`
+> - `hatch shell` → `make fe && make py` → `make dev`
+
 ```bash
 pixi shell
 ```
