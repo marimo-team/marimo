@@ -106,8 +106,18 @@ class TestDirectoryScanner(unittest.TestCase):
 
         scanner = DirectoryScanner(self.test_dir, max_files=5)
         files = scanner.scan()
-        file_count = sum(1 for f in files if not f.is_directory)
-        assert file_count == 5
+
+        def count_files(file_list: list) -> int:
+            total = 0
+            for f in file_list:
+                if f.is_directory:
+                    if f.children:
+                        total += count_files(f.children)
+                else:
+                    total += 1
+            return total
+
+        assert count_files(files) == 5
 
     def test_skip_common_directories(self):
         """Test that common directories are skipped."""
