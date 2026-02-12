@@ -376,7 +376,8 @@ def test_get_cell_runtime_data_batched():
     assert result.data[1].cell_id == "c2"
     assert result.data[1].code == "y = 2"
     assert result.data[1].metadata.runtime_state == "running"  # type: ignore[union-attr]
-    assert result.data[1].metadata.execution_time == 20.0  # type: ignore[union-attr]
+    # execution_time is only populated when idle
+    assert result.data[1].metadata.execution_time is None  # type: ignore[union-attr]
 
 
 def test_get_cell_outputs_batched():

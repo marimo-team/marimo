@@ -64,6 +64,8 @@ class CellRuntimeMetadata:
     # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
     # validation issues in models.
     runtime_state: Optional[str] = None
+    # Duration of the last execution in milliseconds.
+    # Only populated when runtime_state is "idle"; null otherwise.
     execution_time: Optional[float] = None
 
 
@@ -264,6 +266,10 @@ class GetCellRuntimeData(
     - "disabled-transitively": cell is disabled because a parent cell is disabled
     - null: cell is blocked by a structural error (cycle, duplicate definition) or has never been executed
 
+    The execution_time field contains the duration of the last execution in
+    milliseconds. It is only populated when runtime_state is "idle"; it is
+    null while the cell is running, queued, or has not been executed.
+
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
         cell_ids: A list of cell IDs to get runtime data for from get_lightweight_cell_map.
@@ -351,8 +357,13 @@ class GetCellRuntimeData(
         if cell_notif and cell_notif.status is not None:
             runtime_state = cell_notif.status
 
-        # Get execution time if available
-        execution_time = session_view.last_execution_time.get(cell_id)
+        # Only return execution time when the cell is idle — that's when
+        # the value is a duration in milliseconds.  While the cell is
+        # running the stored value is the start timestamp (epoch), which
+        # would be confusing for consumers.
+        execution_time: Optional[float] = None
+        if runtime_state == "idle":
+            execution_time = session_view.last_execution_time.get(cell_id)
 
         return CellRuntimeMetadata(
             runtime_state=runtime_state, execution_time=execution_time
