@@ -26,6 +26,12 @@ router = APIRouter()
 
 figure_endpoints: dict[int, str] = {}
 
+# Maximum size for WebSocket messages received from the matplotlib server.
+# Matplotlib's WebAgg backend sends rendered figure PNGs over WebSocket,
+# which can exceed the websockets library's default 1 MB limit at higher
+# DPI settings or larger figure sizes.
+WS_MAX_SIZE = 20 * 1024 * 1024  # 20 MB
+
 
 def mpl_fallback_handler(
     path_prefix: str = "",
@@ -265,7 +271,9 @@ async def mpl_websocket(websocket: WebSocket) -> None:
         pass
 
     try:
-        async with websockets.connect(target_ws_url) as mpl_ws:
+        async with websockets.connect(
+            target_ws_url, max_size=WS_MAX_SIZE
+        ) as mpl_ws:
 
             async def forward_to_mpl() -> None:
                 try:
