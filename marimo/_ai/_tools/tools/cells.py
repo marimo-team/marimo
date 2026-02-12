@@ -252,7 +252,8 @@ class GetCellRuntimeData(
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
-        cell_ids: A list of cell IDs to get runtime data for from get_lightweight_cell_map
+        cell_ids: A list of cell IDs to get runtime data for from get_lightweight_cell_map.
+            If an empty list is provided, it will return data for all cells.
 
     Returns:
         A success result containing cell runtime data including code, errors, and variables for each cell.
@@ -274,8 +275,14 @@ class GetCellRuntimeData(
         context = self.context
         session = context.get_session(session_id)
 
+        # Empty cell_ids means "return all cells"
+        cell_ids = args.cell_ids
+        if not cell_ids:
+            cell_manager = session.app_file_manager.app.cell_manager
+            cell_ids = [cd.cell_id for cd in cell_manager.cell_data()]
+
         results: list[GetCellRuntimeDataData] = []
-        for cell_id in args.cell_ids:
+        for cell_id in cell_ids:
             cell_data = self._get_cell_data(session, session_id, cell_id)
             cell_code = cell_data.code
             cell_errors = context.get_cell_errors(session_id, cell_id)
@@ -366,7 +373,8 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
 
     Args:
         session_id: The session ID of the notebook from get_active_notebooks
-        cell_ids: A list of cell IDs from get_lightweight_cell_map
+        cell_ids: A list of cell IDs from get_lightweight_cell_map.
+            If an empty list is provided, it will return outputs for all cells.
 
     Returns:
         Visual output (HTML, charts, tables, etc.) with mimetype and console streams (stdout/stderr) for each cell.
@@ -388,8 +396,14 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         session = context.get_session(args.session_id)
         session_view = session.session_view
 
+        # Empty cell_ids means "return all cells"
+        cell_ids = args.cell_ids
+        if not cell_ids:
+            cell_manager = session.app_file_manager.app.cell_manager
+            cell_ids = [cd.cell_id for cd in cell_manager.cell_data()]
+
         results: list[CellOutputData] = []
-        for cell_id in args.cell_ids:
+        for cell_id in cell_ids:
             cell_notif = session_view.cell_notifications.get(cell_id)
 
             if cell_notif is None:

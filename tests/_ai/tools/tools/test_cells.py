@@ -158,31 +158,78 @@ def test_get_cell_runtime_data_invalid_cell():
 
 
 def test_get_cell_runtime_data_empty_cell_ids():
-    """Test GetCellRuntimeData with empty cell_ids returns empty data."""
+    """Test GetCellRuntimeData with empty cell_ids returns all cells."""
     tool = GetCellRuntimeData(ToolContext())
 
+    cell_data_1 = Mock()
+    cell_data_1.cell_id = CellId_t("c1")
+    cell_data_1.code = "x = 1"
+    cell_data_1.cell = None
+
+    cell_data_2 = Mock()
+    cell_data_2.cell_id = CellId_t("c2")
+    cell_data_2.code = "y = 2"
+    cell_data_2.cell = None
+
+    mock_cell_manager = Mock()
+    mock_cell_manager.cell_data.return_value = [cell_data_1, cell_data_2]
+    mock_cell_manager.get_cell_data.side_effect = lambda cid: (
+        cell_data_1 if cid == "c1" else cell_data_2
+    )
+
     mock_session = Mock()
+    mock_session.app_file_manager.app.cell_manager = mock_cell_manager
+    mock_session.session_view = MockSessionView()
+
     context = Mock(spec=ToolContext)
     context.get_session.return_value = mock_session
+    context.get_cell_errors.return_value = []
     tool.context = context
 
     args = GetCellRuntimeDataArgs(session_id=SessionId("test"), cell_ids=[])
     result = tool.handle(args)
-    assert result.data == []
+    assert len(result.data) == 2
+    assert result.data[0].cell_id == "c1"
+    assert result.data[1].cell_id == "c2"
 
 
 def test_get_cell_outputs_empty_cell_ids():
-    """Test GetCellOutputs with empty cell_ids returns empty cells."""
+    """Test GetCellOutputs with empty cell_ids returns all cells."""
     tool = GetCellOutputs(ToolContext())
 
+    cell_data_1 = Mock()
+    cell_data_1.cell_id = CellId_t("c1")
+
+    cell_data_2 = Mock()
+    cell_data_2.cell_id = CellId_t("c2")
+
+    mock_cell_manager = Mock()
+    mock_cell_manager.cell_data.return_value = [cell_data_1, cell_data_2]
+
+    notif_c1 = MockCellNotification(
+        output=MockOutput(data="42", mimetype="text/plain"),
+        console=None,
+    )
+    notif_c2 = MockCellNotification(output=None, console=None)
+
     mock_session = Mock()
+    mock_session.app_file_manager.app.cell_manager = mock_cell_manager
+    mock_session.session_view = MockSessionView(
+        cell_notifications={"c1": notif_c1, "c2": notif_c2}
+    )
+
     context = Mock(spec=ToolContext)
     context.get_session.return_value = mock_session
+    context.get_cell_console_outputs.return_value = MarimoCellConsoleOutputs()
     tool.context = context
 
     args = GetCellOutputArgs(session_id=SessionId("test"), cell_ids=[])
     result = tool.handle(args)
-    assert result.cells == []
+    assert len(result.cells) == 2
+    assert result.cells[0].cell_id == "c1"
+    assert result.cells[0].visual_output.visual_output == "42"
+    assert result.cells[1].cell_id == "c2"
+    assert result.cells[1].visual_output.visual_output is None
 
 
 def test_get_visual_output_with_html():
