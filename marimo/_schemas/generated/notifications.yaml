@@ -768,6 +768,9 @@ components:
         ty:
           default: false
           type: boolean
+        pyrefly:
+          default: false
+          type: boolean
       required: []
       title: KernelCapabilitiesNotification
       type: object

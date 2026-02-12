@@ -249,6 +249,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
     pylsp: bool = False
     ty: bool = False
     basedpyright: bool = False
+    pyrefly: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
@@ -256,6 +257,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.pylsp = DependencyManager.pylsp.has()
         self.basedpyright = DependencyManager.basedpyright.has()
         self.ty = DependencyManager.ty.has()
+        self.pyrefly = DependencyManager.pyrefly.has()
 
 
 class KernelReadyNotification(Notification, tag="kernel-ready"):
