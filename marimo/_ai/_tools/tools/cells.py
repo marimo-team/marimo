@@ -14,6 +14,7 @@ from marimo._ai._tools.types import (
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error
 from marimo._messaging.notification import (
     CellNotification,
@@ -47,6 +48,7 @@ class LightweightCellInfo:
     runtime_state: Optional[str] = None
     has_output: bool = False
     has_console_output: bool = False
+    has_errors: bool = False
 
 
 @dataclass
@@ -181,12 +183,18 @@ class GetLightweightCellMap(
             runtime_state: Optional[str] = None
             has_output = False
             has_console_output = False
+            has_errors = False
             cell_notif = session_view.cell_notifications.get(cell_data.cell_id)
             if cell_notif is not None:
                 if cell_notif.status is not None:
                     runtime_state = cell_notif.status
-                has_output = (
+                has_errors = (
                     cell_notif.output is not None
+                    and cell_notif.output.channel == CellChannel.MARIMO_ERROR
+                )
+                has_output = (
+                    not has_errors
+                    and cell_notif.output is not None
                     and cell_notif.output.data is not None
                 )
                 has_console_output = bool(cell_notif.console)
@@ -201,6 +209,7 @@ class GetLightweightCellMap(
                     runtime_state=runtime_state,
                     has_output=has_output,
                     has_console_output=has_console_output,
+                    has_errors=has_errors,
                 )
             )
 

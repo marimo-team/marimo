@@ -253,7 +253,7 @@ def test_get_visual_output_no_output():
 
 def test_lightweight_cell_map_includes_runtime_info():
     """Test that LightweightCellInfo includes runtime_state, has_output,
-    and has_console_output from cell notifications."""
+    has_console_output, and has_errors from cell notifications."""
     tool = GetLightweightCellMap(ToolContext())
 
     # Mock cell data
@@ -272,15 +272,25 @@ def test_lightweight_cell_map_includes_runtime_info():
     cell_data_3.code = "y = 2"
     cell_data_3.cell = None
 
+    cell_data_4 = Mock()
+    cell_data_4.cell_id = "c4"
+    cell_data_4.code = "z = bad_var"
+    cell_data_4.cell = None
+
     # Mock cell manager
     mock_cell_manager = Mock()
     mock_cell_manager.cell_data.return_value = [
         cell_data_1,
         cell_data_2,
         cell_data_3,
+        cell_data_4,
     ]
 
-    # Cell notifications: c1 is idle with output, c2 is running with console output, c3 has no notification
+    # Cell notifications:
+    # c1 is idle with output
+    # c2 is running with console output
+    # c3 has no notification
+    # c4 is idle with an error
     notif_c1 = MockCellNotification(
         status="idle",
         output=MockOutput(data="42", mimetype="text/plain"),
@@ -291,12 +301,25 @@ def test_lightweight_cell_map_includes_runtime_info():
         output=None,
         console=[MockConsoleOutput(channel="stdout", data="hello")],
     )
+    notif_c4 = MockCellNotification(
+        status="idle",
+        output=MockOutput(
+            channel="marimo-error",
+            data=[
+                MockError(
+                    type="NameError", _message="name 'bad_var' is not defined"
+                )
+            ],
+            mimetype="application/vnd.marimo+error",
+        ),
+        console=None,
+    )
 
     mock_session = Mock()
     mock_session.app_file_manager.app.cell_manager = mock_cell_manager
     mock_session.app_file_manager.filename = "test.py"
     mock_session.session_view = MockSessionView(
-        cell_notifications={"c1": notif_c1, "c2": notif_c2}
+        cell_notifications={"c1": notif_c1, "c2": notif_c2, "c4": notif_c4}
     )
 
     context = Mock(spec=ToolContext)
@@ -308,25 +331,35 @@ def test_lightweight_cell_map_includes_runtime_info():
     )
     result = tool.handle(args)
 
-    assert len(result.cells) == 3
+    assert len(result.cells) == 4
 
-    # c1: idle, has output, no console output
+    # c1: idle, has output, no console output, no errors
     assert result.cells[0].cell_id == "c1"
     assert result.cells[0].runtime_state == "idle"
     assert result.cells[0].has_output is True
     assert result.cells[0].has_console_output is False
+    assert result.cells[0].has_errors is False
 
-    # c2: running, no output, has console output
+    # c2: running, no output, has console output, no errors
     assert result.cells[1].cell_id == "c2"
     assert result.cells[1].runtime_state == "running"
     assert result.cells[1].has_output is False
     assert result.cells[1].has_console_output is True
+    assert result.cells[1].has_errors is False
 
     # c3: no notification at all
     assert result.cells[2].cell_id == "c3"
     assert result.cells[2].runtime_state is None
     assert result.cells[2].has_output is False
     assert result.cells[2].has_console_output is False
+    assert result.cells[2].has_errors is False
+
+    # c4: idle, has errors, no regular output
+    assert result.cells[3].cell_id == "c4"
+    assert result.cells[3].runtime_state == "idle"
+    assert result.cells[3].has_output is False
+    assert result.cells[3].has_console_output is False
+    assert result.cells[3].has_errors is True
 
 
 def test_get_cell_runtime_data_batched():
