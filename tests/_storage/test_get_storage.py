@@ -5,7 +5,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from dirty_equals import IsPositiveFloat
 from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -13,7 +12,7 @@ from marimo._storage.get_storage import (
     get_storage_backends_from_variables,
     storage_backend_to_storage_namespace,
 )
-from marimo._storage.models import StorageEntry, StorageNamespace
+from marimo._storage.models import StorageNamespace
 from marimo._storage.storage import FsspecFilesystem, Obstore
 from marimo._types.ids import VariableName
 
@@ -105,15 +104,6 @@ class TestStorageBackendToStorageNamespace:
         mock_backend.variable_name = VariableName("test_store")
         mock_backend.protocol = "s3"
         mock_backend.root_path = "my-bucket"
-        mock_backend.list_entries.return_value = [
-            StorageEntry(
-                path="file1.txt",
-                size=100,
-                last_modified=1700000000.0,
-                kind="object",
-                metadata={},
-            ),
-        ]
 
         result = storage_backend_to_storage_namespace(mock_backend)
 
@@ -123,18 +113,10 @@ class TestStorageBackendToStorageNamespace:
                 display_name="test_store",
                 protocol="s3",
                 root_path="my-bucket",
-                storage_entries=[
-                    StorageEntry(
-                        path="file1.txt",
-                        size=100,
-                        last_modified=1700000000.0,
-                        kind="object",
-                        metadata={},
-                    ),
-                ],
+                storage_entries=[],
             )
         )
-        mock_backend.list_entries.assert_called_once_with(prefix="")
+        mock_backend.list_entries.assert_not_called()
 
     def test_handles_none_variable_name(self) -> None:
         mock_backend: Any = MagicMock()
@@ -190,15 +172,7 @@ class TestStorageBackendToStorageNamespace:
                 display_name="mem_fs",
                 protocol="memory",
                 root_path="/",
-                storage_entries=[
-                    StorageEntry(
-                        path="/hello.txt",
-                        kind="file",
-                        size=2,
-                        last_modified=None,
-                        metadata={"created": IsPositiveFloat()},
-                    )
-                ],
+                storage_entries=[],
             )
         )
 
@@ -222,14 +196,6 @@ class TestStorageBackendToStorageNamespace:
                 display_name="mem_store",
                 protocol="in-memory",
                 root_path="",
-                storage_entries=[
-                    StorageEntry(
-                        path="test.txt",
-                        kind="object",
-                        size=4,
-                        last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                        metadata={"e_tag": "0"},
-                    )
-                ],
+                storage_entries=[],
             )
         )

@@ -27,10 +27,15 @@ def get_storage_backends_from_variables(
 def storage_backend_to_storage_namespace(
     storage_backend: StorageBackend[Any],
 ) -> StorageNamespace:
+    """
+    Convert a storage backend to a storage namespace.
+    Currently, this is called as a synchronous post-execution hook which can block the kernel.
+    So, we don't fetch the entries here.
+    """
     return StorageNamespace(
         name=storage_backend.variable_name,
         display_name=storage_backend.variable_name or "",
         protocol=storage_backend.protocol,
         root_path=storage_backend.root_path or "",
-        storage_entries=storage_backend.list_entries(prefix=""),
+        storage_entries=[],
     )
