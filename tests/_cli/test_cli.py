@@ -557,6 +557,46 @@ def test_cli_edit_new_file() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
+def test_cli_edit_markdown_no_config_warnings() -> None:
+    """Markdown frontmatter metadata should not produce config warnings.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/8259
+    """
+    d = tempfile.TemporaryDirectory()
+    path = os.path.join(d.name, "notebook.md")
+    with open(path, "w") as f:
+        f.write(
+            "---\n"
+            "title: My Notebook\n"
+            "author: Test Author\n"
+            'description: "A test notebook"\n'
+            "---\n\n"
+            "```python {.marimo}\n"
+            "x = 1\n"
+            "```\n"
+        )
+
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            path,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ],
+        stderr=subprocess.PIPE,
+    )
+    contents = _try_fetch(port)
+    assert contents is not None
+    p.kill()
+    _, stderr = p.communicate(timeout=5)
+    assert b"Unrecognized key" not in stderr
+
+
 def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
