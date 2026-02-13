@@ -113,7 +113,7 @@ class AppStateBase:
     @property
     def html_head(self) -> Optional[str]:
         if hasattr(self.state, "html_head"):
-            return self.state.html_head
+            return cast(Optional[str], self.state.html_head)
         return None
 
 
