@@ -22,6 +22,7 @@ const DEFAULT_CONFIG: MermaidConfig = {
   flowchart: {
     htmlLabels: true,
     curve: "linear",
+    useMaxWidth: false,
   },
   sequence: {
     diagramMarginX: 50,
@@ -88,7 +89,11 @@ const Mermaid: React.FC<Props> = ({ diagram }) => {
     return null;
   }
 
-  return <div dangerouslySetInnerHTML={{ __html: svg }} />;
+  return (
+    <div style={{ overflowX: "auto", maxWidth: "100%" }}>
+      <div dangerouslySetInnerHTML={{ __html: svg }} />
+    </div>
+  );
 };
 
 export default Mermaid;
