@@ -152,8 +152,10 @@ class SessionView:
         self.data_connectors = DataSourceConnectionsNotification(
             connections=[]
         )
-        # The most recent storage namespaces notification
-        self.storage_namespaces = StorageNamespacesNotification(namespaces=[])
+        # The most recent external storage namespaces notification
+        self.external_storage_namespaces = StorageNamespacesNotification(
+            namespaces=[]
+        )
         # The most recent Variables notification.
         self.variable_notifications: VariablesNotification = (
             VariablesNotification(variables=[])
@@ -295,13 +297,13 @@ class SessionView:
                 connections=list(next_connections.values())
             )
 
-            # Remove any storage namespaces that are no longer in scope.
+            # Remove any external storage namespaces that are no longer in scope.
             next_namespaces = [
                 ns
-                for ns in self.storage_namespaces.namespaces
+                for ns in self.external_storage_namespaces.namespaces
                 if ns.name in variable_names
             ]
-            self.storage_namespaces = StorageNamespacesNotification(
+            self.external_storage_namespaces = StorageNamespacesNotification(
                 namespaces=next_namespaces
             )
 
@@ -341,12 +343,12 @@ class SessionView:
             )
 
         elif isinstance(notification, StorageNamespacesNotification):
-            # Merge storage namespaces, dedupe by name and keep the latest
-            prev_namespaces = self.storage_namespaces.namespaces
+            # Merge external storage namespaces, dedupe by name and keep the latest
+            prev_namespaces = self.external_storage_namespaces.namespaces
             namespaces_by_name = {ns.name: ns for ns in prev_namespaces}
             for ns in notification.namespaces:
                 namespaces_by_name[ns.name] = ns
-            self.storage_namespaces = StorageNamespacesNotification(
+            self.external_storage_namespaces = StorageNamespacesNotification(
                 namespaces=list(namespaces_by_name.values())
             )
 
@@ -540,8 +542,8 @@ class SessionView:
             all_notifications.append(self.datasets)
         if self.data_connectors.connections:
             all_notifications.append(self.data_connectors)
-        if self.storage_namespaces.namespaces:
-            all_notifications.append(self.storage_namespaces)
+        if self.external_storage_namespaces.namespaces:
+            all_notifications.append(self.external_storage_namespaces)
 
         # Model messages must come before cell notifications to ensure
         # the model exists before the view tries to use it.
