@@ -32,9 +32,9 @@ from marimo._output.formatters.matplotlib_formatters import MatplotlibFormatter
 from marimo._output.formatters.pandas_formatters import PandasFormatter
 from marimo._output.formatters.panel_formatters import PanelFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
-from marimo._output.formatters.pytorch_formatters import PyTorchFormatter
 from marimo._output.formatters.pyecharts_formatters import PyechartsFormatter
 from marimo._output.formatters.pygwalker_formatters import PygWalkerFormatter
+from marimo._output.formatters.pytorch_formatters import PyTorchFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter

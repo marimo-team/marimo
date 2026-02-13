@@ -85,7 +85,7 @@ class TestPyTorchFormatter:
         html = result.text
 
         assert "frozen" in html.lower()
-        assert 'data-frozen' in html
+        assert "data-frozen" in html
 
     def test_format_partially_frozen(self) -> None:
         import torch.nn as nn
@@ -112,10 +112,10 @@ class TestPyTorchFormatter:
         from marimo._output.formatters.pytorch_formatters import format
 
         model = nn.Sequential(
-            nn.Linear(10, 5),       # weight
-            nn.ReLU(),              # activation
-            nn.BatchNorm1d(5),      # normalization
-            nn.Dropout(0.5),        # regularization
+            nn.Linear(10, 5),  # weight
+            nn.ReLU(),  # activation
+            nn.BatchNorm1d(5),  # normalization
+            nn.Dropout(0.5),  # regularization
         )
         result = format(model)
         html = result.text
