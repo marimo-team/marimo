@@ -44,7 +44,7 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
         storage_entries: The storage entries in the storage namespace.
     """
 
-    name: VariableName | None
+    name: VariableName
     display_name: str
     protocol: str
     root_path: str
@@ -73,9 +73,7 @@ Backend = TypeVar("Backend")
 
 
 class StorageBackend(abc.ABC, Generic[Backend]):
-    def __init__(
-        self, store: Backend, variable_name: VariableName | None
-    ) -> None:
+    def __init__(self, store: Backend, variable_name: VariableName) -> None:
         self.store = store
         self.variable_name = variable_name
 

@@ -239,6 +239,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.MCPStatusResponse,
         models.PreviewDatasetColumnRequest,
         models.PreviewSQLTableRequest,
+        models.StorageListEntriesRequest,
+        models.StorageDownloadRequest,
         models.ReadCodeResponse,
         models.RenameNotebookRequest,
         models.ExecuteCellsRequest,
