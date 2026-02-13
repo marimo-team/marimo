@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import (
     Any,
     Callable,
@@ -31,6 +31,7 @@ from pymdownx.superfences import (  # type: ignore
 )
 
 from marimo import _loggers
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
@@ -124,22 +125,24 @@ def app_config_from_root(root: Element) -> dict[str, Any]:
     """
     Extract app config from the root element.
 
-    This may contains unknown keys.
+    Filters out markdown metadata keys (e.g. author, description, pyproject)
+    that are valid frontmatter but not app config, to avoid spurious warnings.
     """
 
-    # Extract meta data from root attributes.
+    # Mapping from markdown frontmatter keys to _AppConfig field names.
     config_keys = {
         "title": "app_title",
     }
-    config = {
-        config_keys[key]: value
-        for key, value in root.items()
-        if key in config_keys
-    }
-    # Try to pass on other attributes as is
-    config.update({k: v for k, v in root.items() if k not in config_keys})
-    # Remove values particular to markdown saves.
-    config.pop("marimo-version", None)
+    # The set of field names that _AppConfig actually recognizes.
+    valid_config_fields = {f.name for f in fields(_AppConfig)}
+
+    config = {}
+    for key, value in root.items():
+        if key in config_keys:
+            config[config_keys[key]] = value
+        elif key in valid_config_fields:
+            config[key] = value
+        # Otherwise, skip — it's markdown metadata, not app config.
 
     return config
 
