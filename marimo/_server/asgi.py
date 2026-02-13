@@ -407,6 +407,7 @@ def create_asgi_app(
     config_reader = get_default_config_manager(current_path=None)
     base_app = Starlette()
     base_app.state.asset_url = asset_url
+    base_app.state.html_head = html_head
 
     # Default to an empty token
     # If a user is using the create_asgi_app API,
