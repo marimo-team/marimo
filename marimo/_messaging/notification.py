@@ -595,9 +595,6 @@ class StorageNamespacesNotification(Notification, tag="storage-namespaces"):
 class StorageEntriesNotification(Notification, tag="storage-entries"):
     """Result of a storage operation that returns entries.
 
-    Used by list_entries, search, and get_entry. The context fields
-    (prefix, query) indicate which operation produced the result.
-
     Attributes:
         request_id: Request ID this responds to.
         entries: Storage entries returned by the operation.
