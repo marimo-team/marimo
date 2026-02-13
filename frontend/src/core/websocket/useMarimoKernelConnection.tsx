@@ -304,6 +304,16 @@ export function useMarimoKernelConnection(opts: {
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
         return;
+      case "update-css": {
+        let el = document.querySelector("style[title='marimo-custom']");
+        if (!el) {
+          el = document.createElement("style");
+          el.setAttribute("title", "marimo-custom");
+          document.head.append(el);
+        }
+        el.textContent = msg.data.css;
+        return;
+      }
       default:
         logNever(msg.data);
     }

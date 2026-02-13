@@ -2453,6 +2453,7 @@ components:
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/UpdateCellCodesNotification'
           - $ref: '#/components/schemas/UpdateCellIdsNotification'
+          - $ref: '#/components/schemas/UpdateCssNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2488,6 +2489,7 @@ components:
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
               update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
               update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
+              update-css: '#/components/schemas/UpdateCssNotification'
               validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
               variable-values: '#/components/schemas/VariableValuesNotification'
               variables: '#/components/schemas/VariablesNotification'
@@ -4581,6 +4583,20 @@ components:
       - cellIdsToOutput
       title: UpdateCellOutputsRequest
       type: object
+    UpdateCssNotification:
+      description: "Pushes updated CSS content to the frontend.\n\n    Attributes:\n\
+        \        css: The new CSS content (empty string clears custom CSS)."
+      properties:
+        css:
+          type: string
+        op:
+          enum:
+          - update-css
+      required:
+      - op
+      - css
+      title: UpdateCssNotification
+      type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
         \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
@@ -4938,7 +4954,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.10
+  version: 0.19.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -6311,3 +6327,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

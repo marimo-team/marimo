@@ -4555,7 +4555,8 @@ export interface components {
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["UpdateCellCodesNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"];
+        | components["schemas"]["UpdateCellIdsNotification"]
+        | components["schemas"]["UpdateCssNotification"];
     };
     /**
      * LanguageServersConfig
@@ -5837,6 +5838,18 @@ export interface components {
           unknown,
         ];
       };
+    };
+    /**
+     * UpdateCssNotification
+     * @description Pushes updated CSS content to the frontend.
+     *
+     *         Attributes:
+     *             css: The new CSS content (empty string clears custom CSS).
+     */
+    UpdateCssNotification: {
+      css: string;
+      /** @enum {unknown} */
+      op: "update-css";
     };
     /**
      * UpdateUIElementCommand
