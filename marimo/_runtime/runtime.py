@@ -35,6 +35,7 @@ from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._data._external_storage.models import StorageBackend
 from marimo._data.preview_column import (
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -69,6 +70,8 @@ from marimo._messaging.notification import (
     SQLMetadata,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
+    StorageDownloadReadyNotification,
+    StorageEntriesNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -127,6 +130,8 @@ from marimo._runtime.commands import (
     RefreshSecretsCommand,
     RenameNotebookCommand,
     StopKernelCommand,
+    StorageDownloadCommand,
+    StorageListEntriesCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -533,6 +538,7 @@ class Kernel:
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
         self.cache_callbacks = CacheCallbacks(self)
+        self.external_storage_callbacks = ExternalStorageCallbacks(self)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -2340,6 +2346,14 @@ class Kernel:
         )
         # SQL
         handler.register(ValidateSQLCommand, self.sql_callbacks.validate_sql)
+        # External storage
+        handler.register(
+            StorageListEntriesCommand,
+            self.external_storage_callbacks.list_entries,
+        )
+        handler.register(
+            StorageDownloadCommand, self.external_storage_callbacks.download
+        )
         # Secrets
         handler.register(
             ListSecretKeysCommand, self.secrets_callbacks.list_secrets
@@ -2640,6 +2654,123 @@ class DatasetCallbacks:
                 connections=[data_source_connection],
             ),
         )
+
+
+class ExternalStorageCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+
+    def _get_storage_backend(
+        self, namespace: str
+    ) -> tuple[StorageBackend[Any] | None, str | None]:
+        """Look up a storage backend by variable name from kernel globals.
+
+        Returns (backend, error). If error is not None, backend is None.
+        """
+        from marimo._data._external_storage.get_storage import STORAGE_BACKENDS
+
+        variable_name = VariableName(namespace)
+        if variable_name not in self._kernel.globals:
+            return None, f"Variable '{namespace}' not found"
+
+        var = self._kernel.globals[variable_name]
+
+        for backend in STORAGE_BACKENDS:
+            if backend.is_compatible(var):
+                return backend(var, variable_name), None
+        return None, (
+            f"Variable '{namespace}' is not a compatible "
+            "storage backend (expected obstore or fsspec)"
+        )
+
+    @kernel_tracer.start_as_current_span("storage_list_entries")
+    async def list_entries(self, request: StorageListEntriesCommand) -> None:
+        """List storage entries at a given prefix."""
+        backend, error = self._get_storage_backend(request.namespace)
+        if error is not None or backend is None:
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=[],
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                    error=error,
+                ),
+            )
+            return
+
+        try:
+            entries = backend.list_entries(
+                prefix=request.prefix, limit=request.limit
+            )
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=entries,
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                ),
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to list entries for %s at prefix %s",
+                request.namespace,
+                request.prefix,
+            )
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=[],
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                    error=f"Failed to list entries: {e}",
+                ),
+            )
+
+    @kernel_tracer.start_as_current_span("storage_download")
+    async def download(self, request: StorageDownloadCommand) -> None:
+        """Download a storage entry and create a virtual file."""
+        backend, error = self._get_storage_backend(request.namespace)
+        if error is not None or backend is None:
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=None,
+                    filename=None,
+                    error=error,
+                ),
+            )
+            return
+
+        try:
+            from marimo._runtime.virtual_file.virtual_file import VirtualFile
+
+            result = await backend.download_file(request.path)
+            vfile = VirtualFile.create_and_register(
+                result.file_bytes, result.ext
+            )
+
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=vfile.url,
+                    filename=result.filename,
+                ),
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to download %s from %s",
+                request.path,
+                request.namespace,
+            )
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=None,
+                    filename=None,
+                    error=f"Failed to download: {e}",
+                ),
+            )
 
 
 class SqlCallbacks:

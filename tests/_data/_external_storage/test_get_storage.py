@@ -118,25 +118,6 @@ class TestStorageBackendToStorageNamespace:
         )
         mock_backend.list_entries.assert_not_called()
 
-    def test_handles_none_variable_name(self) -> None:
-        mock_backend: Any = MagicMock()
-        mock_backend.variable_name = None
-        mock_backend.protocol = "file"
-        mock_backend.root_path = "/tmp"
-        mock_backend.list_entries.return_value = []
-
-        result = storage_backend_to_storage_namespace(mock_backend)
-
-        assert result == snapshot(
-            StorageNamespace(
-                name=None,
-                display_name="",
-                protocol="file",
-                root_path="/tmp",
-                storage_entries=[],
-            )
-        )
-
     def test_handles_none_root_path(self) -> None:
         mock_backend: Any = MagicMock()
         mock_backend.variable_name = VariableName("mem")

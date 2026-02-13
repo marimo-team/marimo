@@ -190,45 +190,6 @@ def test_storage_namespaces_filtered_by_variables(
     assert session_view.storage_namespaces.namespaces == []
 
 
-def test_storage_namespaces_none_name_kept(
-    session_view: SessionView,
-) -> None:
-    """Namespaces with name=None should be preserved regardless of variables."""
-    session_view.add_notification(
-        StorageNamespacesNotification(
-            namespaces=[
-                StorageNamespace(
-                    name=None,
-                    display_name="anonymous",
-                    protocol="in-memory",
-                    root_path="",
-                    storage_entries=[],
-                ),
-                StorageNamespace(
-                    name=VariableName("my_store"),
-                    display_name="my_store",
-                    protocol="s3",
-                    root_path="bucket",
-                    storage_entries=[],
-                ),
-            ]
-        )
-    )
-    # Note: the merge logic skips None-named namespaces in the dict-based dedup,
-    # so only named namespaces are kept when merging
-    assert session_view.storage_namespaces.namespaces == snapshot(
-        [
-            StorageNamespace(
-                name=VariableName("my_store"),
-                display_name="my_store",
-                protocol="s3",
-                root_path="bucket",
-                storage_entries=[],
-            ),
-        ]
-    )
-
-
 def test_storage_namespaces_empty_not_in_notifications(
     session_view: SessionView,
 ) -> None:

@@ -299,7 +299,7 @@ class SessionView:
             next_namespaces = [
                 ns
                 for ns in self.storage_namespaces.namespaces
-                if ns.name is None or ns.name in variable_names
+                if ns.name in variable_names
             ]
             self.storage_namespaces = StorageNamespacesNotification(
                 namespaces=next_namespaces
@@ -343,12 +343,9 @@ class SessionView:
         elif isinstance(notification, StorageNamespacesNotification):
             # Merge storage namespaces, dedupe by name and keep the latest
             prev_namespaces = self.storage_namespaces.namespaces
-            namespaces_by_name = {
-                ns.name: ns for ns in prev_namespaces if ns.name is not None
-            }
+            namespaces_by_name = {ns.name: ns for ns in prev_namespaces}
             for ns in notification.namespaces:
-                if ns.name is not None:
-                    namespaces_by_name[ns.name] = ns
+                namespaces_by_name[ns.name] = ns
             self.storage_namespaces = StorageNamespacesNotification(
                 namespaces=list(namespaces_by_name.values())
             )

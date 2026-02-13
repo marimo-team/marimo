@@ -955,6 +955,88 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/external-storage/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["StorageDownloadRequest"];
+        };
+      };
+      responses: {
+        /** @description Download a storage entry */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/external-storage/list_entries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["StorageListEntriesRequest"];
+        };
+      };
+      responses: {
+        /** @description List storage entries at a prefix */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/create": {
     parameters: {
       query?: never;
@@ -4490,6 +4572,8 @@ export interface components {
         | components["schemas"]["ListSQLTablesCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
+        | components["schemas"]["StorageListEntriesCommand"]
+        | components["schemas"]["StorageDownloadCommand"]
         | components["schemas"]["ListSecretKeysCommand"]
         | components["schemas"]["RefreshSecretsCommand"]
         | components["schemas"]["ClearCacheCommand"]
@@ -4550,6 +4634,8 @@ export interface components {
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
+        | components["schemas"]["StorageEntriesNotification"]
+        | components["schemas"]["StorageDownloadReadyNotification"]
         | components["schemas"]["SecretKeysResultNotification"]
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
@@ -5617,6 +5703,80 @@ export interface components {
       type: "stop-kernel";
     };
     /**
+     * StorageDownloadCommand
+     * @description Download a storage entry.
+     *
+     *         Downloads file bytes from storage and creates a virtual file
+     *         so the frontend can fetch the contents.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             namespace: Variable name identifying the storage backend.
+     *             path: Full path of the entry to download.
+     */
+    StorageDownloadCommand: {
+      namespace: string;
+      path: string;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "storage-download";
+    };
+    /**
+     * StorageDownloadReadyNotification
+     * @description Signals that a storage file download is ready as a virtual file.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             url: Virtual file URL to download from.
+     *             filename: Suggested filename for the download.
+     *             error: Error message if the download failed.
+     */
+    StorageDownloadReadyNotification: {
+      /** @default null */
+      error?: string | null;
+      /** @default null */
+      filename?: string | null;
+      /** @enum {unknown} */
+      op: "storage-download-ready";
+      request_id: string;
+      /** @default null */
+      url?: string | null;
+    };
+    /** StorageDownloadRequest */
+    StorageDownloadRequest: {
+      namespace: string;
+      path: string;
+      requestId: string;
+    };
+    /**
+     * StorageEntriesNotification
+     * @description Result of a storage operation that returns entries.
+     *
+     *         Used by list_entries, search, and get_entry. The context fields
+     *         (prefix, query) indicate which operation produced the result.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             entries: Storage entries returned by the operation.
+     *             namespace: Variable name of the storage backend.
+     *             prefix: The prefix that was listed (set by list_entries).
+     *             query: The search query that was used (set by search).
+     *             error: Error message if the operation failed.
+     */
+    StorageEntriesNotification: {
+      entries: components["schemas"]["StorageEntry"][];
+      /** @default null */
+      error?: string | null;
+      namespace: string;
+      /** @enum {unknown} */
+      op: "storage-entries";
+      /** @default null */
+      prefix?: string | null;
+      /** @default null */
+      query?: string | null;
+      request_id: string;
+    };
+    /**
      * StorageEntry
      * @description A storage entry is a file, directory, or object for external storage systems
      *
@@ -5637,6 +5797,36 @@ export interface components {
       size: number;
     };
     /**
+     * StorageListEntriesCommand
+     * @description List storage entries at a prefix.
+     *
+     *         Navigates storage like a folder tree using delimiter-based listing.
+     *         Returns entries (files/objects) and virtual directories at one level.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             namespace: Variable name identifying the storage backend.
+     *             limit: Max entries to return.
+     *             prefix: Path prefix to list (None = root).
+     */
+    StorageListEntriesCommand: {
+      limit: number;
+      namespace: string;
+      /** @default null */
+      prefix?: string | null;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "storage-list-entries";
+    };
+    /** StorageListEntriesRequest */
+    StorageListEntriesRequest: {
+      limit: number;
+      namespace: string;
+      /** @default null */
+      prefix?: string | null;
+      requestId: string;
+    };
+    /**
      * StorageNamespace
      * @description Represents external storage systems (filesystems and object storage)
      *
@@ -5649,7 +5839,7 @@ export interface components {
      */
     StorageNamespace: {
       displayName: string;
-      name: string | null;
+      name: string;
       protocol: string;
       rootPath: string;
       storageEntries: components["schemas"]["StorageEntry"][];

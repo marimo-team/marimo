@@ -2341,6 +2341,8 @@ components:
           - $ref: '#/components/schemas/ListSQLTablesCommand'
           - $ref: '#/components/schemas/ValidateSQLCommand'
           - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
+          - $ref: '#/components/schemas/StorageListEntriesCommand'
+          - $ref: '#/components/schemas/StorageDownloadCommand'
           - $ref: '#/components/schemas/ListSecretKeysCommand'
           - $ref: '#/components/schemas/RefreshSecretsCommand'
           - $ref: '#/components/schemas/ClearCacheCommand'
@@ -2368,6 +2370,8 @@ components:
               refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
               rename-notebook: '#/components/schemas/RenameNotebookCommand'
               stop-kernel: '#/components/schemas/StopKernelCommand'
+              storage-download: '#/components/schemas/StorageDownloadCommand'
+              storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
               sync-graph: '#/components/schemas/SyncGraphCommand'
               update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
               update-ui-element: '#/components/schemas/UpdateUIElementCommand'
@@ -2447,6 +2451,8 @@ components:
           - $ref: '#/components/schemas/DataSourceConnectionsNotification'
           - $ref: '#/components/schemas/ValidateSQLResultNotification'
           - $ref: '#/components/schemas/StorageNamespacesNotification'
+          - $ref: '#/components/schemas/StorageEntriesNotification'
+          - $ref: '#/components/schemas/StorageDownloadReadyNotification'
           - $ref: '#/components/schemas/SecretKeysResultNotification'
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
@@ -2485,6 +2491,8 @@ components:
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
+              storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
+              storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
               update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
               update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
@@ -4246,6 +4254,118 @@ components:
       - type
       title: StopKernelCommand
       type: object
+    StorageDownloadCommand:
+      description: "Download a storage entry.\n\n    Downloads file bytes from storage\
+        \ and creates a virtual file\n    so the frontend can fetch the contents.\n\
+        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
+        \        namespace: Variable name identifying the storage backend.\n     \
+        \   path: Full path of the entry to download."
+      properties:
+        namespace:
+          type: string
+        path:
+          type: string
+        requestId:
+          type: string
+        type:
+          enum:
+          - storage-download
+      required:
+      - type
+      - requestId
+      - namespace
+      - path
+      title: StorageDownloadCommand
+      type: object
+    StorageDownloadReadyNotification:
+      description: "Signals that a storage file download is ready as a virtual file.\n\
+        \n    Attributes:\n        request_id: Request ID this responds to.\n    \
+        \    url: Virtual file URL to download from.\n        filename: Suggested\
+        \ filename for the download.\n        error: Error message if the download\
+        \ failed."
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        filename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        op:
+          enum:
+          - storage-download-ready
+        request_id:
+          type: string
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required:
+      - op
+      - request_id
+      title: StorageDownloadReadyNotification
+      type: object
+    StorageDownloadRequest:
+      properties:
+        namespace:
+          type: string
+        path:
+          type: string
+        requestId:
+          type: string
+      required:
+      - requestId
+      - namespace
+      - path
+      title: StorageDownloadRequest
+      type: object
+    StorageEntriesNotification:
+      description: "Result of a storage operation that returns entries.\n\n    Used\
+        \ by list_entries, search, and get_entry. The context fields\n    (prefix,\
+        \ query) indicate which operation produced the result.\n\n    Attributes:\n\
+        \        request_id: Request ID this responds to.\n        entries: Storage\
+        \ entries returned by the operation.\n        namespace: Variable name of\
+        \ the storage backend.\n        prefix: The prefix that was listed (set by\
+        \ list_entries).\n        query: The search query that was used (set by search).\n\
+        \        error: Error message if the operation failed."
+      properties:
+        entries:
+          items:
+            $ref: '#/components/schemas/StorageEntry'
+          type: array
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        namespace:
+          type: string
+        op:
+          enum:
+          - storage-entries
+        prefix:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        query:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        request_id:
+          type: string
+      required:
+      - op
+      - request_id
+      - entries
+      - namespace
+      title: StorageEntriesNotification
+      type: object
     StorageEntry:
       description: "A storage entry is a file, directory, or object for external storage\
         \ systems\n\n    Attributes:\n        path: The path of the storage entry.\n\
@@ -4276,6 +4396,54 @@ components:
       - lastModified
       title: StorageEntry
       type: object
+    StorageListEntriesCommand:
+      description: "List storage entries at a prefix.\n\n    Navigates storage like\
+        \ a folder tree using delimiter-based listing.\n    Returns entries (files/objects)\
+        \ and virtual directories at one level.\n\n    Attributes:\n        request_id:\
+        \ Unique identifier for this request.\n        namespace: Variable name identifying\
+        \ the storage backend.\n        limit: Max entries to return.\n        prefix:\
+        \ Path prefix to list (None = root)."
+      properties:
+        limit:
+          type: integer
+        namespace:
+          type: string
+        prefix:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        requestId:
+          type: string
+        type:
+          enum:
+          - storage-list-entries
+      required:
+      - type
+      - requestId
+      - namespace
+      - limit
+      title: StorageListEntriesCommand
+      type: object
+    StorageListEntriesRequest:
+      properties:
+        limit:
+          type: integer
+        namespace:
+          type: string
+        prefix:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        requestId:
+          type: string
+      required:
+      - requestId
+      - namespace
+      - limit
+      title: StorageListEntriesRequest
+      type: object
     StorageNamespace:
       description: "Represents external storage systems (filesystems and object storage)\n\
         \n    Attributes:\n        name: The variable name of the storage namespace.\n\
@@ -4287,9 +4455,7 @@ components:
         displayName:
           type: string
         name:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
         protocol:
           type: string
         rootPath:
@@ -4938,7 +5104,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.10
+  version: 0.19.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5379,6 +5545,46 @@ paths:
           description: Update the cell outputs
         400:
           description: File must be saved before downloading
+  /api/external-storage/download:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageDownloadRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Download a storage entry
+  /api/external-storage/list_entries:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageListEntriesRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: List storage entries at a prefix
   /api/files/create:
     post:
       requestBody:
@@ -6311,3 +6517,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
