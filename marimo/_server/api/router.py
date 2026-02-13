@@ -16,9 +16,6 @@ from marimo._server.api.endpoints.documentation import (
 from marimo._server.api.endpoints.editing import router as editing_router
 from marimo._server.api.endpoints.execution import router as execution_router
 from marimo._server.api.endpoints.export import router as export_router
-from marimo._server.api.endpoints.external_storage import (
-    router as external_storage_router,
-)
 from marimo._server.api.endpoints.file_explorer import (
     router as file_explorer_router,
 )
@@ -31,6 +28,7 @@ from marimo._server.api.endpoints.mpl import router as mpl_router
 from marimo._server.api.endpoints.packages import router as packages_router
 from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.sql import router as sql_router
+from marimo._server.api.endpoints.storage import router as storage_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws_endpoint import router as ws_router
 from marimo._server.router import APIRouter
@@ -67,9 +65,7 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     )
     app_router.include_router(sql_router, prefix="/api/sql", name="sql")
     app_router.include_router(
-        external_storage_router,
-        prefix="/api/external-storage",
-        name="external-storage",
+        storage_router, prefix="/api/storage", name="storage"
     )
     app_router.include_router(ai_router, prefix="/api/ai", name="ai")
     app_router.include_router(home_router, prefix="/api/home", name="home")
