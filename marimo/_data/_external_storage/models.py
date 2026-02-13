@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
 import msgspec
@@ -52,6 +53,22 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
 
 DEFAULT_FETCH_LIMIT = 100
 
+
+@dataclass
+class DownloadResult:
+    """Result of downloading a file from external storage.
+
+    Attributes:
+        file_bytes: The raw bytes of the downloaded file.
+        filename: The suggested filename extracted from the path.
+        ext: The file extension (without dot), or "bin" if none.
+    """
+
+    file_bytes: bytes
+    filename: str
+    ext: str
+
+
 Backend = TypeVar("Backend")
 
 
@@ -81,6 +98,22 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     @abc.abstractmethod
     async def download(self, path: str) -> bytes:
         """Download the file at the given path."""
+
+    async def download_file(self, path: str) -> DownloadResult:
+        """Download the file at the given path with extracted metadata.
+
+        Calls download() and extracts the filename and extension from the path.
+        Subclasses can override this to customize filename extraction
+        (e.g., using content-disposition headers).
+        """
+        file_bytes = await self.download(path)
+        filename = path.rsplit("/", 1)[-1] or "download"
+        ext = filename.rsplit(".", 1)[-1] if "." in filename else "bin"
+        return DownloadResult(
+            file_bytes=file_bytes,
+            filename=filename,
+            ext=ext,
+        )
 
     @property
     @abc.abstractmethod
