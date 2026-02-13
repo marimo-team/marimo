@@ -620,9 +620,9 @@ class PyTorchFormatter(FormatterFactory):
     def register(self) -> None:
         import torch.nn  # type: ignore[import-not-found,import-untyped,unused-ignore]  # noqa: E501
 
+        from marimo._messaging.mimetypes import KnownMimeType
         from marimo._output import formatting
         from marimo._output.formatters.pytorch_formatters import format as fmt
-        from marimo._messaging.mimetypes import KnownMimeType
 
         @formatting.formatter(torch.nn.Module)
         def _format_module(
