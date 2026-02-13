@@ -670,6 +670,42 @@ class ValidateSQLCommand(Command):
     dialect: Optional[str] = None
 
 
+class StorageListEntriesCommand(Command):
+    """List storage entries at a prefix.
+
+    Navigates storage like a folder tree using delimiter-based listing.
+    Returns entries (files/objects) and virtual directories at one level.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+        namespace: Variable name identifying the storage backend.
+        limit: Max entries to return.
+        prefix: Path prefix to list (None = root).
+    """
+
+    request_id: RequestId
+    namespace: str
+    limit: int
+    prefix: Optional[str] = None
+
+
+class StorageDownloadCommand(Command):
+    """Download a storage entry.
+
+    Downloads file bytes from storage and creates a virtual file
+    so the frontend can fetch the contents.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+        namespace: Variable name identifying the storage backend.
+        path: Full path of the entry to download.
+    """
+
+    request_id: RequestId
+    namespace: str
+    path: str
+
+
 class ListSecretKeysCommand(Command):
     """List available secret keys.
 
@@ -812,6 +848,9 @@ CommandMessage = Union[
     ListSQLTablesCommand,
     ValidateSQLCommand,
     ListDataSourceConnectionCommand,
+    # Storage operations
+    StorageListEntriesCommand,
+    StorageDownloadCommand,
     # Secrets management
     ListSecretKeysCommand,
     RefreshSecretsCommand,
