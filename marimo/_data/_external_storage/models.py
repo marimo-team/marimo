@@ -106,7 +106,8 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         """
         file_bytes = await self.download(path)
         filename = path.rsplit("/", 1)[-1] or "download"
-        ext = filename.rsplit(".", 1)[-1] if "." in filename else "bin"
+        _, sep, suffix = filename.rpartition(".")
+        ext = suffix if sep and suffix else "bin"
         return DownloadResult(
             file_bytes=file_bytes,
             filename=filename,
