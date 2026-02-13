@@ -3234,6 +3234,7 @@ def launch_kernel(
     # Create hooks with mode-specific configuration
     from marimo._runtime.runner.hooks_post_execution import (
         attempt_pytest,
+        broadcast_storage_backends,
         render_toplevel_defs,
     )
 
@@ -3242,6 +3243,8 @@ def launch_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
+    if user_config.get("experimental", {}).get("storage_inspector", False):
+        hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(
         cell_configs=configs,

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id
 from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
-from marimo._plugins.utils import remove_none_values
+from marimo._utils.dicts import remove_none_values
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator

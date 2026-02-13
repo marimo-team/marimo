@@ -6,6 +6,10 @@ import sys
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._ast.toplevel import TopLevelExtraction
+from marimo._data._external_storage.get_storage import (
+    get_storage_backends_from_variables,
+    storage_backend_to_storage_namespace,
+)
 from marimo._data.get_datasets import (
     get_datasets_from_variables,
     has_updates_to_datasource,
@@ -21,6 +25,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    StorageNamespacesNotification,
     VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
@@ -218,6 +223,38 @@ def _broadcast_duckdb_datasource(
         )
     except Exception:
         return
+
+
+@kernel_tracer.start_as_current_span("broadcast_storage_backends")
+def broadcast_storage_backends(
+    cell: CellImpl,
+    ctx: PostExecutionHookContext,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+
+    if not ctx.should_broadcast_data:
+        return
+
+    try:
+        storage_backends = get_storage_backends_from_variables(
+            [
+                (VariableName(variable), ctx.glbls[variable])
+                for variable in cell.defs
+                if variable in ctx.glbls
+            ]
+        )
+        if storage_backends:
+            LOGGER.debug("Broadcasting storage namespaces")
+            namespaces = [
+                storage_backend_to_storage_namespace(storage_backend)
+                for _, storage_backend in storage_backends
+            ]
+            broadcast_notification(
+                StorageNamespacesNotification(namespaces=namespaces)
+            )
+    except Exception:
+        LOGGER.debug("Error getting storage backends", exc_info=True)
 
 
 @kernel_tracer.start_as_current_span("store_reference_to_output")

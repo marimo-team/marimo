@@ -17,6 +17,7 @@ import msgspec
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._data._external_storage.models import StorageNamespace
 from marimo._data.models import (
     ColumnStats,
     DataSourceConnection,
@@ -577,6 +578,17 @@ class DataSourceConnectionsNotification(
     connections: list[DataSourceConnection]
 
 
+class StorageNamespacesNotification(Notification, tag="storage-namespaces"):
+    """Available storage namespaces for storage inspector.
+
+    Attributes:
+        namespaces: Available storage namespaces.
+    """
+
+    name: ClassVar[str] = "storage-namespaces"
+    namespaces: list[StorageNamespace]
+
+
 class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
     """SQL query validation result.
 
@@ -756,6 +768,8 @@ NotificationMessage = Union[
     SQLTableListPreviewNotification,
     DataSourceConnectionsNotification,
     ValidateSQLResultNotification,
+    # Storage
+    StorageNamespacesNotification,
     # Secrets
     SecretKeysResultNotification,
     # Cache

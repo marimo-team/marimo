@@ -26,6 +26,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
     import marimo._config.config as config
+    import marimo._data._external_storage.models as storage
     import marimo._data.models as data
     import marimo._messaging.errors as errors
     import marimo._messaging.notification as notifications
@@ -90,6 +91,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Storage
+        storage.StorageEntry,
+        storage.StorageNamespace,
         # Secrets
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
@@ -118,6 +122,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.SQLTablePreviewNotification,
         notifications.SQLTableListPreviewNotification,
         notifications.DataSourceConnectionsNotification,
+        notifications.StorageNamespacesNotification,
         notifications.SecretKeysResultNotification,
         notifications.CacheClearedNotification,
         notifications.CacheInfoNotification,

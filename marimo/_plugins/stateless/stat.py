@@ -8,7 +8,7 @@ from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
-from marimo._plugins.utils import remove_none_values
+from marimo._utils.dicts import remove_none_values
 
 Logger = marimo_logger()
 

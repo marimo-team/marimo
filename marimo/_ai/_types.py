@@ -19,7 +19,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.utils import remove_none_values
+from marimo._utils.dicts import remove_none_values
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
