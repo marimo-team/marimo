@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -379,6 +380,73 @@ class TestExternalStorageCallbacks:
                 namespace=STORAGE_VAR,
                 prefix=None,
                 error="Failed to list entries: connection timeout",
+            )
+        ]
+
+    async def test_list_entries_runs_in_background_thread(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """list_entries dispatches to a thread via asyncio.to_thread."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        real_backend = Obstore(store, VariableName(STORAGE_VAR))
+
+        call_thread_name: str | None = None
+        original_list = real_backend.list_entries
+
+        def spy_list_entries(
+            prefix: str | None, *, limit: int = 100
+        ) -> list[StorageEntry]:
+            nonlocal call_thread_name
+            call_thread_name = threading.current_thread().name
+            return original_list(prefix, limit=limit)
+
+        real_backend.list_entries = spy_list_entries  # type: ignore[method-assign]
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                k.external_storage_callbacks,
+                "_get_storage_backend",
+                lambda _: (real_backend, None),
+            )
+            request = StorageListEntriesCommand(
+                request_id=RequestId("req-14"),
+                namespace=STORAGE_VAR,
+                limit=100,
+                prefix=None,
+            )
+            await k.handle_message(request)
+
+        # asyncio.to_thread runs the callable in a worker thread,
+        # not the main thread
+        assert call_thread_name is not None
+        assert call_thread_name != threading.main_thread().name
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageEntriesNotification)
+        ]
+        assert results == [
+            StorageEntriesNotification(
+                request_id=RequestId("req-14"),
+                entries=[],
+                namespace=STORAGE_VAR,
+                prefix=None,
             )
         ]
 
