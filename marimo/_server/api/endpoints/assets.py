@@ -283,6 +283,7 @@ async def index(request: Request) -> HTMLResponse:
             if app_state.remote_url
             else None,
             asset_url=app_state.asset_url,
+            html_head=app_state.html_head,
         )
 
         # Inject service worker registration with the notebook ID

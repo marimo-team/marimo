@@ -295,6 +295,7 @@ def create_asgi_app(
     session_ttl: Optional[int] = None,
     asset_url: Optional[str] = None,
     redirect_console_to_browser: bool = False,
+    html_head: Optional[str] = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -311,6 +312,10 @@ def create_asgi_app(
             e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
         redirect_console_to_browser (bool, optional): Whether to redirect console output (stdout/stderr) to the browser.
             When True, console output will be displayed in the browser. Defaults to False.
+        html_head (str, optional): Custom HTML string to inject into the <head> of every notebook page.
+            This is useful for adding global analytics scripts, custom stylesheets, meta tags, etc.
+            When a notebook also has its own `html_head_file` config, the global `html_head` is injected first,
+            followed by the per-notebook content.
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -491,6 +496,7 @@ def create_asgi_app(
             app.state.asset_url = asset_url
             app.state.config_manager = config_reader
             app.state.enable_auth = enable_auth
+            app.state.html_head = html_head
             return app
 
         def build(self) -> ASGIApp:
