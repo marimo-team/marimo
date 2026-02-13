@@ -5543,46 +5543,6 @@ paths:
           description: Update the cell outputs
         400:
           description: File must be saved before downloading
-  /api/external-storage/download:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StorageDownloadRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Download a storage entry
-  /api/external-storage/list_entries:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StorageListEntriesRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: List storage entries at a prefix
   /api/files/create:
     post:
       requestBody:
@@ -6396,6 +6356,46 @@ paths:
                     type: integer
                 type: object
           description: Get the number of active websocket connections
+  /api/storage/download:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageDownloadRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Download a storage entry
+  /api/storage/list_entries:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageListEntriesRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: List storage entries at a prefix
   /api/usage:
     get:
       responses:
@@ -6515,3 +6515,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
