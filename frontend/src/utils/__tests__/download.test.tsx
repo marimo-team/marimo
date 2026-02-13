@@ -113,6 +113,36 @@ describe("withLoadingToast", () => {
     );
   });
 
+  it("should show a finish toast when finishTitle is provided", async () => {
+    await withLoadingToast(
+      "Uploading files...",
+      async () => "done",
+      "Upload complete",
+    );
+
+    expect(toast).toHaveBeenCalledTimes(2);
+    expect(toast).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        title: "Upload complete",
+      }),
+    );
+  });
+
+  it("should not show a finish toast when the operation fails", async () => {
+    await expect(
+      withLoadingToast(
+        "Uploading files...",
+        async () => {
+          throw new Error("Upload failed");
+        },
+        "Upload complete",
+      ),
+    ).rejects.toThrow("Upload failed");
+
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
+
   it("should wait for the async function to complete", async () => {
     const events: string[] = [];
 

@@ -20,6 +20,7 @@ import { ToastProgress } from "./toast-progress";
 export async function withLoadingToast<T>(
   title: string,
   fn: (progress: ProgressState) => Promise<T>,
+  finishTitle?: string,
 ): Promise<T> {
   const progress = ProgressState.indeterminate();
   const loadingToast = toast({
@@ -30,6 +31,9 @@ export async function withLoadingToast<T>(
   try {
     const result = await fn(progress);
     loadingToast.dismiss();
+    if (finishTitle) {
+      toast({ title: finishTitle });
+    }
     return result;
   } catch (error) {
     loadingToast.dismiss();
