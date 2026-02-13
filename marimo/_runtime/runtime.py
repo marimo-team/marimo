@@ -2665,7 +2665,7 @@ class ExternalStorageCallbacks:
     ) -> tuple[StorageBackend[Any] | None, str | None]:
         """Look up a storage backend by variable name from kernel globals.
 
-        Returns (backend, error). If error is not None, backend is None.
+        Returns (backend, error). If there is error, backend is None.
         """
         from marimo._data._external_storage.get_storage import STORAGE_BACKENDS
 
