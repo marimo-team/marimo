@@ -70,6 +70,9 @@ const LazySecretsPanel = React.lazy(() => import("../panels/secrets-panel"));
 const LazySnippetsPanel = React.lazy(() => import("../panels/snippets-panel"));
 const LazyTracingPanel = React.lazy(() => import("../panels/tracing-panel"));
 const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
+const LazyServerLogsPanel = React.lazy(
+  () => import("../panels/server-logs-panel"),
+);
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const {
@@ -279,6 +282,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       />
     ),
     cache: <LazyCachePanel />,
+    "server-logs": <LazyServerLogsPanel />,
   };
 
   const helpPaneBody = (
