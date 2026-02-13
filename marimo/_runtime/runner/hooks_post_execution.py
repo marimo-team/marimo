@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import traceback as tb
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -32,7 +33,11 @@ from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
 )
-from marimo._messaging.tracebacks import write_traceback
+from marimo._messaging.tracebacks import (
+    _highlight_traceback,
+    _trim_traceback,
+    write_traceback,
+)
 from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -407,12 +412,32 @@ def _broadcast_outputs(
         msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
+
+        # Include formatted traceback if enabled in config
+        formatted_traceback = None
+        show_tracebacks = False
+        if ctx.user_config is not None:
+            show_tracebacks = bool(
+                ctx.user_config["runtime"].get("show_tracebacks", False)
+            )
+
+        if show_tracebacks:
+            if (
+                isinstance(run_result.exception, BaseException)
+                and run_result.exception.__traceback__
+            ):
+                tb_lines = tb.format_exception(run_result.exception)
+                formatted_traceback = _highlight_traceback(
+                    _trim_traceback("".join(tb_lines))
+                )
+
         CellNotificationUtils.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
                     msg=msg,
                     exception_type=exception_type,
                     raising_cell=None,
+                    traceback=formatted_traceback,
                 )
             ],
             clear_console=False,

@@ -1476,6 +1476,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=run_hooks,
+            user_config=self.user_config,
         )
 
         # I/O
@@ -1778,6 +1779,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            user_config=self.user_config,
         )
 
         await runner.run_all()

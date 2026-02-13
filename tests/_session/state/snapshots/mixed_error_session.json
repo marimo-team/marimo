@@ -13,7 +13,7 @@
           "type": "error",
           "ename": "exception",
           "evalue": "Invalid value",
-          "traceback": []
+          "traceback": null
         },
         {
           "type": "error",
