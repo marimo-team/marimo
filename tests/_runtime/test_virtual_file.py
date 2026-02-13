@@ -354,6 +354,47 @@ def test_create_and_register_without_context() -> None:
     assert vfile.url.startswith("data:")
 
 
+def test_create_and_register_empty_buffer_uses_data_url(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    ctx = get_context()
+    registry_size_before = len(ctx.virtual_file_registry.registry)
+
+    vfile = VirtualFile.create_and_register(b"", "csv")
+
+    assert vfile.filename.endswith(".csv")
+    # Empty buffer should use a data URL, not a ./@file/ URL,
+    # because empty buffers can't be served via the file registry.
+    assert vfile.url.startswith("data:")
+    assert not vfile.url.startswith("./@file/")
+    # Registry should not have grown
+    assert len(ctx.virtual_file_registry.registry) == registry_size_before
+
+
+def test_create_and_register_empty_buffer_without_context() -> None:
+    # No kernel context — empty buffer should still produce a data URL
+    vfile = VirtualFile.create_and_register(b"", "bin")
+
+    assert vfile.filename.endswith(".bin")
+    assert vfile.url.startswith("data:")
+
+
+def test_create_and_register_virtual_files_not_supported(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    ctx = get_context()
+    ctx.virtual_files_supported = False
+    try:
+        vfile = VirtualFile.create_and_register(b"some data", "txt")
+
+        assert vfile.filename.endswith(".txt")
+        # Should fall back to data URL when virtual files aren't supported
+        assert vfile.url.startswith("data:")
+        assert len(ctx.virtual_file_registry.registry) == 0
+    finally:
+        ctx.virtual_files_supported = True
+
+
 def test_create_and_register_preserves_extension(
     run_mode_kernel: MockedKernel,  # noqa: ARG001
 ) -> None:
