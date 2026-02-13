@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from marimo._cli.file_path import (
+from marimo._cli.files.file_path import (
     FileContentReader,
     GenericURLReader,
     GistSourceReader,
@@ -574,7 +574,7 @@ class TestStaticNotebooks:
     PYTHON_CODE = "import marimo as mo"
 
     @patch("marimo._utils.requests.get")
-    @patch("marimo._cli.file_path.Path.read_text")
+    @patch("marimo._cli.files.file_path.Path.read_text")
     def test_static_notebook_reader(self, mock_read_text, mock_get):
         reader = StaticNotebookReader()
         default_filename = reader.DEFAULT_FILENAME
@@ -615,7 +615,9 @@ class TestStaticNotebooks:
         assert filename == default_filename
 
     def test_validate_local_static_notebook(self, tmp_path):
-        with patch("marimo._cli.file_path.Path.read_text") as mock_read_text:
+        with patch(
+            "marimo._cli.files.file_path.Path.read_text"
+        ) as mock_read_text:
             mock_read_text.return_value = self.VALID_HTML_CONTENT_WITH_FILENAME
             html_file = tmp_path / "notebook.html"
             html_file.touch()
@@ -629,7 +631,7 @@ class TestStaticNotebooks:
         assert Path(path).read_text() == self.PYTHON_CODE
         temp_dir_obj.cleanup()
 
-    @patch("marimo._cli.file_path.Path.read_text")
+    @patch("marimo._cli.files.file_path.Path.read_text")
     def test_validate_local_html_not_notebook(self, mock_read_text, tmp_path):
         mock_read_text.return_value = self.INVALID_HTML_CONTENT
         html_file = tmp_path / "notebook.html"

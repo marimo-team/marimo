@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from marimo import _loggers
-from marimo._cli.file_path import FileContentReader
+from marimo._cli.files.file_path import FileContentReader
 from marimo._utils.paths import normalize_path
 from marimo._utils.scripts import read_pyproject_from_script
 
