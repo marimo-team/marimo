@@ -10,7 +10,7 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
 
 if typing.TYPE_CHECKING:
-    import torch
+    import torch  # type: ignore[import-not-found]
 
 ModuleCategory = typing.Literal["weight", "act", "norm", "reg"]
 
@@ -622,9 +622,10 @@ class PyTorchFormatter(FormatterFactory):
 
         from marimo._output import formatting
         from marimo._output.formatters.pytorch_formatters import format as fmt
+        from marimo._messaging.mimetypes import KnownMimeType
 
         @formatting.formatter(torch.nn.Module)
         def _format_module(
             module: torch.nn.Module,
-        ) -> tuple[str, str]:
+        ) -> tuple[KnownMimeType, str]:
             return ("text/html", fmt(module).text)
