@@ -477,6 +477,7 @@ export const MarimoErrorOutput = ({
               );
             }
 
+            // All other exceptions
             return (
               <li className="my-2" key={`exception-${idx}`}>
                 {error.raising_cell == null ? (
@@ -491,7 +492,7 @@ export const MarimoErrorOutput = ({
                 ) : (
                   <div>
                     {processTextForUrls(error.msg, `exception-${idx}`)}
-                    <CellLinkError cellId={error.raising_cell as CellId} />
+                    <CellLinkError cellId={error.raising_cell} />
                   </div>
                 )}
               </li>

@@ -2883,6 +2883,11 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        traceback:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         type:
           enum:
           - exception
@@ -3746,7 +3751,11 @@ components:
         \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
         \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
         \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
-        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`."
+        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`.\n\
+        \    - `show_error_tracebacks`: if `True`, show detailed error tracebacks\
+        \ in run mode.\n        When enabled, exceptions will display a clickable\
+        \ toast that opens a modal with the full traceback.\n        The default is\
+        \ `True`."
       properties:
         auto_instantiate:
           type: boolean
@@ -3786,6 +3795,8 @@ components:
             type: string
           type: array
         reactive_tests:
+          type: boolean
+        show_error_tracebacks:
           type: boolean
         std_stream_max_bytes:
           type: integer
@@ -4938,7 +4949,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.10
+  version: 0.19.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -6311,3 +6322,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

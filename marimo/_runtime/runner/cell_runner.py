@@ -135,6 +135,7 @@ class Runner:
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
+        user_config: dict[str, Any] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -144,6 +145,7 @@ class Runner:
         )
         self.execution_context = execution_context
         self._hooks = hooks
+        self.user_config = user_config
 
         # runtime globals
         self.glbls = glbls
@@ -701,6 +703,7 @@ class Runner:
             cancelled_cells=self.cancelled_cells,
             all_temporaries=all_temporaries,
             should_broadcast_data=_should_broadcast_data(),
+            user_config=self.user_config,
         )
 
         while self.pending():

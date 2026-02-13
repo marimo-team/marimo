@@ -3622,6 +3622,29 @@ class TestErrorHandling:
         assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
 
+    async def test_error_handling_in_run_mode_with_show_tracebacks(
+        self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """When show_error_tracebacks is enabled, exceptions should not be
+        sanitized and should include a formatted traceback."""
+        import copy
+
+        k = run_mode_kernel.k
+        k.user_config = copy.deepcopy(k.user_config)
+        k.user_config["runtime"]["show_error_tracebacks"] = True
+        await k.run([exec_req.get("raise ValueError('some secret error')")])
+        cell_notifications = run_mode_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].msg == "some secret error"
+        assert errors[0].exception_type == "ValueError"
+        assert errors[0].traceback is not None
+        assert "ValueError" in errors[0].traceback
+
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
