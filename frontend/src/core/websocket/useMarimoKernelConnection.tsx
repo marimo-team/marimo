@@ -285,6 +285,8 @@ export function useMarimoKernelConnection(opts: {
         });
         return;
       case "storage-namespaces":
+      case "storage-entries":
+      case "storage-download-ready":
         // TODO: Handle storage namespaces
         return;
 
