@@ -79,6 +79,30 @@ class VirtualFile:
             url=url,
         )
 
+    @staticmethod
+    def create_and_register(buffer: bytes, ext: str) -> VirtualFile:
+        """Create a virtual file and register it in the current context.
+
+        Falls back to a data URL if no runtime context is available.
+        """
+        from marimo._runtime.context import get_context
+
+        # Note: We currently don't check for unique file names like in VirtualFileLifecycleItem.create
+        vfile_name = random_filename(ext)
+        vfile = VirtualFile(filename=vfile_name, buffer=buffer)
+
+        try:
+            ctx = get_context()
+            ctx.virtual_file_registry.add(vfile, ctx)
+        except ContextNotInitializedError:
+            vfile = VirtualFile(
+                filename=vfile_name,
+                buffer=buffer,
+                as_data_url=True,
+            )
+
+        return vfile
+
 
 EMPTY_VIRTUAL_FILE = VirtualFile(
     filename="empty.txt",
