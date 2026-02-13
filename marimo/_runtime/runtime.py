@@ -35,7 +35,7 @@ from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._data._external_storage.models import StorageBackend
+from marimo._data._external_storage.models import StorageBackend, StorageEntry
 from marimo._data.preview_column import (
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -2699,10 +2699,14 @@ class ExternalStorageCallbacks:
             )
             return
 
-        try:
-            entries = backend.list_entries(
+        # list_entries is synchronous, so we wrap it in asyncio.to_thread
+        def list_entries() -> list[StorageEntry]:
+            return backend.list_entries(
                 prefix=request.prefix, limit=request.limit
             )
+
+        try:
+            entries = await asyncio.to_thread(list_entries)
             broadcast_notification(
                 StorageEntriesNotification(
                     request_id=request.request_id,
