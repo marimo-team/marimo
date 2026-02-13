@@ -3,7 +3,8 @@
 Generate screenshot-based thumbnail images for notebooks, used by [OpenGraph previews](opengraph.md) and cards in [gallery mode](../apps.md#gallery-mode).
 
 ```bash
-marimo export thumbnail generate notebook.py
+marimo export thumbnail notebook.py
+```
 
 ## Output location
 
@@ -31,13 +32,13 @@ This is the default OpenGraph thumbnail path used by [OpenGraph previews](opengr
 You can generate a thumbnail for a single notebook:
 
 ```bash
-marimo tools thumbnails generate notebook.py
+marimo export thumbnail notebook.py
 ```
 
 Or generate thumbnails for all notebooks in a directory:
 
 ```bash
-marimo tools thumbnails generate folder/
+marimo export thumbnail folder/
 ```
 
 When you pass a directory, marimo scans it for marimo notebooks and skips non-notebook files (for example `README.md`).
@@ -49,19 +50,19 @@ By default, thumbnails are generated without executing the notebook (fast; no ou
 === "No execution (default)"
 
     ```bash
-    marimo tools thumbnails generate notebook.py
+    marimo export thumbnail notebook.py
     ```
 
 === "Execute notebook"
 
     ```bash
-    marimo tools thumbnails generate notebook.py --execute
+    marimo export thumbnail --execute notebook.py 
     ```
 
 === "Execute in a sandbox"
 
     ```bash
-    marimo tools thumbnails generate notebook.py --execute --sandbox
+    marimo export thumbnail --execute --sandbox notebook.py 
     ```
 
     !!! note "Requires uv"
@@ -81,13 +82,13 @@ By default, thumbnails are generated without executing the notebook (fast; no ou
 If a thumbnail already exists, marimo will skip it by default. To replace existing thumbnails:
 
 ```bash
-marimo tools thumbnails generate notebook.py --overwrite
+marimo export thumbnail --overwrite notebook.py
 ```
 
 To write a thumbnail to a specific filename, use `--output` (single notebook only):
 
 ```bash
-marimo tools thumbnails generate notebook.py --output thumbnail.png
+marimo export thumbnail --output thumbnail.png notebook.py
 ```
 
 ## Tuning quality
@@ -97,13 +98,13 @@ For OpenGraph previews, the default viewport size is 1200x630. marimo also uses 
 To increase output resolution, increase `--scale` (max 4):
 
 ```bash
-marimo tools thumbnails generate notebook.py --scale 3
+marimo export thumbnail --scale 3 notebook.py
 ```
 
 If thumbnails appear blank or partially rendered, increase `--timeout-ms` to wait longer before the screenshot:
 
 ```bash
-marimo tools thumbnails generate notebook.py --timeout-ms 3000
+marimo export thumbnail --timeout-ms 3000 notebook.py
 ```
 
 ## Passing arguments to notebooks
@@ -111,7 +112,7 @@ marimo tools thumbnails generate notebook.py --timeout-ms 3000
 To pass CLI args through to the notebook, separate them with `--`:
 
 ```bash
-marimo tools thumbnails generate notebook.py -- --foo 123
+marimo export thumbnail notebook.py -- --foo 123
 ```
 
 For more on passing values to notebooks, see [Command Line Arguments](../../api/cli_args.md).

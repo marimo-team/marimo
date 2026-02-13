@@ -46,8 +46,8 @@ __marimo__/assets/<notebook_stem>/opengraph.png
 To generate these thumbnails, use:
 
 ```bash
-marimo tools thumbnails generate notebook.py
-marimo tools thumbnails generate folder/
+marimo export thumbnail notebook.py
+marimo export thumbnail folder/
 ```
 
 For execution and sandbox options (and for Playwright installation instructions), see [Thumbnails](thumbnails.md).
