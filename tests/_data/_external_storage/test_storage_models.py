@@ -239,6 +239,25 @@ class TestObstore:
             ext="gz",
         )
 
+    async def test_download_file_trailing_dot(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"data")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("bucket/file.")
+
+        assert result == DownloadResult(
+            file_bytes=b"data",
+            filename="file.",
+            ext="bin",
+        )
+
     def test_protocol_memory(self) -> None:
         from obstore.store import MemoryStore
 
