@@ -45,12 +45,13 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
         return;
       }
       const isSingle = acceptedFiles.length === 1;
-      const loadingTitle = isSingle
-        ? "Uploading file..."
-        : "Uploading files...";
-      const finishTitle = isSingle
-        ? "File uploaded"
-        : `${acceptedFiles.length} files uploaded`;
+
+      const loadingTitle = isSingle ? "Uploading file..." : "Uploading files...";
+      const onFinish = {
+        title: isSingle
+          ? "File uploaded"
+          : `${acceptedFiles.length} files uploaded`,
+      };
 
       await withLoadingToast(
         loadingTitle,
@@ -82,7 +83,7 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
           }
           await refreshRoot();
         },
-        finishTitle,
+        onFinish,
       );
     },
     ...options,
