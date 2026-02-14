@@ -85,6 +85,8 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
             Defaults to ``0.15``.
         stroke_width: Border width for the selection outline in pixels.
             Defaults to ``2``.
+        debounce: If ``True``, the selection is only sent to Python on
+            mouse-up. If ``False`` (the default), it streams while dragging.
         label: Markdown label for the element. Defaults to ``""``.
         on_change: Optional callback invoked when the selection changes.
     """
@@ -99,6 +101,7 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         selection_color: str = "#3b82f6",
         selection_opacity: float = 0.15,
         stroke_width: float = 2,
+        debounce: bool = False,
         label: str = "",
         on_change: Optional[Callable[[MatplotlibSelection], None]] = None,
     ) -> None:
@@ -146,6 +149,7 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
                 "selection-color": selection_color,
                 "selection-opacity": selection_opacity,
                 "stroke-width": stroke_width,
+                "debounce": debounce,
             },
             on_change=on_change,
         )

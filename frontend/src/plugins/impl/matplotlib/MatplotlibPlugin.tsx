@@ -24,6 +24,7 @@ interface Data {
   selectionColor: string;
   selectionOpacity: number;
   strokeWidth: number;
+  debounce: boolean;
 }
 
 interface BoxSelection {
@@ -59,6 +60,7 @@ export class MatplotlibPlugin implements IPlugin<T, Data> {
     selectionColor: z.string(),
     selectionOpacity: z.number(),
     strokeWidth: z.number(),
+    debounce: z.boolean(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -95,6 +97,7 @@ const MatplotlibComponent = memo(
     selectionColor,
     selectionOpacity,
     strokeWidth,
+    debounce,
     value,
     setValue,
   }: MatplotlibComponentProps) => {
@@ -150,8 +153,12 @@ const MatplotlibComponent = memo(
       [axLeft, axTop, axWidth, axHeight, xBounds, yBounds],
     );
 
-    // Load image
+    // Load image — reset state so canvas redraws when the chart changes
     useEffect(() => {
+      setImageLoaded(false);
+      setBoxStart(null);
+      setBoxEnd(null);
+      setLassoPoints([]);
       const img = new Image();
       img.onload = () => {
         imageRef.current = img;
@@ -340,8 +347,13 @@ const MatplotlibComponent = memo(
             const maxY = Math.max(boxStart.y, boxEnd.y);
             dx = Math.max(axLeft - minX, Math.min(axRight - maxX, dx));
             dy = Math.max(axTop - minY, Math.min(axBottom - maxY, dy));
-            setBoxStart({ x: boxStart.x + dx, y: boxStart.y + dy });
-            setBoxEnd({ x: boxEnd.x + dx, y: boxEnd.y + dy });
+            const newStart = { x: boxStart.x + dx, y: boxStart.y + dy };
+            const newEnd = { x: boxEnd.x + dx, y: boxEnd.y + dy };
+            setBoxStart(newStart);
+            setBoxEnd(newEnd);
+            if (!debounce) {
+              emitSelection(mode, newStart, newEnd, lassoPoints);
+            }
           } else if (mode === "lasso") {
             setLassoPoints((prev) => {
               // Clamp delta so no vertex leaves bounds
@@ -357,10 +369,14 @@ const MatplotlibComponent = memo(
                   Math.min(axBottom - p.y, clampedDy),
                 );
               }
-              return prev.map((p) => ({
+              const newPoints = prev.map((p) => ({
                 x: p.x + clampedDx,
                 y: p.y + clampedDy,
               }));
+              if (!debounce) {
+                emitSelection(mode, null, null, newPoints);
+              }
+              return newPoints;
             });
           }
           return;
@@ -370,8 +386,17 @@ const MatplotlibComponent = memo(
           const clamped = clampToAxes(pt);
           if (mode === "box") {
             setBoxEnd(clamped);
+            if (!debounce) {
+              emitSelection(mode, boxStart, clamped, lassoPoints);
+            }
           } else if (mode === "lasso") {
-            setLassoPoints((prev) => [...prev, clamped]);
+            setLassoPoints((prev) => {
+              const newPoints = [...prev, clamped];
+              if (!debounce) {
+                emitSelection(mode, null, null, newPoints);
+              }
+              return newPoints;
+            });
           }
         }
       },
@@ -382,7 +407,10 @@ const MatplotlibComponent = memo(
         mode,
         boxStart,
         boxEnd,
+        lassoPoints,
         clampToAxes,
+        emitSelection,
+        debounce,
         axLeft,
         axTop,
         axRight,
@@ -394,24 +422,28 @@ const MatplotlibComponent = memo(
       if (isDragging) {
         setIsDragging(false);
         dragStartRef.current = null;
-        // Re-emit with updated positions
-        emitSelection(mode, boxStart, boxEnd, lassoPoints);
+        if (debounce) {
+          emitSelection(mode, boxStart, boxEnd, lassoPoints);
+        }
         return;
       }
 
       if (isDrawing) {
         setIsDrawing(false);
         selectionStartRef.current = null;
-        emitSelection(mode, boxStart, boxEnd, lassoPoints);
+        if (debounce) {
+          emitSelection(mode, boxStart, boxEnd, lassoPoints);
+        }
       }
     }, [
       isDragging,
       isDrawing,
+      debounce,
+      emitSelection,
       mode,
       boxStart,
       boxEnd,
       lassoPoints,
-      emitSelection,
     ]);
 
     // Draw on canvas
