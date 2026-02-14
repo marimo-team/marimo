@@ -67,7 +67,7 @@ def _render_figure_mimebundle(
 
     Returns:
         Tuple of (mimetype, data). If `matplotlib.rcParams["savefig.format"]` is 'svg',
-        mimetype is 'text/html' and data is the SVG string. Otherwise, mimetype
+        mimetype is 'image/svg+xml' and data is the SVG string. Otherwise, mimetype
         is 'application/vnd.marimo+mimebundle' and data is a JSON string
         representing a mimebundle containing the PNG data URL and display metadata.
     """
@@ -75,7 +75,7 @@ def _render_figure_mimebundle(
 
     if plt.rcParams["savefig.format"] == "svg":
         fig.figure.savefig(buf, format="svg", bbox_inches="tight")  # type: ignore[attr-defined]
-        return "text/html", buf.getvalue().decode()
+        return "image/svg+xml", buf.getvalue().decode()
 
     # Get current DPI and double it for retina display (like Jupyter)
     original_dpi = fig.figure.dpi  # type: ignore[attr-defined]

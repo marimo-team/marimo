@@ -277,6 +277,6 @@ async def test_matplotlib_svg_rendering(
     # Get the formatted result from kernel globals
     mime_type, data = executing_kernel.globals["result"]
 
-    assert mime_type == "text/html"
+    assert mime_type == "image/svg+xml"
     assert isinstance(data, str)
     assert data.startswith('<?xml version="1.0" encoding="utf-8"')
