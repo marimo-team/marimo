@@ -186,7 +186,11 @@ const MatplotlibComponent = memo(
     const clearSelection = useCallback(() => {
       setBoxStart(null);
       setBoxEnd(null);
-      setValue(undefined);
+      setValue({
+        mode: "box",
+        has_selection: false,
+        selection: { x_min: 0, x_max: 0, y_min: 0, y_max: 0 },
+      });
     }, [setValue]);
 
     // Check if a pixel point is inside the current box selection

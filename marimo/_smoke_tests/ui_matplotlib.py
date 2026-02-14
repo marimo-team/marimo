@@ -43,11 +43,9 @@ def _(embedding, mnist, mo, plt):
     x = embedding[:, 0]
     y = embedding[:, 1]
 
-    plt.scatter(x=x, y=y, s=0.1, cmap="Spectral", c=mnist.attributes["digits"])
-    plt.xlim(-8, 8)
-    plt.ylim(-8, 8)
-    plt.yticks([-4, 0, 4])
-    plt.xticks([-4, 0, 4])
+    plt.scatter(x=x, y=y, s=0.05, cmap="Spectral", c=mnist.attributes["digits"])
+    plt.yticks([-2.5, 0, 2.5])
+    plt.xticks([-2.5, 0, 2.5])
     fig = mo.ui.matplotlib(plt.gcf())
     fig
     return fig, x, y
