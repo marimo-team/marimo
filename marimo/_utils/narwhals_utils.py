@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import csv
+import io
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
@@ -102,10 +104,18 @@ def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
     df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
     resolved_separator = separator if separator is not None else ","
-    if is_narwhals_lazyframe(df):
-        return df.collect().write_csv(separator=resolved_separator)
-    else:
-        return df.write_csv(separator=resolved_separator)
+
+    frame = df.collect() if is_narwhals_lazyframe(df) else df
+    if resolved_separator == ",":
+        return frame.write_csv()
+
+    buffer = io.StringIO()
+    writer = csv.writer(
+        buffer, delimiter=resolved_separator, lineterminator="\n"
+    )
+    writer.writerow(frame.columns)
+    writer.writerows(frame.iter_rows())
+    return buffer.getvalue()
 
 
 def is_narwhals_integer_type(
