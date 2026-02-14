@@ -91,14 +91,18 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return False
 
     def to_csv_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        separator: str | None = None,
     ) -> str:
         if isinstance(self.data, dict) and not self.is_column_oriented:
             return DefaultTableManager(
                 self._normalize_data(self.data)
-            ).to_csv_str(format_mapping)
+            ).to_csv_str(format_mapping, separator=separator)
 
-        return self._as_table_manager().to_csv_str(format_mapping)
+        return self._as_table_manager().to_csv_str(
+            format_mapping, separator=separator
+        )
 
     def to_json_str(
         self,

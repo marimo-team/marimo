@@ -120,6 +120,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         download_csv_encoding (str | None, optional): Encoding used when downloading CSV.
             Defaults to the runtime config value (or "utf-8" if not configured).
             Set to "utf-8-sig" to include BOM for Excel.
+        download_csv_separator (str | None, optional): Separator used in CSV downloads.
+            Defaults to ",".
         download_json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON downloads. Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
@@ -140,6 +142,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         *,
         format_mapping: Optional[FormatMapping] = None,
         download_csv_encoding: str | None = None,
+        download_csv_separator: str | None = None,
         download_json_ensure_ascii: bool = True,
         lazy: Optional[bool] = None,
     ) -> None:
@@ -156,6 +159,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._dataframe_name = dataframe_name
         self._data = df
         self._download_csv_encoding = download_csv_encoding
+        self._download_csv_separator = download_csv_separator
         self._download_json_ensure_ascii = download_json_ensure_ascii
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
@@ -190,6 +194,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "page-size": page_size,
                 "show-download": show_download,
                 "download-csv-encoding": download_csv_encoding,
+                "download-csv-separator": download_csv_separator,
                 "download-json-ensure-ascii": download_json_ensure_ascii,
                 "lazy": self._lazy,
             },
@@ -349,6 +354,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             manager,
             args.format,
             csv_encoding=self._download_csv_encoding,
+            csv_separator=self._download_csv_separator,
             json_ensure_ascii=self._download_json_ensure_ascii,
         )
 

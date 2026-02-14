@@ -88,9 +88,10 @@ class NarwhalsTableManager(
     def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
+        separator: str | None = None,
     ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data)
+        return dataframe_to_csv(_data, separator=separator)
 
     def to_json_str(
         self,

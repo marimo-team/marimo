@@ -56,6 +56,7 @@ def download_as(
     ext: str,
     drop_marimo_index: bool = False,
     csv_encoding: str | None = None,
+    csv_separator: str | None = None,
     json_ensure_ascii: bool = True,
 ) -> str:
     """Download the table data in the specified format.
@@ -68,6 +69,8 @@ def download_as(
         csv_encoding (str | None, optional): Encoding used when generating CSV bytes.
             Defaults to the runtime config value (or "utf-8" if not configured).
             Ignored for non-CSV formats.
+        csv_separator (str | None, optional): Separator used in CSV downloads.
+            Defaults to "," when not configured.
         json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON output. Defaults to True.
 
@@ -88,7 +91,9 @@ def download_as(
             if csv_encoding is not None
             else get_default_csv_encoding()
         )
-        return mo_data.csv(manager.to_csv(encoding=encoding)).url
+        return mo_data.csv(
+            manager.to_csv(encoding=encoding, separator=csv_separator)
+        ).url
     elif ext == "json":
         # Use strict JSON to ensure compliance with JSON spec
         return mo_data.json(

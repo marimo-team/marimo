@@ -97,6 +97,7 @@ class TableManager(abc.ABC, Generic[T]):
     def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
+        separator: str | None = None,
     ) -> str:
         pass
 
@@ -104,9 +105,12 @@ class TableManager(abc.ABC, Generic[T]):
         self,
         format_mapping: Optional[FormatMapping] = None,
         encoding: str | None = "utf-8",
+        separator: str | None = None,
     ) -> bytes:
         resolved_encoding = encoding or "utf-8"
-        return self.to_csv_str(format_mapping).encode(resolved_encoding)
+        return self.to_csv_str(format_mapping, separator=separator).encode(
+            resolved_encoding
+        )
 
     def to_arrow_ipc(self) -> bytes:
         raise NotImplementedError("Arrow format not supported")

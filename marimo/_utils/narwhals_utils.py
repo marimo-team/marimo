@@ -94,17 +94,18 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def dataframe_to_csv(df: IntoFrame) -> str:
+def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
     """
     Convert a dataframe to a CSV string.
     """
     assert_can_narwhalify(df)
     df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
+    resolved_separator = separator if separator is not None else ","
     if is_narwhals_lazyframe(df):
-        return df.collect().write_csv()
+        return df.collect().write_csv(separator=resolved_separator)
     else:
-        return df.write_csv()
+        return df.write_csv(separator=resolved_separator)
 
 
 def is_narwhals_integer_type(
