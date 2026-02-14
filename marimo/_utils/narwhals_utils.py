@@ -109,6 +109,9 @@ def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
     if resolved_separator == ",":
         return frame.write_csv()
 
+    # Narwhals inputs can map to different backends, and
+    # write_csv(separator=...) is not consistently reliable across them.
+    # For non-comma separators, use Python's csv writer for stable behavior.
     buffer = io.StringIO()
     writer = csv.writer(
         buffer, delimiter=resolved_separator, lineterminator="\n"
