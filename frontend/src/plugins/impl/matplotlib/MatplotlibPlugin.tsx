@@ -20,7 +20,6 @@ interface Data {
   axesPixelBounds: [number, number, number, number]; // [left, top, right, bottom]
   width: number;
   height: number;
-  modes: string[];
   selectionColor: string;
   selectionOpacity: number;
   strokeWidth: number;
@@ -34,15 +33,11 @@ interface BoxSelection {
   y_max: number;
 }
 
-interface LassoSelection {
-  vertices: [number, number][];
-}
-
 type T =
   | {
-      mode: string;
+      mode: "box";
       has_selection: boolean;
-      selection: BoxSelection | LassoSelection;
+      selection: BoxSelection;
     }
   | undefined;
 
@@ -56,7 +51,6 @@ export class MatplotlibPlugin implements IPlugin<T, Data> {
     axesPixelBounds: z.tuple([z.number(), z.number(), z.number(), z.number()]),
     width: z.number(),
     height: z.number(),
-    modes: z.array(z.string()),
     selectionColor: z.string(),
     selectionOpacity: z.number(),
     strokeWidth: z.number(),
@@ -93,7 +87,6 @@ const MatplotlibComponent = memo(
     axesPixelBounds,
     width,
     height,
-    modes,
     selectionColor,
     selectionOpacity,
     strokeWidth,
@@ -102,25 +95,22 @@ const MatplotlibComponent = memo(
     setValue,
   }: MatplotlibComponentProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const imageRef = useRef<HTMLImageElement | null>(null);
-    const [mode, setMode] = useState<string>(modes[0] || "box");
-    const [imageLoaded, setImageLoaded] = useState(false);
+    // Store the loaded image as state (not a ref + boolean) so that the canvas
+    // drawing effect always re-runs when the image changes.  A new Image()
+    // is always a new object reference, which guarantees React sees a change
+    // even if img.onload fires synchronously for data-URLs.
+    const [loadedImage, setLoadedImage] = useState<HTMLImageElement | null>(
+      null,
+    );
 
     // Selection state in pixel coordinates
     const [isDrawing, setIsDrawing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef<PixelPoint | null>(null);
-    const selectionStartRef = useRef<PixelPoint | null>(null);
 
     // Box selection: start and end in pixels
     const [boxStart, setBoxStart] = useState<PixelPoint | null>(null);
     const [boxEnd, setBoxEnd] = useState<PixelPoint | null>(null);
-
-    // Lasso selection: points in pixels
-    const [lassoPoints, setLassoPoints] = useState<PixelPoint[]>([]);
-
-    // For dragging: stored offsets from the selection
-    const dragOffsetRef = useRef<PixelPoint>({ x: 0, y: 0 });
 
     const [axLeft, axTop, axRight, axBottom] = axesPixelBounds;
     const axWidth = axRight - axLeft;
@@ -153,17 +143,12 @@ const MatplotlibComponent = memo(
       [axLeft, axTop, axWidth, axHeight, xBounds, yBounds],
     );
 
-    // Load image — reset state so canvas redraws when the chart changes
+    // Load image — clear selection and redraw when the chart changes
     useEffect(() => {
-      setImageLoaded(false);
       setBoxStart(null);
       setBoxEnd(null);
-      setLassoPoints([]);
       const img = new Image();
-      img.onload = () => {
-        imageRef.current = img;
-        setImageLoaded(true);
-      };
+      img.onload = () => setLoadedImage(img);
       img.src = chartBase64;
     }, [chartBase64]);
 
@@ -176,15 +161,10 @@ const MatplotlibComponent = memo(
       [axLeft, axTop, axRight, axBottom],
     );
 
-    // Emit the current selection as a value
+    // Emit the current box selection as a value
     const emitSelection = useCallback(
-      (
-        currentMode: string,
-        bStart: PixelPoint | null,
-        bEnd: PixelPoint | null,
-        lPoints: PixelPoint[],
-      ) => {
-        if (currentMode === "box" && bStart && bEnd) {
+      (bStart: PixelPoint | null, bEnd: PixelPoint | null) => {
+        if (bStart && bEnd) {
           const d1 = pixelToData(bStart);
           const d2 = pixelToData(bEnd);
           setValue({
@@ -197,16 +177,6 @@ const MatplotlibComponent = memo(
               y_max: Math.max(d1.y, d2.y),
             },
           });
-        } else if (currentMode === "lasso" && lPoints.length >= 3) {
-          const vertices = lPoints.map((p) => {
-            const d = pixelToData(p);
-            return [d.x, d.y] as [number, number];
-          });
-          setValue({
-            mode: "lasso",
-            has_selection: true,
-            selection: { vertices },
-          });
         }
       },
       [pixelToData, setValue],
@@ -216,26 +186,22 @@ const MatplotlibComponent = memo(
     const clearSelection = useCallback(() => {
       setBoxStart(null);
       setBoxEnd(null);
-      setLassoPoints([]);
       setValue(undefined);
     }, [setValue]);
 
-    // Check if a pixel point is inside the current selection
+    // Check if a pixel point is inside the current box selection
     const isPointInSelection = useCallback(
       (pt: PixelPoint): boolean => {
-        if (mode === "box" && boxStart && boxEnd) {
+        if (boxStart && boxEnd) {
           const minX = Math.min(boxStart.x, boxEnd.x);
           const maxX = Math.max(boxStart.x, boxEnd.x);
           const minY = Math.min(boxStart.y, boxEnd.y);
           const maxY = Math.max(boxStart.y, boxEnd.y);
           return pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY;
         }
-        if (mode === "lasso" && lassoPoints.length >= 3) {
-          return pointInPolygon(pt, lassoPoints);
-        }
         return false;
       },
-      [mode, boxStart, boxEnd, lassoPoints],
+      [boxStart, boxEnd],
     );
 
     // Get canvas-relative coordinates from a mouse/touch event
@@ -270,9 +236,7 @@ const MatplotlibComponent = memo(
     );
 
     // Has existing selection?
-    const hasSelection =
-      (mode === "box" && boxStart !== null && boxEnd !== null) ||
-      (mode === "lasso" && lassoPoints.length >= 3);
+    const hasSelection = boxStart !== null && boxEnd !== null;
 
     // Mouse/touch handlers
     const handlePointerDown = useCallback(
@@ -283,20 +247,6 @@ const MatplotlibComponent = memo(
         if (hasSelection && isPointInSelection(pt)) {
           setIsDragging(true);
           dragStartRef.current = pt;
-          // Store offset from selection position for smooth dragging
-          if (mode === "box" && boxStart) {
-            dragOffsetRef.current = {
-              x: pt.x - boxStart.x,
-              y: pt.y - boxStart.y,
-            };
-          } else if (mode === "lasso" && lassoPoints.length > 0) {
-            // Use centroid offset
-            const cx =
-              lassoPoints.reduce((s, p) => s + p.x, 0) / lassoPoints.length;
-            const cy =
-              lassoPoints.reduce((s, p) => s + p.y, 0) / lassoPoints.length;
-            dragOffsetRef.current = { x: pt.x - cx, y: pt.y - cy };
-          }
           return;
         }
 
@@ -306,25 +256,16 @@ const MatplotlibComponent = memo(
           return;
         }
 
-        // Start new selection
+        // Start new box selection
         const clamped = clampToAxes(pt);
         setIsDrawing(true);
-        selectionStartRef.current = clamped;
-
-        if (mode === "box") {
-          setBoxStart(clamped);
-          setBoxEnd(clamped);
-        } else if (mode === "lasso") {
-          setLassoPoints([clamped]);
-        }
+        setBoxStart(clamped);
+        setBoxEnd(clamped);
       },
       [
         getCanvasPoint,
         hasSelection,
         isPointInSelection,
-        mode,
-        boxStart,
-        lassoPoints,
         clearSelection,
         clampToAxes,
       ],
@@ -339,7 +280,7 @@ const MatplotlibComponent = memo(
           let dy = pt.y - dragStartRef.current.y;
           dragStartRef.current = pt;
 
-          if (mode === "box" && boxStart && boxEnd) {
+          if (boxStart && boxEnd) {
             // Clamp delta so the entire box stays in bounds
             const minX = Math.min(boxStart.x, boxEnd.x);
             const maxX = Math.max(boxStart.x, boxEnd.x);
@@ -352,51 +293,17 @@ const MatplotlibComponent = memo(
             setBoxStart(newStart);
             setBoxEnd(newEnd);
             if (!debounce) {
-              emitSelection(mode, newStart, newEnd, lassoPoints);
+              emitSelection(newStart, newEnd);
             }
-          } else if (mode === "lasso") {
-            setLassoPoints((prev) => {
-              // Clamp delta so no vertex leaves bounds
-              let clampedDx = dx;
-              let clampedDy = dy;
-              for (const p of prev) {
-                clampedDx = Math.max(
-                  axLeft - p.x,
-                  Math.min(axRight - p.x, clampedDx),
-                );
-                clampedDy = Math.max(
-                  axTop - p.y,
-                  Math.min(axBottom - p.y, clampedDy),
-                );
-              }
-              const newPoints = prev.map((p) => ({
-                x: p.x + clampedDx,
-                y: p.y + clampedDy,
-              }));
-              if (!debounce) {
-                emitSelection(mode, null, null, newPoints);
-              }
-              return newPoints;
-            });
           }
           return;
         }
 
         if (isDrawing) {
           const clamped = clampToAxes(pt);
-          if (mode === "box") {
-            setBoxEnd(clamped);
-            if (!debounce) {
-              emitSelection(mode, boxStart, clamped, lassoPoints);
-            }
-          } else if (mode === "lasso") {
-            setLassoPoints((prev) => {
-              const newPoints = [...prev, clamped];
-              if (!debounce) {
-                emitSelection(mode, null, null, newPoints);
-              }
-              return newPoints;
-            });
+          setBoxEnd(clamped);
+          if (!debounce) {
+            emitSelection(boxStart, clamped);
           }
         }
       },
@@ -404,10 +311,8 @@ const MatplotlibComponent = memo(
         getCanvasPoint,
         isDragging,
         isDrawing,
-        mode,
         boxStart,
         boxEnd,
-        lassoPoints,
         clampToAxes,
         emitSelection,
         debounce,
@@ -423,34 +328,23 @@ const MatplotlibComponent = memo(
         setIsDragging(false);
         dragStartRef.current = null;
         if (debounce) {
-          emitSelection(mode, boxStart, boxEnd, lassoPoints);
+          emitSelection(boxStart, boxEnd);
         }
         return;
       }
 
       if (isDrawing) {
         setIsDrawing(false);
-        selectionStartRef.current = null;
         if (debounce) {
-          emitSelection(mode, boxStart, boxEnd, lassoPoints);
+          emitSelection(boxStart, boxEnd);
         }
       }
-    }, [
-      isDragging,
-      isDrawing,
-      debounce,
-      emitSelection,
-      mode,
-      boxStart,
-      boxEnd,
-      lassoPoints,
-    ]);
+    }, [isDragging, isDrawing, debounce, emitSelection, boxStart, boxEnd]);
 
     // Draw on canvas
     useEffect(() => {
       const canvas = canvasRef.current;
-      const img = imageRef.current;
-      if (!canvas || !img || !imageLoaded) {
+      if (!canvas || !loadedImage) {
         return;
       }
 
@@ -461,10 +355,10 @@ const MatplotlibComponent = memo(
 
       // Clear and draw the base image
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
 
-      // Draw selection overlay
-      if (mode === "box" && boxStart && boxEnd) {
+      // Draw box selection overlay
+      if (boxStart && boxEnd) {
         const x = Math.min(boxStart.x, boxEnd.x);
         const y = Math.min(boxStart.y, boxEnd.y);
         const w = Math.abs(boxEnd.x - boxStart.x);
@@ -478,44 +372,15 @@ const MatplotlibComponent = memo(
         ctx.strokeStyle = selectionColor;
         ctx.lineWidth = strokeWidth;
         ctx.strokeRect(x, y, w, h);
-      } else if (mode === "lasso" && lassoPoints.length >= 2) {
-        ctx.beginPath();
-        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-        for (let i = 1; i < lassoPoints.length; i++) {
-          ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
-        }
-        ctx.closePath();
-
-        ctx.fillStyle = selectionColor;
-        ctx.globalAlpha = selectionOpacity;
-        ctx.fill();
-
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = selectionColor;
-        ctx.lineWidth = strokeWidth;
-        ctx.stroke();
       }
     }, [
-      imageLoaded,
-      mode,
+      loadedImage,
       boxStart,
       boxEnd,
-      lassoPoints,
       selectionColor,
       selectionOpacity,
       strokeWidth,
     ]);
-
-    // When mode changes, clear selection
-    const handleModeChange = useCallback(
-      (newMode: string) => {
-        if (newMode !== mode) {
-          clearSelection();
-          setMode(newMode);
-        }
-      },
-      [mode, clearSelection],
-    );
 
     // Restore selection from value (e.g., when re-rendered by backend)
     useEffect(() => {
@@ -523,48 +388,19 @@ const MatplotlibComponent = memo(
         return;
       }
 
-      if (value.mode === "box" && "x_min" in value.selection) {
-        const sel = value.selection as BoxSelection;
+      if ("x_min" in value.selection) {
+        const sel = value.selection;
         const start = dataToPixel({ x: sel.x_min, y: sel.y_min });
         const end = dataToPixel({ x: sel.x_max, y: sel.y_max });
         setBoxStart(start);
         setBoxEnd(end);
-        setMode("box");
-      } else if (value.mode === "lasso" && "vertices" in value.selection) {
-        const sel = value.selection as LassoSelection;
-        const pts = sel.vertices.map((v) => dataToPixel({ x: v[0], y: v[1] }));
-        setLassoPoints(pts);
-        setMode("lasso");
       }
-      // Only restore on mount / when value identity changes from backend
+      // Only restore on mount
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
       <div className="matplotlib-container">
-        {modes.length > 1 && (
-          <div className="matplotlib-controls">
-            {modes.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={`matplotlib-mode-btn ${m === mode ? "active" : ""}`}
-                onClick={() => handleModeChange(m)}
-              >
-                {m === "box" ? "Box" : "Lasso"}
-              </button>
-            ))}
-            {hasSelection && (
-              <button
-                type="button"
-                className="matplotlib-clear-btn"
-                onClick={clearSelection}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        )}
         <canvas
           ref={canvasRef}
           className="matplotlib-canvas"
@@ -588,25 +424,3 @@ const MatplotlibComponent = memo(
   },
 );
 MatplotlibComponent.displayName = "MatplotlibComponent";
-
-/**
- * Point-in-polygon test using ray casting algorithm.
- */
-function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
-  let inside = false;
-  const n = polygon.length;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-
-    if (
-      yi > pt.y !== yj > pt.y &&
-      pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi) + xi
-    ) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}

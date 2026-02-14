@@ -8,7 +8,6 @@ from typing import (
     Any,
     Callable,
     Final,
-    Literal,
     Optional,
     Union,
 )
@@ -23,11 +22,9 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure  # type: ignore[import-untyped]
 
 # Selection is a dictionary of the form:
-# Box: {"mode": "box", "has_selection": True,
-#        "selection": {"x_min": ..., "x_max": ..., "y_min": ..., "y_max": ...}}
-# Lasso: {"mode": "lasso", "has_selection": True,
-#          "selection": {"vertices": [[x, y], ...]}}
-# Empty: {}
+# {"mode": "box", "has_selection": True,
+#  "selection": {"x_min": ..., "x_max": ..., "y_min": ..., "y_max": ...}}
+# or {} when nothing is selected.
 MatplotlibSelection = dict[str, JSONType]
 
 
@@ -35,13 +32,12 @@ MatplotlibSelection = dict[str, JSONType]
 class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
     """Make reactive selections on matplotlib charts.
 
-    Use `mo.ui.matplotlib` to make matplotlib plots interactive: draw box or
-    lasso selections on the frontend, then use the selection geometry in Python
+    Use `mo.ui.matplotlib` to make matplotlib plots interactive: draw a box
+    selection on the frontend, then use the selection geometry in Python
     to filter your data.
 
-    The figure is rendered as a static image with an interactive selection
-    overlay. Box selections return rectangular bounds; lasso selections return
-    freehand polygon vertices — both in data coordinates.
+    The figure is rendered as a static image with an interactive box-selection
+    overlay. The selection returns rectangular bounds in data coordinates.
 
     Examples:
         ```python
@@ -72,13 +68,10 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         value (Dict[str, Any]): The raw selection data. Empty dict when nothing
             is selected. For box selections: ``{"mode": "box",
             "has_selection": True, "selection": {"x_min": ..., "x_max": ...,
-            "y_min": ..., "y_max": ...}}``. For lasso selections:
-            ``{"mode": "lasso", "has_selection": True, "selection":
-            {"vertices": [[x, y], ...]}}``.
+            "y_min": ..., "y_max": ...}}``.
 
     Args:
         figure: A matplotlib ``Figure`` object.
-        modes: Available selection modes. Defaults to ``["box", "lasso"]``.
         selection_color: CSS color for the selection highlight.
             Defaults to ``"#3b82f6"``.
         selection_opacity: Fill opacity for the selection area (0–1).
@@ -97,7 +90,6 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         self,
         figure: Figure,
         *,
-        modes: list[Literal["box", "lasso"]] = ["box", "lasso"],  # noqa: B006
         selection_color: str = "#3b82f6",
         selection_opacity: float = 0.15,
         stroke_width: float = 2,
@@ -145,7 +137,6 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
                 "axes-pixel-bounds": axes_pixel_bounds,
                 "width": fig_width_px,
                 "height": fig_height_px,
-                "modes": modes,
                 "selection-color": selection_color,
                 "selection-opacity": selection_opacity,
                 "stroke-width": stroke_width,
@@ -167,8 +158,7 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         """Get the bounding box of the current selection.
 
         Returns:
-            A tuple ``(x_min, x_max, y_min, y_max)`` for box selections,
-            or the bounding box of the lasso polygon for lasso selections.
+            A tuple ``(x_min, x_max, y_min, y_max)`` for box selections.
             Returns ``None`` if nothing is selected.
         """
         v = self.value
@@ -177,31 +167,19 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
 
         selection = v.get("selection", {})
         assert isinstance(selection, dict)
-        mode = v.get("mode")
 
-        if mode == "box":
-            return (
-                float(selection["x_min"]),
-                float(selection["x_max"]),
-                float(selection["y_min"]),
-                float(selection["y_max"]),
-            )
-        elif mode == "lasso":
-            vertices = selection.get("vertices", [])
-            assert isinstance(vertices, list)
-            if not vertices:
-                return None
-            xs = [v[0] for v in vertices]
-            ys = [v[1] for v in vertices]
-            return (min(xs), max(xs), min(ys), max(ys))
-        return None
+        return (
+            float(selection["x_min"]),
+            float(selection["x_max"]),
+            float(selection["y_min"]),
+            float(selection["y_max"]),
+        )
 
     def get_vertices(self) -> list[tuple[float, float]]:
         """Get the vertices of the current selection.
 
         Returns:
-            For box selections, 4 corners of the rectangle.
-            For lasso selections, the freehand path points.
+            The 4 corners of the box selection rectangle.
             Returns an empty list if nothing is selected.
         """
         v = self.value
@@ -210,30 +188,20 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
 
         selection = v.get("selection", {})
         assert isinstance(selection, dict)
-        mode = v.get("mode")
 
-        if mode == "box":
-            x_min = float(selection["x_min"])
-            x_max = float(selection["x_max"])
-            y_min = float(selection["y_min"])
-            y_max = float(selection["y_max"])
-            return [
-                (x_min, y_min),
-                (x_max, y_min),
-                (x_max, y_max),
-                (x_min, y_max),
-            ]
-        elif mode == "lasso":
-            vertices = selection.get("vertices", [])
-            assert isinstance(vertices, list)
-            return [(float(pt[0]), float(pt[1])) for pt in vertices]
-        return []
+        x_min = float(selection["x_min"])
+        x_max = float(selection["x_max"])
+        y_min = float(selection["y_min"])
+        y_max = float(selection["y_max"])
+        return [
+            (x_min, y_min),
+            (x_max, y_min),
+            (x_max, y_max),
+            (x_min, y_max),
+        ]
 
     def contains_point(self, x: float, y: float) -> bool:
         """Test if a point is inside the current selection.
-
-        Uses ``matplotlib.path.Path`` for lasso selections to test
-        point-in-polygon containment.
 
         Args:
             x: The x-coordinate to test.
@@ -249,23 +217,11 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
 
         selection = v.get("selection", {})
         assert isinstance(selection, dict)
-        mode = v.get("mode")
 
-        if mode == "box":
-            return (
-                float(selection["x_min"]) <= x <= float(selection["x_max"])
-                and float(selection["y_min"]) <= y <= float(selection["y_max"])
-            )
-        elif mode == "lasso":
-            from matplotlib.path import Path  # type: ignore[import-untyped]
-
-            vertices = selection.get("vertices", [])
-            assert isinstance(vertices, list)
-            if len(vertices) < 3:
-                return False
-            path = Path(vertices)
-            return bool(path.contains_point((x, y)))
-        return False
+        return (
+            float(selection["x_min"]) <= x <= float(selection["x_max"])
+            and float(selection["y_min"]) <= y <= float(selection["y_max"])
+        )
 
     def get_mask(
         self,
@@ -293,31 +249,17 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
 
         selection = v.get("selection", {})
         assert isinstance(selection, dict)
-        mode = v.get("mode")
 
-        if mode == "box":
-            x_min = float(selection["x_min"])
-            x_max = float(selection["x_max"])
-            y_min = float(selection["y_min"])
-            y_max = float(selection["y_max"])
-            return (
-                (x_arr >= x_min)
-                & (x_arr <= x_max)
-                & (y_arr >= y_min)
-                & (y_arr <= y_max)
-            )
-        elif mode == "lasso":
-            from matplotlib.path import Path  # type: ignore[import-untyped]
-
-            vertices = selection.get("vertices", [])
-            assert isinstance(vertices, list)
-            if len(vertices) < 3:
-                return np.zeros(len(x_arr), dtype=bool)
-            path = Path(vertices)
-            points = np.column_stack([x_arr, y_arr])
-            return path.contains_points(points)
-
-        return np.zeros(len(x_arr), dtype=bool)
+        x_min = float(selection["x_min"])
+        x_max = float(selection["x_max"])
+        y_min = float(selection["y_min"])
+        y_max = float(selection["y_max"])
+        return (
+            (x_arr >= x_min)
+            & (x_arr <= x_max)
+            & (y_arr >= y_min)
+            & (y_arr <= y_max)
+        )
 
     def get_indices(
         self,

@@ -45,12 +45,6 @@ def test_construction_with_label() -> None:
     assert chart is not None
 
 
-def test_construction_with_modes() -> None:
-    fig = _make_scatter_figure()
-    chart = matplotlib(fig, modes=["box"])
-    assert chart._component_args["modes"] == ["box"]
-
-
 def test_construction_with_style_options() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(
@@ -82,7 +76,6 @@ def test_construction_args() -> None:
     assert "axes-pixel-bounds" in args
     assert "width" in args
     assert "height" in args
-    assert "modes" in args
 
     assert isinstance(args["chart-base64"], str)
     assert args["chart-base64"].startswith("data:image/png;base64,")
@@ -138,20 +131,6 @@ def test_convert_value_box() -> None:
     assert result == value
 
 
-def test_convert_value_lasso() -> None:
-    fig = _make_scatter_figure()
-    chart = matplotlib(fig)
-    value = {
-        "mode": "lasso",
-        "has_selection": True,
-        "selection": {
-            "vertices": [[1.0, 2.0], [3.0, 4.0], [2.0, 1.0]],
-        },
-    }
-    result = chart._convert_value(value)
-    assert result == value
-
-
 # ============================================================================
 # get_bounds tests
 # ============================================================================
@@ -177,21 +156,6 @@ def test_get_bounds_box() -> None:
         },
     }
     assert chart.get_bounds() == (1.0, 3.0, 2.0, 4.0)
-
-
-def test_get_bounds_lasso() -> None:
-    fig = _make_scatter_figure()
-    chart = matplotlib(fig)
-    chart._value = {
-        "mode": "lasso",
-        "has_selection": True,
-        "selection": {
-            "vertices": [[1.0, 2.0], [4.0, 5.0], [3.0, 1.0]],
-        },
-    }
-    bounds = chart.get_bounds()
-    assert bounds is not None
-    assert bounds == (1.0, 4.0, 1.0, 5.0)
 
 
 # ============================================================================
@@ -226,23 +190,6 @@ def test_get_vertices_box() -> None:
     assert verts[3] == (1.0, 4.0)
 
 
-def test_get_vertices_lasso() -> None:
-    fig = _make_scatter_figure()
-    chart = matplotlib(fig)
-    chart._value = {
-        "mode": "lasso",
-        "has_selection": True,
-        "selection": {
-            "vertices": [[1.0, 2.0], [3.0, 4.0], [2.0, 1.0]],
-        },
-    }
-    verts = chart.get_vertices()
-    assert len(verts) == 3
-    assert verts[0] == (1.0, 2.0)
-    assert verts[1] == (3.0, 4.0)
-    assert verts[2] == (2.0, 1.0)
-
-
 # ============================================================================
 # contains_point tests
 # ============================================================================
@@ -270,21 +217,6 @@ def test_contains_point_box() -> None:
     assert chart.contains_point(2.0, 3.0) is True
     assert chart.contains_point(0.0, 3.0) is False
     assert chart.contains_point(2.0, 5.0) is False
-
-
-def test_contains_point_lasso() -> None:
-    fig = _make_scatter_figure()
-    chart = matplotlib(fig)
-    # Triangle: (0,0), (10,0), (5,10)
-    chart._value = {
-        "mode": "lasso",
-        "has_selection": True,
-        "selection": {
-            "vertices": [[0, 0], [10, 0], [5, 10]],
-        },
-    }
-    assert chart.contains_point(5, 3) is True
-    assert chart.contains_point(20, 20) is False
 
 
 # ============================================================================
@@ -325,25 +257,6 @@ def test_get_mask_box() -> None:
     assert mask[1] is np.True_  # (2, 4)
     assert not mask[2]  # (3, 1) - y out of range
     assert not mask[0]  # (1, 2) - x out of range
-
-
-def test_get_mask_lasso() -> None:
-    fig = _make_scatter_figure()
-    chart = matplotlib(fig)
-    # Triangle containing points near center
-    chart._value = {
-        "mode": "lasso",
-        "has_selection": True,
-        "selection": {
-            "vertices": [[1, 1], [5, 1], [3, 6]],
-        },
-    }
-
-    x = np.array([1, 2, 3, 4, 5])
-    y = np.array([2, 4, 1, 5, 3])
-    mask = chart.get_mask(x, y)
-    assert isinstance(mask, np.ndarray)
-    assert mask.dtype == bool
 
 
 # ============================================================================
