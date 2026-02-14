@@ -1,0 +1,86 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+.matplotlib-container {
+  position: relative;
+  display: inline-block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.matplotlib-canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.matplotlib-controls {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+  align-items: center;
+}
+
+.matplotlib-mode-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  background: var(--bg-color, #ffffff);
+  color: var(--text-color, #374151);
+  font-size: 12px;
+  font-family: var(--text-font, sans-serif);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+  line-height: 1.4;
+}
+
+.matplotlib-mode-btn:hover {
+  background: var(--hover-bg-color, #f3f4f6);
+}
+
+.matplotlib-mode-btn.active {
+  background: var(--active-bg-color, #3b82f6);
+  color: #ffffff;
+  border-color: var(--active-bg-color, #3b82f6);
+}
+
+.matplotlib-clear-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  background: var(--bg-color, #ffffff);
+  color: var(--text-color, #374151);
+  font-size: 12px;
+  font-family: var(--text-font, sans-serif);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+  line-height: 1.4;
+  margin-left: auto;
+}
+
+.matplotlib-clear-btn:hover {
+  background: var(--hover-bg-color, #f3f4f6);
+}
+
+/* Dark theme support */
+:host-context([data-theme="dark"]) .matplotlib-mode-btn,
+:host-context([data-theme="dark"]) .matplotlib-clear-btn {
+  --border-color: #4b5563;
+  --bg-color: #1f2937;
+  --text-color: #d1d5db;
+  --hover-bg-color: #374151;
+  --active-bg-color: #3b82f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .matplotlib-mode-btn,
+  .matplotlib-clear-btn {
+    --border-color: #4b5563;
+    --bg-color: #1f2937;
+    --text-color: #d1d5db;
+    --hover-bg-color: #374151;
+    --active-bg-color: #3b82f6;
+  }
+}

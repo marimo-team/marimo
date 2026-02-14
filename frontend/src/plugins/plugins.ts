@@ -26,6 +26,7 @@ import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { MultiselectPlugin } from "./impl/MultiselectPlugin";
 import { NumberPlugin } from "./impl/NumberPlugin";
 import { PanelPlugin } from "./impl/panel/PanelPlugin";
+import { MatplotlibPlugin } from "./impl/matplotlib/MatplotlibPlugin";
 import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
 import { RadioPlugin } from "./impl/RadioPlugin";
 import { RangeSliderPlugin } from "./impl/RangeSliderPlugin";
@@ -79,6 +80,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
+  new MatplotlibPlugin(),
   new PlotlyPlugin(),
   ChatPlugin,
   DataExplorerPlugin,
