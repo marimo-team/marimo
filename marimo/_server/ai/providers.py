@@ -261,9 +261,10 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         )
         if use_vertex:
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
+            # Upstream (pydantic-ai) defaults to us-central1 if not set
             location = os.getenv("GOOGLE_CLOUD_LOCATION") or None
             if location is None:
-                LOGGER.warning(
+                LOGGER.info(
                     "GOOGLE_CLOUD_LOCATION is not set. "
                     "The upstream provider will default to 'us-central1'. "
                     "Set this env var if your project has region restrictions."
