@@ -46,7 +46,9 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
       }
       const isSingle = acceptedFiles.length === 1;
 
-      const loadingTitle = isSingle ? "Uploading file..." : "Uploading files...";
+      const loadingTitle = isSingle
+        ? "Uploading file..."
+        : "Uploading files...";
       const onFinish = {
         title: isSingle
           ? "File uploaded"

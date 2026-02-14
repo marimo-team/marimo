@@ -116,11 +116,9 @@ describe("withLoadingToast", () => {
   });
 
   it("should update toast on finish when onFinish is provided", async () => {
-    await withLoadingToast(
-      "Uploading files...",
-      async () => "done",
-      { title: "Upload complete" },
-    );
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+    });
 
     expect(toast).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -135,11 +133,10 @@ describe("withLoadingToast", () => {
   });
 
   it("should allow onFinish to override duration", async () => {
-    await withLoadingToast(
-      "Uploading files...",
-      async () => "done",
-      { title: "Upload complete", duration: 2000 },
-    );
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+      duration: 2000,
+    });
 
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
