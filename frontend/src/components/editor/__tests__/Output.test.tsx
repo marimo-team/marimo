@@ -64,3 +64,62 @@ describe("OutputRenderer renderFallback prop", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("OutputRenderer image and SVG rendering", () => {
+  const plainSvgString =
+    '<svg><rect x="0" y="0" width="10" height="10"></rect></svg>';
+  const base64SvgDataUrl =
+    "data:image/svg+xml;base64,PHN2Zz48cmVjdCB4PSIwIiB5PSIw";
+  const base64PngDataUrl =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
+
+  it("should render plain SVG string via renderHTML", () => {
+    const { container } = render(
+      <OutputRenderer
+        message={{
+          channel: "output",
+          data: plainSvgString,
+          mimetype: "image/svg+xml",
+        }}
+      />,
+    );
+    const svgElement = container.querySelector("svg");
+    expect(svgElement).not.toBeNull();
+    const rectElement = svgElement!.querySelector("rect");
+    expect(rectElement).not.toBeNull();
+    const imgElement = container.querySelector("img");
+    expect(imgElement).toBeNull();
+  });
+
+  it("should render Base64 SVG data URL via ImageOutput", () => {
+    const { container } = render(
+      <OutputRenderer
+        message={{
+          channel: "output",
+          data: base64SvgDataUrl,
+          mimetype: "image/svg+xml",
+        }}
+      />,
+    );
+    const imgElement = container.querySelector("img");
+    expect(imgElement).not.toBeNull();
+    expect(imgElement).toHaveAttribute("src", base64SvgDataUrl);
+    const svgElement = container.querySelector("svg");
+    expect(svgElement).toBeNull();
+  });
+
+  it("should render Base64 PNG data URL via ImageOutput", () => {
+    const { container } = render(
+      <OutputRenderer
+        message={{
+          channel: "output",
+          data: base64PngDataUrl,
+          mimetype: "image/png",
+        }}
+      />,
+    );
+    const imgElement = container.querySelector("img");
+    expect(imgElement).not.toBeNull();
+    expect(imgElement).toHaveAttribute("src", base64PngDataUrl);
+  });
+});

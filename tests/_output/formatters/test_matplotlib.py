@@ -279,4 +279,4 @@ async def test_matplotlib_svg_rendering(
 
     assert mime_type == "image/svg+xml"
     assert isinstance(data, str)
-    assert data.startswith('<?xml version="1.0" encoding="utf-8"')
+    assert data.startswith("data:image/svg+xml;base64,PD94")
