@@ -21,23 +21,22 @@ if TYPE_CHECKING:
     import numpy as np
     from matplotlib.figure import Figure  # type: ignore[import-untyped]
 
-# Selection is a dictionary of the form:
-# {"mode": "box", "has_selection": True,
-#  "selection": {"x_min": ..., "x_max": ..., "y_min": ..., "y_max": ...}}
-# or {} when nothing is selected.
-MatplotlibSelection = dict[str, JSONType]
+# The selection bounds sent back to Python, or None when nothing is selected.
+# When selected: {"x_min": float, "x_max": float, "y_min": float, "y_max": float}
+MatplotlibSelection = Optional[dict[str, Any]]
 
 
 @mddoc
-class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
+class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
     """Make reactive selections on matplotlib charts.
 
     Use `mo.ui.matplotlib` to make matplotlib plots interactive: draw a box
-    selection on the frontend, then use the selection geometry in Python
-    to filter your data.
+    selection or a freehand lasso selection on the frontend, then use the
+    selection geometry in Python to filter your data.
 
-    The figure is rendered as a static image with an interactive box-selection
-    overlay. The selection returns rectangular bounds in data coordinates.
+    The figure is rendered as a static image with an interactive selection
+    overlay. Click and drag for box selection; hold **Shift** and drag for
+    lasso (freehand polygon) selection.
 
     Examples:
         ```python
@@ -65,10 +64,12 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         ```
 
     Attributes:
-        value (Dict[str, Any]): The raw selection data. Empty dict when nothing
-            is selected. For box selections: ``{"mode": "box",
-            "has_selection": True, "selection": {"x_min": ..., "x_max": ...,
+        value: ``None`` when nothing is selected. When a box is selected:
+            ``{"type": "box", "data": {"x_min": ..., "x_max": ...,
             "y_min": ..., "y_max": ...}}``.
+            When a lasso is selected:
+            ``{"type": "lasso", "data": [(x, y), ...]}``.
+            Use helper methods like ``get_mask()`` for type-agnostic filtering.
 
     Args:
         figure: A matplotlib ``Figure`` object.
@@ -146,11 +147,35 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         )
 
     def _convert_value(
-        self, value: MatplotlibSelection
+        self, value: dict[str, JSONType]
     ) -> MatplotlibSelection:
         if not value or not value.get("has_selection"):
-            return {}
-        return value
+            return None
+        sel_type = value.get("type")
+        data = value.get("data")
+
+        if sel_type == "box":
+            if not isinstance(data, dict):
+                return None
+            return {
+                "type": "box",
+                "data": {
+                    "x_min": float(data["x_min"]),
+                    "x_max": float(data["x_max"]),
+                    "y_min": float(data["y_min"]),
+                    "y_max": float(data["y_max"]),
+                },
+            }
+        if sel_type == "lasso":
+            if not isinstance(data, list):
+                return None
+            return {
+                "type": "lasso",
+                "data": [
+                    (float(v[0]), float(v[1])) for v in data
+                ],
+            }
+        return None
 
     def get_bounds(
         self,
@@ -158,47 +183,42 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
         """Get the bounding box of the current selection.
 
         Returns:
-            A tuple ``(x_min, x_max, y_min, y_max)`` for box selections.
+            A tuple ``(x_min, x_max, y_min, y_max)``.
+            For lasso selections, returns the bounding box of all vertices.
             Returns ``None`` if nothing is selected.
         """
         v = self.value
-        if not v or not v.get("has_selection"):
+        if v is None:
             return None
-
-        selection = v.get("selection", {})
-        assert isinstance(selection, dict)
-
-        return (
-            float(selection["x_min"]),
-            float(selection["x_max"]),
-            float(selection["y_min"]),
-            float(selection["y_max"]),
-        )
+        if v["type"] == "box":
+            d = v["data"]
+            return (d["x_min"], d["x_max"], d["y_min"], d["y_max"])
+        # lasso
+        xs = [p[0] for p in v["data"]]
+        ys = [p[1] for p in v["data"]]
+        return (min(xs), max(xs), min(ys), max(ys))
 
     def get_vertices(self) -> list[tuple[float, float]]:
         """Get the vertices of the current selection.
 
         Returns:
-            The 4 corners of the box selection rectangle.
+            For box selections, the 4 corners of the rectangle.
+            For lasso selections, the list of polygon vertices.
             Returns an empty list if nothing is selected.
         """
         v = self.value
-        if not v or not v.get("has_selection"):
+        if v is None:
             return []
-
-        selection = v.get("selection", {})
-        assert isinstance(selection, dict)
-
-        x_min = float(selection["x_min"])
-        x_max = float(selection["x_max"])
-        y_min = float(selection["y_min"])
-        y_max = float(selection["y_max"])
-        return [
-            (x_min, y_min),
-            (x_max, y_min),
-            (x_max, y_max),
-            (x_min, y_max),
-        ]
+        if v["type"] == "box":
+            d = v["data"]
+            return [
+                (d["x_min"], d["y_min"]),
+                (d["x_max"], d["y_min"]),
+                (d["x_max"], d["y_max"]),
+                (d["x_min"], d["y_max"]),
+            ]
+        # lasso
+        return list(v["data"])
 
     def contains_point(self, x: float, y: float) -> bool:
         """Test if a point is inside the current selection.
@@ -211,17 +231,20 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
             ``True`` if the point is inside the selection, ``False`` otherwise
             or if nothing is selected.
         """
+        from matplotlib.path import Path  # type: ignore[import-untyped]
+
         v = self.value
-        if not v or not v.get("has_selection"):
+        if v is None:
             return False
-
-        selection = v.get("selection", {})
-        assert isinstance(selection, dict)
-
-        return (
-            float(selection["x_min"]) <= x <= float(selection["x_max"])
-            and float(selection["y_min"]) <= y <= float(selection["y_max"])
-        )
+        if v["type"] == "box":
+            d = v["data"]
+            return (
+                d["x_min"] <= x <= d["x_max"]
+                and d["y_min"] <= y <= d["y_max"]
+            )
+        # lasso
+        path = Path(v["data"])
+        return bool(path.contains_point((x, y)))
 
     def get_mask(
         self,
@@ -239,27 +262,27 @@ class matplotlib(UIElement[MatplotlibSelection, MatplotlibSelection]):
             within the selection. Returns all-``False`` if nothing is selected.
         """
         import numpy as np
+        from matplotlib.path import Path  # type: ignore[import-untyped]
 
         x_arr = np.asarray(x)
         y_arr = np.asarray(y)
 
         v = self.value
-        if not v or not v.get("has_selection"):
+        if v is None:
             return np.zeros(len(x_arr), dtype=bool)
 
-        selection = v.get("selection", {})
-        assert isinstance(selection, dict)
-
-        x_min = float(selection["x_min"])
-        x_max = float(selection["x_max"])
-        y_min = float(selection["y_min"])
-        y_max = float(selection["y_max"])
-        return (
-            (x_arr >= x_min)
-            & (x_arr <= x_max)
-            & (y_arr >= y_min)
-            & (y_arr <= y_max)
-        )
+        if v["type"] == "box":
+            d = v["data"]
+            return (
+                (x_arr >= d["x_min"])
+                & (x_arr <= d["x_max"])
+                & (y_arr >= d["y_min"])
+                & (y_arr <= d["y_max"])
+            )
+        # lasso
+        path = Path(v["data"])
+        points = np.column_stack([x_arr, y_arr])
+        return path.contains_points(points)
 
     def get_indices(
         self,

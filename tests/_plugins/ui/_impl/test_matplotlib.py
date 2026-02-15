@@ -36,7 +36,7 @@ def test_basic_construction() -> None:
     chart = matplotlib(fig)
 
     assert chart is not None
-    assert chart.value == {}
+    assert chart.value is None
 
 
 def test_construction_with_label() -> None:
@@ -105,22 +105,22 @@ def test_on_change_callback() -> None:
 def test_convert_value_empty() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
-    assert chart._convert_value({}) == {}
+    assert chart._convert_value({}) is None
 
 
 def test_convert_value_no_selection() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
-    assert chart._convert_value({"has_selection": False}) == {}
+    assert chart._convert_value({"has_selection": False}) is None
 
 
 def test_convert_value_box() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
     value = {
-        "mode": "box",
+        "type": "box",
         "has_selection": True,
-        "selection": {
+        "data": {
             "x_min": 1.0,
             "x_max": 3.0,
             "y_min": 2.0,
@@ -128,7 +128,30 @@ def test_convert_value_box() -> None:
         },
     }
     result = chart._convert_value(value)
-    assert result == value
+    assert result == {
+        "type": "box",
+        "data": {
+            "x_min": 1.0,
+            "x_max": 3.0,
+            "y_min": 2.0,
+            "y_max": 4.0,
+        },
+    }
+
+
+def test_convert_value_lasso() -> None:
+    fig = _make_scatter_figure()
+    chart = matplotlib(fig)
+    value = {
+        "type": "lasso",
+        "has_selection": True,
+        "data": [[1.0, 2.0], [3.0, 4.0], [5.0, 2.0]],
+    }
+    result = chart._convert_value(value)
+    assert result == {
+        "type": "lasso",
+        "data": [(1.0, 2.0), (3.0, 4.0), (5.0, 2.0)],
+    }
 
 
 # ============================================================================
@@ -146,9 +169,8 @@ def test_get_bounds_box() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
     chart._value = {
-        "mode": "box",
-        "has_selection": True,
-        "selection": {
+        "type": "box",
+        "data": {
             "x_min": 1.0,
             "x_max": 3.0,
             "y_min": 2.0,
@@ -156,6 +178,16 @@ def test_get_bounds_box() -> None:
         },
     }
     assert chart.get_bounds() == (1.0, 3.0, 2.0, 4.0)
+
+
+def test_get_bounds_lasso() -> None:
+    fig = _make_scatter_figure()
+    chart = matplotlib(fig)
+    chart._value = {
+        "type": "lasso",
+        "data": [(0.0, 0.0), (4.0, 0.0), (2.0, 3.0)],
+    }
+    assert chart.get_bounds() == (0.0, 4.0, 0.0, 3.0)
 
 
 # ============================================================================
@@ -173,9 +205,8 @@ def test_get_vertices_box() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
     chart._value = {
-        "mode": "box",
-        "has_selection": True,
-        "selection": {
+        "type": "box",
+        "data": {
             "x_min": 1.0,
             "x_max": 3.0,
             "y_min": 2.0,
@@ -188,6 +219,20 @@ def test_get_vertices_box() -> None:
     assert verts[1] == (3.0, 2.0)
     assert verts[2] == (3.0, 4.0)
     assert verts[3] == (1.0, 4.0)
+
+
+def test_get_vertices_lasso() -> None:
+    fig = _make_scatter_figure()
+    chart = matplotlib(fig)
+    chart._value = {
+        "type": "lasso",
+        "data": [(1.0, 2.0), (3.0, 4.0), (5.0, 2.0)],
+    }
+    verts = chart.get_vertices()
+    assert len(verts) == 3
+    assert verts[0] == (1.0, 2.0)
+    assert verts[1] == (3.0, 4.0)
+    assert verts[2] == (5.0, 2.0)
 
 
 # ============================================================================
@@ -205,9 +250,8 @@ def test_contains_point_box() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
     chart._value = {
-        "mode": "box",
-        "has_selection": True,
-        "selection": {
+        "type": "box",
+        "data": {
             "x_min": 1.0,
             "x_max": 3.0,
             "y_min": 2.0,
@@ -217,6 +261,21 @@ def test_contains_point_box() -> None:
     assert chart.contains_point(2.0, 3.0) is True
     assert chart.contains_point(0.0, 3.0) is False
     assert chart.contains_point(2.0, 5.0) is False
+
+
+def test_contains_point_lasso() -> None:
+    fig = _make_scatter_figure()
+    chart = matplotlib(fig)
+    # Triangle: (0,0), (4,0), (2,3)
+    chart._value = {
+        "type": "lasso",
+        "data": [(0.0, 0.0), (4.0, 0.0), (2.0, 3.0)],
+    }
+    # Point inside the triangle
+    assert chart.contains_point(2.0, 1.0) is True
+    # Point outside the triangle
+    assert chart.contains_point(0.0, 3.0) is False
+    assert chart.contains_point(5.0, 5.0) is False
 
 
 # ============================================================================
@@ -238,9 +297,8 @@ def test_get_mask_box() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
     chart._value = {
-        "mode": "box",
-        "has_selection": True,
-        "selection": {
+        "type": "box",
+        "data": {
             "x_min": 1.5,
             "x_max": 3.5,
             "y_min": 1.5,
@@ -257,6 +315,29 @@ def test_get_mask_box() -> None:
     assert mask[1] is np.True_  # (2, 4)
     assert not mask[2]  # (3, 1) - y out of range
     assert not mask[0]  # (1, 2) - x out of range
+
+
+def test_get_mask_lasso() -> None:
+    fig = _make_scatter_figure()
+    chart = matplotlib(fig)
+    # Triangle: (0,0), (10,0), (5,10)
+    chart._value = {
+        "type": "lasso",
+        "data": [(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)],
+    }
+
+    x = np.array([5.0, 0.0, 10.0, 5.0])
+    y = np.array([1.0, 5.0, 5.0, 5.0])
+    mask = chart.get_mask(x, y)
+
+    # (5, 1) is inside the triangle
+    assert mask[0]
+    # (0, 5) is outside (left edge)
+    assert not mask[1]
+    # (10, 5) is outside (right edge)
+    assert not mask[2]
+    # (5, 5) is inside the triangle (center)
+    assert mask[3]
 
 
 # ============================================================================
@@ -278,9 +359,8 @@ def test_get_indices_box() -> None:
     fig = _make_scatter_figure()
     chart = matplotlib(fig)
     chart._value = {
-        "mode": "box",
-        "has_selection": True,
-        "selection": {
+        "type": "box",
+        "data": {
             "x_min": 1.5,
             "x_max": 3.5,
             "y_min": 1.5,
@@ -294,6 +374,27 @@ def test_get_indices_box() -> None:
     assert isinstance(indices, np.ndarray)
     # Point (2, 4) at index 1 should be in range
     assert 1 in indices
+
+
+def test_get_indices_lasso() -> None:
+    fig = _make_scatter_figure()
+    chart = matplotlib(fig)
+    # Triangle: (0,0), (10,0), (5,10)
+    chart._value = {
+        "type": "lasso",
+        "data": [(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)],
+    }
+
+    x = np.array([5.0, 0.0, 10.0, 5.0])
+    y = np.array([1.0, 5.0, 5.0, 5.0])
+    indices = chart.get_indices(x, y)
+    assert isinstance(indices, np.ndarray)
+    # (5, 1) at index 0 and (5, 5) at index 3 are inside
+    assert 0 in indices
+    assert 3 in indices
+    # (0, 5) at index 1 and (10, 5) at index 2 are outside
+    assert 1 not in indices
+    assert 2 not in indices
 
 
 # ============================================================================

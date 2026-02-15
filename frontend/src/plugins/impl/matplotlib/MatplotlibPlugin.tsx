@@ -26,7 +26,7 @@ interface Data {
   debounce: boolean;
 }
 
-interface BoxSelection {
+interface BoxData {
   x_min: number;
   x_max: number;
   y_min: number;
@@ -34,11 +34,9 @@ interface BoxSelection {
 }
 
 type T =
-  | {
-      mode: "box";
-      has_selection: boolean;
-      selection: BoxSelection;
-    }
+  | { type: "box"; has_selection: true; data: BoxData }
+  | { type: "lasso"; has_selection: true; data: [number, number][] }
+  | { has_selection: false }
   | undefined;
 
 export class MatplotlibPlugin implements IPlugin<T, Data> {
@@ -79,6 +77,24 @@ interface PixelPoint {
   y: number;
 }
 
+// Ray-casting point-in-polygon test
+function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    if (
+      yi > pt.y !== yj > pt.y &&
+      pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi) + xi
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 const MatplotlibComponent = memo(
   ({
     chartBase64,
@@ -95,15 +111,11 @@ const MatplotlibComponent = memo(
     setValue,
   }: MatplotlibComponentProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    // Store the loaded image as state (not a ref + boolean) so that the canvas
-    // drawing effect always re-runs when the image changes.  A new Image()
-    // is always a new object reference, which guarantees React sees a change
-    // even if img.onload fires synchronously for data-URLs.
     const [loadedImage, setLoadedImage] = useState<HTMLImageElement | null>(
       null,
     );
 
-    // Selection state in pixel coordinates
+    // Box selection state in pixel coordinates
     const [isDrawing, setIsDrawing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef<PixelPoint | null>(null);
@@ -111,6 +123,10 @@ const MatplotlibComponent = memo(
     // Box selection: start and end in pixels
     const [boxStart, setBoxStart] = useState<PixelPoint | null>(null);
     const [boxEnd, setBoxEnd] = useState<PixelPoint | null>(null);
+
+    // Lasso selection state
+    const [isLassoing, setIsLassoing] = useState(false);
+    const [lassoPoints, setLassoPoints] = useState<PixelPoint[]>([]);
 
     const [axLeft, axTop, axRight, axBottom] = axesPixelBounds;
     const axWidth = axRight - axLeft;
@@ -147,6 +163,7 @@ const MatplotlibComponent = memo(
     useEffect(() => {
       setBoxStart(null);
       setBoxEnd(null);
+      setLassoPoints([]);
       const img = new Image();
       img.onload = () => setLoadedImage(img);
       img.src = chartBase64;
@@ -161,16 +178,16 @@ const MatplotlibComponent = memo(
       [axLeft, axTop, axRight, axBottom],
     );
 
-    // Emit the current box selection as a value
-    const emitSelection = useCallback(
+    // Emit box selection
+    const emitBoxSelection = useCallback(
       (bStart: PixelPoint | null, bEnd: PixelPoint | null) => {
         if (bStart && bEnd) {
           const d1 = pixelToData(bStart);
           const d2 = pixelToData(bEnd);
           setValue({
-            mode: "box",
+            type: "box",
             has_selection: true,
-            selection: {
+            data: {
               x_min: Math.min(d1.x, d2.x),
               x_max: Math.max(d1.x, d2.x),
               y_min: Math.min(d1.y, d2.y),
@@ -182,30 +199,53 @@ const MatplotlibComponent = memo(
       [pixelToData, setValue],
     );
 
+    // Emit lasso selection
+    const emitLassoSelection = useCallback(
+      (points: PixelPoint[]) => {
+        if (points.length >= 3) {
+          const data: [number, number][] = points.map((p) => {
+            const d = pixelToData(p);
+            return [d.x, d.y];
+          });
+          setValue({
+            type: "lasso",
+            has_selection: true,
+            data,
+          });
+        }
+      },
+      [pixelToData, setValue],
+    );
+
     // Clear selection
     const clearSelection = useCallback(() => {
       setBoxStart(null);
       setBoxEnd(null);
-      setValue({
-        mode: "box",
-        has_selection: false,
-        selection: { x_min: 0, x_max: 0, y_min: 0, y_max: 0 },
-      });
+      setLassoPoints([]);
+      setValue({ has_selection: false });
     }, [setValue]);
 
-    // Check if a pixel point is inside the current box selection
+    // What kind of selection is currently active?
+    const hasBoxSelection = boxStart !== null && boxEnd !== null;
+    const hasLassoSelection = lassoPoints.length >= 3;
+    const hasSelection = hasBoxSelection || hasLassoSelection;
+
+    // Check if a pixel point is inside the current selection (box or lasso)
     const isPointInSelection = useCallback(
       (pt: PixelPoint): boolean => {
-        if (boxStart && boxEnd) {
+        if (hasBoxSelection) {
           const minX = Math.min(boxStart.x, boxEnd.x);
           const maxX = Math.max(boxStart.x, boxEnd.x);
           const minY = Math.min(boxStart.y, boxEnd.y);
           const maxY = Math.max(boxStart.y, boxEnd.y);
           return pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY;
         }
+        if (hasLassoSelection) {
+          return pointInPolygon(pt, lassoPoints);
+        }
         return false;
       },
-      [boxStart, boxEnd],
+      [hasBoxSelection, hasLassoSelection, boxStart, boxEnd, lassoPoints],
     );
 
     // Get canvas-relative coordinates from a mouse/touch event
@@ -239,13 +279,35 @@ const MatplotlibComponent = memo(
       [],
     );
 
-    // Has existing selection?
-    const hasSelection = boxStart !== null && boxEnd !== null;
+    // Check if Shift key is held
+    const isShiftHeld = useCallback(
+      (e: React.MouseEvent | React.TouchEvent): boolean => {
+        if ("shiftKey" in e) {
+          return e.shiftKey;
+        }
+        return false;
+      },
+      [],
+    );
 
     // Mouse/touch handlers
     const handlePointerDown = useCallback(
       (e: React.MouseEvent | React.TouchEvent) => {
         const pt = getCanvasPoint(e);
+
+        // Shift+click → start lasso
+        if (isShiftHeld(e)) {
+          // Clear any existing box selection
+          setBoxStart(null);
+          setBoxEnd(null);
+          setIsDrawing(false);
+          setIsDragging(false);
+
+          const clamped = clampToAxes(pt);
+          setIsLassoing(true);
+          setLassoPoints([clamped]);
+          return;
+        }
 
         // If clicking inside existing selection, start dragging
         if (hasSelection && isPointInSelection(pt)) {
@@ -268,6 +330,7 @@ const MatplotlibComponent = memo(
       },
       [
         getCanvasPoint,
+        isShiftHeld,
         hasSelection,
         isPointInSelection,
         clearSelection,
@@ -279,12 +342,19 @@ const MatplotlibComponent = memo(
       (e: React.MouseEvent | React.TouchEvent) => {
         const pt = getCanvasPoint(e);
 
+        // Lassoing: append clamped point
+        if (isLassoing) {
+          const clamped = clampToAxes(pt);
+          setLassoPoints((prev) => [...prev, clamped]);
+          return;
+        }
+
         if (isDragging && dragStartRef.current) {
           let dx = pt.x - dragStartRef.current.x;
           let dy = pt.y - dragStartRef.current.y;
           dragStartRef.current = pt;
 
-          if (boxStart && boxEnd) {
+          if (hasBoxSelection && boxStart && boxEnd) {
             // Clamp delta so the entire box stays in bounds
             const minX = Math.min(boxStart.x, boxEnd.x);
             const maxX = Math.max(boxStart.x, boxEnd.x);
@@ -297,7 +367,40 @@ const MatplotlibComponent = memo(
             setBoxStart(newStart);
             setBoxEnd(newEnd);
             if (!debounce) {
-              emitSelection(newStart, newEnd);
+              emitBoxSelection(newStart, newEnd);
+            }
+          } else if (hasLassoSelection) {
+            // Clamp delta so the entire lasso stays in bounds
+            let lMinX = Number.POSITIVE_INFINITY;
+            let lMaxX = Number.NEGATIVE_INFINITY;
+            let lMinY = Number.POSITIVE_INFINITY;
+            let lMaxY = Number.NEGATIVE_INFINITY;
+            for (const p of lassoPoints) {
+              if (p.x < lMinX) {
+                lMinX = p.x;
+              }
+              if (p.x > lMaxX) {
+                lMaxX = p.x;
+              }
+              if (p.y < lMinY) {
+                lMinY = p.y;
+              }
+              if (p.y > lMaxY) {
+                lMaxY = p.y;
+              }
+            }
+            dx = Math.max(axLeft - lMinX, Math.min(axRight - lMaxX, dx));
+            dy = Math.max(axTop - lMinY, Math.min(axBottom - lMaxY, dy));
+            setLassoPoints((prev) =>
+              prev.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+            );
+            if (!debounce) {
+              // Emit the shifted lasso points
+              const shifted = lassoPoints.map((p) => ({
+                x: p.x + dx,
+                y: p.y + dy,
+              }));
+              emitLassoSelection(shifted);
             }
           }
           return;
@@ -307,18 +410,23 @@ const MatplotlibComponent = memo(
           const clamped = clampToAxes(pt);
           setBoxEnd(clamped);
           if (!debounce) {
-            emitSelection(boxStart, clamped);
+            emitBoxSelection(boxStart, clamped);
           }
         }
       },
       [
         getCanvasPoint,
+        isLassoing,
         isDragging,
         isDrawing,
+        hasBoxSelection,
+        hasLassoSelection,
         boxStart,
         boxEnd,
+        lassoPoints,
         clampToAxes,
-        emitSelection,
+        emitBoxSelection,
+        emitLassoSelection,
         debounce,
         axLeft,
         axTop,
@@ -328,11 +436,27 @@ const MatplotlibComponent = memo(
     );
 
     const handlePointerUp = useCallback(() => {
+      if (isLassoing) {
+        setIsLassoing(false);
+        if (lassoPoints.length >= 3) {
+          emitLassoSelection(lassoPoints);
+        } else {
+          // Degenerate lasso, clear
+          setLassoPoints([]);
+          clearSelection();
+        }
+        return;
+      }
+
       if (isDragging) {
         setIsDragging(false);
         dragStartRef.current = null;
         if (debounce) {
-          emitSelection(boxStart, boxEnd);
+          if (hasBoxSelection) {
+            emitBoxSelection(boxStart, boxEnd);
+          } else if (hasLassoSelection) {
+            emitLassoSelection(lassoPoints);
+          }
         }
         return;
       }
@@ -340,10 +464,23 @@ const MatplotlibComponent = memo(
       if (isDrawing) {
         setIsDrawing(false);
         if (debounce) {
-          emitSelection(boxStart, boxEnd);
+          emitBoxSelection(boxStart, boxEnd);
         }
       }
-    }, [isDragging, isDrawing, debounce, emitSelection, boxStart, boxEnd]);
+    }, [
+      isLassoing,
+      isDragging,
+      isDrawing,
+      debounce,
+      lassoPoints,
+      hasBoxSelection,
+      hasLassoSelection,
+      boxStart,
+      boxEnd,
+      emitBoxSelection,
+      emitLassoSelection,
+      clearSelection,
+    ]);
 
     // Draw on canvas
     useEffect(() => {
@@ -377,10 +514,30 @@ const MatplotlibComponent = memo(
         ctx.lineWidth = strokeWidth;
         ctx.strokeRect(x, y, w, h);
       }
+
+      // Draw lasso selection overlay
+      if (lassoPoints.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        for (let i = 1; i < lassoPoints.length; i++) {
+          ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+        }
+        ctx.closePath();
+
+        ctx.fillStyle = selectionColor;
+        ctx.globalAlpha = selectionOpacity;
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = selectionColor;
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke();
+      }
     }, [
       loadedImage,
       boxStart,
       boxEnd,
+      lassoPoints,
       selectionColor,
       selectionOpacity,
       strokeWidth,
@@ -388,16 +545,21 @@ const MatplotlibComponent = memo(
 
     // Restore selection from value (e.g., when re-rendered by backend)
     useEffect(() => {
-      if (!value || !value.has_selection) {
+      if (!value || !("has_selection" in value) || !value.has_selection) {
         return;
       }
 
-      if ("x_min" in value.selection) {
-        const sel = value.selection;
+      if (value.type === "box") {
+        const sel = value.data;
         const start = dataToPixel({ x: sel.x_min, y: sel.y_min });
         const end = dataToPixel({ x: sel.x_max, y: sel.y_max });
         setBoxStart(start);
         setBoxEnd(end);
+      } else if (value.type === "lasso") {
+        const points = value.data.map(([vx, vy]) =>
+          dataToPixel({ x: vx, y: vy }),
+        );
+        setLassoPoints(points);
       }
       // Only restore on mount
       // eslint-disable-next-line react-hooks/exhaustive-deps
