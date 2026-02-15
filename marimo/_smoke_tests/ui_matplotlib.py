@@ -46,7 +46,7 @@ def _(embedding, mnist, mo, plt):
     plt.scatter(x=x, y=y, s=0.05, cmap="Spectral", c=mnist.attributes["digits"])
     plt.yticks([-2.5, 0, 2.5])
     plt.xticks([-2.5, 0, 2.5])
-    fig = mo.ui.matplotlib(plt.gcf(), debounce=True)
+    fig = mo.ui.matplotlib(plt.gca(), debounce=True)
     fig
     return fig, x, y
 
