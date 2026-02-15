@@ -15,6 +15,16 @@ npx skills add marimo-team/skills
 
 **Feedback.** We welcome feedback at our [GitHub repository](https://github.com/marimo-team/skills/issues).
 
+!!! tip "Watching for changes to notebooks on disk"
+
+    When using marimo with Claude Code, configure the marimo editor to
+    automatically reload when Claude edits your notebook by starting
+    marimo with the `watch` flag: `marimo edit --watch notebook.py`.
+    (Learn more in our [watching guide](/guides/editor_features/watching.md).)
+    You can also configure marimo to automatically reload affected
+    cells when auxiliary files change on disk using
+    [module autoreloading](/guides/editor_features/module_autoreloading.md).
+
 ## What are skills?
 
 Skills are folders of instructions, scripts, and resources that Claude and
