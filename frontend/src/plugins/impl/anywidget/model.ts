@@ -397,11 +397,11 @@ export async function handleWidgetMessage(
       return;
     }
 
-    case "close": {
+    case "close":
       BINDING_MANAGER.destroy(modelId);
       modelManager.delete(modelId); // aborts the model's signal, clearing listeners
       return;
-    }
+    
 
     case "update": {
       const { state, buffer_paths = [] } = msg;
