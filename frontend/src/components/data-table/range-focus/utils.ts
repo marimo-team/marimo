@@ -77,10 +77,12 @@ export function getNumericValuesFromSelectedCells<TData>(
     if (!row) {
       continue;
     }
+
     const tableCell = row.getAllCells().find((c) => c.id === cellId);
     if (!tableCell) {
       continue;
     }
+
     const value = tableCell.getValue();
     // Only accept numbers and strings
     // Skip booleans, null, etc.
@@ -95,6 +97,7 @@ export function getNumericValuesFromSelectedCells<TData>(
     } else {
       continue;
     }
+
     // Skip NaN and Infinity
     if (Number.isFinite(num)) {
       numericValues.push(num);
