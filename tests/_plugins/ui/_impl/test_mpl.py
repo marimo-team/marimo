@@ -35,17 +35,17 @@ def _make_scatter_ax() -> Any:
 
 def test_basic_construction() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
+    fig = matplotlib(ax)
 
-    assert chart is not None
-    assert isinstance(chart.value, EmptySelection)
-    assert not chart.value
+    assert fig is not None
+    assert isinstance(fig.value, EmptySelection)
+    assert not fig.value
 
 
 def test_construction_with_label() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax, label="My Chart")
-    assert chart is not None
+    fig = matplotlib(ax, label="My Chart")
+    assert fig is not None
 
 
 def test_construction_no_figure_raises() -> None:
@@ -56,15 +56,15 @@ def test_construction_no_figure_raises() -> None:
     # Actually, axes are always attached. Test empty figure differently.
     plt.close(fig)
     # We can still construct since ax.get_figure() returns the figure
-    chart = matplotlib(ax)
-    assert chart is not None
+    fig = matplotlib(ax)
+    assert fig is not None
 
 
 def test_construction_args() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
+    fig = matplotlib(ax)
 
-    args = chart._component_args
+    args = fig._component_args
     assert "chart-base64" in args
     assert "x-bounds" in args
     assert "y-bounds" in args
@@ -93,8 +93,8 @@ def test_on_change_callback() -> None:
     def on_change(value: Any) -> None:
         called.append(value)
 
-    chart = matplotlib(ax, on_change=on_change)
-    assert chart is not None
+    fig = matplotlib(ax, on_change=on_change)
+    assert fig is not None
 
 
 # ============================================================================
@@ -104,23 +104,23 @@ def test_on_change_callback() -> None:
 
 def test_convert_value_empty() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
-    result = chart._convert_value({})
+    fig = matplotlib(ax)
+    result = fig._convert_value({})
     assert isinstance(result, EmptySelection)
     assert not result
 
 
 def test_convert_value_no_selection() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
-    result = chart._convert_value({"has_selection": False})
+    fig = matplotlib(ax)
+    result = fig._convert_value({"has_selection": False})
     assert isinstance(result, EmptySelection)
     assert not result
 
 
 def test_convert_value_box() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
+    fig = matplotlib(ax)
     value = {
         "type": "box",
         "has_selection": True,
@@ -131,7 +131,7 @@ def test_convert_value_box() -> None:
             "y_max": 4.0,
         },
     }
-    result = chart._convert_value(value)
+    result = fig._convert_value(value)
     assert isinstance(result, BoxSelection)
     assert result.x_min == 1.0
     assert result.x_max == 3.0
@@ -141,13 +141,13 @@ def test_convert_value_box() -> None:
 
 def test_convert_value_lasso() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
+    fig = matplotlib(ax)
     value = {
         "type": "lasso",
         "has_selection": True,
         "data": [[1.0, 2.0], [3.0, 4.0], [5.0, 2.0]],
     }
-    result = chart._convert_value(value)
+    result = fig._convert_value(value)
     assert isinstance(result, LassoSelection)
     assert result.vertices == ((1.0, 2.0), (3.0, 4.0), (5.0, 2.0))
 
@@ -179,12 +179,12 @@ def test_empty_selection_frozen() -> None:
 
 
 def test_value_get_mask_before_selection() -> None:
-    """chart.value.get_mask() should work even with no selection."""
+    """fig.value.get_mask() should work even with no selection."""
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
+    fig = matplotlib(ax)
     x = np.array([1, 2, 3])
     y = np.array([4, 5, 6])
-    mask = chart.value.get_mask(x, y)
+    mask = fig.value.get_mask(x, y)
     assert mask.sum() == 0
 
 
@@ -261,6 +261,6 @@ def test_figure_to_base64() -> None:
 
 def test_html_contains_tag() -> None:
     ax = _make_scatter_ax()
-    chart = matplotlib(ax)
-    html = chart.text
+    fig = matplotlib(ax)
+    html = fig.text
     assert "marimo-matplotlib" in html

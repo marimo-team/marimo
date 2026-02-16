@@ -101,8 +101,8 @@ class EmptySelection:
 
     Returned by `mo.ui.matplotlib.value` when nothing is selected.
 
-    Behaves like a selection with no points: `get_mask` returns
-    all-`False`, and `bool(empty_selection)` is `False`.
+    Behaves like a selection with no points, and evaluates to False
+    when coerced as a bool.
     """
 
     def get_mask(self, x: ArrayLike, y: ArrayLike) -> np.ndarray:  # noqa: ARG002
