@@ -9,7 +9,6 @@ __all__ = [
     "anywidget",
     "array",
     "batch",
-    "BoxSelection",
     "button",
     "chat",
     "checkbox",
@@ -26,7 +25,6 @@ __all__ = [
     "file_browser",
     "file",
     "form",
-    "LassoSelection",
     "matplotlib",
     "microphone",
     "multiselect",
@@ -79,12 +77,8 @@ from marimo._plugins.ui._impl.input import (
     text,
     text_area,
 )
-from marimo._plugins.ui._impl.matplotlib import (
-    BoxSelection,
-    LassoSelection,
-    matplotlib,
-)
 from marimo._plugins.ui._impl.microphone import microphone
+from marimo._plugins.ui._impl.mpl import matplotlib
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.run_button import run_button

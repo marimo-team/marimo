@@ -49,9 +49,9 @@ export class MatplotlibPlugin implements IPlugin<T, Data> {
     axesPixelBounds: z.tuple([z.number(), z.number(), z.number(), z.number()]),
     width: z.number(),
     height: z.number(),
-    selectionColor: z.string(),
-    selectionOpacity: z.number(),
-    strokeWidth: z.number(),
+    selectionColor: z.string().default("#3b82f6"),
+    selectionOpacity: z.number().default(0.15),
+    strokeWidth: z.number().default(2),
     debounce: z.boolean(),
   });
 
