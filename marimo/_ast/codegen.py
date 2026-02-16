@@ -490,13 +490,44 @@ def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
     silent = MarimoPath(ir.filename).is_markdown() if ir.filename else False
+    header_comments = _extract_header_comments(ir)
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=[cell.name for cell in ir.cells],
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
         config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
-        header_comments=ir.header.value if ir.header else None,
+        header_comments=header_comments,
     )
+
+
+def _extract_header_comments(ir: NotebookSerializationV1) -> Optional[str]:
+    """Extract script preamble from header.
+
+    For markdown notebooks, Header.value may contain YAML-encoded frontmatter
+    metadata (with a 'header' key for the script preamble, and/or a
+    'pyproject' key for inline dependencies). For Python notebooks, it's the
+    raw script preamble.
+    """
+    if not ir.header or not ir.header.value:
+        return None
+    from marimo._utils import yaml
+
+    try:
+        parsed = yaml.load(ir.header.value)
+        if isinstance(parsed, dict):
+            # YAML dict means frontmatter metadata; extract script preamble
+            header = parsed.get("header", None)
+            pyproject = parsed.get("pyproject", None)
+            if header:
+                return str(header)
+            if pyproject:
+                from marimo._utils.scripts import wrap_script_metadata
+
+                return wrap_script_metadata(pyproject)
+            return None
+    except (yaml.YAMLError, AssertionError):
+        pass
+    return ir.header.value
 
 
 def generate_filecontents(
