@@ -324,7 +324,7 @@ const DataTableInternal = <TData,>({
             />
           </Table>
         </div>
-        <CellSelectionStats />
+        <CellSelectionStats table={table} />
       </CellSelectionProvider>
       <TableActions
         enableSearch={enableSearch}
