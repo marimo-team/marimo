@@ -233,6 +233,28 @@ describe("CellSelectionStats", () => {
     expect(screen.getByText("Average: 5")).toBeInTheDocument();
   });
 
+  it("should exclude booleans from Sum and Average", () => {
+    const row = createMockRow("0", [
+      createMockCell("0_0", 10),
+      createMockCell("0_1", true),
+      createMockCell("0_2", false),
+    ]);
+    const table = createMockTable([row], []);
+
+    render(
+      <CellSelectionProvider>
+        <TestHarness
+          table={table}
+          selectedCellIds={new Set(["0_0", "0_1", "0_2"])}
+        />
+      </CellSelectionProvider>,
+    );
+
+    expect(screen.getByText("Count: 3")).toBeInTheDocument();
+    expect(screen.getByText("Sum: 10")).toBeInTheDocument();
+    expect(screen.getByText("Average: 10")).toBeInTheDocument();
+  });
+
   it("should ignore select checkbox column for Count, Sum and Average", () => {
     const selectCellId = `0_${SELECT_COLUMN_ID}`;
     const row = createMockRow("0", [

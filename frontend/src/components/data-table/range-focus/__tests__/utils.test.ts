@@ -337,6 +337,19 @@ describe("getNumericValuesFromSelectedCells", () => {
     expect(result).toEqual([5]);
   });
 
+  it("should skip booleans (not treat as 1 or 0)", () => {
+    const cell1 = createMockCell("0_0", 10);
+    const cell2 = createMockCell("0_1", true);
+    const cell3 = createMockCell("0_2", false);
+    const row = createMockRow("0", [cell1, cell2, cell3]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1", "0_2"]),
+    );
+    expect(result).toEqual([10]);
+  });
+
   it("should handle missing cells gracefully", () => {
     const cell = createMockCell("0_0", 100);
     const row = createMockRow("0", [cell]);

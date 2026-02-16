@@ -61,7 +61,8 @@ export function countDataCellsInSelection(
 /**
  * Extract numeric values from the selected cells. Skips select checkbox cells,
  * non-numeric values (NaN, Infinity, non-parsable strings), and missing cells.
- * Numbers and numeric strings (e.g. "42", "3.14") are included.
+ * Numbers and numeric strings (e.g. "42", "3.14") are included. Booleans are
+ * excluded (not treated as 1/0).
  */
 export function getNumericValuesFromSelectedCells<TData>(
   table: Table<TData>,
@@ -82,6 +83,9 @@ export function getNumericValuesFromSelectedCells<TData>(
       continue;
     }
     const value = tableCell.getValue();
+    if (typeof value === "boolean") {
+      continue;
+    }
     const num = typeof value === "number" ? value : Number(value);
     if (Number.isFinite(num)) {
       numericValues.push(num);
