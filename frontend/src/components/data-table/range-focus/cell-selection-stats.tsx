@@ -4,11 +4,15 @@ import type { Table } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { cn } from "@/utils/cn";
 import { type SelectedCells, selectedCellsAtom } from "./atoms";
-import { getNumericValuesFromSelectedCells } from "./utils";
+import {
+  countDataCellsInSelection,
+  getNumericValuesFromSelectedCells,
+} from "./utils";
 
 /**
  * Displays summary stats (Count, Sum, Average) for the current cell selection.
- * Renders only when 2+ cells are selected. Sum and Average are shown only when
+ * Renders only when 2+ data cells are selected (checkbox column excluded).
+ * Count excludes the checkbox column; Sum and Average are shown only when
  * the selection contains at least one numeric value.
  */
 export const CellSelectionStats = <TData,>({
@@ -19,8 +23,9 @@ export const CellSelectionStats = <TData,>({
   className?: string;
 }) => {
   const selectedCells = useAtomValue(selectedCellsAtom);
+  const dataCellCount = countDataCellsInSelection(selectedCells);
 
-  if (selectedCells.size < 2) {
+  if (dataCellCount < 2) {
     return null;
   }
 
@@ -47,7 +52,8 @@ const StatSpan = (statName: string, statValue: number) => {
 };
 
 const CountStat = ({ selectedCells }: { selectedCells: SelectedCells }) => {
-  return StatSpan("Count", selectedCells.size);
+  const count = countDataCellsInSelection(selectedCells);
+  return StatSpan("Count", count);
 };
 
 const SumStat = <TData,>({
