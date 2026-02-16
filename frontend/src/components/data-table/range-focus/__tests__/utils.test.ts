@@ -350,6 +350,56 @@ describe("getNumericValuesFromSelectedCells", () => {
     expect(result).toEqual([10]);
   });
 
+  it("should skip null and empty string (not treat as 0)", () => {
+    const cell1 = createMockCell("0_0", 10);
+    const cell2 = createMockCell("0_1", null);
+    const cell3 = createMockCell("0_2", "");
+    const row = createMockRow("0", [cell1, cell2, cell3]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1", "0_2"]),
+    );
+    expect(result).toEqual([10]);
+  });
+
+  it("should include string '0' as numeric zero", () => {
+    const cell1 = createMockCell("0_0", "0");
+    const cell2 = createMockCell("0_1", 0);
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1"]),
+    );
+    expect(result).toEqual([0, 0]);
+  });
+
+  it("should skip -Infinity", () => {
+    const cell1 = createMockCell("0_0", 5);
+    const cell2 = createMockCell("0_1", -Infinity);
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1"]),
+    );
+    expect(result).toEqual([5]);
+  });
+
+  it("should skip objects", () => {
+    const cell1 = createMockCell("0_0", 5);
+    const cell2 = createMockCell("0_1", { x: 1 });
+    const cell3 = createMockCell("0_2", [1, 2]);
+    const row = createMockRow("0", [cell1, cell2, cell3]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1", "0_2"]),
+    );
+    expect(result).toEqual([5]);
+  });
+
   it("should handle missing cells gracefully", () => {
     const cell = createMockCell("0_0", 100);
     const row = createMockRow("0", [cell]);

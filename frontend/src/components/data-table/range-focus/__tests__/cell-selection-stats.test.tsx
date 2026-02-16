@@ -158,6 +158,24 @@ describe("CellSelectionStats", () => {
     expect(screen.getByText("Average: 0.15")).toBeInTheDocument();
   });
 
+  it("should display Sum: 0 and Average: 0 when all selected values are zero", () => {
+    const row = createMockRow("0", [
+      createMockCell("0_0", 0),
+      createMockCell("0_1", 0),
+    ]);
+    const table = createMockTable([row], []);
+
+    render(
+      <CellSelectionProvider>
+        <TestHarness table={table} selectedCellIds={new Set(["0_0", "0_1"])} />
+      </CellSelectionProvider>,
+    );
+
+    expect(screen.getByText("Count: 2")).toBeInTheDocument();
+    expect(screen.getByText("Sum: 0")).toBeInTheDocument();
+    expect(screen.getByText("Average: 0")).toBeInTheDocument();
+  });
+
   it("should not display any stats when exactly one cell is selected", () => {
     const row = createMockRow("0", [
       createMockCell("0_0", 10),
