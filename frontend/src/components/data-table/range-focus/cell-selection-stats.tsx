@@ -29,6 +29,8 @@ export const CellSelectionStats = <TData,>({
     return null;
   }
 
+  const numericValues = getNumericValuesFromSelectedCells(table, selectedCells);
+
   return (
     <div
       className={cn(
@@ -37,8 +39,8 @@ export const CellSelectionStats = <TData,>({
       )}
     >
       <CountStat selectedCells={selectedCells} />
-      <SumStat table={table} selectedCells={selectedCells} />
-      <AverageStat table={table} selectedCells={selectedCells} />
+      <SumStat numericValues={numericValues} />
+      <AverageStat numericValues={numericValues} />
     </div>
   );
 };
@@ -56,14 +58,7 @@ const CountStat = ({ selectedCells }: { selectedCells: SelectedCells }) => {
   return StatSpan("Count", count);
 };
 
-const SumStat = <TData,>({
-  table,
-  selectedCells,
-}: {
-  table: Table<TData>;
-  selectedCells: SelectedCells;
-}) => {
-  const numericValues = getNumericValuesFromSelectedCells(table, selectedCells);
+const SumStat = ({ numericValues }: { numericValues: number[] }) => {
   if (numericValues.length === 0) {
     return null;
   }
@@ -73,14 +68,7 @@ const SumStat = <TData,>({
   return StatSpan("Sum", sumRounded);
 };
 
-const AverageStat = <TData,>({
-  table,
-  selectedCells,
-}: {
-  table: Table<TData>;
-  selectedCells: SelectedCells;
-}) => {
-  const numericValues = getNumericValuesFromSelectedCells(table, selectedCells);
+const AverageStat = ({ numericValues }: { numericValues: number[] }) => {
   if (numericValues.length === 0) {
     return null;
   }
