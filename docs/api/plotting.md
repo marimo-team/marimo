@@ -6,6 +6,10 @@ as you normally would.
 
 For more information about plotting, see the [plotting guide](../guides/working_with_data/plotting.md).
 
+## Reactive plots with matplotlib
+
+::: marimo.ui.matplotlib
+
 ## Reactive charts with Altair
 
 /// marimo-embed
@@ -105,13 +109,13 @@ alt.data_transformers.enable('marimo_csv')
       show_root_heading: true
       show_source: true
 
-## Leafmap support
+## Leafmap
 
 marimo supports rendering [Leafmap](https://leafmap.org/) maps using the `folium` and `plotly` backends.
 
 ## Other plotting libraries
 
-You can use all the popular plotting libraries with marimo. Such as:
+You can use all the popular plotting libraries with marimo, such as:
 
 - [Matplotlib](https://matplotlib.org/)
 - [Plotly](https://plotly.com/)

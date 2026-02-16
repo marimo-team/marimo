@@ -191,7 +191,6 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             but selections map to this axes' coordinate space.
         debounce: If `True`, the selection is only sent to Python on
             mouse-up. If `False` (the default), it streams while dragging.
-        label: Markdown label for the element. Defaults to `""`.
         on_change: Optional callback invoked when the selection changes.
     """
 
@@ -202,7 +201,6 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         axes: Axes,
         *,
         debounce: bool = False,
-        label: str = "",
         on_change: Optional[Callable[[MatplotlibSelection], None]] = None,
     ) -> None:
         DependencyManager.matplotlib.require("for `mo.ui.matplotlib`")
@@ -229,7 +227,7 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         super().__init__(
             component_name=matplotlib.name,
             initial_value={},
-            label=label,
+            label="",
             args={
                 "chart-base64": _figure_to_base64(figure),
                 "x-bounds": list(axes.get_xlim()),

@@ -39,6 +39,12 @@ def _(compute_embedding):
 
 
 @app.cell
+def _(mo):
+    mo.ui.dataframe
+    return
+
+
+@app.cell
 def _(embedding, mnist, mo, plt):
     x = embedding[:, 0]
     y = embedding[:, 1]
@@ -46,26 +52,20 @@ def _(embedding, mnist, mo, plt):
     plt.scatter(x=x, y=y, s=0.05, cmap="Spectral", c=mnist.attributes["digits"])
     plt.yticks([-2.5, 0, 2.5])
     plt.xticks([-2.5, 0, 2.5])
-    fig = mo.ui.matplotlib(axes=plt.gca(), debounce=True)
+    fig = mo.ui.matplotlib(plt.gca(), debounce=True, label="Hello, 🌏")
     fig
     return fig, x, y
 
 
 @app.cell
-def _(plt):
-    f = plt.gca()
+def _(embedding, fig, x, y):
+    embedding[fig.value.get_mask(x, y)]
     return
 
 
 @app.cell
 def _(fig):
-    fig.value
-    return
-
-
-@app.cell
-def _(embedding, fig, x, y):
-    embedding[fig.value.get_mask(x, y)]
+    fig.value if fig.value else "No selection!"
     return
 
 
