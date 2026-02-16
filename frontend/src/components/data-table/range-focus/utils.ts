@@ -44,6 +44,21 @@ export function getTabSeparatedValues(values: string[][]) {
 }
 
 /**
+ * Count selected cells excluding the select checkbox column.
+ */
+export function countDataCellsInSelection(
+  selectedCellIds: Set<string>,
+): number {
+  let count = 0;
+  for (const cellId of selectedCellIds) {
+    if (!cellId.includes(SELECT_COLUMN_ID)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
  * Extract numeric values from the selected cells. Skips select checkbox cells,
  * non-numeric values (NaN, Infinity, non-parsable strings), and missing cells.
  * Numbers and numeric strings (e.g. "42", "3.14") are included.
