@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { SELECT_COLUMN_ID } from "../../types";
 import {
+  countDataCellsInSelection,
   getCellsBetween,
   getCellValues,
   getNumericValuesFromSelectedCells,
@@ -362,5 +363,30 @@ describe("getNumericValuesFromSelectedCells", () => {
       new Set(["0_0", "0_1", "1_0", "1_1"]),
     );
     expect(result).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe("countDataCellsInSelection", () => {
+  it("should return 0 for empty selection", () => {
+    expect(countDataCellsInSelection(new Set())).toBe(0);
+  });
+
+  it("should count only non-checkbox cells", () => {
+    expect(countDataCellsInSelection(new Set(["0_0", "0_1", "1_0"]))).toBe(3);
+  });
+
+  it("should exclude select checkbox column cells", () => {
+    const selectCellId = `0_${SELECT_COLUMN_ID}`;
+    expect(
+      countDataCellsInSelection(new Set([selectCellId, "0_0", "0_1"])),
+    ).toBe(2);
+  });
+
+  it("should return 0 when only checkbox cells are selected", () => {
+    const selectCellId1 = `0_${SELECT_COLUMN_ID}`;
+    const selectCellId2 = `1_${SELECT_COLUMN_ID}`;
+    expect(
+      countDataCellsInSelection(new Set([selectCellId1, selectCellId2])),
+    ).toBe(0);
   });
 });
