@@ -43,6 +43,33 @@ export function getTabSeparatedValues(values: string[][]) {
   return values.map((row) => row.join("\t")).join("\n");
 }
 
+export function getNumericValuesFromSelectedCells<TData>(
+  table: Table<TData>,
+  selectedCellIds: Set<string>,
+): number[] {
+  const numericValues: number[] = [];
+  for (const cellId of selectedCellIds) {
+    if (cellId.includes(SELECT_COLUMN_ID)) {
+      continue;
+    }
+    const rowId = cellId.split("_")[0];
+    const row = table.getRow(rowId);
+    if (!row) {
+      continue;
+    }
+    const tableCell = row.getAllCells().find((c) => c.id === cellId);
+    if (!tableCell) {
+      continue;
+    }
+    const value = tableCell.getValue();
+    const num = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(num)) {
+      numericValues.push(num);
+    }
+  }
+  return numericValues;
+}
+
 /**
  * Get the cell ids between two cells.
  */
