@@ -6,6 +6,11 @@ import { cn } from "@/utils/cn";
 import { type SelectedCells, selectedCellsAtom } from "./atoms";
 import { getNumericValuesFromSelectedCells } from "./utils";
 
+/**
+ * Displays summary stats (Count, Sum, Average) for the current cell selection.
+ * Renders only when 2+ cells are selected. Sum and Average are shown only when
+ * the selection contains at least one numeric value.
+ */
 export const CellSelectionStats = <TData,>({
   table,
   className,

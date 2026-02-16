@@ -43,6 +43,11 @@ export function getTabSeparatedValues(values: string[][]) {
   return values.map((row) => row.join("\t")).join("\n");
 }
 
+/**
+ * Extract numeric values from the selected cells. Skips select checkbox cells,
+ * non-numeric values (NaN, Infinity, non-parsable strings), and missing cells.
+ * Numbers and numeric strings (e.g. "42", "3.14") are included.
+ */
 export function getNumericValuesFromSelectedCells<TData>(
   table: Table<TData>,
   selectedCellIds: Set<string>,
