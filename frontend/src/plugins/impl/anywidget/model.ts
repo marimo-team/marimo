@@ -401,7 +401,6 @@ export async function handleWidgetMessage(
       BINDING_MANAGER.destroy(modelId);
       modelManager.delete(modelId); // aborts the model's signal, clearing listeners
       return;
-    
 
     case "update": {
       const { state, buffer_paths = [] } = msg;
