@@ -59,9 +59,9 @@ import { reportVitals } from "./utils/vitals";
 let hasMounted = false;
 
 /**
- * Main entry point for the mairmo app.
+ * Main entry point for the marimo app.
  *
- * Sets up the mairmo app with a theme provider.
+ * Sets up the marimo app with a theme provider.
  */
 export function mount(options: unknown, el: Element): Error | undefined {
   if (hasMounted) {
