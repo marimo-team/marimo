@@ -59,10 +59,9 @@ export function countDataCellsInSelection(
 }
 
 /**
- * Extract numeric values from the selected cells. Skips select checkbox cells,
- * non-numeric values (NaN, Infinity, non-parsable strings), and missing cells.
- * Numbers and numeric strings (e.g. "42", "3.14") are included. Booleans are
- * excluded (not treated as 1/0).
+ * Extract numeric values from the selected cells. Only finite numbers and
+ * non-empty numeric strings (e.g. "42", "3.14", "0") are included. Skips select
+ * checkbox column, missing cells, and all other types (boolean, null, etc.).
  */
 export function getNumericValuesFromSelectedCells<TData>(
   table: Table<TData>,
@@ -83,10 +82,20 @@ export function getNumericValuesFromSelectedCells<TData>(
       continue;
     }
     const value = tableCell.getValue();
-    if (typeof value === "boolean") {
+    // Only accept numbers and strings
+    // Skip booleans, null, etc.
+    let num: number;
+    if (typeof value === "number") {
+      num = value;
+    } else if (typeof value === "string") {
+      if (value.trim() === "") {
+        continue;
+      }
+      num = Number(value);
+    } else {
       continue;
     }
-    const num = typeof value === "number" ? value : Number(value);
+    // Skip NaN and Infinity
     if (Number.isFinite(num)) {
       numericValues.push(num);
     }
