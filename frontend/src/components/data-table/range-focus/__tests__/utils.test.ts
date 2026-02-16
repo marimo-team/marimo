@@ -2,7 +2,11 @@
 
 import { describe, expect, it } from "vitest";
 import { SELECT_COLUMN_ID } from "../../types";
-import { getCellsBetween, getCellValues } from "../utils";
+import {
+  getCellsBetween,
+  getCellValues,
+  getNumericValuesFromSelectedCells,
+} from "../utils";
 import {
   createMockCell,
   createMockColumn,
@@ -261,5 +265,102 @@ describe("getCellsBetween", () => {
 
     const result = getCellsBetween(table, cellStart, cellEnd);
     expect(result).toEqual([]);
+  });
+});
+
+describe("getNumericValuesFromSelectedCells", () => {
+  it("should return empty array for empty selection", () => {
+    const mockTable = createMockTable([], []);
+    const result = getNumericValuesFromSelectedCells(mockTable, new Set());
+    expect(result).toEqual([]);
+  });
+
+  it("should ignore select checkbox in tables", () => {
+    const cell = createMockCell(`row_${SELECT_COLUMN_ID}`, 10);
+    const row = createMockRow("0", [cell]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set([`row_${SELECT_COLUMN_ID}`]),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("should extract numeric values from number cells", () => {
+    const cell1 = createMockCell("0_0", 10);
+    const cell2 = createMockCell("0_1", 20);
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1"]),
+    );
+    expect(result).toEqual([10, 20]);
+  });
+
+  it("should parse string numbers to numeric values", () => {
+    const cell1 = createMockCell("0_0", "42");
+    const cell2 = createMockCell("0_1", "3.14");
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1"]),
+    );
+    expect(result).toEqual([42, 3.14]);
+  });
+
+  it("should skip non-numeric values", () => {
+    const cell1 = createMockCell("0_0", 10);
+    const cell2 = createMockCell("0_1", "abc");
+    const cell3 = createMockCell("0_2", undefined);
+    const row = createMockRow("0", [cell1, cell2, cell3]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1", "0_2"]),
+    );
+    expect(result).toEqual([10]);
+  });
+
+  it("should skip NaN and Infinity", () => {
+    const cell1 = createMockCell("0_0", 5);
+    const cell2 = createMockCell("0_1", NaN);
+    const cell3 = createMockCell("0_2", Infinity);
+    const row = createMockRow("0", [cell1, cell2, cell3]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1", "0_2"]),
+    );
+    expect(result).toEqual([5]);
+  });
+
+  it("should handle missing cells gracefully", () => {
+    const cell = createMockCell("0_0", 100);
+    const row = createMockRow("0", [cell]);
+    const table = createMockTable([row], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_999", "999_0"]),
+    );
+    expect(result).toEqual([100]);
+  });
+
+  it("should return multiple numeric cells across rows", () => {
+    const row1 = createMockRow("0", [
+      createMockCell("0_0", 1),
+      createMockCell("0_1", 2),
+    ]);
+    const row2 = createMockRow("1", [
+      createMockCell("1_0", 3),
+      createMockCell("1_1", 4),
+    ]);
+    const table = createMockTable([row1, row2], []);
+    const result = getNumericValuesFromSelectedCells(
+      table,
+      new Set(["0_0", "0_1", "1_0", "1_1"]),
+    );
+    expect(result).toEqual([1, 2, 3, 4]);
   });
 });
