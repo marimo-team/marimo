@@ -233,11 +233,12 @@ describe("CellSelectionStats", () => {
     expect(screen.getByText("Average: 5")).toBeInTheDocument();
   });
 
-  it("should ignore select checkbox column for Sum and Average", () => {
+  it("should ignore select checkbox column for Count, Sum and Average", () => {
     const selectCellId = `0_${SELECT_COLUMN_ID}`;
     const row = createMockRow("0", [
       createMockCell(selectCellId, 10),
       createMockCell("0_0", 20),
+      createMockCell("0_1", 30),
     ]);
     const table = createMockTable([row], []);
 
@@ -245,14 +246,34 @@ describe("CellSelectionStats", () => {
       <CellSelectionProvider>
         <TestHarness
           table={table}
-          selectedCellIds={new Set([selectCellId, "0_0"])}
+          selectedCellIds={new Set([selectCellId, "0_0", "0_1"])}
         />
       </CellSelectionProvider>,
     );
 
     expect(screen.getByText("Count: 2")).toBeInTheDocument();
-    expect(screen.getByText("Sum: 20")).toBeInTheDocument();
-    expect(screen.getByText("Average: 20")).toBeInTheDocument();
+    expect(screen.getByText("Sum: 50")).toBeInTheDocument();
+    expect(screen.getByText("Average: 25")).toBeInTheDocument();
+  });
+
+  it("should not display stats when only checkbox column cells are selected", () => {
+    const selectCellId1 = `0_${SELECT_COLUMN_ID}`;
+    const selectCellId2 = `1_${SELECT_COLUMN_ID}`;
+    const row1 = createMockRow("0", [createMockCell(selectCellId1, true)]);
+    const row2 = createMockRow("1", [createMockCell(selectCellId2, false)]);
+    const table = createMockTable([row1, row2], []);
+
+    const { container } = render(
+      <CellSelectionProvider>
+        <TestHarness
+          table={table}
+          selectedCellIds={new Set([selectCellId1, selectCellId2])}
+        />
+      </CellSelectionProvider>,
+    );
+
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 
   it("should show Sum and Average only for numeric cells when selection has mixed types", () => {
