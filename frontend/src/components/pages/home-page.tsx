@@ -326,7 +326,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     return (
       <a
         className={itemClassName}
-        href={asURL(`?file=${relativePath}`).toString()}
+        href={asURL(`?file=${encodeURIComponent(relativePath)}`).toString()}
         target={tabTarget(relativePath)}
       >
         {iconEl}
@@ -401,8 +401,8 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
   // We want to keep the sessionId in this case
   const isNewNotebook = isSessionId(file.path);
   const href = isNewNotebook
-    ? asURL(`?file=${file.initializationId}&session_id=${file.path}`)
-    : asURL(`?file=${file.path}`);
+    ? asURL(`?file=${encodeURIComponent(file.initializationId!)}&session_id=${file.path}`)
+    : asURL(`?file=${encodeURIComponent(file.path)}`);
 
   const isMarkdown = file.path.endsWith(".md");
 
