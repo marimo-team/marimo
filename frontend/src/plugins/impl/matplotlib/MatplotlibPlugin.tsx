@@ -11,7 +11,6 @@ import {
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 
-
 interface Data {
   chartBase64: string;
   xBounds: [number, number];
@@ -148,7 +147,7 @@ const MatplotlibComponent = memo(
           // Interpolate in log space, then convert back
           const logMin = Math.log10(xBounds[0]);
           const logMax = Math.log10(xBounds[1]);
-          dataX = Math.pow(10, logMin + fracX * (logMax - logMin));
+          dataX = 10 ** (logMin + fracX * (logMax - logMin));
         } else {
           dataX = xBounds[0] + fracX * (xBounds[1] - xBounds[0]);
         }
@@ -158,7 +157,7 @@ const MatplotlibComponent = memo(
           const logMin = Math.log10(yBounds[0]);
           const logMax = Math.log10(yBounds[1]);
           // Y-axis is inverted in pixel space
-          dataY = Math.pow(10, logMax - fracY * (logMax - logMin));
+          dataY = 10 ** (logMax - fracY * (logMax - logMin));
         } else {
           dataY = yBounds[1] - fracY * (yBounds[1] - yBounds[0]);
         }
