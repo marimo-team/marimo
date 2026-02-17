@@ -236,6 +236,8 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                 "width": fig_width_px,
                 "height": fig_height_px,
                 "debounce": debounce,
+                "x-scale": axes.get_xscale(),
+                "y-scale": axes.get_yscale(),
             },
             on_change=on_change,
         )

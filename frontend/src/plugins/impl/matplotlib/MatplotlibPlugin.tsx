@@ -24,6 +24,8 @@ interface Data {
   selectionOpacity: number;
   strokeWidth: number;
   debounce: boolean;
+  xScale: string;
+  yScale: string;
 }
 
 interface BoxData {
@@ -53,6 +55,8 @@ export class MatplotlibPlugin implements IPlugin<T, Data> {
     selectionOpacity: z.number().default(0.15),
     strokeWidth: z.number().default(2),
     debounce: z.boolean(),
+    xScale: z.string().default("linear"),
+    yScale: z.string().default("linear"),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -107,6 +111,8 @@ const MatplotlibComponent = memo(
     selectionOpacity,
     strokeWidth,
     debounce,
+    xScale,
+    yScale,
     value,
     setValue,
   }: MatplotlibComponentProps) => {
@@ -137,26 +143,59 @@ const MatplotlibComponent = memo(
       (px: PixelPoint): PixelPoint => {
         const fracX = (px.x - axLeft) / axWidth;
         const fracY = (px.y - axTop) / axHeight;
-        return {
-          x: xBounds[0] + fracX * (xBounds[1] - xBounds[0]),
-          // Y-axis is inverted in pixel space (top=0 in pixels, but top=yMax in data)
-          y: yBounds[1] - fracY * (yBounds[1] - yBounds[0]),
-        };
+
+        let dataX: number;
+        if (xScale === "log") {
+          // Interpolate in log space, then convert back
+          const logMin = Math.log10(xBounds[0]);
+          const logMax = Math.log10(xBounds[1]);
+          dataX = Math.pow(10, logMin + fracX * (logMax - logMin));
+        } else {
+          dataX = xBounds[0] + fracX * (xBounds[1] - xBounds[0]);
+        }
+
+        let dataY: number;
+        if (yScale === "log") {
+          const logMin = Math.log10(yBounds[0]);
+          const logMax = Math.log10(yBounds[1]);
+          // Y-axis is inverted in pixel space
+          dataY = Math.pow(10, logMax - fracY * (logMax - logMin));
+        } else {
+          dataY = yBounds[1] - fracY * (yBounds[1] - yBounds[0]);
+        }
+
+        return { x: dataX, y: dataY };
       },
-      [axLeft, axTop, axWidth, axHeight, xBounds, yBounds],
+      [axLeft, axTop, axWidth, axHeight, xBounds, yBounds, xScale, yScale],
     );
 
     // Convert data coords to pixel coords
     const dataToPixel = useCallback(
       (data: PixelPoint): PixelPoint => {
-        const fracX = (data.x - xBounds[0]) / (xBounds[1] - xBounds[0]);
-        const fracY = (yBounds[1] - data.y) / (yBounds[1] - yBounds[0]);
+        let fracX: number;
+        if (xScale === "log") {
+          fracX =
+            (Math.log10(data.x) - Math.log10(xBounds[0])) /
+            (Math.log10(xBounds[1]) - Math.log10(xBounds[0]));
+        } else {
+          fracX = (data.x - xBounds[0]) / (xBounds[1] - xBounds[0]);
+        }
+
+        let fracY: number;
+        if (yScale === "log") {
+          fracY =
+            (Math.log10(yBounds[1]) - Math.log10(data.y)) /
+            (Math.log10(yBounds[1]) - Math.log10(yBounds[0]));
+        } else {
+          fracY = (yBounds[1] - data.y) / (yBounds[1] - yBounds[0]);
+        }
+
         return {
           x: axLeft + fracX * axWidth,
           y: axTop + fracY * axHeight,
         };
       },
-      [axLeft, axTop, axWidth, axHeight, xBounds, yBounds],
+      [axLeft, axTop, axWidth, axHeight, xBounds, yBounds, xScale, yScale],
     );
 
     // Load image — clear selection and redraw when the chart changes
