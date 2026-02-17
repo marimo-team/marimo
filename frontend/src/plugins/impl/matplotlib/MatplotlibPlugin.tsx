@@ -637,6 +637,8 @@ const MatplotlibComponent = memo(
           state.boxEnd = null;
           state.lassoPoints = [];
           scheduleRedraw();
+        } else if (hasSelection()) {
+          clearSelection();
         }
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
