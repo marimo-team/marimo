@@ -11,7 +11,6 @@ import {
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 
-import "./matplotlib.css";
 
 interface Data {
   chartBase64: string;
@@ -605,10 +604,10 @@ const MatplotlibComponent = memo(
     }, []);
 
     return (
-      <div className="matplotlib-container">
+      <div className="relative inline-block select-none">
         <canvas
           ref={canvasRef}
-          className="matplotlib-canvas"
+          className="block cursor-crosshair"
           width={width}
           height={height}
           style={{
