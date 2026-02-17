@@ -37,17 +37,6 @@ _sandbox_message = (
 _READINESS_WAIT_TIMEOUT_MS = 30_000
 
 
-def _split_paths_and_args(
-    name: str, args: tuple[str, ...]
-) -> tuple[list[str], tuple[str, ...]]:
-    paths = [name]
-    for index, arg in enumerate(args):
-        if arg == "--":
-            return paths, args[index + 1 :]
-        paths.append(arg)
-    return paths, ()
-
-
 def _collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
     notebooks: dict[str, MarimoPath] = {}
 
@@ -531,8 +520,7 @@ def thumbnail(
             ) from None
         raise
 
-    paths, notebook_args = _split_paths_and_args(str(name), args)
-    notebooks = _collect_notebooks([Path(p) for p in paths])
+    notebooks = _collect_notebooks([Path(name)])
     if not notebooks:
         raise click.ClickException("No marimo notebooks found.")
     if output is not None and len(notebooks) > 1:
@@ -562,7 +550,7 @@ def thumbnail(
             overwrite=overwrite,
             include_code=include_code,
             execute=execute,
-            notebook_args=notebook_args,
+            notebook_args=args,
             continue_on_error=continue_on_error,
             sandbox=sandbox_mode is not None,
         )
