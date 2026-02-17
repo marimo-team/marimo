@@ -90,6 +90,7 @@ test("default UserConfig - empty", () => {
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "reactive_tests": true,
+        "show_error_tracebacks": false,
         "watcher_on_save": "lazy",
       },
       "save": {
@@ -160,6 +161,7 @@ test("default UserConfig - one level", () => {
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "reactive_tests": true,
+        "show_error_tracebacks": false,
         "watcher_on_save": "lazy",
       },
       "save": {

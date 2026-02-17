@@ -3622,6 +3622,19 @@ class TestErrorHandling:
         assert isinstance(errors[0], MarimoInternalError)
         assert errors[0].msg.startswith("An internal error occurred: ")
 
+        # Verify no traceback leaks via console output
+        for op in cell_notifications:
+            if op.console is not None:
+                console_list = (
+                    [op.console]
+                    if not isinstance(op.console, list)
+                    else op.console
+                )
+                for console_output in console_list:
+                    assert "some secret error" not in str(
+                        console_output.data
+                    ), "Traceback leaked to console in run mode"
+
     async def test_error_handling_in_run_mode_with_show_tracebacks(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:

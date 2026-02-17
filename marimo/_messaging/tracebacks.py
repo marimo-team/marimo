@@ -28,7 +28,29 @@ def write_traceback(traceback: str) -> None:
             mimetype="application/vnd.marimo+traceback",
         )
     else:
-        sys.stderr.write(traceback)
+        # When stderr is not redirected (e.g., run mode with redirect_console_to_browser=False),
+        # send the traceback directly via the stream to ensure exceptions reach the frontend
+        from marimo._runtime.context.types import safe_get_context
+        from marimo._messaging.cell_output import CellChannel, CellOutput
+        from marimo._messaging.notification import CellNotification
+        from marimo._messaging.notification_utils import broadcast_notification
+        
+        ctx = safe_get_context()
+        if ctx is not None and ctx.cell_id is not None:
+            broadcast_notification(
+                CellNotification(
+                    cell_id=ctx.cell_id,
+                    console=CellOutput(
+                        channel=CellChannel.STDERR,
+                        mimetype="application/vnd.marimo+traceback",
+                        data=_highlight_traceback(_trim_traceback(traceback)),
+                    ),
+                ),
+                ctx.stream,
+            )
+        else:
+            # Fallback to regular stderr if no context is available
+            sys.stderr.write(traceback)
 
 
 def _trim_traceback(traceback: str) -> str:
