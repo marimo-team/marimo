@@ -44,6 +44,9 @@ class TestPyTorchFormatter:
         # Tree structure elements
         assert "nn-t-node" in html
         assert "nn-t-arrow" in html
+        # dtype/device in expand bodies of Linear layers
+        assert "float32" in html
+        assert "cpu" in html
 
     def test_format_nested_module(self) -> None:
         import torch.nn as nn
@@ -198,6 +201,76 @@ class TestPyTorchFormatter:
         info = _trainable_info(100, 50)
         assert "trainable" in info.note
         assert info.is_frozen is False
+
+    def test_collect_dtype_device_uniform(self) -> None:
+        import torch
+
+        from marimo._output.formatters.pytorch_formatters import (
+            _collect_dtype_device,
+        )
+
+        params = [torch.zeros(2), torch.ones(3)]
+        dtype_str, device_str = _collect_dtype_device(params)
+        assert dtype_str == "float32"
+        assert device_str == "cpu"
+
+    def test_collect_dtype_device_mixed(self) -> None:
+        import torch
+
+        from marimo._output.formatters.pytorch_formatters import (
+            _collect_dtype_device,
+        )
+
+        params = [
+            torch.zeros(2, dtype=torch.float32),
+            torch.ones(3, dtype=torch.float16),
+        ]
+        dtype_str, device_str = _collect_dtype_device(params)
+        assert dtype_str == "float16/float32"
+        assert device_str == "cpu"
+
+    def test_collect_dtype_device_empty(self) -> None:
+        from marimo._output.formatters.pytorch_formatters import (
+            _collect_dtype_device,
+        )
+
+        dtype_str, device_str = _collect_dtype_device([])
+        assert dtype_str == "\u2013"
+        assert device_str == "\u2013"
+
+    def test_expand_body_dtype_device(self) -> None:
+        """Expanding a layer shows kwargs, then a 'tensor' divider,
+        then dtype/device."""
+        import torch.nn as nn
+
+        from marimo._output.formatters.pytorch_formatters import format
+
+        model = nn.Sequential(nn.Linear(10, 5))
+        html = format(model).text
+
+        # dtype/device present in expand body
+        assert "float32" in html
+        assert "cpu" in html
+        # Labeled divider between kwargs and dtype/device
+        assert "nn-t-expand-sep" in html
+        assert "tensor" in html.lower()
+
+    def test_comma_to_br_strips_equals(self) -> None:
+        """Expanded view replaces = between key/value with space."""
+        from marimo._output.formatters.pytorch_formatters import _comma_to_br
+
+        html_in = (
+            '<span class="nn-t-key">in_features</span>=10, '
+            '<span class="nn-t-key">bias</span>=True'
+        )
+        result = _comma_to_br(html_in)
+        # = after </span> replaced with space
+        assert "</span> 10" in result
+        assert "</span> True" in result
+        # Commas replaced with <br>
+        assert "<br>" in result
+        # HTML attribute = signs preserved
+        assert 'class="nn-t-key"' in result
 
     def test_returns_html_type(self) -> None:
         import torch.nn as nn

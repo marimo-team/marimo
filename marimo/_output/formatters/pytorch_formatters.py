@@ -73,8 +73,13 @@ class TrainableInfo:
 
 
 def _comma_to_br(html_str: str) -> str:
-    """Replace top-level comma separators with <br> for multi-line display."""
-    return _TOP_COMMA_RE.sub("<br>", html_str)
+    """Replace top-level comma separators with <br> for multi-line display.
+
+    Also replaces the ``=`` between key/value pairs with a space for the
+    expanded view, without touching ``=`` inside HTML attributes.
+    """
+    result = _TOP_COMMA_RE.sub("<br>", html_str)
+    return result.replace("</span>=", "</span> ")
 
 
 def _frozen_attr(is_frozen: bool) -> str:
@@ -94,6 +99,29 @@ def _trainable_info(total: int, trainable: int) -> TrainableInfo:
             is_frozen=False,
         )
     return TrainableInfo(note="", is_frozen=False)
+
+
+def _collect_dtype_device(
+    params: typing.Iterable[torch.nn.Parameter],
+) -> tuple[str, str]:
+    """Summarise dtype and device across parameters.
+
+    Returns ``(dtype_str, device_str)``.  When all parameters agree the
+    value is a single token (e.g. ``"float32"``); when mixed the unique
+    values are joined with ``"/"`` (e.g. ``"float32/float16"``).
+    If *params* is empty both strings are ``"–"``.
+    """
+    dtypes: set[str] = set()
+    devices: set[str] = set()
+    for p in params:
+        dtypes.add(str(p.dtype).removeprefix("torch."))
+        devices.add(str(p.device))
+    if not dtypes:
+        return ("\u2013", "\u2013")
+    return (
+        "/".join(sorted(dtypes)),
+        "/".join(sorted(devices)),
+    )
 
 
 def _extra_repr_html(module: torch.nn.Module) -> ExtraRepr:
@@ -297,19 +325,6 @@ _CSS = """\
 .nn-t-expand > summary::-webkit-details-marker {
   display: none;
 }
-.nn-t-expand > summary .nn-t-mini-arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1rem;
-  flex-shrink: 0;
-  color: var(--slate-8);
-  font-size: 0.35rem;
-  transition: transform 0.12s;
-}
-.nn-t-expand[open] > summary .nn-t-mini-arrow {
-  transform: rotate(90deg);
-}
 .nn-t-expand[open] > summary .nn-t-args {
   display: none;
 }
@@ -317,11 +332,30 @@ _CSS = """\
   font-family: monospace;
   font-size: 0.8125rem;
   color: var(--slate-11);
-  padding: 0.125rem 0.75rem 0.25rem 2.75rem;
+  padding: 0 0.75rem 0.25rem 2.75rem;
   line-height: 1.6;
 }
 .nn-t-key {
   color: var(--slate-9);
+}
+.nn-t-expand-sep {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.125rem 0 0 0;
+}
+.nn-t-expand-sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--slate-3);
+}
+.nn-t-expand-sep-label {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--slate-8);
+  flex-shrink: 0;
 }
 
 /* Param count */
@@ -338,7 +372,6 @@ _CSS = """\
 [data-frozen] > .nn-t-args,
 [data-frozen] > .nn-t-params,
 [data-frozen] > .nn-t-spacer,
-[data-frozen] > .nn-t-mini-arrow,
 [data-frozen] > summary > .nn-t-type,
 [data-frozen] > summary > .nn-t-pos,
 [data-frozen] > summary > .nn-t-args,
@@ -466,17 +499,38 @@ def _walk(mod: torch.nn.Module, name: str = "") -> str:
             else ""
         )
 
+        # Build expand body: kwargs first, then dtype/device
+        body_parts: list[str] = []
         if extra.kwargs:
-            kw_inline = f' <span class="nn-t-args">{extra.kwargs}</span>'
-            kw_expanded = _comma_to_br(extra.kwargs)
+            body_parts.append(_comma_to_br(extra.kwargs))
+        if own_params:
+            dtype_s, device_s = _collect_dtype_device(own_params)
+            if body_parts:
+                body_parts.append(
+                    '<div class="nn-t-expand-sep">'
+                    '<span class="nn-t-expand-sep-label">tensor</span>'
+                    '</div>'
+                )
+            body_parts.append(
+                f'<span class="nn-t-key">dtype</span> {dtype_s}'
+                f"<br>"
+                f'<span class="nn-t-key">device</span> {device_s}'
+            )
+
+        if body_parts:
+            kw_inline = (
+                f' <span class="nn-t-args">{extra.kwargs}</span>'
+                if extra.kwargs
+                else ""
+            )
             return (
                 f'<details class="nn-t-expand"{frozen}>'
                 f"<summary>"
-                f'<span class="nn-t-mini-arrow">&#9654;</span>'
+                f'<span class="nn-t-spacer"></span>'
                 f"{name_html}{type_span}{pos_args}{kw_inline}"
                 f"{params}"
                 f"</summary>"
-                f'<div class="nn-t-expand-body">{kw_expanded}</div>'
+                f'<div class="nn-t-expand-body">{"".join(body_parts)}</div>'
                 f"</details>"
             )
         return (

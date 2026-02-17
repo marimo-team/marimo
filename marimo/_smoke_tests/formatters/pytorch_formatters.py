@@ -13,6 +13,10 @@ app = marimo.App()
 
 with app.setup:
     import torch.nn as nn
+    import numpy
+    import torch
+
+    torch.device("mps")
 
 
 @app.cell
@@ -67,7 +71,6 @@ def _():
 
 @app.cell
 def _():
-    import torch
 
     # Mini ResNet with skip connections
     class ResBlock(nn.Module):
