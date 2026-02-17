@@ -120,7 +120,7 @@ def test_cell_output_static_methods():
     # Test stdin password method
     stdin_pw = CellOutput.stdin("Enter password", password=True)
     assert stdin_pw.channel == CellChannel.STDIN
-    assert stdin_pw.mimetype == "text/password"
+    assert stdin_pw.mimetype == "text/x-password"
     assert stdin_pw.data == "Enter password"
 
     # Test errors method
