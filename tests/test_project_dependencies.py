@@ -10,14 +10,10 @@ snapshot = snapshotter(__file__)
 
 
 def _load_pyproject():
-    try:
-        import tomllib
-    except ModuleNotFoundError:
-        import tomli as tomllib
+    import tomlkit
 
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
-    with open(pyproject_path, "rb") as f:
-        return tomllib.load(f)
+    return tomlkit.loads(pyproject_path.read_text())
 
 
 def test_required_dependencies():
