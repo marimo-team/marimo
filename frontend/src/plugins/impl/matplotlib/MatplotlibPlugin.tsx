@@ -191,64 +191,58 @@ const MatplotlibComponent = memo(
     };
 
     // Convert pixel coords (relative to canvas) to data coords
-    const pixelToData = useCallback(
-      (px: PixelPoint): DataPoint => {
-        const p = propsRef.current;
-        const fracX = (px.x - p.axLeft) / p.axWidth;
-        const fracY = (px.y - p.axTop) / p.axHeight;
+    const pixelToData = useCallback((px: PixelPoint): DataPoint => {
+      const p = propsRef.current;
+      const fracX = (px.x - p.axLeft) / p.axWidth;
+      const fracY = (px.y - p.axTop) / p.axHeight;
 
-        let dataX: number;
-        if (p.xScale === "log") {
-          const logMin = Math.log10(p.xBounds[0]);
-          const logMax = Math.log10(p.xBounds[1]);
-          dataX = 10 ** (logMin + fracX * (logMax - logMin));
-        } else {
-          dataX = p.xBounds[0] + fracX * (p.xBounds[1] - p.xBounds[0]);
-        }
+      let dataX: number;
+      if (p.xScale === "log") {
+        const logMin = Math.log10(p.xBounds[0]);
+        const logMax = Math.log10(p.xBounds[1]);
+        dataX = 10 ** (logMin + fracX * (logMax - logMin));
+      } else {
+        dataX = p.xBounds[0] + fracX * (p.xBounds[1] - p.xBounds[0]);
+      }
 
-        let dataY: number;
-        if (p.yScale === "log") {
-          const logMin = Math.log10(p.yBounds[0]);
-          const logMax = Math.log10(p.yBounds[1]);
-          dataY = 10 ** (logMax - fracY * (logMax - logMin));
-        } else {
-          dataY = p.yBounds[1] - fracY * (p.yBounds[1] - p.yBounds[0]);
-        }
+      let dataY: number;
+      if (p.yScale === "log") {
+        const logMin = Math.log10(p.yBounds[0]);
+        const logMax = Math.log10(p.yBounds[1]);
+        dataY = 10 ** (logMax - fracY * (logMax - logMin));
+      } else {
+        dataY = p.yBounds[1] - fracY * (p.yBounds[1] - p.yBounds[0]);
+      }
 
-        return { x: dataX, y: dataY };
-      },
-      [],
-    );
+      return { x: dataX, y: dataY };
+    }, []);
 
     // Convert data coords to pixel coords
-    const dataToPixel = useCallback(
-      (data: DataPoint): PixelPoint => {
-        const p = propsRef.current;
-        let fracX: number;
-        if (p.xScale === "log") {
-          fracX =
-            (Math.log10(data.x) - Math.log10(p.xBounds[0])) /
-            (Math.log10(p.xBounds[1]) - Math.log10(p.xBounds[0]));
-        } else {
-          fracX = (data.x - p.xBounds[0]) / (p.xBounds[1] - p.xBounds[0]);
-        }
+    const dataToPixel = useCallback((data: DataPoint): PixelPoint => {
+      const p = propsRef.current;
+      let fracX: number;
+      if (p.xScale === "log") {
+        fracX =
+          (Math.log10(data.x) - Math.log10(p.xBounds[0])) /
+          (Math.log10(p.xBounds[1]) - Math.log10(p.xBounds[0]));
+      } else {
+        fracX = (data.x - p.xBounds[0]) / (p.xBounds[1] - p.xBounds[0]);
+      }
 
-        let fracY: number;
-        if (p.yScale === "log") {
-          fracY =
-            (Math.log10(p.yBounds[1]) - Math.log10(data.y)) /
-            (Math.log10(p.yBounds[1]) - Math.log10(p.yBounds[0]));
-        } else {
-          fracY = (p.yBounds[1] - data.y) / (p.yBounds[1] - p.yBounds[0]);
-        }
+      let fracY: number;
+      if (p.yScale === "log") {
+        fracY =
+          (Math.log10(p.yBounds[1]) - Math.log10(data.y)) /
+          (Math.log10(p.yBounds[1]) - Math.log10(p.yBounds[0]));
+      } else {
+        fracY = (p.yBounds[1] - data.y) / (p.yBounds[1] - p.yBounds[0]);
+      }
 
-        return {
-          x: p.axLeft + fracX * p.axWidth,
-          y: p.axTop + fracY * p.axHeight,
-        };
-      },
-      [],
-    );
+      return {
+        x: p.axLeft + fracX * p.axWidth,
+        y: p.axTop + fracY * p.axHeight,
+      };
+    }, []);
 
     // Draw the canvas (base image + selection overlays)
     const drawCanvas = useCallback(() => {
