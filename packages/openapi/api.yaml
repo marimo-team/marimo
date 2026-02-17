@@ -489,6 +489,7 @@ components:
           - text/html
           - text/latex
           - text/markdown
+          - text/password
           - text/plain
           - video/mp4
           - video/mpeg
@@ -4571,6 +4572,7 @@ components:
               - text/html
               - text/latex
               - text/markdown
+              - text/password
               - text/plain
               - video/mp4
               - video/mpeg
@@ -4938,7 +4940,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.10
+  version: 0.19.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -6311,3 +6313,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

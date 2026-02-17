@@ -3387,6 +3387,7 @@ export interface components {
         | "text/html"
         | "text/latex"
         | "text/markdown"
+        | "text/password"
         | "text/plain"
         | "video/mp4"
         | "video/mpeg";
@@ -5830,6 +5831,7 @@ export interface components {
             | "text/html"
             | "text/latex"
             | "text/markdown"
+            | "text/password"
             | "text/plain"
             | "video/mp4"
             | "video/mpeg"
