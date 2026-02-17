@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { type JSX, memo, useCallback, useEffect, useRef, useState } from "react";
+import { type JSX, memo, useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 
@@ -137,10 +137,8 @@ const MatplotlibComponent = memo(
     setValue,
   }: MatplotlibComponentProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const loadedImageRef = useRef<HTMLImageElement | null>(null);
-    const [loadedImage, setLoadedImage] = useState<HTMLImageElement | null>(
-      null,
-    );
 
     const [axLeft, axTop, axRight, axBottom] = axesPixelBounds;
     const axWidth = axRight - axLeft;
@@ -279,11 +277,12 @@ const MatplotlibComponent = memo(
         const w = Math.abs(state.boxEnd.x - state.boxStart.x);
         const h = Math.abs(state.boxEnd.y - state.boxStart.y);
 
+        ctx.save();
         ctx.fillStyle = p.selectionColor;
         ctx.globalAlpha = p.selectionOpacity;
         ctx.fillRect(x, y, w, h);
+        ctx.restore();
 
-        ctx.globalAlpha = 1;
         ctx.strokeStyle = p.selectionColor;
         ctx.lineWidth = p.strokeWidth;
         ctx.strokeRect(x, y, w, h);
@@ -298,11 +297,12 @@ const MatplotlibComponent = memo(
         }
         ctx.closePath();
 
+        ctx.save();
         ctx.fillStyle = p.selectionColor;
         ctx.globalAlpha = p.selectionOpacity;
         ctx.fill();
+        ctx.restore();
 
-        ctx.globalAlpha = 1;
         ctx.strokeStyle = p.selectionColor;
         ctx.lineWidth = p.strokeWidth;
         ctx.stroke();
@@ -314,26 +314,31 @@ const MatplotlibComponent = memo(
       interactionRef.current.rafId = requestAnimationFrame(drawCanvas);
     }
 
-    // Redraw when the image loads or selection style props change
+    // Redraw when selection style props change
     useEffect(() => {
-      if (loadedImage) {
-        drawCanvas();
-      }
-    }, [loadedImage, selectionColor, selectionOpacity, strokeWidth, drawCanvas]);
+      drawCanvas();
+    }, [selectionColor, selectionOpacity, strokeWidth, drawCanvas]);
 
     // Load image — clear selection and redraw when the chart changes
     useEffect(() => {
+      let cancelled = false;
       interactionRef.current.boxStart = null;
       interactionRef.current.boxEnd = null;
       interactionRef.current.lassoPoints = [];
       interactionRef.current.mode = "idle";
       const img = new Image();
       img.onload = () => {
+        if (cancelled) {
+          return;
+        }
         loadedImageRef.current = img;
-        setLoadedImage(img);
+        drawCanvas();
       };
       img.src = chartBase64;
-    }, [chartBase64]);
+      return () => {
+        cancelled = true;
+      };
+    }, [chartBase64, drawCanvas]);
 
     // Clamp a pixel point to the axes area
     function clampToAxes(pt: PixelPoint): PixelPoint {
@@ -410,8 +415,8 @@ const MatplotlibComponent = memo(
       );
     }
 
-    // Get canvas-relative coordinates from a mouse/touch event
-    function getCanvasPoint(e: React.MouseEvent | React.TouchEvent): PixelPoint {
+    // Get canvas-relative coordinates from a pointer event
+    function getCanvasPoint(e: React.PointerEvent): PixelPoint {
       const canvas = canvasRef.current;
       if (!canvas) {
         return { x: 0, y: 0 };
@@ -420,21 +425,9 @@ const MatplotlibComponent = memo(
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
 
-      let clientX: number;
-      let clientY: number;
-      if ("touches" in e) {
-        const touch =
-          e.touches[0] || (e as React.TouchEvent).changedTouches[0];
-        clientX = touch.clientX;
-        clientY = touch.clientY;
-      } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-      }
-
       return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY,
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
       };
     }
 
@@ -460,14 +453,18 @@ const MatplotlibComponent = memo(
       }
     }
 
-    // Mouse/touch handlers
     const handlePointerDown = useCallback(
-      (e: React.MouseEvent | React.TouchEvent) => {
+      (e: React.PointerEvent) => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          canvas.setPointerCapture(e.pointerId);
+        }
+        containerRef.current?.focus();
         const pt = getCanvasPoint(e);
         const state = interactionRef.current;
 
         // Shift+click → start lasso
-        if ("shiftKey" in e && e.shiftKey) {
+        if (e.shiftKey) {
           state.boxStart = null;
           state.boxEnd = null;
           state.mode = "lassoing";
@@ -501,7 +498,7 @@ const MatplotlibComponent = memo(
     );
 
     const handlePointerMove = useCallback(
-      (e: React.MouseEvent | React.TouchEvent) => {
+      (e: React.PointerEvent) => {
         const pt = getCanvasPoint(e);
         const state = interactionRef.current;
         const p = propsRef.current;
@@ -592,7 +589,12 @@ const MatplotlibComponent = memo(
       [],
     );
 
-    const handlePointerUp = useCallback(() => {
+    const handlePointerUp = useCallback((e: React.PointerEvent) => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.releasePointerCapture(e.pointerId);
+      }
+
       const state = interactionRef.current;
       const p = propsRef.current;
 
@@ -631,47 +633,18 @@ const MatplotlibComponent = memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Handle mouse leaving the canvas: cancel in-progress drawing/lassoing,
-    // but let dragging continue (user may drag back in)
-    const handleMouseLeave = useCallback(() => {
-      const state = interactionRef.current;
-      if (state.mode === "drawing") {
-        // Cancel the in-progress box draw
-        state.mode = "idle";
-        state.boxStart = null;
-        state.boxEnd = null;
-        scheduleRedraw();
-      } else if (state.mode === "lassoing") {
-        // Finalize lasso on leave (user likely finished)
-        state.mode = "idle";
-        if (state.lassoPoints.length >= 3) {
-          emitLassoSelection(state.lassoPoints);
-        } else {
+    // Escape key cancels in-progress selection (scoped to container)
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        const state = interactionRef.current;
+        if (state.mode === "drawing" || state.mode === "lassoing") {
+          state.mode = "idle";
+          state.boxStart = null;
+          state.boxEnd = null;
           state.lassoPoints = [];
-          propsRef.current.setValue({ has_selection: false });
-        }
-        scheduleRedraw();
-      }
-      // For dragging mode, do nothing — selection stays as-is until mouseup
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Escape key cancels in-progress selection
-    useEffect(() => {
-      function handleKeyDown(e: KeyboardEvent) {
-        if (e.key === "Escape") {
-          const state = interactionRef.current;
-          if (state.mode === "drawing" || state.mode === "lassoing") {
-            state.mode = "idle";
-            state.boxStart = null;
-            state.boxEnd = null;
-            state.lassoPoints = [];
-            scheduleRedraw();
-          }
+          scheduleRedraw();
         }
       }
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -708,7 +681,13 @@ const MatplotlibComponent = memo(
     }, []);
 
     return (
-      <div className="relative inline-block select-none">
+      <div
+        ref={containerRef}
+        className="relative inline-block select-none outline-none"
+        role="application"
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
+      >
         <canvas
           ref={canvasRef}
           className="block cursor-crosshair"
@@ -720,13 +699,9 @@ const MatplotlibComponent = memo(
             maxWidth: "100%",
             touchAction: "none",
           }}
-          onMouseDown={handlePointerDown}
-          onMouseMove={handlePointerMove}
-          onMouseUp={handlePointerUp}
-          onMouseLeave={handleMouseLeave}
-          onTouchStart={handlePointerDown}
-          onTouchMove={handlePointerMove}
-          onTouchEnd={handlePointerUp}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
         />
       </div>
     );

@@ -54,7 +54,7 @@ def _(embedding, mnist, plt):
 
 @app.cell
 def _(ax, mo):
-    fig = mo.ui.matplotlib(ax)
+    fig = mo.ui.matplotlib(ax, debounce=True)
     fig
     return (fig,)
 
