@@ -647,3 +647,64 @@ And more text"""
     # Test that the text before and after is preserved
     assert "This is some text" in result
     assert "And more text" in result
+
+
+def test_md_display_math_without_blank_lines() -> None:
+    # Single-line $$...$$ without blank lines should render as display math
+    result = _md("Hello\n$$f(x)$$\nworld", apply_markdown_class=False).text
+    assert "||[" in result  # block delimiters
+    assert "||(" not in result  # NOT inline delimiters
+    assert "marimo-tex" in result
+
+    # Same with blank lines (regression check) — should produce same output
+    result_with_blanks = _md(
+        "Hello\n\n$$f(x)$$\n\nworld", apply_markdown_class=False
+    ).text
+    assert result == result_with_blanks
+
+    # Multi-line $$...$$ without blank lines
+    result_multi = _md(
+        "Hello\n$$\nf(x)\n$$\nworld", apply_markdown_class=False
+    ).text
+    assert "||[" in result_multi
+    assert "||(" not in result_multi
+    assert "marimo-tex" in result_multi
+
+    # Multiple $$ blocks without blank lines
+    result_multiple = _md("$$a$$\n$$b$$", apply_markdown_class=False).text
+    assert result_multiple.count("||[") == 2
+    assert "||(" not in result_multiple
+
+    # $$ at start of text
+    result_start = _md("$$f(x)$$\nworld", apply_markdown_class=False).text
+    assert "||[" in result_start
+    assert "||(" not in result_start
+
+    # $$ at end of text
+    result_end = _md("Hello\n$$f(x)$$", apply_markdown_class=False).text
+    assert "||[" in result_end
+    assert "||(" not in result_end
+
+    # Inline $...$ should NOT be affected
+    result_inline = _md(
+        "Hello $f(x)$ world", apply_markdown_class=False
+    ).text
+    assert "||(" in result_inline  # inline delimiters
+    assert "||[" not in result_inline  # NOT block delimiters
+
+    # $$ inside code blocks should NOT be affected
+    result_code = _md(
+        "```\na = 1\n$$ not math\n```", apply_markdown_class=False
+    ).text
+    assert "marimo-tex" not in result_code
+    assert "$$ not math" in result_code
+
+
+def test_md_display_math_format_preserved() -> None:
+    # __format__ should return original markdown text
+    text = "Hello\n$$f(x)$$\nworld"
+    md_obj = _md(text)
+    assert f"{md_obj}" == text
+
+    # _repr_markdown_ should return original markdown text
+    assert md_obj._repr_markdown_() == text
