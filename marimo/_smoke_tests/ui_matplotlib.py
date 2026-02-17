@@ -45,16 +45,22 @@ def _(mo):
 
 
 @app.cell
-def _(embedding, mnist, mo, plt):
+def _(embedding, mnist, plt):
     x = embedding[:, 0]
     y = embedding[:, 1]
 
     plt.scatter(x=x, y=y, s=0.05, cmap="Spectral", c=mnist.attributes["digits"])
     plt.yticks([-2.5, 0, 2.5])
     plt.xticks([-2.5, 0, 2.5])
-    fig = mo.ui.matplotlib(plt.gca(), debounce=True, label="Hello, 🌏")
+    ax = plt.gca()
+    return ax, x, y
+
+
+@app.cell
+def _(ax, mo):
+    fig = mo.ui.matplotlib(ax)
     fig
-    return fig, x, y
+    return (fig,)
 
 
 @app.cell
