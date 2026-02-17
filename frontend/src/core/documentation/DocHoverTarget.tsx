@@ -15,7 +15,7 @@ export const DocHoverTarget: React.FC<{
   return (
     <span
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseEnter.cancel}
+      onMouseLeave={() => handleMouseEnter.cancel()}
     >
       {children}
     </span>
