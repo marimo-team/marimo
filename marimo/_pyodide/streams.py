@@ -149,7 +149,9 @@ class PyodideStdin(Stdin):
     def readable(self) -> bool:
         return True
 
-    def _readline_with_prompt(self, prompt: str = "") -> str:
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
         assert self.stream.cell_id is not None
         if not isinstance(prompt, str):
@@ -167,7 +169,7 @@ class PyodideStdin(Stdin):
         broadcast_notification(
             CellNotification(
                 cell_id=self.stream.cell_id,
-                console=CellOutput.stdin(prompt),
+                console=CellOutput.stdin(prompt, password=password),
             ),
             self.stream,
         )

@@ -27,6 +27,7 @@ KnownMimeType = Literal[
     "video/mpeg",
     "text/html",
     "text/plain",
+    "text/password",
     "text/markdown",
     "text/latex",
     "text/csv",
@@ -35,6 +36,7 @@ KnownMimeType = Literal[
 ConsoleMimeType = Literal[
     "application/vnd.marimo+traceback",
     "text/plain",
+    "text/password",
     "image/png",
 ]
 
