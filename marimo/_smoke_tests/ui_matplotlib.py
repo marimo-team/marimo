@@ -44,15 +44,17 @@ def _(embedding, mnist, plt):
     y = embedding[:, 1]
 
     plt.scatter(x=x, y=y, s=0.05, cmap="Spectral", c=mnist.attributes["digits"])
-    plt.yticks([-2.5, 0, 2.5])
-    plt.xticks([-2.5, 0, 2.5])
+    plt.yticks([-2, 0, 2])
+    plt.xticks([-2, 0, 2])
+    plt.ylim(-2.5, 2.5)
+    plt.xlim(-2.5, 2.5)
     ax = plt.gca()
     return ax, x, y
 
 
 @app.cell
 def _(ax, mo):
-    fig = mo.ui.matplotlib(ax, debounce=True)
+    fig = mo.ui.matplotlib(ax)
     fig
     return (fig,)
 

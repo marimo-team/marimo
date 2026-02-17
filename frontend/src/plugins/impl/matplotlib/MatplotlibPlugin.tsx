@@ -1,13 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import {
-  type JSX,
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type JSX, memo, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 
@@ -79,6 +72,23 @@ interface PixelPoint {
   y: number;
 }
 
+// Data coordinate in plot space
+interface DataPoint {
+  x: number;
+  y: number;
+}
+
+type InteractionMode = "idle" | "drawing" | "dragging" | "lassoing";
+
+interface InteractionState {
+  mode: InteractionMode;
+  boxStart: PixelPoint | null;
+  boxEnd: PixelPoint | null;
+  lassoPoints: PixelPoint[];
+  dragStart: PixelPoint | null;
+  rafId: number;
+}
+
 // Ray-casting point-in-polygon test
 function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
   let inside = false;
@@ -95,6 +105,18 @@ function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
     }
   }
   return inside;
+}
+
+function isPointInBox(
+  pt: PixelPoint,
+  boxStart: PixelPoint,
+  boxEnd: PixelPoint,
+): boolean {
+  const minX = Math.min(boxStart.x, boxEnd.x);
+  const maxX = Math.max(boxStart.x, boxEnd.x);
+  const minY = Math.min(boxStart.y, boxEnd.y);
+  const maxY = Math.max(boxStart.y, boxEnd.y);
+  return pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY;
 }
 
 const MatplotlibComponent = memo(
@@ -115,414 +137,126 @@ const MatplotlibComponent = memo(
     setValue,
   }: MatplotlibComponentProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const loadedImageRef = useRef<HTMLImageElement | null>(null);
     const [loadedImage, setLoadedImage] = useState<HTMLImageElement | null>(
       null,
     );
-
-    // Box selection state in pixel coordinates
-    const [isDrawing, setIsDrawing] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const dragStartRef = useRef<PixelPoint | null>(null);
-
-    // Box selection: start and end in pixels
-    const [boxStart, setBoxStart] = useState<PixelPoint | null>(null);
-    const [boxEnd, setBoxEnd] = useState<PixelPoint | null>(null);
-
-    // Lasso selection state
-    const [isLassoing, setIsLassoing] = useState(false);
-    const [lassoPoints, setLassoPoints] = useState<PixelPoint[]>([]);
 
     const [axLeft, axTop, axRight, axBottom] = axesPixelBounds;
     const axWidth = axRight - axLeft;
     const axHeight = axBottom - axTop;
 
+    // All interaction state lives in a ref to avoid React re-renders during drawing
+    const interactionRef = useRef<InteractionState>({
+      mode: "idle",
+      boxStart: null,
+      boxEnd: null,
+      lassoPoints: [],
+      dragStart: null,
+      rafId: 0,
+    });
+
+    // Keep stable references to props that event handlers need
+    const propsRef = useRef({
+      axLeft,
+      axTop,
+      axRight,
+      axBottom,
+      axWidth,
+      axHeight,
+      xBounds,
+      yBounds,
+      xScale,
+      yScale,
+      selectionColor,
+      selectionOpacity,
+      strokeWidth,
+      debounce,
+      setValue,
+    });
+    propsRef.current = {
+      axLeft,
+      axTop,
+      axRight,
+      axBottom,
+      axWidth,
+      axHeight,
+      xBounds,
+      yBounds,
+      xScale,
+      yScale,
+      selectionColor,
+      selectionOpacity,
+      strokeWidth,
+      debounce,
+      setValue,
+    };
+
     // Convert pixel coords (relative to canvas) to data coords
     const pixelToData = useCallback(
-      (px: PixelPoint): PixelPoint => {
-        const fracX = (px.x - axLeft) / axWidth;
-        const fracY = (px.y - axTop) / axHeight;
+      (px: PixelPoint): DataPoint => {
+        const p = propsRef.current;
+        const fracX = (px.x - p.axLeft) / p.axWidth;
+        const fracY = (px.y - p.axTop) / p.axHeight;
 
         let dataX: number;
-        if (xScale === "log") {
-          // Interpolate in log space, then convert back
-          const logMin = Math.log10(xBounds[0]);
-          const logMax = Math.log10(xBounds[1]);
+        if (p.xScale === "log") {
+          const logMin = Math.log10(p.xBounds[0]);
+          const logMax = Math.log10(p.xBounds[1]);
           dataX = 10 ** (logMin + fracX * (logMax - logMin));
         } else {
-          dataX = xBounds[0] + fracX * (xBounds[1] - xBounds[0]);
+          dataX = p.xBounds[0] + fracX * (p.xBounds[1] - p.xBounds[0]);
         }
 
         let dataY: number;
-        if (yScale === "log") {
-          const logMin = Math.log10(yBounds[0]);
-          const logMax = Math.log10(yBounds[1]);
-          // Y-axis is inverted in pixel space
+        if (p.yScale === "log") {
+          const logMin = Math.log10(p.yBounds[0]);
+          const logMax = Math.log10(p.yBounds[1]);
           dataY = 10 ** (logMax - fracY * (logMax - logMin));
         } else {
-          dataY = yBounds[1] - fracY * (yBounds[1] - yBounds[0]);
+          dataY = p.yBounds[1] - fracY * (p.yBounds[1] - p.yBounds[0]);
         }
 
         return { x: dataX, y: dataY };
       },
-      [axLeft, axTop, axWidth, axHeight, xBounds, yBounds, xScale, yScale],
+      [],
     );
 
     // Convert data coords to pixel coords
     const dataToPixel = useCallback(
-      (data: PixelPoint): PixelPoint => {
+      (data: DataPoint): PixelPoint => {
+        const p = propsRef.current;
         let fracX: number;
-        if (xScale === "log") {
+        if (p.xScale === "log") {
           fracX =
-            (Math.log10(data.x) - Math.log10(xBounds[0])) /
-            (Math.log10(xBounds[1]) - Math.log10(xBounds[0]));
+            (Math.log10(data.x) - Math.log10(p.xBounds[0])) /
+            (Math.log10(p.xBounds[1]) - Math.log10(p.xBounds[0]));
         } else {
-          fracX = (data.x - xBounds[0]) / (xBounds[1] - xBounds[0]);
+          fracX = (data.x - p.xBounds[0]) / (p.xBounds[1] - p.xBounds[0]);
         }
 
         let fracY: number;
-        if (yScale === "log") {
+        if (p.yScale === "log") {
           fracY =
-            (Math.log10(yBounds[1]) - Math.log10(data.y)) /
-            (Math.log10(yBounds[1]) - Math.log10(yBounds[0]));
+            (Math.log10(p.yBounds[1]) - Math.log10(data.y)) /
+            (Math.log10(p.yBounds[1]) - Math.log10(p.yBounds[0]));
         } else {
-          fracY = (yBounds[1] - data.y) / (yBounds[1] - yBounds[0]);
+          fracY = (p.yBounds[1] - data.y) / (p.yBounds[1] - p.yBounds[0]);
         }
 
         return {
-          x: axLeft + fracX * axWidth,
-          y: axTop + fracY * axHeight,
-        };
-      },
-      [axLeft, axTop, axWidth, axHeight, xBounds, yBounds, xScale, yScale],
-    );
-
-    // Load image — clear selection and redraw when the chart changes
-    useEffect(() => {
-      setBoxStart(null);
-      setBoxEnd(null);
-      setLassoPoints([]);
-      const img = new Image();
-      img.onload = () => setLoadedImage(img);
-      img.src = chartBase64;
-    }, [chartBase64]);
-
-    // Clamp a pixel point to the axes area
-    const clampToAxes = useCallback(
-      (pt: PixelPoint): PixelPoint => ({
-        x: Math.max(axLeft, Math.min(axRight, pt.x)),
-        y: Math.max(axTop, Math.min(axBottom, pt.y)),
-      }),
-      [axLeft, axTop, axRight, axBottom],
-    );
-
-    // Emit box selection
-    const emitBoxSelection = useCallback(
-      (bStart: PixelPoint | null, bEnd: PixelPoint | null) => {
-        if (bStart && bEnd) {
-          const d1 = pixelToData(bStart);
-          const d2 = pixelToData(bEnd);
-          setValue({
-            type: "box",
-            has_selection: true,
-            data: {
-              x_min: Math.min(d1.x, d2.x),
-              x_max: Math.max(d1.x, d2.x),
-              y_min: Math.min(d1.y, d2.y),
-              y_max: Math.max(d1.y, d2.y),
-            },
-          });
-        }
-      },
-      [pixelToData, setValue],
-    );
-
-    // Emit lasso selection
-    const emitLassoSelection = useCallback(
-      (points: PixelPoint[]) => {
-        if (points.length >= 3) {
-          const data: [number, number][] = points.map((p) => {
-            const d = pixelToData(p);
-            return [d.x, d.y];
-          });
-          setValue({
-            type: "lasso",
-            has_selection: true,
-            data,
-          });
-        }
-      },
-      [pixelToData, setValue],
-    );
-
-    // Clear selection
-    const clearSelection = useCallback(() => {
-      setBoxStart(null);
-      setBoxEnd(null);
-      setLassoPoints([]);
-      setValue({ has_selection: false });
-    }, [setValue]);
-
-    // What kind of selection is currently active?
-    const hasBoxSelection = boxStart !== null && boxEnd !== null;
-    const hasLassoSelection = lassoPoints.length >= 3;
-    const hasSelection = hasBoxSelection || hasLassoSelection;
-
-    // Check if a pixel point is inside the current selection (box or lasso)
-    const isPointInSelection = useCallback(
-      (pt: PixelPoint): boolean => {
-        if (hasBoxSelection) {
-          const minX = Math.min(boxStart.x, boxEnd.x);
-          const maxX = Math.max(boxStart.x, boxEnd.x);
-          const minY = Math.min(boxStart.y, boxEnd.y);
-          const maxY = Math.max(boxStart.y, boxEnd.y);
-          return pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY;
-        }
-        if (hasLassoSelection) {
-          return pointInPolygon(pt, lassoPoints);
-        }
-        return false;
-      },
-      [hasBoxSelection, hasLassoSelection, boxStart, boxEnd, lassoPoints],
-    );
-
-    // Get canvas-relative coordinates from a mouse/touch event
-    const getCanvasPoint = useCallback(
-      (e: React.MouseEvent | React.TouchEvent): PixelPoint => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          return { x: 0, y: 0 };
-        }
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
-        let clientX: number;
-        let clientY: number;
-        if ("touches" in e) {
-          const touch =
-            e.touches[0] || (e as React.TouchEvent).changedTouches[0];
-          clientX = touch.clientX;
-          clientY = touch.clientY;
-        } else {
-          clientX = e.clientX;
-          clientY = e.clientY;
-        }
-
-        return {
-          x: (clientX - rect.left) * scaleX,
-          y: (clientY - rect.top) * scaleY,
+          x: p.axLeft + fracX * p.axWidth,
+          y: p.axTop + fracY * p.axHeight,
         };
       },
       [],
     );
 
-    // Check if Shift key is held
-    const isShiftHeld = useCallback(
-      (e: React.MouseEvent | React.TouchEvent): boolean => {
-        if ("shiftKey" in e) {
-          return e.shiftKey;
-        }
-        return false;
-      },
-      [],
-    );
-
-    // Mouse/touch handlers
-    const handlePointerDown = useCallback(
-      (e: React.MouseEvent | React.TouchEvent) => {
-        const pt = getCanvasPoint(e);
-
-        // Shift+click → start lasso
-        if (isShiftHeld(e)) {
-          // Clear any existing box selection
-          setBoxStart(null);
-          setBoxEnd(null);
-          setIsDrawing(false);
-          setIsDragging(false);
-
-          const clamped = clampToAxes(pt);
-          setIsLassoing(true);
-          setLassoPoints([clamped]);
-          return;
-        }
-
-        // If clicking inside existing selection, start dragging
-        if (hasSelection && isPointInSelection(pt)) {
-          setIsDragging(true);
-          dragStartRef.current = pt;
-          return;
-        }
-
-        // If clicking outside selection with an existing one, clear it
-        if (hasSelection && !isPointInSelection(pt)) {
-          clearSelection();
-          return;
-        }
-
-        // Start new box selection
-        const clamped = clampToAxes(pt);
-        setIsDrawing(true);
-        setBoxStart(clamped);
-        setBoxEnd(clamped);
-      },
-      [
-        getCanvasPoint,
-        isShiftHeld,
-        hasSelection,
-        isPointInSelection,
-        clearSelection,
-        clampToAxes,
-      ],
-    );
-
-    const handlePointerMove = useCallback(
-      (e: React.MouseEvent | React.TouchEvent) => {
-        const pt = getCanvasPoint(e);
-
-        // Lassoing: append clamped point
-        if (isLassoing) {
-          const clamped = clampToAxes(pt);
-          setLassoPoints((prev) => [...prev, clamped]);
-          return;
-        }
-
-        if (isDragging && dragStartRef.current) {
-          let dx = pt.x - dragStartRef.current.x;
-          let dy = pt.y - dragStartRef.current.y;
-          dragStartRef.current = pt;
-
-          if (hasBoxSelection && boxStart && boxEnd) {
-            // Clamp delta so the entire box stays in bounds
-            const minX = Math.min(boxStart.x, boxEnd.x);
-            const maxX = Math.max(boxStart.x, boxEnd.x);
-            const minY = Math.min(boxStart.y, boxEnd.y);
-            const maxY = Math.max(boxStart.y, boxEnd.y);
-            dx = Math.max(axLeft - minX, Math.min(axRight - maxX, dx));
-            dy = Math.max(axTop - minY, Math.min(axBottom - maxY, dy));
-            const newStart = { x: boxStart.x + dx, y: boxStart.y + dy };
-            const newEnd = { x: boxEnd.x + dx, y: boxEnd.y + dy };
-            setBoxStart(newStart);
-            setBoxEnd(newEnd);
-            if (!debounce) {
-              emitBoxSelection(newStart, newEnd);
-            }
-          } else if (hasLassoSelection) {
-            // Clamp delta so the entire lasso stays in bounds
-            let lMinX = Number.POSITIVE_INFINITY;
-            let lMaxX = Number.NEGATIVE_INFINITY;
-            let lMinY = Number.POSITIVE_INFINITY;
-            let lMaxY = Number.NEGATIVE_INFINITY;
-            for (const p of lassoPoints) {
-              if (p.x < lMinX) {
-                lMinX = p.x;
-              }
-              if (p.x > lMaxX) {
-                lMaxX = p.x;
-              }
-              if (p.y < lMinY) {
-                lMinY = p.y;
-              }
-              if (p.y > lMaxY) {
-                lMaxY = p.y;
-              }
-            }
-            dx = Math.max(axLeft - lMinX, Math.min(axRight - lMaxX, dx));
-            dy = Math.max(axTop - lMinY, Math.min(axBottom - lMaxY, dy));
-            setLassoPoints((prev) =>
-              prev.map((p) => ({ x: p.x + dx, y: p.y + dy })),
-            );
-            if (!debounce) {
-              // Emit the shifted lasso points
-              const shifted = lassoPoints.map((p) => ({
-                x: p.x + dx,
-                y: p.y + dy,
-              }));
-              emitLassoSelection(shifted);
-            }
-          }
-          return;
-        }
-
-        if (isDrawing) {
-          const clamped = clampToAxes(pt);
-          setBoxEnd(clamped);
-          if (!debounce) {
-            emitBoxSelection(boxStart, clamped);
-          }
-        }
-      },
-      [
-        getCanvasPoint,
-        isLassoing,
-        isDragging,
-        isDrawing,
-        hasBoxSelection,
-        hasLassoSelection,
-        boxStart,
-        boxEnd,
-        lassoPoints,
-        clampToAxes,
-        emitBoxSelection,
-        emitLassoSelection,
-        debounce,
-        axLeft,
-        axTop,
-        axRight,
-        axBottom,
-      ],
-    );
-
-    const handlePointerUp = useCallback(() => {
-      if (isLassoing) {
-        setIsLassoing(false);
-        if (lassoPoints.length >= 3) {
-          emitLassoSelection(lassoPoints);
-        } else {
-          // Degenerate lasso, clear
-          setLassoPoints([]);
-          clearSelection();
-        }
-        return;
-      }
-
-      if (isDragging) {
-        setIsDragging(false);
-        dragStartRef.current = null;
-        if (debounce) {
-          if (hasBoxSelection) {
-            emitBoxSelection(boxStart, boxEnd);
-          } else if (hasLassoSelection) {
-            emitLassoSelection(lassoPoints);
-          }
-        }
-        return;
-      }
-
-      if (isDrawing) {
-        setIsDrawing(false);
-        if (debounce) {
-          emitBoxSelection(boxStart, boxEnd);
-        }
-      }
-    }, [
-      isLassoing,
-      isDragging,
-      isDrawing,
-      debounce,
-      lassoPoints,
-      hasBoxSelection,
-      hasLassoSelection,
-      boxStart,
-      boxEnd,
-      emitBoxSelection,
-      emitLassoSelection,
-      clearSelection,
-    ]);
-
-    // Draw on canvas
-    useEffect(() => {
+    // Draw the canvas (base image + selection overlays)
+    const drawCanvas = useCallback(() => {
       const canvas = canvasRef.current;
-      if (!canvas || !loadedImage) {
+      const img = loadedImageRef.current;
+      if (!canvas || !img) {
         return;
       }
 
@@ -531,54 +265,415 @@ const MatplotlibComponent = memo(
         return;
       }
 
+      const p = propsRef.current;
+      const state = interactionRef.current;
+
       // Clear and draw the base image
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       // Draw box selection overlay
-      if (boxStart && boxEnd) {
-        const x = Math.min(boxStart.x, boxEnd.x);
-        const y = Math.min(boxStart.y, boxEnd.y);
-        const w = Math.abs(boxEnd.x - boxStart.x);
-        const h = Math.abs(boxEnd.y - boxStart.y);
+      if (state.boxStart && state.boxEnd) {
+        const x = Math.min(state.boxStart.x, state.boxEnd.x);
+        const y = Math.min(state.boxStart.y, state.boxEnd.y);
+        const w = Math.abs(state.boxEnd.x - state.boxStart.x);
+        const h = Math.abs(state.boxEnd.y - state.boxStart.y);
 
-        ctx.fillStyle = selectionColor;
-        ctx.globalAlpha = selectionOpacity;
+        ctx.fillStyle = p.selectionColor;
+        ctx.globalAlpha = p.selectionOpacity;
         ctx.fillRect(x, y, w, h);
 
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = selectionColor;
-        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = p.selectionColor;
+        ctx.lineWidth = p.strokeWidth;
         ctx.strokeRect(x, y, w, h);
       }
 
       // Draw lasso selection overlay
-      if (lassoPoints.length >= 2) {
+      if (state.lassoPoints.length >= 2) {
         ctx.beginPath();
-        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
-        for (let i = 1; i < lassoPoints.length; i++) {
-          ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+        ctx.moveTo(state.lassoPoints[0].x, state.lassoPoints[0].y);
+        for (let i = 1; i < state.lassoPoints.length; i++) {
+          ctx.lineTo(state.lassoPoints[i].x, state.lassoPoints[i].y);
         }
         ctx.closePath();
 
-        ctx.fillStyle = selectionColor;
-        ctx.globalAlpha = selectionOpacity;
+        ctx.fillStyle = p.selectionColor;
+        ctx.globalAlpha = p.selectionOpacity;
         ctx.fill();
 
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = selectionColor;
-        ctx.lineWidth = strokeWidth;
+        ctx.strokeStyle = p.selectionColor;
+        ctx.lineWidth = p.strokeWidth;
         ctx.stroke();
       }
-    }, [
-      loadedImage,
-      boxStart,
-      boxEnd,
-      lassoPoints,
-      selectionColor,
-      selectionOpacity,
-      strokeWidth,
-    ]);
+    }, []);
+
+    function scheduleRedraw() {
+      cancelAnimationFrame(interactionRef.current.rafId);
+      interactionRef.current.rafId = requestAnimationFrame(drawCanvas);
+    }
+
+    // Redraw when the image loads or selection style props change
+    useEffect(() => {
+      if (loadedImage) {
+        drawCanvas();
+      }
+    }, [loadedImage, selectionColor, selectionOpacity, strokeWidth, drawCanvas]);
+
+    // Load image — clear selection and redraw when the chart changes
+    useEffect(() => {
+      interactionRef.current.boxStart = null;
+      interactionRef.current.boxEnd = null;
+      interactionRef.current.lassoPoints = [];
+      interactionRef.current.mode = "idle";
+      const img = new Image();
+      img.onload = () => {
+        loadedImageRef.current = img;
+        setLoadedImage(img);
+      };
+      img.src = chartBase64;
+    }, [chartBase64]);
+
+    // Clamp a pixel point to the axes area
+    function clampToAxes(pt: PixelPoint): PixelPoint {
+      const p = propsRef.current;
+      return {
+        x: Math.max(p.axLeft, Math.min(p.axRight, pt.x)),
+        y: Math.max(p.axTop, Math.min(p.axBottom, pt.y)),
+      };
+    }
+
+    // Emit box selection to the backend
+    function emitBoxSelection(
+      bStart: PixelPoint | null,
+      bEnd: PixelPoint | null,
+    ) {
+      if (bStart && bEnd) {
+        const d1 = pixelToData(bStart);
+        const d2 = pixelToData(bEnd);
+        propsRef.current.setValue({
+          type: "box",
+          has_selection: true,
+          data: {
+            x_min: Math.min(d1.x, d2.x),
+            x_max: Math.max(d1.x, d2.x),
+            y_min: Math.min(d1.y, d2.y),
+            y_max: Math.max(d1.y, d2.y),
+          },
+        });
+      }
+    }
+
+    // Emit lasso selection to the backend
+    function emitLassoSelection(points: PixelPoint[]) {
+      if (points.length >= 3) {
+        const data: [number, number][] = points.map((p) => {
+          const d = pixelToData(p);
+          return [d.x, d.y];
+        });
+        propsRef.current.setValue({
+          type: "lasso",
+          has_selection: true,
+          data,
+        });
+      }
+    }
+
+    // Clear selection
+    function clearSelection() {
+      interactionRef.current.boxStart = null;
+      interactionRef.current.boxEnd = null;
+      interactionRef.current.lassoPoints = [];
+      interactionRef.current.mode = "idle";
+      propsRef.current.setValue({ has_selection: false });
+      scheduleRedraw();
+    }
+
+    // Check if a pixel point is inside the current selection
+    function isPointInSelection(pt: PixelPoint): boolean {
+      const state = interactionRef.current;
+      if (state.boxStart && state.boxEnd) {
+        return isPointInBox(pt, state.boxStart, state.boxEnd);
+      }
+      if (state.lassoPoints.length >= 3) {
+        return pointInPolygon(pt, state.lassoPoints);
+      }
+      return false;
+    }
+
+    function hasSelection(): boolean {
+      const state = interactionRef.current;
+      return (
+        (state.boxStart !== null && state.boxEnd !== null) ||
+        state.lassoPoints.length >= 3
+      );
+    }
+
+    // Get canvas-relative coordinates from a mouse/touch event
+    function getCanvasPoint(e: React.MouseEvent | React.TouchEvent): PixelPoint {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        return { x: 0, y: 0 };
+      }
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      let clientX: number;
+      let clientY: number;
+      if ("touches" in e) {
+        const touch =
+          e.touches[0] || (e as React.TouchEvent).changedTouches[0];
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      };
+    }
+
+    // Update cursor style based on mouse position
+    function updateCursor(pt: PixelPoint) {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        return;
+      }
+      const p = propsRef.current;
+      const inAxes =
+        pt.x >= p.axLeft &&
+        pt.x <= p.axRight &&
+        pt.y >= p.axTop &&
+        pt.y <= p.axBottom;
+
+      if (!inAxes) {
+        canvas.style.cursor = "default";
+      } else if (hasSelection() && isPointInSelection(pt)) {
+        canvas.style.cursor = "move";
+      } else {
+        canvas.style.cursor = "crosshair";
+      }
+    }
+
+    // Mouse/touch handlers
+    const handlePointerDown = useCallback(
+      (e: React.MouseEvent | React.TouchEvent) => {
+        const pt = getCanvasPoint(e);
+        const state = interactionRef.current;
+
+        // Shift+click → start lasso
+        if ("shiftKey" in e && e.shiftKey) {
+          state.boxStart = null;
+          state.boxEnd = null;
+          state.mode = "lassoing";
+          state.lassoPoints = [clampToAxes(pt)];
+          scheduleRedraw();
+          return;
+        }
+
+        // If clicking inside existing selection, start dragging
+        if (hasSelection() && isPointInSelection(pt)) {
+          state.mode = "dragging";
+          state.dragStart = pt;
+          return;
+        }
+
+        // If clicking outside selection with an existing one, clear it
+        // then fall through to start a new box selection
+        if (hasSelection() && !isPointInSelection(pt)) {
+          clearSelection();
+        }
+
+        // Start new box selection
+        const clamped = clampToAxes(pt);
+        state.mode = "drawing";
+        state.boxStart = clamped;
+        state.boxEnd = clamped;
+        scheduleRedraw();
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [],
+    );
+
+    const handlePointerMove = useCallback(
+      (e: React.MouseEvent | React.TouchEvent) => {
+        const pt = getCanvasPoint(e);
+        const state = interactionRef.current;
+        const p = propsRef.current;
+
+        // Update cursor when idle
+        if (state.mode === "idle") {
+          updateCursor(pt);
+        }
+
+        // Lassoing: append clamped point
+        if (state.mode === "lassoing") {
+          state.lassoPoints.push(clampToAxes(pt));
+          scheduleRedraw();
+          return;
+        }
+
+        if (state.mode === "dragging" && state.dragStart) {
+          let dx = pt.x - state.dragStart.x;
+          let dy = pt.y - state.dragStart.y;
+          state.dragStart = pt;
+
+          if (state.boxStart && state.boxEnd) {
+            // Clamp delta so the entire box stays in bounds
+            const minX = Math.min(state.boxStart.x, state.boxEnd.x);
+            const maxX = Math.max(state.boxStart.x, state.boxEnd.x);
+            const minY = Math.min(state.boxStart.y, state.boxEnd.y);
+            const maxY = Math.max(state.boxStart.y, state.boxEnd.y);
+            dx = Math.max(p.axLeft - minX, Math.min(p.axRight - maxX, dx));
+            dy = Math.max(p.axTop - minY, Math.min(p.axBottom - maxY, dy));
+            state.boxStart = {
+              x: state.boxStart.x + dx,
+              y: state.boxStart.y + dy,
+            };
+            state.boxEnd = {
+              x: state.boxEnd.x + dx,
+              y: state.boxEnd.y + dy,
+            };
+            scheduleRedraw();
+            if (!p.debounce) {
+              emitBoxSelection(state.boxStart, state.boxEnd);
+            }
+          } else if (state.lassoPoints.length >= 3) {
+            // Clamp delta so the entire lasso stays in bounds
+            let lMinX = Number.POSITIVE_INFINITY;
+            let lMaxX = Number.NEGATIVE_INFINITY;
+            let lMinY = Number.POSITIVE_INFINITY;
+            let lMaxY = Number.NEGATIVE_INFINITY;
+            for (const lp of state.lassoPoints) {
+              if (lp.x < lMinX) {
+                lMinX = lp.x;
+              }
+              if (lp.x > lMaxX) {
+                lMaxX = lp.x;
+              }
+              if (lp.y < lMinY) {
+                lMinY = lp.y;
+              }
+              if (lp.y > lMaxY) {
+                lMaxY = lp.y;
+              }
+            }
+            dx = Math.max(p.axLeft - lMinX, Math.min(p.axRight - lMaxX, dx));
+            dy = Math.max(p.axTop - lMinY, Math.min(p.axBottom - lMaxY, dy));
+            for (let i = 0; i < state.lassoPoints.length; i++) {
+              state.lassoPoints[i] = {
+                x: state.lassoPoints[i].x + dx,
+                y: state.lassoPoints[i].y + dy,
+              };
+            }
+            scheduleRedraw();
+            if (!p.debounce) {
+              emitLassoSelection(state.lassoPoints);
+            }
+          }
+          return;
+        }
+
+        if (state.mode === "drawing") {
+          const clamped = clampToAxes(pt);
+          state.boxEnd = clamped;
+          scheduleRedraw();
+          if (!p.debounce) {
+            emitBoxSelection(state.boxStart, clamped);
+          }
+        }
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [],
+    );
+
+    const handlePointerUp = useCallback(() => {
+      const state = interactionRef.current;
+      const p = propsRef.current;
+
+      if (state.mode === "lassoing") {
+        state.mode = "idle";
+        if (state.lassoPoints.length >= 3) {
+          emitLassoSelection(state.lassoPoints);
+        } else {
+          // Degenerate lasso, clear
+          state.lassoPoints = [];
+          propsRef.current.setValue({ has_selection: false });
+        }
+        scheduleRedraw();
+        return;
+      }
+
+      if (state.mode === "dragging") {
+        state.mode = "idle";
+        state.dragStart = null;
+        if (p.debounce) {
+          if (state.boxStart && state.boxEnd) {
+            emitBoxSelection(state.boxStart, state.boxEnd);
+          } else if (state.lassoPoints.length >= 3) {
+            emitLassoSelection(state.lassoPoints);
+          }
+        }
+        return;
+      }
+
+      if (state.mode === "drawing") {
+        state.mode = "idle";
+        if (p.debounce) {
+          emitBoxSelection(state.boxStart, state.boxEnd);
+        }
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Handle mouse leaving the canvas: cancel in-progress drawing/lassoing,
+    // but let dragging continue (user may drag back in)
+    const handleMouseLeave = useCallback(() => {
+      const state = interactionRef.current;
+      if (state.mode === "drawing") {
+        // Cancel the in-progress box draw
+        state.mode = "idle";
+        state.boxStart = null;
+        state.boxEnd = null;
+        scheduleRedraw();
+      } else if (state.mode === "lassoing") {
+        // Finalize lasso on leave (user likely finished)
+        state.mode = "idle";
+        if (state.lassoPoints.length >= 3) {
+          emitLassoSelection(state.lassoPoints);
+        } else {
+          state.lassoPoints = [];
+          propsRef.current.setValue({ has_selection: false });
+        }
+        scheduleRedraw();
+      }
+      // For dragging mode, do nothing — selection stays as-is until mouseup
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Escape key cancels in-progress selection
+    useEffect(() => {
+      function handleKeyDown(e: KeyboardEvent) {
+        if (e.key === "Escape") {
+          const state = interactionRef.current;
+          if (state.mode === "drawing" || state.mode === "lassoing") {
+            state.mode = "idle";
+            state.boxStart = null;
+            state.boxEnd = null;
+            state.lassoPoints = [];
+            scheduleRedraw();
+          }
+        }
+      }
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Restore selection from value (e.g., when re-rendered by backend)
     useEffect(() => {
@@ -590,15 +685,25 @@ const MatplotlibComponent = memo(
         const sel = value.data;
         const start = dataToPixel({ x: sel.x_min, y: sel.y_min });
         const end = dataToPixel({ x: sel.x_max, y: sel.y_max });
-        setBoxStart(start);
-        setBoxEnd(end);
+        interactionRef.current.boxStart = start;
+        interactionRef.current.boxEnd = end;
+        interactionRef.current.lassoPoints = [];
       } else if (value.type === "lasso") {
         const points = value.data.map(([vx, vy]) =>
           dataToPixel({ x: vx, y: vy }),
         );
-        setLassoPoints(points);
+        interactionRef.current.lassoPoints = points;
+        interactionRef.current.boxStart = null;
+        interactionRef.current.boxEnd = null;
       }
+      scheduleRedraw();
       // Only restore on mount
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Clean up rAF on unmount
+    useEffect(() => {
+      return () => cancelAnimationFrame(interactionRef.current.rafId);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -613,11 +718,12 @@ const MatplotlibComponent = memo(
             width: `${width}px`,
             height: `${height}px`,
             maxWidth: "100%",
+            touchAction: "none",
           }}
           onMouseDown={handlePointerDown}
           onMouseMove={handlePointerMove}
           onMouseUp={handlePointerUp}
-          onMouseLeave={handlePointerUp}
+          onMouseLeave={handleMouseLeave}
           onTouchStart={handlePointerDown}
           onTouchMove={handlePointerMove}
           onTouchEnd={handlePointerUp}
