@@ -686,9 +686,7 @@ def test_md_display_math_without_blank_lines() -> None:
     assert "||(" not in result_end
 
     # Inline $...$ should NOT be affected
-    result_inline = _md(
-        "Hello $f(x)$ world", apply_markdown_class=False
-    ).text
+    result_inline = _md("Hello $f(x)$ world", apply_markdown_class=False).text
     assert "||(" in result_inline  # inline delimiters
     assert "||[" not in result_inline  # NOT block delimiters
 
