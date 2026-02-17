@@ -509,7 +509,7 @@ def _walk(mod: torch.nn.Module, name: str = "") -> str:
                 body_parts.append(
                     '<div class="nn-t-expand-sep">'
                     '<span class="nn-t-expand-sep-label">tensor</span>'
-                    '</div>'
+                    "</div>"
                 )
             body_parts.append(
                 f'<span class="nn-t-key">dtype</span> {dtype_s}'
