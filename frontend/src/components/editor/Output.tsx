@@ -123,6 +123,7 @@ export const OutputRenderer: React.FC<{
       );
 
     case "text/plain":
+    case "text/x-password":
       invariant(
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
