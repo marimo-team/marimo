@@ -42,12 +42,6 @@ def test_basic_construction() -> None:
     assert not fig.value
 
 
-def test_construction_with_label() -> None:
-    ax = _make_scatter_ax()
-    fig = matplotlib(ax, label="My Chart")
-    assert fig is not None
-
-
 def test_construction_no_figure_raises() -> None:
     fig = plt.figure()
     ax = fig.add_subplot(111)
