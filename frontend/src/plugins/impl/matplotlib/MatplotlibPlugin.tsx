@@ -154,7 +154,9 @@ const MatplotlibComponent = memo(
       rafId: 0,
     });
 
-    // Keep stable references to props that event handlers need
+    // "Latest ref" pattern: pointer handlers use useCallback([], []) for stable
+    // identity (critical during drags/lasso), but read props from this ref to
+    // always get fresh values. Updated synchronously each render.
     const propsRef = useRef({
       axLeft,
       axTop,
