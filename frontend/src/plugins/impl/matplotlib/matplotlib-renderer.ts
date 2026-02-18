@@ -30,6 +30,11 @@ export type SelectionValue =
   | { has_selection: false }
   | undefined;
 
+type AxesGeometry = Pick<
+  Data,
+  "axesPixelBounds" | "xBounds" | "xScale" | "yBounds" | "yScale"
+>;
+
 // Pixel coordinate in canvas space
 interface PixelPoint {
   x: number;
@@ -74,6 +79,71 @@ function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
     }
   }
   return inside;
+}
+
+function pixelToData(px: PixelPoint, g: AxesGeometry): DataPoint {
+  const [axLeft, axTop, axRight, axBottom] = g.axesPixelBounds;
+  const axWidth = axRight - axLeft;
+  const axHeight = axBottom - axTop;
+  const fracX = (px.x - axLeft) / axWidth;
+  const fracY = (px.y - axTop) / axHeight;
+
+  let dataX: number;
+  if (g.xScale === "log") {
+    const logMin = Math.log10(g.xBounds[0]);
+    const logMax = Math.log10(g.xBounds[1]);
+    dataX = 10 ** (logMin + fracX * (logMax - logMin));
+  } else {
+    dataX = g.xBounds[0] + fracX * (g.xBounds[1] - g.xBounds[0]);
+  }
+
+  let dataY: number;
+  if (g.yScale === "log") {
+    const logMin = Math.log10(g.yBounds[0]);
+    const logMax = Math.log10(g.yBounds[1]);
+    dataY = 10 ** (logMax - fracY * (logMax - logMin));
+  } else {
+    dataY = g.yBounds[1] - fracY * (g.yBounds[1] - g.yBounds[0]);
+  }
+
+  return { x: dataX, y: dataY };
+}
+
+function dataToPixel(data: DataPoint, g: AxesGeometry): PixelPoint {
+  const [axLeft, axTop, axRight, axBottom] = g.axesPixelBounds;
+  const axWidth = axRight - axLeft;
+  const axHeight = axBottom - axTop;
+
+  let fracX: number;
+  if (g.xScale === "log") {
+    fracX =
+      (Math.log10(data.x) - Math.log10(g.xBounds[0])) /
+      (Math.log10(g.xBounds[1]) - Math.log10(g.xBounds[0]));
+  } else {
+    fracX = (data.x - g.xBounds[0]) / (g.xBounds[1] - g.xBounds[0]);
+  }
+
+  let fracY: number;
+  if (g.yScale === "log") {
+    fracY =
+      (Math.log10(g.yBounds[1]) - Math.log10(data.y)) /
+      (Math.log10(g.yBounds[1]) - Math.log10(g.yBounds[0]));
+  } else {
+    fracY = (g.yBounds[1] - data.y) / (g.yBounds[1] - g.yBounds[0]);
+  }
+
+  return {
+    x: axLeft + fracX * axWidth,
+    y: axTop + fracY * axHeight,
+  };
+}
+
+function clampToAxes(pt: PixelPoint, g: AxesGeometry) {
+  const [axLeft, axTop, axRight, axBottom] = g.axesPixelBounds;
+  return {
+    x: Math.max(axLeft, Math.min(axRight, pt.x)),
+    y: Math.max(axTop, Math.min(axBottom, pt.y)),
+  };
 }
 
 function isPointInBox(
@@ -266,73 +336,6 @@ export class MatplotlibRenderer {
     this.#interaction.rafId = requestAnimationFrame(this.#drawCanvas);
   };
 
-  #pixelToData = (px: PixelPoint): DataPoint => {
-    const s = this.#state;
-    const [axLeft, axTop, axRight, axBottom] = s.axesPixelBounds;
-    const axWidth = axRight - axLeft;
-    const axHeight = axBottom - axTop;
-    const fracX = (px.x - axLeft) / axWidth;
-    const fracY = (px.y - axTop) / axHeight;
-
-    let dataX: number;
-    if (s.xScale === "log") {
-      const logMin = Math.log10(s.xBounds[0]);
-      const logMax = Math.log10(s.xBounds[1]);
-      dataX = 10 ** (logMin + fracX * (logMax - logMin));
-    } else {
-      dataX = s.xBounds[0] + fracX * (s.xBounds[1] - s.xBounds[0]);
-    }
-
-    let dataY: number;
-    if (s.yScale === "log") {
-      const logMin = Math.log10(s.yBounds[0]);
-      const logMax = Math.log10(s.yBounds[1]);
-      dataY = 10 ** (logMax - fracY * (logMax - logMin));
-    } else {
-      dataY = s.yBounds[1] - fracY * (s.yBounds[1] - s.yBounds[0]);
-    }
-
-    return { x: dataX, y: dataY };
-  };
-
-  #dataToPixel = (data: DataPoint): PixelPoint => {
-    const s = this.#state;
-    const [axLeft, axTop, axRight, axBottom] = s.axesPixelBounds;
-    const axWidth = axRight - axLeft;
-    const axHeight = axBottom - axTop;
-
-    let fracX: number;
-    if (s.xScale === "log") {
-      fracX =
-        (Math.log10(data.x) - Math.log10(s.xBounds[0])) /
-        (Math.log10(s.xBounds[1]) - Math.log10(s.xBounds[0]));
-    } else {
-      fracX = (data.x - s.xBounds[0]) / (s.xBounds[1] - s.xBounds[0]);
-    }
-
-    let fracY: number;
-    if (s.yScale === "log") {
-      fracY =
-        (Math.log10(s.yBounds[1]) - Math.log10(data.y)) /
-        (Math.log10(s.yBounds[1]) - Math.log10(s.yBounds[0]));
-    } else {
-      fracY = (s.yBounds[1] - data.y) / (s.yBounds[1] - s.yBounds[0]);
-    }
-
-    return {
-      x: axLeft + fracX * axWidth,
-      y: axTop + fracY * axHeight,
-    };
-  };
-
-  #clampToAxes = (pt: PixelPoint): PixelPoint => {
-    const [axLeft, axTop, axRight, axBottom] = this.#state.axesPixelBounds;
-    return {
-      x: Math.max(axLeft, Math.min(axRight, pt.x)),
-      y: Math.max(axTop, Math.min(axBottom, pt.y)),
-    };
-  };
-
   #getCanvasPoint = (e: PointerEvent): PixelPoint => {
     const rect = this.#canvas.getBoundingClientRect();
     const scaleX = this.#canvas.width / rect.width;
@@ -348,8 +351,8 @@ export class MatplotlibRenderer {
     bEnd: PixelPoint | null,
   ): void => {
     if (bStart && bEnd) {
-      const d1 = this.#pixelToData(bStart);
-      const d2 = this.#pixelToData(bEnd);
+      const d1 = pixelToData(bStart, this.#state);
+      const d2 = pixelToData(bEnd, this.#state);
       this.#state.setValue({
         type: "box",
         has_selection: true,
@@ -366,7 +369,7 @@ export class MatplotlibRenderer {
   #emitLassoSelection = (points: PixelPoint[]): void => {
     if (points.length >= 3) {
       const data: [number, number][] = points.map((p) => {
-        const d = this.#pixelToData(p);
+        const d = pixelToData(p, this.#state);
         return [d.x, d.y];
       });
       this.#state.setValue({
@@ -425,14 +428,14 @@ export class MatplotlibRenderer {
 
     if (value.type === "box") {
       const sel = value.data;
-      const start = this.#dataToPixel({ x: sel.x_min, y: sel.y_min });
-      const end = this.#dataToPixel({ x: sel.x_max, y: sel.y_max });
+      const start = dataToPixel({ x: sel.x_min, y: sel.y_min }, this.#state);
+      const end = dataToPixel({ x: sel.x_max, y: sel.y_max }, this.#state);
       this.#interaction.boxStart = start;
       this.#interaction.boxEnd = end;
       this.#interaction.lassoPoints = [];
     } else if (value.type === "lasso") {
       const points = value.data.map(([vx, vy]) =>
-        this.#dataToPixel({ x: vx, y: vy }),
+        dataToPixel({ x: vx, y: vy }, this.#state),
       );
       this.#interaction.lassoPoints = points;
       this.#interaction.boxStart = null;
@@ -452,7 +455,7 @@ export class MatplotlibRenderer {
       ix.boxStart = null;
       ix.boxEnd = null;
       ix.mode = "lassoing";
-      ix.lassoPoints = [this.#clampToAxes(pt)];
+      ix.lassoPoints = [clampToAxes(pt, this.#state)];
       this.#scheduleRedraw();
       return;
     }
@@ -471,7 +474,7 @@ export class MatplotlibRenderer {
     }
 
     // Start new box selection
-    const clamped = this.#clampToAxes(pt);
+    const clamped = clampToAxes(pt, this.#state);
     ix.mode = "drawing";
     ix.boxStart = clamped;
     ix.boxEnd = clamped;
@@ -490,7 +493,7 @@ export class MatplotlibRenderer {
 
     // Lassoing: append clamped point
     if (ix.mode === "lassoing") {
-      ix.lassoPoints.push(this.#clampToAxes(pt));
+      ix.lassoPoints.push(clampToAxes(pt, this.#state));
       this.#scheduleRedraw();
       return;
     }
@@ -552,7 +555,7 @@ export class MatplotlibRenderer {
     }
 
     if (ix.mode === "drawing") {
-      const clamped = this.#clampToAxes(pt);
+      const clamped = clampToAxes(pt, this.#state);
       ix.boxEnd = clamped;
       this.#scheduleRedraw();
       if (!s.debounce) {

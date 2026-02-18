@@ -7,10 +7,10 @@ import {
   type Data,
   MatplotlibRenderer,
   type MatplotlibState,
-  type SelectionValue,
+  type SelectionValue as T,
 } from "./matplotlib-renderer";
 
-export class MatplotlibPlugin implements IPlugin<SelectionValue, Data> {
+export class MatplotlibPlugin implements IPlugin<T, Data> {
   tagName = "marimo-matplotlib";
 
   validator = z.object({
@@ -28,7 +28,7 @@ export class MatplotlibPlugin implements IPlugin<SelectionValue, Data> {
     yScale: z.string().default("linear"),
   });
 
-  render(props: IPluginProps<SelectionValue, Data>): JSX.Element {
+  render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <MatplotlibComponent
         {...props.data}
