@@ -162,24 +162,24 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         step (float | list[list[float]] | ArrayLike, optional): Drag
             increment. A scalar is broadcast to all cells; a nested list
             or numpy array sets per-element step sizes. Defaults to 1.0.
+        disabled (bool | list[list[bool]] | ArrayLike, optional): Whether
+            cells are disabled. A scalar bool is broadcast to all cells; a
+            nested list or numpy bool array sets a per-element mask.
+            Defaults to False.
+        symmetric (bool, optional): If True, editing cell [i][j] also
+            updates cell [j][i]. Requires a square matrix. Defaults to False.
+        scientific (bool, optional): If True, display values in scientific
+            notation (e.g., `1.0e-4`). Defaults to False.
         precision (int, optional): Number of decimal places displayed.
             Defaults to 3.
         row_labels (list[str] | None, optional): Labels for each row.
             Defaults to None.
         column_labels (list[str] | None, optional): Labels for each column.
             Defaults to None.
-        symmetric (bool, optional): If True, editing cell [i][j] also
-            updates cell [j][i]. Requires a square matrix. Defaults to False.
-        label (str, optional): Markdown label for the element.
+        label (str, optional): Markdown/LaTeX label for the element.
             Defaults to "".
-        scientific (bool, optional): If True, display values in scientific
-            notation (e.g., `1.0e-4`). Defaults to False.
         on_change (Callable | None, optional): Optional callback to run
             when this element's value changes.
-        disabled (bool | list[list[bool]] | ArrayLike, optional): Whether
-            cells are disabled. A scalar bool is broadcast to all cells; a
-            nested list or numpy bool array sets a per-element mask.
-            Defaults to False.
     """
 
     _name: Final[str] = "marimo-matrix"
@@ -191,14 +191,14 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         min_value: float | list[list[float]] | ArrayLike | None = None,
         max_value: float | list[list[float]] | ArrayLike | None = None,
         step: float | list[list[float]] | ArrayLike = 1.0,
+        disabled: bool | list[list[bool]] | ArrayLike = False,
+        symmetric: bool = False,
+        scientific: bool = False,
         precision: int = 3,
         row_labels: list[str] | None = None,
         column_labels: list[str] | None = None,
-        symmetric: bool = False,
-        scientific: bool = False,
         label: str = "",
         on_change: Callable[[list[list[float]]], None] | None = None,
-        disabled: bool | list[list[bool]] | ArrayLike = False,
     ) -> None:
         # Convert and validate value
         data = _to_nested_list(value)
