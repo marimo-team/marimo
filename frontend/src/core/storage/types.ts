@@ -32,6 +32,16 @@ export interface StorageState {
   entriesByPath: ReadonlyMap<StoragePathKey, StorageEntry[]>;
 }
 
+export function storageUrl(
+  protocol: string,
+  rootPath: string,
+  entryPath: string,
+): string {
+  const parts = [rootPath, entryPath].filter(Boolean);
+  const path = parts.join("/").replaceAll(/\/+/g, "/");
+  return `${protocol}://${path}`;
+}
+
 export const DEFAULT_FETCH_LIMIT = 150;
 
 /** Non-exhaustive list of known storage protocols */
@@ -42,15 +52,3 @@ export type KnownStorageProtocol =
   | "http"
   | "file"
   | "in-memory";
-
-export const CLOUD_PROTOCOLS: ReadonlySet<KnownStorageProtocol> = new Set([
-  "s3",
-  "gcs",
-  "azure",
-  "http",
-]);
-
-export const LOCAL_PROTOCOLS: ReadonlySet<KnownStorageProtocol> = new Set([
-  "file",
-  "in-memory",
-]);

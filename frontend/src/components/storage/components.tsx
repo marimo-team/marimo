@@ -1,20 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import AwsIcon from "@marimo-team/llm-info/icons/aws.svg?inline";
+import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
 import {
-  CloudIcon,
+  DatabaseZapIcon,
   FileCodeIcon,
   FileIcon,
   FileSpreadsheetIcon,
   FileTextIcon,
   FileVideoIcon,
+  GlobeIcon,
   HardDriveIcon,
   ImageIcon,
 } from "lucide-react";
-import {
-  CLOUD_PROTOCOLS,
-  type KnownStorageProtocol,
-  LOCAL_PROTOCOLS,
-} from "@/core/storage/types";
+import GoogleCloudIcon from "@/components/databases/icons/google-cloud-storage.svg?inline";
+import type { KnownStorageProtocol } from "@/core/storage/types";
 
 export function renderFileIcon(name: string): React.ReactNode {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -48,15 +48,26 @@ export function renderFileIcon(name: string): React.ReactNode {
   }
 }
 
+const PROTOCOL_ICONS: Record<
+  KnownStorageProtocol,
+  string | React.ComponentType<{ className?: string }>
+> = {
+  s3: AwsIcon,
+  azure: AzureIcon,
+  gcs: GoogleCloudIcon,
+  http: GlobeIcon,
+  file: HardDriveIcon,
+  "in-memory": DatabaseZapIcon,
+} as const;
+
 export function renderProtocolIcon(
   protocol: KnownStorageProtocol | (string & {}),
 ): React.ReactNode {
-  const normalized = protocol.toLowerCase();
-  if (CLOUD_PROTOCOLS.has(normalized as KnownStorageProtocol)) {
-    return <CloudIcon className="h-3.5 w-3.5" />;
+  const Icon =
+    PROTOCOL_ICONS[protocol.toLowerCase() as KnownStorageProtocol] ??
+    HardDriveIcon;
+  if (typeof Icon === "string") {
+    return <img src={Icon} alt={protocol} className="h-3.5 w-3.5" />;
   }
-  if (LOCAL_PROTOCOLS.has(normalized as KnownStorageProtocol)) {
-    return <HardDriveIcon className="h-3.5 w-3.5" />;
-  }
-  return <HardDriveIcon className="h-3.5 w-3.5" />;
+  return <Icon className="h-3.5 w-3.5" />;
 }

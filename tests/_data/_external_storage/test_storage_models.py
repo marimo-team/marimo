@@ -342,6 +342,13 @@ class TestObstore:
         assert Obstore.is_compatible(42) is False
         assert Obstore.is_compatible(None) is False
 
+    def test_display_name_known_protocol(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        backend = self._make_backend(store)
+        assert backend.display_name == "In-memory"
+
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")
 class TestFsspecFilesystem:
@@ -663,6 +670,18 @@ class TestFsspecFilesystem:
 
         fs = MemoryFileSystem()
         assert FsspecFilesystem.is_compatible(fs) is True
+
+    def test_display_name_known_protocol(self) -> None:
+        mock_store = MagicMock()
+        mock_store.protocol = "s3"
+        backend = self._make_backend(mock_store)
+        assert backend.display_name == "Amazon S3"
+
+    def test_display_name_unknown_protocol(self) -> None:
+        mock_store = MagicMock()
+        mock_store.protocol = "custom-proto"
+        backend = self._make_backend(mock_store)
+        assert backend.display_name == "custom-proto"
 
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")

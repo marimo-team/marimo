@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, get_args
 
 import msgspec
 
 from marimo._types.ids import VariableName
+from marimo._utils.assert_never import log_never
 
 KNOWN_STORAGE_TYPES = Literal[
     "s3", "gcs", "azure", "http", "file", "in-memory"
@@ -118,6 +119,27 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     @abc.abstractmethod
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         """Return the protocol of the storage backend."""
+
+    @property
+    def display_name(self) -> str:
+        protocol = self.protocol
+        if protocol not in get_args(KNOWN_STORAGE_TYPES):
+            return protocol
+        if protocol == "s3":
+            return "Amazon S3"
+        elif protocol == "gcs":
+            return "Google Cloud Storage"
+        elif protocol == "azure":
+            return "Azure Blob Storage"
+        elif protocol == "http":
+            return "HTTP"
+        elif protocol == "file":
+            return "File"
+        elif protocol == "in-memory":
+            return "In-memory"
+        else:
+            log_never(protocol)  # pyright: ignore[reportArgumentType]
+            return protocol
 
     @property
     @abc.abstractmethod
