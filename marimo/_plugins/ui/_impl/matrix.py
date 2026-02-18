@@ -15,13 +15,14 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
 
 
+Numeric = int | float
+
+
 def _broadcast(
     name: str,
     param: Any,
     rows: int,
     cols: int,
-    *,
-    convert: type = float,
 ) -> list[list[Any]]:
     """Broadcast a scalar, nested list, or array-like to a rows x cols matrix.
 
@@ -30,20 +31,12 @@ def _broadcast(
     if hasattr(param, "tolist"):
         param = param.tolist()
 
-    # Scalar -> broadcast to every cell
     if not isinstance(param, list):
-        try:
-            val = convert(param)
-        except (TypeError, ValueError):
-            raise ValueError(
-                f"`{name}` must be a scalar, nested list, or array-like, "
-                f"got {type(param)}"
-            )
-        return [[val] * cols for _ in range(rows)]
+        return [[param] * cols for _ in range(rows)]
 
-    # Nested list -> validate shape and convert cells
     if len(param) != rows:
         raise ValueError(f"`{name}` has {len(param)} rows but expected {rows}")
+
     for i, row in enumerate(param):
         if not isinstance(row, (list, tuple)):
             raise ValueError(
@@ -59,41 +52,45 @@ def _broadcast(
                     f"`{name}` must be 2D, but found a nested "
                     f"sequence at position [{i}][{j}]"
                 )
-    return [[convert(x) for x in row] for row in param]
+    return param
 
 
 def _to_nested_list(
-    value: list[list[float]] | ArrayLike,
-) -> list[list[float]]:
-    """Parse and validate initial matrix data into a nested list of floats.
+    value: list[list[Numeric]] | ArrayLike,
+) -> list[list[Numeric]]:
+    """Parse and validate initial matrix data into a nested list.
 
     Accepts a nested list of numbers or a numpy array-like with `.tolist()`.
     Rejects empty, non-2D, or ragged inputs.
     """
     if hasattr(value, "tolist"):
         value = value.tolist()
+
     if not isinstance(value, list):
         raise ValueError(
             f"`value` must be a list of lists or array-like, got {type(value)}"
         )
+
     if not value:
         raise ValueError("`value` must be non-empty")
+
     first = value[0]
     if not isinstance(first, (list, tuple)) or not first:
         raise ValueError(
-            "`value` must contain non-empty lists, "
-            f"but row 0 is {first!r}"
+            f"`value` must contain non-empty lists, but row 0 is {first!r}"
         )
     return _broadcast("value", value, len(value), len(first))
 
 
 @mddoc
-class matrix(UIElement[list[list[float]], list[list[float]]]):
+class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
     """An interactive matrix editor.
 
-    Renders a grid of numeric cells with bracket decorations (like math
-    notation). Users click and drag horizontally on a cell to
-    increment/decrement its value.
+    A matrix UI element in which each entry is a slider: click and drag
+    horizontally on an entry to increment or decrement its value. The
+    matrix can be configured in many ways, including element-wise
+    bounds, element-wise steps, an element-wise disable mask, and
+    symmetry enforcement.
 
     Examples:
         ```python
@@ -144,22 +141,22 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         ```
 
     Attributes:
-        value (list[list[float]]): The current 2D matrix as a nested list.
+        value (list[list[Numeric]]): The current 2D matrix as a nested list.
             Use `np.asarray(matrix.value)` to convert to a numpy array.
 
     Args:
-        value (list[list[float]] | ArrayLike): Initial 2D matrix data.
+        value (list[list[Numeric]] | ArrayLike): Initial 2D matrix data.
             Accepts a nested list of numbers or a numpy array. Rows and
             columns are inferred from the shape.
-        min_value (float | list[list[float]] | ArrayLike | None, optional):
+        min_value (Numeric | list[list[Numeric]] | ArrayLike | None, optional):
             Minimum allowed value. A scalar is broadcast to all cells; a
             nested list or numpy array sets per-element bounds. None means
             unbounded. Defaults to None.
-        max_value (float | list[list[float]] | ArrayLike | None, optional):
+        max_value (Numeric | list[list[Numeric]] | ArrayLike | None, optional):
             Maximum allowed value. A scalar is broadcast to all cells; a
             nested list or numpy array sets per-element bounds. None means
             unbounded. Defaults to None.
-        step (float | list[list[float]] | ArrayLike, optional): Drag
+        step (Numeric | list[list[Numeric]] | ArrayLike, optional): Drag
             increment. A scalar is broadcast to all cells; a nested list
             or numpy array sets per-element step sizes. Defaults to 1.0.
         disabled (bool | list[list[bool]] | ArrayLike, optional): Whether
@@ -168,10 +165,6 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
             Defaults to False.
         symmetric (bool, optional): If True, editing cell [i][j] also
             updates cell [j][i]. Requires a square matrix. Defaults to False.
-        debounce (bool, optional): If True, value updates are only sent
-            to the backend on mouse-up (pointer release) instead of on
-            every drag movement. Useful when the matrix drives expensive
-            downstream computations. Defaults to False.
         scientific (bool, optional): If True, display values in scientific
             notation (e.g., `1.0e-4`). Defaults to False.
         precision (int, optional): Number of decimal places displayed.
@@ -180,6 +173,10 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
             Defaults to None.
         column_labels (list[str] | None, optional): Labels for each column.
             Defaults to None.
+        debounce (bool, optional): If True, value updates are only sent
+            to the backend on mouse-up (pointer release) instead of on
+            every drag movement. Useful when the matrix drives expensive
+            downstream computations. Defaults to False.
         label (str, optional): Markdown/LaTeX label for the element.
             Defaults to "".
         on_change (Callable | None, optional): Optional callback to run
@@ -190,20 +187,20 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
 
     def __init__(
         self,
-        value: list[list[float]] | ArrayLike,
+        value: list[list[Numeric]] | ArrayLike,
         *,
-        min_value: float | list[list[float]] | ArrayLike | None = None,
-        max_value: float | list[list[float]] | ArrayLike | None = None,
-        step: float | list[list[float]] | ArrayLike = 1.0,
+        min_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
+        max_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
+        step: Numeric | list[list[Numeric]] | ArrayLike = 1.0,
         disabled: bool | list[list[bool]] | ArrayLike = False,
         symmetric: bool = False,
-        debounce: bool = False,
         scientific: bool = False,
         precision: int = 3,
         row_labels: list[str] | None = None,
         column_labels: list[str] | None = None,
+        debounce: bool = False,
         label: str = "",
-        on_change: Callable[[list[list[float]]], None] | None = None,
+        on_change: Callable[[list[list[Numeric]]], None] | None = None,
     ) -> None:
         # Convert and validate value
         data = _to_nested_list(value)
@@ -222,9 +219,7 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
             else None
         )
         step_val = _broadcast("step", step, rows, cols)
-        disabled_val = _broadcast(
-            "disabled", disabled, rows, cols, convert=bool
-        )
+        disabled_val = _broadcast("disabled", disabled, rows, cols)
 
         # Validate per-cell constraints in a single pass
         for i in range(rows):
@@ -304,5 +299,7 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: list[list[float]]) -> list[list[float]]:
+    def _convert_value(
+        self, value: list[list[Numeric]]
+    ) -> list[list[Numeric]]:
         return value
