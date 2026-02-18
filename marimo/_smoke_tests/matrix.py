@@ -352,5 +352,24 @@ def _(sci):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Debounce
+    """)
+    return
+
+
+@app.cell
+def _(mo, np):
+    db = mo.ui.matrix(
+        np.eye(3),
+        precision=2,
+        debounce=True,
+    )
+    db
+    return
+
+
 if __name__ == "__main__":
     app.run()

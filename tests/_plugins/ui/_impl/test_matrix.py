@@ -10,6 +10,11 @@ def test_matrix_basic():
     assert m.value == [[1.0, 2.0], [3.0, 4.0]]
 
 
+def test_matrix_debounce():
+    m = ui.matrix([[1, 2], [3, 4]], debounce=True)
+    assert m.value == [[1.0, 2.0], [3.0, 4.0]]
+
+
 def test_matrix_single_cell():
     m = ui.matrix([[5]])
     assert m.value == [[5.0]]

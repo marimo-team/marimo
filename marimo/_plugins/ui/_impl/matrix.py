@@ -168,6 +168,10 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
             Defaults to False.
         symmetric (bool, optional): If True, editing cell [i][j] also
             updates cell [j][i]. Requires a square matrix. Defaults to False.
+        debounce (bool, optional): If True, value updates are only sent
+            to the backend on mouse-up (pointer release) instead of on
+            every drag movement. Useful when the matrix drives expensive
+            downstream computations. Defaults to False.
         scientific (bool, optional): If True, display values in scientific
             notation (e.g., `1.0e-4`). Defaults to False.
         precision (int, optional): Number of decimal places displayed.
@@ -193,6 +197,7 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         step: float | list[list[float]] | ArrayLike = 1.0,
         disabled: bool | list[list[bool]] | ArrayLike = False,
         symmetric: bool = False,
+        debounce: bool = False,
         scientific: bool = False,
         precision: int = 3,
         row_labels: list[str] | None = None,
@@ -292,6 +297,7 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
                 "row-labels": row_labels,
                 "column-labels": column_labels,
                 "symmetric": symmetric,
+                "debounce": debounce,
                 "scientific": scientific,
                 "disabled": disabled_val,
             },
