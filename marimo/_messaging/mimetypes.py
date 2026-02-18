@@ -4,8 +4,12 @@ from __future__ import annotations
 from typing import Any, Literal, Union
 
 # It is convenient to write mimetypes as strings,
-# but can lead to typos. This literal type
-# helps us avoid typos.
+# but can lead to typos. This literal type helps
+# us avoid typos.
+#
+# While nonstandard MIME types are often given an
+# `x-` prefix our non IAIA types to not follow
+# this convention (e.g., text/password, text/latex).
 KnownMimeType = Literal[
     "application/json",
     "application/vnd.marimo+error",
