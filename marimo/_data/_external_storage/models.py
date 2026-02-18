@@ -138,7 +138,7 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         elif protocol == "in-memory":
             return "In-memory"
         else:
-            log_never(protocol)  # pyright: ignore[reportArgumentType]
+            log_never(protocol)  # type: ignore[arg-type]
             return protocol
 
     @property
