@@ -21,6 +21,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
 | [`marimo.ui.file`][marimo.ui.file] | File uploads |
 | [`marimo.ui.file_browser`][marimo.ui.file_browser] | Browse files |
 | [`marimo.ui.form`][marimo.ui.form] | Create forms |
+| [`marimo.ui.matrix`][marimo.ui.matrix] | Interactive matrix editor |
 | [`marimo.ui.microphone`][marimo.ui.microphone] | Record audio |
 | [`marimo.ui.multiselect`][marimo.ui.multiselect] | Multiple selection |
 | [`marimo.ui.number`][marimo.ui.number] | Number inputs |

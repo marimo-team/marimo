@@ -129,7 +129,11 @@ def _(mo):
 def _(mo):
     masked = mo.ui.matrix(
         [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-        disabled=[[True, False, False], [False, True, False], [False, False, True]],
+        disabled=[
+            [True, False, False],
+            [False, True, False],
+            [False, False, True],
+        ],
         label="Diagonal locked",
     )
     masked
@@ -242,7 +246,7 @@ def _(mo, np):
         np.arange(16, dtype=float).reshape(4, 4),
         disabled=mask,
         precision=0,
-        label="Diagonal disabled via np.eye bool mask",
+        label=r"$\text{diag}(0, 5, 10, 15) + X$",
     )
     np_disabled
     return (np_disabled,)
@@ -297,9 +301,14 @@ def _(mo):
 @app.cell
 def _(mo, np):
     original = np.random.default_rng(42).uniform(-1, 1, size=(3, 3)).round(2)
-    roundtrip = mo.ui.matrix(original, precision=2, step=0.01, label="Random matrix (edit and check below)")
+    roundtrip = mo.ui.matrix(
+        original,
+        precision=2,
+        step=0.01,
+        label="Random matrix (edit and check below)",
+    )
     roundtrip
-    return (original, roundtrip)
+    return original, roundtrip
 
 
 @app.cell

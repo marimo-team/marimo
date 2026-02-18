@@ -237,6 +237,34 @@ def _(basic_ui_elements, documentation):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""
+    `mo.ui.matrix` lets you edit 2D numeric data interactively.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    matrix = mo.ui.matrix(
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+        min_value=-5,
+        max_value=5,
+        step=0.1,
+        precision=1,
+        label="$I$",
+    )
+    matrix
+    return (matrix,)
+
+
+@app.cell
+def _(matrix):
+    matrix.value
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md("""
     ### Composite elements
 
@@ -382,6 +410,7 @@ def _(mo):
                     "date": mo.ui.date,
                     "dropdown": mo.ui.dropdown,
                     "file": mo.ui.file,
+                    "matrix": mo.ui.matrix,
                     "multiselect": mo.ui.multiselect,
                     "number": mo.ui.number,
                     "radio": mo.ui.radio,
@@ -441,6 +470,15 @@ def _(mo):
             return [mo.ui.file(kind="button"), mo.ui.file(kind="area")]
         elif value == mo.ui.form:
             return mo.ui.text_area(placeholder="...").form()
+        elif value == mo.ui.matrix:
+            return mo.ui.matrix(
+                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                min_value=-5,
+                max_value=5,
+                step=0.1,
+                precision=1,
+                label="$I$",
+            )
         elif value == mo.ui.multiselect:
             return mo.ui.multiselect(["a", "b", "c"])
         elif value == mo.ui.number:
