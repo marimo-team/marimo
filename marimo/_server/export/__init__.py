@@ -212,6 +212,7 @@ async def run_app_then_export_as_pdf(
     webpdf: bool,
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
+    include_inputs: bool = True,
 ) -> tuple[bytes | None, bool]:
     file_router = AppFileRouter.from_filename(filepath)
     file_key = file_router.get_unique_file_key()
@@ -235,6 +236,7 @@ async def run_app_then_export_as_pdf(
     pdf_data = Exporter().export_as_pdf(
         app=file_manager.app,
         session_view=session_view,
+        include_inputs=include_inputs,
         webpdf=webpdf,
     )
     return pdf_data, did_error

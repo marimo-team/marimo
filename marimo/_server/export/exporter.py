@@ -315,12 +315,14 @@ class Exporter:
         app: InternalApp,
         session_view: SessionView | None,
         webpdf: bool,
+        include_inputs: bool = True,
     ) -> bytes | None:
         """Export notebook as a PDF.
 
         Args:
             app: The app to export
             session_view: The session view to export. If None, outputs are not included.
+            include_inputs: Whether to include code cell inputs in the export.
             webpdf: If False, tries standard PDF export (pandoc + TeX) first,
                 falling back to webpdf on failure. If True, uses webpdf
                 directly.
@@ -356,6 +358,7 @@ class Exporter:
                 )
 
                 exporter = PDFExporter()
+                exporter.exclude_input = not include_inputs
                 pdf_data, _resources = exporter.from_notebook_node(notebook)
                 if isinstance(pdf_data, bytes):
                     return pdf_data
@@ -370,6 +373,7 @@ class Exporter:
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
         web_exporter = WebPDFExporter()
+        web_exporter.exclude_input = not include_inputs
         web_exporter.allow_chromium_download = True
         pdf_data, _resources = web_exporter.from_notebook_node(notebook)
 
