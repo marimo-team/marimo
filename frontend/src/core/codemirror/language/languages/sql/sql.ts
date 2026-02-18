@@ -15,7 +15,11 @@ import {
   sqlExtension,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
-import { type SQLMetadata, SQLParser } from "@marimo-team/smart-cells";
+import {
+  SQL_QUOTE_PREFIX,
+  type SQLMetadata,
+  SQLParser,
+} from "@marimo-team/smart-cells";
 import type { CellId } from "@/core/cells/ids";
 import { cellIdState } from "@/core/codemirror/cells/state";
 import type { PlaceholderType } from "@/core/codemirror/config/types";
@@ -93,7 +97,7 @@ export class SQLLanguageAdapter
   get defaultCode(): string {
     const engine = getLatestEngine();
     if (engine && engine !== DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`;
+      return `_df = mo.sql(${SQL_QUOTE_PREFIX}"""SELECT * FROM """, engine=${engine})`;
     }
     return this.parser.defaultCode;
   }

@@ -26,6 +26,17 @@ export interface SQLMetadata {
 
 const DEFAULT_ENGINE = "__marimo_duckdb";
 
+/**
+ * Raw f-string prefix for SQL cells.
+ * Using rf-strings avoids unicode escape errors when users paste
+ * Windows backslash paths (e.g., C:\Users\data\file.csv) into SQL cells.
+ * See https://github.com/marimo-team/marimo/issues/8179
+ *
+ * Keep in sync with SQL_QUOTE_PREFIX in:
+ *   marimo/_convert/common/format.py
+ */
+export const SQL_QUOTE_PREFIX = "rf" as const;
+
 interface SQLParseInfo {
   dfName: string;
   sqlString: string;
@@ -45,21 +56,21 @@ export class SQLParser implements LanguageParser<SQLMetadata> {
 
   readonly defaultMetadata: SQLMetadata = {
     dataframeName: "_df",
-    quotePrefix: "f",
+    quotePrefix: SQL_QUOTE_PREFIX,
     commentLines: [],
     showOutput: true,
     engine: DEFAULT_ENGINE,
   };
 
   get defaultCode(): string {
-    return `_df = mo.sql(f"""SELECT * FROM """)`;
+    return `_df = mo.sql(${SQL_QUOTE_PREFIX}"""SELECT * FROM """)`;
   }
 
   /**
    * Create a SQL cell from a SQL query.
    */
   static fromQuery(query: string): string {
-    return `_df = mo.sql(f"""${query.trim()}""")`;
+    return `_df = mo.sql(${SQL_QUOTE_PREFIX}"""${query.trim()}""")`;
   }
 
   transformIn(pythonCode: string): ParseResult<SQLMetadata> {

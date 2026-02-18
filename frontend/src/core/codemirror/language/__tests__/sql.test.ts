@@ -53,8 +53,8 @@ describe("SQLLanguageAdapter", () => {
         {
           "commentLines": [],
           "dataframeName": "_df",
-          "engine": "${DUCKDB_ENGINE}",
-          "quotePrefix": "f",
+          "engine": "__marimo_duckdb",
+          "quotePrefix": "rf",
           "showOutput": true,
         }
       `);
@@ -70,11 +70,11 @@ describe("SQLLanguageAdapter", () => {
       expect(out).toMatchInlineSnapshot(`
         [
           "_df = mo.sql(
-            f"""
+            rf"""
 
             """
         )",
-          24,
+          25,
         ]
       `);
     });
@@ -210,7 +210,7 @@ describe("SQLLanguageAdapter", () => {
     it("should handle parametrized sql", () => {
       const pythonCode = `
 _df = mo.sql(
-    f"""
+    rf"""
     SELECT name, price, category
     FROM products
     WHERE price < {price_threshold.value}
@@ -228,7 +228,7 @@ WHERE price < {price_threshold.value}
 ORDER BY price DESC
         `.trim(),
       );
-      expect(offset).toBe(22);
+      expect(offset).toBe(23);
       expect(metadata.showOutput).toBe(true);
       expect(metadata.engine).toBe("sqlite");
     });
@@ -358,12 +358,12 @@ _df = mo.sql(
       expect(wrappedCode).toMatchInlineSnapshot(`
         "# hello
         my_df = mo.sql(
-            f"""
+            rf"""
             SELECT * FROM {df}
             """
         )"
       `);
-      expect(offset).toBe(26);
+      expect(offset).toBe(27);
     });
 
     it("should add engine connection when provided", () => {
@@ -481,7 +481,7 @@ _df = mo.sql(
         adapter.isSupported(
           `
         countries = mo.sql(
-            f"""
+            rf"""
             SELECT * from "https://raw.githubusercontent.com/data.csv"
             """,
             output=False
@@ -492,7 +492,7 @@ _df = mo.sql(
         adapter.isSupported(
           `
         countries = mo.sql(
-            f"""
+            rf"""
             SELECT * from "https://raw.githubusercontent.com/data.csv"
             """,
             output=False,
@@ -503,7 +503,7 @@ _df = mo.sql(
         adapter.isSupported(
           `
         countries = mo.sql(
-            f"""
+            rf"""
             SELECT * from "https://raw.githubusercontent.com/data.csv"
             """,
             output=False)`.trim(),
@@ -623,13 +623,13 @@ _df = mo.sql(
       const engine = "postgres_engine" as ConnectionName;
       setLatestEngineSelected(engine);
       expect(adapter.defaultCode).toBe(
-        `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`,
+        `_df = mo.sql(rf"""SELECT * FROM """, engine=${engine})`,
       );
     });
 
     it("should not include engine in defaultCode when using default engine", () => {
       setLatestEngineSelected(DUCKDB_ENGINE);
-      expect(adapter.defaultCode).toBe(`_df = mo.sql(f"""SELECT * FROM """)`);
+      expect(adapter.defaultCode).toBe(`_df = mo.sql(rf"""SELECT * FROM """)`);
     });
   });
 });

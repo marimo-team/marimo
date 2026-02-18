@@ -9,6 +9,7 @@ from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._convert.common.format import SQL_QUOTE_PREFIX
 from marimo._data.models import DataTable
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import SessionId
@@ -169,9 +170,9 @@ class GetDatabaseTables(
         if default_schema:
             sample_query = f"SELECT * FROM {table} LIMIT 100"
         if engine != INTERNAL_DUCKDB_ENGINE:
-            wrapped_query = (
-                f'df = mo.sql(f"""{sample_query}""", engine={engine})'
-            )
+            wrapped_query = f'df = mo.sql({SQL_QUOTE_PREFIX}"""{sample_query}""", engine={engine})'
         else:
-            wrapped_query = f'df = mo.sql(f"""{sample_query}""")'
+            wrapped_query = (
+                f'df = mo.sql({SQL_QUOTE_PREFIX}"""{sample_query}""")'
+            )
         return wrapped_query
