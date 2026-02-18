@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 _proxies_installed = False
 _install_lock = threading.Lock()
+_original_stdout: TextIO | None = None
+_original_stderr: TextIO | None = None
 
 
 class ThreadLocalStreamProxy(io.TextIOBase):
@@ -41,6 +43,11 @@ class ThreadLocalStreamProxy(io.TextIOBase):
         self._original = original
         self._local = threading.local()
         self._name = name
+        # Expose the underlying binary buffer so that code writing to
+        # sys.stdout.buffer (e.g. package installation logging) keeps working.
+        self.buffer: io.BufferedIOBase | None = getattr(
+            original, "buffer", None
+        )
 
     # -- per-thread registration -------------------------------------------
 
@@ -98,10 +105,12 @@ def install_thread_local_proxies() -> None:
 
     Called once from the main server thread before kernel threads are spawned.
     """
-    global _proxies_installed
+    global _proxies_installed, _original_stdout, _original_stderr
     with _install_lock:
         if _proxies_installed:
             return
+        _original_stdout = sys.stdout
+        _original_stderr = sys.stderr
         sys.stdout = ThreadLocalStreamProxy(sys.stdout, "<stdout>")  # type: ignore[assignment]
         sys.stderr = ThreadLocalStreamProxy(sys.stderr, "<stderr>")  # type: ignore[assignment]
         _proxies_installed = True
@@ -109,16 +118,16 @@ def install_thread_local_proxies() -> None:
 
 def uninstall_thread_local_proxies() -> None:
     """Remove thread-local proxies, restoring the original streams."""
-    global _proxies_installed
+    global _proxies_installed, _original_stdout, _original_stderr
     with _install_lock:
         if not _proxies_installed:
             return
-        stdout = sys.stdout
-        stderr = sys.stderr
-        if isinstance(stdout, ThreadLocalStreamProxy):
-            sys.stdout = stdout._original  # type: ignore[assignment]
-        if isinstance(stderr, ThreadLocalStreamProxy):
-            sys.stderr = stderr._original  # type: ignore[assignment]
+        if _original_stdout is not None:
+            sys.stdout = _original_stdout  # type: ignore[assignment]
+        if _original_stderr is not None:
+            sys.stderr = _original_stderr  # type: ignore[assignment]
+        _original_stdout = None
+        _original_stderr = None
         _proxies_installed = False
 
 

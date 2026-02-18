@@ -117,6 +117,17 @@ class TestThreadLocalStreamProxy:
         assert not proxy.readable()
         assert not proxy.seekable()
 
+    def test_buffer_attribute_from_real_stdout(self) -> None:
+        """Proxy exposes .buffer from the original stream."""
+        proxy = ThreadLocalStreamProxy(sys.__stdout__, "<stdout>")
+        assert proxy.buffer is sys.__stdout__.buffer  # type: ignore[union-attr]
+
+    def test_buffer_attribute_none_for_stringio(self) -> None:
+        """StringIO has no buffer, so proxy.buffer should be None."""
+        original = io.StringIO()
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
+        assert proxy.buffer is None
+
 
 # ---------------------------------------------------------------------------
 # install / set / clear helper tests
@@ -163,6 +174,25 @@ class TestHelperFunctions:
         finally:
             uninstall_thread_local_proxies()
 
+    def test_uninstall_restores_originals_even_if_stdout_replaced(
+        self,
+    ) -> None:
+        """uninstall restores originals even if sys.stdout was overwritten."""
+        saved_stdout = sys.stdout
+        saved_stderr = sys.stderr
+        try:
+            install_thread_local_proxies()
+            # Something replaces sys.stdout after install
+            sys.stdout = io.StringIO()  # type: ignore
+            sys.stderr = io.StringIO()  # type: ignore
+            # uninstall should still restore the real originals
+            uninstall_thread_local_proxies()
+            assert sys.stdout is saved_stdout
+            assert sys.stderr is saved_stderr
+        finally:
+            sys.stdout = saved_stdout
+            sys.stderr = saved_stderr
+
     def test_set_noop_without_proxy(self) -> None:
         """set/clear are safe to call when proxies are not installed."""
         saved_stdout = sys.stdout
@@ -176,6 +206,142 @@ class TestHelperFunctions:
         finally:
             sys.stdout = saved_stdout
             sys.stderr = saved_stderr
+
+
+# ---------------------------------------------------------------------------
+# capture / redirect with proxies installed
+# ---------------------------------------------------------------------------
+
+
+class TestCaptureWithProxy:
+    """Tests for capture_stdout / capture_stderr when proxies are active."""
+
+    def test_capture_stdout_with_proxy(self) -> None:
+        from marimo._runtime.capture import capture_stdout
+
+        saved_stdout = sys.stdout
+        try:
+            install_thread_local_proxies()
+            proxy: ThreadLocalStreamProxy = sys.stdout  # type: ignore
+
+            session_stream = io.StringIO()
+            proxy._set_stream(session_stream)
+
+            with capture_stdout() as buf:
+                sys.stdout.write("captured")
+
+            # Writes inside the context should go to the buffer
+            assert buf.getvalue() == "captured"
+            # The session stream should not see captured output
+            assert session_stream.getvalue() == ""
+            # After exiting, writes should resume going to session stream
+            sys.stdout.write("after")
+            assert session_stream.getvalue() == "after"
+        finally:
+            sys.stdout = saved_stdout
+            uninstall_thread_local_proxies()
+
+    def test_capture_stderr_with_proxy(self) -> None:
+        from marimo._runtime.capture import capture_stderr
+
+        saved_stderr = sys.stderr
+        try:
+            install_thread_local_proxies()
+            proxy: ThreadLocalStreamProxy = sys.stderr  # type: ignore
+
+            session_stream = io.StringIO()
+            proxy._set_stream(session_stream)
+
+            with capture_stderr() as buf:
+                sys.stderr.write("captured")
+
+            assert buf.getvalue() == "captured"
+            assert session_stream.getvalue() == ""
+            sys.stderr.write("after")
+            assert session_stream.getvalue() == "after"
+        finally:
+            sys.stderr = saved_stderr
+            uninstall_thread_local_proxies()
+
+    def test_redirect_stdout_with_proxy(self) -> None:
+        from marimo._runtime.capture import redirect_stdout
+
+        saved_stdout = sys.stdout
+        try:
+            install_thread_local_proxies()
+            proxy: ThreadLocalStreamProxy = sys.stdout  # type: ignore
+
+            session_stream = io.StringIO()
+            proxy._set_stream(session_stream)
+
+            with redirect_stdout():
+                # Writes should go to _output (via _redirect), not session
+                sys.stdout.write("redirected")
+
+            # Session stream should not see redirected writes
+            assert session_stream.getvalue() == ""
+            # After exiting, writes should resume going to session stream
+            sys.stdout.write("after")
+            assert session_stream.getvalue() == "after"
+        finally:
+            sys.stdout = saved_stdout
+            uninstall_thread_local_proxies()
+
+    def test_redirect_stderr_with_proxy(self) -> None:
+        from marimo._runtime.capture import redirect_stderr
+
+        saved_stderr = sys.stderr
+        try:
+            install_thread_local_proxies()
+            proxy: ThreadLocalStreamProxy = sys.stderr  # type: ignore
+
+            session_stream = io.StringIO()
+            proxy._set_stream(session_stream)
+
+            with redirect_stderr():
+                sys.stderr.write("redirected")
+
+            assert session_stream.getvalue() == ""
+            sys.stderr.write("after")
+            assert session_stream.getvalue() == "after"
+        finally:
+            sys.stderr = saved_stderr
+            uninstall_thread_local_proxies()
+
+    def test_capture_does_not_affect_other_threads(self) -> None:
+        """capture_stdout in one thread should not affect another thread."""
+        from marimo._runtime.capture import capture_stdout
+
+        saved_stdout = sys.stdout
+        try:
+            install_thread_local_proxies()
+            proxy: ThreadLocalStreamProxy = sys.stdout  # type: ignore
+
+            other_stream = io.StringIO()
+            barrier = threading.Barrier(2)
+            captured: list[str] = []
+
+            def other_thread() -> None:
+                proxy._set_stream(other_stream)
+                barrier.wait()
+                proxy.write("other")
+
+            session_stream = io.StringIO()
+            proxy._set_stream(session_stream)
+
+            t = threading.Thread(target=other_thread)
+            t.start()
+            with capture_stdout() as buf:
+                barrier.wait()
+                sys.stdout.write("main")
+                t.join()
+                captured.append(buf.getvalue())
+
+            assert captured[0] == "main"
+            assert other_stream.getvalue() == "other"
+        finally:
+            sys.stdout = saved_stdout
+            uninstall_thread_local_proxies()
 
 
 # ---------------------------------------------------------------------------

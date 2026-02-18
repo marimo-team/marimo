@@ -80,6 +80,17 @@ def _redirect(msg: str) -> None:
     _output.append(plain_text(msg))
 
 
+class _RedirectStream(io.TextIOBase):
+    """A stream wrapper that sends writes to the cell output area."""
+
+    def write(self, data: str) -> int:
+        _redirect(data)
+        return len(data)
+
+    def writable(self) -> bool:
+        return True
+
+
 @contextlib.contextmanager
 def redirect_stdout() -> Iterator[None]:
     """Redirect stdout to a cell's output area.
@@ -94,13 +105,14 @@ def redirect_stdout() -> Iterator[None]:
     """
     proxy = sys.stdout
     if _is_proxy(proxy):
-        stream = proxy._get_stream()  # type: ignore[union-attr]
-        old_write = stream.write
-        stream.write = _redirect  # type: ignore[assignment]
+        # Temporarily swap the thread-local stream to one that redirects
+        # writes to the cell output area, leaving other threads unaffected.
+        old = proxy._get_stream()  # type: ignore[union-attr]
+        proxy._set_stream(_RedirectStream())  # type: ignore[union-attr]
         try:
             yield
         finally:
-            stream.write = old_write  # type: ignore[assignment]
+            proxy._set_stream(old)  # type: ignore[union-attr]
     else:
         old_stdout_write = sys.stdout.write
         sys.stdout.write = _redirect  # type: ignore
@@ -124,13 +136,12 @@ def redirect_stderr() -> Iterator[None]:
     """
     proxy = sys.stderr
     if _is_proxy(proxy):
-        stream = proxy._get_stream()  # type: ignore[union-attr]
-        old_write = stream.write
-        stream.write = _redirect  # type: ignore[assignment]
+        old = proxy._get_stream()  # type: ignore[union-attr]
+        proxy._set_stream(_RedirectStream())  # type: ignore[union-attr]
         try:
             yield
         finally:
-            stream.write = old_write  # type: ignore[assignment]
+            proxy._set_stream(old)  # type: ignore[union-attr]
     else:
         old_stderr_write = sys.stderr.write
         sys.stderr.write = _redirect  # type: ignore

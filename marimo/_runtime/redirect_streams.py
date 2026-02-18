@@ -90,7 +90,7 @@ def redirect_streams(
             stream.cell_id = cell_id_old
     else:
         # In edit mode, we have one process per notebook, so we can safely
-        # replace sys.stdout/sys.stder and redirect OS streams
+        # replace sys.stdout/sys.stderr and redirect OS streams
         py_stdout = sys.stdout
         py_stderr = sys.stderr
         py_stdin = sys.stdin
