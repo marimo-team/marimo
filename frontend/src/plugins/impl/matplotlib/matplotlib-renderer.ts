@@ -63,6 +63,31 @@ export interface MatplotlibState extends Data {
   setValue: Setter<SelectionValue>;
 }
 
+// Minimal d3-like scale: maps between data domain and [0, 1] fraction
+interface Scale {
+  /** data value → normalized [0, 1] */
+  normalize(value: number): number;
+  /** normalized [0, 1] → data value */
+  invert(frac: number): number;
+}
+
+function createScale(type: string, bounds: [number, number]): Scale {
+  const [min, max] = bounds;
+  if (type === "log") {
+    const logMin = Math.log10(min);
+    const logRange = Math.log10(max) - logMin;
+    return {
+      normalize: (v) => (Math.log10(v) - logMin) / logRange,
+      invert: (f) => 10 ** (logMin + f * logRange),
+    };
+  }
+  const range = max - min;
+  return {
+    normalize: (v) => (v - min) / range,
+    invert: (f) => min + f * range,
+  };
+}
+
 // Ray-casting point-in-polygon test
 function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
   let inside = false;
@@ -83,58 +108,20 @@ function pointInPolygon(pt: PixelPoint, polygon: PixelPoint[]): boolean {
 
 function pixelToData(px: PixelPoint, g: AxesGeometry): DataPoint {
   const [axLeft, axTop, axRight, axBottom] = g.axesPixelBounds;
-  const axWidth = axRight - axLeft;
-  const axHeight = axBottom - axTop;
-  const fracX = (px.x - axLeft) / axWidth;
-  const fracY = (px.y - axTop) / axHeight;
-
-  let dataX: number;
-  if (g.xScale === "log") {
-    const logMin = Math.log10(g.xBounds[0]);
-    const logMax = Math.log10(g.xBounds[1]);
-    dataX = 10 ** (logMin + fracX * (logMax - logMin));
-  } else {
-    dataX = g.xBounds[0] + fracX * (g.xBounds[1] - g.xBounds[0]);
-  }
-
-  let dataY: number;
-  if (g.yScale === "log") {
-    const logMin = Math.log10(g.yBounds[0]);
-    const logMax = Math.log10(g.yBounds[1]);
-    dataY = 10 ** (logMax - fracY * (logMax - logMin));
-  } else {
-    dataY = g.yBounds[1] - fracY * (g.yBounds[1] - g.yBounds[0]);
-  }
-
-  return { x: dataX, y: dataY };
+  const fracX = (px.x - axLeft) / (axRight - axLeft);
+  const fracY = (px.y - axTop) / (axBottom - axTop);
+  const sx = createScale(g.xScale, g.xBounds);
+  const sy = createScale(g.yScale, g.yBounds);
+  return { x: sx.invert(fracX), y: sy.invert(1 - fracY) };
 }
 
 function dataToPixel(data: DataPoint, g: AxesGeometry): PixelPoint {
   const [axLeft, axTop, axRight, axBottom] = g.axesPixelBounds;
-  const axWidth = axRight - axLeft;
-  const axHeight = axBottom - axTop;
-
-  let fracX: number;
-  if (g.xScale === "log") {
-    fracX =
-      (Math.log10(data.x) - Math.log10(g.xBounds[0])) /
-      (Math.log10(g.xBounds[1]) - Math.log10(g.xBounds[0]));
-  } else {
-    fracX = (data.x - g.xBounds[0]) / (g.xBounds[1] - g.xBounds[0]);
-  }
-
-  let fracY: number;
-  if (g.yScale === "log") {
-    fracY =
-      (Math.log10(g.yBounds[1]) - Math.log10(data.y)) /
-      (Math.log10(g.yBounds[1]) - Math.log10(g.yBounds[0]));
-  } else {
-    fracY = (g.yBounds[1] - data.y) / (g.yBounds[1] - g.yBounds[0]);
-  }
-
+  const sx = createScale(g.xScale, g.xBounds);
+  const sy = createScale(g.yScale, g.yBounds);
   return {
-    x: axLeft + fracX * axWidth,
-    y: axTop + fracY * axHeight,
+    x: axLeft + sx.normalize(data.x) * (axRight - axLeft),
+    y: axTop + (1 - sy.normalize(data.y)) * (axBottom - axTop),
   };
 }
 
@@ -159,6 +146,7 @@ function isPointInBox(
 }
 
 export const visibleForTesting = {
+  createScale,
   pixelToData,
   dataToPixel,
   pointInPolygon,

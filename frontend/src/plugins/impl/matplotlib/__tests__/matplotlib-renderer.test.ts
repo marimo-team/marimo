@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { visibleForTesting } from "../matplotlib-renderer";
 import type { Data } from "../matplotlib-renderer";
+import { visibleForTesting } from "../matplotlib-renderer";
 
 const { pixelToData, dataToPixel, pointInPolygon, clampToAxes, isPointInBox } =
   visibleForTesting;
