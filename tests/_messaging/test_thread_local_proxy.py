@@ -1,5 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Tests for ThreadLocalStreamProxy and thread-local stream helpers."""
+
 from __future__ import annotations
 
 import io
@@ -14,7 +15,6 @@ from marimo._messaging.thread_local_streams import (
     set_thread_local_streams,
     uninstall_thread_local_proxies,
 )
-
 
 # ---------------------------------------------------------------------------
 # ThreadLocalStreamProxy unit tests
@@ -61,9 +61,7 @@ class TestThreadLocalStreamProxy:
         stream_b = io.StringIO()
         barrier = threading.Barrier(2)
 
-        def thread_fn(
-            stream: io.StringIO, label: str
-        ) -> None:
+        def thread_fn(stream: io.StringIO, label: str) -> None:
             proxy._set_stream(stream)
             barrier.wait()  # synchronise so both threads are active
             proxy.write(label)
