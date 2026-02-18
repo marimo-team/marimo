@@ -376,6 +376,14 @@ edit_help_msg = "\n".join(
     help="Enable MCP server endpoint at /mcp/server for LLM integration.",
 )
 @click.option(
+    "--mcp-allow-remote",
+    is_flag=True,
+    default=False,
+    type=bool,
+    hidden=True,
+    help="Allow remote access to MCP server by disabling DNS rebinding protection.",
+)
+@click.option(
     "--server-startup-command",
     default=None,
     type=str,
@@ -427,6 +435,7 @@ def edit(
     remote_url: Optional[str],
     convert: bool,
     mcp: bool,
+    mcp_allow_remote: bool,
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     timeout: Optional[float],
@@ -569,6 +578,7 @@ def edit(
         ttl_seconds=session_ttl,
         remote_url=remote_url,
         mcp=mcp,
+        mcp_allow_remote=mcp_allow_remote,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,

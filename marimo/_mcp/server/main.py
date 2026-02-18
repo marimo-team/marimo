@@ -23,13 +23,14 @@ if TYPE_CHECKING:
     from starlette.types import Receive, Scope, Send
 
 
-def setup_mcp_server(app: Starlette) -> None:
+def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
     """Create and configure MCP server for marimo integration.
 
     Args:
         app: Starlette application instance for accessing marimo state
         server_name: Name for the MCP server instance
         stateless_http: Whether to use stateless HTTP mode
+        allow_remote: If True, disable DNS rebinding protection to allow remote access behind proxies.
 
     Returns:
         StreamableHTTPSessionManager: MCP session manager
@@ -49,12 +50,21 @@ def setup_mcp_server(app: Starlette) -> None:
         SUPPORTED_MCP_PROMPTS,
     )
 
+    transport_security = None
+    if allow_remote:
+        from mcp.server.transport_security import TransportSecuritySettings
+
+        transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        )
+
     mcp = FastMCP(
         "marimo-mcp-server",
         stateless_http=True,
         log_level="WARNING",
         # Change base path from /mcp to /server
         streamable_http_path="/server",
+        transport_security=transport_security,
     )
 
     # Create context for tools and prompts

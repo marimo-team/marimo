@@ -175,6 +175,7 @@ def start(
     skew_protection: bool,
     remote_url: Optional[str] = None,
     mcp: bool = False,
+    mcp_allow_remote: bool = False,
     server_startup_command: Optional[str] = None,
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
@@ -284,7 +285,7 @@ def start(
     )
 
     if mcp_enabled:
-        setup_mcp_server(app)
+        setup_mcp_server(app, allow_remote=mcp_allow_remote)
 
     init_state = StarletteServerStateInit(
         port=external_port,
