@@ -3387,8 +3387,8 @@ export interface components {
         | "text/html"
         | "text/latex"
         | "text/markdown"
+        | "text/password"
         | "text/plain"
-        | "text/x-password"
         | "video/mp4"
         | "video/mpeg";
       timestamp?: number;
@@ -5831,8 +5831,8 @@ export interface components {
             | "text/html"
             | "text/latex"
             | "text/markdown"
+            | "text/password"
             | "text/plain"
-            | "text/x-password"
             | "video/mp4"
             | "video/mpeg"
           ),

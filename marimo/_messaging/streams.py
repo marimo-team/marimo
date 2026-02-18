@@ -380,7 +380,7 @@ class ThreadSafeStdin(Stdin):
             )
 
         mimetype: ConsoleMimeType = (
-            "text/x-password" if password else "text/plain"
+            "text/password" if password else "text/plain"
         )
         with self._stream.console_msg_cv:
             # This sends a prompt request to the frontend.

@@ -167,7 +167,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
             );
 
             const originalIdx = consoleOutputs.length - idx - 1;
-            const isPassword = output.mimetype === "text/x-password";
+            const isPassword = output.mimetype === "text/password";
 
             if (output.response == null && lastStdInputIdx === idx) {
               return (
