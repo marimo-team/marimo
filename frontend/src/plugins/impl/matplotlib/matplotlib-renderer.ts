@@ -158,6 +158,14 @@ function isPointInBox(
   return pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY;
 }
 
+export const visibleForTesting = {
+  pixelToData,
+  dataToPixel,
+  pointInPolygon,
+  clampToAxes,
+  isPointInBox,
+};
+
 export class MatplotlibRenderer {
   #canvas: HTMLCanvasElement;
   #container: HTMLDivElement;
