@@ -225,7 +225,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         result = await agent.run(
             user_prompt=None,
             message_history=VercelAIAdapter.load_messages(messages),
-            instructions=system_prompt,
         )
 
         return str(result.output)

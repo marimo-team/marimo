@@ -338,9 +338,6 @@ def test_anthropic_is_extended_thinking_model(
 
 
 @pytest.mark.requires("pydantic_ai")
-@pytest.mark.xfail(
-    reason="System prompt is duplicated when passed to both Agent constructor and run()"
-)
 async def test_completion_does_not_pass_redundant_instructions() -> None:
     from pydantic_ai.messages import ModelResponse, TextPart
     from pydantic_ai.models.openai import OpenAIResponsesModel
