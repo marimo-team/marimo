@@ -1,14 +1,40 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import React from "react";
+import { useAtom, useAtomValue } from "jotai";
+import { atomWithStorage } from "jotai/utils";
+import { FileIcon, HardDrive } from "lucide-react";
+import React, { useCallback } from "react";
 import useResizeObserver from "use-resize-observer";
+import { StorageInspector } from "@/components/storage/storage-inspector";
+import { Accordion } from "@/components/ui/accordion";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { storageNamespacesAtom } from "@/core/storage/state";
 import { cn } from "@/utils/cn";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { TreeDndProvider } from "../../file-tree/dnd-wrapper";
 import { FileExplorer } from "../../file-tree/file-explorer";
 import { useFileExplorerUpload } from "../../file-tree/upload";
+import {
+  PanelAccordionContent,
+  PanelAccordionItem,
+  PanelAccordionTrigger,
+  PanelBadge,
+} from "./components";
 
-const FileExplorerPanel: React.FC = () => {
-  const { ref, height = 1 } = useResizeObserver<HTMLDivElement>();
+type OpenSections = "files" | "external-storage";
+
+interface FileExplorerPanelState {
+  openSections: OpenSections[];
+  hasUserInteracted: boolean;
+}
+
+const fileExplorerPanelAtom = atomWithStorage<FileExplorerPanelState>(
+  "marimo:file-explorer-panel:state",
+  { openSections: ["files"], hasUserInteracted: false },
+  jotaiJsonStorage,
+);
+
+const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
   const { getRootProps, getInputProps, isDragActive } = useFileExplorerUpload({
     noClick: true,
     noKeyboard: true,
@@ -18,7 +44,8 @@ const FileExplorerPanel: React.FC = () => {
     <TreeDndProvider>
       <div
         {...getRootProps()}
-        className={cn("flex flex-col flex-1 overflow-hidden relative")}
+        className={cn("flex flex-col overflow-hidden relative")}
+        style={{ height }}
       >
         <input {...getInputProps()} />
         {isDragActive && (
@@ -27,11 +54,88 @@ const FileExplorerPanel: React.FC = () => {
           </div>
         )}
 
-        <div ref={ref} className="flex flex-col flex-1 overflow-hidden">
-          <FileExplorer height={height} />
-        </div>
+        <FileExplorer height={height} />
       </div>
     </TreeDndProvider>
+  );
+};
+
+// Height of each accordion trigger (px-3 py-2 text-xs = ~33px)
+const TRIGGER_HEIGHT = 33;
+
+const FileExplorerPanel: React.FC = () => {
+  const { ref: panelRef, height: panelHeight = 500 } =
+    useResizeObserver<HTMLDivElement>();
+  const [state, setState] = useAtom(fileExplorerPanelAtom);
+
+  const storageNamespaces = useAtomValue(storageNamespacesAtom);
+  const externalStorageConnections = storageNamespaces.length;
+
+  // If the user hasn't interacted with the accordion and there are external storage connections, show external-storage open
+  const openSections: OpenSections[] =
+    !state.hasUserInteracted && externalStorageConnections > 0
+      ? ([
+          ...new Set([...state.openSections, "external-storage"]),
+        ] as OpenSections[])
+      : state.openSections;
+
+  const handleValueChange = useCallback(
+    (value: OpenSections[]) => {
+      setState({
+        openSections: value,
+        hasUserInteracted: true,
+      });
+    },
+    [setState],
+  );
+
+  // Set a max-height since both sections are not resizable at the moment
+  const storageMaxHeight = Math.round(panelHeight * 0.5);
+  // File tree height: panel height minus both trigger heights
+  const fileTreeHeight = Math.max(200, panelHeight - TRIGGER_HEIGHT * 2);
+
+  const storageInspectorEnabled = getFeatureFlag("storage_inspector");
+  if (!storageInspectorEnabled) {
+    return (
+      <div ref={panelRef} className="h-full overflow-auto">
+        <FileExplorerComponent height={panelHeight} />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={panelRef} className="h-full overflow-auto">
+      <Accordion
+        type="multiple"
+        value={openSections}
+        onValueChange={handleValueChange}
+      >
+        <PanelAccordionItem value="external-storage">
+          <PanelAccordionTrigger>
+            <HardDrive className="w-4 h-4" /> Storage
+            {externalStorageConnections > 0 && (
+              <PanelBadge>{externalStorageConnections}</PanelBadge>
+            )}
+          </PanelAccordionTrigger>
+          <PanelAccordionContent
+            className="overflow-auto"
+            style={{ maxHeight: storageMaxHeight }}
+          >
+            <StorageInspector />
+          </PanelAccordionContent>
+        </PanelAccordionItem>
+
+        <PanelAccordionItem value="files">
+          <PanelAccordionTrigger>
+            <FileIcon className="w-4 h-4" />
+            Files
+          </PanelAccordionTrigger>
+          <PanelAccordionContent>
+            <FileExplorerComponent height={fileTreeHeight} />
+          </PanelAccordionContent>
+        </PanelAccordionItem>
+      </Accordion>
+    </div>
   );
 };
 

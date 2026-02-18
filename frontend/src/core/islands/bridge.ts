@@ -200,6 +200,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
+  listStorageEntries = throwNotImplemented;
+  downloadStorage = throwNotImplemented;
 
   // The kernel uses msgspec to parse control requests, which requires a 'type'
   // field for discriminated union deserialization.
