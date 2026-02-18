@@ -63,9 +63,11 @@ class CellOutput(msgspec.Struct):
         )
 
     @staticmethod
-    def stdin(data: str) -> CellOutput:
+    def stdin(data: str, password: bool = False) -> CellOutput:
         return CellOutput(
-            channel=CellChannel.STDIN, mimetype="text/plain", data=data
+            channel=CellChannel.STDIN,
+            mimetype="text/password" if password else "text/plain",
+            data=data,
         )
 
     @staticmethod

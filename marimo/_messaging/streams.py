@@ -361,7 +361,9 @@ class ThreadSafeStdin(Stdin):
     def readable(self) -> bool:
         return True
 
-    def _readline_with_prompt(self, prompt: str = "") -> str:
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
         assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
@@ -377,6 +379,9 @@ class ThreadSafeStdin(Stdin):
                 + " ... "
             )
 
+        mimetype: ConsoleMimeType = (
+            "text/password" if password else "text/plain"
+        )
         with self._stream.console_msg_cv:
             # This sends a prompt request to the frontend.
             self._stream.console_msg_queue.append(
@@ -384,7 +389,7 @@ class ThreadSafeStdin(Stdin):
                     stream=CellChannel.STDIN,
                     cell_id=self._stream.cell_id,
                     data=prompt,
-                    mimetype="text/plain",
+                    mimetype=mimetype,
                 )
             )
             self._stream.console_msg_cv.notify()

@@ -144,7 +144,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
-from marimo._runtime.input_override import input_override
+from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -612,6 +612,12 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Override getpass.getpass to route through marimo's stdin with
+        # password masking, instead of trying /dev/tty or falling back
+        # to plaintext with warnings.
+        import getpass
+
+        getpass.getpass = getpass_override
         # Webbrowser may not be set (e.g. docker container) or stubbed/broken
         # (e.g. in pyodide). Set default to just inject an iframe of the
         # expected page to output.
