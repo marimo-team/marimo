@@ -174,11 +174,7 @@ const MatrixComponent = ({
         e.preventDefault();
         const cellStep = step[row][col];
         const delta = e.key === "ArrowUp" ? cellStep : -cellStep;
-        const newValue = clampValue(
-          internalValue[row][col] + delta,
-          row,
-          col,
-        );
+        const newValue = clampValue(internalValue[row][col] + delta, row, col);
 
         if (newValue !== internalValue[row][col]) {
           const copy = internalValue.map((r) => [...r]);

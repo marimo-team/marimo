@@ -108,12 +108,12 @@ describe("MatrixPlugin", () => {
     expect(getByTestId("matrix-cell-0-0").getAttribute("aria-disabled")).toBe(
       "true",
     );
-    expect(
-      getByTestId("matrix-cell-0-1").hasAttribute("aria-disabled"),
-    ).toBe(false);
-    expect(
-      getByTestId("matrix-cell-1-0").hasAttribute("aria-disabled"),
-    ).toBe(false);
+    expect(getByTestId("matrix-cell-0-1").hasAttribute("aria-disabled")).toBe(
+      false,
+    );
+    expect(getByTestId("matrix-cell-1-0").hasAttribute("aria-disabled")).toBe(
+      false,
+    );
     expect(getByTestId("matrix-cell-1-1").getAttribute("aria-disabled")).toBe(
       "true",
     );
