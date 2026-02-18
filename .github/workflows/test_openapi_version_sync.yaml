@@ -1,0 +1,22 @@
+name: OpenAPI Version Sync Check
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/test_openapi_version_sync.yaml"
+      - "scripts/check_openapi_version_sync.py"
+      - "pyproject.toml"
+      - "packages/openapi/api.yaml"
+      - "marimo/_cli/development/commands.py"
+      - "Makefile"
+
+permissions:
+  contents: read
+
+jobs:
+  check-openapi-version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify version sync
+        run: python3 scripts/check_openapi_version_sync.py
