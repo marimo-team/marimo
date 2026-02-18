@@ -7,7 +7,10 @@ import sys
 from typing import TYPE_CHECKING
 
 from marimo._messaging.streams import (
+    _ThreadLocalStreamProxy,
+    clear_thread_local_streams,
     redirect,
+    set_thread_local_streams,
 )
 from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
 from marimo._types.ids import CellId_t
@@ -73,22 +76,30 @@ def redirect_streams(
             stream.cell_id = cell_id_old
         return
 
-    # NB: Python doesn't allow monkey patching methods builtins, so
-    # we replace these streams outright
-    py_stdout = sys.stdout
-    py_stderr = sys.stderr
-    py_stdin = sys.stdin
-    sys.stdout = stdout  # type: ignore
-    sys.stderr = stderr  # type: ignore
-    sys.stdin = stdin  # type: ignore
-
-    try:
-        with redirect(stdout), redirect(stderr):
+    if isinstance(sys.stdout, _ThreadLocalStreamProxy):
+        # Run mode (threads): register per-thread streams on the
+        # already-installed _ThreadLocalStreamProxy.  No os.dup2().
+        set_thread_local_streams(stdout, stderr)
+        try:
             yield
-    finally:
-        # The redirect context manager relies on these being installed;
-        # restore them after the context manager quits
-        sys.stdout = py_stdout
-        sys.stderr = py_stderr
-        sys.stdin = py_stdin
-        stream.cell_id = cell_id_old
+        finally:
+            clear_thread_local_streams()
+            stream.cell_id = cell_id_old
+    else:
+        # Edit mode / subprocess: replace sys.stdout/stderr globally and
+        # use os.dup2-based fd redirection via the Watcher.
+        py_stdout = sys.stdout
+        py_stderr = sys.stderr
+        py_stdin = sys.stdin
+        sys.stdout = stdout  # type: ignore
+        sys.stderr = stderr  # type: ignore
+        sys.stdin = stdin  # type: ignore
+
+        try:
+            with redirect(stdout), redirect(stderr):
+                yield
+        finally:
+            sys.stdout = py_stdout
+            sys.stderr = py_stderr
+            sys.stdin = py_stdin
+            stream.cell_id = cell_id_old

@@ -32,6 +32,109 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# ---------------------------------------------------------------------------
+# Thread-local stream proxy (run mode only)
+# ---------------------------------------------------------------------------
+
+_proxy_lock = threading.Lock()
+_proxies_installed = False
+
+
+class _ThreadLocalStreamProxy(io.TextIOBase):
+    """A proxy that dispatches writes to a per-thread stream.
+
+    When a thread has registered a stream via set_thread_local_streams(),
+    writes go there; otherwise they fall through to the original stream
+    (real sys.stdout / sys.stderr).
+    """
+
+    def __init__(self, original: io.TextIOBase, name: str) -> None:
+        self._original = original
+        self._local = threading.local()
+        self._name = name
+
+    # -- per-thread registration -------------------------------------------
+
+    def _set_stream(self, stream: io.TextIOBase) -> None:
+        self._local.stream = stream
+
+    def _clear_stream(self) -> None:
+        self._local.stream = None
+
+    def _get_stream(self) -> io.TextIOBase:
+        return getattr(self._local, "stream", None) or self._original
+
+    # -- TextIOBase interface ----------------------------------------------
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def encoding(self) -> str:  # type: ignore[override]
+        return getattr(self._get_stream(), "encoding", "utf-8")
+
+    @property
+    def errors(self) -> str | None:  # type: ignore[override]
+        return getattr(self._get_stream(), "errors", None)
+
+    def write(self, data: str) -> int:
+        return self._get_stream().write(data)
+
+    def writelines(self, lines: Iterable[str]) -> None:  # type: ignore[override]
+        self._get_stream().writelines(lines)
+
+    def flush(self) -> None:
+        self._get_stream().flush()
+
+    def fileno(self) -> int:
+        return self._original.fileno()
+
+    def isatty(self) -> bool:
+        return self._original.isatty()
+
+    def readable(self) -> bool:
+        return False
+
+    def writable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return False
+
+    def __getattr__(self, name: str) -> object:
+        # Fallback for attributes like .buffer
+        return getattr(self._original, name)
+
+
+def install_thread_local_proxies() -> None:
+    """Install thread-local proxies as sys.stdout / sys.stderr (idempotent)."""
+    global _proxies_installed
+    with _proxy_lock:
+        if _proxies_installed:
+            return
+        sys.stdout = _ThreadLocalStreamProxy(sys.stdout, "<stdout>")  # type: ignore[assignment]
+        sys.stderr = _ThreadLocalStreamProxy(sys.stderr, "<stderr>")  # type: ignore[assignment]
+        _proxies_installed = True
+
+
+def set_thread_local_streams(
+    stdout: Stdout | None, stderr: Stderr | None
+) -> None:
+    """Register per-thread streams (call from each session thread)."""
+    if isinstance(sys.stdout, _ThreadLocalStreamProxy) and stdout is not None:
+        sys.stdout._set_stream(stdout)  # type: ignore[union-attr]
+    if isinstance(sys.stderr, _ThreadLocalStreamProxy) and stderr is not None:
+        sys.stderr._set_stream(stderr)  # type: ignore[union-attr]
+
+
+def clear_thread_local_streams() -> None:
+    """Clear per-thread streams (call when a session thread exits)."""
+    if isinstance(sys.stdout, _ThreadLocalStreamProxy):
+        sys.stdout._clear_stream()  # type: ignore[union-attr]
+    if isinstance(sys.stderr, _ThreadLocalStreamProxy):
+        sys.stderr._clear_stream()  # type: ignore[union-attr]
+
 
 # Byte limits on outputs exist for two reasons
 #
@@ -213,13 +316,14 @@ class ThreadSafeStdout(Stdout):
     errors = sys.stdout.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream):
+    def __init__(self, stream: ThreadSafeStream, forward_os_streams: bool = True):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
-        self._watcher = Watcher(self)
+        self._watcher = Watcher(self) if forward_os_streams else None
 
     def _stop(self) -> None:
-        self._watcher.stop()
+        if self._watcher is not None:
+            self._watcher.stop()
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -279,13 +383,14 @@ class ThreadSafeStderr(Stderr):
     errors = sys.stderr.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream):
+    def __init__(self, stream: ThreadSafeStream, forward_os_streams: bool = True):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
-        self._watcher = Watcher(self)
+        self._watcher = Watcher(self) if forward_os_streams else None
 
     def _stop(self) -> None:
-        self._watcher.stop()
+        if self._watcher is not None:
+            self._watcher.stop()
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -410,13 +515,11 @@ class ThreadSafeStdin(Stdin):
 def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     """Redirect a standard stream to the frontend."""
     try:
-        if isinstance(standard_stream, ThreadSafeStdout) or isinstance(
-            standard_stream, ThreadSafeStderr
-        ):
-            standard_stream._watcher.start()
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
+            if standard_stream._watcher is not None:
+                standard_stream._watcher.start()
         yield
     finally:
-        if isinstance(standard_stream, ThreadSafeStdout) or isinstance(
-            standard_stream, ThreadSafeStderr
-        ):
-            standard_stream._watcher.pause()
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
+            if standard_stream._watcher is not None:
+                standard_stream._watcher.pause()

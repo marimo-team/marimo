@@ -3171,6 +3171,10 @@ def launch_kernel(
         profiler.enable()
 
     should_redirect_stdio = is_edit_mode or redirect_console_to_browser
+    # Only use os.dup2-based fd redirection in process-based modes
+    # (edit mode / IPC).  Thread-based run mode uses the lighter-weight
+    # thread-local proxy instead to avoid process-global fd mutations.
+    use_fd_redirect = is_subprocess
 
     # Create communication channels
     pipe: Optional[TypedConnection[KernelMessage]] = None
@@ -3206,10 +3210,16 @@ def launch_kernel(
             "One of queue_pipe and socket_addr must be non None"
         )
 
-    # Console output is hidden in run mode, so no need to redirect
-    # (redirection of console outputs is not thread-safe anyway)
-    stdout = ThreadSafeStdout(stream) if should_redirect_stdio else None
-    stderr = ThreadSafeStderr(stream) if should_redirect_stdio else None
+    stdout = (
+        ThreadSafeStdout(stream, use_watcher=use_fd_redirect)
+        if should_redirect_stdio
+        else None
+    )
+    stderr = (
+        ThreadSafeStderr(stream, use_watcher=use_fd_redirect)
+        if should_redirect_stdio
+        else None
+    )
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
@@ -3352,6 +3362,11 @@ def launch_kernel(
     # primitives anywhere else in the runtime unless there is a *very* good
     # reason; prefer using threads (for performance and clarity).
     asyncio.run(control_loop(kernel))
+
+    if not use_fd_redirect:
+        from marimo._messaging.streams import clear_thread_local_streams
+
+        clear_thread_local_streams()
 
     if profiler is not None and profile_path is not None:
         profiler.disable()

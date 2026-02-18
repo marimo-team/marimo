@@ -13,6 +13,12 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+def _is_proxy(stream: object) -> bool:
+    from marimo._messaging.streams import _ThreadLocalStreamProxy
+
+    return isinstance(stream, _ThreadLocalStreamProxy)
+
+
 @contextlib.contextmanager
 def capture_stdout() -> Iterator[io.StringIO]:
     """Capture standard output.
@@ -27,8 +33,21 @@ def capture_stdout() -> Iterator[io.StringIO]:
         output = buffer.getvalue()
         ```
     """
-    with contextlib.redirect_stdout(io.StringIO()) as buffer:
-        yield buffer
+    proxy = sys.stdout
+    if _is_proxy(proxy):
+        # Temporarily swap the thread-local stream to a StringIO so that
+        # writes from this thread are captured while other threads are
+        # unaffected.
+        buffer = io.StringIO()
+        old = proxy._get_stream()  # type: ignore[union-attr]
+        proxy._set_stream(buffer)  # type: ignore[union-attr]
+        try:
+            yield buffer
+        finally:
+            proxy._set_stream(old)  # type: ignore[union-attr]
+    else:
+        with contextlib.redirect_stdout(io.StringIO()) as buffer:
+            yield buffer
 
 
 @contextlib.contextmanager
@@ -44,8 +63,18 @@ def capture_stderr() -> Iterator[io.StringIO]:
         output = buffer.getvalue()
         ```
     """
-    with contextlib.redirect_stderr(io.StringIO()) as buffer:
-        yield buffer
+    proxy = sys.stderr
+    if _is_proxy(proxy):
+        buffer = io.StringIO()
+        old = proxy._get_stream()  # type: ignore[union-attr]
+        proxy._set_stream(buffer)  # type: ignore[union-attr]
+        try:
+            yield buffer
+        finally:
+            proxy._set_stream(old)  # type: ignore[union-attr]
+    else:
+        with contextlib.redirect_stderr(io.StringIO()) as buffer:
+            yield buffer
 
 
 def _redirect(msg: str) -> None:
@@ -64,12 +93,22 @@ def redirect_stdout() -> Iterator[None]:
             print("World!")
         ```
     """
-    old_stdout_write = sys.stdout.write
-    sys.stdout.write = _redirect  # type: ignore
-    try:
-        yield
-    finally:
-        sys.stdout.write = old_stdout_write  # type: ignore
+    proxy = sys.stdout
+    if _is_proxy(proxy):
+        stream = proxy._get_stream()  # type: ignore[union-attr]
+        old_write = stream.write
+        stream.write = _redirect  # type: ignore[assignment]
+        try:
+            yield
+        finally:
+            stream.write = old_write  # type: ignore[assignment]
+    else:
+        old_stdout_write = sys.stdout.write
+        sys.stdout.write = _redirect  # type: ignore
+        try:
+            yield
+        finally:
+            sys.stdout.write = old_stdout_write  # type: ignore
 
 
 @contextlib.contextmanager
@@ -84,9 +123,19 @@ def redirect_stderr() -> Iterator[None]:
             sys.stderr.write("World!")
         ```
     """
-    old_stderr_write = sys.stderr.write
-    sys.stderr.write = _redirect  # type: ignore
-    try:
-        yield
-    finally:
-        sys.stderr.write = old_stderr_write  # type: ignore
+    proxy = sys.stderr
+    if _is_proxy(proxy):
+        stream = proxy._get_stream()  # type: ignore[union-attr]
+        old_write = stream.write
+        stream.write = _redirect  # type: ignore[assignment]
+        try:
+            yield
+        finally:
+            stream.write = old_write  # type: ignore[assignment]
+    else:
+        old_stderr_write = sys.stderr.write
+        sys.stderr.write = _redirect  # type: ignore
+        try:
+            yield
+        finally:
+            sys.stderr.write = old_stderr_write  # type: ignore
