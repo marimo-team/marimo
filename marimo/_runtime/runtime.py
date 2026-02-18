@@ -3364,7 +3364,7 @@ def launch_kernel(
     asyncio.run(control_loop(kernel))
 
     if not use_fd_redirect:
-        from marimo._messaging.streams import clear_thread_local_streams
+        from marimo._messaging.thread_local_streams import clear_thread_local_streams
 
         clear_thread_local_streams()
 

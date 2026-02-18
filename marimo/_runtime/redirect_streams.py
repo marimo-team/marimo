@@ -6,10 +6,10 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from marimo._messaging.streams import (
+from marimo._messaging.streams import redirect
+from marimo._messaging.thread_local_streams import (
     ThreadLocalStreamProxy,
     clear_thread_local_streams,
-    redirect,
     set_thread_local_streams,
 )
 from marimo._messaging.types import Stderr, Stdin, Stdout, Stream

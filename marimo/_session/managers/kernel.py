@@ -114,7 +114,7 @@ class KernelManagerImpl(KernelManager):
             register_formatters(theme=self.config_manager.theme)
 
             if self.redirect_console_to_browser:
-                from marimo._messaging.streams import (
+                from marimo._messaging.thread_local_streams import (
                     install_thread_local_proxies,
                 )
 

@@ -6,7 +6,7 @@ import io
 import sys
 from typing import TYPE_CHECKING
 
-from marimo._messaging.streams import ThreadLocalStreamProxy
+from marimo._messaging.thread_local_streams import ThreadLocalStreamProxy
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._runtime.output import _output
 
