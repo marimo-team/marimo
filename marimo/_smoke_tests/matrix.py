@@ -162,7 +162,7 @@ def _(mo):
         np.eye(3),
         step=0.1,
         precision=1,
-        label="$X$",
+        label="$I$",
     )
     np_mat
     return np, np_mat

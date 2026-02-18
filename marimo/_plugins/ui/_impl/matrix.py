@@ -163,8 +163,8 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
             cells are disabled. A scalar bool is broadcast to all cells; a
             nested list or numpy bool array sets a per-element mask.
             Defaults to False.
-        symmetric (bool, optional): If True, editing cell [i][j] also
-            updates cell [j][i]. Requires a square matrix. Defaults to False.
+        symmetric (bool, optional): If True, editing cell `[i][j]` also
+            updates cell `[j][i]`. Requires a square matrix. Defaults to False.
         scientific (bool, optional): If True, display values in scientific
             notation (e.g., `1.0e-4`). Defaults to False.
         precision (int, optional): Number of decimal places displayed.
