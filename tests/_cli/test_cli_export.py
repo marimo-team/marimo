@@ -855,7 +855,12 @@ class TestExportPDF:
     ) -> None:
         output_file = temp_marimo_file.replace(".py", ".pdf")
         p = _run_export(
-            "pdf", temp_marimo_file, "--output", output_file, "--no-sandbox"
+            "pdf",
+            temp_marimo_file,
+            "--output",
+            output_file,
+            "--no-sandbox",
+            "--no-include-inputs",
         )
         _assert_failure(p)
         stderr = p.stderr.decode()
