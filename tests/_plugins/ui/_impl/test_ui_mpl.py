@@ -54,6 +54,24 @@ def test_construction_no_figure_raises() -> None:
     assert fig is not None
 
 
+def test_unsupported_scale_raises() -> None:
+    fig, ax = plt.subplots()
+    ax.scatter([1, 2, 3], [4, 5, 6])
+    ax.set_xscale("symlog")
+    plt.close(fig)
+    with pytest.raises(ValueError, match="Unsupported x-axis scale"):
+        matplotlib(ax)
+
+
+def test_unsupported_yscale_raises() -> None:
+    fig, ax = plt.subplots()
+    ax.scatter([1, 2, 3], [4, 5, 6])
+    ax.set_yscale("logit")
+    plt.close(fig)
+    with pytest.raises(ValueError, match="Unsupported y-axis scale"):
+        matplotlib(ax)
+
+
 def test_construction_args() -> None:
     ax = _make_scatter_ax()
     fig = matplotlib(ax)

@@ -224,6 +224,20 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             (1 - bbox.y0) * fig_height_px,  # bottom
         ]
 
+        _SUPPORTED_SCALES = ("linear", "log")
+        x_scale = axes.get_xscale()
+        y_scale = axes.get_yscale()
+        if x_scale not in _SUPPORTED_SCALES:
+            raise ValueError(
+                f"Unsupported x-axis scale {x_scale!r}. "
+                f"mo.ui.matplotlib supports: {', '.join(_SUPPORTED_SCALES)}."
+            )
+        if y_scale not in _SUPPORTED_SCALES:
+            raise ValueError(
+                f"Unsupported y-axis scale {y_scale!r}. "
+                f"mo.ui.matplotlib supports: {', '.join(_SUPPORTED_SCALES)}."
+            )
+
         super().__init__(
             component_name=matplotlib.name,
             initial_value={},
@@ -236,8 +250,8 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                 "width": fig_width_px,
                 "height": fig_height_px,
                 "debounce": debounce,
-                "x-scale": axes.get_xscale(),
-                "y-scale": axes.get_yscale(),
+                "x-scale": x_scale,
+                "y-scale": y_scale,
             },
             on_change=on_change,
         )
