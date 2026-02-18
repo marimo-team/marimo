@@ -15,7 +15,7 @@ from __future__ import annotations
 import io
 import sys
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO, Union
 
 from marimo._messaging.types import Stderr, Stdout
 
@@ -35,7 +35,9 @@ class ThreadLocalStreamProxy(io.TextIOBase):
     (real sys.stdout / sys.stderr).
     """
 
-    def __init__(self, original: io.TextIOBase, name: str) -> None:
+    def __init__(
+        self, original: Union[io.TextIOBase, TextIO], name: str
+    ) -> None:
         self._original = original
         self._local = threading.local()
         self._name = name
@@ -48,7 +50,7 @@ class ThreadLocalStreamProxy(io.TextIOBase):
     def _clear_stream(self) -> None:
         self._local.stream = None
 
-    def _get_stream(self) -> io.TextIOBase:
+    def _get_stream(self) -> Union[io.TextIOBase, TextIO]:
         stream = getattr(self._local, "stream", None)
         return stream if stream is not None else self._original
 
