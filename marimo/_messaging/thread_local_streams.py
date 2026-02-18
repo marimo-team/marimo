@@ -23,7 +23,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
-_PROXIES_INSTALLED = False
+_proxies_installed = False
+_install_lock = threading.Lock()
 
 
 class ThreadLocalStreamProxy(io.TextIOBase):
@@ -95,26 +96,28 @@ def install_thread_local_proxies() -> None:
 
     Called once from the main server thread before kernel threads are spawned.
     """
-    global _PROXIES_INSTALLED
-    if _PROXIES_INSTALLED:
-        return
-    sys.stdout = ThreadLocalStreamProxy(sys.stdout, "<stdout>")  # type: ignore[assignment]
-    sys.stderr = ThreadLocalStreamProxy(sys.stderr, "<stderr>")  # type: ignore[assignment]
-    _PROXIES_INSTALLED = True
+    global _proxies_installed
+    with _install_lock:
+        if _proxies_installed:
+            return
+        sys.stdout = ThreadLocalStreamProxy(sys.stdout, "<stdout>")  # type: ignore[assignment]
+        sys.stderr = ThreadLocalStreamProxy(sys.stderr, "<stderr>")  # type: ignore[assignment]
+        _proxies_installed = True
 
 
 def uninstall_thread_local_proxies() -> None:
     """Remove thread-local proxies, restoring the original streams."""
-    global _PROXIES_INSTALLED
-    if not _PROXIES_INSTALLED:
-        return
-    stdout = sys.stdout
-    stderr = sys.stderr
-    if isinstance(stdout, ThreadLocalStreamProxy):
-        sys.stdout = stdout._original  # type: ignore[assignment]
-    if isinstance(stderr, ThreadLocalStreamProxy):
-        sys.stderr = stderr._original  # type: ignore[assignment]
-    _PROXIES_INSTALLED = False
+    global _proxies_installed
+    with _install_lock:
+        if not _proxies_installed:
+            return
+        stdout = sys.stdout
+        stderr = sys.stderr
+        if isinstance(stdout, ThreadLocalStreamProxy):
+            sys.stdout = stdout._original  # type: ignore[assignment]
+        if isinstance(stderr, ThreadLocalStreamProxy):
+            sys.stderr = stderr._original  # type: ignore[assignment]
+        _proxies_installed = False
 
 
 def set_thread_local_streams(

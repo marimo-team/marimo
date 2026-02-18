@@ -180,6 +180,9 @@ class _NoOpWatcher:
         pass
 
 
+_NOOP_WATCHER = _NoOpWatcher()
+
+
 class Watcher:
     """Watches and redirects a standard stream."""
 
@@ -232,7 +235,7 @@ class ThreadSafeStdout(Stdout):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
         self._watcher: Watcher | _NoOpWatcher = (
-            Watcher(self) if forward_os_streams else _NoOpWatcher()
+            Watcher(self) if forward_os_streams else _NOOP_WATCHER
         )
 
     def _stop(self) -> None:
@@ -302,7 +305,7 @@ class ThreadSafeStderr(Stderr):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
         self._watcher: Watcher | _NoOpWatcher = (
-            Watcher(self) if forward_os_streams else _NoOpWatcher()
+            Watcher(self) if forward_os_streams else _NOOP_WATCHER
         )
 
     def _stop(self) -> None:
