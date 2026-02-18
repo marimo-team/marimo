@@ -2,6 +2,8 @@
 
 import type { Setter } from "@/plugins/types";
 
+export type ScaleType = "linear" | "log";
+
 export interface Data {
   chartBase64: string;
   xBounds: [number, number];
@@ -13,8 +15,8 @@ export interface Data {
   selectionOpacity: number;
   strokeWidth: number;
   debounce: boolean;
-  xScale: string;
-  yScale: string;
+  xScale: ScaleType;
+  yScale: ScaleType;
 }
 
 export interface BoxData {
@@ -71,7 +73,7 @@ interface Scale {
   invert(frac: number): number;
 }
 
-function createScale(type: string, bounds: [number, number]): Scale {
+function createScale(type: ScaleType, bounds: [number, number]): Scale {
   const [min, max] = bounds;
   if (type === "log") {
     const logMin = Math.log10(min);

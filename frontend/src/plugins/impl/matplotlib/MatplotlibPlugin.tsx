@@ -24,8 +24,8 @@ export class MatplotlibPlugin implements IPlugin<T, Data> {
     selectionOpacity: z.number().default(0.15),
     strokeWidth: z.number().default(2),
     debounce: z.boolean(),
-    xScale: z.string().default("linear"),
-    yScale: z.string().default("linear"),
+    xScale: z.enum(["linear", "log"]).default("linear"),
+    yScale: z.enum(["linear", "log"]).default("linear"),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
