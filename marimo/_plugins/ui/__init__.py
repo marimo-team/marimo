@@ -25,6 +25,7 @@ __all__ = [
     "file_browser",
     "file",
     "form",
+    "matrix",
     "microphone",
     "multiselect",
     "number",
@@ -76,6 +77,7 @@ from marimo._plugins.ui._impl.input import (
     text,
     text_area,
 )
+from marimo._plugins.ui._impl.matrix import matrix
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh

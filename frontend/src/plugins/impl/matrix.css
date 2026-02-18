@@ -1,0 +1,117 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+.marimo-matrix-container {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--monospace-font, ui-monospace, monospace);
+  font-size: 14px;
+  user-select: none;
+}
+
+.marimo-matrix-column-labels {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+}
+
+.marimo-matrix-column-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--muted-foreground);
+  padding: 0 4px 4px;
+  min-width: 3.5rem;
+}
+
+.marimo-matrix-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.marimo-matrix-row-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+
+.marimo-matrix-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--muted-foreground);
+  padding: 0 6px 0 0;
+  height: 2rem;
+}
+
+/* Bracket wrapper — the ::before/::after form square math brackets */
+.marimo-matrix-bracket {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0 14px;
+}
+
+.marimo-matrix-bracket::before,
+.marimo-matrix-bracket::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+  border-top: 2px solid var(--foreground);
+  border-bottom: 2px solid var(--foreground);
+}
+
+.marimo-matrix-bracket::before {
+  left: 3px;
+  border-left: 2px solid var(--foreground);
+}
+
+.marimo-matrix-bracket::after {
+  right: 3px;
+  border-right: 2px solid var(--foreground);
+}
+
+.marimo-matrix-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+}
+
+.marimo-matrix-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  height: 2rem;
+  padding: 0 4px;
+  cursor: ew-resize;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--link);
+  transition: background-color 0.1s;
+  touch-action: none;
+}
+
+.marimo-matrix-cell:hover {
+  background-color: var(--accent);
+}
+
+.marimo-matrix-cell.active {
+  background-color: var(--accent);
+}
+
+.marimo-matrix-cell.disabled {
+  cursor: default;
+  color: var(--muted-foreground);
+}
+
+.marimo-matrix-cell.disabled:hover {
+  background-color: transparent;
+}
