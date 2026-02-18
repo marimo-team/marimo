@@ -20,6 +20,8 @@ def _to_nested_list(
     """Convert a value to a nested list of floats.
 
     Accepts list[list[float]] or numpy-array-like (anything with .tolist()).
+    Validates that the input is a non-empty 2D structure with consistent
+    row lengths.
     """
     if hasattr(value, "tolist"):
         value = value.tolist()
@@ -29,12 +31,33 @@ def _to_nested_list(
         )
     if len(value) == 0:
         raise ValueError("`value` must be non-empty")
+
+    cols: int | None = None
     for i, row in enumerate(value):
         if not isinstance(row, (list, tuple)):
             raise ValueError(
                 f"Each row of `value` must be a list, "
                 f"but row {i} has type {type(row)}"
             )
+        if len(row) == 0:
+            raise ValueError(
+                f"Each row of `value` must be non-empty, "
+                f"but row {i} is empty"
+            )
+        if cols is None:
+            cols = len(row)
+        elif len(row) != cols:
+            raise ValueError(
+                f"All rows must have the same length. "
+                f"Row 0 has {cols} columns but row {i} has {len(row)}"
+            )
+        for j, cell in enumerate(row):
+            if isinstance(cell, (list, tuple)):
+                raise ValueError(
+                    f"`value` must be 2D, but found a nested "
+                    f"sequence at position [{i}][{j}]"
+                )
+
     return [[float(x) for x in row] for row in value]
 
 
@@ -80,6 +103,12 @@ def _broadcast_param(
             raise ValueError(
                 f"`{name}` row {i} has {len(row)} columns but expected {cols}"
             )
+        for j, cell in enumerate(row):
+            if isinstance(cell, (list, tuple)):
+                raise ValueError(
+                    f"`{name}` must be 2D, but found a nested "
+                    f"sequence at position [{i}][{j}]"
+                )
     return [[float(x) for x in row] for row in param]
 
 
@@ -112,6 +141,12 @@ def _broadcast_bool_param(
             raise ValueError(
                 f"`{name}` row {i} has {len(row)} columns but expected {cols}"
             )
+        for j, cell in enumerate(row):
+            if isinstance(cell, (list, tuple)):
+                raise ValueError(
+                    f"`{name}` must be 2D, but found a nested "
+                    f"sequence at position [{i}][{j}]"
+                )
     return [[bool(x) for x in row] for row in param]
 
 
@@ -219,7 +254,7 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         min_value: float | list[list[float]] | ArrayLike | None = None,
         max_value: float | list[list[float]] | ArrayLike | None = None,
         step: float | list[list[float]] | ArrayLike = 1.0,
-        precision: int = 1,
+        precision: int = 3,
         row_labels: list[str] | None = None,
         column_labels: list[str] | None = None,
         symmetric: bool = False,
@@ -233,14 +268,6 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         rows = len(data)
         cols = len(data[0])
 
-        # Validate consistent row lengths
-        for i, row in enumerate(data):
-            if len(row) != cols:
-                raise ValueError(
-                    f"All rows must have the same length. "
-                    f"Row 0 has {cols} columns but row {i} has {len(row)}"
-                )
-
         # Broadcast and validate params
         min_val = _broadcast_param(
             "min_value", min_value, rows, cols, allow_none=True
@@ -250,6 +277,16 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
         )
         step_val = _broadcast_param("step", step, rows, cols)
         disabled_val = _broadcast_bool_param("disabled", disabled, rows, cols)
+
+        # Validate step is positive
+        assert step_val is not None
+        for i in range(rows):
+            for j in range(cols):
+                if step_val[i][j] <= 0:
+                    raise ValueError(
+                        f"`step` must be positive, got {step_val[i][j]} "
+                        f"at position [{i}][{j}]"
+                    )
 
         # Validate min < max where both are specified
         if min_val is not None and max_val is not None:
@@ -292,11 +329,21 @@ class matrix(UIElement[list[list[float]], list[list[float]]]):
                 f"but matrix has {cols} columns"
             )
 
-        # Validate symmetric requires square matrix
-        if symmetric and rows != cols:
-            raise ValueError(
-                f"`symmetric` requires a square matrix, but got {rows}x{cols}"
-            )
+        # Validate symmetric requires square matrix with symmetric data
+        if symmetric:
+            if rows != cols:
+                raise ValueError(
+                    f"`symmetric` requires a square matrix, "
+                    f"but got {rows}x{cols}"
+                )
+            for i in range(rows):
+                for j in range(i + 1, cols):
+                    if data[i][j] != data[j][i]:
+                        raise ValueError(
+                            f"`symmetric` is True but initial data is not "
+                            f"symmetric: value[{i}][{j}]={data[i][j]} != "
+                            f"value[{j}][{i}]={data[j][i]}"
+                        )
 
         if not isinstance(precision, int) or precision < 0:
             raise ValueError(

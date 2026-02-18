@@ -151,3 +151,62 @@ def test_matrix_numpy_array_like():
 
     m = ui.matrix(FakeArray())
     assert m.value == [[1.0, 2.0], [3.0, 4.0]]
+
+
+def test_matrix_empty_row_raises():
+    with pytest.raises(ValueError, match="non-empty"):
+        ui.matrix([[]])
+
+
+def test_matrix_step_zero_raises():
+    with pytest.raises(ValueError, match="step.*positive"):
+        ui.matrix([[1]], step=0)
+
+
+def test_matrix_step_negative_raises():
+    with pytest.raises(ValueError, match="step.*positive"):
+        ui.matrix([[1]], step=-0.5)
+
+
+def test_matrix_step_per_element_zero_raises():
+    with pytest.raises(ValueError, match="step.*positive"):
+        ui.matrix([[1, 2]], step=[[1, 0]])
+
+
+def test_matrix_3d_value_raises():
+    """Test that 3D input produces a clear error, not a confusing TypeError."""
+
+    class Fake3D:
+        def tolist(self):
+            return [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+
+    with pytest.raises(ValueError, match="2D"):
+        ui.matrix(Fake3D())
+
+
+def test_matrix_3d_param_raises():
+    """Test that 3D input for a broadcast param raises clearly."""
+
+    class Fake3D:
+        def tolist(self):
+            return [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+
+    with pytest.raises(ValueError, match="2D"):
+        ui.matrix([[1, 2], [3, 4]], min_value=Fake3D())
+
+
+def test_matrix_symmetric_asymmetric_data_raises():
+    with pytest.raises(ValueError, match="not symmetric"):
+        ui.matrix([[1, 2], [999, 1]], symmetric=True)
+
+
+def test_matrix_symmetric_valid():
+    m = ui.matrix([[1, 0.5], [0.5, 1]], symmetric=True)
+    assert m.value == [[1.0, 0.5], [0.5, 1.0]]
+
+
+def test_matrix_precision_default():
+    """Verify the default precision is 3."""
+    m = ui.matrix([[1.0]])
+    # Access the args passed to the component
+    assert m._component_args["precision"] == 3
