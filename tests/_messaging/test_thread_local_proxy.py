@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Tests for _ThreadLocalStreamProxy and thread-local stream helpers."""
+"""Tests for ThreadLocalStreamProxy and thread-local stream helpers."""
 from __future__ import annotations
 
 import io
@@ -7,32 +7,30 @@ import sys
 import threading
 from unittest.mock import MagicMock
 
-import pytest
-
 from marimo._messaging.streams import (
-    _ThreadLocalStreamProxy,
-    _proxies_installed,
+    ThreadLocalStreamProxy,
     clear_thread_local_streams,
     install_thread_local_proxies,
     set_thread_local_streams,
+    uninstall_thread_local_proxies,
 )
 
 
 # ---------------------------------------------------------------------------
-# _ThreadLocalStreamProxy unit tests
+# ThreadLocalStreamProxy unit tests
 # ---------------------------------------------------------------------------
 
 
 class TestThreadLocalStreamProxy:
     def test_write_to_original_when_no_thread_local(self) -> None:
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
         proxy.write("hello")
         assert original.getvalue() == "hello"
 
     def test_write_to_thread_local_stream(self) -> None:
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
 
         thread_stream = io.StringIO()
         proxy._set_stream(thread_stream)
@@ -43,7 +41,7 @@ class TestThreadLocalStreamProxy:
 
     def test_clear_falls_back_to_original(self) -> None:
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
 
         thread_stream = io.StringIO()
         proxy._set_stream(thread_stream)
@@ -57,7 +55,7 @@ class TestThreadLocalStreamProxy:
     def test_thread_isolation(self) -> None:
         """Writes from different threads go to different streams."""
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
 
         stream_a = io.StringIO()
         stream_b = io.StringIO()
@@ -85,7 +83,7 @@ class TestThreadLocalStreamProxy:
     def test_unregistered_thread_uses_original(self) -> None:
         """Threads that never call _set_stream write to original."""
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
 
         def thread_fn() -> None:
             proxy.write("unregistered")
@@ -98,25 +96,25 @@ class TestThreadLocalStreamProxy:
 
     def test_writelines(self) -> None:
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
         proxy.writelines(["hello", " ", "world"])
         assert original.getvalue() == "hello world"
 
     def test_flush_delegates(self) -> None:
         original = MagicMock(spec=io.StringIO)
         original.flush = MagicMock()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
         proxy.flush()
         original.flush.assert_called_once()
 
     def test_name_property(self) -> None:
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
         assert proxy.name == "<stdout>"
 
     def test_writable(self) -> None:
         original = io.StringIO()
-        proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+        proxy = ThreadLocalStreamProxy(original, "<stdout>")
         assert proxy.writable()
         assert not proxy.readable()
         assert not proxy.seekable()
@@ -130,37 +128,24 @@ class TestThreadLocalStreamProxy:
 class TestHelperFunctions:
     def test_install_thread_local_proxies_is_idempotent(self) -> None:
         """install_thread_local_proxies installs proxies and is idempotent."""
-        import marimo._messaging.streams as streams_mod
-
-        saved_stdout = sys.stdout
-        saved_stderr = sys.stderr
-        # Reset the flag so we can test install
-        old_flag = streams_mod._proxies_installed
-        streams_mod._proxies_installed = False
         try:
             install_thread_local_proxies()
             first_stdout = sys.stdout
             first_stderr = sys.stderr
-            assert isinstance(first_stdout, _ThreadLocalStreamProxy)
-            assert isinstance(first_stderr, _ThreadLocalStreamProxy)
+            assert isinstance(first_stdout, ThreadLocalStreamProxy)
+            assert isinstance(first_stderr, ThreadLocalStreamProxy)
 
             # Second call should be a no-op
             install_thread_local_proxies()
             assert sys.stdout is first_stdout
             assert sys.stderr is first_stderr
         finally:
-            sys.stdout = saved_stdout
-            sys.stderr = saved_stderr
-            streams_mod._proxies_installed = old_flag
+            uninstall_thread_local_proxies()
 
     def test_set_and_clear_thread_local_streams(self) -> None:
         """set/clear thread local streams operate on proxies."""
-        import marimo._messaging.streams as streams_mod
-
         saved_stdout = sys.stdout
         saved_stderr = sys.stderr
-        old_flag = streams_mod._proxies_installed
-        streams_mod._proxies_installed = False
         try:
             install_thread_local_proxies()
 
@@ -168,8 +153,8 @@ class TestHelperFunctions:
             mock_err = MagicMock()
             set_thread_local_streams(mock_out, mock_err)
 
-            proxy_out: _ThreadLocalStreamProxy = sys.stdout  # type: ignore
-            proxy_err: _ThreadLocalStreamProxy = sys.stderr  # type: ignore
+            proxy_out: ThreadLocalStreamProxy = sys.stdout  # type: ignore
+            proxy_err: ThreadLocalStreamProxy = sys.stderr  # type: ignore
             assert proxy_out._get_stream() is mock_out
             assert proxy_err._get_stream() is mock_err
 
@@ -178,9 +163,7 @@ class TestHelperFunctions:
             assert proxy_out._get_stream() is saved_stdout
             assert proxy_err._get_stream() is saved_stderr
         finally:
-            sys.stdout = saved_stdout
-            sys.stderr = saved_stderr
-            streams_mod._proxies_installed = old_flag
+            uninstall_thread_local_proxies()
 
     def test_set_noop_without_proxy(self) -> None:
         """set/clear are safe to call when proxies are not installed."""
@@ -205,7 +188,7 @@ class TestHelperFunctions:
 def test_multi_session_no_deadlock() -> None:
     """Simulate two sessions in threads — no deadlock, correct routing."""
     original = io.StringIO()
-    proxy = _ThreadLocalStreamProxy(original, "<stdout>")
+    proxy = ThreadLocalStreamProxy(original, "<stdout>")
 
     results: dict[str, str] = {}
     barrier = threading.Barrier(2)

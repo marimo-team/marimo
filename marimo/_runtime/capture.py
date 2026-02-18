@@ -6,6 +6,7 @@ import io
 import sys
 from typing import TYPE_CHECKING
 
+from marimo._messaging.streams import ThreadLocalStreamProxy
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._runtime.output import _output
 
@@ -14,9 +15,7 @@ if TYPE_CHECKING:
 
 
 def _is_proxy(stream: object) -> bool:
-    from marimo._messaging.streams import _ThreadLocalStreamProxy
-
-    return isinstance(stream, _ThreadLocalStreamProxy)
+    return isinstance(stream, ThreadLocalStreamProxy)
 
 
 @contextlib.contextmanager

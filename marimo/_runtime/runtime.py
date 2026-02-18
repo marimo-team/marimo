@@ -3211,12 +3211,12 @@ def launch_kernel(
         )
 
     stdout = (
-        ThreadSafeStdout(stream, use_watcher=use_fd_redirect)
+        ThreadSafeStdout(stream, forward_os_streams=use_fd_redirect)
         if should_redirect_stdio
         else None
     )
     stderr = (
-        ThreadSafeStderr(stream, use_watcher=use_fd_redirect)
+        ThreadSafeStderr(stream, forward_os_streams=use_fd_redirect)
         if should_redirect_stdio
         else None
     )

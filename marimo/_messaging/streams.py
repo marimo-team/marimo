@@ -36,11 +36,10 @@ LOGGER = _loggers.marimo_logger()
 # Thread-local stream proxy (run mode only)
 # ---------------------------------------------------------------------------
 
-_proxy_lock = threading.Lock()
 _proxies_installed = False
 
 
-class _ThreadLocalStreamProxy(io.TextIOBase):
+class ThreadLocalStreamProxy(io.TextIOBase):
     """A proxy that dispatches writes to a per-thread stream.
 
     When a thread has registered a stream via set_thread_local_streams(),
@@ -62,7 +61,8 @@ class _ThreadLocalStreamProxy(io.TextIOBase):
         self._local.stream = None
 
     def _get_stream(self) -> io.TextIOBase:
-        return getattr(self._local, "stream", None) or self._original
+        stream = getattr(self._local, "stream", None)
+        return stream if stream is not None else self._original
 
     # -- TextIOBase interface ----------------------------------------------
 
@@ -103,36 +103,61 @@ class _ThreadLocalStreamProxy(io.TextIOBase):
         return False
 
     def __getattr__(self, name: str) -> object:
-        # Fallback for attributes like .buffer
+        # Fallback for attributes not explicitly defined above (e.g. .buffer).
+        # NOTE: This always delegates to _original, not the thread-local
+        # stream.  This means binary-level access (sys.stdout.buffer.write)
+        # bypasses thread-local routing.  This is acceptable because marimo
+        # streams are text-based and libraries using the binary buffer are rare.
         return getattr(self._original, name)
 
 
 def install_thread_local_proxies() -> None:
-    """Install thread-local proxies as sys.stdout / sys.stderr (idempotent)."""
+    """Install thread-local proxies as sys.stdout / sys.stderr (idempotent).
+
+    Called once from the main server thread before kernel threads are spawned.
+    """
     global _proxies_installed
-    with _proxy_lock:
-        if _proxies_installed:
-            return
-        sys.stdout = _ThreadLocalStreamProxy(sys.stdout, "<stdout>")  # type: ignore[assignment]
-        sys.stderr = _ThreadLocalStreamProxy(sys.stderr, "<stderr>")  # type: ignore[assignment]
-        _proxies_installed = True
+    if _proxies_installed:
+        return
+    sys.stdout = ThreadLocalStreamProxy(sys.stdout, "<stdout>")  # type: ignore[assignment]
+    sys.stderr = ThreadLocalStreamProxy(sys.stderr, "<stderr>")  # type: ignore[assignment]
+    _proxies_installed = True
+
+
+def uninstall_thread_local_proxies() -> None:
+    """Remove thread-local proxies, restoring the original streams."""
+    global _proxies_installed
+    if not _proxies_installed:
+        return
+    stdout = sys.stdout
+    stderr = sys.stderr
+    if isinstance(stdout, ThreadLocalStreamProxy):
+        sys.stdout = stdout._original  # type: ignore[assignment]
+    if isinstance(stderr, ThreadLocalStreamProxy):
+        sys.stderr = stderr._original  # type: ignore[assignment]
+    _proxies_installed = False
+
+
+def are_proxies_installed() -> bool:
+    """Return True if thread-local proxies are currently installed."""
+    return _proxies_installed
 
 
 def set_thread_local_streams(
     stdout: Stdout | None, stderr: Stderr | None
 ) -> None:
     """Register per-thread streams (call from each session thread)."""
-    if isinstance(sys.stdout, _ThreadLocalStreamProxy) and stdout is not None:
+    if isinstance(sys.stdout, ThreadLocalStreamProxy) and stdout is not None:
         sys.stdout._set_stream(stdout)  # type: ignore[union-attr]
-    if isinstance(sys.stderr, _ThreadLocalStreamProxy) and stderr is not None:
+    if isinstance(sys.stderr, ThreadLocalStreamProxy) and stderr is not None:
         sys.stderr._set_stream(stderr)  # type: ignore[union-attr]
 
 
 def clear_thread_local_streams() -> None:
     """Clear per-thread streams (call when a session thread exits)."""
-    if isinstance(sys.stdout, _ThreadLocalStreamProxy):
+    if isinstance(sys.stdout, ThreadLocalStreamProxy):
         sys.stdout._clear_stream()  # type: ignore[union-attr]
-    if isinstance(sys.stderr, _ThreadLocalStreamProxy):
+    if isinstance(sys.stderr, ThreadLocalStreamProxy):
         sys.stderr._clear_stream()  # type: ignore[union-attr]
 
 

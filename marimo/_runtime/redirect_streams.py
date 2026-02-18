@@ -7,7 +7,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from marimo._messaging.streams import (
-    _ThreadLocalStreamProxy,
+    ThreadLocalStreamProxy,
     clear_thread_local_streams,
     redirect,
     set_thread_local_streams,
@@ -76,9 +76,11 @@ def redirect_streams(
             stream.cell_id = cell_id_old
         return
 
-    if isinstance(sys.stdout, _ThreadLocalStreamProxy):
+    if isinstance(sys.stdout, ThreadLocalStreamProxy):
         # Run mode (threads): register per-thread streams on the
-        # already-installed _ThreadLocalStreamProxy.  No os.dup2().
+        # already-installed ThreadLocalStreamProxy.  No os.dup2().
+        # NOTE: stdin is intentionally not redirected here because it is
+        # always None in run mode (see runtime.py:launch_kernel).
         set_thread_local_streams(stdout, stderr)
         try:
             yield
