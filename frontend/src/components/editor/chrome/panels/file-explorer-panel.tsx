@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { FileIcon, HardDrive } from "lucide-react";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import useResizeObserver from "use-resize-observer";
 import { StorageInspector } from "@/components/storage/storage-inspector";
 import { Accordion } from "@/components/ui/accordion";
@@ -71,13 +71,15 @@ const FileExplorerPanel: React.FC = () => {
   const storageNamespaces = useAtomValue(storageNamespacesAtom);
   const externalStorageConnections = storageNamespaces.length;
 
-  // If the user hasn't interacted with the accordion and there are external storage connections, show external-storage open
-  const openSections: OpenSections[] =
-    !state.hasUserInteracted && externalStorageConnections > 0
-      ? ([
-          ...new Set([...state.openSections, "external-storage"]),
-        ] as OpenSections[])
-      : state.openSections;
+  const openSections = useMemo<OpenSections[]>(() => {
+    if (!state.hasUserInteracted && externalStorageConnections > 0) {
+      if (state.openSections.includes("external-storage")) {
+        return state.openSections;
+      }
+      return [...state.openSections, "external-storage"];
+    }
+    return state.openSections;
+  }, [state.hasUserInteracted, state.openSections, externalStorageConnections]);
 
   const handleValueChange = useCallback(
     (value: OpenSections[]) => {
