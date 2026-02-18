@@ -77,10 +77,11 @@ def redirect_streams(
         return
 
     if isinstance(sys.stdout, ThreadLocalStreamProxy):
-        # Run mode (threads): register per-thread streams on the
-        # already-installed ThreadLocalStreamProxy.  No os.dup2().
-        # NOTE: stdin is intentionally not redirected here because it is
-        # always None in run mode (see runtime.py:launch_kernel).
+        # In run mode with console redirection enabled, sys.stdout/sys.stderr
+        # are already patched to point to an object that forwards read/write.
+        #
+        # We don't support redirecting file descriptors in run mode.
+        # We also don't support sys.stdin redirection.
         set_thread_local_streams(stdout, stderr)
         try:
             yield

@@ -295,6 +295,19 @@ def _forward_os_stream(
         ...
 
 
+class _NoOpWatcher:
+    """A dummy watcher that does nothing, used when fd redirection is off."""
+
+    def start(self) -> None:
+        pass
+
+    def pause(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+
 class Watcher:
     """Watches and redirects a standard stream."""
 
@@ -341,14 +354,17 @@ class ThreadSafeStdout(Stdout):
     errors = sys.stdout.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream, forward_os_streams: bool = True):
+    def __init__(
+        self, stream: ThreadSafeStream, forward_os_streams: bool = True
+    ):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
-        self._watcher = Watcher(self) if forward_os_streams else None
+        self._watcher: Watcher | _NoOpWatcher = (
+            Watcher(self) if forward_os_streams else _NoOpWatcher()
+        )
 
     def _stop(self) -> None:
-        if self._watcher is not None:
-            self._watcher.stop()
+        self._watcher.stop()
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -408,14 +424,17 @@ class ThreadSafeStderr(Stderr):
     errors = sys.stderr.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream, forward_os_streams: bool = True):
+    def __init__(
+        self, stream: ThreadSafeStream, forward_os_streams: bool = True
+    ):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
-        self._watcher = Watcher(self) if forward_os_streams else None
+        self._watcher: Watcher | _NoOpWatcher = (
+            Watcher(self) if forward_os_streams else _NoOpWatcher()
+        )
 
     def _stop(self) -> None:
-        if self._watcher is not None:
-            self._watcher.stop()
+        self._watcher.stop()
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -541,10 +560,8 @@ def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     """Redirect a standard stream to the frontend."""
     try:
         if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
-            if standard_stream._watcher is not None:
-                standard_stream._watcher.start()
+            standard_stream._watcher.start()
         yield
     finally:
         if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
-            if standard_stream._watcher is not None:
-                standard_stream._watcher.pause()
+            standard_stream._watcher.pause()
