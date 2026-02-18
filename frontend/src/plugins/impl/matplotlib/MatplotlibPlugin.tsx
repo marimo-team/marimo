@@ -60,6 +60,8 @@ const MatplotlibComponent = (props: MatplotlibState) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // No dependency array: intentionally syncs all props into the imperative
+  // renderer after every render. The renderer's update() method diffs internally.
   useEffect(() => {
     instance.current?.update(props);
   });
