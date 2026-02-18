@@ -88,7 +88,7 @@ def test_matrix_non_list_raises():
 
 
 def test_matrix_inconsistent_rows_raises():
-    with pytest.raises(ValueError, match="same length"):
+    with pytest.raises(ValueError, match="columns but expected"):
         ui.matrix([[1, 2], [3]])
 
 
