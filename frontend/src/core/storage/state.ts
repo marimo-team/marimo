@@ -5,7 +5,7 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { NotificationMessageData } from "../kernel/messages";
 import type { VariableName } from "../variables/types";
 import type { StorageEntry, StorageState } from "./types";
-import { storagePathKey } from "./types";
+import { storageNamespacePrefix, storagePathKey } from "./types";
 
 function initialState(): StorageState {
   return {
@@ -46,6 +46,17 @@ const {
     const key = storagePathKey(opts.namespace, opts.prefix);
     const entriesByPath = new Map(state.entriesByPath);
     entriesByPath.set(key, opts.entries);
+    return { ...state, entriesByPath };
+  },
+
+  clearNamespaceCache: (state, namespace: string) => {
+    const entriesByPath = new Map(state.entriesByPath);
+    const prefix = storageNamespacePrefix(namespace);
+    for (const key of entriesByPath.keys()) {
+      if (key.startsWith(prefix)) {
+        entriesByPath.delete(key);
+      }
+    }
     return { ...state, entriesByPath };
   },
 

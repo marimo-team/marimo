@@ -110,7 +110,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("test_store"),
-                display_name="test_store",
+                display_name="s3",
                 protocol="s3",
                 root_path="my-bucket",
                 storage_entries=[],
@@ -130,7 +130,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem"),
-                display_name="mem",
+                display_name="in-memory",
                 protocol="in-memory",
                 root_path="",
                 storage_entries=[],
@@ -150,7 +150,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem_fs"),
-                display_name="mem_fs",
+                display_name="memory",
                 protocol="memory",
                 root_path="/",
                 storage_entries=[],
@@ -169,7 +169,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem_store"),
-                display_name="mem_store",
+                display_name="in-memory",
                 protocol="in-memory",
                 root_path="",
                 storage_entries=[],

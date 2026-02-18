@@ -217,6 +217,79 @@ describe("storage state", () => {
     });
   });
 
+  describe("clearNamespaceCache", () => {
+    it("should remove all entries for the given namespace", () => {
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: null,
+        entries: [makeEntry({ path: "root.txt" })],
+      });
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: "data/",
+        entries: [makeEntry({ path: "data/file.csv" })],
+      });
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: "data/nested/",
+        entries: [makeEntry({ path: "data/nested/deep.txt" })],
+      });
+
+      actions.clearNamespaceCache("my_s3");
+
+      expect(state.entriesByPath.get("my_s3::")).toBeUndefined();
+      expect(state.entriesByPath.get("my_s3::data/")).toBeUndefined();
+      expect(state.entriesByPath.get("my_s3::data/nested/")).toBeUndefined();
+    });
+
+    it("should not affect entries from other namespaces", () => {
+      const otherEntries = [makeEntry({ path: "other.txt" })];
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: null,
+        entries: [makeEntry({ path: "root.txt" })],
+      });
+      actions.setEntries({
+        namespace: "my_gcs",
+        prefix: null,
+        entries: otherEntries,
+      });
+
+      actions.clearNamespaceCache("my_s3");
+
+      expect(state.entriesByPath.get("my_s3::")).toBeUndefined();
+      expect(state.entriesByPath.get("my_gcs::")).toEqual(otherEntries);
+    });
+
+    it("should not affect namespaces", () => {
+      const ns = makeNamespace({ name: "my_s3" });
+      actions.setNamespaces({ namespaces: [ns] });
+      actions.setEntries({
+        namespace: "my_s3",
+        prefix: null,
+        entries: [makeEntry({ path: "file.txt" })],
+      });
+
+      actions.clearNamespaceCache("my_s3");
+
+      expect(state.namespaces).toEqual([ns]);
+    });
+
+    it("should be a no-op for a namespace with no cached entries", () => {
+      actions.setEntries({
+        namespace: "my_gcs",
+        prefix: null,
+        entries: [makeEntry({ path: "file.txt" })],
+      });
+
+      actions.clearNamespaceCache("nonexistent");
+
+      expect(state.entriesByPath.get("my_gcs::")).toEqual([
+        makeEntry({ path: "file.txt" }),
+      ]);
+    });
+  });
+
   describe("filterFromVariables", () => {
     it("should keep namespaces whose variable is still in scope", () => {
       const ns1 = makeNamespace({ name: "var_a" });

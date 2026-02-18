@@ -9,11 +9,17 @@ export type StorageNamespace = components["schemas"]["StorageNamespace"];
  */
 export type StoragePathKey = `${string}::${string}`;
 
+export const STORAGE_PATH_SEPARATOR = "::";
+
 export function storagePathKey(
   namespace: string,
   prefix: string | null | undefined,
 ): StoragePathKey {
-  return `${namespace}::${prefix ?? ""}`;
+  return `${namespace}${STORAGE_PATH_SEPARATOR}${prefix ?? ""}`;
+}
+
+export function storageNamespacePrefix(namespace: string): string {
+  return `${namespace}${STORAGE_PATH_SEPARATOR}`;
 }
 
 /**

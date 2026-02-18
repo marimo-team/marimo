@@ -1,16 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
+import { capitalize } from "lodash-es";
 import {
   ChevronRightIcon,
   DownloadIcon,
   FolderIcon,
   HardDriveIcon,
   LoaderCircle,
+  RefreshCwIcon,
   XIcon,
 } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { useLocale } from "react-aria";
+import { EngineVariable } from "@/components/databases/engine-variable";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -26,6 +29,7 @@ import type {
   StoragePathKey,
 } from "@/core/storage/types";
 import { DEFAULT_FETCH_LIMIT, storagePathKey } from "@/core/storage/types";
+import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { cn } from "@/utils/cn";
 import { downloadByURL } from "@/utils/download";
@@ -325,13 +329,16 @@ const StorageNamespaceSection: React.FC<{
   searchValue: string;
 }> = ({ namespace, locale, searchValue }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isSpinning, setIsSpinning] = useState(false);
   const { entriesByPath } = useStorage();
+  const { clearNamespaceCache } = useStorageActions();
   const namespaceName = namespace.name ?? namespace.displayName;
 
   const {
     data: fetchedEntries,
     isPending,
     error,
+    refetch,
   } = useAsyncData(async () => {
     const result = await ListStorageEntries.request({
       namespace: namespaceName,
@@ -340,6 +347,17 @@ const StorageNamespaceSection: React.FC<{
     });
     return result.entries;
   }, [namespaceName]);
+
+  const handleRefresh = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsSpinning(true);
+      clearNamespaceCache(namespaceName);
+      refetch();
+      setTimeout(() => setIsSpinning(false), 500);
+    },
+    [namespaceName, clearNamespaceCache, refetch],
+  );
 
   // Fetched entries take priority, fall back to initial namespace entries
   const entries = fetchedEntries ?? namespace.storageEntries;
@@ -355,7 +373,7 @@ const StorageNamespaceSection: React.FC<{
       <CommandItem
         value={namespace.name}
         onSelect={() => setIsExpanded(!isExpanded)}
-        className="flex flex-row font-semibold h-7 text-xs gap-1.5 bg-(--slate-2) text-muted-foreground"
+        className="flex flex-row font-semibold h-7 text-xs gap-1.5 bg-(--slate-2) text-muted-foreground rounded-none"
       >
         <ChevronRightIcon
           className={cn(
@@ -364,9 +382,29 @@ const StorageNamespaceSection: React.FC<{
           )}
         />
         {renderProtocolIcon(namespace.protocol)}
-        <span>{namespace.displayName}</span>
+        <span>{capitalize(namespace.displayName)}</span>
+        {namespace.name && (
+          <span className="text-xs text-muted-foreground font-normal">
+            (<EngineVariable variableName={namespace.name as VariableName} />)
+          </span>
+        )}
+        <Tooltip content="Refresh storage connection">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-transparent hover:shadow-none"
+            onClick={handleRefresh}
+          >
+            <RefreshCwIcon
+              className={cn(
+                "h-3 w-3 text-muted-foreground hover:text-foreground",
+                isSpinning && "animate-[spin_0.5s]",
+              )}
+            />
+          </Button>
+        </Tooltip>
         <span className="text-[10px] text-muted-foreground font-normal tabular-nums ml-auto">
-          {namespace.protocol}://
+          {namespace.protocol}::{namespace.rootPath}
         </span>
       </CommandItem>
       {isExpanded && (
