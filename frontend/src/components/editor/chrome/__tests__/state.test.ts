@@ -30,11 +30,26 @@ describe("mergePanelLayout", () => {
         "logs",
       ],
     };
-    const result = mergePanelLayout(saved);
-    expect(result.developerPanel).toContain("terminal");
-    // Existing user ordering is preserved at the front
-    expect(result.developerPanel.slice(0, 6)).toEqual(saved.developerPanel);
-    expect(result.sidebar).toEqual(saved.sidebar);
+    expect(mergePanelLayout(saved)).toEqual({
+      sidebar: [
+        "files",
+        "variables",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "scratchpad",
+        "tracing",
+        "secrets",
+        "snippets",
+        "logs",
+        "terminal",
+      ],
+    });
   });
 
   it("appends new sidebar panels missing from saved layout", () => {
@@ -50,15 +65,26 @@ describe("mergePanelLayout", () => {
         "snippets",
       ],
     };
-    const result = mergePanelLayout(saved);
-    expect(result.sidebar[0]).toBe("files");
-    expect(result.sidebar[1]).toBe("variables");
-    expect(result.sidebar).toContain("packages");
-    expect(result.sidebar).toContain("ai");
-    expect(result.sidebar).toContain("outline");
-    expect(result.sidebar).toContain("documentation");
-    expect(result.sidebar).toContain("dependencies");
-    expect(result.developerPanel).toEqual(saved.developerPanel);
+    expect(mergePanelLayout(saved)).toEqual({
+      sidebar: [
+        "files",
+        "variables",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "scratchpad",
+        "tracing",
+        "secrets",
+        "logs",
+        "terminal",
+        "snippets",
+      ],
+    });
   });
 
   it("appends new developer panel entries missing from saved layout", () => {
@@ -74,12 +100,26 @@ describe("mergePanelLayout", () => {
       ],
       developerPanel: ["errors", "scratchpad", "tracing", "logs"],
     };
-    const result = mergePanelLayout(saved);
-    expect(result.sidebar).toEqual(saved.sidebar);
-    expect(result.developerPanel).toContain("terminal");
-    expect(result.developerPanel).toContain("snippets");
-    expect(result.developerPanel.indexOf("errors")).toBe(0);
-    expect(result.developerPanel.indexOf("scratchpad")).toBe(1);
+    expect(mergePanelLayout(saved)).toEqual({
+      sidebar: [
+        "files",
+        "variables",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "scratchpad",
+        "tracing",
+        "logs",
+        "secrets",
+        "terminal",
+        "snippets",
+      ],
+    });
   });
 
   it("does not duplicate panels already present", () => {
@@ -103,9 +143,26 @@ describe("mergePanelLayout", () => {
         "snippets",
       ],
     };
-    const result = mergePanelLayout(saved);
-    expect(result.sidebar).toEqual(saved.sidebar);
-    expect(result.developerPanel).toEqual(saved.developerPanel);
+    expect(mergePanelLayout(saved)).toEqual({
+      sidebar: [
+        "files",
+        "variables",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "scratchpad",
+        "tracing",
+        "secrets",
+        "logs",
+        "terminal",
+        "snippets",
+      ],
+    });
   });
 
   it("preserves panels the user moved between sections", () => {
@@ -113,9 +170,26 @@ describe("mergePanelLayout", () => {
       sidebar: ["files"],
       developerPanel: ["errors", "variables"],
     };
-    const result = mergePanelLayout(saved);
-    expect(result.sidebar).not.toContain("variables");
-    expect(result.developerPanel).toContain("variables");
+    expect(mergePanelLayout(saved)).toEqual({
+      sidebar: [
+        "files",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "variables",
+        "scratchpad",
+        "tracing",
+        "secrets",
+        "logs",
+        "terminal",
+        "snippets",
+      ],
+    });
   });
 
   it("handles empty saved layout", () => {
@@ -123,12 +197,26 @@ describe("mergePanelLayout", () => {
       sidebar: [],
       developerPanel: [],
     };
-    const result = mergePanelLayout(saved);
-    expect(result.sidebar.length).toBeGreaterThan(0);
-    expect(result.developerPanel.length).toBeGreaterThan(0);
-    expect(result.sidebar).toContain("files");
-    expect(result.developerPanel).toContain("errors");
-    expect(result.developerPanel).toContain("terminal");
+    expect(mergePanelLayout(saved)).toEqual({
+      sidebar: [
+        "files",
+        "variables",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "scratchpad",
+        "tracing",
+        "secrets",
+        "logs",
+        "terminal",
+        "snippets",
+      ],
+    });
   });
 });
 
@@ -183,13 +271,26 @@ describe("panelLayoutStorage integration", () => {
     };
     const result = storage.getItem("marimo:panel-layout", defaultValue);
 
-    // Terminal should now be present despite being absent from storage
-    expect(result.developerPanel).toContain("terminal");
-    // User's existing order is preserved
-    expect(result.developerPanel.slice(0, 6)).toEqual(
-      staleLayout.developerPanel,
-    );
-    expect(result.sidebar).toEqual(staleLayout.sidebar);
+    expect(result).toEqual({
+      sidebar: [
+        "files",
+        "variables",
+        "packages",
+        "ai",
+        "outline",
+        "documentation",
+        "dependencies",
+      ],
+      developerPanel: [
+        "errors",
+        "scratchpad",
+        "tracing",
+        "secrets",
+        "snippets",
+        "logs",
+        "terminal",
+      ],
+    });
   });
 
   it("returns default when localStorage is empty", () => {
