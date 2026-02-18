@@ -1,0 +1,6 @@
+altair>=5.4.0
+marimo[sandbox]
+marimo[sql]
+nbformat>=5.7.0
+pydantic-ai-slim[openai]>=1.39.0
+ruff
