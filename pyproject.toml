@@ -557,7 +557,8 @@ extend-exclude = [
     "**/__demo__/*",
     "base64.test.ts",
     "SECURITY.md", # Contains usernames that trigger typos
-    "patches/*", # Patches may contain typos from source code
+    "patches/*", # Patches may contain typos from source code,
+    "frontend/dist/assets/*", # Assets may contain typos from source code
     "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
 ]
 
