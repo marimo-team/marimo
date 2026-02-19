@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Final,
-    Union,
+    Protocol,
     cast,
 )
 
@@ -21,6 +21,10 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes  # type: ignore[import-untyped]
     from matplotlib.figure import Figure  # type: ignore[import-untyped]
     from numpy.typing import ArrayLike, NDArray
+
+
+class MatplotlibSelection(Protocol):
+    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]: ...
 
 
 @dataclass(frozen=True)
@@ -119,9 +123,6 @@ class EmptySelection:
 
     def __bool__(self) -> bool:
         return False
-
-
-MatplotlibSelection = Union[BoxSelection, LassoSelection, EmptySelection]
 
 
 def _figure_pixel_size(figure: Figure) -> tuple[float, float]:
