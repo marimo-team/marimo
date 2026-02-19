@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+import { CopyIcon } from "lucide-react";
 import React from "react";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CopyIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 
 interface TracebackModalProps {

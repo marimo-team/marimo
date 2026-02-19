@@ -1,16 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { fromUnixTime } from "date-fns";
+import React from "react";
+import { ToastAction } from "@/components/ui/toast";
 import { toast } from "@/components/ui/use-toast";
 import { parseHtmlContent } from "@/utils/dom";
 import { Strings } from "@/utils/strings";
+import { tracebackModalAtom } from "../errors/traceback-atom";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
-import type { CellId } from "./ids";
 import { store } from "../state/jotai";
-import { tracebackModalAtom } from "../errors/traceback-atom";
-import React from "react";
-import { ToastAction } from "@/components/ui/toast";
+import type { CellId } from "./ids";
 
 export interface CellLog {
   timestamp: number;
@@ -94,13 +94,15 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         const handleClick = () => {
           store.set(tracebackModalAtom, {
             traceback: errorWithTraceback.traceback,
-            errorMessage: errorWithTraceback.msg || "An internal error occurred",
+            errorMessage:
+              errorWithTraceback.msg || "An internal error occurred",
           });
         };
 
         toast({
           title: "An internal error occurred",
-          description: errorWithTraceback.msg || "Click 'View' to see traceback",
+          description:
+            errorWithTraceback.msg || "Click 'View' to see traceback",
           variant: "danger",
           action: React.createElement(
             ToastAction,

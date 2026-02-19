@@ -30,11 +30,11 @@ def write_traceback(traceback: str) -> None:
     else:
         # When stderr is not redirected (e.g., run mode with redirect_console_to_browser=False),
         # send the traceback directly via the stream to ensure exceptions reach the frontend
-        from marimo._runtime.context.types import safe_get_context
         from marimo._messaging.cell_output import CellChannel, CellOutput
         from marimo._messaging.notification import CellNotification
         from marimo._messaging.notification_utils import broadcast_notification
-        
+        from marimo._runtime.context.types import safe_get_context
+
         ctx = safe_get_context()
         if ctx is not None and ctx.cell_id is not None:
             broadcast_notification(

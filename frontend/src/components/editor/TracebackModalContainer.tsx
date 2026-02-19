@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { useAtom } from "jotai";
+import React from "react";
 import { tracebackModalAtom } from "@/core/errors/traceback-atom";
 import { TracebackModal } from "./errors/traceback-modal";
 

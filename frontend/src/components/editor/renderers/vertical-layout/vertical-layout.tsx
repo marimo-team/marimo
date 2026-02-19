@@ -121,9 +121,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         staleInputs={cell.staleInputs}
         name={cell.name}
         kiosk={kioskMode}
-        showErrorTracebacks={
-          userConfig.runtime.show_error_tracebacks ?? false
-        }
+        showErrorTracebacks={userConfig.runtime.show_error_tracebacks ?? false}
       />
     );
   };
@@ -440,7 +438,8 @@ const VerticalCell = memo(
       outputIsError &&
       Array.isArray(output?.data) &&
       output.data.some(
-        (e: MarimoError) => e.type === "exception" && "traceback" in e && e.traceback,
+        (e: MarimoError) =>
+          e.type === "exception" && "traceback" in e && e.traceback,
       );
     const hidden =
       (errored || interrupted || stopped || outputIsError) && !hasTraceback;

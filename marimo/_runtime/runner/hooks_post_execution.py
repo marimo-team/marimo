@@ -412,6 +412,7 @@ def _broadcast_outputs(
 
         if show_tracebacks:
             import traceback as tb
+
             from marimo._messaging.tracebacks import (
                 _highlight_traceback,
                 _trim_traceback,
