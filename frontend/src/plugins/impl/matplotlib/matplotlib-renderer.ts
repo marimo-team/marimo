@@ -291,8 +291,9 @@ export class MatplotlibRenderer {
     // Create canvas
     const canvas = document.createElement("canvas");
     canvas.className = "block cursor-crosshair";
-    canvas.width = this.#state.width;
-    canvas.height = this.#state.height;
+    const dpr = globalThis.devicePixelRatio ?? 1;
+    canvas.width = this.#state.width * dpr;
+    canvas.height = this.#state.height * dpr;
     canvas.style.width = `${this.#state.width}px`;
     canvas.style.height = `${this.#state.height}px`;
     canvas.style.maxWidth = "100%";
@@ -336,8 +337,9 @@ export class MatplotlibRenderer {
 
     // Update canvas dimensions if changed
     if (state.width !== prev.width || state.height !== prev.height) {
-      this.#canvas.width = state.width;
-      this.#canvas.height = state.height;
+      const dpr = globalThis.devicePixelRatio ?? 1;
+      this.#canvas.width = state.width * dpr;
+      this.#canvas.height = state.height * dpr;
       this.#canvas.style.width = `${state.width}px`;
       this.#canvas.style.height = `${state.height}px`;
     }
@@ -387,9 +389,13 @@ export class MatplotlibRenderer {
     const s = this.#state;
     const ix = this.#interaction;
 
+    // Scale for HiDPI: all coordinates remain in logical pixels
+    const dpr = globalThis.devicePixelRatio ?? 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     // Clear and draw the base image
-    ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
-    ctx.drawImage(img, 0, 0, this.#canvas.width, this.#canvas.height);
+    ctx.clearRect(0, 0, s.width, s.height);
+    ctx.drawImage(img, 0, 0, s.width, s.height);
 
     // Draw box selection overlay
     if (ix.type === "box") {
@@ -437,8 +443,8 @@ export class MatplotlibRenderer {
 
   #getCanvasPoint = (e: PointerEvent): PixelPoint => {
     const rect = this.#canvas.getBoundingClientRect();
-    const scaleX = this.#canvas.width / rect.width;
-    const scaleY = this.#canvas.height / rect.height;
+    const scaleX = this.#state.width / rect.width;
+    const scaleY = this.#state.height / rect.height;
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
