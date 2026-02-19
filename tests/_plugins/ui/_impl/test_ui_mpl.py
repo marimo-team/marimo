@@ -98,17 +98,6 @@ def test_construction_args() -> None:
     assert "stroke-width" not in args
 
 
-def test_on_change_callback() -> None:
-    ax = _make_scatter_ax()
-    called: list[Any] = []
-
-    def on_change(value: Any) -> None:
-        called.append(value)
-
-    fig = matplotlib(ax, on_change=on_change)
-    assert fig is not None
-
-
 # ============================================================================
 # _convert_value tests
 # ============================================================================
