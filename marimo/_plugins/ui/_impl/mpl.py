@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     import numpy as np
     from matplotlib.axes import Axes  # type: ignore[import-untyped]
     from matplotlib.figure import Figure  # type: ignore[import-untyped]
-    from numpy.typing import ArrayLike
+    from numpy.typing import ArrayLike, NDArray
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class BoxSelection:
     y_min: float
     y_max: float
 
-    def get_mask(self, x: ArrayLike, y: ArrayLike) -> np.ndarray:
+    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]:
         """Get a boolean mask for points within this selection.
 
         Args:
@@ -72,7 +72,7 @@ class LassoSelection:
 
     vertices: tuple[tuple[float, float], ...]
 
-    def get_mask(self, x: ArrayLike, y: ArrayLike) -> np.ndarray:
+    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]:
         """Get a boolean mask for points within this selection.
 
         Args:
@@ -103,7 +103,7 @@ class EmptySelection:
     when coerced as a bool.
     """
 
-    def get_mask(self, x: ArrayLike, y: ArrayLike) -> np.ndarray:  # noqa: ARG002
+    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]:  # noqa: ARG002
         """Return an all-``False`` mask.
 
         Args:
