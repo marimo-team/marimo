@@ -230,7 +230,6 @@ nav:
           - File Browser: api/inputs/file_browser.md
           - Form: api/inputs/form.md
           - Matrix: api/inputs/matrix.md
-          - Vector: api/inputs/vector.md
           - Microphone: api/inputs/microphone.md
           - Multiselect: api/inputs/multiselect.md
           - Navigation Menu: api/inputs/nav_menu.md

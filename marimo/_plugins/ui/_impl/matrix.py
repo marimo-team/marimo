@@ -54,13 +54,68 @@ def _broadcast(
     return param
 
 
-def _to_nested_list(
-    value: list[list[Numeric]] | ArrayLike,
-) -> list[list[Numeric]]:
-    """Parse and validate initial matrix data into a nested list.
+def _to_flat_list(
+    value: list[Numeric] | ArrayLike,
+) -> list[Numeric]:
+    """Validate and convert input to a flat list of numbers.
 
-    Accepts a nested list of numbers or a numpy array-like with `.tolist()`.
-    Rejects empty, non-2D, or ragged inputs.
+    Accepts a flat list of numbers or a 1D array-like with `.tolist()`.
+    Rejects empty, non-1D, or nested inputs.
+    """
+    if hasattr(value, "tolist"):
+        value = value.tolist()
+
+    if not isinstance(value, list):
+        raise ValueError(
+            f"`value` must be a list or array-like, got {type(value)}"
+        )
+
+    if not value:
+        raise ValueError("`value` must be non-empty")
+
+    for i, v in enumerate(value):
+        if isinstance(v, (list, tuple)):
+            raise ValueError(
+                f"`value` must be 1D, but element {i} is a {type(v).__name__}"
+            )
+
+    return value
+
+
+def _1d_to_2d(
+    name: str,
+    param: Any,
+) -> Any:
+    """Convert a 1D list param to a column-vector 2D layout.
+
+    Scalars pass through unchanged (they'll be broadcast by `_broadcast`).
+    A 1D list `[a, b, c]` becomes `[[a], [b], [c]]`.
+    """
+    if hasattr(param, "tolist"):
+        param = param.tolist()
+
+    if not isinstance(param, list):
+        # Scalar — let _broadcast handle it
+        return param
+
+    # Must be a flat list at this point
+    for i, v in enumerate(param):
+        if isinstance(v, (list, tuple)):
+            raise ValueError(
+                f"`{name}` must be scalar or 1D, "
+                f"but element {i} is a {type(v).__name__}"
+            )
+
+    return [[v] for v in param]
+
+
+def _parse_value(
+    value: list[list[Numeric]] | list[Numeric] | ArrayLike,
+) -> tuple[list[list[Numeric]], bool]:
+    """Parse and validate initial matrix data.
+
+    Returns `(data_2d, is_vector)` where *is_vector* is True when the
+    input was a flat 1D list.
     """
     if hasattr(value, "tolist"):
         value = value.tolist()
@@ -74,11 +129,19 @@ def _to_nested_list(
         raise ValueError("`value` must be non-empty")
 
     first = value[0]
-    if not isinstance(first, (list, tuple)) or not first:
+
+    # 1D path
+    if not isinstance(first, (list, tuple)):
+        flat = _to_flat_list(value)
+        return flat, True  # type: ignore[return-value]
+
+    # 2D path
+    if not first:
         raise ValueError(
             f"`value` must contain non-empty lists, but row 0 is {first!r}"
         )
-    return _broadcast("value", value, len(value), len(first))
+    data_2d = _broadcast("value", value, len(value), len(first))
+    return data_2d, False
 
 
 def _decimal_places(x: Numeric) -> int:
@@ -99,11 +162,11 @@ def _decimal_places(x: Numeric) -> int:
 def _mantissa_decimal_places(x: Numeric) -> int:
     """Count decimal places needed in the mantissa for scientific notation.
 
-    For example, `0.00153` → `1.53e-3` → 2 mantissa places,
-    while `1e-8` → `1e-8` → 0 mantissa places.
+    For example, `0.00153` -> `1.53e-3` -> 2 mantissa places,
+    while `1e-8` -> `1e-8` -> 0 mantissa places.
     """
     if isinstance(x, int):
-        # Strip trailing zeros: 1234000 → 1.234e6 → 3 places
+        # Strip trailing zeros: 1234000 -> 1.234e6 -> 3 places
         if x == 0:
             return 0
         s = str(abs(x)).rstrip("0")
@@ -234,17 +297,24 @@ def _validate_and_build_args(
 
 
 @mddoc
-class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
-    """An interactive matrix editor.
+class matrix(
+    UIElement[list[list[Numeric]], list[list[Numeric]] | list[Numeric]]
+):
+    """An interactive matrix/vector editor.
 
     A matrix UI element in which each entry is a slider: click and drag
-    horizontally on an entry to increment or decrement its value. The
-    matrix can be configured in many ways, including element-wise
-    bounds, element-wise steps, an element-wise disable mask, and
-    symmetry enforcement.
+    horizontally on an entry to increment or decrement its value. The matrix
+    can be configured in many ways, including element-wise bounds, element-wise
+    steps, an element-wise disable mask, and symmetry enforcement. These
+    configuration values may be any array-like object, including as lists,
+    NumPy arrays, or torch Tensors.
+
+    Supports both 2D (matrix) and 1D (vector) inputs. When a flat list is
+    passed, the element displays as a column vector and `.value` returns a flat
+    list.
 
     Examples:
-        Basic usage:
+        Basic 2D matrix:
 
         ```python
         mat = mo.ui.matrix([[1, 0], [0, 1]])
@@ -254,7 +324,21 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         Access the value in another cell with
 
         ```python
-        mat.value
+        mat.value  # [[1, 0], [0, 1]]
+        ```
+
+        Column vector (1D input):
+
+        ```python
+        v = mo.ui.matrix([1, 2, 3])
+        v.value  # [1, 2, 3]
+        ```
+
+        Row vecto
+
+        ```python
+        v = mo.ui.matrix([[1, 2, 3]])
+        v.value  # [[1, 2, 3]]
         ```
 
         You can specify bounds and a step size as well:
@@ -293,30 +377,34 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         ```
 
     Attributes:
-        value (list[list[Numeric]]): The current 2D matrix as a nested list.
+        value (list[list[Numeric]] | list[Numeric]): The current matrix
+            as a nested list, or a flat list when created with 1D input.
             Use `np.asarray(matrix.value)` to convert to a numpy array.
 
     Args:
-        value (list[list[Numeric]] | ArrayLike): Initial 2D matrix data.
-            Accepts a nested list of numbers or a numpy array. Rows and
-            columns are inferred from the shape.
-        min_value (Numeric | list[list[Numeric]] | ArrayLike | None, optional):
+        value (list[list[Numeric]] | list[Numeric] | ArrayLike): Initial
+            data. A nested list or 2D array creates a matrix; a flat list
+            or 1D array creates a column vector. Rows and columns are
+            inferred from the shape.
+        min_value (Numeric | list[list[Numeric]] | list[Numeric] | ArrayLike | None, optional):
             Minimum allowed value. A scalar is broadcast to all cells; a
-            nested list or numpy array sets per-element bounds. None means
-            unbounded. Defaults to None.
-        max_value (Numeric | list[list[Numeric]] | ArrayLike | None, optional):
+            list or numpy array sets per-element bounds. For 1D input,
+            accepts a flat list. None means unbounded. Defaults to None.
+        max_value (Numeric | list[list[Numeric]] | list[Numeric] | ArrayLike | None, optional):
             Maximum allowed value. A scalar is broadcast to all cells; a
-            nested list or numpy array sets per-element bounds. None means
-            unbounded. Defaults to None.
-        step (Numeric | list[list[Numeric]] | ArrayLike, optional): Drag
-            increment. A scalar is broadcast to all cells; a nested list
-            or numpy array sets per-element step sizes. Defaults to 1.0.
-        disabled (bool | list[list[bool]] | ArrayLike, optional): Whether
-            cells are disabled. A scalar bool is broadcast to all cells; a
-            nested list or numpy bool array sets a per-element mask.
-            Defaults to False.
+            list or numpy array sets per-element bounds. For 1D input,
+            accepts a flat list. None means unbounded. Defaults to None.
+        step (Numeric | list[list[Numeric]] | list[Numeric] | ArrayLike, optional):
+            Drag increment. A scalar is broadcast to all cells; a list
+            or numpy array sets per-element step sizes. For 1D input,
+            accepts a flat list. Defaults to 1.0.
+        disabled (bool | list[list[bool]] | list[bool] | ArrayLike, optional):
+            Whether cells are disabled. A scalar bool is broadcast to all
+            cells; a list or numpy bool array sets a per-element mask.
+            For 1D input, accepts a flat list. Defaults to False.
         symmetric (bool, optional): If True, editing cell `[i][j]` also
-            updates cell `[j][i]`. Requires a square matrix. Defaults to False.
+            updates cell `[j][i]`. Requires a square matrix. Defaults to
+            False.
         scientific (bool, optional): If True, display values in scientific
             notation (e.g., `1.0e-4`). Defaults to False.
         precision (int | None, optional): Number of decimal places
@@ -338,12 +426,18 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
 
     def __init__(
         self,
-        value: list[list[Numeric]] | ArrayLike,
+        value: list[list[Numeric]] | list[Numeric] | ArrayLike,
         *,
-        min_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
-        max_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
-        step: Numeric | list[list[Numeric]] | ArrayLike = 1.0,
-        disabled: bool | list[list[bool]] | ArrayLike = False,
+        min_value: (
+            Numeric | list[list[Numeric]] | list[Numeric] | ArrayLike | None
+        ) = None,
+        max_value: (
+            Numeric | list[list[Numeric]] | list[Numeric] | ArrayLike | None
+        ) = None,
+        step: (
+            Numeric | list[list[Numeric]] | list[Numeric] | ArrayLike
+        ) = 1.0,
+        disabled: bool | list[list[bool]] | list[bool] | ArrayLike = False,
         symmetric: bool = False,
         scientific: bool = False,
         precision: int | None = None,
@@ -352,24 +446,60 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         debounce: bool = False,
         label: str = "",
     ) -> None:
-        # Convert and validate value
-        data = _to_nested_list(value)
-        rows = len(data)
-        cols = len(data[0])
+        parsed, is_vector = _parse_value(value)
 
-        # Broadcast params to full matrices
-        min_val = (
-            _broadcast("min_value", min_value, rows, cols)
-            if min_value is not None
-            else None
-        )
-        max_val = (
-            _broadcast("max_value", max_value, rows, cols)
-            if max_value is not None
-            else None
-        )
-        step_val = _broadcast("step", step, rows, cols)
-        disabled_val = _broadcast("disabled", disabled, rows, cols)
+        if is_vector:
+            # --- 1D (vector) path: always a column vector ---
+            flat: list[Numeric] = parsed  # type: ignore[assignment]
+
+            if symmetric:
+                raise ValueError(
+                    "`symmetric` is not supported for 1D (vector) input"
+                )
+
+            data: list[list[Numeric]] = [[v] for v in flat]
+            rows = len(data)
+            cols = 1
+
+            # Convert 1D params -> 2D column layout
+            min_2d = _1d_to_2d("min_value", min_value)
+            max_2d = _1d_to_2d("max_value", max_value)
+            step_2d = _1d_to_2d("step", step)
+            disabled_2d = _1d_to_2d("disabled", disabled)
+
+            min_val = (
+                _broadcast("min_value", min_2d, rows, cols)
+                if min_value is not None
+                else None
+            )
+            max_val = (
+                _broadcast("max_value", max_2d, rows, cols)
+                if max_value is not None
+                else None
+            )
+            step_val = _broadcast("step", step_2d, rows, cols)
+            disabled_val = _broadcast("disabled", disabled_2d, rows, cols)
+
+        else:
+            # --- 2D (matrix) path ---
+            data = parsed  # type: ignore[assignment]
+            rows = len(data)
+            cols = len(data[0])
+
+            min_val = (
+                _broadcast("min_value", min_value, rows, cols)
+                if min_value is not None
+                else None
+            )
+            max_val = (
+                _broadcast("max_value", max_value, rows, cols)
+                if max_value is not None
+                else None
+            )
+            step_val = _broadcast("step", step, rows, cols)
+            disabled_val = _broadcast("disabled", disabled, rows, cols)
+
+        self._is_vector = is_vector
 
         args = _validate_and_build_args(
             data,
@@ -395,5 +525,7 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
 
     def _convert_value(
         self, value: list[list[Numeric]]
-    ) -> list[list[Numeric]]:
+    ) -> list[list[Numeric]] | list[Numeric]:
+        if self._is_vector:
+            return [cell for row in value for cell in row]
         return value
