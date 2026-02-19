@@ -49,15 +49,125 @@ interface DataPoint {
   y: number;
 }
 
-type InteractionMode = "idle" | "drawing" | "dragging" | "lassoing";
+// -- State machine types --
 
-interface InteractionState {
-  mode: InteractionMode;
-  boxStart: PixelPoint | null;
-  boxEnd: PixelPoint | null;
-  lassoPoints: PixelPoint[];
-  dragStart: PixelPoint | null;
-  rafId: number;
+type BoxAction =
+  | { type: "drawing" }
+  | { type: "dragging"; origin: PixelPoint }
+  | {
+      type: "resizing";
+      anchor: PixelPoint;
+      lockX: number | null;
+      lockY: number | null;
+    };
+
+type LassoAction =
+  | { type: "drawing" }
+  | { type: "dragging"; origin: PixelPoint };
+
+type Interaction =
+  | { type: "idle" }
+  | {
+      type: "box";
+      start: PixelPoint;
+      end: PixelPoint;
+      action: BoxAction | null;
+    }
+  | { type: "lasso"; points: PixelPoint[]; action: LassoAction | null };
+
+// -- Resize handle detection --
+
+type ResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se";
+
+const HANDLE_SIZE = 7; // pixels from edge to trigger resize
+
+const RESIZE_CURSORS: Record<ResizeHandle, string> = {
+  n: "ns-resize",
+  s: "ns-resize",
+  e: "ew-resize",
+  w: "ew-resize",
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+};
+
+function getResizeHandle(
+  pt: PixelPoint,
+  boxStart: PixelPoint,
+  boxEnd: PixelPoint,
+): ResizeHandle | null {
+  const minX = Math.min(boxStart.x, boxEnd.x);
+  const maxX = Math.max(boxStart.x, boxEnd.x);
+  const minY = Math.min(boxStart.y, boxEnd.y);
+  const maxY = Math.max(boxStart.y, boxEnd.y);
+
+  const nearLeft = Math.abs(pt.x - minX) <= HANDLE_SIZE;
+  const nearRight = Math.abs(pt.x - maxX) <= HANDLE_SIZE;
+  const nearTop = Math.abs(pt.y - minY) <= HANDLE_SIZE;
+  const nearBottom = Math.abs(pt.y - maxY) <= HANDLE_SIZE;
+  const withinX = pt.x >= minX - HANDLE_SIZE && pt.x <= maxX + HANDLE_SIZE;
+  const withinY = pt.y >= minY - HANDLE_SIZE && pt.y <= maxY + HANDLE_SIZE;
+
+  // Corners first (more specific)
+  if (nearLeft && nearTop) {
+    return "nw";
+  }
+  if (nearRight && nearTop) {
+    return "ne";
+  }
+  if (nearLeft && nearBottom) {
+    return "sw";
+  }
+  if (nearRight && nearBottom) {
+    return "se";
+  }
+
+  // Edges
+  if (nearTop && withinX) {
+    return "n";
+  }
+  if (nearBottom && withinX) {
+    return "s";
+  }
+  if (nearLeft && withinY) {
+    return "w";
+  }
+  if (nearRight && withinY) {
+    return "e";
+  }
+
+  return null;
+}
+
+function getResizeConfig(
+  handle: ResizeHandle,
+  start: PixelPoint,
+  end: PixelPoint,
+): { anchor: PixelPoint; lockX: number | null; lockY: number | null } {
+  const minX = Math.min(start.x, end.x);
+  const maxX = Math.max(start.x, end.x);
+  const minY = Math.min(start.y, end.y);
+  const maxY = Math.max(start.y, end.y);
+
+  switch (handle) {
+    case "nw":
+      return { anchor: { x: maxX, y: maxY }, lockX: null, lockY: null };
+    case "ne":
+      return { anchor: { x: minX, y: maxY }, lockX: null, lockY: null };
+    case "sw":
+      return { anchor: { x: maxX, y: minY }, lockX: null, lockY: null };
+    case "se":
+      return { anchor: { x: minX, y: minY }, lockX: null, lockY: null };
+    case "n":
+      return { anchor: { x: minX, y: maxY }, lockX: maxX, lockY: null };
+    case "s":
+      return { anchor: { x: minX, y: minY }, lockX: maxX, lockY: null };
+    case "w":
+      return { anchor: { x: maxX, y: minY }, lockX: null, lockY: maxY };
+    case "e":
+      return { anchor: { x: minX, y: minY }, lockX: null, lockY: maxY };
+  }
 }
 
 export interface MatplotlibState extends Data {
@@ -160,14 +270,8 @@ export class MatplotlibRenderer {
   #canvas: HTMLCanvasElement;
   #container: HTMLDivElement;
   #state: MatplotlibState;
-  #interaction: InteractionState = {
-    mode: "idle",
-    boxStart: null,
-    boxEnd: null,
-    lassoPoints: [],
-    dragStart: null,
-    rafId: 0,
-  };
+  #interaction: Interaction = { type: "idle" };
+  #rafId = 0;
   #image: HTMLImageElement | null = null;
   #imageGeneration = 0;
   #currentChartBase64 = "";
@@ -212,7 +316,7 @@ export class MatplotlibRenderer {
 
     // Clean up on abort
     options.signal.addEventListener("abort", () => {
-      cancelAnimationFrame(this.#interaction.rafId);
+      cancelAnimationFrame(this.#rafId);
       this.#canvas.remove();
     });
 
@@ -256,10 +360,7 @@ export class MatplotlibRenderer {
     const generation = this.#imageGeneration;
 
     // Clear selection on new chart
-    this.#interaction.boxStart = null;
-    this.#interaction.boxEnd = null;
-    this.#interaction.lassoPoints = [];
-    this.#interaction.mode = "idle";
+    this.#interaction = { type: "idle" };
 
     const img = new Image();
     img.onload = () => {
@@ -291,11 +392,11 @@ export class MatplotlibRenderer {
     ctx.drawImage(img, 0, 0, this.#canvas.width, this.#canvas.height);
 
     // Draw box selection overlay
-    if (ix.boxStart && ix.boxEnd) {
-      const x = Math.min(ix.boxStart.x, ix.boxEnd.x);
-      const y = Math.min(ix.boxStart.y, ix.boxEnd.y);
-      const w = Math.abs(ix.boxEnd.x - ix.boxStart.x);
-      const h = Math.abs(ix.boxEnd.y - ix.boxStart.y);
+    if (ix.type === "box") {
+      const x = Math.min(ix.start.x, ix.end.x);
+      const y = Math.min(ix.start.y, ix.end.y);
+      const w = Math.abs(ix.end.x - ix.start.x);
+      const h = Math.abs(ix.end.y - ix.start.y);
 
       ctx.save();
       ctx.fillStyle = s.selectionColor;
@@ -309,11 +410,11 @@ export class MatplotlibRenderer {
     }
 
     // Draw lasso selection overlay
-    if (ix.lassoPoints.length >= 2) {
+    if (ix.type === "lasso" && ix.points.length >= 2) {
       ctx.beginPath();
-      ctx.moveTo(ix.lassoPoints[0].x, ix.lassoPoints[0].y);
-      for (let i = 1; i < ix.lassoPoints.length; i++) {
-        ctx.lineTo(ix.lassoPoints[i].x, ix.lassoPoints[i].y);
+      ctx.moveTo(ix.points[0].x, ix.points[0].y);
+      for (let i = 1; i < ix.points.length; i++) {
+        ctx.lineTo(ix.points[i].x, ix.points[i].y);
       }
       ctx.closePath();
 
@@ -330,8 +431,8 @@ export class MatplotlibRenderer {
   };
 
   #scheduleRedraw = (): void => {
-    cancelAnimationFrame(this.#interaction.rafId);
-    this.#interaction.rafId = requestAnimationFrame(this.#drawCanvas);
+    cancelAnimationFrame(this.#rafId);
+    this.#rafId = requestAnimationFrame(this.#drawCanvas);
   };
 
   #getCanvasPoint = (e: PointerEvent): PixelPoint => {
@@ -344,24 +445,19 @@ export class MatplotlibRenderer {
     };
   };
 
-  #emitBoxSelection = (
-    bStart: PixelPoint | null,
-    bEnd: PixelPoint | null,
-  ): void => {
-    if (bStart && bEnd) {
-      const d1 = pixelToData(bStart, this.#state);
-      const d2 = pixelToData(bEnd, this.#state);
-      this.#state.setValue({
-        type: "box",
-        has_selection: true,
-        data: {
-          x_min: Math.min(d1.x, d2.x),
-          x_max: Math.max(d1.x, d2.x),
-          y_min: Math.min(d1.y, d2.y),
-          y_max: Math.max(d1.y, d2.y),
-        },
-      });
-    }
+  #emitBoxSelection = (start: PixelPoint, end: PixelPoint): void => {
+    const d1 = pixelToData(start, this.#state);
+    const d2 = pixelToData(end, this.#state);
+    this.#state.setValue({
+      type: "box",
+      has_selection: true,
+      data: {
+        x_min: Math.min(d1.x, d2.x),
+        x_max: Math.max(d1.x, d2.x),
+        y_min: Math.min(d1.y, d2.y),
+        y_max: Math.max(d1.y, d2.y),
+      },
+    });
   };
 
   #emitLassoSelection = (points: PixelPoint[]): void => {
@@ -379,28 +475,22 @@ export class MatplotlibRenderer {
   };
 
   #clearSelection = (): void => {
-    this.#interaction.boxStart = null;
-    this.#interaction.boxEnd = null;
-    this.#interaction.lassoPoints = [];
-    this.#interaction.mode = "idle";
+    this.#interaction = { type: "idle" };
     this.#state.setValue({ has_selection: false });
     this.#scheduleRedraw();
   };
 
   #hasSelection = (): boolean => {
-    const ix = this.#interaction;
-    return (
-      (ix.boxStart !== null && ix.boxEnd !== null) || ix.lassoPoints.length >= 3
-    );
+    return this.#interaction.type !== "idle";
   };
 
   #isPointInSelection = (pt: PixelPoint): boolean => {
     const ix = this.#interaction;
-    if (ix.boxStart && ix.boxEnd) {
-      return isPointInBox(pt, ix.boxStart, ix.boxEnd);
+    if (ix.type === "box") {
+      return isPointInBox(pt, ix.start, ix.end);
     }
-    if (ix.lassoPoints.length >= 3) {
-      return pointInPolygon(pt, ix.lassoPoints);
+    if (ix.type === "lasso") {
+      return pointInPolygon(pt, ix.points);
     }
     return false;
   };
@@ -412,11 +502,26 @@ export class MatplotlibRenderer {
 
     if (!inAxes) {
       this.#canvas.style.cursor = "default";
-    } else if (this.#hasSelection() && this.#isPointInSelection(pt)) {
-      this.#canvas.style.cursor = "move";
-    } else {
-      this.#canvas.style.cursor = "crosshair";
+      return;
     }
+
+    const ix = this.#interaction;
+
+    // Resize handles on idle box selection
+    if (ix.type === "box" && ix.action === null) {
+      const handle = getResizeHandle(pt, ix.start, ix.end);
+      if (handle) {
+        this.#canvas.style.cursor = RESIZE_CURSORS[handle];
+        return;
+      }
+    }
+
+    if (this.#hasSelection() && this.#isPointInSelection(pt)) {
+      this.#canvas.style.cursor = "move";
+      return;
+    }
+
+    this.#canvas.style.cursor = "crosshair";
   };
 
   #restoreSelection = (value: SelectionValue): void => {
@@ -428,16 +533,12 @@ export class MatplotlibRenderer {
       const sel = value.data;
       const start = dataToPixel({ x: sel.x_min, y: sel.y_min }, this.#state);
       const end = dataToPixel({ x: sel.x_max, y: sel.y_max }, this.#state);
-      this.#interaction.boxStart = start;
-      this.#interaction.boxEnd = end;
-      this.#interaction.lassoPoints = [];
+      this.#interaction = { type: "box", start, end, action: null };
     } else if (value.type === "lasso") {
       const points = value.data.map(([vx, vy]) =>
         dataToPixel({ x: vx, y: vy }, this.#state),
       );
-      this.#interaction.lassoPoints = points;
-      this.#interaction.boxStart = null;
-      this.#interaction.boxEnd = null;
+      this.#interaction = { type: "lasso", points, action: null };
     }
     this.#scheduleRedraw();
   };
@@ -448,34 +549,68 @@ export class MatplotlibRenderer {
     const pt = this.#getCanvasPoint(e);
     const ix = this.#interaction;
 
-    // Shift+click → start lasso
+    // Shift+click -> start lasso
     if (e.shiftKey) {
-      ix.boxStart = null;
-      ix.boxEnd = null;
-      ix.mode = "lassoing";
-      ix.lassoPoints = [clampToAxes(pt, this.#state)];
+      this.#interaction = {
+        type: "lasso",
+        points: [clampToAxes(pt, this.#state)],
+        action: { type: "drawing" },
+      };
       this.#scheduleRedraw();
       return;
     }
 
-    // If clicking inside existing selection, start dragging
+    // Box exists + near edge/corner -> start resize
+    if (ix.type === "box" && ix.action === null) {
+      const handle = getResizeHandle(pt, ix.start, ix.end);
+      if (handle) {
+        const { anchor, lockX, lockY } = getResizeConfig(
+          handle,
+          ix.start,
+          ix.end,
+        );
+        this.#interaction = {
+          type: "box",
+          start: ix.start,
+          end: ix.end,
+          action: { type: "resizing", anchor, lockX, lockY },
+        };
+        return;
+      }
+    }
+
+    // Inside existing selection -> start drag
     if (this.#hasSelection() && this.#isPointInSelection(pt)) {
-      ix.mode = "dragging";
-      ix.dragStart = pt;
+      if (ix.type === "box") {
+        this.#interaction = {
+          type: "box",
+          start: ix.start,
+          end: ix.end,
+          action: { type: "dragging", origin: pt },
+        };
+      } else if (ix.type === "lasso") {
+        this.#interaction = {
+          type: "lasso",
+          points: ix.points,
+          action: { type: "dragging", origin: pt },
+        };
+      }
       return;
     }
 
-    // If clicking outside selection with an existing one, clear it
-    // then fall through to start a new box selection
-    if (this.#hasSelection() && !this.#isPointInSelection(pt)) {
+    // Outside selection with existing one -> clear, then start new box
+    if (this.#hasSelection()) {
       this.#clearSelection();
     }
 
     // Start new box selection
     const clamped = clampToAxes(pt, this.#state);
-    ix.mode = "drawing";
-    ix.boxStart = clamped;
-    ix.boxEnd = clamped;
+    this.#interaction = {
+      type: "box",
+      start: clamped,
+      end: clamped,
+      action: { type: "drawing" },
+    };
     this.#scheduleRedraw();
   };
 
@@ -484,80 +619,101 @@ export class MatplotlibRenderer {
     const ix = this.#interaction;
     const s = this.#state;
 
-    // Update cursor when idle
-    if (ix.mode === "idle") {
+    // No active action -> just update cursor
+    if (ix.type === "idle" || ix.action === null) {
       this.#updateCursor(pt);
+      return;
     }
 
-    // Lassoing: append clamped point
-    if (ix.mode === "lassoing") {
-      ix.lassoPoints.push(clampToAxes(pt, this.#state));
+    // Lasso drawing: append clamped point
+    if (ix.type === "lasso" && ix.action.type === "drawing") {
+      ix.points.push(clampToAxes(pt, s));
       this.#scheduleRedraw();
       return;
     }
 
-    if (ix.mode === "dragging" && ix.dragStart) {
-      const [axLeft, axTop, axRight, axBottom] = s.axesPixelBounds;
-      let dx = pt.x - ix.dragStart.x;
-      let dy = pt.y - ix.dragStart.y;
-      ix.dragStart = pt;
-
-      if (ix.boxStart && ix.boxEnd) {
-        // Clamp delta so the entire box stays in bounds
-        const minX = Math.min(ix.boxStart.x, ix.boxEnd.x);
-        const maxX = Math.max(ix.boxStart.x, ix.boxEnd.x);
-        const minY = Math.min(ix.boxStart.y, ix.boxEnd.y);
-        const maxY = Math.max(ix.boxStart.y, ix.boxEnd.y);
-        dx = Math.max(axLeft - minX, Math.min(axRight - maxX, dx));
-        dy = Math.max(axTop - minY, Math.min(axBottom - maxY, dy));
-        ix.boxStart = { x: ix.boxStart.x + dx, y: ix.boxStart.y + dy };
-        ix.boxEnd = { x: ix.boxEnd.x + dx, y: ix.boxEnd.y + dy };
-        this.#scheduleRedraw();
-        if (!s.debounce) {
-          this.#emitBoxSelection(ix.boxStart, ix.boxEnd);
-        }
-      } else if (ix.lassoPoints.length >= 3) {
-        // Clamp delta so the entire lasso stays in bounds
-        let lMinX = Number.POSITIVE_INFINITY;
-        let lMaxX = Number.NEGATIVE_INFINITY;
-        let lMinY = Number.POSITIVE_INFINITY;
-        let lMaxY = Number.NEGATIVE_INFINITY;
-        for (const lp of ix.lassoPoints) {
-          if (lp.x < lMinX) {
-            lMinX = lp.x;
-          }
-          if (lp.x > lMaxX) {
-            lMaxX = lp.x;
-          }
-          if (lp.y < lMinY) {
-            lMinY = lp.y;
-          }
-          if (lp.y > lMaxY) {
-            lMaxY = lp.y;
-          }
-        }
-        dx = Math.max(axLeft - lMinX, Math.min(axRight - lMaxX, dx));
-        dy = Math.max(axTop - lMinY, Math.min(axBottom - lMaxY, dy));
-        for (let i = 0; i < ix.lassoPoints.length; i++) {
-          ix.lassoPoints[i] = {
-            x: ix.lassoPoints[i].x + dx,
-            y: ix.lassoPoints[i].y + dy,
-          };
-        }
-        this.#scheduleRedraw();
-        if (!s.debounce) {
-          this.#emitLassoSelection(ix.lassoPoints);
-        }
+    // Box drawing: update end point
+    if (ix.type === "box" && ix.action.type === "drawing") {
+      const clamped = clampToAxes(pt, s);
+      ix.end = clamped;
+      this.#scheduleRedraw();
+      if (!s.debounce) {
+        this.#emitBoxSelection(ix.start, clamped);
       }
       return;
     }
 
-    if (ix.mode === "drawing") {
-      const clamped = clampToAxes(pt, this.#state);
-      ix.boxEnd = clamped;
+    // Box resizing: recompute box from anchor + clamped mouse
+    if (ix.type === "box" && ix.action.type === "resizing") {
+      const clamped = clampToAxes(pt, s);
+      const { anchor, lockX, lockY } = ix.action;
+      ix.start = anchor;
+      ix.end = { x: lockX ?? clamped.x, y: lockY ?? clamped.y };
       this.#scheduleRedraw();
       if (!s.debounce) {
-        this.#emitBoxSelection(ix.boxStart, clamped);
+        this.#emitBoxSelection(ix.start, ix.end);
+      }
+      return;
+    }
+
+    // Box dragging
+    if (ix.type === "box" && ix.action.type === "dragging") {
+      const [axLeft, axTop, axRight, axBottom] = s.axesPixelBounds;
+      let dx = pt.x - ix.action.origin.x;
+      let dy = pt.y - ix.action.origin.y;
+      ix.action.origin = pt;
+
+      const minX = Math.min(ix.start.x, ix.end.x);
+      const maxX = Math.max(ix.start.x, ix.end.x);
+      const minY = Math.min(ix.start.y, ix.end.y);
+      const maxY = Math.max(ix.start.y, ix.end.y);
+      dx = Math.max(axLeft - minX, Math.min(axRight - maxX, dx));
+      dy = Math.max(axTop - minY, Math.min(axBottom - maxY, dy));
+      ix.start = { x: ix.start.x + dx, y: ix.start.y + dy };
+      ix.end = { x: ix.end.x + dx, y: ix.end.y + dy };
+      this.#scheduleRedraw();
+      if (!s.debounce) {
+        this.#emitBoxSelection(ix.start, ix.end);
+      }
+      return;
+    }
+
+    // Lasso dragging
+    if (ix.type === "lasso" && ix.action.type === "dragging") {
+      const [axLeft, axTop, axRight, axBottom] = s.axesPixelBounds;
+      let dx = pt.x - ix.action.origin.x;
+      let dy = pt.y - ix.action.origin.y;
+      ix.action.origin = pt;
+
+      let lMinX = Number.POSITIVE_INFINITY;
+      let lMaxX = Number.NEGATIVE_INFINITY;
+      let lMinY = Number.POSITIVE_INFINITY;
+      let lMaxY = Number.NEGATIVE_INFINITY;
+      for (const lp of ix.points) {
+        if (lp.x < lMinX) {
+          lMinX = lp.x;
+        }
+        if (lp.x > lMaxX) {
+          lMaxX = lp.x;
+        }
+        if (lp.y < lMinY) {
+          lMinY = lp.y;
+        }
+        if (lp.y > lMaxY) {
+          lMaxY = lp.y;
+        }
+      }
+      dx = Math.max(axLeft - lMinX, Math.min(axRight - lMaxX, dx));
+      dy = Math.max(axTop - lMinY, Math.min(axBottom - lMaxY, dy));
+      for (let i = 0; i < ix.points.length; i++) {
+        ix.points[i] = {
+          x: ix.points[i].x + dx,
+          y: ix.points[i].y + dy,
+        };
+      }
+      this.#scheduleRedraw();
+      if (!s.debounce) {
+        this.#emitLassoSelection(ix.points);
       }
     }
   };
@@ -568,36 +724,33 @@ export class MatplotlibRenderer {
     const ix = this.#interaction;
     const s = this.#state;
 
-    if (ix.mode === "lassoing") {
-      ix.mode = "idle";
-      if (ix.lassoPoints.length >= 3) {
-        this.#emitLassoSelection(ix.lassoPoints);
+    // Lasso drawing complete
+    if (ix.type === "lasso" && ix.action?.type === "drawing") {
+      if (ix.points.length >= 3) {
+        ix.action = null;
+        this.#emitLassoSelection(ix.points);
       } else {
-        // Degenerate lasso, clear
-        ix.lassoPoints = [];
+        this.#interaction = { type: "idle" };
         this.#state.setValue({ has_selection: false });
       }
       this.#scheduleRedraw();
       return;
     }
 
-    if (ix.mode === "dragging") {
-      ix.mode = "idle";
-      ix.dragStart = null;
+    // Lasso dragging complete
+    if (ix.type === "lasso" && ix.action?.type === "dragging") {
+      ix.action = null;
       if (s.debounce) {
-        if (ix.boxStart && ix.boxEnd) {
-          this.#emitBoxSelection(ix.boxStart, ix.boxEnd);
-        } else if (ix.lassoPoints.length >= 3) {
-          this.#emitLassoSelection(ix.lassoPoints);
-        }
+        this.#emitLassoSelection(ix.points);
       }
       return;
     }
 
-    if (ix.mode === "drawing") {
-      ix.mode = "idle";
+    // Box action complete (drawing, dragging, or resizing)
+    if (ix.type === "box" && ix.action !== null) {
+      ix.action = null;
       if (s.debounce) {
-        this.#emitBoxSelection(ix.boxStart, ix.boxEnd);
+        this.#emitBoxSelection(ix.start, ix.end);
       }
     }
   };
@@ -605,13 +758,16 @@ export class MatplotlibRenderer {
   #handleKeyDown = (e: KeyboardEvent): void => {
     if (e.key === "Escape") {
       const ix = this.#interaction;
-      if (ix.mode === "drawing" || ix.mode === "lassoing") {
-        ix.mode = "idle";
-        ix.boxStart = null;
-        ix.boxEnd = null;
-        ix.lassoPoints = [];
+      if (ix.type === "idle") {
+        return;
+      }
+
+      // During initial drawing -> cancel without emitting
+      if (ix.action?.type === "drawing") {
+        this.#interaction = { type: "idle" };
         this.#scheduleRedraw();
-      } else if (this.#hasSelection()) {
+      } else {
+        // Completed selection, dragging, or resizing -> clear
         this.#clearSelection();
       }
     }
