@@ -36,12 +36,13 @@ export function storageUrl(
   protocol: string,
   rootPath: string,
   entryPath: string,
-): string {
+): URL {
   const parts = [rootPath, entryPath].filter(Boolean);
   const path = parts.join("/").replaceAll(/\/+/g, "/");
-  return `${protocol}://${path}`;
+  return new URL(`${protocol}://${path}`);
 }
 
+export const ROOT_PATH = "";
 export const DEFAULT_FETCH_LIMIT = 150;
 
 /** Non-exhaustive list of known storage protocols */
