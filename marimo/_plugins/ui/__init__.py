@@ -79,7 +79,6 @@ from marimo._plugins.ui._impl.input import (
     text_area,
 )
 from marimo._plugins.ui._impl.matrix import matrix
-from marimo._plugins.ui._impl.vector import vector
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
@@ -87,3 +86,4 @@ from marimo._plugins.ui._impl.run_button import run_button
 from marimo._plugins.ui._impl.switch import switch
 from marimo._plugins.ui._impl.table import table
 from marimo._plugins.ui._impl.tabs import tabs
+from marimo._plugins.ui._impl.vector import vector
