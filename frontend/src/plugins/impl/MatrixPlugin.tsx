@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useCallback, useEffect, useRef, useState } from "react";
+import { type JSX, useCallback, useRef, useState } from "react";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
 import type { IPlugin, IPluginProps, Setter } from "../types";
@@ -86,13 +86,11 @@ const MatrixComponent = ({
     col: number;
   } | null>(null);
 
-  // Local display value – always tracks the latest visual state.
-  // When debounce is true we update this locally during drag and only
-  // call setValue on pointer-up.
-  const [internalValue, setInternalValue] = useState(value);
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
+  // Draft holds local edits during an active drag/interaction.
+  // Outside of a drag we always read from the prop `value` directly,
+  // which avoids stale-state bugs when the matrix shape changes.
+  const [draft, setDraft] = useState(value);
+  const displayValue = activeCell != null ? draft : value;
 
   const formatValue = (val: number) =>
     scientific ? val.toExponential(precision) : val.toFixed(precision);
@@ -122,11 +120,11 @@ const MatrixComponent = ({
         row,
         col,
         startX: e.clientX,
-        startValue: internalValue[row][col],
+        startValue: displayValue[row][col],
       };
       setActiveCell({ row, col });
     },
-    [disabled, internalValue],
+    [disabled, displayValue],
   );
 
   const handlePointerMove = useCallback(
@@ -142,28 +140,28 @@ const MatrixComponent = ({
       const rawValue = startValue + steps * cellStep;
       const newValue = clampValue(rawValue, row, col);
 
-      if (newValue !== internalValue[row][col]) {
-        const copy = internalValue.map((r) => [...r]);
+      if (newValue !== displayValue[row][col]) {
+        const copy = displayValue.map((r) => [...r]);
         copy[row][col] = newValue;
         if (symmetric && row !== col) {
           copy[col][row] = newValue;
         }
-        setInternalValue(copy);
+        setDraft(copy);
         if (!debounce) {
           setValue(copy);
         }
       }
     },
-    [step, clampValue, internalValue, symmetric, debounce, setValue],
+    [step, clampValue, displayValue, symmetric, debounce, setValue],
   );
 
   const handlePointerUp = useCallback(() => {
     if (debounce && dragState.current) {
-      setValue(internalValue);
+      setValue(displayValue);
     }
     dragState.current = null;
     setActiveCell(null);
-  }, [debounce, internalValue, setValue]);
+  }, [debounce, displayValue, setValue]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, row: number, col: number) => {
@@ -174,27 +172,27 @@ const MatrixComponent = ({
         e.preventDefault();
         const cellStep = step[row][col];
         const delta = e.key === "ArrowUp" ? cellStep : -cellStep;
-        const newValue = clampValue(internalValue[row][col] + delta, row, col);
+        const newValue = clampValue(displayValue[row][col] + delta, row, col);
 
-        if (newValue !== internalValue[row][col]) {
-          const copy = internalValue.map((r) => [...r]);
+        if (newValue !== displayValue[row][col]) {
+          const copy = displayValue.map((r) => [...r]);
           copy[row][col] = newValue;
           if (symmetric && row !== col) {
             copy[col][row] = newValue;
           }
-          setInternalValue(copy);
+          setDraft(copy);
           setValue(copy);
         }
       }
     },
-    [disabled, step, internalValue, clampValue, symmetric, setValue],
+    [disabled, step, displayValue, clampValue, symmetric, setValue],
   );
 
   const hasRowLabels = rowLabels != null && rowLabels.length > 0;
   const hasColumnLabels = columnLabels != null && columnLabels.length > 0;
 
-  const numRows = internalValue.length;
-  const numCols = internalValue[0]?.length ?? 0;
+  const numRows = displayValue.length;
+  const numCols = displayValue[0]?.length ?? 0;
 
   return (
     <Labeled label={label} align="top" className="items-center">
@@ -226,7 +224,7 @@ const MatrixComponent = ({
             </thead>
           )}
           <tbody>
-            {internalValue.map((row, i) => (
+            {displayValue.map((row, i) => (
               <tr key={i}>
                 {hasRowLabels && (
                   <th className="text-right text-sm font-medium text-foreground pr-3 h-8">
