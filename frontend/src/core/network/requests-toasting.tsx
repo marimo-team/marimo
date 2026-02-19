@@ -75,6 +75,8 @@ export function createErrorToastingRequests(
     invokeAiTool: "Failed to invoke AI tool",
     clearCache: "Failed to clear cache",
     getCacheInfo: "", // No toast
+    listStorageEntries: "Failed to list storage entries",
+    downloadStorage: "Failed to download storage entry",
   };
 
   const handlers = {} as EditRequests & RunRequests;

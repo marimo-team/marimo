@@ -575,7 +575,6 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 cache_panel = true
-storage_inspector = true
 
 [tool.marimo.display]
 dataframes = "rich"
