@@ -180,3 +180,39 @@ def test_playwright_chromium_setup_commands() -> None:
         assert get_playwright_chromium_setup_commands() == [
             "python -m playwright install chromium"
         ]
+
+
+def test_install_commands_quotes_extras_on_posix() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="uv",
+        ),
+        patch(
+            "marimo._cli.install_hints._is_uv_project_context",
+            return_value=True,
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=False),
+    ):
+        assert get_install_commands(["marimo[sandbox]", "pyzmq"]) == [
+            "uv add 'marimo[sandbox]' pyzmq",
+            "python -m pip install 'marimo[sandbox]' pyzmq",
+        ]
+
+
+def test_install_commands_does_not_quote_extras_on_windows() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="uv",
+        ),
+        patch(
+            "marimo._cli.install_hints._is_uv_project_context",
+            return_value=True,
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=True),
+    ):
+        assert get_install_commands(["marimo[sandbox]", "pyzmq"]) == [
+            "uv add marimo[sandbox] pyzmq",
+            "python -m pip install marimo[sandbox] pyzmq",
+        ]

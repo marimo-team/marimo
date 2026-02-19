@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Final
 
 from marimo._config.packages import PackageManagerKind, infer_package_manager
+from marimo._utils.platform import is_windows
 
 
 @dataclass(frozen=True)
@@ -59,8 +60,23 @@ def _is_uv_project_context() -> bool:
 
 def _normalize_packages(packages: str | list[str] | tuple[str, ...]) -> str:
     if isinstance(packages, str):
-        return packages.strip()
-    return " ".join(package.strip() for package in packages if package.strip())
+        package_tokens = packages.split()
+    else:
+        package_tokens = [
+            package.strip() for package in packages if package.strip()
+        ]
+    return " ".join(
+        _quote_package_token(package) for package in package_tokens
+    )
+
+
+def _quote_package_token(package: str) -> str:
+    if "[" not in package and "]" not in package:
+        return package
+    if is_windows():
+        return package
+    escaped = package.replace("'", "'\"'\"'")
+    return f"'{escaped}'"
 
 
 def _normalize_command(command: str) -> str:
