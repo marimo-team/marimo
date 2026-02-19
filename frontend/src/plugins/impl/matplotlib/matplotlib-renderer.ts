@@ -427,7 +427,7 @@ export class MatplotlibRenderer {
       ctx.save();
       ctx.fillStyle = s.selectionColor;
       ctx.globalAlpha = s.selectionOpacity;
-      ctx.fill();
+      ctx.fill("evenodd");
       ctx.restore();
 
       ctx.strokeStyle = s.selectionColor;
