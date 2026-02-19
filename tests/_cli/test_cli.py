@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 HAS_UV = DependencyManager.which("uv")
+HAS_ZMQ = DependencyManager.zmq.has()
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -746,7 +747,10 @@ def test_cli_run_directory_gallery() -> None:
     _check_contents(p, b'"mode": "gallery"', contents)
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_run_directory_gallery_with_sandbox() -> None:
     """Test that gallery mode works with --sandbox flag."""
     directory = tempfile.TemporaryDirectory()
@@ -829,7 +833,10 @@ def test_cli_run_multiple_files_gallery() -> None:
     _check_contents(p, b'"mode": "gallery"', contents)
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
     """Test that individual notebooks can be opened from gallery in sandbox mode."""
     directory = tempfile.TemporaryDirectory()
@@ -859,7 +866,10 @@ def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
         p.kill()
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_run_multiple_files_gallery_sandbox() -> None:
     """Test gallery mode with multiple explicit files and --sandbox."""
     directory = tempfile.TemporaryDirectory()
@@ -1082,7 +1092,10 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"edit", contents)
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_edit_sandbox_multi_notebook() -> None:
     # With IPC-based kernel, sandbox now works with multi-notebook servers
     port = _get_port()
@@ -1108,7 +1121,10 @@ def test_cli_edit_sandbox_multi_notebook() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_edit_directory_sandbox() -> None:
     # With IPC-based kernel, sandbox now works with directories
     port = _get_port()
@@ -1449,7 +1465,10 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
 
 
 # Test sandbox with config for vscode compatibility
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
     # Create a custom pyproject.toml with special marimo config
     pyproject_path = tmp_path / "pyproject.toml"

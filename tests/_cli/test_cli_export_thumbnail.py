@@ -153,7 +153,7 @@ def test_thumbnail_sandbox_requires_execute(tmp_path: Path) -> None:
     )
 
     assert result.exit_code != 0
-    assert "--sandbox requires --execute." in result.output
+    assert "--sandbox requires --execute" in result.output
 
 
 def test_thumbnail_reentry_single_skips_bootstrap(
