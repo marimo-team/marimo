@@ -82,6 +82,97 @@ def _to_nested_list(
     return _broadcast("value", value, len(value), len(first))
 
 
+def _validate_and_build_args(
+    data: list[list[Numeric]],
+    *,
+    min_val: list[list[Numeric]] | None,
+    max_val: list[list[Numeric]] | None,
+    step_val: list[list[Any]],
+    disabled_val: list[list[Any]],
+    symmetric: bool,
+    scientific: bool,
+    precision: int,
+    row_labels: list[str] | None,
+    column_labels: list[str] | None,
+    debounce: bool,
+) -> dict[str, Any]:
+    """Validate matrix parameters and return the args dict for UIElement."""
+    rows = len(data)
+    cols = len(data[0])
+
+    # Validate per-cell constraints in a single pass
+    for i in range(rows):
+        for j in range(cols):
+            if step_val[i][j] <= 0:
+                raise ValueError(
+                    f"`step` must be positive, got {step_val[i][j]} "
+                    f"at position [{i}][{j}]"
+                )
+            if min_val is not None and max_val is not None:
+                if min_val[i][j] >= max_val[i][j]:
+                    raise ValueError(
+                        f"`min_value` ({min_val[i][j]}) must be less "
+                        f"than `max_value` ({max_val[i][j]}) at "
+                        f"position [{i}][{j}]"
+                    )
+            if min_val is not None and data[i][j] < min_val[i][j]:
+                raise ValueError(
+                    f"Initial value {data[i][j]} at [{i}][{j}] is "
+                    f"less than min_value {min_val[i][j]}"
+                )
+            if max_val is not None and data[i][j] > max_val[i][j]:
+                raise ValueError(
+                    f"Initial value {data[i][j]} at [{i}][{j}] is "
+                    f"greater than max_value {max_val[i][j]}"
+                )
+
+    # Validate label lengths
+    if row_labels is not None and len(row_labels) != rows:
+        raise ValueError(
+            f"`row_labels` has {len(row_labels)} entries "
+            f"but matrix has {rows} rows"
+        )
+    if column_labels is not None and len(column_labels) != cols:
+        raise ValueError(
+            f"`column_labels` has {len(column_labels)} entries "
+            f"but matrix has {cols} columns"
+        )
+
+    # Validate symmetric requires square matrix with symmetric data
+    if symmetric:
+        if rows != cols:
+            raise ValueError(
+                f"`symmetric` requires a square matrix, "
+                f"but got {rows}x{cols}"
+            )
+        for i in range(rows):
+            for j in range(i + 1, cols):
+                if data[i][j] != data[j][i]:
+                    raise ValueError(
+                        f"`symmetric` is True but initial data is not "
+                        f"symmetric: value[{i}][{j}]={data[i][j]} != "
+                        f"value[{j}][{i}]={data[j][i]}"
+                    )
+
+    if not isinstance(precision, int) or precision < 0:
+        raise ValueError(
+            f"`precision` must be a non-negative integer, got {precision}"
+        )
+
+    return {
+        "min-value": min_val,
+        "max-value": max_val,
+        "step": step_val,
+        "precision": precision,
+        "row-labels": row_labels,
+        "column-labels": column_labels,
+        "symmetric": symmetric,
+        "debounce": debounce,
+        "scientific": scientific,
+        "disabled": disabled_val,
+    }
+
+
 @mddoc
 class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
     """An interactive matrix editor.
@@ -221,81 +312,25 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         step_val = _broadcast("step", step, rows, cols)
         disabled_val = _broadcast("disabled", disabled, rows, cols)
 
-        # Validate per-cell constraints in a single pass
-        for i in range(rows):
-            for j in range(cols):
-                if step_val[i][j] <= 0:
-                    raise ValueError(
-                        f"`step` must be positive, got {step_val[i][j]} "
-                        f"at position [{i}][{j}]"
-                    )
-                if min_val is not None and max_val is not None:
-                    if min_val[i][j] >= max_val[i][j]:
-                        raise ValueError(
-                            f"`min_value` ({min_val[i][j]}) must be less "
-                            f"than `max_value` ({max_val[i][j]}) at "
-                            f"position [{i}][{j}]"
-                        )
-                if min_val is not None and data[i][j] < min_val[i][j]:
-                    raise ValueError(
-                        f"Initial value {data[i][j]} at [{i}][{j}] is "
-                        f"less than min_value {min_val[i][j]}"
-                    )
-                if max_val is not None and data[i][j] > max_val[i][j]:
-                    raise ValueError(
-                        f"Initial value {data[i][j]} at [{i}][{j}] is "
-                        f"greater than max_value {max_val[i][j]}"
-                    )
-
-        # Validate label lengths
-        if row_labels is not None and len(row_labels) != rows:
-            raise ValueError(
-                f"`row_labels` has {len(row_labels)} entries "
-                f"but matrix has {rows} rows"
-            )
-        if column_labels is not None and len(column_labels) != cols:
-            raise ValueError(
-                f"`column_labels` has {len(column_labels)} entries "
-                f"but matrix has {cols} columns"
-            )
-
-        # Validate symmetric requires square matrix with symmetric data
-        if symmetric:
-            if rows != cols:
-                raise ValueError(
-                    f"`symmetric` requires a square matrix, "
-                    f"but got {rows}x{cols}"
-                )
-            for i in range(rows):
-                for j in range(i + 1, cols):
-                    if data[i][j] != data[j][i]:
-                        raise ValueError(
-                            f"`symmetric` is True but initial data is not "
-                            f"symmetric: value[{i}][{j}]={data[i][j]} != "
-                            f"value[{j}][{i}]={data[j][i]}"
-                        )
-
-        if not isinstance(precision, int) or precision < 0:
-            raise ValueError(
-                f"`precision` must be a non-negative integer, got {precision}"
-            )
+        args = _validate_and_build_args(
+            data,
+            min_val=min_val,
+            max_val=max_val,
+            step_val=step_val,
+            disabled_val=disabled_val,
+            symmetric=symmetric,
+            scientific=scientific,
+            precision=precision,
+            row_labels=row_labels,
+            column_labels=column_labels,
+            debounce=debounce,
+        )
 
         super().__init__(
             component_name=matrix._name,
             initial_value=data,
             label=label,
-            args={
-                "min-value": min_val,
-                "max-value": max_val,
-                "step": step_val,
-                "precision": precision,
-                "row-labels": row_labels,
-                "column-labels": column_labels,
-                "symmetric": symmetric,
-                "debounce": debounce,
-                "scientific": scientific,
-                "disabled": disabled_val,
-            },
+            args=args,
             on_change=on_change,
         )
 
