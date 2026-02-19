@@ -333,8 +333,6 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
             downstream computations. Defaults to False.
         label (str, optional): Markdown/LaTeX label for the element.
             Defaults to "".
-        on_change (Callable | None, optional): Optional callback to run
-            when this element's value changes.
     """
 
     _name: Final[str] = "marimo-matrix"
@@ -354,7 +352,6 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         column_labels: list[str] | None = None,
         debounce: bool = False,
         label: str = "",
-        on_change: Callable[[list[list[Numeric]]], None] | None = None,
     ) -> None:
         # Convert and validate value
         data = _to_nested_list(value)
@@ -394,7 +391,7 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
             initial_value=data,
             label=label,
             args=args,
-            on_change=on_change,
+            on_change=None,
         )
 
     def _convert_value(

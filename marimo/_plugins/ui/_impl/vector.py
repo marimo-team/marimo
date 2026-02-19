@@ -172,8 +172,6 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
         debounce (bool, optional): If True, value updates are only
             sent on pointer release. Defaults to False.
         label (str, optional): Markdown/LaTeX label. Defaults to "".
-        on_change (Callable | None, optional): Optional callback to
-            run when this element's value changes.
     """
 
     _name: Final[str] = "marimo-matrix"
@@ -192,7 +190,6 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
         precision: int | None = None,
         debounce: bool = False,
         label: str = "",
-        on_change: Callable[[list[Numeric]], None] | None = None,
     ) -> None:
         flat = _to_flat_list(value)
 
@@ -252,7 +249,7 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
             initial_value=data,
             label=label,
             args=args,
-            on_change=on_change,
+            on_change=None,
         )
 
     def _convert_value(self, value: list[list[Numeric]]) -> list[Numeric]:
