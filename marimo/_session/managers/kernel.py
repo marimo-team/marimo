@@ -113,6 +113,13 @@ class KernelManagerImpl(KernelManager):
             # formatters ...)
             register_formatters(theme=self.config_manager.theme)
 
+            if self.redirect_console_to_browser:
+                from marimo._messaging.thread_local_streams import (
+                    install_thread_local_proxies,
+                )
+
+                install_thread_local_proxies()
+
             assert self.queue_manager.stream_queue is not None
             # Make threads daemons so killing the server immediately brings
             # down all client sessions

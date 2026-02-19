@@ -167,6 +167,22 @@ def _forward_os_stream(
         ...
 
 
+class _NoOpWatcher:
+    """A dummy watcher that does nothing, used when fd redirection is off."""
+
+    def start(self) -> None:
+        pass
+
+    def pause(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+
+_NOOP_WATCHER = _NoOpWatcher()
+
+
 class Watcher:
     """Watches and redirects a standard stream."""
 
@@ -213,10 +229,14 @@ class ThreadSafeStdout(Stdout):
     errors = sys.stdout.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream):
+    def __init__(
+        self, stream: ThreadSafeStream, forward_os_streams: bool = True
+    ):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
-        self._watcher = Watcher(self)
+        self._watcher: Watcher | _NoOpWatcher = (
+            Watcher(self) if forward_os_streams else _NOOP_WATCHER
+        )
 
     def _stop(self) -> None:
         self._watcher.stop()
@@ -279,10 +299,14 @@ class ThreadSafeStderr(Stderr):
     errors = sys.stderr.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream):
+    def __init__(
+        self, stream: ThreadSafeStream, forward_os_streams: bool = True
+    ):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
-        self._watcher = Watcher(self)
+        self._watcher: Watcher | _NoOpWatcher = (
+            Watcher(self) if forward_os_streams else _NOOP_WATCHER
+        )
 
     def _stop(self) -> None:
         self._watcher.stop()
@@ -415,13 +439,9 @@ class ThreadSafeStdin(Stdin):
 def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     """Redirect a standard stream to the frontend."""
     try:
-        if isinstance(standard_stream, ThreadSafeStdout) or isinstance(
-            standard_stream, ThreadSafeStderr
-        ):
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
             standard_stream._watcher.start()
         yield
     finally:
-        if isinstance(standard_stream, ThreadSafeStdout) or isinstance(
-            standard_stream, ThreadSafeStderr
-        ):
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
             standard_stream._watcher.pause()
