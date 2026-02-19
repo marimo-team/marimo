@@ -91,10 +91,17 @@ const FileExplorerPanel: React.FC = () => {
     [setState],
   );
 
-  // Set a max-height since both sections are not resizable at the moment
-  const storageMaxHeight = Math.round(panelHeight * 0.5);
-  // File tree height: panel height minus both trigger heights
-  const fileTreeHeight = Math.max(200, panelHeight - TRIGGER_HEIGHT * 2);
+  const availableContent = panelHeight - TRIGGER_HEIGHT * 2;
+  const storageIsOpen = openSections.includes("remote-storage");
+  const bothOpen = storageIsOpen && openSections.includes("files");
+
+  const storageMaxHeight = bothOpen
+    ? Math.round(availableContent * 0.4)
+    : availableContent;
+  const fileTreeHeight = Math.max(
+    200,
+    bothOpen ? availableContent - storageMaxHeight : availableContent,
+  );
 
   const storageInspectorEnabled = getFeatureFlag("storage_inspector");
   if (!storageInspectorEnabled) {
