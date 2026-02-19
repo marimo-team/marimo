@@ -232,3 +232,22 @@ def test_matrix_precision_explicit():
     """Explicit precision should override auto-inference."""
     m = ui.matrix([[1, 2]], precision=5)
     assert m._component_args["precision"] == 5
+
+
+def test_matrix_precision_scientific_small():
+    """Scientific notation: 1e-8 needs 0 mantissa places, not 8."""
+    m = ui.matrix([[1e-8]], scientific=True)
+    assert m._component_args["precision"] == 0
+
+
+def test_matrix_precision_scientific_mixed():
+    """Scientific notation: 0.00153 → 1.53e-3 → 2 mantissa places."""
+    m = ui.matrix([[0.00153, 1e-8]], scientific=True)
+    assert m._component_args["precision"] == 2
+
+
+def test_matrix_precision_scientific_step():
+    """Scientific notation: step mantissa drives precision."""
+    m = ui.matrix([[0]], step=2.5e-3, scientific=True)
+    # 2.5e-3 → mantissa 2.5 → 1 decimal place
+    assert m._component_args["precision"] == 1

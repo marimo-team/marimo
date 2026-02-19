@@ -83,7 +83,7 @@ def _to_nested_list(
 
 
 def _decimal_places(x: Numeric) -> int:
-    """Count meaningful decimal places in a number."""
+    """Count decimal places needed in fixed notation."""
     if isinstance(x, int) or x == int(x):
         return 0
     s = repr(x)
@@ -97,18 +97,47 @@ def _decimal_places(x: Numeric) -> int:
     return 0
 
 
+def _mantissa_decimal_places(x: Numeric) -> int:
+    """Count decimal places needed in the mantissa for scientific notation.
+
+    For example, `0.00153` → `1.53e-3` → 2 mantissa places,
+    while `1e-8` → `1e-8` → 0 mantissa places.
+    """
+    if isinstance(x, int):
+        # Strip trailing zeros: 1234000 → 1.234e6 → 3 places
+        if x == 0:
+            return 0
+        s = str(abs(x)).rstrip("0")
+        return max(0, len(s) - 1)
+    if x == 0.0:
+        return 0
+    # Format with enough mantissa digits, then strip trailing zeros
+    s = f"{x:.15e}"  # e.g. "1.530000000000000e-03"
+    mantissa = s.split("e")[0].rstrip("0").rstrip(".")
+    if "." in mantissa:
+        return len(mantissa.split(".")[1])
+    return 0
+
+
 def _infer_precision(
     data: list[list[Numeric]],
     step_val: list[list[Any]],
+    scientific: bool,
 ) -> int:
-    """Choose a display precision based on the data values and step sizes."""
+    """Choose a display precision based on the data values and step sizes.
+
+    When *scientific* is True, counts mantissa decimal places (e.g.
+    `0.00153` needs 2 for `1.53e-3`).  Otherwise counts total
+    decimal places in fixed notation (`0.00153` needs 5).
+    """
+    counter = _mantissa_decimal_places if scientific else _decimal_places
     best = 0
     for row in data:
         for v in row:
-            best = max(best, _decimal_places(v))
+            best = max(best, counter(v))
     for row in step_val:
         for v in row:
-            best = max(best, _decimal_places(v))
+            best = max(best, counter(v))
     return best
 
 
@@ -131,7 +160,7 @@ def _validate_and_build_args(
     cols = len(data[0])
 
     if precision is None:
-        precision = _infer_precision(data, step_val)
+        precision = _infer_precision(data, step_val, scientific)
 
     # Validate per-cell constraints in a single pass
     for i in range(rows):
@@ -217,18 +246,37 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
     symmetry enforcement.
 
     Examples:
-        ```python
-        # 2x2 identity matrix
-        mat = mo.ui.matrix([[1, 0], [0, 1]])
-        ```
+        Basic usage:
 
         ```python
-        # 3x3 zeros with bounds
+        mat = mo.ui.matrix([[1, 0], [0, 1]])
+        mat
+        ```
+
+        Access the value in another cell with
+
+        ```python
+        mat.value
+        ```
+
+        You can specify bounds and a step size as well:
+
+        ```python
         mat = mo.ui.matrix(
-            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0], [0, 1]],
             min_value=-10,
             max_value=10,
             step=0.5,
+        )
+        ```
+
+        To disable editing of some or all entries, use the disabled argument:
+
+        ```python
+        mat = mo.ui.matrix(
+            [[1, 0], [0, 1]],
+            # Disable editing the diagonal values
+            disabled=[[True, False], [False, True]]
         )
         ```
 
@@ -236,32 +284,14 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         arrays, interpreted elementwise.
 
         ```python
-        # Initialize from a numpy array
-        import numpy as np
-
-        mat = mo.ui.matrix(np.eye(3), step=0.1)
-        ```
-
-        ```python
-        # Per-element bounds and step using numpy arrays
-        import numpy as np
-
-        mat = mo.ui.matrix(
-            np.zeros((3, 3)),
-            min_value=np.full((3, 3), -10.0),
-            max_value=np.full((3, 3), 10.0),
-            step=np.full((3, 3), 0.5),
-        )
-        ```
-
-        ```python
         import numpy as np
 
         mat = mo.ui.matrix(np.eye(2))
+        mat
         ```
 
         ```
-        array = np.asarray(mat.value)
+        np.asarray(mat.value)
         ```
 
     Attributes:

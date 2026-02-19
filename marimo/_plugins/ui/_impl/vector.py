@@ -25,7 +25,7 @@ def _to_flat_list(
 ) -> list[Numeric]:
     """Validate and convert input to a flat list of numbers.
 
-    Accepts a flat list of numbers or a 1D array-like with ``.tolist()``.
+    Accepts a flat list of numbers or a 1D array-like with `.tolist()`.
     Rejects empty, non-1D, or nested inputs.
     """
     if hasattr(value, "tolist"):
@@ -55,8 +55,8 @@ def _1d_to_2d(
 ) -> Any:
     """Convert a 1D list param to 2D for matrix consumption.
 
-    Scalars pass through unchanged (they'll be broadcast by ``_broadcast``).
-    A 1D list becomes ``[[v] for v in param]`` (column) or ``[param]`` (row).
+    Scalars pass through unchanged (they'll be broadcast by `_broadcast`).
+    A 1D list becomes `[[v] for v in param]` (column) or `[param]` (row).
     """
     if hasattr(param, "tolist"):
         param = param.tolist()
@@ -83,33 +83,66 @@ def _1d_to_2d(
 class vector(UIElement[list[list[Numeric]], list[Numeric]]):
     """An interactive vector editor.
 
-    A convenience wrapper around ``mo.ui.matrix`` for 1D data. Each
-    entry is a drag-slider. By default the vector is displayed as a
-    column; pass ``transpose=True`` for a row layout.
+    A vector UI element in which each entry is a slider: click and drag
+    horizontally on an entry to increment or decrement its value. The
+    vector can be configured in many ways, including element-wise
+    bounds, element-wise steps, and an element-wise disable mask.
+
+    
+    By default the vector is displayed as a column; pass `transpose=True` for a
+    row vector.
 
     Examples:
+        Basic usage:
+
         ```python
         v = mo.ui.vector([1, 2, 3])
+        v
+        ```
+
+        Access the value in another cell with
+
+        ```python
+        v.value
+        ```
+
+        To create a row vector, use `transpose=True`
+
+        ```python
+        v = mo.ui.vector([1, 2, 3], tranpose=True)
+        ```
+
+        You can specify bounds and a step size as well:
+
+        ```python
+        v = mo.ui.vector([1, 2, 3], min_value=-10, max_value=10, step=0.5)
+        ```
+
+        To disable editing of some or all entries, use the disabled argument:
+
+        ```python
+        mat = mo.ui.matrix(
+            [1, 2, 3],
+            # Disable editing of the first entry
+            disabled=[True, False, False]
+        )
+        ```
+
+        The value, bounds, step, and disabled arguments can optionally be NumPy
+        arrays, interpreted elementwise.
+
+        ```python
+        v = mo.ui.vector(np.arange(3))
+        v
         ```
 
         ```python
-        v = mo.ui.vector([0, 0, 0], min_value=-10, max_value=10, step=0.5)
-        ```
-
-        ```python
-        # Row vector
-        v = mo.ui.vector([1, 2, 3], transpose=True)
-        ```
-
-        ```python
-        import numpy as np
-
-        v = mo.ui.vector(np.zeros(5), step=0.1)
+        np.asaray(v.value)
         ```
 
     Attributes:
         value (list[Numeric]): The current 1D vector as a flat list.
-            Use ``np.asarray(vector.value)`` to convert to a numpy array.
+            Use `np.asarray(vector.value)` to convert to a numpy array.
 
     Args:
         value (list[Numeric] | ArrayLike): Initial 1D vector data.

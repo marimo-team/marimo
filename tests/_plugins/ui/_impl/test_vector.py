@@ -118,6 +118,12 @@ def test_vector_precision_default_float_data():
     assert v._component_args["precision"] == 3
 
 
+def test_vector_precision_scientific():
+    """Scientific notation: 1e-8 needs 0 mantissa places, not 8."""
+    v = ui.vector([1e-8, 0.00153], scientific=True)
+    assert v._component_args["precision"] == 2
+
+
 def test_vector_label():
     v = ui.vector([1, 2], label="test label")
     assert v.value == [1, 2]
