@@ -9,11 +9,20 @@
 from __future__ import annotations
 
 import click
-from click.parser import _split_opt
 from click.utils import make_str
 
 from marimo._cli.print import bright_green, light_blue
 from marimo._cli.suggestions import suggest_commands, suggest_short_options
+
+
+def _split_option_token(token: str) -> tuple[str, str]:
+    """Split option-like tokens without depending on click's private parser."""
+    first = token[:1]
+    if first.isalnum():
+        return "", token
+    if token[1:2] == first:
+        return token[:2], token[2:]
+    return first, token[1:]
 
 
 def _collect_short_options(
@@ -109,7 +118,7 @@ class ColoredGroup(click.Group):
             cmd = self.get_command(ctx, cmd_name)
 
         if cmd is None and not ctx.resilient_parsing:
-            if _split_opt(cmd_name)[0]:
+            if _split_option_token(cmd_name)[0]:
                 self.parse_args(ctx, args)
 
             command_names: list[str] = []
