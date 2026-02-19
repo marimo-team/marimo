@@ -297,6 +297,92 @@ def test_cli_help_colored_output() -> None:
         print_module._style = original_style
 
 
+def test_cli_unknown_command_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["xport"])
+    assert result.exit_code == 2
+    assert "error: unrecognized command 'xport'" in result.output
+    assert "tip: a similar command exists: 'export'" in result.output
+    assert "Usage: main [OPTIONS] COMMAND [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Commands:" not in result.output
+
+
+def test_cli_nested_unknown_command_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["export", "hxml"])
+    assert result.exit_code == 2
+    assert "error: unrecognized command 'hxml'" in result.output
+    assert "tip: a similar command exists: 'html'" in result.output
+    assert "Usage: main export [OPTIONS] COMMAND [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Commands:" not in result.output
+
+
+def test_cli_long_option_typo_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["edit", "--hedlss"])
+    assert result.exit_code == 2
+    assert "error: unexpected argument '--hedlss' found" in result.output
+    assert "tip: some similar arguments exist:" in result.output
+    assert "'--headless'" in result.output
+    assert "Usage: main edit [OPTIONS] [NAME] [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Options:" not in result.output
+
+
+def test_cli_short_option_typo_suggests_case_variant() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["run", "-P", "notebook.py"])
+    assert result.exit_code == 2
+    assert "error: unexpected argument '-P' found" in result.output
+    assert "tip: a similar argument exists: '-p'" in result.output
+    assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
+
+
+def test_cli_short_option_typo_without_clear_match_has_no_tip() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["run", "-Z", "notebook.py"])
+    assert result.exit_code == 2
+    assert "error: unexpected argument '-Z' found" in result.output
+    assert "tip: a similar argument exists:" not in result.output
+    assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
+
+
+def test_cli_missing_argument_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["run"])
+    assert result.exit_code == 2
+    assert "error: missing argument 'NAME'" in result.output
+    assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Options:" not in result.output
+
+
 def test_cli_edit_none() -> None:
     # smoke test: makes sure CLI starts and has basic things we expect
     # helpful for catching issues related to
@@ -692,7 +778,7 @@ def test_cli_run_directory_gallery_rejects_check() -> None:
     output = result.stderr + result.stdout
     assert result.returncode != 0
     assert (
-        "--check is only supported when running a single notebook file."
+        "--check is only supported when running a single notebook file"
         in output
     )
 
@@ -1450,9 +1536,9 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
                 reason="win32 only",
             ),
         ),
-        # invalid shell values, rc of 0, data only on stderr
-        ("bogus", 2, False, True),
-        ("", 2, False, True),  # usage error displayed
+        # invalid shell values, rc of 1, data only on stderr
+        ("bogus", 1, False, True),
+        ("", 1, False, True),
     ],
 )
 def test_shell_completion(
@@ -1490,9 +1576,10 @@ def test_cli_run_docker_remote_url():
     )
 
     # Should fail with missing docker
+    stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
-    assert p.stdout is not None
-    assert "Docker is not installed" in p.stdout.read().decode()
+    output = stdout.decode() + stderr.decode()
+    assert "Docker is not installed" in output
 
 
 def test_cli_edit_trusted(temp_marimo_file: str) -> None:
@@ -1531,9 +1618,10 @@ def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
     )
 
     # Should fail with missing docker
+    stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
-    assert p.stdout is not None
-    assert "Docker is not installed" in p.stdout.read().decode()
+    output = stdout.decode() + stderr.decode()
+    assert "Docker is not installed" in output
 
 
 def test_cli_run_trusted(temp_marimo_file: str) -> None:
@@ -1571,9 +1659,10 @@ def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
     )
 
     # Should fail with missing docker
+    stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
-    assert p.stdout is not None
-    assert "Docker is not installed" in p.stdout.read().decode()
+    output = stdout.decode() + stderr.decode()
+    assert "Docker is not installed" in output
 
 
 def test_cli_edit_with_convert(

@@ -167,7 +167,7 @@ print('Hello from Markdown!')
             text=True,
         )
         assert p.returncode != 0
-        assert "File must be an .ipynb, .md, or .py file" in p.stderr
+        assert "file must be an .ipynb, .md, or .py file" in p.stderr
 
     @staticmethod
     def test_convert_remote_ipynb(http_server: MockHTTPServer) -> None:
@@ -255,7 +255,7 @@ print('Hello from Remote Markdown!')
             text=True,
         )
         assert p.returncode != 0
-        assert "File must be an .ipynb, .md, or .py file" in p.stderr
+        assert "file must be an .ipynb, .md, or .py file" in p.stderr
 
     @staticmethod
     def test_convert_nonexistent_remote_file(

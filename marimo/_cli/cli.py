@@ -21,10 +21,15 @@ from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup
 from marimo._cli.parse_args import parse_args
+from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
@@ -54,17 +59,7 @@ from marimo._version import __version__
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
-    if file is None:
-        file = click.get_text_stream("stderr")
-    color = None
-    click.echo(
-        red("Error") + f": {self.format_message()}\n",
-        file=file,
-        color=color,
-    )
-    if self.ctx is not None:
-        color = self.ctx.color
-        click.echo(self.ctx.get_help(), file=file, color=color)
+    show_compact_usage_error(self, file=file)
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -517,10 +512,9 @@ def edit(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.ClickException(
-                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
+                ["marimo[sandbox]", "pyzmq"],
             )
 
         # Enable script metadata management for sandboxed notebooks
@@ -533,16 +527,21 @@ def edit(
 
     shm_available, shm_error = check_shared_memory_available()
     if not shm_available:
-        _loggers.marimo_logger().error(
-            f"marimo failed to start: marimo edit requires shared memory support for multiprocessing.\n\n"
+        shm_mount_example = "--shm-size=256m or -v /dev/shm:/dev/shm"
+        docker_shm_line = " ".join(
+            [
+                "  - If running in Docker, ensure /dev/shm is mounted with sufficient size",
+                f"(e.g., {shm_mount_example})",
+            ]
+        )
+        raise MarimoCLIRuntimeError(
+            "marimo edit requires shared memory support for multiprocessing.\n\n"
             f"{shm_error}\n\n"
             "Possible solutions:\n"
-            "  - If running in Docker, ensure /dev/shm is mounted with sufficient size\n"
-            "    (e.g., --shm-size=256m or -v /dev/shm:/dev/shm)\n"
+            f"{docker_shm_line}\n"
             "  - If /dev/shm is full, clear unused shared memory segments\n"
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
-        sys.exit(1)
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -1117,10 +1116,9 @@ def run(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.ClickException(
-                "pyzmq is required when running a gallery with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running a gallery with --sandbox.",
+                ["marimo[sandbox]", "pyzmq"],
             )
 
     if is_multi:
@@ -1299,7 +1297,7 @@ def env() -> None:
 def shell_completion() -> None:
     shell = os.environ.get("SHELL", "")
     if not shell:
-        raise click.UsageError(
+        raise MarimoCLIRuntimeError(
             "Could not determine shell. Please set $SHELL environment variable.",
         )
 
@@ -1324,10 +1322,9 @@ def shell_completion() -> None:
 
     if shell_name not in commands:
         supported = ", ".join(commands.keys())
-        raise click.UsageError(
+        raise MarimoCLIRuntimeError(
             f"Unsupported shell: {shell_name} (from $SHELL). Supported shells: {supported}",
         )
-        return
 
     cmd, rc_file = commands[shell_name]
     click.secho("Run this command to enable completions:", fg="green")

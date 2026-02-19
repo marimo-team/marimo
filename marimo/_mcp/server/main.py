@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
+from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
 
@@ -35,10 +36,10 @@ def setup_mcp_server(app: Starlette) -> None:
         StreamableHTTPSessionManager: MCP session manager
     """
     if not DependencyManager.mcp.has():
-        from click import ClickException
-
-        msg = "MCP dependencies not available. Install with `pip install marimo[mcp]` or `uv add marimo[mcp]`"
-        raise ClickException(msg)
+        raise MarimoCLIMissingDependencyError(
+            "MCP dependencies not available.",
+            "marimo[mcp]",
+        )
 
     from mcp.server.fastmcp import FastMCP
     from starlette.middleware.base import BaseHTTPMiddleware
