@@ -7,10 +7,18 @@ from typing import Optional
 import click
 
 from marimo._cli.convert.utils import load_external_file
+from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import echo
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.converters import MarimoConvert
 from marimo._utils.paths import maybe_make_dirs
+
+
+def _build_rerun_command(filename: str, output: Path | None) -> str:
+    command = f"marimo convert {filename}"
+    if output is not None:
+        command = f"{command} -o {output}"
+    return command
 
 
 @click.argument("filename", required=True)
@@ -115,21 +123,21 @@ def convert(
                 e.__cause__
                 and getattr(e.__cause__, "name", None) == "jupytext"
             ):
-                from marimo._cli.print import green
-
-                raise click.ClickException(
-                    f"{e}\n\n"
-                    f"  {green('Tip:')} If you're using uv, run:\n\n"
-                    f"    uvx --with=jupytext marimo convert {filename}"
+                rerun_command = _build_rerun_command(filename, output)
+                raise MarimoCLIMissingDependencyError(
+                    str(e),
+                    "jupytext",
+                    followup_commands=rerun_command,
+                    followup_label="Then rerun:",
                 ) from e
             raise
 
     if output:
-        output_path = Path(output)
+        output_path = output
         if prompt_to_overwrite(output_path):
             # Make dirs if needed
-            maybe_make_dirs(output)
-            Path(output).write_text(notebook, encoding="utf-8")
+            maybe_make_dirs(output_path)
+            output_path.write_text(notebook, encoding="utf-8")
             echo(f"Converted notebook saved to {output}")
     else:
         echo(notebook)

@@ -9,6 +9,7 @@ from typing import Any, Callable, cast
 
 import marimo._utils.requests as requests
 from marimo import _loggers
+from marimo._cli.install_hints import get_upgrade_commands
 from marimo._cli.print import echo, green, orange
 from marimo._config.cli_state import (
     MarimoCLIState,
@@ -26,8 +27,11 @@ LOGGER = _loggers.marimo_logger()
 def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
     message = f"Update available {current_version} → {state.latest_version}"
     echo(orange(message))
-    install_cmd = "uv add" if _is_in_uv() else "pip install"
-    echo(f"Run {green(f'{install_cmd} --upgrade marimo')} to upgrade.")
+    upgrade_commands = get_upgrade_commands("marimo")
+    if upgrade_commands:
+        echo(f"Run {green(upgrade_commands[0])} to upgrade.")
+        if len(upgrade_commands) > 1:
+            echo(f"Or run {green(upgrade_commands[1])}.")
 
     if state.notices:
         echo()
@@ -36,15 +40,6 @@ def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
             echo(f"• {notice}")
 
     echo()
-
-
-def _is_in_uv() -> bool:
-    try:
-        import psutil
-    except Exception:
-        # No warning, since this is just used for cosmetics.
-        return False
-    return psutil.Process(os.getppid()).name() == "uv"
 
 
 @server_tracer.start_as_current_span("check_for_updates")
