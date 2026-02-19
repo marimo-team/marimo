@@ -131,6 +131,14 @@ enables exporting to PDF and other formats with Pandoc. See this [publishing](./
 
 ### Export PDF from the command line
 
+You can export directly with marimo:
+
+```bash
+marimo export pdf notebook.py -o notebook.pdf --no-include-inputs
+```
+
+The `--no-include-inputs` flag hides Python code cells while keeping markdown and cell outputs in the generated PDF.
+
 If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
 need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [TeX](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
