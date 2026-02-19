@@ -200,7 +200,7 @@ def _infer_precision(
     for row in step_val:
         for v in row:
             best = max(best, counter(v))
-    return best
+    return min(best, 8)
 
 
 def _validate_and_build_args(
