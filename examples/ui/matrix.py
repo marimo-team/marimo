@@ -35,7 +35,11 @@ def _(matrix):
 
 @app.cell
 def _(mo, np):
-    mo.hstack([mo.ui.matrix(np.ones(3)), mo.ui.matrix(np.ones((1, 3)))], justify="start")
+    mo.hstack(
+        [mo.ui.matrix(np.ones(3)), mo.ui.matrix(np.ones((1, 3)))],
+        justify="start",
+        gap=2,
+    )
     return
 
 
