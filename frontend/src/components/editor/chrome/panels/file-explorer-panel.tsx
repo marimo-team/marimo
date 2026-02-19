@@ -21,7 +21,7 @@ import {
   PanelBadge,
 } from "./components";
 
-type OpenSections = "files" | "external-storage";
+type OpenSections = "files" | "remote-storage";
 
 interface FileExplorerPanelState {
   openSections: OpenSections[];
@@ -69,17 +69,17 @@ const FileExplorerPanel: React.FC = () => {
   const [state, setState] = useAtom(fileExplorerPanelAtom);
 
   const storageNamespaces = useAtomValue(storageNamespacesAtom);
-  const externalStorageConnections = storageNamespaces.length;
+  const remoteStorageConnections = storageNamespaces.length;
 
   const openSections = useMemo<OpenSections[]>(() => {
-    if (!state.hasUserInteracted && externalStorageConnections > 0) {
-      if (state.openSections.includes("external-storage")) {
+    if (!state.hasUserInteracted && remoteStorageConnections > 0) {
+      if (state.openSections.includes("remote-storage")) {
         return state.openSections;
       }
-      return [...state.openSections, "external-storage"];
+      return [...state.openSections, "remote-storage"];
     }
     return state.openSections;
-  }, [state.hasUserInteracted, state.openSections, externalStorageConnections]);
+  }, [state.hasUserInteracted, state.openSections, remoteStorageConnections]);
 
   const handleValueChange = useCallback(
     (value: OpenSections[]) => {
@@ -112,11 +112,11 @@ const FileExplorerPanel: React.FC = () => {
         value={openSections}
         onValueChange={handleValueChange}
       >
-        <PanelAccordionItem value="external-storage">
+        <PanelAccordionItem value="remote-storage">
           <PanelAccordionTrigger>
-            <HardDrive className="w-4 h-4" /> Storage
-            {externalStorageConnections > 0 && (
-              <PanelBadge>{externalStorageConnections}</PanelBadge>
+            <HardDrive className="w-4 h-4" /> Remote storage
+            {remoteStorageConnections > 0 && (
+              <PanelBadge>{remoteStorageConnections}</PanelBadge>
             )}
           </PanelAccordionTrigger>
           <PanelAccordionContent

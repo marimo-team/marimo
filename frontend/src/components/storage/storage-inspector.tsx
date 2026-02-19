@@ -496,12 +496,7 @@ export const StorageInspector: React.FC = () => {
     return (
       <PanelEmptyState
         title="No storage connected"
-        description={
-          <span>
-            Create an <strong>Obstore</strong> or <strong>fsspec</strong>{" "}
-            connection in your notebook
-          </span>
-        }
+        description="Create an Obstore or fsspec connection in your notebook"
         icon={<HardDriveIcon className="h-8 w-8" />}
       />
     );
