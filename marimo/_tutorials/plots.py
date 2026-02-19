@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.19.11"
 app = marimo.App()
 
 
@@ -200,6 +200,35 @@ def _(exponent, mo, plot_power):
         {mo.as_html(plot_power(exponent.value))}
         """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ### Reactive selections with `mo.ui.matplotlib`
+
+    Wrap a matplotlib `Axes` in `mo.ui.matplotlib` to let users select
+    data with box selections (click-drag) or lasso selections
+    (shift-drag). Use `fig.value.get_mask(x, y)` to get a boolean mask
+    of the selected points.
+    """)
+    return
+
+
+@app.cell
+def _(mo, np, plt):
+    XY = np.random.randn(1000, 1000)
+    plt.scatter(XY[:, 0], XY[:, 1], s=1)
+    scatter_fig = mo.ui.matplotlib(plt.gca())
+    scatter_fig
+    return XY, scatter_fig
+
+
+@app.cell
+def _(XY, scatter_fig):
+    _mask = scatter_fig.value.get_mask(XY[:, 0], XY[:, 1])
+    XY[_mask]
     return
 
 

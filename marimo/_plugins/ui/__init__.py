@@ -25,6 +25,7 @@ __all__ = [
     "file_browser",
     "file",
     "form",
+    "matplotlib",
     "matrix",
     "microphone",
     "multiselect",
@@ -80,6 +81,7 @@ from marimo._plugins.ui._impl.input import (
 )
 from marimo._plugins.ui._impl.matrix import matrix
 from marimo._plugins.ui._impl.microphone import microphone
+from marimo._plugins.ui._impl.mpl import matplotlib
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.run_button import run_button

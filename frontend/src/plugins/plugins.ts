@@ -25,6 +25,7 @@ import { FormPlugin } from "./impl/FormPlugin";
 import { MatrixPlugin } from "./impl/MatrixPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { MultiselectPlugin } from "./impl/MultiselectPlugin";
+import { MatplotlibPlugin } from "./impl/matplotlib/MatplotlibPlugin";
 import { NumberPlugin } from "./impl/NumberPlugin";
 import { PanelPlugin } from "./impl/panel/PanelPlugin";
 import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
@@ -81,6 +82,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
+  new MatplotlibPlugin(),
   new PlotlyPlugin(),
   ChatPlugin,
   DataExplorerPlugin,

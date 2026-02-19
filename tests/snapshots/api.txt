@@ -104,6 +104,7 @@ ui
   file
   file_browser
   form
+  matplotlib
   matrix
   microphone
   multiselect
