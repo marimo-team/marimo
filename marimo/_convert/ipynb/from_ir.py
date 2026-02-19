@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import re
@@ -191,6 +192,10 @@ def _add_marimo_metadata(
 
 
 def _maybe_extract_dataurl(data: Any) -> Any:
+    if isinstance(data, str) and data.startswith("data:image/svg+xml;base64,"):
+        # Decode SVG from base64 to plain text XML
+        payload = data[len("data:image/svg+xml;base64,") :]
+        return base64.b64decode(payload).decode()
     if (
         isinstance(data, str)
         and data.startswith("data:")

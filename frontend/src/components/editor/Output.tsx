@@ -142,10 +142,17 @@ export const OutputRenderer: React.FC<{
     case "image/bmp":
     case "image/gif":
     case "image/jpeg":
+    case "image/svg+xml":
       invariant(
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
+      if (
+        mimetype === "image/svg+xml" &&
+        !data.startsWith("data:image/svg+xml;base64,")
+      ) {
+        return renderHTML({ html: data, alwaysSanitizeHtml: true });
+      }
       return (
         <ImageOutput
           className={channel}
@@ -155,12 +162,6 @@ export const OutputRenderer: React.FC<{
           height={metadata?.height}
         />
       );
-    case "image/svg+xml":
-      invariant(
-        typeof data === "string",
-        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
-      );
-      return renderHTML({ html: data, alwaysSanitizeHtml: true });
 
     case "video/mp4":
     case "video/mpeg":

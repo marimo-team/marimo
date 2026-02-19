@@ -243,3 +243,40 @@ async def test_matplotlib_backwards_compatibility(
         assert mime_type == "application/vnd.marimo+mimebundle"
         mimebundle = json.loads(data)
         assert "image/png" in mimebundle
+
+
+@pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
+async def test_matplotlib_svg_rendering(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that matplotlib figures are rendered in SVG format."""
+    from marimo._output.formatters.formatters import register_formatters
+
+    register_formatters(theme="light")
+
+    await executing_kernel.run(
+        [
+            exec_req.get(
+                """
+                import matplotlib.pyplot as plt
+
+                fmt = plt.rcParams["savefig.format"]
+                plt.rcParams["savefig.format"] = "svg"
+
+                # Create a simple figure
+                fig, ax = plt.subplots(figsize=(4, 3))
+                ax.plot([1, 2, 3], [1, 2, 3])
+                result = fig._mime_()
+
+                plt.rcParams["savefig.format"] = fmt
+                """
+            )
+        ]
+    )
+
+    # Get the formatted result from kernel globals
+    mime_type, data = executing_kernel.globals["result"]
+
+    assert mime_type == "image/svg+xml"
+    assert isinstance(data, str)
+    assert data.startswith("data:image/svg+xml;base64,PD94")

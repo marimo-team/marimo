@@ -88,6 +88,11 @@ def test_export_ipynb_sort_modes() -> None:
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA",
             "iVBORw0KGgoAAAANSUhEUgAAAAUA",
         ),
+        # SVG string from Base64 data URL
+        (
+            "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+            "<svg></svg>",
+        ),
         # Non-data-URL string passes through
         ("hello world", "hello world"),
         # Dict passes through
@@ -99,6 +104,7 @@ def test_export_ipynb_sort_modes() -> None:
     ],
     ids=[
         "base64_data_url",
+        "svg_string_from_base64_data_url",
         "regular_string",
         "dict_passthrough",
         "int_passthrough",
