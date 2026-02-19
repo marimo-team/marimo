@@ -6,8 +6,6 @@ from typing import (
     Any,
     Callable,
     Final,
-    TypeVar,
-    overload,
 )
 
 from marimo._output.rich_help import mddoc
@@ -19,9 +17,7 @@ from marimo._plugins.ui._impl.matrix import (
 )
 
 if TYPE_CHECKING:
-    from numpy.typing import ArrayLike, NDArray
-
-_V = TypeVar("_V")
+    from numpy.typing import ArrayLike
 
 
 def _to_flat_list(
@@ -84,7 +80,7 @@ def _1d_to_2d(
 
 
 @mddoc
-class vector(UIElement[list[list[Numeric]], _V]):
+class vector(UIElement[list[list[Numeric]], list[Numeric]]):
     """An interactive vector editor.
 
     A vector UI element in which each entry is a slider: click and drag
@@ -92,9 +88,7 @@ class vector(UIElement[list[list[Numeric]], _V]):
     vector can be configured in many ways, including element-wise
     bounds, element-wise steps, and an element-wise disable mask.
 
-    When constructed from a NumPy array, ``.value`` returns a NumPy array;
-    when constructed from a list, ``.value`` returns a flat list.
-
+    
     By default the vector is displayed as a column; pass `transpose=True` for a
     row vector.
 
@@ -115,7 +109,7 @@ class vector(UIElement[list[list[Numeric]], _V]):
         To create a row vector, use `transpose=True`
 
         ```python
-        v = mo.ui.vector([1, 2, 3], transpose=True)
+        v = mo.ui.vector([1, 2, 3], tranpose=True)
         ```
 
         You can specify bounds and a step size as well:
@@ -127,7 +121,7 @@ class vector(UIElement[list[list[Numeric]], _V]):
         To disable editing of some or all entries, use the disabled argument:
 
         ```python
-        v = mo.ui.vector(
+        mat = mo.ui.matrix(
             [1, 2, 3],
             # Disable editing of the first entry
             disabled=[True, False, False]
@@ -143,13 +137,12 @@ class vector(UIElement[list[list[Numeric]], _V]):
         ```
 
         ```python
-        v.value  # np.ndarray
+        np.asaray(v.value)
         ```
 
     Attributes:
-        value (list[Numeric] | np.ndarray): The current 1D vector.
-            Returns a NumPy array when constructed from a NumPy array,
-            otherwise a flat list.
+        value (list[Numeric]): The current 1D vector as a flat list.
+            Use `np.asarray(vector.value)` to convert to a numpy array.
 
     Args:
         value (list[Numeric] | ArrayLike): Initial 1D vector data.
@@ -185,42 +178,6 @@ class vector(UIElement[list[list[Numeric]], _V]):
 
     _name: Final[str] = "marimo-matrix"
 
-    @overload
-    def __init__(
-        self: vector[NDArray[Any]],
-        value: NDArray[Any],
-        *,
-        transpose: bool = False,
-        entry_labels: list[str] | None = None,
-        min_value: Numeric | list[Numeric] | ArrayLike | None = None,
-        max_value: Numeric | list[Numeric] | ArrayLike | None = None,
-        step: Numeric | list[Numeric] | ArrayLike = 1.0,
-        disabled: bool | list[bool] | ArrayLike = False,
-        scientific: bool = False,
-        precision: int | None = None,
-        debounce: bool = False,
-        label: str = "",
-        on_change: Callable[[NDArray[Any]], None] | None = None,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: vector[list[Numeric]],
-        value: list[Numeric],
-        *,
-        transpose: bool = False,
-        entry_labels: list[str] | None = None,
-        min_value: Numeric | list[Numeric] | ArrayLike | None = None,
-        max_value: Numeric | list[Numeric] | ArrayLike | None = None,
-        step: Numeric | list[Numeric] | ArrayLike = 1.0,
-        disabled: bool | list[bool] | ArrayLike = False,
-        scientific: bool = False,
-        precision: int | None = None,
-        debounce: bool = False,
-        label: str = "",
-        on_change: Callable[[list[Numeric]], None] | None = None,
-    ) -> None: ...
-
     def __init__(
         self,
         value: list[Numeric] | ArrayLike,
@@ -235,14 +192,11 @@ class vector(UIElement[list[list[Numeric]], _V]):
         precision: int | None = None,
         debounce: bool = False,
         label: str = "",
-        on_change: Callable[[Any], None] | None = None,
+        on_change: Callable[[list[Numeric]], None] | None = None,
     ) -> None:
-        # Track whether value was a numpy array for _convert_value
-        self._return_numpy = hasattr(value, "__array__")
-
         flat = _to_flat_list(value)
 
-        # Convert 1D value -> 2D for matrix plugin
+        # Convert 1D value → 2D for matrix plugin
         if transpose:
             data: list[list[Numeric]] = [flat]
         else:
@@ -251,7 +205,7 @@ class vector(UIElement[list[list[Numeric]], _V]):
         rows = len(data)
         cols = len(data[0])
 
-        # Convert 1D params -> 2D
+        # Convert 1D params → 2D
         min_2d = _1d_to_2d("min_value", min_value, transpose)
         max_2d = _1d_to_2d("max_value", max_value, transpose)
         step_2d = _1d_to_2d("step", step, transpose)
@@ -301,10 +255,7 @@ class vector(UIElement[list[list[Numeric]], _V]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: list[list[Numeric]]) -> _V:
-        flat = [cell for row in value for cell in row]
-        if self._return_numpy:
-            import numpy as np
-
-            return np.asarray(flat)  # type: ignore[return-value]
-        return flat  # type: ignore[return-value]
+    def _convert_value(
+        self, value: list[list[Numeric]]
+    ) -> list[Numeric]:
+        return [cell for row in value for cell in row]

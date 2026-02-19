@@ -6,19 +6,16 @@ from typing import (
     Any,
     Callable,
     Final,
-    TypeVar,
-    overload,
 )
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from numpy.typing import ArrayLike, NDArray
+    from numpy.typing import ArrayLike
 
 
 Numeric = int | float
-_T = TypeVar("_T")
 
 
 def _broadcast(
@@ -239,7 +236,7 @@ def _validate_and_build_args(
 
 
 @mddoc
-class matrix(UIElement[list[list[Numeric]], _T]):
+class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
     """An interactive matrix editor.
 
     A matrix UI element in which each entry is a slider: click and drag
@@ -247,9 +244,6 @@ class matrix(UIElement[list[list[Numeric]], _T]):
     matrix can be configured in many ways, including element-wise
     bounds, element-wise steps, an element-wise disable mask, and
     symmetry enforcement.
-
-    When constructed from a NumPy array, ``.value`` returns a NumPy array;
-    when constructed from a nested list, ``.value`` returns a nested list.
 
     Examples:
         Basic usage:
@@ -287,8 +281,7 @@ class matrix(UIElement[list[list[Numeric]], _T]):
         ```
 
         The value, bounds, step, and disabled arguments can optionally be NumPy
-        arrays, interpreted elementwise. When the initial value is a NumPy
-        array, the returned value is also an array.
+        arrays, interpreted elementwise.
 
         ```python
         import numpy as np
@@ -298,13 +291,12 @@ class matrix(UIElement[list[list[Numeric]], _T]):
         ```
 
         ```
-        mat.value  # np.ndarray
+        np.asarray(mat.value)
         ```
 
     Attributes:
-        value (list[list[Numeric]] | np.ndarray): The current 2D matrix.
-            Returns a NumPy array when constructed from a NumPy array,
-            otherwise a nested list.
+        value (list[list[Numeric]]): The current 2D matrix as a nested list.
+            Use `np.asarray(matrix.value)` to convert to a numpy array.
 
     Args:
         value (list[list[Numeric]] | ArrayLike): Initial 2D matrix data.
@@ -348,44 +340,6 @@ class matrix(UIElement[list[list[Numeric]], _T]):
 
     _name: Final[str] = "marimo-matrix"
 
-    @overload
-    def __init__(
-        self: matrix[NDArray[Any]],
-        value: NDArray[Any],
-        *,
-        min_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
-        max_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
-        step: Numeric | list[list[Numeric]] | ArrayLike = 1.0,
-        disabled: bool | list[list[bool]] | ArrayLike = False,
-        symmetric: bool = False,
-        scientific: bool = False,
-        precision: int | None = None,
-        row_labels: list[str] | None = None,
-        column_labels: list[str] | None = None,
-        debounce: bool = False,
-        label: str = "",
-        on_change: Callable[[NDArray[Any]], None] | None = None,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self: matrix[list[list[Numeric]]],
-        value: list[list[Numeric]],
-        *,
-        min_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
-        max_value: Numeric | list[list[Numeric]] | ArrayLike | None = None,
-        step: Numeric | list[list[Numeric]] | ArrayLike = 1.0,
-        disabled: bool | list[list[bool]] | ArrayLike = False,
-        symmetric: bool = False,
-        scientific: bool = False,
-        precision: int | None = None,
-        row_labels: list[str] | None = None,
-        column_labels: list[str] | None = None,
-        debounce: bool = False,
-        label: str = "",
-        on_change: Callable[[list[list[Numeric]]], None] | None = None,
-    ) -> None: ...
-
     def __init__(
         self,
         value: list[list[Numeric]] | ArrayLike,
@@ -401,11 +355,8 @@ class matrix(UIElement[list[list[Numeric]], _T]):
         column_labels: list[str] | None = None,
         debounce: bool = False,
         label: str = "",
-        on_change: Callable[[Any], None] | None = None,
+        on_change: Callable[[list[list[Numeric]]], None] | None = None,
     ) -> None:
-        # Track whether value was a numpy array for _convert_value
-        self._return_numpy = hasattr(value, "__array__")
-
         # Convert and validate value
         data = _to_nested_list(value)
         rows = len(data)
@@ -447,9 +398,7 @@ class matrix(UIElement[list[list[Numeric]], _T]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: list[list[Numeric]]) -> _T:
-        if self._return_numpy:
-            import numpy as np
-
-            return np.asarray(value)  # type: ignore[return-value]
-        return value  # type: ignore[return-value]
+    def _convert_value(
+        self, value: list[list[Numeric]]
+    ) -> list[list[Numeric]]:
+        return value
