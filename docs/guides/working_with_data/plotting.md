@@ -52,13 +52,13 @@ x = np.random.randn(500)
 y = np.random.randn(500)
 plt.scatter(x, y)
 # Wrap the Axes in mo.ui.matplotlib to make them reactive ⚡
-fig = mo.ui.matplotlib(plt.gca())
-fig
+ax = mo.ui.matplotlib(plt.gca())
+ax
 ```
 
 ```python
 # In another cell — filter your data using the selection
-mask = fig.value.get_mask(x, y)
+mask = ax.value.get_mask(x, y)
 selected_x, selected_y = x[mask], y[mask]
 ```
 
@@ -69,12 +69,12 @@ downstream computations or very large datasets, pass `debounce=True` so the
 value is only sent on mouse-up:
 
 ```python
-fig = mo.ui.matplotlib(plt.gca(), debounce=True)
+ax = mo.ui.matplotlib(plt.gca(), debounce=True)
 ```
 
 #### Selection types
 
-`fig.value` is one of three types:
+`ax.value` is one of three types:
 
 | Type | When | Attributes |
 |------|------|------------|
@@ -86,7 +86,7 @@ All three have a `get_mask(x, y)` method that returns a boolean NumPy array,
 so you can always write:
 
 ```python
-mask = fig.value.get_mask(x, y)
+mask = ax.value.get_mask(x, y)
 ```
 
 ### Altair

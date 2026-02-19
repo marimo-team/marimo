@@ -165,19 +165,19 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         x = np.arange(5)
         y = x**2
         plt.scatter(x=x, y=y)
-        fig = mo.ui.matplotlib(plt.gca())
-        fig
+        ax = mo.ui.matplotlib(plt.gca())
+        ax
         ```
 
         ```python
         # Filter data using the selection
-        mask = fig.value.get_mask(x, y)
+        mask = ax.value.get_mask(x, y)
         selected_x, selected_y = x[mask], y[mask]
         ```
 
         ```python
         # Check if anything is selected
-        if fig.value:
+        if ax.value:
             print("Data has been selected")
         ```
 
