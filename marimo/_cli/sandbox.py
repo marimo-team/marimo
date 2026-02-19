@@ -16,6 +16,7 @@ from typing import Literal, Optional
 import click
 
 from marimo import _loggers
+from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
@@ -424,7 +425,11 @@ def run_in_sandbox(
     """
     # If we fall back to the plain "uv" path, ensure it's actually on the system
     if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
-        raise click.UsageError("uv must be installed to use --sandbox")
+        raise MarimoCLIMissingDependencyError(
+            "uv must be installed to use --sandbox.",
+            "uv",
+            additional_tip="Install uv from https://github.com/astral-sh/uv",
+        )
 
     # Ensure marimo and python version are in the script metadata before running
     _ensure_marimo_in_script_metadata(name)
