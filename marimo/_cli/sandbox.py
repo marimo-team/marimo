@@ -411,6 +411,7 @@ def run_in_sandbox(
     name: Optional[str] = None,
     additional_features: Optional[list[DepFeatures]] = None,
     additional_deps: Optional[list[str]] = None,
+    extra_env: Optional[dict[str, str]] = None,
 ) -> int:
     """Run marimo in a sandboxed uv environment.
 
@@ -438,6 +439,8 @@ def run_in_sandbox(
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+    if extra_env:
+        env.update(extra_env)
 
     process = subprocess.Popen(uv_cmd, env=env)
 
