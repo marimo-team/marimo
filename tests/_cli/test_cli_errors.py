@@ -1,4 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
+# NB. test_cli_errors.py because test_errors.py name causes pycache errors
+# with pytest.
 from __future__ import annotations
 
 from pathlib import Path
