@@ -4,29 +4,10 @@ from __future__ import annotations
 from difflib import get_close_matches
 from typing import TYPE_CHECKING
 
+from marimo._utils.edit_distance import edit_distance
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-
-def levenshtein_distance(a: str, b: str) -> int:
-    """Compute Levenshtein distance between two strings."""
-    if a == b:
-        return 0
-    if not a:
-        return len(b)
-    if not b:
-        return len(a)
-
-    prev = list(range(len(b) + 1))
-    for i, left in enumerate(a, start=1):
-        curr = [i]
-        for j, right in enumerate(b, start=1):
-            if left == right:
-                curr.append(prev[j - 1])
-            else:
-                curr.append(1 + min(prev[j], curr[j - 1], prev[j - 1]))
-        prev = curr
-    return prev[-1]
 
 
 def _dedupe(items: Iterable[str]) -> list[str]:
@@ -61,7 +42,7 @@ def suggest_commands(token: str, candidates: Iterable[str]) -> list[str]:
 
     ranked = sorted(
         (
-            (levenshtein_distance(token_lower, key), value)
+            (edit_distance(token_lower, key), value)
             for key, value in lowered.items()
         ),
         key=lambda item: (item[0], item[1]),
@@ -98,7 +79,7 @@ def suggest_short_options(token: str, candidates: Iterable[str]) -> list[str]:
         return [exact[0]]
 
     ranked = sorted(
-        (levenshtein_distance(token, candidate), candidate)
+        (edit_distance(token, candidate), candidate)
         for candidate in short_candidates
     )
     best_distance = ranked[0][0]

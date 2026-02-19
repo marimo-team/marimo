@@ -1,16 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._cli.suggestions import (
-    levenshtein_distance,
-    suggest_commands,
-    suggest_short_options,
-)
-
-
-def test_levenshtein_distance() -> None:
-    assert levenshtein_distance("kitten", "sitting") == 3
-    assert levenshtein_distance("export", "export") == 0
+from marimo._cli.suggestions import suggest_commands, suggest_short_options
 
 
 def test_suggest_commands_close_match() -> None:
