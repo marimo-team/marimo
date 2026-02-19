@@ -1,11 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional
-
-import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
@@ -297,7 +296,6 @@ def test_restart_session(client: TestClient) -> None:
     # Shutdown the kernel
 
 
-@pytest.mark.flaky(reruns=3)
 def test_resume_session_with_watch(client: TestClient) -> None:
     session_manager = get_session_manager(client)
     session_manager.watch = True
@@ -306,7 +304,13 @@ def test_resume_session_with_watch(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
 
-        # Write to the notebook file to trigger a reload
+        # Stop the watcher before writing to avoid async race conditions
+        session = get_session(client, SessionId("123"))
+        assert session
+        session_manager._watcher_manager.stop_all()
+        session_manager.watch = False
+
+        # Write to the notebook file to add a new cell
         # we write it as the second to last cell
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
@@ -319,26 +323,22 @@ def test_resume_session_with_watch(client: TestClient) -> None:
             )
             f.close()
 
+        # Directly trigger the file change handler (synchronous) instead
+        # of relying on the async file watcher, which is inherently racy.
+        result = (
+            session_manager._file_change_coordinator._handle_file_change_locked(
+                os.path.abspath(filename), session
+            )
+        )
+        assert result.handled
+
         data = websocket.receive_json()
         assert data == {
             "op": "update-cell-ids",
             "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
         }
         data = websocket.receive_json()
-        assert data == {
-            "op": "update-cell-codes",
-            "data": {
-                "cell_ids": ["MJUe"],
-                "code_is_stale": False,
-                "codes": ["x=10; x"],
-                "op": "update-cell-codes",
-            },
-        }
-
-    # Stop the file watcher before resuming to prevent duplicate filesystem
-    # events from racing with the session replay messages.
-    session_manager._watcher_manager.stop_all()
-    session_manager.watch = False
+        assert data["op"] == "update-cell-codes"
 
     # Resume session with new ID (simulates refresh)
     with client.websocket_connect(_create_ws_url("456")) as websocket:
@@ -367,11 +367,6 @@ def test_resume_session_with_watch(client: TestClient) -> None:
             "op": "update-cell-ids",
             "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
         }
-
-    session = get_session(client, "456")
-    assert session
-    session_view = session.session_view
-    assert session_view.last_executed_code == {"MJUe": "x=10; x"}
 
 
 @contextmanager

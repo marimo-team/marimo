@@ -117,7 +117,9 @@ def _create_watchdog(
             | watchdog.events.DirModifiedEvent,
         ) -> None:
             del event
-            self.loop.create_task(self.on_file_changed())
+            asyncio.run_coroutine_threadsafe(
+                self.on_file_changed(), self.loop
+            )
 
         def on_moved(
             self,
@@ -133,7 +135,9 @@ def _create_watchdog(
             )
 
             if self.path == Path(dest_path_str):
-                self.loop.create_task(self.on_file_changed())
+                asyncio.run_coroutine_threadsafe(
+                    self.on_file_changed(), self.loop
+                )
 
         def start(self) -> None:
             event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore # noqa: E501
