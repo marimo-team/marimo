@@ -1,11 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { NotificationMessageData } from "../kernel/messages";
 import type { VariableName } from "../variables/types";
+import { ListStorageEntries } from "./request-registry";
 import type { StorageEntry, StorageState } from "./types";
-import { storageNamespacePrefix, storagePathKey } from "./types";
+import {
+  DEFAULT_FETCH_LIMIT,
+  ROOT_PATH,
+  storageNamespacePrefix,
+  storagePathKey,
+} from "./types";
 
 function initialState(): StorageState {
   return {
@@ -88,6 +95,35 @@ export function useStorageActions() {
 }
 
 export { storageAtom };
+
+/**
+ * Hook that fetches and caches storage entries for a given namespace/prefix.
+ * Entries are fetched on first access and cached in the store for subsequent renders.
+ */
+export function useStorageEntries(namespace: string, prefix?: string) {
+  const { entriesByPath } = useStorage();
+  const { setEntries } = useStorageActions();
+  const cached = entriesByPath.get(storagePathKey(namespace, prefix));
+
+  const { isPending, error, refetch } = useAsyncData(async () => {
+    if (cached) {
+      return;
+    }
+    const result = await ListStorageEntries.request({
+      namespace,
+      prefix: prefix ?? ROOT_PATH,
+      limit: DEFAULT_FETCH_LIMIT,
+    });
+    setEntries({ namespace, prefix, entries: result.entries });
+  }, [namespace, prefix, cached === undefined]);
+
+  return {
+    entries: cached ?? [],
+    isPending: isPending && !cached,
+    error: cached ? undefined : error,
+    refetch,
+  };
+}
 
 export const exportedForTesting = {
   reducer,

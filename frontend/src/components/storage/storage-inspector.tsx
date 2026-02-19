@@ -26,23 +26,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { DownloadStorage } from "@/core/storage/request-registry";
 import {
-  DownloadStorage,
-  ListStorageEntries,
-} from "@/core/storage/request-registry";
-import { useStorage, useStorageActions } from "@/core/storage/state";
+  useStorage,
+  useStorageActions,
+  useStorageEntries,
+} from "@/core/storage/state";
 import type {
   StorageEntry,
   StorageNamespace,
   StoragePathKey,
 } from "@/core/storage/types";
-import {
-  DEFAULT_FETCH_LIMIT,
-  storagePathKey,
-  storageUrl,
-} from "@/core/storage/types";
+import { storagePathKey, storageUrl } from "@/core/storage/types";
 import type { VariableName } from "@/core/variables/types";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
@@ -146,25 +142,13 @@ const StorageEntryChildren: React.FC<{
   searchValue,
 }) => {
   const { entriesByPath } = useStorage();
-  const { setEntries } = useStorageActions();
-  const pathKey = storagePathKey(namespace, prefix);
-  const cached = entriesByPath.get(pathKey);
+  const {
+    entries: children,
+    isPending,
+    error,
+  } = useStorageEntries(namespace, prefix);
 
-  const { isPending, error } = useAsyncData(async () => {
-    if (cached) {
-      return;
-    }
-    const result = await ListStorageEntries.request({
-      namespace,
-      prefix,
-      limit: DEFAULT_FETCH_LIMIT,
-    });
-    setEntries({ namespace, prefix, entries: result.entries });
-  }, [namespace, prefix, !!cached]);
-
-  const children = cached;
-
-  if (isPending && !children) {
+  if (isPending) {
     return (
       <div
         className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground"
@@ -176,7 +160,7 @@ const StorageEntryChildren: React.FC<{
     );
   }
 
-  if (error && !children) {
+  if (error) {
     return (
       <div className="py-1 text-xs text-destructive" style={indentStyle(depth)}>
         Failed to load: {error.message}
@@ -184,7 +168,7 @@ const StorageEntryChildren: React.FC<{
     );
   }
 
-  if (!children || children.length === 0) {
+  if (children.length === 0) {
     return (
       <div
         className="py-1 text-xs text-muted-foreground italic"
@@ -340,7 +324,7 @@ const StorageEntryRow: React.FC<{
               <DropdownMenuItem
                 onSelect={async () => {
                   const url = storageUrl(protocol, rootPath, entry.path);
-                  await copyToClipboard(url);
+                  await copyToClipboard(url.toString());
                   toast({ title: "Copied to clipboard" });
                 }}
               >
@@ -384,18 +368,11 @@ const StorageNamespaceSection: React.FC<{
   const namespaceName = namespace.name ?? namespace.displayName;
 
   const {
-    data: fetchedEntries,
+    entries: fetchedEntries,
     isPending,
     error,
     refetch,
-  } = useAsyncData(async () => {
-    const result = await ListStorageEntries.request({
-      namespace: namespaceName,
-      prefix: "",
-      limit: DEFAULT_FETCH_LIMIT,
-    });
-    return result.entries;
-  }, [namespaceName]);
+  } = useStorageEntries(namespaceName);
 
   const handleRefresh = useCallback(
     (e: React.MouseEvent) => {
@@ -408,8 +385,8 @@ const StorageNamespaceSection: React.FC<{
     [namespaceName, clearNamespaceCache, refetch],
   );
 
-  // Fetched entries take priority, fall back to initial namespace entries
-  const entries = fetchedEntries ?? namespace.storageEntries;
+  // While loading, fall back to initial entries from the namespace notification
+  const entries = isPending ? namespace.storageEntries : fetchedEntries;
   const filtered = filterEntries(
     entries,
     namespaceName,
@@ -519,7 +496,12 @@ export const StorageInspector: React.FC = () => {
     return (
       <PanelEmptyState
         title="No storage connected"
-        description="Create an Obstore or Fsspec connection in your notebook"
+        description={
+          <span>
+            Create an <strong>Obstore</strong> or <strong>fsspec</strong>{" "}
+            connection in your notebook
+          </span>
+        }
         icon={<HardDriveIcon className="h-8 w-8" />}
       />
     );
