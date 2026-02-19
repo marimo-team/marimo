@@ -1404,6 +1404,33 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.storage_inspector"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Storage Inspector
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="storage-inspector-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.storage_inspector"
+                  />
+                  <FormDescription>
+                    Enable experimental storage inspector.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
