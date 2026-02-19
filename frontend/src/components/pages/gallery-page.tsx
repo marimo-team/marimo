@@ -72,7 +72,7 @@ const GalleryPage: React.FC = () => {
           opengraphImage && isHttpsUrl(opengraphImage)
             ? opengraphImage
             : asURL(
-                `/og/thumbnail?file=${encodeURIComponent(relativePath)}`,
+                `og/thumbnail?file=${encodeURIComponent(relativePath)}`,
               ).toString();
         return {
           ...file,

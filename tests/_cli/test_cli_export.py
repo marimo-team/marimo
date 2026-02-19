@@ -10,8 +10,9 @@ import sys
 import time
 from os import path
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import click
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -854,9 +855,103 @@ class TestExportPDF:
     ) -> None:
         output_file = temp_marimo_file.replace(".py", ".pdf")
         p = _run_export(
-            "pdf", temp_marimo_file, "--output", output_file, "--no-sandbox"
+            "pdf",
+            temp_marimo_file,
+            "--output",
+            output_file,
+            "--no-sandbox",
+            "--no-include-inputs",
         )
         _assert_failure(p)
         stderr = p.stderr.decode()
         assert "nbconvert" in stderr
         assert "pip install" in stderr
+
+
+@pytest.mark.skipif(
+    not DependencyManager.playwright.has(),
+    reason="This test requires playwright.",
+)
+class TestExportThumbnail:
+    def test_export_thumbnail(self, temp_marimo_file: str) -> None:
+        p = _run_export("thumbnail", temp_marimo_file)
+        _assert_success(p)
+
+    def test_export_thumbnail_with_args(self, temp_marimo_file: str) -> None:
+        p = _run_export("thumbnail", temp_marimo_file, "--", "--foo", "123")
+        _assert_success(p)
+
+
+class TestClickArgsParsing:
+    """
+    Tests below are technically testing Click more than Marimo. This was created as part of an investigation into
+    the Click option to allow interspersed arguments or not, and the presence of "--" in the `args` parameter.
+
+    In review, we discussed leaving some of the tests behind to continue illustrating. They can also act as a sort of
+    sandbox to try alternative approaches.
+    """
+
+    @staticmethod
+    def _params(
+        command, expected_name, expected_args, expected_opt
+    ) -> tuple[Any, ...]:
+        return pytest.param(
+            command,
+            expected_name,
+            expected_args,
+            expected_opt,
+            id=f"`test_command {' '.join(command)}`",
+        )
+
+    @pytest.mark.parametrize(
+        (
+            "command",
+            "expected_name",
+            "expected_args",
+            "expected_opt",
+        ),
+        [
+            _params(["nb.py"], "nb.py", (), False),
+            _params(["--opt", "nb.py"], "nb.py", (), True),
+            _params(["nb.py", "--opt"], "nb.py", (), True),
+            _params(
+                ["nb.py", "--", "--foo", "123"],
+                "nb.py",
+                ("--foo", "123"),
+                False,
+            ),
+            _params(
+                ["--opt", "nb.py", "--", "--foo", "123"],
+                "nb.py",
+                ("--foo", "123"),
+                True,
+            ),
+            _params(
+                ["nb.py", "--opt", "--", "--foo", "123"],
+                "nb.py",
+                ("--foo", "123"),
+                True,
+            ),
+        ],
+    )
+    def test_click_args_parsing(
+        self,
+        command: list[str],
+        expected_name: str,
+        expected_args: tuple[str, ...],
+        expected_opt: bool,
+    ) -> None:
+        @click.command("test_command")
+        @click.argument("name")
+        @click.option("--opt/--no-opt", default=False)
+        @click.argument("args", nargs=-1, type=click.UNPROCESSED)
+        def test_command(
+            name: str, opt: bool, args: tuple[str, ...]
+        ) -> tuple[str, tuple[str, ...], bool]:
+            return name, args, opt
+
+        assert test_command.main(command, standalone_mode=False) == (
+            expected_name,
+            expected_args,
+            expected_opt,
+        )

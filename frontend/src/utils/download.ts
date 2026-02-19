@@ -13,6 +13,9 @@ import { Logger } from "./Logger";
 import { ProgressState } from "./progress";
 import { ToastProgress } from "./toast-progress";
 
+const FINISH_TOAST_DURATION_MS = 1200;
+type ToastConfig = Omit<Parameters<typeof toast>[0], "id">;
+
 /**
  * Show a loading toast while an async operation is in progress.
  * Automatically dismisses the toast when the operation completes or fails.
@@ -20,6 +23,7 @@ import { ToastProgress } from "./toast-progress";
 export async function withLoadingToast<T>(
   title: string,
   fn: (progress: ProgressState) => Promise<T>,
+  onFinish?: ToastConfig,
 ): Promise<T> {
   const progress = ProgressState.indeterminate();
   const loadingToast = toast({
@@ -29,7 +33,15 @@ export async function withLoadingToast<T>(
   });
   try {
     const result = await fn(progress);
-    loadingToast.dismiss();
+    if (onFinish) {
+      loadingToast.update({
+        duration: FINISH_TOAST_DURATION_MS,
+        description: undefined,
+        ...onFinish,
+      });
+    } else {
+      loadingToast.dismiss();
+    }
     return result;
   } catch (error) {
     loadingToast.dismiss();

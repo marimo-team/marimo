@@ -102,14 +102,21 @@ class MarkdownNotebookSerializer(NotebookSerializer):
         return convert_from_md_to_marimo_ir(content, filepath=filepath)
 
     def extract_header(self, path: Path) -> Optional[str]:
-        """Extract YAML frontmatter from Markdown file."""
-        from marimo._utils.inline_script_metadata import (
-            get_headers_from_markdown,
-        )
+        """Extract full frontmatter metadata from Markdown file as YAML.
+
+        Unlike Python files where only the script preamble matters, markdown
+        frontmatter can carry arbitrary metadata (author, description, tags,
+        etc.) that must survive through the save lifecycle. Return the full
+        frontmatter as YAML so _save_file() preserves it all.
+        """
+        from marimo._convert.markdown.to_ir import extract_frontmatter
+        from marimo._utils import yaml
 
         markdown = path.read_text(encoding="utf-8")
-        headers = get_headers_from_markdown(markdown)
-        return headers.get("header", None) or headers.get("pyproject", None)
+        frontmatter, _ = extract_frontmatter(markdown)
+        if not frontmatter:
+            return None
+        return yaml.dump(frontmatter, sort_keys=False)
 
 
 # Default format handlers

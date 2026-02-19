@@ -34,6 +34,7 @@ from marimo._output.formatters.panel_formatters import PanelFormatter
 from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.pyecharts_formatters import PyechartsFormatter
 from marimo._output.formatters.pygwalker_formatters import PygWalkerFormatter
+from marimo._output.formatters.pytorch_formatters import PyTorchFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
@@ -74,6 +75,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     GoogleAiFormatter.package_name(): GoogleAiFormatter(),
     OpenAIFormatter.package_name(): OpenAIFormatter(),
     TransformersFormatter.package_name(): TransformersFormatter(),
+    PyTorchFormatter.package_name(): PyTorchFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a

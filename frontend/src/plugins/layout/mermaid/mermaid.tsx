@@ -4,6 +4,7 @@ import type { MermaidConfig } from "mermaid";
 import mermaid from "mermaid";
 import React, { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { useTheme } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
 
@@ -72,9 +73,12 @@ const Mermaid: React.FC<Props> = ({ diagram }) => {
     darkMode: darkMode,
   });
 
-  const { data: svg } = useAsyncData(async () => {
+  // Frontmatter does not work with newlines, so we trim the diagram to avoid these errors
+  const trimmedDiagram = diagram.trim();
+
+  const { data: svg, error } = useAsyncData(async () => {
     const result = await mermaid
-      .render(id, diagram, undefined)
+      .render(id, trimmedDiagram, undefined)
       .catch((error) => {
         document.getElementById(id)?.remove();
         Logger.warn("Failed to render mermaid diagram", error);
@@ -82,7 +86,11 @@ const Mermaid: React.FC<Props> = ({ diagram }) => {
       });
 
     return result.svg;
-  }, [diagram, id, darkMode]);
+  }, [trimmedDiagram, id, darkMode]);
+
+  if (error) {
+    return <ErrorBanner error={error} />;
+  }
 
   if (!svg) {
     return null;

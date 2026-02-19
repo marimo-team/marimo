@@ -225,7 +225,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         result = await agent.run(
             user_prompt=None,
             message_history=VercelAIAdapter.load_messages(messages),
-            instructions=system_prompt,
         )
 
         return str(result.output)
@@ -261,7 +260,14 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         )
         if use_vertex:
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
-            location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+            # Upstream (pydantic-ai) defaults to us-central1 if not set
+            location = os.getenv("GOOGLE_CLOUD_LOCATION") or None
+            if location is None:
+                LOGGER.info(
+                    "GOOGLE_CLOUD_LOCATION is not set. "
+                    "The upstream provider will default to 'us-central1'. "
+                    "Set this env var if your project has region restrictions."
+                )
             # The type stubs don't have an overload that combines vertexai
             # with project/location, but the runtime supports it
             provider: PydanticGoogle = PydanticGoogle(  # type: ignore[call-overload]

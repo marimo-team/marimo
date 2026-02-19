@@ -1,0 +1,45 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+/* Left bracket — vertical line + corner ticks via ::before */
+td.bracket-l::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 0;
+  border-left: 2px solid var(--foreground);
+  pointer-events: none;
+}
+td.bracket-l.bracket-t::before {
+  top: -1px;
+  width: 8px;
+  border-top: 2px solid var(--foreground);
+}
+td.bracket-l.bracket-b::before {
+  bottom: -1px;
+  width: 8px;
+  border-bottom: 2px solid var(--foreground);
+}
+
+/* Right bracket — vertical line + corner ticks via ::after */
+td.bracket-r::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 0;
+  border-right: 2px solid var(--foreground);
+  pointer-events: none;
+}
+td.bracket-r.bracket-t::after {
+  top: -1px;
+  width: 8px;
+  border-top: 2px solid var(--foreground);
+}
+td.bracket-r.bracket-b::after {
+  bottom: -1px;
+  width: 8px;
+  border-bottom: 2px solid var(--foreground);
+}

@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
+import sys
 import threading
 from contextlib import AbstractContextManager
 from functools import partial
@@ -28,6 +30,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from types import TracebackType
 
+    from marimo._cli.sandbox import SandboxMode
+
 
 _sandbox_message = (
     "Render notebooks in an isolated environment, with dependencies tracked "
@@ -35,6 +39,9 @@ _sandbox_message = (
     "install automatically. Requires uv. Only applies when --execute is used."
 )
 _READINESS_WAIT_TIMEOUT_MS = 30_000
+_sandbox_bootstrapped_env = "MARIMO_THUMBNAIL_SANDBOX_BOOTSTRAPPED"
+_sandbox_mode_env = "MARIMO_THUMBNAIL_SANDBOX_MODE"
+_thumbnail_sandbox_deps = ["playwright"]
 
 
 def _split_paths_and_args(
@@ -70,6 +77,67 @@ def _collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
             notebooks[str(path)] = MarimoPath(str(path))
 
     return [notebooks[k] for k in sorted(notebooks)]
+
+
+def _is_multi_target(paths: list[Path]) -> bool:
+    return len(paths) > 1 or any(path.is_dir() for path in paths)
+
+
+def _sandbox_mode_from_env() -> SandboxMode | None:
+    from marimo._cli.sandbox import SandboxMode
+
+    if os.environ.get(_sandbox_bootstrapped_env) != "1":
+        return None
+
+    mode = os.environ.get(_sandbox_mode_env)
+    if mode == SandboxMode.SINGLE.value:
+        return SandboxMode.SINGLE
+    if mode == SandboxMode.MULTI.value:
+        return SandboxMode.MULTI
+    return None
+
+
+def _resolve_thumbnail_sandbox_mode(
+    *,
+    execute: bool,
+    sandbox: bool | None,
+    path_targets: list[Path],
+    first_target: str,
+) -> SandboxMode | None:
+    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
+
+    if not execute:
+        return None
+
+    env_mode = _sandbox_mode_from_env()
+    if env_mode is not None:
+        return env_mode
+
+    if _is_multi_target(path_targets):
+        if sandbox is None:
+            return None
+        return SandboxMode.MULTI if sandbox else None
+
+    return resolve_sandbox_mode(sandbox=sandbox, name=first_target)
+
+
+def _bootstrap_thumbnail_sandbox(
+    *,
+    args: list[str],
+    name: str,
+    sandbox_mode: SandboxMode,
+) -> None:
+    from marimo._cli.sandbox import run_in_sandbox
+
+    run_in_sandbox(
+        args,
+        name=name,
+        additional_deps=_thumbnail_sandbox_deps,
+        extra_env={
+            _sandbox_bootstrapped_env: "1",
+            _sandbox_mode_env: sandbox_mode.value,
+        },
+    )
 
 
 async def _render_html(
@@ -287,8 +355,9 @@ async def _generate_thumbnails(
     execute: bool,
     notebook_args: tuple[str, ...],
     continue_on_error: bool,
-    sandbox: bool,
+    sandbox_mode: SandboxMode | None,
 ) -> None:
+    from marimo._cli.sandbox import SandboxMode
     from marimo._metadata.opengraph import default_opengraph_image
 
     failures: list[tuple[MarimoPath, Exception]] = []
@@ -309,7 +378,9 @@ async def _generate_thumbnails(
             ) from None
         raise
 
-    if sandbox and not DependencyManager.which("uv"):
+    use_per_notebook_sandbox = sandbox_mode is SandboxMode.MULTI
+
+    if use_per_notebook_sandbox and not DependencyManager.which("uv"):
         raise click.ClickException(
             "uv is required for --sandbox thumbnail generation.\n\n"
             "  Tip: Install uv from https://github.com/astral-sh/uv"
@@ -318,7 +389,7 @@ async def _generate_thumbnails(
     static_dir = marimo_package_path() / "_static"
 
     sandbox_pool: _SandboxVenvPool | None = (
-        _SandboxVenvPool() if sandbox else None
+        _SandboxVenvPool() if use_per_notebook_sandbox else None
     )
     try:
         with _ThumbnailAssetServer(directory=static_dir) as server:
@@ -518,6 +589,38 @@ def thumbnail(
     args: tuple[str, ...],
 ) -> None:
     """Generate thumbnails for one or more notebooks (or directories)."""
+    paths, notebook_args = _split_paths_and_args(str(name), args)
+    path_targets = [Path(p) for p in paths]
+    notebooks = _collect_notebooks(path_targets)
+    if not notebooks:
+        raise click.ClickException("No marimo notebooks found.")
+    if output is not None and len(notebooks) > 1:
+        raise click.UsageError(
+            "--output can only be used when generating thumbnail for a single notebook."
+        )
+
+    if not execute and sandbox:
+        raise click.UsageError("--sandbox requires --execute.")
+
+    sandbox_mode = _resolve_thumbnail_sandbox_mode(
+        execute=execute,
+        sandbox=sandbox,
+        path_targets=path_targets,
+        first_target=str(name),
+    )
+
+    if (
+        execute
+        and sandbox_mode is not None
+        and _sandbox_mode_from_env() is None
+    ):
+        _bootstrap_thumbnail_sandbox(
+            args=sys.argv[1:],
+            name=str(name),
+            sandbox_mode=sandbox_mode,
+        )
+        return
+
     try:
         DependencyManager.playwright.require("for thumbnail generation")
     except ModuleNotFoundError as e:
@@ -530,26 +633,6 @@ def thumbnail(
                 "    python -m playwright install chromium"
             ) from None
         raise
-
-    paths, notebook_args = _split_paths_and_args(str(name), args)
-    notebooks = _collect_notebooks([Path(p) for p in paths])
-    if not notebooks:
-        raise click.ClickException("No marimo notebooks found.")
-    if output is not None and len(notebooks) > 1:
-        raise click.UsageError(
-            "--output can only be used when generating thumbnail for a single notebook."
-        )
-
-    from marimo._cli.sandbox import resolve_sandbox_mode
-
-    if not execute and sandbox:
-        raise click.UsageError("--sandbox requires --execute.")
-
-    sandbox_mode = (
-        resolve_sandbox_mode(sandbox=sandbox, name=str(name))
-        if execute
-        else None
-    )
 
     asyncio_run(
         _generate_thumbnails(
@@ -564,6 +647,6 @@ def thumbnail(
             execute=execute,
             notebook_args=notebook_args,
             continue_on_error=continue_on_error,
-            sandbox=sandbox_mode is not None,
+            sandbox_mode=sandbox_mode,
         )
     )

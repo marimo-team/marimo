@@ -529,6 +529,12 @@ Requires nbformat and nbconvert to be installed.
     help="Run the notebook and include outputs in the exported PDF file.",
 )
 @click.option(
+    "--include-inputs/--no-include-inputs",
+    default=True,
+    type=bool,
+    help="Include code cell inputs in the exported PDF file.",
+)
+@click.option(
     "--webpdf/--no-webpdf",
     default=True,
     type=bool,
@@ -575,6 +581,7 @@ def pdf(
     output: Path,
     watch: bool,
     include_outputs: bool,
+    include_inputs: bool,
     webpdf: bool,
     sandbox: Optional[bool],
     force: bool,
@@ -630,6 +637,7 @@ def pdf(
                 run_app_then_export_as_pdf(
                     file_path,
                     include_outputs=include_outputs,
+                    include_inputs=include_inputs,
                     webpdf=webpdf,
                     cli_args=cli_args,
                     argv=list(args) if include_outputs else None,

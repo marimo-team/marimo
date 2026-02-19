@@ -517,7 +517,7 @@ def edit(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.UsageError(
+            raise click.ClickException(
                 "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
                 "Install it with: pip install 'marimo[sandbox]'\n"
                 "Or: pip install pyzmq"
@@ -1117,7 +1117,7 @@ def run(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.UsageError(
+            raise click.ClickException(
                 "pyzmq is required when running a gallery with --sandbox.\n"
                 "Install it with: pip install 'marimo[sandbox]'\n"
                 "Or: pip install pyzmq"

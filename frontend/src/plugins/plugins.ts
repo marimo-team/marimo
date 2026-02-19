@@ -22,6 +22,7 @@ import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 import { FileBrowserPlugin } from "./impl/FileBrowserPlugin";
 import { FileUploadPlugin } from "./impl/FileUploadPlugin";
 import { FormPlugin } from "./impl/FormPlugin";
+import { MatrixPlugin } from "./impl/MatrixPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { MultiselectPlugin } from "./impl/MultiselectPlugin";
 import { MatplotlibPlugin } from "./impl/matplotlib/MatplotlibPlugin";
@@ -68,6 +69,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new FileUploadPlugin(),
   FileBrowserPlugin,
   FormPlugin,
+  new MatrixPlugin(),
   new MicrophonePlugin(),
   new MultiselectPlugin(),
   new NumberPlugin(),

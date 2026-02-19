@@ -26,6 +26,7 @@ __all__ = [
     "file",
     "form",
     "matplotlib",
+    "matrix",
     "microphone",
     "multiselect",
     "number",
@@ -41,6 +42,7 @@ __all__ = [
     "tabs",
     "text_area",
     "text",
+    "vector",
 ]
 
 from marimo._plugins.ui._impl.altair_chart import altair_chart
@@ -77,6 +79,7 @@ from marimo._plugins.ui._impl.input import (
     text,
     text_area,
 )
+from marimo._plugins.ui._impl.matrix import matrix
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.mpl import matplotlib
 from marimo._plugins.ui._impl.plotly import plotly
@@ -85,3 +88,4 @@ from marimo._plugins.ui._impl.run_button import run_button
 from marimo._plugins.ui._impl.switch import switch
 from marimo._plugins.ui._impl.table import table
 from marimo._plugins.ui._impl.tabs import tabs
+from marimo._plugins.ui._impl.vector import vector

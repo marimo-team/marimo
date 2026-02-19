@@ -105,6 +105,7 @@ ui
   file_browser
   form
   matplotlib
+  matrix
   microphone
   multiselect
   number
@@ -120,6 +121,7 @@ ui
   tabs
   text
   text_area
+  vector
 video
 vstack
 watch

@@ -946,6 +946,7 @@ class TestPDFExport:
             assert result == b"mock_pdf_data"
             mock_pdf_exporter.assert_called_once()
             mock_exporter_instance.from_notebook_node.assert_called_once()
+            assert mock_exporter_instance.exclude_input is False
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -991,7 +992,54 @@ class TestPDFExport:
 
             assert result == b"mock_webpdf_data"
             mock_webpdf_exporter.assert_called_once()
+            assert mock_exporter_instance.exclude_input is False
             # Verify allow_chromium_download is set
+            assert mock_exporter_instance.allow_chromium_download is True
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_webpdf_mode_without_inputs(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test WebPDF export suppressing code inputs."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            b"mock_webpdf_data_no_inputs",
+            {},
+        )
+
+        with (
+            patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ),
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_webpdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                include_inputs=False,
+                webpdf=True,
+            )
+
+            assert result == b"mock_webpdf_data_no_inputs"
+            mock_webpdf_exporter.assert_called_once()
+            assert mock_exporter_instance.exclude_input is True
             assert mock_exporter_instance.allow_chromium_download is True
 
     @pytest.mark.skipif(
@@ -1073,6 +1121,7 @@ class TestPDFExport:
             result = exporter.export_as_pdf(
                 app=file_manager.app,
                 session_view=session_view,
+                include_inputs=False,
                 webpdf=False,  # Request standard PDF, but it should fall back
             )
 
@@ -1081,9 +1130,11 @@ class TestPDFExport:
             # PDFExporter was tried first
             mock_pdf_exporter.assert_called_once()
             mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
+            assert mock_pdf_exporter_instance.exclude_input is True
             # WebPDFExporter was used as fallback
             mock_webpdf_exporter.assert_called_once()
             mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
+            assert mock_webpdf_exporter_instance.exclude_input is True
             # Verify allow_chromium_download is set on fallback
             assert (
                 mock_webpdf_exporter_instance.allow_chromium_download is True

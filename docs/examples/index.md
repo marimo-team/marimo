@@ -295,6 +295,18 @@ guide](../guides/interactivity.md) for rules governing how UI elements work.
 
     <a href="../api/inputs/chat.md"><img src="/_static/example-thumbs/chat.png" /></a>
 
+-   🔢 [**Matrix**](../api/inputs/matrix.md)
+
+    ---
+
+    <a href="../api/inputs/matrix.md"><img src="/_static/example-thumbs/matrix.png" /></a>
+
+-   📐 [**Vector**](../api/inputs/vector.md)
+
+    ---
+
+    <a href="../api/inputs/vector.md"><img src="/_static/example-thumbs/vector.png" /></a>
+
 </div>
 
 ### Composite input elements

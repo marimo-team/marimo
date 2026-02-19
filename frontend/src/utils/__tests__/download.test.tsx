@@ -17,9 +17,11 @@ vi.mock("html-to-image", () => ({
 
 // Mock the toast module
 const mockDismiss = vi.fn();
+const mockUpdate = vi.fn();
 vi.mock("@/components/ui/use-toast", () => ({
   toast: vi.fn(() => ({
     dismiss: mockDismiss,
+    update: mockUpdate,
   })),
 }));
 
@@ -111,6 +113,51 @@ describe("withLoadingToast", () => {
         title: customTitle,
       }),
     );
+  });
+
+  it("should update toast on finish when onFinish is provided", async () => {
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+    });
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Upload complete",
+        description: undefined,
+        duration: 1200,
+      }),
+    );
+    expect(mockDismiss).not.toHaveBeenCalled();
+  });
+
+  it("should allow onFinish to override duration", async () => {
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+      duration: 2000,
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: 2000,
+      }),
+    );
+  });
+
+  it("should not update toast when the operation fails", async () => {
+    await expect(
+      withLoadingToast(
+        "Uploading files...",
+        async () => {
+          throw new Error("Upload failed");
+        },
+        { title: "Upload complete" },
+      ),
+    ).rejects.toThrow("Upload failed");
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("should wait for the async function to complete", async () => {

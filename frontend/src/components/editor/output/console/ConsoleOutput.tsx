@@ -167,6 +167,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
             );
 
             const originalIdx = consoleOutputs.length - idx - 1;
+            const isPassword = output.mimetype === "text/password";
 
             if (output.response == null && lastStdInputIdx === idx) {
               return (
@@ -174,6 +175,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                   key={idx}
                   output={output.data}
                   isPdb={isPdb}
+                  isPassword={isPassword}
                   onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
                   onClear={onClear}
                 />
@@ -185,6 +187,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                 key={idx}
                 output={output.data}
                 response={output.response}
+                isPassword={isPassword}
               />
             );
           }
@@ -216,6 +219,7 @@ const StdInput = (props: {
   output: string;
   response?: string;
   isPdb: boolean;
+  isPassword?: boolean;
 }) => {
   const [value, setValue] = React.useState("");
 
@@ -231,7 +235,7 @@ const StdInput = (props: {
         data-testid="console-input"
         // This is used in <StdinBlockingAlert> to find the input
         data-stdin-blocking={true}
-        type="text"
+        type={props.isPassword ? "password" : "text"}
         autoComplete="off"
         autoFocus={true}
         value={value}
@@ -277,11 +281,17 @@ const StdInput = (props: {
   );
 };
 
-const StdInputWithResponse = (props: { output: string; response?: string }) => {
+const StdInputWithResponse = (props: {
+  output: string;
+  response?: string;
+  isPassword?: boolean;
+}) => {
   return (
     <div className="flex gap-2 items-center">
       {renderText(props.output)}
-      <span className="text-(--sky-11)">{props.response}</span>
+      {!props.isPassword && (
+        <span className="text-(--sky-11)">{props.response}</span>
+      )}
     </div>
   );
 };
