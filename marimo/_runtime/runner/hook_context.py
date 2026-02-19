@@ -35,7 +35,10 @@ class CancelledCells:
 
     def add(self, raising_cell: CellId_t, descendants: set[CellId_t]) -> None:
         """Record that raising_cell caused descendants to be cancelled."""
-        self._by_raising_cell[raising_cell] = descendants
+        if raising_cell in self._by_raising_cell:
+            self._by_raising_cell[raising_cell].update(descendants)
+        else:
+            self._by_raising_cell[raising_cell] = descendants
         self._all.update(descendants)
 
     def __contains__(self, cell_id: object) -> bool:

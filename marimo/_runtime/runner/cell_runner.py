@@ -665,6 +665,24 @@ class Runner:
                 blamed_cell = var_cell_id
         return ref, blamed_cell
 
+    def _find_first_blocked_missing_ref(
+        self, cell_id: CellId_t
+    ) -> Optional[CellId_t]:
+        """Return the first out-of-run ancestor still in a stopped/errored state."""
+        cell = self.graph.cells[cell_id]
+        for ref in cell.refs:
+            if ref in self.glbls:
+                # The reference is already available
+                continue
+            for defining_cell_id in self.graph.get_defining_cells(ref):
+                if defining_cell_id in self._run_position:
+                    # The defining cell is part of this run
+                    continue
+                defining_cell = self.graph.cells[defining_cell_id]
+                if defining_cell.run_result_status == "exception":
+                    return defining_cell_id
+        return None
+
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (
             OnFinishHookContext,
@@ -707,6 +725,31 @@ class Runner:
             cell_id = self.pop_cell()
             LOGGER.debug("Cell runner processing %s", cell_id)
             cell = self.graph.cells[cell_id]
+
+            blocked_ancestor_id = self._find_first_blocked_missing_ref(cell_id)
+            if blocked_ancestor_id is not None:
+                # Cancel cell_id and descendants before the check below.
+                LOGGER.debug(
+                    "%s cancelled: ancestor %s still stopped",
+                    cell_id,
+                    blocked_ancestor_id,
+                )
+                if blocked_ancestor_id not in self.exceptions:
+                    # TODO (jlehuen): We wouldn't have to create this MarimoStopError if those were stored directly
+                    # in CellImpl.exception. See: marimo._runtime.runner.hooks_post_execution._set_run_result_status
+                    self.exceptions[blocked_ancestor_id] = self.graph.cells[
+                        blocked_ancestor_id
+                    ].exception or MarimoStopError(None)
+                pending = {cell_id} | {
+                    cid
+                    for cid in dataflow.transitive_closure(
+                        self.graph, {cell_id}, inclusive=False
+                    )
+                    if cid in self.cells_to_run
+                }
+                for cid in pending:
+                    self.graph.cells[cid].set_run_result_status("cancelled")
+                self.cancelled_cells.add(blocked_ancestor_id, pending)
 
             # Update run result status for cells that won't run.
             #
