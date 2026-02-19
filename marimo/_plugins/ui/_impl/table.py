@@ -665,7 +665,9 @@ class table(
                 raise ValueError(
                     f"default_sort column '{default_sort}' not found in table."
                 )
-            self._default_sort = [SortArgs(by=default_sort, descending=not ascending)]
+            self._default_sort = [
+                SortArgs(by=default_sort, descending=not ascending)
+            ]
         self._style_cell = style_cell
         # Store hover callable vs string template separately
         self._hover_cell: Optional[Callable[[str, str, Any], str]] = None
