@@ -113,11 +113,11 @@ const MatrixComponent = ({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, row: number, col: number) => {
-      if (disabled[row][col]) {
+      if (disabled[row][col] || !(e.target instanceof Element)) {
         return;
       }
       e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      e.target.setPointerCapture(e.pointerId);
       dragState.current = {
         row,
         col,
@@ -193,52 +193,46 @@ const MatrixComponent = ({
   const hasRowLabels = rowLabels != null && rowLabels.length > 0;
   const hasColumnLabels = columnLabels != null && columnLabels.length > 0;
 
+  const numRows = internalValue.length;
+  const numCols = internalValue[0]?.length ?? 0;
+
   return (
     <Labeled label={label} align="top" className="items-center">
       <div
-        className="inline-flex flex-col gap-1 font-mono text-sm select-none"
+        className="relative inline-block"
         data-testid="marimo-plugin-matrix"
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        {hasColumnLabels && (
-          <div className="flex flex-row">
-            {hasRowLabels && (
-              <div className="flex items-center justify-end text-xs font-bold text-muted-foreground pr-1.5 h-8" />
-            )}
-            <div className="flex px-[14px]">
-              {columnLabels.map((lbl, j) => (
-                <div
-                  key={j}
-                  className="text-center text-xs font-bold text-muted-foreground px-1 pb-1 min-w-14"
-                >
-                  {lbl}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="flex flex-row items-stretch">
-          {hasRowLabels && (
-            <div className="flex flex-col justify-center">
-              {rowLabels.map((lbl, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-end text-xs font-bold text-muted-foreground pr-1.5 h-8"
-                >
-                  {lbl}
-                </div>
-              ))}
-            </div>
+        <table
+          className="font-mono text-sm tabular-nums select-none border-separate border-spacing-0"
+          role="group"
+          aria-label={label || "Matrix"}
+        >
+          {hasColumnLabels && (
+            <thead>
+              <tr>
+                {hasRowLabels && <th />}
+                {columnLabels.map((lbl, j) => (
+                  <th
+                    key={j}
+                    className="text-center text-sm font-medium text-foreground px-2 pb-1"
+                  >
+                    {lbl}
+                  </th>
+                ))}
+              </tr>
+            </thead>
           )}
-          <div
-            className="marimo-matrix-bracket relative flex flex-col px-[14px]"
-            role="group"
-            aria-label={label || "Matrix"}
-          >
+          <tbody>
             {internalValue.map((row, i) => (
-              <div key={i} className="flex flex-row">
+              <tr key={i}>
+                {hasRowLabels && (
+                  <th className="text-right text-sm font-medium text-foreground pr-3 h-8">
+                    {rowLabels[i]}
+                  </th>
+                )}
                 {row.map((cellValue, j) => {
                   const isDisabled = disabled[i][j];
                   const isActive =
@@ -246,16 +240,19 @@ const MatrixComponent = ({
                   const rowLabel = rowLabels?.[i] ?? `Row ${i + 1}`;
                   const colLabel = columnLabels?.[j] ?? `Column ${j + 1}`;
                   return (
-                    <div
+                    <td
                       key={j}
                       className={cn(
-                        "flex items-center justify-center min-w-14 h-8 px-1 rounded text-sm transition-colors touch-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        "relative text-right min-w-14 h-8 px-2 transition-colors touch-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                         isDisabled
                           ? "cursor-default text-muted-foreground"
                           : "cursor-ew-resize text-[var(--link)] hover:bg-accent",
                         isActive && "bg-accent",
+                        j === 0 && "bracket-l",
+                        j === numCols - 1 && "bracket-r",
+                        i === 0 && "bracket-t",
+                        i === numRows - 1 && "bracket-b",
                       )}
-                      role="spinbutton"
                       tabIndex={isDisabled ? -1 : 0}
                       aria-label={`${rowLabel}, ${colLabel}`}
                       aria-valuenow={cellValue}
@@ -267,13 +264,13 @@ const MatrixComponent = ({
                       data-testid={`matrix-cell-${i}-${j}`}
                     >
                       {formatValue(cellValue)}
-                    </div>
+                    </td>
                   );
                 })}
-              </div>
+              </tr>
             ))}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
     </Labeled>
   );
