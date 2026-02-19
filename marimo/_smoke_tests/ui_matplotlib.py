@@ -54,7 +54,7 @@ def _(embedding, mnist, plt):
 
 @app.cell
 def _(ax, mo):
-    fig = mo.ui.matplotlib(ax, debounce=False)
+    fig = mo.ui.matplotlib(ax)
     fig
     return (fig,)
 
@@ -68,12 +68,6 @@ def _(embedding, fig, x, y):
 @app.cell
 def _(fig):
     fig.value if fig.value else "No selection!"
-    return
-
-
-@app.cell
-def _(fig):
-    len(fig.value.vertices)
     return
 
 

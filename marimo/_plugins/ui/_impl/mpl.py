@@ -191,18 +191,11 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             but selections map to this axes' coordinate space.
         debounce: If `True`, the selection is only sent to Python on
             mouse-up. If `False` (the default), it streams while dragging.
-        on_change: Optional callback invoked when the selection changes.
     """
 
     name: Final[str] = "marimo-matplotlib"
 
-    def __init__(
-        self,
-        axes: Axes,
-        *,
-        debounce: bool = False,
-        on_change: Optional[Callable[[MatplotlibSelection], None]] = None,
-    ) -> None:
+    def __init__(self, axes: Axes, *, debounce: bool = False) -> None:
         DependencyManager.matplotlib.require("for `mo.ui.matplotlib`")
 
         from matplotlib.figure import Figure  # type: ignore[import-untyped]
