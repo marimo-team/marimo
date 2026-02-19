@@ -104,6 +104,7 @@ ui
   file
   file_browser
   form
+  matrix
   microphone
   multiselect
   number
@@ -119,6 +120,7 @@ ui
   tabs
   text
   text_area
+  vector
 video
 vstack
 watch
