@@ -133,8 +133,9 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
             a per-entry mask. Defaults to False.
         scientific (bool, optional): If True, display values in
             scientific notation. Defaults to False.
-        precision (int, optional): Number of decimal places displayed.
-            Defaults to 3.
+        precision (int | None, optional): Number of decimal places
+            displayed. When None, inferred from the data values and step
+            sizes. Defaults to None.
         debounce (bool, optional): If True, value updates are only
             sent on pointer release. Defaults to False.
         label (str, optional): Markdown/LaTeX label. Defaults to "".
@@ -155,7 +156,7 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
         step: Numeric | list[Numeric] | ArrayLike = 1.0,
         disabled: bool | list[bool] | ArrayLike = False,
         scientific: bool = False,
-        precision: int = 3,
+        precision: int | None = None,
         debounce: bool = False,
         label: str = "",
         on_change: Callable[[list[Numeric]], None] | None = None,

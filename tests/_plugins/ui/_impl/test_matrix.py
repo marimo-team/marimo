@@ -210,8 +210,25 @@ def test_matrix_symmetric_valid():
     assert m.value == [[1.0, 0.5], [0.5, 1.0]]
 
 
-def test_matrix_precision_default():
-    """Verify the default precision is 3."""
-    m = ui.matrix([[1.0]])
-    # Access the args passed to the component
-    assert m._component_args["precision"] == 3
+def test_matrix_precision_default_integers():
+    """Integer data with default step=1 → precision 0."""
+    m = ui.matrix([[1, 2], [3, 4]])
+    assert m._component_args["precision"] == 0
+
+
+def test_matrix_precision_default_float_step():
+    """Float step should drive inferred precision."""
+    m = ui.matrix([[0, 0]], step=0.25)
+    assert m._component_args["precision"] == 2
+
+
+def test_matrix_precision_default_float_data():
+    """Float data values should drive inferred precision."""
+    m = ui.matrix([[1.5, 2.33]])
+    assert m._component_args["precision"] == 2
+
+
+def test_matrix_precision_explicit():
+    """Explicit precision should override auto-inference."""
+    m = ui.matrix([[1, 2]], precision=5)
+    assert m._component_args["precision"] == 5

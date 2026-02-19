@@ -1,33 +1,39 @@
 import marimo
 
 __generated_with = "0.19.11"
-app = marimo.App(width="medium")
+app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+    import numpy as np
 
-    return (mo,)
+    return mo, np
 
 
 @app.cell
 def _(mo):
-    vector = mo.ui.vector(
-        [1, 0, 0, 0, 0],
-        min_value=-5,
-        max_value=5,
-        step=0.1,
-        precision=1,
-        label="$\\vec{v}$",
-    )
-    vector
-    return (vector,)
+    hstack = lambda x: mo.hstack(x, justify="start")
+    return (hstack,)
 
 
 @app.cell
-def _(vector):
-    vector.value
+def _(mo):
+    v1 = mo.ui.vector([1, 1, 1])
+    v2 = mo.ui.vector([1, 1, 1], transpose=True)
+    return v1, v2
+
+
+@app.cell
+def _(mo, np, v1, v2):
+    v3 = mo.ui.matrix(np.outer(v1.value, v2.value))
+    return (v3,)
+
+
+@app.cell
+def _(hstack, v1, v2, v3):
+    hstack([v1, v2, "=", v3])
     return
 
 

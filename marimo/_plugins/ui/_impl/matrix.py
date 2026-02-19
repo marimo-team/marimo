@@ -82,6 +82,36 @@ def _to_nested_list(
     return _broadcast("value", value, len(value), len(first))
 
 
+def _decimal_places(x: Numeric) -> int:
+    """Count meaningful decimal places in a number."""
+    if isinstance(x, int) or x == int(x):
+        return 0
+    s = repr(x)
+    if "e" in s or "E" in s:
+        parts = s.lower().split("e")
+        exp = int(parts[1])
+        mantissa_dec = len(parts[0].split(".")[1]) if "." in parts[0] else 0
+        return max(0, mantissa_dec - exp)
+    if "." in s:
+        return len(s.split(".")[1])
+    return 0
+
+
+def _infer_precision(
+    data: list[list[Numeric]],
+    step_val: list[list[Any]],
+) -> int:
+    """Choose a display precision based on the data values and step sizes."""
+    best = 0
+    for row in data:
+        for v in row:
+            best = max(best, _decimal_places(v))
+    for row in step_val:
+        for v in row:
+            best = max(best, _decimal_places(v))
+    return best
+
+
 def _validate_and_build_args(
     data: list[list[Numeric]],
     *,
@@ -91,7 +121,7 @@ def _validate_and_build_args(
     disabled_val: list[list[Any]],
     symmetric: bool,
     scientific: bool,
-    precision: int,
+    precision: int | None,
     row_labels: list[str] | None,
     column_labels: list[str] | None,
     debounce: bool,
@@ -99,6 +129,9 @@ def _validate_and_build_args(
     """Validate matrix parameters and return the args dict for UIElement."""
     rows = len(data)
     cols = len(data[0])
+
+    if precision is None:
+        precision = _infer_precision(data, step_val)
 
     # Validate per-cell constraints in a single pass
     for i in range(rows):
@@ -258,8 +291,9 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
             updates cell `[j][i]`. Requires a square matrix. Defaults to False.
         scientific (bool, optional): If True, display values in scientific
             notation (e.g., `1.0e-4`). Defaults to False.
-        precision (int, optional): Number of decimal places displayed.
-            Defaults to 3.
+        precision (int | None, optional): Number of decimal places
+            displayed. When None, inferred from the data values and step
+            sizes. Defaults to None.
         row_labels (list[str] | None, optional): Labels for each row.
             Defaults to None.
         column_labels (list[str] | None, optional): Labels for each column.
@@ -286,7 +320,7 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         disabled: bool | list[list[bool]] | ArrayLike = False,
         symmetric: bool = False,
         scientific: bool = False,
-        precision: int = 3,
+        precision: int | None = None,
         row_labels: list[str] | None = None,
         column_labels: list[str] | None = None,
         debounce: bool = False,

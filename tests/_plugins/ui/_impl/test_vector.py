@@ -95,9 +95,27 @@ def test_vector_debounce():
     assert v._component_args["debounce"] is True
 
 
-def test_vector_precision():
+def test_vector_precision_explicit():
     v = ui.vector([1.0], precision=5)
     assert v._component_args["precision"] == 5
+
+
+def test_vector_precision_default_integers():
+    """Integer data with default step=1 → precision 0."""
+    v = ui.vector([1, 2, 3])
+    assert v._component_args["precision"] == 0
+
+
+def test_vector_precision_default_float_step():
+    """Float step should drive inferred precision."""
+    v = ui.vector([0, 0], step=0.1)
+    assert v._component_args["precision"] == 1
+
+
+def test_vector_precision_default_float_data():
+    """Float data values should drive inferred precision."""
+    v = ui.vector([1.5, 2.333])
+    assert v._component_args["precision"] == 3
 
 
 def test_vector_label():
