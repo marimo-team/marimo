@@ -245,7 +245,7 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                 "x-scale": x_scale,
                 "y-scale": y_scale,
             },
-            on_change=on_change,
+            on_change=None,
         )
 
     @property
