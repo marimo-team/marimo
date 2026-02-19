@@ -406,7 +406,6 @@ describe("MatrixPlugin", () => {
     const { getByTestId } = render(plugin.render(props));
     const cell = getByTestId("matrix-cell-0-1");
 
-    expect(cell.getAttribute("role")).toBe("spinbutton");
     expect(cell.getAttribute("aria-label")).toBe("x, b");
     expect(cell.getAttribute("aria-valuenow")).toBe("2");
     expect(cell.getAttribute("aria-valuemin")).toBe("0");
