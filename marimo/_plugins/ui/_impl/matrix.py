@@ -204,8 +204,7 @@ def _validate_and_build_args(
     if symmetric:
         if rows != cols:
             raise ValueError(
-                f"`symmetric` requires a square matrix, "
-                f"but got {rows}x{cols}"
+                f"`symmetric` requires a square matrix, but got {rows}x{cols}"
             )
         for i in range(rows):
             for j in range(i + 1, cols):
@@ -276,7 +275,7 @@ class matrix(UIElement[list[list[Numeric]], list[list[Numeric]]]):
         mat = mo.ui.matrix(
             [[1, 0], [0, 1]],
             # Disable editing the diagonal values
-            disabled=[[True, False], [False, True]]
+            disabled=[[True, False], [False, True]],
         )
         ```
 

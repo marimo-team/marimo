@@ -88,7 +88,7 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
     vector can be configured in many ways, including element-wise
     bounds, element-wise steps, and an element-wise disable mask.
 
-    
+
     By default the vector is displayed as a column; pass `transpose=True` for a
     row vector.
 
@@ -109,7 +109,7 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
         To create a row vector, use `transpose=True`
 
         ```python
-        v = mo.ui.vector([1, 2, 3], tranpose=True)
+        v = mo.ui.vector([1, 2, 3], transpose=True)
         ```
 
         You can specify bounds and a step size as well:
@@ -124,7 +124,7 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
         mat = mo.ui.matrix(
             [1, 2, 3],
             # Disable editing of the first entry
-            disabled=[True, False, False]
+            disabled=[True, False, False],
         )
         ```
 
@@ -255,7 +255,5 @@ class vector(UIElement[list[list[Numeric]], list[Numeric]]):
             on_change=on_change,
         )
 
-    def _convert_value(
-        self, value: list[list[Numeric]]
-    ) -> list[Numeric]:
+    def _convert_value(self, value: list[list[Numeric]]) -> list[Numeric]:
         return [cell for row in value for cell in row]
