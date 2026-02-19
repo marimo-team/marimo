@@ -6,9 +6,7 @@ import io
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
-    Callable,
     Final,
-    Optional,
     Union,
     cast,
 )
