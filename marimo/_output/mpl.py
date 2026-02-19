@@ -73,6 +73,10 @@ def _render_figure_mimebundle(
     """
     buf = io.BytesIO()
 
+    # SVG is rendered as a base64 data URL in an <img> tag rather than
+    # inlined into the DOM. This avoids sanitization complexity (SVG can
+    # contain scripts, event handlers, etc.) at the cost of non-selectable
+    # text. Could inline with a stricter sanitizer if that's needed.
     if plt.rcParams["savefig.format"] == "svg":
         fig.figure.savefig(buf, format="svg", bbox_inches="tight")  # type: ignore[attr-defined]
         svg_bytes = buf.getvalue()
