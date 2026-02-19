@@ -314,16 +314,6 @@ describe("storage state", () => {
       expect(state.namespaces).toEqual([ns1]);
     });
 
-    it("should keep namespaces with an empty name", () => {
-      const nsNoName = makeNamespace({ name: "" });
-      const nsNamed = makeNamespace({ name: "var_a" });
-      actions.setNamespaces({ namespaces: [nsNoName, nsNamed] });
-
-      actions.filterFromVariables([]);
-
-      expect(state.namespaces).toEqual([nsNoName]);
-    });
-
     it("should remove all named namespaces when given an empty variable list", () => {
       const ns1 = makeNamespace({ name: "var_a" });
       const ns2 = makeNamespace({ name: "var_b" });
