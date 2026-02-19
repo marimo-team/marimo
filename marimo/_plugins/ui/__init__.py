@@ -42,7 +42,6 @@ __all__ = [
     "tabs",
     "text_area",
     "text",
-    "vector",
 ]
 
 from marimo._plugins.ui._impl.altair_chart import altair_chart
@@ -88,4 +87,3 @@ from marimo._plugins.ui._impl.run_button import run_button
 from marimo._plugins.ui._impl.switch import switch
 from marimo._plugins.ui._impl.table import table
 from marimo._plugins.ui._impl.tabs import tabs
-from marimo._plugins.ui._impl.vector import vector

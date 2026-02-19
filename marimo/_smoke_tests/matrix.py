@@ -371,5 +371,37 @@ def _(mo, np):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Column vector
+    """)
+    return
+
+
+@app.cell
+def _(mo, vecnp):
+    vec = mo.ui.matrix([1, 2, 3]);vecnp
+    return (vec,)
+
+
+@app.cell
+def _(vec):
+    vec.value
+    return
+
+
+@app.cell
+def _(mo, np):
+    vecnp = mo.ui.matrix(np.ones(3)); vecnp
+    return (vecnp,)
+
+
+@app.cell
+def _(vecnp):
+    vecnp.value
+    return
+
+
 if __name__ == "__main__":
     app.run()

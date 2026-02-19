@@ -241,7 +241,7 @@ const MatrixComponent = ({
                     <td
                       key={j}
                       className={cn(
-                        "relative text-right min-w-14 h-8 px-2 transition-colors touch-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        "relative text-center min-w-14 h-8 px-2 transition-colors touch-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                         isDisabled
                           ? "cursor-default text-muted-foreground"
                           : "cursor-ew-resize text-[var(--link)] hover:bg-accent",

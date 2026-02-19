@@ -16,14 +16,14 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    ## Basic column vector
+    ## Basic column vector (1D matrix)
     """)
     return
 
 
 @app.cell
 def _(mo):
-    col = mo.ui.vector([1, 2, 3], precision=2, label="Column vector")
+    col = mo.ui.matrix([1, 2, 3], precision=2, label="Column vector")
     col
     return (col,)
 
@@ -37,27 +37,6 @@ def _(col):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    ## Row vector (transposed)
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    row = mo.ui.vector([10, 20, 30], transpose=True, label="Row vector")
-    row
-    return (row,)
-
-
-@app.cell
-def _(row):
-    row.value
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
     ## With bounds and step
     """)
     return
@@ -65,7 +44,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    bounded = mo.ui.vector(
+    bounded = mo.ui.matrix(
         [0, 0, 0, 0],
         min_value=-5,
         max_value=5,
@@ -86,16 +65,16 @@ def _(bounded):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    ## With entry labels
+    ## With row labels
     """)
     return
 
 
 @app.cell
 def _(mo):
-    labeled = mo.ui.vector(
+    labeled = mo.ui.matrix(
         [1.0, 0.5, 0.0],
-        entry_labels=["x", "y", "z"],
+        row_labels=["x", "y", "z"],
         step=0.1,
         precision=1,
         label="$v$",
@@ -122,7 +101,7 @@ def _(mo):
 def _(mo):
     import numpy as np
 
-    np_vec = mo.ui.vector(
+    np_vec = mo.ui.matrix(
         np.zeros(5),
         step=0.1,
         precision=1,
@@ -148,7 +127,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    sci = mo.ui.vector(
+    sci = mo.ui.matrix(
         [0.00153, 1234567, 1e-8, -0.042],
         scientific=True,
         precision=2,
@@ -175,7 +154,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    db = mo.ui.vector(
+    db = mo.ui.matrix(
         [1, 2, 3],
         precision=2,
         debounce=True,
