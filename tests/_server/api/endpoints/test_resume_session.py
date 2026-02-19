@@ -325,10 +325,8 @@ def test_resume_session_with_watch(client: TestClient) -> None:
 
         # Directly trigger the file change handler (synchronous) instead
         # of relying on the async file watcher, which is inherently racy.
-        result = (
-            session_manager._file_change_coordinator._handle_file_change_locked(
-                os.path.abspath(filename), session
-            )
+        result = session_manager._file_change_coordinator._handle_file_change_locked(
+            os.path.abspath(filename), session
         )
         assert result.handled
 

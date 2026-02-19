@@ -117,9 +117,7 @@ def _create_watchdog(
             | watchdog.events.DirModifiedEvent,
         ) -> None:
             del event
-            asyncio.run_coroutine_threadsafe(
-                self.on_file_changed(), self.loop
-            )
+            asyncio.run_coroutine_threadsafe(self.on_file_changed(), self.loop)
 
         def on_moved(
             self,
