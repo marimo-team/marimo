@@ -489,7 +489,11 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
-    silent = MarimoPath(ir.filename).is_markdown() if ir.filename else False
+    silent = (
+        MarimoPath(ir.filename).is_markdown()
+        if ir.filename and ir.filename != "<marimo>"
+        else False
+    )
     header_comments = _extract_header_comments(ir)
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
