@@ -688,6 +688,7 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                check=False,
             )
 
             if result.returncode == 0 and out_file.exists():

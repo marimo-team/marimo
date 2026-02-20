@@ -439,13 +439,10 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
             return False
 
         # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
-        if (
+        return not (
             self.config.base_url
             and "api.openai.com" not in self.config.base_url
-        ):
-            return False
-
-        return True
+        )
 
 
 class AzureOpenAIProvider(OpenAIProvider):

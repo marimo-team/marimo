@@ -221,6 +221,7 @@ sys.stdout.write(result.text)
         [venv_python, "-c", script, json.dumps(payload)],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         stderr = result.stderr.strip()

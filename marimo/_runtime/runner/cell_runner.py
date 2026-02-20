@@ -115,10 +115,7 @@ def should_show_traceback(
 
     # SQL parsing errors happen in SQL cells so showing a
     # python traceback is not useful.
-    if isinstance(exception, MarimoSQLError):
-        return False
-
-    return True
+    return not isinstance(exception, MarimoSQLError)
 
 
 class Runner:
@@ -269,11 +266,11 @@ class Runner:
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
-        descendants = set(
+        descendants = {
             cid
-            for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
+            for cid in dataflow.transitive_closure(self.graph, {cell_id})
             if cid in self.cells_to_run
-        )
+        }
         self.cancelled_cells.add(cell_id, descendants)
         for cid in descendants:
             self.graph.cells[cid].set_run_result_status("cancelled")
@@ -288,11 +285,7 @@ class Runner:
 
     def _get_run_position(self, cell_id: CellId_t) -> Optional[int]:
         """Position in the original run queue"""
-        return (
-            self._run_position[cell_id]
-            if cell_id in self._run_position
-            else None
-        )
+        return self._run_position.get(cell_id, None)
 
     def _runs_after(
         self, source: CellId_t, target: CellId_t

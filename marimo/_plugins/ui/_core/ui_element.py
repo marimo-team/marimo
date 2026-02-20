@@ -452,10 +452,7 @@ class UIElement(Html, Generic[S, T]):
         side-effect.
         """
         self._value_frontend = value
-        try:
-            self._value = self._convert_value(value)
-        except MarimoConvertValueException:
-            raise
+        self._value = self._convert_value(value)
 
         if self._on_change is not None:
             self._on_change(self._value)

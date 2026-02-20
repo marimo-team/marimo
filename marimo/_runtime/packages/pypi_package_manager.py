@@ -103,7 +103,7 @@ class PypiPackageManager(CanonicalizingPackageManager):
         if not self.is_manager_installed():
             return []
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8"
+            cmd, capture_output=True, text=True, encoding="utf-8", check=False
         )
         if proc.returncode != 0:
             return []
@@ -716,7 +716,10 @@ class PoetryPackageManager(PypiPackageManager):
 
     def _get_poetry_version(self) -> int:
         proc = subprocess.run(
-            ["poetry", "--version"], capture_output=True, text=True
+            ["poetry", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if proc.returncode != 0:
             return -1  # and raise on the impl side
@@ -753,7 +756,7 @@ class PoetryPackageManager(PypiPackageManager):
             return []
 
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8"
+            cmd, capture_output=True, text=True, encoding="utf-8", check=False
         )
         if proc.returncode != 0:
             return []

@@ -240,8 +240,6 @@ class _AsyncHTTPResponse:
                 if not chunk:
                     break
                 yield chunk
-        except Exception:
-            raise
         finally:
             await self.aclose()
 
@@ -321,17 +319,14 @@ class _AsyncHTTPClient:
 
         method = request.method or "GET"
 
-        try:
-            conn.request(
-                method=method,
-                url=path_and_query,  # Only path and query
-                body=body,
-                headers=request.headers,
-            )
-            resp = conn.getresponse()
-            return resp  # type: ignore[no-any-return]
-        except Exception:
-            raise
+        conn.request(
+            method=method,
+            url=path_and_query,  # Only path and query
+            body=body,
+            headers=request.headers,
+        )
+        resp = conn.getresponse()
+        return resp  # type: ignore[no-any-return]
 
     async def send(
         self, request: _URLRequest, stream: bool = False, max_retries: int = 2
@@ -505,7 +500,7 @@ class ProxyMiddleware:
                                     code=WebSocketCodes.UNEXPECTED_ERROR,
                                     reason="Failed to connect to LSP server",
                                 )
-                            raise e
+                            raise
 
                 raise ValueError("Failed to connect to LSP server")
 
@@ -562,8 +557,8 @@ class ProxyMiddleware:
                     await asyncio.gather(*relay_tasks)
                 except asyncio.CancelledError:
                     pass
-                except Exception as e:
-                    raise e
+                except Exception:
+                    raise
                 finally:
                     for task in relay_tasks:
                         if not task.done():

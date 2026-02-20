@@ -52,11 +52,10 @@ def broadcast_notification(
 
     try:
         stream.write(serialize_kernel_message(notification))
-    except Exception as e:
+    except Exception:
         LOGGER.exception(
-            "Error serializing notification %s: %s",
+            "Error serializing notification %s",
             notification.__class__.__name__,
-            e,
         )
         return
 

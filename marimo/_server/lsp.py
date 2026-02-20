@@ -378,6 +378,7 @@ class CopilotLspServer(BaseLspServer):
                 capture_output=True,
                 text=True,
                 timeout=5,
+                check=False,
             )
             if result.returncode == 0:
                 version_str = result.stdout.strip()
@@ -479,6 +480,7 @@ class PyLspServer(BaseLspServer):
                 capture_output=True,
                 text=True,
                 timeout=5,
+                check=False,
             )
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout or "Unknown error"

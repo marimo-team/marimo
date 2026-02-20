@@ -461,7 +461,8 @@ def inline_packages(name: Path) -> None:
             "--script",
             str(name),
         ]
-        + pypi_names
+        + pypi_names,
+        check=False,
     )
 
 

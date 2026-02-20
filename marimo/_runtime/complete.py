@@ -51,13 +51,9 @@ def _should_include_name(name: str, prefix: str) -> bool:
         if not is_dunder_name:
             # Never include names that start with a single underscore
             return False
-        elif not prefix.startswith("_"):
-            return False
-        else:
-            # Only include dunder names when prefix starts with an underscore
-            return True
-    else:
-        return True
+        # Only include dunder names when prefix starts with an underscore
+        return prefix.startswith("_")
+    return True
 
 
 DOC_CACHE_SIZE = 200
@@ -684,7 +680,7 @@ def complete(
         )
     except Exception as e:
         # jedi failed to provide completion
-        LOGGER.debug("Completion with jedi failed: ", str(e))
+        LOGGER.debug("Completion with jedi failed: %s", str(e))
         _write_no_completions(stream, request.id)
     finally:
         try:

@@ -340,7 +340,7 @@ class OSFileSystem(FileSystem):
 
                 try:
                     # For GUI editors
-                    subprocess.run([editor, *args])
+                    subprocess.run([editor, *args], check=False)
                     return True
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")

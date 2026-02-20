@@ -396,8 +396,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     except WebSocketDisconnect:
         LOGGER.debug("Client disconnected from terminal")
-    except Exception as e:
-        LOGGER.exception(f"Terminal websocket error: {e}")
+    except Exception:
+        LOGGER.exception("Terminal websocket error")
     finally:
         # Ensure all tasks are cleaned up
         await _cancel_tasks([reader_task, writer_task])
