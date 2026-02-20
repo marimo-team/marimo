@@ -372,8 +372,7 @@ def _(cancelled, mo, time):
 
 @app.cell
 def _(mo, progress):
-    t = mo.Thread(target=progress, args=(10,))
-    t.start()
+    mo.Thread(target=progress, args=(10,)).start()
     return
 
 
