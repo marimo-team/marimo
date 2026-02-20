@@ -476,8 +476,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       swiper:
-        specifier: ^11.2.10
-        version: 11.2.10
+        specifier: ^12.0.0
+        version: 12.1.2
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.0
@@ -9242,8 +9242,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  swiper@11.2.10:
-    resolution: {integrity: sha512-RMeVUUjTQH+6N3ckimK93oxz6Sn5la4aDlgPzB+rBrG/smPdCTicXyhxa+woIpopz+jewEloiEE3lKo1h9w2YQ==}
+  swiper@12.1.2:
+    resolution: {integrity: sha512-4gILrI3vXZqoZh71I1PALqukCFgk+gpOwe1tOvz5uE9kHtl2gTDzmYflYCwWvR4LOvCrJi6UEEU+gnuW5BtkgQ==}
     engines: {node: '>= 4.7.0'}
 
   swr@2.3.4:
@@ -20836,7 +20836,7 @@ snapshots:
       picocolors: 1.1.1
       sax: 1.4.1
 
-  swiper@11.2.10: {}
+  swiper@12.1.2: {}
 
   swr@2.3.4(react@19.2.4):
     dependencies:
