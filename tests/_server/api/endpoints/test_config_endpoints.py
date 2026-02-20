@@ -3,10 +3,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from tests._server.conftest import get_user_config_manager
+from tests._server.conftest import (
+    get_session_manager,
+    get_user_config_manager,
+)
 from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
+    import pytest
     from starlette.testclient import TestClient
 
 
@@ -74,3 +78,32 @@ def test_save_user_config_with_partial_config(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
+
+
+def test_save_user_config_starts_lsp_when_ty_enabled(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    called = False
+
+    async def mock_start_lsp_server() -> None:
+        nonlocal called
+        called = True
+
+    session_manager = get_session_manager(client)
+    monkeypatch.setattr(
+        session_manager, "start_lsp_server", mock_start_lsp_server
+    )
+
+    response = client.post(
+        "/api/kernel/save_user_config",
+        headers=HEADERS,
+        json={
+            "config": {
+                "completion": {"copilot": False},
+                "language_servers": {"ty": {"enabled": True}},
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert called is True
