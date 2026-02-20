@@ -456,10 +456,6 @@ def edit(
         return
 
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
-    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
-        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
-        # Check for version updates
-        check_for_updates(print_latest_version)
 
     if name is not None:
         # Validate name, or download from URL
@@ -514,7 +510,7 @@ def edit(
         if not DependencyManager.zmq.has():
             raise MarimoCLIMissingDependencyError(
                 "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
-                ["marimo[sandbox]", "pyzmq"],
+                "marimo[sandbox]",
             )
 
         # Enable script metadata management for sandboxed notebooks
@@ -542,6 +538,11 @@ def edit(
             "  - If /dev/shm is full, clear unused shared memory segments\n"
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
+
+    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
+        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
+        # Check for version updates after preflight checks pass.
+        check_for_updates(print_latest_version)
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -1118,7 +1119,7 @@ def run(
         if not DependencyManager.zmq.has():
             raise MarimoCLIMissingDependencyError(
                 "pyzmq is required when running a gallery with --sandbox.",
-                ["marimo[sandbox]", "pyzmq"],
+                "marimo[sandbox]",
             )
 
     if is_multi:

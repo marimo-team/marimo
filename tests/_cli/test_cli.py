@@ -20,6 +20,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
+from unittest.mock import patch
 
 import pytest
 
@@ -382,6 +383,87 @@ def test_cli_missing_argument_uses_compact_error() -> None:
     assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
     assert "For more information, try '--help'." in result.output
     assert "Options:" not in result.output
+
+
+def test_cli_edit_sandbox_missing_zmq_skips_update_check() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    captured_packages: dict[str, str | list[str]] = {}
+
+    def _capture_install_commands(
+        packages: str | list[str] | tuple[str, ...],
+    ) -> list[str]:
+        captured_packages["value"] = (
+            packages if isinstance(packages, str) else list(packages)
+        )
+        return ["python -m pip install 'marimo[sandbox]'"]
+
+    with (
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch(
+            "marimo._dependencies.dependencies.DependencyManager.zmq.has",
+            return_value=False,
+        ),
+        patch(
+            "marimo._cli.errors.get_install_commands",
+            side_effect=_capture_install_commands,
+        ),
+        patch("marimo._cli.cli.check_for_updates") as mock_check_for_updates,
+    ):
+        result = runner.invoke(main, ["edit", "--sandbox"])
+
+    assert result.exit_code == 1
+    mock_check_for_updates.assert_not_called()
+    assert captured_packages["value"] == "marimo[sandbox]"
+    assert (
+        "pyzmq is required when running the marimo edit server on a directory with --sandbox."
+        in result.output
+    )
+    assert "python -m pip install 'marimo[sandbox]'" in result.output
+    assert "'marimo[sandbox]' pyzmq" not in result.output
+
+
+def test_cli_edit_checks_for_updates_after_preflight() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    events: list[str] = []
+
+    with (
+        runner.isolated_filesystem(),
+        patch.dict(os.environ, {"MARIMO_SKIP_UPDATE_CHECK": "0"}),
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch(
+            "marimo._utils.platform.check_shared_memory_available",
+            return_value=(True, None),
+        ),
+        patch(
+            "marimo._cli.cli.check_for_updates",
+            side_effect=lambda *_args, **_kwargs: events.append("update"),
+        ),
+        patch(
+            "marimo._cli.cli.start",
+            side_effect=lambda *_args, **_kwargs: events.append("start"),
+        ),
+    ):
+        result = runner.invoke(
+            main,
+            ["edit", "notebook.py", "--headless", "--no-token"],
+        )
+
+    assert result.exit_code == 0
+    assert events == ["update", "start"]
 
 
 def test_cli_edit_none() -> None:

@@ -1,14 +1,28 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Any
+
 import click
 
 from marimo._cli.install_hints import get_install_commands
-from marimo._cli.print import bold, green, muted
+from marimo._cli.print import bold, green, muted, red
 
 
 class MarimoCLIError(click.ClickException):
     """Base class for marimo CLI errors."""
+
+    def show(self, file: Any = None) -> None:
+        if file is None:
+            file = click.get_text_stream("stderr")
+
+        ctx = getattr(self, "ctx", None)
+        color = ctx.color if ctx is not None else None
+        click.echo(
+            f"{red('Error', bold=True)}: {self.format_message()}",
+            file=file,
+            color=color,
+        )
 
 
 class MarimoCLIRuntimeError(MarimoCLIError):

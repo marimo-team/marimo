@@ -3,10 +3,11 @@
 # with pytest.
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._cli.errors import MarimoCLIError, MarimoCLIMissingDependencyError
 
 
 def test_missing_dependency_error_renders_followup_commands() -> None:
@@ -62,3 +63,14 @@ def test_chromium_setup_command_not_hardcoded_in_export_callsites() -> None:
     ).read_text(encoding="utf-8")
     assert "python -m playwright install chromium" not in export_commands
     assert "python -m playwright install chromium" not in export_thumbnail
+
+
+def test_marimo_cli_error_show_formats_error_prefix() -> None:
+    error = MarimoCLIError("boom")
+    output = StringIO()
+
+    with patch("marimo._cli.errors.red", return_value="<error>") as mock_red:
+        error.show(file=output)
+
+    mock_red.assert_called_once_with("Error", bold=True)
+    assert output.getvalue() == "<error>: boom\n"
