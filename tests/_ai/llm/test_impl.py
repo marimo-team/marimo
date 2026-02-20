@@ -303,7 +303,7 @@ class TestOpenAI:
         self, mock_openai_client, test_messages, test_config
     ):
         """Test calling the openai class with a custom base URL."""
-        mock_client, mock_openai_class = mock_openai_client
+        _mock_client, mock_openai_class = mock_openai_client
 
         # Create model with API key and base URL
         model = openai(
@@ -576,7 +576,7 @@ class TestGroq:
         self, mock_groq_client, test_messages, test_config
     ):
         """Test calling the groq class with a custom base URL."""
-        mock_client, mock_groq_class = mock_groq_client
+        _mock_client, mock_groq_class = mock_groq_client
 
         # Create model with API key and base URL
         model = groq(

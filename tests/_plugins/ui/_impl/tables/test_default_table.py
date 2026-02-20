@@ -892,9 +892,7 @@ class TestColumnarDefaultTable(unittest.TestCase):
             }
         )
         result = manager.to_csv()
-        assert (
-            result == b"a,b\n1,3\n2,4\n" or result == b"a,b\r\n1,3\r\n2,4\r\n"
-        )
+        assert result in {b"a,b\n1,3\n2,4\n", b"a,b\r\n1,3\r\n2,4\r\n"}
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
@@ -1106,9 +1104,10 @@ class TestDictionaryDefaultTable(unittest.TestCase):
     )
     def test_to_csv(self) -> None:
         result = self.manager.to_csv()
-        assert result == b"key,value\na,1\nb,2\n" or result == (
-            b"key,value\r\na,1\r\nb,2\r\n"
-        )
+        assert result in {
+            b"key,value\na,1\nb,2\n",
+            b"key,value\r\na,1\r\nb,2\r\n",
+        }
 
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"

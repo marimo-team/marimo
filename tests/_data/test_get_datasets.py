@@ -510,8 +510,8 @@ def test_get_datasets_from_variables(df: Any) -> None:
 
     sample_values1 = datatests[0].columns[0].sample_values
     sample_values2 = datatests[0].columns[1].sample_values
-    assert sample_values1 == [1, 2, 3] or sample_values1 == []
-    assert sample_values2 == ["a", "a", "a"] or sample_values2 == []
+    assert sample_values1 in ([1, 2, 3], [])
+    assert sample_values2 in (["a", "a", "a"], [])
 
     assert datatests == [
         DataTable(

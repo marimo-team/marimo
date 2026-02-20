@@ -220,8 +220,7 @@ class TestExecutionRoutes_EditMode:
         }
         # Check no marimo in headers
         assert all(
-            "marimo" not in header
-            for header in app_meta_response["headers"].keys()
+            "marimo" not in header for header in app_meta_response["headers"]
         )
         # Check user is False
         assert app_meta_response["user"] is True
@@ -388,8 +387,7 @@ class TestExecutionRoutes_RunMode:
         }
         # Check no marimo in headers
         assert all(
-            "marimo" not in header
-            for header in app_meta_response["headers"].keys()
+            "marimo" not in header for header in app_meta_response["headers"]
         )
         # Check user is True
         assert app_meta_response["user"] is True

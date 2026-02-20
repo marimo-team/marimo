@@ -32,8 +32,7 @@ def empty_sqlite_engine() -> sa.Engine:
 
     import sqlalchemy as sa
 
-    engine = sa.create_engine("sqlite:///:memory:")
-    return engine
+    return sa.create_engine("sqlite:///:memory:")
 
 
 @pytest.fixture

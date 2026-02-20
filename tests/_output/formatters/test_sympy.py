@@ -56,7 +56,7 @@ def test_sympy_formatters_power() -> None:
 
     from sympy import symbols
 
-    x, y, z = symbols("x y z")
+    x, _y, _z = symbols("x y z")
     x_squared = x**2
 
     # x^2
@@ -109,7 +109,7 @@ def test_sympy_formatters_Integral() -> None:
 
     from sympy import Integral, sqrt, symbols
 
-    x, y, z = symbols("x y z")
+    x, _y, _z = symbols("x y z")
     out_exp = Integral(sqrt(1 / x), x)
 
     # symbolic integral

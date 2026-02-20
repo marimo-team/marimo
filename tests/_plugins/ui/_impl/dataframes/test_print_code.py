@@ -235,7 +235,7 @@ def create_transform_strategy(
     )
 
     # Combine all transform strategies
-    transform_strategy = st.one_of(
+    return st.one_of(
         column_conversion_transform_strategy,
         rename_column_transform_strategy,
         sort_column_transform_strategy,
@@ -249,8 +249,6 @@ def create_transform_strategy(
         expand_dict_transform_strategy,
         pivot_transform_strategy,
     )
-
-    return transform_strategy
 
 
 transformations_strategy = st.builds(

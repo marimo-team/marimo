@@ -221,7 +221,9 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
             f.write("\n# test")
             f.close()
         assert session_manager._watcher_manager._watchers
-        watcher = list(session_manager._watcher_manager._watchers.values())[0]
+        watcher = next(
+            iter(session_manager._watcher_manager._watchers.values())
+        )
         await watcher.callback(Path(filename))
         # Drain messages until we get the reload message
         # (other messages like 'variables' may arrive first)

@@ -23,7 +23,7 @@ def test_assign_simple() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x"])
+    assert v.defs == {"x"}
     assert v.refs == set()
     assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
@@ -33,7 +33,7 @@ def test_multiple_assign() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x", "y"])
+    assert v.defs == {"x", "y"}
     assert v.refs == set()
     assert v.variable_data == {
         "x": [VariableData(kind="variable")],
@@ -46,7 +46,7 @@ def test_assign_multiple_statements() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["x", "y"])
+    assert v.defs == {"x", "y"}
     assert v.refs == set()
     assert v.variable_data == {
         "x": [VariableData(kind="variable")],
@@ -60,7 +60,7 @@ def test_assign_attr() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
@@ -70,7 +70,7 @@ def test_read_attr() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
@@ -79,7 +79,7 @@ def test_read_attr_of_defined_variable() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x"])
+    assert v.defs == {"x"}
     assert v.refs == set()
     assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
@@ -90,7 +90,7 @@ def test_assign_nested_attr() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
@@ -100,7 +100,7 @@ def test_read_nested_attr() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
@@ -109,8 +109,8 @@ def test_assign_same_name() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"x"}
+    assert v.refs == {"x"}
     assert v.variable_data == {
         "x": [VariableData(kind="variable", required_refs={"x"})]
     }
@@ -119,7 +119,7 @@ def test_assign_same_name() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x"])
+    assert v.defs == {"x"}
     assert v.refs == set()
     assert v.variable_data == {
         "x": [
@@ -132,8 +132,8 @@ def test_assign_same_name() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"x"}
+    assert v.refs == {"x"}
     assert v.variable_data == {
         "x": [VariableData(kind="variable", required_refs={"x"})]
     }
@@ -142,8 +142,8 @@ def test_assign_same_name() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["x"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"x"}
+    assert v.refs == {"x"}
     assert v.variable_data == {
         "x": [VariableData(kind="variable", required_refs={"x"})]
     }
@@ -152,8 +152,8 @@ def test_assign_same_name() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["f"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"f"}
+    assert v.refs == {"x"}
     assert v.variable_data == {
         "f": [
             VariableData(
@@ -166,8 +166,8 @@ def test_assign_same_name() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["F"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"F"}
+    assert v.refs == {"x"}
     assert v.variable_data == {
         "F": [
             VariableData(
@@ -181,7 +181,7 @@ def test_assign_same_name() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
@@ -191,7 +191,7 @@ def test_load_attr() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
@@ -200,7 +200,7 @@ def test_structured_assignment() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    names = set(["a", "b", "c", "d", "e", "f", "g", "h"])
+    names = {"a", "b", "c", "d", "e", "f", "g", "h"}
     assert v.defs == names
     assert v.refs == set()
     assert v.variable_data == {
@@ -220,7 +220,7 @@ def test_starred_assignment() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["a", "b"])
+    assert v.defs == {"a", "b"}
     assert v.refs == set()
     assert v.variable_data == {
         "a": [VariableData(kind="variable")],
@@ -229,17 +229,11 @@ def test_starred_assignment() -> None:
 
 
 def test_scope_does_not_leak() -> None:
-    code = "\n".join(
-        [
-            "def foo():",
-            "  z = 0",
-            "z",
-        ]
-    )
+    code = "def foo():\n  z = 0\nz"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo"])
+    assert v.defs == {"foo"}
     assert v.refs == set("z")
     assert v.variable_data == {
         "foo": [VariableData(kind="function")],
@@ -247,60 +241,42 @@ def test_scope_does_not_leak() -> None:
 
 
 def test_nested_comprehensions() -> None:
-    code = "\n".join(
-        [
-            "[(i, j) for i in range(10) for j in range(i)]",
-            "{(i, j) for i in range(10) for j in range(i)}",
-            "{i: j for i in range(10) for j in range(i)}",
-        ]
-    )
+    code = "[(i, j) for i in range(10) for j in range(i)]\n{(i, j) for i in range(10) for j in range(i)}\n{i: j for i in range(10) for j in range(i)}"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["range"])
+    assert v.refs == {"range"}
     assert not v.variable_data
 
 
 def test_comprehension_generator() -> None:
-    code = "\n".join(
-        [
-            "[x for x in x]",
-        ]
-    )
+    code = "[x for x in x]"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
 def test_nested_comprehension_generator() -> None:
-    code = "\n".join(
-        [
-            "[x for x in x for x in x]",
-        ]
-    )
+    code = "[x for x in x for x in x]"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["x"])
+    assert v.refs == {"x"}
     assert not v.variable_data
 
 
 def test_nested_comprehension_generator_with_named_expr() -> None:
-    code = "\n".join(
-        [
-            "[(x := x) for x in x for x in x]",
-        ]
-    )
+    code = "[(x := x) for x in x for x in x]"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     # named expr kicks x out, evicting the ref
-    assert v.defs == set(["x"])
+    assert v.defs == {"x"}
     assert v.refs == set()
     assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
@@ -396,20 +372,13 @@ def test_shadowed_param_in_comprehension_not_required_ref() -> None:
 
 
 def test_walrus_leaks_to_global_in_comprehension() -> None:
-    code = "\n".join(
-        [
-            "def foo(): a",
-            "[(a := (i, (b := j))) for i in range(10) for j in range(i)]",
-            "{(c := (i, j)) for i in range(10) for j in range(i)}",
-            "{i: (d := j) for i in range(10) for j in range(i)}",
-        ]
-    )
+    code = "def foo(): a\n[(a := (i, (b := j))) for i in range(10) for j in range(i)]\n{(c := (i, j)) for i in range(10) for j in range(i)}\n{i: (d := j) for i in range(10) for j in range(i)}"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["a", "b", "c", "d", "foo"])
+    assert v.defs == {"a", "b", "c", "d", "foo"}
     # "a" should not be a ref!
-    assert v.refs == set(["range"])
+    assert v.refs == {"range"}
     assert v.variable_data == {
         "a": [VariableData(kind="variable")],
         "b": [VariableData(kind="variable")],
@@ -424,8 +393,8 @@ def test_nested_walrus_leaks_to_global_in_comprehension() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["a", "b"])
-    assert v.refs == set(["range"])
+    assert v.defs == {"a", "b"}
+    assert v.refs == {"range"}
     assert v.variable_data == {
         "a": [VariableData(kind="variable")],
         "b": [VariableData(kind="variable")],
@@ -437,8 +406,8 @@ def test_pep572_walrus_comprehension_examples() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["y"])
-    assert v.refs == set(["input_data", "f"])
+    assert v.defs == {"y"}
+    assert v.refs == {"input_data", "f"}
     assert v.variable_data == {
         "y": [VariableData(kind="variable")],
     }
@@ -447,43 +416,33 @@ def test_pep572_walrus_comprehension_examples() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["y"])
-    assert v.refs == set(["f", "range"])
+    assert v.defs == {"y"}
+    assert v.refs == {"f", "range"}
     assert v.variable_data == {
         "y": [VariableData(kind="variable")],
     }
 
 
 def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
-    code = "\n".join(
-        ["def f():", "  [(x := 0) for i in range(5)]", "  y = x + 1"]
-    )
+    code = "def f():\n  [(x := 0) for i in range(5)]\n  y = x + 1"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["f"])  # x should _not_ leak to global scope
-    assert v.refs == set(["range"])  # x should leak to f's scope
+    assert v.defs == {"f"}  # x should _not_ leak to global scope
+    assert v.refs == {"range"}  # x should leak to f's scope
     assert v.variable_data == {
         "f": [VariableData(kind="function", required_refs={"range"})],
     }
 
 
 def test_assignments_in_multiple_scopes() -> None:
-    code = "\n".join(
-        [
-            "a = 0",
-            "def foo():",
-            "  b = 0",
-            "  c = 0",
-            "  def bar():",
-            "    d = 0",
-            "e = 0",
-        ]
+    code = (
+        "a = 0\ndef foo():\n  b = 0\n  c = 0\n  def bar():\n    d = 0\ne = 0"
     )
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["a", "e", "foo"])
+    assert v.defs == {"a", "e", "foo"}
     assert v.refs == set()
     assert v.variable_data == {
         "a": [VariableData(kind="variable")],
@@ -503,7 +462,7 @@ def test_function_with_args() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo"])
+    assert v.defs == {"foo"}
     assert v.refs == set("z")
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"z"})],
@@ -519,8 +478,8 @@ def test_annotations_captured() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["x"])
-    assert v.refs == set(["int", "CONSTANT"])
+    assert v.defs == {"x"}
+    assert v.refs == {"int", "CONSTANT"}
     assert v.variable_data == {
         "x": [
             VariableData(
@@ -542,8 +501,8 @@ def test_function_with_defaults() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo"])
-    assert v.refs == set(["x", "y", "a"])
+    assert v.defs == {"foo"}
+    assert v.refs == {"x", "y", "a"}
     # TODO: Are these required refs?
     assert v.variable_data == {
         "foo": [
@@ -568,7 +527,7 @@ def test_async_function_def() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo", "x"])
+    assert v.defs == {"foo", "x"}
     assert v.refs == set("z")
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"z"})],
@@ -587,7 +546,7 @@ def test_global_def() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo", "x"])
+    assert v.defs == {"foo", "x"}
     assert v.refs == set()
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"x"})],
@@ -606,7 +565,7 @@ def test_global_not_ref() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo", "x"])
+    assert v.defs == {"foo", "x"}
     assert v.refs == set()
 
 
@@ -621,7 +580,7 @@ def test_global_not_ref_define_later() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo", "x"])
+    assert v.defs == {"foo", "x"}
     assert v.refs == set()
 
 
@@ -639,7 +598,7 @@ def test_global_after_scoped_def() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["f", "x"])
+    assert v.defs == {"f", "x"}
     assert not v.refs
 
 
@@ -654,8 +613,8 @@ def test_global_ref() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo"])
-    assert v.refs == set(["x", "print"])
+    assert v.defs == {"foo"}
+    assert v.refs == {"x", "print"}
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"x", "print"})],
     }
@@ -672,8 +631,8 @@ def test_global_deleted_ref() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["f"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"f"}
+    assert v.refs == {"x"}
     assert v.deleted_refs == {"x"}
 
 
@@ -690,8 +649,8 @@ def test_nested_local_def_and_global_ref() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo"])
-    assert v.refs == set(["x", "print"])
+    assert v.defs == {"foo"}
+    assert v.refs == {"x", "print"}
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"x", "print"})],
     }
@@ -703,22 +662,18 @@ def test_call_ref() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == set(["foo"])
+    assert v.refs == {"foo"}
     assert not v.variable_data
 
 
 def test_call_defined() -> None:
     # fmt: off
-    code = "\n".join([
-        "def foo():",
-        "  pass",
-        "foo()"
-    ])
+    code = "def foo():\n  pass\nfoo()"
     # fmt: on
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["foo"])
+    assert v.defs == {"foo"}
     assert v.refs == set()
     assert v.variable_data == {
         "foo": [VariableData(kind="function")],
@@ -730,7 +685,7 @@ def test_mutation_generates_def() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["x"])
+    assert v.defs == {"x"}
     assert v.refs == set()
     assert v.variable_data == {
         "x": [VariableData(kind="variable")],
@@ -749,8 +704,8 @@ def test_captured_variables() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["f", "x"])
-    assert v.refs == set([])
+    assert v.defs == {"f", "x"}
+    assert v.refs == set()
 
     code = cleandoc(
         """
@@ -763,8 +718,8 @@ def test_captured_variables() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["f", "x"])
-    assert v.refs == set([])
+    assert v.defs == {"f", "x"}
+    assert v.refs == set()
 
     code = cleandoc(
         """
@@ -778,8 +733,8 @@ def test_captured_variables() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["f", "x"])
-    assert v.refs == set([])
+    assert v.defs == {"f", "x"}
+    assert v.refs == set()
 
     code = cleandoc(
         """
@@ -792,8 +747,8 @@ def test_captured_variables() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["f"])
-    assert v.refs == set([])
+    assert v.defs == {"f"}
+    assert v.refs == set()
 
     code = cleandoc(
         """
@@ -808,8 +763,8 @@ def test_captured_variables() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["f", "h"])
-    assert v.refs == set(["x"])
+    assert v.defs == {"f", "h"}
+    assert v.refs == {"x"}
 
 
 def test_matchas() -> None:
@@ -829,8 +784,8 @@ def test_matchas() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["a", "b", "c", "d", "e", "f"])
-    assert v.refs == set(["value"])
+    assert v.defs == {"a", "b", "c", "d", "e", "f"}
+    assert v.refs == {"value"}
     assert v.variable_data == {
         "a": [VariableData(kind="variable")],
         "b": [VariableData(kind="variable")],
@@ -854,8 +809,8 @@ def test_matchstar() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["rest"])
-    assert v.refs == set(["value"])
+    assert v.defs == {"rest"}
+    assert v.refs == {"value"}
     assert v.variable_data == {
         "rest": [VariableData(kind="variable")],
     }
@@ -876,8 +831,8 @@ def test_matchmapping() -> None:
     mod = ast.parse(code)
     v = visitor.ScopedVisitor()
     v.visit(mod)
-    assert v.defs == set(["a", "b"])
-    assert v.refs == set(["value"])
+    assert v.defs == {"a", "b"}
+    assert v.refs == {"value"}
     assert v.variable_data == {
         "a": [VariableData(kind="variable")],
         "b": [VariableData(kind="variable")],
@@ -889,7 +844,7 @@ def test_import_nested() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["a"])
+    assert v.defs == {"a"}
     assert v.refs == set()
     assert v.variable_data["a"] == [
         VariableData(
@@ -906,7 +861,7 @@ def test_import_as() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["d"])
+    assert v.defs == {"d"}
     assert v.refs == set()
     assert v.variable_data["d"] == [
         VariableData(
@@ -923,7 +878,7 @@ def test_import_multiple() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["a", "d"])
+    assert v.defs == {"a", "d"}
     assert v.refs == set()
     assert v.variable_data["a"] == [
         VariableData(
@@ -948,7 +903,7 @@ def test_from_import() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["d"])
+    assert v.defs == {"d"}
     assert v.refs == set()
     assert v.variable_data["d"] == [
         VariableData(
@@ -968,7 +923,7 @@ def test_relative_from_import() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["d"])
+    assert v.defs == {"d"}
     assert v.refs == set()
     assert v.variable_data["d"] == [
         VariableData(
@@ -996,28 +951,7 @@ def test_from_import_star() -> None:
 
 
 def test_try_block() -> None:
-    code = "\n".join(
-        [
-            "f = 2",
-            "try:",
-            "  v = 1 / 0",
-            "except TypeError as e:",
-            "  err = e",
-            "  e = 0",
-            "  x = out_of_scope",
-            "  print(f'caught {type(e)} with nested {e.exceptions}')",
-            "except OSError as f:",
-            "  err2 = f",
-            "  try:",
-            "    y = 1 / 0",
-            "  except ZeroDivisionError as g:",
-            "    err3 = g",
-            "else:",
-            "  w = 1",
-            "finally:",
-            "  z = 3",
-        ]
-    )
+    code = "f = 2\ntry:\n  v = 1 / 0\nexcept TypeError as e:\n  err = e\n  e = 0\n  x = out_of_scope\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept OSError as f:\n  err2 = f\n  try:\n    y = 1 / 0\n  except ZeroDivisionError as g:\n    err3 = g\nelse:\n  w = 1\nfinally:\n  z = 3"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1026,33 +960,17 @@ def test_try_block() -> None:
     assert "e" not in v.refs
     assert "f" not in v.refs
     assert "g" not in v.refs
-    assert v.defs == set(["f", "v", "w", "x", "y", "z", "err", "err2", "err3"])
+    assert v.defs == {"f", "v", "w", "x", "y", "z", "err", "err2", "err3"}
 
 
 @pytest.mark.skipif("sys.version_info < (3, 11)")
 def test_try_star_block() -> None:
-    code = "\n".join(
-        [
-            "try:",
-            (
-                "  raise ExceptionGroup('eg', "
-                "[ValueError(1), TypeError(2), OSError(3)])"
-            ),
-            "except* TypeError as e:",
-            "  print(f'caught {type(e)} with nested {e.exceptions}')",
-            "except* OSError as f:",
-            "  print(f'caught {type(f)} with nested {f.exceptions}')",
-            "else:",
-            "  print('Type and Os not raised')",
-            "finally:",
-            "  print('finally')",
-        ]
-    )
+    code = "try:\n  raise ExceptionGroup('eg', [ValueError(1), TypeError(2), OSError(3)])\nexcept* TypeError as e:\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept* OSError as f:\n  print(f'caught {type(f)} with nested {f.exceptions}')\nelse:\n  print('Type and Os not raised')\nfinally:\n  print('finally')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     # T should not be among the refs or defs
-    assert v.defs == set([])
+    assert v.defs == set()
     assert "e" not in v.refs
     assert "f" not in v.refs
 
@@ -1064,8 +982,8 @@ def test_type_alias_scoped() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     # T should not be among the refs or defs
-    assert v.defs == set(["alias"])
-    assert v.refs == set(["list"])
+    assert v.defs == {"alias"}
+    assert v.refs == {"list"}
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
@@ -1081,7 +999,7 @@ def test_type_var_generic_class() -> None:
     mod = ast.parse(expr)
     v.visit(mod)
     # T should not be among the refs or defs
-    assert v.defs == set(["A"])
+    assert v.defs == {"A"}
     assert v.refs == set()
 
 
@@ -1096,29 +1014,22 @@ def test_type_var_generic_function() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == set(["test"])
+    assert v.defs == {"test"}
     # U should not be a ref
     assert v.refs == set()
 
 
 def test_private_ref_requirement_caught() -> None:
-    code = "\n".join(
-        [
-            "x = 1",
-            "_x = 1",
-            "def foo():",
-            "  z = _x + x + X",
-        ]
-    )
+    code = "x = 1\n_x = 1\ndef foo():\n  z = _x + x + X"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert len(v.defs & set(["foo", "x"])) == 2
-    assert len(v.defs - set(["foo", "x"])) == 1
-    (private,) = v.defs - set(["foo", "x"])
+    assert len(v.defs & {"foo", "x"}) == 2
+    assert len(v.defs - {"foo", "x"}) == 1
+    (private,) = v.defs - {"foo", "x"}
     assert private.startswith("_")
     assert private.endswith("_x")
-    assert v.refs == set(["X"])
+    assert v.refs == {"X"}
     assert v.variable_data == {
         private: [VariableData(kind="variable")],
         "x": [VariableData(kind="variable")],
@@ -1209,30 +1120,22 @@ HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql('select * from cars')",
-        ]
-    )
+    code = "df = mo.sql('select * from cars')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "mo"])
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "mo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_marimo_sql() -> None:
-    code = "\n".join(
-        [
-            "df = marimo.sql('select * from cars')",
-        ]
-    )
+    code = "df = marimo.sql('select * from cars')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "marimo"])
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "marimo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1247,36 +1150,28 @@ def test_sql_statement_with_duckdb_sql(code: str) -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "duckdb"])
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "duckdb"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_f_string() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql(f'select * from cars where name = {name}')",
-        ]
-    )
+    code = "df = mo.sql(f'select * from cars where name = {name}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "mo", "name"])
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "mo", "name"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_rf_string() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql(rf'select * from cars where name = {name}')",
-        ]
-    )
+    code = "df = mo.sql(rf'select * from cars where name = {name}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "mo", "name"])
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "mo", "name"}
 
 
 def test_print_f_string() -> None:
@@ -1403,8 +1298,8 @@ def test_sql_empty_statement() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set([])
-    assert v.refs == set(["mo"])
+    assert v.defs == set()
+    assert v.refs == {"mo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1413,55 +1308,41 @@ def test_sql_empty_statement_duckdb() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set([])
-    assert v.refs == set(["duckdb"])
+    assert v.defs == set()
+    assert v.refs == {"duckdb"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_multiple_tables() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql('select * from cars left join"
-            " cars2 on cars.id = cars2.id')",
-        ]
-    )
+    code = "df = mo.sql('select * from cars left join cars2 on cars.id = cars2.id')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["cars", "cars2", "mo"])
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "cars2", "mo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_from_another_module() -> None:
-    code = "\n".join(
-        [
-            "df = lib.sql('select * from cars')",
-        ]
-    )
+    code = "df = lib.sql('select * from cars')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["lib"])
+    assert v.defs == {"df"}
+    assert v.refs == {"lib"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_url() -> None:
-    code = "\n".join(
-        [
-            'mo.sql("CREATE OR replace TABLE cars as '
-            "FROM 'https://datasets.marimo.app/cars.csv';\")",
-        ]
-    )
+    code = "mo.sql(\"CREATE OR replace TABLE cars as FROM 'https://datasets.marimo.app/cars.csv';\")"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["cars"])
+    assert v.defs == {"cars"}
     assert v.variable_data == {
         "cars": [VariableData("table", qualified_name="cars")]
     }
-    assert v.refs == set(["mo"])
+    assert v.refs == {"mo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1477,91 +1358,78 @@ def test_sql_statement_with_function() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["prompt_embeddings"])
-    assert v.refs == set(["mo", "prompts"])
+    assert v.defs == {"prompt_embeddings"}
+    assert v.refs == {"mo", "prompts"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_unparsable_sql_doesnt_fail() -> None:
-    code = "\n".join(
-        [
-            # duckdb will raise a BinderError, but codegen shouldnt fail
-            "df = mo.sql('select * from cars where cars.foo = ANY({bar})')",
-        ]
-    )
+    code = "df = mo.sql('select * from cars where cars.foo = ANY({bar})')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["df"])
-    assert v.refs == set(["mo"])
+    assert v.defs == {"df"}
+    assert v.refs == {"mo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_attach() -> None:
-    code = "\n".join(
-        [
-            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"
-        ]
-    )
+    code = "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["db"])
-    assert v.refs == set(["mo"])
+    assert v.defs == {"db"}
+    assert v.refs == {"mo"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_attach_f_string() -> None:
-    code = "\n".join(
-        [
-            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"
-        ]
-    )
+    code = "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["db"])
-    assert v.refs == set(["mo", "PASSWORD"])
+    assert v.defs == {"db"}
+    assert v.refs == {"mo", "PASSWORD"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_int_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT * FROM df LIMIT {lim}')"])
+    code = "mo.sql(f'SELECT * FROM df LIMIT {lim}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert not v.defs
-    assert v.refs == set(["mo", "df", "lim"])
+    assert v.refs == {"mo", "df", "lim"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_column_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT {col} FROM df LIMIT {lim}')"])
+    code = "mo.sql(f'SELECT {col} FROM df LIMIT {lim}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert not v.defs
-    assert v.refs == set(["mo", "df", "lim", "col"])
+    assert v.refs == {"mo", "df", "lim", "col"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_value_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT * FROM df WHERE {col} = {val}')"])
+    code = "mo.sql(f'SELECT * FROM df WHERE {col} = {val}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert not v.defs
-    assert v.refs == set(["mo", "df", "col", "val"])
+    assert v.refs == {"mo", "df", "col", "val"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_table_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT * FROM {my_table} LIMIT {lim}')"])
+    code = "mo.sql(f'SELECT * FROM {my_table} LIMIT {lim}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
     assert not v.defs
-    assert v.refs == set(["mo", "my_table", "lim"])
+    assert v.refs == {"mo", "my_table", "lim"}
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1786,11 +1654,11 @@ def test_class_with_class_var_in_method_default() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # A should NOT be a ref (it's defined in class scope), but int is (type annotation)
-    assert v.refs == set(["int"])
+    assert v.refs == {"int"}
     # K should have unbounded_refs only for int, not A
-    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+    assert v.variable_data["K"][0].unbounded_refs == {"int"}
 
 
 def test_class_with_class_var_referencing_another() -> None:
@@ -1809,11 +1677,11 @@ def test_class_with_class_var_referencing_another() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # A should NOT be a ref (it's defined in class scope), but int is (type annotation)
-    assert v.refs == set(["int"])
+    assert v.refs == {"int"}
     # K should have unbounded_refs only for int, not A
-    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+    assert v.variable_data["K"][0].unbounded_refs == {"int"}
 
 
 def test_class_with_typealias_annotation() -> None:
@@ -1832,14 +1700,15 @@ def test_class_with_typealias_annotation() -> None:
     v.visit(mod)
 
     # EmbeddedTypeAlias should be a def
-    assert v.defs == set(["EmbeddedTypeAlias"])
+    assert v.defs == {"EmbeddedTypeAlias"}
     # MyEmbeddedTypeAlias should NOT be a ref (it's defined in class scope)
     # TypeAlias and int are refs (type annotations)
-    assert v.refs == set(["TypeAlias", "int"])
+    assert v.refs == {"TypeAlias", "int"}
     # Should have unbounded_refs only for TypeAlias and int, not MyEmbeddedTypeAlias
-    assert v.variable_data["EmbeddedTypeAlias"][0].unbounded_refs == set(
-        ["TypeAlias", "int"]
-    )
+    assert v.variable_data["EmbeddedTypeAlias"][0].unbounded_refs == {
+        "TypeAlias",
+        "int",
+    }
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
@@ -1859,12 +1728,12 @@ def test_class_with_type_statement() -> None:
     v.visit(mod)
 
     # EmbeddedType should be a def
-    assert v.defs == set(["EmbeddedType"])
+    assert v.defs == {"EmbeddedType"}
     # MyEmbeddedType should NOT be a ref (it's defined in class scope via type statement)
     # int is a ref (used in type statement)
-    assert v.refs == set(["int"])
+    assert v.refs == {"int"}
     # Should have unbounded_refs only for int, not MyEmbeddedType
-    assert v.variable_data["EmbeddedType"][0].unbounded_refs == set(["int"])
+    assert v.variable_data["EmbeddedType"][0].unbounded_refs == {"int"}
 
 
 def test_class_with_external_var_in_method_default() -> None:
@@ -1882,11 +1751,11 @@ def test_class_with_external_var_in_method_default() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # EXTERNAL should be a ref (not defined in class)
-    assert v.refs == set(["int", "EXTERNAL"])
+    assert v.refs == {"int", "EXTERNAL"}
     # K should have unbounded_refs for EXTERNAL, but not A
-    assert v.variable_data["K"][0].unbounded_refs == set(["int", "EXTERNAL"])
+    assert v.variable_data["K"][0].unbounded_refs == {"int", "EXTERNAL"}
 
 
 def test_class_with_external_var_in_class_var() -> None:
@@ -1905,11 +1774,11 @@ def test_class_with_external_var_in_class_var() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # EXTERNAL should be a ref (not defined in class)
-    assert v.refs == set(["int", "EXTERNAL"])
+    assert v.refs == {"int", "EXTERNAL"}
     # K should have unbounded_refs for EXTERNAL, but not A
-    assert v.variable_data["K"][0].unbounded_refs == set(["int", "EXTERNAL"])
+    assert v.variable_data["K"][0].unbounded_refs == {"int", "EXTERNAL"}
 
 
 def test_class_with_external_type_in_typealias() -> None:
@@ -1928,13 +1797,14 @@ def test_class_with_external_type_in_typealias() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # ExternalType and TypeAlias should be refs (not defined in class)
-    assert v.refs == set(["TypeAlias", "ExternalType"])
+    assert v.refs == {"TypeAlias", "ExternalType"}
     # K should have unbounded_refs for both TypeAlias and ExternalType, but not MyType
-    assert v.variable_data["K"][0].unbounded_refs == set(
-        ["TypeAlias", "ExternalType"]
-    )
+    assert v.variable_data["K"][0].unbounded_refs == {
+        "TypeAlias",
+        "ExternalType",
+    }
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
@@ -1954,11 +1824,11 @@ def test_class_with_external_type_in_type_statement() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # ExternalType should be a ref (not defined in class)
-    assert v.refs == set(["ExternalType"])
+    assert v.refs == {"ExternalType"}
     # K should have unbounded_refs for ExternalType, but not MyType
-    assert v.variable_data["K"][0].unbounded_refs == set(["ExternalType"])
+    assert v.variable_data["K"][0].unbounded_refs == {"ExternalType"}
 
 
 def test_class_with_method_using_external_var() -> None:
@@ -1975,15 +1845,13 @@ def test_class_with_method_using_external_var() -> None:
     v.visit(mod)
 
     # K should be a def
-    assert v.defs == set(["K"])
+    assert v.defs == {"K"}
     # EXTERNAL_VAR should be a ref (used in method body)
-    assert v.refs == set(["EXTERNAL_VAR", "int"])
+    assert v.refs == {"EXTERNAL_VAR", "int"}
     # K should have EXTERNAL_VAR in required_refs (method needs it)
-    assert v.variable_data["K"][0].required_refs == set(
-        ["EXTERNAL_VAR", "int"]
-    )
+    assert v.variable_data["K"][0].required_refs == {"EXTERNAL_VAR", "int"}
     # But not in unbounded_refs (it's in method body, not signature)
-    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+    assert v.variable_data["K"][0].unbounded_refs == {"int"}
 
 
 def test_class_with_forward_reference_to_method() -> None:
@@ -2001,7 +1869,7 @@ def test_class_with_forward_reference_to_method() -> None:
     v.visit(mod)
 
     # A should be a def
-    assert v.defs == set(["A"])
+    assert v.defs == {"A"}
     # No external refs - method is defined within class scope
     assert v.refs == set()
     # A should have no unbounded refs (forward reference is valid)
@@ -2023,8 +1891,8 @@ def test_class_with_backward_reference_to_method() -> None:
     v.visit(mod)
 
     # B should be a def
-    assert v.defs == set(["B"])
+    assert v.defs == {"B"}
     # method is referenced before it's defined, so it's an external ref
-    assert v.refs == set(["method"])
+    assert v.refs == {"method"}
     # B should have method in unbounded refs (backward reference is invalid)
-    assert v.variable_data["B"][0].unbounded_refs == set(["method"])
+    assert v.variable_data["B"][0].unbounded_refs == {"method"}

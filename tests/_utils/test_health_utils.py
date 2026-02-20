@@ -26,7 +26,7 @@ def test_get_optional_modules_list():
 
 
 def test_get_versions():
-    assert isinstance(_get_versions(list(), False), dict)
+    assert isinstance(_get_versions([], False), dict)
 
 
 def test_get_chrome_version():

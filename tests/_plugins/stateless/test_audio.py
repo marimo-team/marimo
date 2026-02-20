@@ -39,7 +39,7 @@ async def test_audio_filename(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".wav")
 
 
@@ -57,7 +57,7 @@ async def test_audio_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".wav")
 
 
@@ -73,7 +73,7 @@ async def test_audio_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".wav")
 
 
@@ -92,7 +92,7 @@ async def test_audio_numpy_mono(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".wav")
 
 
@@ -113,7 +113,7 @@ async def test_audio_numpy_normalize(
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".wav")
 
 

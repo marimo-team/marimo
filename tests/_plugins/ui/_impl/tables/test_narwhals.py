@@ -94,7 +94,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
                 "category": pl.Series(
                     ["cat", "dog", "mouse"], dtype=pl.Categorical
                 ),
-                "set": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "set": [{1, 2}, {3, 4}, {5, 6}],
                 "imaginary": [1 + 2j, 3 + 4j, 5 + 6j],
                 "time": [
                     datetime.time(12, 30),
@@ -253,7 +253,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
                 "D": [True, False, True],
                 "E": [1 + 2j, 3 + 4j, 5 + 6j],
                 "F": [None, None, None],
-                "G": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "G": [{1, 2}, {3, 4}, {5, 6}],
                 "H": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),
@@ -1459,15 +1459,9 @@ def test_get_sample_values(df: Any) -> None:
 
     # Datetime with timezone
     sample_values = manager.get_sample_values("C")
-    assert (
-        sample_values
-        == [
-            "2021-01-01 00:00:00",
-            "2021-01-02 00:00:00",
-            "2021-01-03 00:00:00",
-        ]
-        # Polars on windows is missing timezone info
-        or sample_values == []
+    assert sample_values in (
+        ["2021-01-01 00:00:00", "2021-01-02 00:00:00", "2021-01-03 00:00:00"],
+        [],
     )
 
     # Float
@@ -1485,15 +1479,10 @@ def test_get_sample_values(df: Any) -> None:
     # Date
     sample_values = manager.get_sample_values("G")
     # Polars on windows is missing timezone info
-    assert sample_values == [
-        "2021-01-01",
-        "2021-01-02",
-        "2021-01-03",
-    ] or sample_values == [
-        "2021-01-01 00:00:00",
-        "2021-01-02 00:00:00",
-        "2021-01-03 00:00:00",
-    ]
+    assert sample_values in (
+        ["2021-01-01", "2021-01-02", "2021-01-03"],
+        ["2021-01-01 00:00:00", "2021-01-02 00:00:00", "2021-01-03 00:00:00"],
+    )
 
     # Large integers
     sample_values = manager.get_sample_values("H")

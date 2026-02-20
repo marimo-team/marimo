@@ -257,8 +257,7 @@ def test_get_hashable_ast() -> None:
     """Test the get_hashable_ast function."""
 
     def test_function(x: int, y: str) -> int:
-        result = x + len(y)
-        return result
+        return x + len(y)
 
     module = get_hashable_ast(test_function)
     assert isinstance(module, ast.Module)

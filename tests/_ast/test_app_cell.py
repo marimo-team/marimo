@@ -135,8 +135,7 @@ def test_function_decorator_with_args() -> None:
 
     @app.function(disabled=True)
     def mock_func(x: int) -> int:
-        y = x + 2
-        return y
+        return x + 2
 
     assert isinstance(mock_func, types.FunctionType)
 

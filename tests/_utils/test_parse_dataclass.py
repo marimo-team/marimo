@@ -146,11 +146,9 @@ class TestParseRaw:
             configs: tuple[Config, ...]
 
         nested = Nested(
-            configs=tuple(
-                [
-                    Config(disabled=True, gpu=False),
-                    Config(disabled=False, gpu=True),
-                ]
+            configs=(
+                Config(disabled=True, gpu=False),
+                Config(disabled=False, gpu=True),
             )
         )
 

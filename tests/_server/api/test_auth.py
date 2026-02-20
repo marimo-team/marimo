@@ -73,7 +73,7 @@ def app() -> Starlette:
 
 
 def create_connection(app: Starlette) -> HTTPConnection:
-    conn = HTTPConnection(
+    return HTTPConnection(
         {
             "type": "http",
             "app": app,
@@ -83,7 +83,6 @@ def create_connection(app: Starlette) -> HTTPConnection:
             "path": "/",
         }
     )
-    return conn
 
 
 async def test_validate_auth_with_valid_cookie(app: Starlette):

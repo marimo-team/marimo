@@ -293,7 +293,7 @@ class TestScriptCache:
             app.run()
         except Exception as e:
             if "--cov=marimo" not in sys.argv:
-                raise e
+                raise
             pytest.mark.xfail(
                 reason="Coverage conflict with cache introspection"
             )
@@ -2301,7 +2301,7 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state, set_state = mo.state(None)
+            _state, _set_state = mo.state(None)
 
             @mo.cache
             def g(state):
@@ -2324,7 +2324,7 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state, set_state = mo.state(None)
+            state, _set_state = mo.state(None)
 
             @mo.cache
             def g():
@@ -2349,11 +2349,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state0, set_state0 = mo.state(1)
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(10)
+            state0, _set_state0 = mo.state(1)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(10)
 
-            state, set_state = mo.state(100)
+            _state, _set_state = mo.state(100)
 
             @mo.cache
             def h(state):
@@ -2384,11 +2384,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state0, set_state0 = mo.state(1)
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(10)
+            state0, _set_state0 = mo.state(1)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(10)
 
-            state, set_state = mo.state(100)
+            state, _set_state = mo.state(100)
 
             # Example of a case where things start to get very tricky. There
             # comes a point where you might also have to capture frame levels
@@ -2420,11 +2420,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(2)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(2)
 
             # Here as a var for shadowing
-            state, set_state = mo.state(3)
+            _state, _set_state = mo.state(3)
 
             @mo.cache
             def g(state):

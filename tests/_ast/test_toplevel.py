@@ -87,8 +87,7 @@ class TestTopLevelStatus:
     def test_function_not_top(app) -> None:
         @app.cell
         def _():
-            c = 1e-16
-            return c
+            return 1e-16
 
         @app.cell
         def cell(c):
