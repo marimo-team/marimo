@@ -187,7 +187,8 @@ class VirtualFileRegistry:
             # Not set yet, _or_ was stale
             manager.storage = self.storage
         elif self.storage is not manager.storage:
-            LOGGER.warning(
+            # Long running asgi apps, and embedded cases trigger this.
+            LOGGER.debug(
                 "Expected shared global storage but VirtualFileRegistry was initialized "
                 "with new storage instance. Overriding with global storage.",
             )
