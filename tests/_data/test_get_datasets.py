@@ -898,11 +898,32 @@ class TestGetDatabasesNestedNamespace:
         connection.execute(f'CREATE TABLE "{schema_name}".t ("__" VARCHAR)')
 
         result = get_databases_from_duckdb(connection=connection)
-        assert len(result) == 1
-        schemas = result[0].schemas
-        assert len(schemas) == 1
-        assert schemas[0].name == schema_name
-        table = schemas[0].tables[0]
-        assert table.name == "t"
-        assert len(table.columns) == 1
-        assert table.columns[0].name == "__"
+        assert result == [
+            Database(
+                name="memory",
+                dialect="duckdb",
+                schemas=[
+                    Schema(
+                        name=schema_name,
+                        tables=[
+                            DataTable(
+                                name="t",
+                                source_type="duckdb",
+                                source="memory",
+                                num_rows=None,
+                                num_columns=1,
+                                variable_name=None,
+                                columns=[
+                                    DataTableColumn(
+                                        name="__",
+                                        type="string",
+                                        external_type="VARCHAR",
+                                        sample_values=[],
+                                    )
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            ),
+        ]
