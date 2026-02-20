@@ -22,6 +22,7 @@ import {
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
+import type { SerializedEditorState } from "../codemirror/types";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
@@ -47,10 +48,34 @@ import {
   canUndoDeletes,
   disabledCellIds,
   enabledCellIds,
+  getUndoLabel,
   notebookIsRunning,
   notebookNeedsRun,
   notebookQueueOrRunningCount,
 } from "./utils";
+
+/**
+ * History entry for undoing a cell deletion.
+ */
+export interface UndoDeleteEntry {
+  type: "delete";
+  name: string;
+  serializedEditorState: SerializedEditorState;
+  column: CellColumnId;
+  index: CellIndex;
+  isSetupCell: boolean;
+}
+
+/**
+ * History entry for undoing a cut-paste (move).
+ */
+export interface UndoMoveEntry {
+  type: "move";
+  cellIds: CellId[];
+  placements: Array<{ columnId: CellColumnId; index: CellIndex }>;
+}
+
+export type HistoryEntry = UndoDeleteEntry | UndoMoveEntry;
 
 /**
  * The state of the notebook.
@@ -73,18 +98,9 @@ export interface NotebookState {
    */
   cellHandles: Record<CellId, React.RefObject<CellHandle | null>>;
   /**
-   * Array of deleted cells (with their data and index) so that cell deletion can be undone
-   *
-   * (CodeMirror types the serialized config as any.)
+   * Undo stack: deleted cells and cut-paste moves, in chronological order.
    */
-  history: {
-    name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    serializedEditorState: any;
-    column: CellColumnId;
-    index: CellIndex;
-    isSetupCell: boolean;
-  }[];
+  history: HistoryEntry[];
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -154,6 +170,10 @@ export interface CreateNewCellAction {
   before: boolean;
   /** Initial code content for the new cell */
   code?: string;
+  /** Optional name for the new cell */
+  name?: string;
+  /** Optional cell configuration */
+  config?: CellConfig;
   /** The last executed code for the new cell */
   lastCodeRun?: string;
   /** Timestamp of the last execution */
@@ -182,6 +202,8 @@ const {
       cellId,
       before,
       code,
+      name,
+      config,
       lastCodeRun = null,
       lastExecutionTime = null,
       autoFocus = true,
@@ -229,8 +251,12 @@ const {
         [newCellId]: createCell({
           id: newCellId,
           code,
+          name,
           lastCodeRun,
-          config: createCellConfig({ hide_code: hideCode }),
+          config: createCellConfig({
+            ...config,
+            hide_code: hideCode,
+          }),
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
@@ -365,6 +391,40 @@ const {
         toColumn.id,
         overCellId,
       ),
+      scrollKey: null,
+    };
+  },
+  moveCellsRelativeTo: (
+    state,
+    action: {
+      cellIds: CellId[];
+      targetCellId: CellId;
+      position: "before" | "after";
+      previousPlacements?: Array<{ columnId: CellColumnId; index: CellIndex }>;
+    },
+  ) => {
+    const { cellIds, targetCellId, position, previousPlacements } = action;
+    if (cellIds.length === 0) {
+      return state;
+    }
+    const newCellIds = state.cellIds.moveCellsRelativeTo(
+      cellIds,
+      targetCellId,
+      position,
+    );
+    // Only record undo when caller provided full before-state
+    const canUndoMove =
+      previousPlacements && previousPlacements.length === cellIds.length;
+    const history = canUndoMove
+      ? [
+          ...state.history,
+          { type: "move" as const, cellIds, placements: previousPlacements },
+        ]
+      : state.history;
+    return {
+      ...state,
+      cellIds: newCellIds,
+      history,
       scrollKey: null,
     };
   },
@@ -596,6 +656,7 @@ const {
       history: [
         ...state.history,
         {
+          type: "delete",
           name: state.cellData[cellId].name,
           serializedEditorState: serializedEditorState,
           column: column.id,
@@ -611,7 +672,25 @@ const {
       return state;
     }
 
-    const mostRecentlyDeleted = state.history[state.history.length - 1];
+    const last = state.history[state.history.length - 1];
+
+    if (last.type === "move") {
+      const { cellIds, placements } = last;
+      if (cellIds.length === 0 || placements.length !== cellIds.length) {
+        return { ...state, history: state.history.slice(0, -1) };
+      }
+      const toRestore = cellIds.map((id, i) => ({
+        id,
+        columnId: placements[i].columnId,
+        index: placements[i].index,
+      }));
+      return {
+        ...state,
+        cellIds: state.cellIds.placeCells(toRestore),
+        history: state.history.slice(0, -1),
+        scrollKey: cellIds[0] ?? null,
+      };
+    }
 
     const {
       name,
@@ -619,7 +698,7 @@ const {
       column,
       index,
       isSetupCell,
-    } = mostRecentlyDeleted;
+    } = last;
 
     const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
     const undoCell = createCell({
@@ -1494,6 +1573,8 @@ export const hasEnabledCellsAtom = atom(
 export const canUndoDeletesAtom = atom((get) =>
   canUndoDeletes(get(notebookAtom)),
 );
+
+export const undoLabelAtom = atom((get) => getUndoLabel(get(notebookAtom)));
 
 export const needsRunAtom = atom((get) => notebookNeedsRun(get(notebookAtom)));
 

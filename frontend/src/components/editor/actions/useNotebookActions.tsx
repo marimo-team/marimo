@@ -50,6 +50,7 @@ import {
   canUndoDeletesAtom,
   getNotebook,
   hasDisabledCellsAtom,
+  undoLabelAtom,
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds } from "@/core/cells/utils";
@@ -127,6 +128,7 @@ export function useNotebookActions() {
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
+  const undoLabel = useAtomValue(undoLabelAtom);
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
@@ -413,7 +415,7 @@ export function useNotebookActions() {
     },
     {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,
-      label: "Undo cell deletion",
+      label: undoLabel,
       hidden: !canUndoDeletes || kioskMode,
       handle: () => {
         undoDeleteCell();
