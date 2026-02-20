@@ -433,6 +433,9 @@ function sqlValidationExtension(): Extension {
 
     return {
       update(update: ViewUpdate) {
+        // Only run validation if the document has changed
+        // The extension only runs on keypress, so we don't need to check for focus
+        // This lets AI completions / external calls trigger validation
         if (!update.docChanged) {
           return;
         }
@@ -494,7 +497,7 @@ function sqlValidationExtension(): Extension {
         }, SQL_VALIDATION_DEBOUNCE_MS);
       },
 
-      // When the cell language changes / destroyed, we don't want to fetch or keep errors
+      // Remove side-effects on plugin removal
       destroy() {
         if (debounceTimeout) {
           window.clearTimeout(debounceTimeout);
