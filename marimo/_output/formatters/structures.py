@@ -108,12 +108,13 @@ class StructuresFormatter(FormatterFactory):
                 isinstance(t, dict)
                 and type(t) is not dict
                 and type(t) is not defaultdict
+                and str(t) != str(dict(t))
+            ) or (
+                isinstance(t, defaultdict)
+                and type(t) is not defaultdict
+                and str(t) != str(defaultdict(t.default_factory, t))
             ):
-                if str(t) != str(dict(t)):
-                    return plain_text(str(t))._mime_()
-            elif isinstance(t, defaultdict) and type(t) is not defaultdict:
-                if str(t) != str(defaultdict(t.default_factory, t)):
-                    return plain_text(str(t))._mime_()
+                return plain_text(str(t))._mime_()
 
             if t and "matplotlib" in sys.modules:
                 # Special case for matplotlib:

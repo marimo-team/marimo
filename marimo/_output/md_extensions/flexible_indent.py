@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from typing import ClassVar
 
 from markdown import Extension, Markdown, preprocessors  # type: ignore
 
@@ -15,7 +16,7 @@ class FlexibleIndentPreprocessor(preprocessors.Preprocessor):  # type: ignore[mi
     # Pattern to match lines that start list items (ordered or unordered)
     # Captures: (indentation, list_marker, trailing_space, content)
     LIST_PATTERN = re.compile(r"^(\s*)([*+-]|\d+\.)(\s+)(.*)$", re.MULTILINE)
-    INDENT_LEVELS = [2, 4]
+    INDENT_LEVELS: ClassVar[list[int]] = [2, 4]
     BASE_INDENT_SIZE = 4
     FOUR_SPACES = "    "
 

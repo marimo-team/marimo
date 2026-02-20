@@ -137,12 +137,13 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 default_handler=str,
                             )
                             assert json_str is not None
-                            return json_str
                         except Exception as e:
                             LOGGER.warning(
                                 "Error serializing to JSON. Falling back to to_dict. Error: %s",
                                 e,
                             )
+                        else:
+                            return json_str
                     return result.to_dict(orient="records")  # type: ignore
 
                 from pandas.api.types import (

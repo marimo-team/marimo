@@ -144,7 +144,6 @@ def _decode_pty_data(
     try:
         # Decode and send data, handling partial UTF-8 sequences
         text = buffer.decode("utf-8", errors="ignore")
-        return text, b""
     except UnicodeDecodeError:
         # Keep buffer if we have incomplete UTF-8 sequence
         if len(buffer) > max_buffer_size:
@@ -152,6 +151,8 @@ def _decode_pty_data(
             text = buffer.decode("utf-8", errors="replace")
             return text, b""
         return "", buffer
+    else:
+        return text, b""
 
 
 def _should_close_on_command(command_buffer: str, data: str) -> bool:
@@ -332,9 +333,10 @@ def supports_terminal() -> bool:
     try:
         import pty  # noqa: F401
 
-        return True
     except ImportError:
         return False
+    else:
+        return True
 
 
 @router.websocket("/ws")

@@ -53,9 +53,10 @@ def _is_orderable_value(value: Any) -> bool:
     if isinstance(value, str):
         try:
             datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return True
         except (ValueError, AttributeError):
             pass
+        else:
+            return True
 
     return False
 
@@ -73,11 +74,13 @@ def _parse_datetime_bound(value: Any) -> Any:
 
     if isinstance(value, str):
         try:
-            return datetime.datetime.fromisoformat(
+            parsed = datetime.datetime.fromisoformat(
                 value.replace("Z", "+00:00")
             )
         except (ValueError, AttributeError):
             pass
+        else:
+            return parsed
 
     return value
 
@@ -121,9 +124,10 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
                     datetime.datetime.fromisoformat(
                         bound_value.replace("Z", "+00:00")
                     )
-                    return True
                 except (ValueError, AttributeError):
                     pass
+                else:
+                    return True
 
     return False
 

@@ -328,9 +328,8 @@ class SessionManager:
         """Remove sessions with dead kernels."""
         for session_id in list(self._repository.get_all_session_ids()):
             session = self._repository.get_sync(session_id)
-            if session:
-                if session.kernel_state() is KernelState.STOPPED:
-                    self.close_session(session_id)
+            if session and session.kernel_state() is KernelState.STOPPED:
+                self.close_session(session_id)
 
     def any_clients_connected(self, key: MarimoFileKey) -> bool:
         """Returns True if at least one client has an open socket."""

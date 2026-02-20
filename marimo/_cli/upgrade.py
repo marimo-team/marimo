@@ -118,12 +118,11 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         state.notices = update_notices(response)
         state.latest_version = version
         state.last_checked_at = now.strftime(DATE_FORMAT)
-        return state
     except Exception:
         # Set that we have checked for updates
         # so we don't fail multiple times a day
         state.last_checked_at = now.strftime(DATE_FORMAT)
-        return state
+    return state
 
 
 def _fetch_data_from_url(url: str) -> dict[str, Any]:

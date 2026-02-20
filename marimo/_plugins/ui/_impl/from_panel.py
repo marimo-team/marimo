@@ -233,8 +233,6 @@ def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
         if hasattr(renderer, "center") and renderer.center is not None:
             panel_kwargs["center"] = renderer.center
 
-        return panel_kwargs
-
     except ImportError:
         # holoviews is not installed
         return {}
@@ -242,6 +240,8 @@ def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
         # Log the error but don't fail - just don't apply settings
         LOGGER.debug(f"Failed to extract holoviews settings: {e}")
         return {}
+    else:
+        return panel_kwargs
 
 
 @mddoc

@@ -685,9 +685,12 @@ class _cache_context(SkipContext, CacheContext):
                 # Start timing for runtime tracking
                 self._start_time = time.time()
 
-                if self._cache and self._cache.hit:
-                    if lineno >= self._body_start:
-                        self.skip()
+                if (
+                    self._cache
+                    and self._cache.hit
+                    and lineno >= self._body_start
+                ):
+                    self.skip()
                 return
             # <module> -> _trace_wrapper -> _trace
             elif i > 3:

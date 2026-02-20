@@ -575,9 +575,10 @@ def _infer_dtype(
 ) -> type[int | float]:
     """Infer the dtype of a sequence of numbers."""
     for item in items:
-        if isinstance(item, Sequence):
-            if any(isinstance(subitem, float) for subitem in item):
-                return float
+        if isinstance(item, Sequence) and any(
+            isinstance(subitem, float) for subitem in item
+        ):
+            return float
         if any(isinstance(item, float) for item in items):
             return float
     return int

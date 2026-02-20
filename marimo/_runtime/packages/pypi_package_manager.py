@@ -203,11 +203,12 @@ class MicropipPackageManager(PypiPackageManager):
             await micropip.install(split_packages(package))
             if log_callback:
                 log_callback(f"Successfully installed {package}\n")
-            return True
         except ValueError as e:
             if log_callback:
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
+        else:
+            return True
 
     async def uninstall(
         self, package: str, group: Optional[str] = None
@@ -219,9 +220,10 @@ class MicropipPackageManager(PypiPackageManager):
 
         try:
             micropip.uninstall(package)
-            return True
         except ValueError:
             return False
+        else:
+            return True
 
     def list_packages(self) -> list[PackageDescription]:
         assert is_pyodide()
@@ -638,11 +640,11 @@ class UvPackageManager(PypiPackageManager):
         """Check if a file contains PEP 723 inline script metadata."""
         try:
             file = Path(filename)
-            return self.SCRIPT_METADATA_MARKER in file.read_text(
-                encoding="utf-8"
-            )
+            content = file.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return False
+        else:
+            return self.SCRIPT_METADATA_MARKER in content
 
     def dependency_tree(
         self, filename: Optional[str] = None
@@ -672,13 +674,13 @@ class UvPackageManager(PypiPackageManager):
             if filename is None and len(tree.dependencies) == 1:
                 return tree.dependencies[0]
 
-            return tree
-
         except subprocess.CalledProcessError:
             # Only log error if the script has dependency metadata
             if filename and self._has_script_metadata(filename):
                 LOGGER.error(f"Failed to get dependency tree for {filename}")
             return None
+        else:
+            return tree
 
 
 class RyePackageManager(PypiPackageManager):

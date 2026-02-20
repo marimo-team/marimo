@@ -270,19 +270,19 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
             "marimo._server.api.endpoints.ws.ws_kernel_ready.DependencyManager.loro.has",
             return_value=False,
         ),
-    ):
-        with client.websocket_connect(
+        client.websocket_connect(
             "/ws?session_id=123&access_token=fake-token"
-        ) as websocket:
-            data = websocket.receive_json()
-            # Should still get kernel ready, but without RTC initialized
-            assert_kernel_ready_response(data)
+        ) as websocket,
+    ):
+        data = websocket.receive_json()
+        # Should still get kernel ready, but without RTC initialized
+        assert_kernel_ready_response(data)
 
-            # Give time for any async doc creation
-            await asyncio.sleep(0.2)
+        # Give time for any async doc creation
+        await asyncio.sleep(0.2)
 
-            # Verify no RTC doc was created
-            assert file_key not in DOC_MANAGER.loro_docs
+        # Verify no RTC doc was created
+        assert file_key not in DOC_MANAGER.loro_docs
 
 
 # ==============================================================================
@@ -301,9 +301,11 @@ async def test_ws_sync_without_existing_session(client: TestClient) -> None:
     ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
 
     # Try to connect to ws_sync without creating a main session first
-    with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect(ws_sync_url):
-            pass
+    with (
+        pytest.raises(WebSocketDisconnect) as exc_info,
+        client.websocket_connect(ws_sync_url),
+    ):
+        pass
 
     from marimo._server.codes import WebSocketCodes
 
@@ -325,30 +327,30 @@ async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
     ws_1 = "/ws?session_id=123&access_token=fake-token"
     ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
 
-    with rtc_enabled(get_user_config_manager(client)):
-        with client.websocket_connect(ws_1) as main_websocket:
-            data = main_websocket.receive_json()
-            assert_kernel_ready_response(data)
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        client.websocket_connect(ws_1) as main_websocket,
+    ):
+        data = main_websocket.receive_json()
+        assert_kernel_ready_response(data)
 
-            # Connect to sync endpoint
-            with client.websocket_connect(ws_sync_url) as sync_websocket:
-                # Should receive initial sync
-                sync_msg = sync_websocket.receive_bytes()
-                assert len(sync_msg) > 0
+        # Connect to sync endpoint
+        with client.websocket_connect(ws_sync_url) as sync_websocket:
+            # Should receive initial sync
+            sync_msg = sync_websocket.receive_bytes()
+            assert len(sync_msg) > 0
 
-                # Verify client was added
-                assert file_key in DOC_MANAGER.loro_docs_clients
-                initial_client_count = len(
-                    DOC_MANAGER.loro_docs_clients[file_key]
-                )
-                assert initial_client_count == 1
+            # Verify client was added
+            assert file_key in DOC_MANAGER.loro_docs_clients
+            initial_client_count = len(DOC_MANAGER.loro_docs_clients[file_key])
+            assert initial_client_count == 1
 
-                # Close sync websocket
-                sync_websocket.close()
+            # Close sync websocket
+            sync_websocket.close()
 
-                # Wait for cleanup
-                await asyncio.sleep(0.2)
+            # Wait for cleanup
+            await asyncio.sleep(0.2)
 
-                # Client should be removed
-                if file_key in DOC_MANAGER.loro_docs_clients:
-                    assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
+            # Client should be removed
+            if file_key in DOC_MANAGER.loro_docs_clients:
+                assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0

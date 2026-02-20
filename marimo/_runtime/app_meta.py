@@ -106,6 +106,7 @@ class AppMeta:
         """
         try:
             context = get_context()
-            return context.request
         except ContextNotInitializedError:
             return None
+        else:
+            return context.request

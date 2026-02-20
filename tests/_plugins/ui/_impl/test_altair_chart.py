@@ -529,8 +529,12 @@ class TestAltairChart:
                     ),
                 ],
                 "datetime_column": [
-                    datetime.datetime.fromtimestamp(10000),
-                    datetime.datetime.fromtimestamp(20000),
+                    datetime.datetime.fromtimestamp(
+                        10000, tz=datetime.timezone.utc
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        20000, tz=datetime.timezone.utc
+                    ),
                 ],
             },
         ),

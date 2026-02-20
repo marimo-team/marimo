@@ -178,10 +178,11 @@ def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
         DependencyManager.numpy.require("to access data buffer for hashing.")
         import numpy
 
-        if not hasattr(tensor, "__array_interface__"):
+        if not hasattr(tensor, "__array_interface__") and hasattr(
+            tensor, "toarray"
+        ):
             # Capture those sparse cases
-            if hasattr(tensor, "toarray"):
-                tensor = tensor.toarray()
+            tensor = tensor.toarray()
         # As array should not perform copy
         return numpy.asarray(tensor)
     raise ValueError(
@@ -314,9 +315,10 @@ def get_and_update_context_from_scope(
         ctx = get_context()
         ctx.ui_element_registry.register_scope(scope)
         ctx.state_registry.register_scope(scope)
-        return ctx
     except ContextNotInitializedError:
         return None
+    else:
+        return ctx
 
 
 @dataclasses.dataclass

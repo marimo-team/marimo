@@ -418,11 +418,11 @@ chart
         system_prompt += 'For markdown cells, use `mo.md(f"""{content}""")`\n'
         system_prompt += 'For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.\n'
     else:
-        for language in language_rules:
-            if len(language_rules[language]) == 0:
+        for language, rules in language_rules.items():
+            if len(rules) == 0:
                 continue
 
-            system_prompt += f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
+            system_prompt += f"\n\n## Rules for {language}:\n{_rules(rules)}"
 
     if custom_rules and custom_rules.strip():
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"

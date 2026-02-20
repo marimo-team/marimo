@@ -22,10 +22,10 @@ import msgspec
 import msgspec.json
 
 # Import NotRequired from typing_extensions for Python < 3.11
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 T = TypeVar("T")
 

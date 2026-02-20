@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import (
     TYPE_CHECKING,

@@ -79,9 +79,8 @@ def watch_and_export(
 
     if output:
         output_path = Path(output)
-        if not force and not watch:
-            if not prompt_to_overwrite(output_path):
-                return
+        if not force and not watch and not prompt_to_overwrite(output_path):
+            return
 
     # No watch, just run once
     if not watch:

@@ -347,8 +347,9 @@ def _is_gpu_available() -> bool:
                 text=True,
                 check=True,
             )
-            return True
         except (subprocess.SubprocessError, FileNotFoundError) as e:
             LOGGER.warning("Failed to extract GPU stats: %s", e)
             return False
+        else:
+            return True
     return False

@@ -447,9 +447,8 @@ class TestScriptCache:
             from tests._save.loaders.mocks import MockLoader
 
             _loader = MockLoader()
-            with called(True):
-                with persistent_cache("else", _loader=_loader):
-                    b = 8
+            with called(True), persistent_cache("else", _loader=_loader):
+                b = 8
             assert b == 8
 
     @staticmethod
@@ -467,9 +466,8 @@ class TestScriptCache:
             from tests._save.loaders.mocks import MockLoader
 
             _loader = MockLoader()
-            with persistent_cache("else", _loader=_loader):
-                with called(True):
-                    b = 8
+            with persistent_cache("else", _loader=_loader), called(True):
+                b = 8
             assert b == 8
 
     @staticmethod

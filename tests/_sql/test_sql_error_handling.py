@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -266,7 +268,7 @@ class TestErrorMessageQuality:
                 return "SQL error message\nTraceback (most recent call last):\n  File..."
 
         class MockCell:
-            sqls = ["SELECT * FROM test"]
+            sqls: ClassVar[list[str]] = ["SELECT * FROM test"]
 
         error = create_sql_error_from_exception(MockException(), MockCell())
         # Should only contain the first line, no traceback
@@ -291,7 +293,7 @@ class TestIntegrationAndEdgeCases:
         """Test error handling with empty SQL statements."""
 
         class MockCell:
-            sqls = []
+            sqls: ClassVar[list[str]] = []
 
         mock_exception = Exception("Test error")
         error = create_sql_error_from_exception(mock_exception, MockCell())
@@ -383,7 +385,7 @@ class TestIntegrationAndEdgeCases:
         except Exception as e:
 
             class MockCell:
-                sqls = ["SELECT * FROM hint_test"]
+                sqls: ClassVar[list[str]] = ["SELECT * FROM hint_test"]
 
             error_struct = create_sql_error_from_exception(e, MockCell())
 
@@ -408,7 +410,9 @@ class TestIntegrationAndEdgeCases:
         except Exception as e:
 
             class MockCell:
-                sqls = ["SELECT SUBSTRING(name) FROM hint_multiline_table"]
+                sqls: ClassVar[list[str]] = [
+                    "SELECT SUBSTRING(name) FROM hint_multiline_table"
+                ]
 
             error_struct = create_sql_error_from_exception(e, MockCell())
 

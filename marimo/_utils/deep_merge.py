@@ -49,16 +49,16 @@ def _merge_replace(
     - Editing a record preserves unmodified fields (values are merged)
     """
     result = {}
-    for key in update:
+    for key, value in update.items():
         if (
             key in original
             and isinstance(original[key], dict)
-            and isinstance(update[key], dict)
+            and isinstance(value, dict)
         ):
             # Merge the record's fields (original first, update overwrites)
-            result[key] = {**original[key], **update[key]}
+            result[key] = {**original[key], **value}
         else:
-            result[key] = update[key]
+            result[key] = value
     return result
 
 

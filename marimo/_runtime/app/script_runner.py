@@ -215,8 +215,6 @@ class AppScriptRunner:
                 outputs, defs = self._run_synchronous(
                     post_execute_hooks=post_execute_hooks,
                 )
-            return outputs, defs
-
         # Cell runner manages the exception handling for kernel
         # runner, but script runner should raise the wrapped
         # exception if invoked directly.
@@ -237,6 +235,8 @@ class AppScriptRunner:
             # from "None" to indicate this is an Error propagation, and to not
             # muddy the stacktrace from the failing cells themselves.
             raise e.__cause__ from None  # type: ignore
+        else:
+            return outputs, defs
         finally:
             if installed_script_context:
                 teardown_context()

@@ -79,10 +79,10 @@ def text_to_notebook(prompt: str) -> str:
                 "Invalid response from API: missing 'marimo.App' key"
             )
 
-        return result
-
     except Exception as e:
         raise RuntimeError(f"Failed to generate notebook: {e!s}") from e
+    else:
+        return result
 
 
 def _should_show_terms(last_accepted_at: Optional[str]) -> bool:

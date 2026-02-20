@@ -1102,7 +1102,6 @@ class table(
         if DependencyManager.pyarrow.has():
             try:
                 data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
-                return data_url, "arrow"
             except NotImplementedError:
                 LOGGER.debug(
                     "Arrow export not implemented, falling back to CSV."
@@ -1113,23 +1112,25 @@ class table(
         # Try CSV
         try:
             data_url = mo_data.csv(table_manager.to_csv({})).url
-            return data_url, "csv"
         except (ValueError, NotImplementedError):
             LOGGER.debug("CSV export failed, falling back to JSON.")
         except Exception as e:
             LOGGER.error("Unexpected error exporting CSV: %s", e)
+        else:
+            return data_url, "csv"
 
         # Fallback to JSON
         try:
             data_url = mo_data.json(
                 table_manager.to_json({}, ensure_ascii=True)
             ).url
-            return data_url, "json"
         except Exception as e:
             LOGGER.error(
                 "Failed to export table data as Arrow, CSV, or JSON: %s", e
             )
             raise
+        else:
+            return data_url, "json"
 
     def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
         """Get the data URL for the entire table. Used for charting."""
@@ -1518,9 +1519,12 @@ def _validate_frozen_columns(
     )
 
     # Convert sequences to sets for O(1) lookups
-    if freeze_columns_left_set and freeze_columns_right_set:
-        if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
-            raise ValueError("The same column cannot be frozen on both sides.")
+    if (
+        freeze_columns_left_set
+        and freeze_columns_right_set
+        and not freeze_columns_left_set.isdisjoint(freeze_columns_right_set)
+    ):
+        raise ValueError("The same column cannot be frozen on both sides.")
 
     # Check all frozen columns exist
     if freeze_columns_left_set:

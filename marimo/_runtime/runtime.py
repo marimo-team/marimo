@@ -1335,11 +1335,12 @@ class Kernel:
         ) & cells_in_graph
 
         # If there is a setup cell and it is currently stale
-        if setup_cell := self.graph.cells.get(CellId_t(SETUP_CELL_NAME)):
+        if (
+            setup_cell := self.graph.cells.get(CellId_t(SETUP_CELL_NAME))
+        ) and setup_cell.stale:
             # - then add it to the set of cells to run.
             # This makes the setup cell like a "root" cell to everything.
-            if setup_cell.stale:
-                cells_registered_without_error.add(setup_cell.cell_id)
+            cells_registered_without_error.add(setup_cell.cell_id)
         if self.reactive_execution_mode == "lazy":
             self.graph.set_stale(stale_cells, prune_imports=True)
             return cells_registered_without_error
@@ -1349,19 +1350,21 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        with run_id_context():
+        with (
+            run_id_context(),
+            patches.patch_main_module_context(self._module),
+        ):
             # This patch is an attempt to mitigate problems caused by the fact
             # that in run mode, kernels run in threads and share the same
             # sys.modules. Races can still happen, but this should help in most
             # common cases. We could also be more aggressive and run this before
             # every cell, or even before pickle.dump/pickle.dumps()
-            with patches.patch_main_module_context(self._module):
-                while cell_ids := await self._run_cells_internal(cell_ids):
-                    LOGGER.debug("Running state updates ...")
-                    if self.lazy() and cell_ids:
-                        self.graph.set_stale(cell_ids, prune_imports=True)
-                        break
-                LOGGER.debug("Finished run.")
+            while cell_ids := await self._run_cells_internal(cell_ids):
+                LOGGER.debug("Running state updates ...")
+                if self.lazy() and cell_ids:
+                    self.graph.set_stale(cell_ids, prune_imports=True)
+                    break
+            LOGGER.debug("Finished run.")
 
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]
@@ -3080,9 +3083,10 @@ class CacheCallbacks:
         ctx = get_context()
         saved = 0
         for obj in ctx.globals.values():
-            if isinstance(obj, CacheContext):
-                if isinstance(obj.loader, BasePersistenceLoader):
-                    obj.loader.clear()
+            if isinstance(obj, CacheContext) and isinstance(
+                obj.loader, BasePersistenceLoader
+            ):
+                obj.loader.clear()
 
         broadcast_notification(CacheClearedNotification(bytes_freed=saved))
 

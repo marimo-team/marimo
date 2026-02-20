@@ -479,7 +479,6 @@ class ProxyMiddleware:
                     try:
                         ws_client = await connect(ws_url)
                         LOGGER.debug(f"Successfully connected to {ws_url}")
-                        return ws_client
                     except Exception as e:
                         LOGGER.info(
                             f"WebSocket connection attempt {attempt + 1}/{max_retries} failed for {ws_url}: {e}"
@@ -501,6 +500,8 @@ class ProxyMiddleware:
                                     reason="Failed to connect to LSP server",
                                 )
                             raise
+                    else:
+                        return ws_client
 
                 raise ValueError("Failed to connect to LSP server")
 

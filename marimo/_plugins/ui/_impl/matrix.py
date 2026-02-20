@@ -232,13 +232,16 @@ def _validate_and_build_args(
                     f"`step` must be positive, got {step_val[i][j]} "
                     f"at position [{i}][{j}]"
                 )
-            if min_val is not None and max_val is not None:
-                if min_val[i][j] >= max_val[i][j]:
-                    raise ValueError(
-                        f"`min_value` ({min_val[i][j]}) must be less "
-                        f"than `max_value` ({max_val[i][j]}) at "
-                        f"position [{i}][{j}]"
-                    )
+            if (
+                min_val is not None
+                and max_val is not None
+                and min_val[i][j] >= max_val[i][j]
+            ):
+                raise ValueError(
+                    f"`min_value` ({min_val[i][j]}) must be less "
+                    f"than `max_value` ({max_val[i][j]}) at "
+                    f"position [{i}][{j}]"
+                )
             if min_val is not None and data[i][j] < min_val[i][j]:
                 raise ValueError(
                     f"Initial value {data[i][j]} at [{i}][{j}] is "

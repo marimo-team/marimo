@@ -428,54 +428,56 @@ def test_running_notebooks_handles_files_outside_directory(
         assert data
 
         # Create two separate temp directories
-        with tempfile.TemporaryDirectory() as router_dir:
-            with tempfile.TemporaryDirectory() as file_dir:
-                # Create a notebook in file_dir (outside router_dir)
-                notebook_path = os.path.join(file_dir, "outside.py")
-                content = inspect.cleandoc(
-                    """
-                    import marimo
-                    app = marimo.App()
+        with (
+            tempfile.TemporaryDirectory() as router_dir,
+            tempfile.TemporaryDirectory() as file_dir,
+        ):
+            # Create a notebook in file_dir (outside router_dir)
+            notebook_path = os.path.join(file_dir, "outside.py")
+            content = inspect.cleandoc(
+                """
+                import marimo
+                app = marimo.App()
 
-                    @app.cell
-                    def __():
-                        return
+                @app.cell
+                def __():
+                    return
 
-                    if __name__ == "__main__":
-                        app.run()
-                    """
+                if __name__ == "__main__":
+                    app.run()
+                """
+            )
+            with open(notebook_path, "w") as f:
+                f.write(content)
+
+            # Set up file router pointing to router_dir
+            file_router = LazyListOfFilesAppFileRouter(
+                router_dir, include_markdown=False
+            )
+
+            original_file_router = session_manager.file_router
+            session_manager.file_router = file_router
+
+            session = session_manager.get_session(SESSION_ID)
+            assert session is not None
+            original_filename = session.app_file_manager.filename
+            session.app_file_manager.filename = notebook_path
+
+            try:
+                response = client.post(
+                    "/api/home/running_notebooks",
+                    headers=HEADERS,
                 )
-                with open(notebook_path, "w") as f:
-                    f.write(content)
+                body = response.json()
+                files = body["files"]
 
-                # Set up file router pointing to router_dir
-                file_router = LazyListOfFilesAppFileRouter(
-                    router_dir, include_markdown=False
-                )
-
-                original_file_router = session_manager.file_router
-                session_manager.file_router = file_router
-
-                session = session_manager.get_session(SESSION_ID)
-                assert session is not None
-                original_filename = session.app_file_manager.filename
-                session.app_file_manager.filename = notebook_path
-
-                try:
-                    response = client.post(
-                        "/api/home/running_notebooks",
-                        headers=HEADERS,
-                    )
-                    body = response.json()
-                    files = body["files"]
-
-                    assert len(files) == 1
-                    # File is outside directory, so it should use pretty_path
-                    # which returns the path as-is or relative to CWD
-                    # The important thing is it doesn't crash
-                    assert files[0]["name"] == "outside.py"
-                    # Path should contain the filename (exact path depends on CWD)
-                    assert "outside.py" in files[0]["path"]
-                finally:
-                    session_manager.file_router = original_file_router
-                    session.app_file_manager.filename = original_filename
+                assert len(files) == 1
+                # File is outside directory, so it should use pretty_path
+                # which returns the path as-is or relative to CWD
+                # The important thing is it doesn't crash
+                assert files[0]["name"] == "outside.py"
+                # Path should contain the filename (exact path depends on CWD)
+                assert "outside.py" in files[0]["path"]
+            finally:
+                session_manager.file_router = original_file_router
+                session.app_file_manager.filename = original_filename

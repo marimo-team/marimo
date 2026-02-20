@@ -242,7 +242,6 @@ async def mpl_handler(request: Request) -> Response:
 @router.websocket("/mpl/{port}/ws")
 async def mpl_websocket(websocket: WebSocket) -> None:
     """Proxy WebSocket connections to matplotlib server."""
-    global figure_endpoints
     # Only authenticated users can register figure->port mappings
     if not validate_auth(websocket):
         await websocket.close(code=1008, reason="Unauthorized")

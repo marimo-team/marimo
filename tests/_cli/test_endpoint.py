@@ -47,10 +47,12 @@ def _start_simple_server(
     # Wait until the socket is accepting connections
     deadline = time.time() + 5
     while time.time() < deadline:
-        with contextlib.suppress(Exception):
-            with urlopen(f"http://127.0.0.1:{port}/", timeout=0.25) as r:
-                if r.status == 200:
-                    break
+        with (
+            contextlib.suppress(Exception),
+            urlopen(f"http://127.0.0.1:{port}/", timeout=0.25) as r,
+        ):
+            if r.status == 200:
+                break
         time.sleep(0.05)
     return httpd, thread
 

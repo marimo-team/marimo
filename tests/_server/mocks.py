@@ -50,10 +50,9 @@ def get_starlette_server_state_init(
 def get_mock_session_manager(
     mode: SessionMode = SessionMode.EDIT,
 ) -> SessionManager:
-    temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
-
-    temp_file.write(
-        b"""
+    with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
+        temp_file.write(
+            b"""
 import marimo
 
 __generated_with = "0.0.1"
@@ -69,9 +68,7 @@ def __():
 if __name__ == "__main__":
     app.run()
 """
-    )
-
-    temp_file.close()
+        )
 
     lsp_server = NoopLspServer()
 

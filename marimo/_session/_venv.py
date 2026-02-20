@@ -37,10 +37,11 @@ def get_ipc_kernel_deps() -> list[str]:
     """
     try:
         pyzmq_version = version("pyzmq")
-        return [f"pyzmq=={pyzmq_version}"]
     except Exception:
         # Fallback if pyzmq not installed
         return ["pyzmq>=27.1.0"]
+    else:
+        return [f"pyzmq=={pyzmq_version}"]
 
 
 def _find_python_in_venv(venv_path: str) -> str | None:

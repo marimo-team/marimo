@@ -483,9 +483,11 @@ def test_get_gist_src_url_no_files_found():
     mock_response.json.return_value = {"files": {}}
     mock_response.raise_for_status = Mock()
 
-    with patch("marimo._utils.requests.get", return_value=mock_response):
-        with pytest.raises(ValueError, match="No files found in the Gist"):
-            get_gist_src_url("https://gist.github.com/user/id")
+    with (
+        patch("marimo._utils.requests.get", return_value=mock_response),
+        pytest.raises(ValueError, match="No files found in the Gist"),
+    ):
+        get_gist_src_url("https://gist.github.com/user/id")
 
 
 def test_get_gist_src_url_no_matching_files():
@@ -500,11 +502,13 @@ def test_get_gist_src_url_no_matching_files():
     }
     mock_response.raise_for_status = Mock()
 
-    with patch("marimo._utils.requests.get", return_value=mock_response):
-        with pytest.raises(
+    with (
+        patch("marimo._utils.requests.get", return_value=mock_response),
+        pytest.raises(
             ValueError, match="No python or markdown files found in the Gist"
-        ):
-            get_gist_src_url("https://gist.github.com/user/id")
+        ),
+    ):
+        get_gist_src_url("https://gist.github.com/user/id")
 
 
 def test_gist_source_reader() -> None:

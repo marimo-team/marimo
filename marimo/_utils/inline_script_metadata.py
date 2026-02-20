@@ -69,10 +69,11 @@ class PyProjectReader:
             # Only return string version requirements
             if not isinstance(version, str):
                 return None
-            return version
         except Exception as e:
             LOGGER.warning(f"Failed to parse Python version requirement: {e}")
             return None
+        else:
+            return version
 
     @property
     def dependencies(self) -> list[str]:
@@ -82,12 +83,14 @@ class PyProjectReader:
     def requirements_txt_lines(self) -> list[str]:
         """Get dependencies from string representation of script."""
         try:
-            return _pyproject_toml_to_requirements_txt(
+            result = _pyproject_toml_to_requirements_txt(
                 self.project, self.config_path
             )
         except Exception as e:
             LOGGER.warning(f"Failed to parse dependencies: {e}")
             return []
+        else:
+            return result
 
 
 def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:

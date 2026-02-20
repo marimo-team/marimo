@@ -180,6 +180,7 @@ def current_thread() -> Thread:
 def is_marimo_thread() -> bool:
     try:
         current_thread()
-        return True
     except RuntimeError:
         return False
+    else:
+        return True

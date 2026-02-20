@@ -76,10 +76,11 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
             transformed_tree = visitor.visit(tree)
             # Don't unparse if no changes were made
             # otherwise we lose comments and formatting
+        except SyntaxError:
+            return source
+        else:
             if visitor.made_changes:
                 return ast.unparse(transformed_tree)
-            return source
-        except SyntaxError:
             return source
 
     return [transform(source) for source in sources]
@@ -504,9 +505,10 @@ def _is_compilable_expression(expr: str) -> bool:
     """
     try:
         compile(expr, "<string>", "eval")
-        return True
     except (SyntaxError, ValueError):
         return False
+    else:
+        return True
 
 
 def _shlex_to_subprocess_call(

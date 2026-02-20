@@ -486,8 +486,9 @@ class ToolBase(ABC, Generic[ArgsT, OutT]):
             try:
                 # Will raise on bad types/required fields
                 parse_raw(arguments, args_type)
-                return True, ""
             except Exception as e:
                 return False, f"Invalid arguments: {e}"
+            else:
+                return True, ""
 
         return validation_function

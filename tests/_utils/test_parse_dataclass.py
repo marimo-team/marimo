@@ -27,10 +27,10 @@ from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 # Import NotRequired for testing
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 
 @dataclass

@@ -267,11 +267,11 @@ def _store_reference_to_output(
 
     # Stores a reference to the output if it contains a UIElement;
     # this is required to make RPCs work for unnamed UI elements.
-    if isinstance(run_result.output, UIElement):
+    if isinstance(run_result.output, UIElement) or (
+        run_result.output is not None
+        and contains_instance(run_result.output, UIElement)
+    ):
         cell.set_output(run_result.output)
-    elif run_result.output is not None:
-        if contains_instance(run_result.output, UIElement):
-            cell.set_output(run_result.output)
 
 
 def _store_state_reference(

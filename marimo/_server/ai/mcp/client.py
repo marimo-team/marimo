@@ -344,7 +344,6 @@ class MCPClient:
                 )
                 # Event was set, but check if it was success or error
                 current_status = self.get_server_status(server_name)
-                return current_status == MCPServerStatus.CONNECTED
             except asyncio.TimeoutError:
                 # Connection timed out, but keep task running in background
                 LOGGER.warning(
@@ -353,6 +352,8 @@ class MCPClient:
                 # Return True if still connecting, False if error occurred
                 current_status = self.get_server_status(server_name)
                 return current_status == MCPServerStatus.CONNECTING
+            else:
+                return current_status == MCPServerStatus.CONNECTED
 
         except Exception as e:
             error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {e!s}"
@@ -515,9 +516,6 @@ class MCPClient:
                 )
                 return self._create_error_result("Tool returned empty result")
 
-            # Return the MCP SDK result directly (may already have isError=True)
-            return result
-
         except asyncio.TimeoutError:
             error_msg = f"Tool {namespaced_tool_name} timed out after {connection.definition.timeout} seconds"
             LOGGER.error(error_msg)
@@ -532,6 +530,9 @@ class MCPClient:
             )
 
             return self._create_error_result(f"Tool execution failed: {e!s}")
+        else:
+            # Return the MCP SDK result directly (may already have isError=True)
+            return result
 
     def create_tool_params(
         self,
@@ -674,8 +675,6 @@ class MCPClient:
                 timeout=self.health_check_timeout,
             )
 
-            return True
-
         except asyncio.TimeoutError:
             LOGGER.warning(
                 f"Health check ping timed out after {self.health_check_timeout} seconds for {server_name}"
@@ -684,6 +683,8 @@ class MCPClient:
         except Exception as e:
             LOGGER.warning(f"Health check failed for {server_name}: {e}")
             return False
+        else:
+            return True
 
     def _update_server_status(
         self,
@@ -839,7 +840,6 @@ class MCPClient:
                 await connection.connection_task
 
             LOGGER.info(f"Disconnected from MCP server: {server_name}")
-            return True
 
         except Exception as e:
             # No retry or forced cleanup - disconnection failures are logged but not blocking.
@@ -848,6 +848,8 @@ class MCPClient:
                 f"Error disconnecting from server {server_name}: {e!s}"
             )
             return False
+        else:
+            return True
 
     async def disconnect_from_all_servers(self) -> None:
         """Disconnect from all MCP servers."""

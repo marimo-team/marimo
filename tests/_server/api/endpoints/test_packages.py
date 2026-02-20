@@ -469,44 +469,50 @@ def test_add_package_with_metadata_update(
     client: TestClient, mock_package_manager_with_metadata: Mock
 ) -> None:
     """Test add_package calls metadata update when MANAGE_SCRIPT_METADATA is enabled."""
-    with patch(
-        "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA", True
-    ):
-        with patch(
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
             "marimo._server.api.endpoints.packages._get_filename",
             return_value="test.py",
-        ):
-            response = client.post(
-                "/api/packages/add",
-                headers=HEADERS,
-                json={"package": "test-package"},
-            )
-            assert response.status_code == 200
-            result = response.json()
-            assert result == {"success": True, "error": None}
-            mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert result == {"success": True, "error": None}
+        mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
 
 
 def test_remove_package_with_metadata_update(
     client: TestClient, mock_package_manager_with_metadata: Mock
 ) -> None:
     """Test remove_package calls metadata update when MANAGE_SCRIPT_METADATA is enabled."""
-    with patch(
-        "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA", True
-    ):
-        with patch(
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
             "marimo._server.api.endpoints.packages._get_filename",
             return_value="test.py",
-        ):
-            response = client.post(
-                "/api/packages/remove",
-                headers=HEADERS,
-                json={"package": "test-package"},
-            )
-            assert response.status_code == 200
-            result = response.json()
-            assert result == {"success": True, "error": None}
-            mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
+        ),
+    ):
+        response = client.post(
+            "/api/packages/remove",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert result == {"success": True, "error": None}
+        mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
 
 
 def test_add_package_no_metadata_update_when_disabled(
@@ -529,50 +535,56 @@ def test_add_package_no_metadata_update_when_no_filename(
     client: TestClient, mock_package_manager_with_metadata: Mock
 ) -> None:
     """Test add_package doesn't call metadata update when no filename is available."""
-    with patch(
-        "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA", True
-    ):
-        with patch(
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
             "marimo._server.api.endpoints.packages._get_filename",
             return_value=None,
-        ):
-            response = client.post(
-                "/api/packages/add",
-                headers=HEADERS,
-                json={"package": "test-package"},
-            )
-            assert response.status_code == 200
-            mock_package_manager_with_metadata.update_notebook_script_metadata.assert_not_called()
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+        assert response.status_code == 200
+        mock_package_manager_with_metadata.update_notebook_script_metadata.assert_not_called()
 
 
 def test_add_package_with_git_dependency(
     client: TestClient, mock_package_manager_with_metadata: Mock
 ) -> None:
     """Test add_package with git dependency calls metadata update correctly."""
-    with patch(
-        "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA", True
-    ):
-        with patch(
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
             "marimo._server.api.endpoints.packages._get_filename",
             return_value="test.py",
-        ):
-            response = client.post(
-                "/api/packages/add",
-                headers=HEADERS,
-                json={"package": "git+https://github.com/user/repo.git"},
-            )
-            assert response.status_code == 200
-            result = response.json()
-            assert result == {"success": True, "error": None}
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": "git+https://github.com/user/repo.git"},
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert result == {"success": True, "error": None}
 
-            # Verify metadata update was called with the git dependency
-            mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
-            call_args = mock_package_manager_with_metadata.update_notebook_script_metadata.call_args
-            assert call_args.kwargs["filepath"] == "test.py"
-            assert (
-                "git+https://github.com/user/repo.git"
-                in call_args.kwargs["packages_to_add"]
-            )
+        # Verify metadata update was called with the git dependency
+        mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
+        call_args = mock_package_manager_with_metadata.update_notebook_script_metadata.call_args
+        assert call_args.kwargs["filepath"] == "test.py"
+        assert (
+            "git+https://github.com/user/repo.git"
+            in call_args.kwargs["packages_to_add"]
+        )
 
 
 def test_add_package_with_dev_dependency(

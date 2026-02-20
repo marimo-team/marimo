@@ -53,11 +53,12 @@ def _check_docker_installed() -> bool:
         subprocess.run(
             ["docker", "--version"], check=True, capture_output=True, text=True
         )
-        return True
     except subprocess.CalledProcessError:
         return False
     except FileNotFoundError:
         return False
+    else:
+        return True
 
 
 def _check_docker_running() -> bool:
@@ -65,9 +66,10 @@ def _check_docker_running() -> bool:
         subprocess.run(
             ["docker", "info"], check=True, capture_output=True, text=True
         )
-        return True
     except subprocess.CalledProcessError:
         return False
+    else:
+        return True
 
 
 def echo_red(text: str) -> None:
@@ -89,8 +91,7 @@ def _check_port_in_use(port: int) -> Optional[str]:
             if f":{port}->" in ports:
                 return container_id
     except subprocess.CalledProcessError:
-        pass
-    return None
+        return None
 
 
 def run_in_docker(

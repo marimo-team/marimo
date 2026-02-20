@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 try:
     import curses
@@ -14,11 +14,10 @@ except ImportError:
 
 def _stderr_supports_color() -> bool:
     try:
-        if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
-            if curses:
-                curses.setupterm()  # type: ignore[attr-defined,unused-ignore]
-                if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined,unused-ignore]
-                    return True
+        if hasattr(sys.stderr, "isatty") and sys.stderr.isatty() and curses:
+            curses.setupterm()  # type: ignore[attr-defined,unused-ignore]
+            if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined,unused-ignore]
+                return True
     except Exception:
         # Very broad exception handling because it's always better to
         # fall back to non-colored logs than to break at startup.
@@ -49,7 +48,7 @@ class LogFormatter(logging.Formatter):
 
     DEFAULT_FORMAT = "%(color)s[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]%(end_color)s %(message)s"
     DEFAULT_DATE_FORMAT = "%y%m%d %H:%M:%S"
-    DEFAULT_COLORS = {
+    DEFAULT_COLORS: ClassVar[dict[int, int]] = {
         logging.DEBUG: 4,  # Blue
         logging.INFO: 2,  # Green
         logging.WARNING: 3,  # Yellow

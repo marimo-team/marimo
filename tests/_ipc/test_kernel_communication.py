@@ -103,11 +103,14 @@ x = 42"""
                 extra_collection_start = time.time()
 
         except queue.Empty:
-            if seen_completed and extra_collection_start is not None:
+            if (
+                seen_completed
+                and extra_collection_start is not None
+                and time.time() - extra_collection_start >= 0.1
+            ):
                 # FIXME: stdin/stdout are flushed every 10ms, so wait 100ms
                 # (after "completed-run") to ensure all related events.
-                if time.time() - extra_collection_start >= 0.1:
-                    break
+                break
 
             # If we haven't seen completed-run yet, continue waiting
             continue

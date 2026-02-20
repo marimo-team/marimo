@@ -7,7 +7,7 @@ import subprocess
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, ClassVar, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
@@ -194,9 +194,10 @@ class BaseLspServer(LspServer):
                 None, self._tcp_ping, timeout_ms
             )
             elapsed_ms = (time.monotonic() - start) * 1000
-            return result, elapsed_ms if result else None
         except Exception:
             return False, None
+        else:
+            return result, elapsed_ms if result else None
 
     def _tcp_ping(self, timeout_ms: float) -> bool:
         """Attempt TCP connection to check if server is listening."""
@@ -205,9 +206,10 @@ class BaseLspServer(LspServer):
             sock.settimeout(timeout_ms / 1000)
             result = sock.connect_ex(("localhost", self.port))
             sock.close()
-            return result == 0
         except Exception:
             return False
+        else:
+            return result == 0
 
     async def restart_server(self) -> Optional[AlertNotification]:
         """Stop and restart this LSP server."""
@@ -485,11 +487,12 @@ class PyLspServer(BaseLspServer):
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout or "Unknown error"
                 return f"pylsp is installed but failed to run: {error_msg}. Check for dependency conflicts (e.g., jedi version compatibility)."
-            return True
         except subprocess.TimeoutExpired:
             return "pylsp command timed out. The server may be unresponsive."
         except Exception as e:
             return f"Failed to validate pylsp: {e}"
+        else:
+            return True
 
     def get_command(self) -> list[str]:
         import sys
@@ -679,7 +682,7 @@ class NoopLspServer(LspServer):
 
 
 class CompositeLspServer(LspServer):
-    LANGUAGE_SERVERS = {
+    LANGUAGE_SERVERS: ClassVar[dict[str, type[LspServer]]] = {
         "pylsp": PyLspServer,
         "basedpyright": BasedpyrightServer,
         "ty": TyServer,

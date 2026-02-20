@@ -331,9 +331,11 @@ def _load_generator_from_notebook_source(
                 # Inline the setup block body so that dependencies imported under `with app.setup:`
                 # are available to the generator, without invoking marimo's setup cell registration.
                 setup.extend(node.body)
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.name == name:
-                target = node
+        elif (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ):
+            target = node
 
     if target is None:
         LOGGER.warning(

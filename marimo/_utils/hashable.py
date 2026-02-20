@@ -10,6 +10,7 @@ def is_hashable(*values: Any) -> bool:
     """
     try:
         hash(values)
-        return True
     except TypeError:
         return False
+    else:
+        return True

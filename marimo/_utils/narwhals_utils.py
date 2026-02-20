@@ -14,10 +14,10 @@ from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
-if sys.version_info < (3, 11):
-    from typing_extensions import TypeGuard
-else:
+if sys.version_info >= (3, 11):
     from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 
 if TYPE_CHECKING:
@@ -78,12 +78,13 @@ def can_narwhalify(
         return False
     try:
         nw.from_native(obj, pass_through=False, eager_only=eager_only)  # type: ignore[call-overload]
-        return True
     except (TypeError, AttributeError):
         # TypeError: object is not a supported type
         # AttributeError: object has __module__ = None (e.g., SymPy dynamic classes)
         # See: https://github.com/marimo-team/marimo/issues/7158
         return False
+    else:
+        return True
 
 
 def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:

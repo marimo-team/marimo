@@ -230,14 +230,12 @@ def is_pure_function(
         # A pure function can only refer to other functions, classes, or
         # modules.
         # External variable reference makes it inherently impure.
-        if ref in defs:
-            # Recursion allows for effective DFS
-            if not (
-                inspect.ismodule(defs[ref])
-                or is_pure_function(ref, defs[ref], defs, cache, graph)
-            ):
-                cache[value] = False
-                return False
+        if ref in defs and not (
+            inspect.ismodule(defs[ref])
+            or is_pure_function(ref, defs[ref], defs, cache, graph)
+        ):
+            cache[value] = False
+            return False
         return True
 
     if graph is not None:

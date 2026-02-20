@@ -361,14 +361,17 @@ class Exporter:
                 exporter.exclude_input = not include_inputs
                 pdf_data, _resources = exporter.from_notebook_node(notebook)
                 if isinstance(pdf_data, bytes):
-                    return pdf_data
-                LOGGER.error("PDF data is not bytes: %s", pdf_data)
-                return None
+                    result = pdf_data
+                else:
+                    LOGGER.error("PDF data is not bytes: %s", pdf_data)
+                    result = None
             except OSError as e:
                 LOGGER.warning(
                     "Standard PDF export failed, falling back to webpdf. Error: %s",
                     e,
                 )
+            else:
+                return result
 
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 

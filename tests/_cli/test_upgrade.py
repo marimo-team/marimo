@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -54,7 +54,7 @@ def test_update_with_latest_version(mock_fetch_data_from_url: Any) -> None:
     # Assert that the latest_version was updated
     assert updated_state.latest_version == "0.1.2"
     # Assert that the last_checked_at was updated to the current date
-    today = datetime.now().date()
+    today = datetime.now(tz=timezone.utc).astimezone().date()
     assert updated_state.last_checked_at == today.strftime("%Y-%m-%d")
 
 
@@ -83,7 +83,10 @@ def test_update_with_within_the_same_day(
     # Mocks
     state = MarimoCLIState(
         latest_version="0.1.0",
-        last_checked_at=datetime.now().date().strftime("%Y-%m-%d"),
+        last_checked_at=datetime.now(tz=timezone.utc)
+        .astimezone()
+        .date()
+        .strftime("%Y-%m-%d"),
     )
 
     # Run

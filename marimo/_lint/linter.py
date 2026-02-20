@@ -300,15 +300,18 @@ class Linter:
             self._pipe_file_status(file_status)
 
             # Add to fix queue and potentially fix if requested
-            if self.fix_files and not (
-                file_status.skipped
-                or file_status.failed
-                or file_status.notebook is None
+            if (
+                self.fix_files
+                and not (
+                    file_status.skipped
+                    or file_status.failed
+                    or file_status.notebook is None
+                )
+                and await self.fix(file_status)
             ):
-                if await self.fix(file_status):
-                    fixed_count += 1
-                    if self.pipe:
-                        self.pipe(f"Updated: {file_status.file}")
+                fixed_count += 1
+                if self.pipe:
+                    self.pipe(f"Updated: {file_status.file}")
 
         self.fixed_count = fixed_count
 

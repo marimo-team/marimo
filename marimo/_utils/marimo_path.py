@@ -47,9 +47,10 @@ class MarimoPath:
     def is_valid_path(path: Union[str, Path]) -> bool:
         try:
             MarimoPath(path)
-            return True
         except ValueError:
             return False
+        else:
+            return True
 
     def is_valid(self) -> bool:
         return self.is_python() or self.is_markdown()
@@ -62,12 +63,10 @@ class MarimoPath:
         return self.path.suffix in allowed
 
     def rename(self, new_path: Path) -> None:
-        if self.strict:
-            if not MarimoPath(new_path).is_relative_to(self.cwd):
-                raise ValueError(
-                    "Cannot rename files outside of "
-                    "the current working directory"
-                )
+        if self.strict and not MarimoPath(new_path).is_relative_to(self.cwd):
+            raise ValueError(
+                "Cannot rename files outside of the current working directory"
+            )
 
         # Cannot rename if already exists
         if new_path.exists():
@@ -109,9 +108,10 @@ class MarimoPath:
         if not hasattr(self.path, "is_relative_to"):
             try:
                 self.path.relative_to(other)
-                return True
             except ValueError:
                 return False
+            else:
+                return True
         return self.path.is_relative_to(other)  # type: ignore
 
     @property

@@ -646,14 +646,16 @@ class Cell:
 
         # Inject setup cell definitions so that we do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
-        if "PYTEST_CURRENT_TEST" not in os.environ:
-            if self._app._app._setup is not None:
-                from_setup = {
-                    k: v
-                    for k, v in self._app._app._setup._glbls.items()
-                    if k in self._cell.refs
-                }
-                refs = {**from_setup, **refs}
+        if (
+            "PYTEST_CURRENT_TEST" not in os.environ
+            and self._app._app._setup is not None
+        ):
+            from_setup = {
+                k: v
+                for k, v in self._app._app._setup._glbls.items()
+                if k in self._cell.refs
+            }
+            refs = {**from_setup, **refs}
 
         try:
             if self._is_coroutine:
@@ -701,14 +703,16 @@ class Cell:
         actual_count = len(args) + len(kwargs)
 
         mismatch_context = ""
-        if self._expected_signature is not None:
-            if tuple(arg_names) != self._expected_signature:
-                mismatch_context = (
-                    f"The signature of function ``{self._name}'': {self._expected_signature} "
-                    f"does not match the expected signature: {tuple(arg_names)}. "
-                    "A mismatch in arguments likely means you should "
-                    "resave the notebook in the marimo editor."
-                )
+        if (
+            self._expected_signature is not None
+            and tuple(arg_names) != self._expected_signature
+        ):
+            mismatch_context = (
+                f"The signature of function ``{self._name}'': {self._expected_signature} "
+                f"does not match the expected signature: {tuple(arg_names)}. "
+                "A mismatch in arguments likely means you should "
+                "resave the notebook in the marimo editor."
+            )
 
         # If all the arguments are provided, then run as if it were a normal
         # function call. An incorrect number of arguments will raise a

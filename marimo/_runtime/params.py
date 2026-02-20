@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
+    ClassVar,
     Optional,
     TypeVar,
     Union,
@@ -35,7 +36,11 @@ if TYPE_CHECKING:
 class QueryParams(State[SerializedQueryParams]):
     """Query parameters for a marimo app."""
 
-    IGNORED_KEYS = {"access_token", "refresh_token", "session_id"}
+    IGNORED_KEYS: ClassVar[set[str]] = {
+        "access_token",
+        "refresh_token",
+        "session_id",
+    }
 
     def __init__(
         self,
