@@ -105,7 +105,6 @@ class AltairFormatter(FormatterFactory):
         del theme
         # We don't need to apply this here because the theme is set in the
         # vega-lite component
-        pass
 
 
 # This is only needed since it seems that altair does not

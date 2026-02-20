@@ -46,7 +46,6 @@ class FormatterFactory(abc.ABC):
             theme: The theme to apply.
         """
         del theme
-        return
 
     def apply_theme_safe(self, theme: Theme) -> None:
         """

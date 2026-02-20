@@ -239,7 +239,7 @@ def _startup_url(state: AppStateBase) -> str:
 
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
-    return f"{url}?access_token={str(state.session_manager.auth_token)}"
+    return f"{url}?access_token={state.session_manager.auth_token!s}"
 
 
 def _mcp_startup_url(state: AppStateBase) -> str:
@@ -270,4 +270,4 @@ def _mcp_startup_url(state: AppStateBase) -> str:
     # Add access token if not empty
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
-    return f"{url}?access_token={str(state.session_manager.auth_token)}"
+    return f"{url}?access_token={state.session_manager.auth_token!s}"

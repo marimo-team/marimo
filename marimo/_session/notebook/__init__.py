@@ -21,8 +21,8 @@ from marimo._session.notebook.storage import (
 __all__ = [
     "AppFileManager",
     "FilesystemStorage",
-    "NotebookSerializer",
     "MarkdownNotebookSerializer",
+    "NotebookSerializer",
     "PythonNotebookSerializer",
     "StorageInterface",
     "read_css_file",

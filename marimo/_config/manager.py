@@ -72,7 +72,6 @@ class MarimoConfigReader:
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, optionally hiding secrets"""
-        pass
 
     # Convenience methods for common access patterns
 
@@ -178,7 +177,6 @@ class PartialMarimoConfigReader:
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""
-        pass
 
 
 class ProjectConfigManager(PartialMarimoConfigReader):
@@ -312,7 +310,7 @@ class EnvConfigManager(PartialMarimoConfigReader):
     ) -> None:
         loaded_value = env_to_value(key)
         if not isinstance(loaded_value, tuple):
-            return None
+            return
         value = loaded_value[0]
 
         current = cast(dict[str, Any], config)
@@ -321,7 +319,7 @@ class EnvConfigManager(PartialMarimoConfigReader):
                 current[p] = {}
             current = current[p]
         current[path[-1]] = value
-        return None
+        return
 
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""

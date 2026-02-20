@@ -342,7 +342,7 @@ class TestScriptCache:
             with persistent_cache(name="one",
                                   _loader=MockLoader(
                                     data={"X": 7, "Y": 8})
-                                  ) as cache:  # noqa: E501
+                                  ) as cache:
                 Y = 9
                 X = 10
             # fmt: on
@@ -2081,7 +2081,6 @@ class TestCacheDecorator:
             f()
             assert f.hits == 0
             assert f.base_block.execution_refs == {"ns"}
-            return
 
     @staticmethod
     def test_execution_hash_same_block(app) -> None:
@@ -2123,7 +2122,6 @@ class TestCacheDecorator:
             assert f.base_block.context_refs == {"ns"}, (
                 f.base_block.context_refs
             )
-            return
 
     @staticmethod
     def test_execution_hash_diff_block(app) -> None:
@@ -2157,7 +2155,6 @@ class TestCacheDecorator:
         def __(f):
             f()
             assert f.base_block.execution_refs == {"ns", "z"}
-            return
 
     @staticmethod
     def test_content_hash_define_after(app) -> None:
@@ -2195,7 +2192,6 @@ class TestCacheDecorator:
                 f.base_block.execution_refs
             )
             assert f.base_block.missing == {"ns"}, f.base_block.missing
-            return
 
     @staticmethod
     def test_execution_hash_same_block_fails() -> None:
@@ -2234,7 +2230,6 @@ class TestCacheDecorator:
         @app.cell
         def _(f):
             f()
-            return
 
         # Cannot hash the cell of the unhashable content, so it should fail
         with pytest.raises(TypeError):
@@ -2266,7 +2261,6 @@ class TestCacheDecorator:
             random.seed(1)
             assert a == g("hello")
             assert a != g("world")
-            return
 
     @staticmethod
     def test_shadowed_kwargs(app) -> None:
@@ -2296,7 +2290,6 @@ class TestCacheDecorator:
             assert g.hits == 1
             assert g() == "hello"
             assert g.hits == 2
-            return
 
     @staticmethod
     def test_shadowed_state(app) -> None:
@@ -2320,7 +2313,6 @@ class TestCacheDecorator:
         @app.cell
         def __(v):
             assert v == 3
-            return
 
     @staticmethod
     def test_shadowed_state_redefined(app) -> None:
@@ -2346,7 +2338,6 @@ class TestCacheDecorator:
         @app.cell
         def __(v):
             assert v == 3
-            return
 
     @staticmethod
     def test_internal_shadowed(app) -> None:
@@ -2453,7 +2444,6 @@ class TestCacheDecorator:
             assert state1() == a == A
             assert state2() == b == B
             assert state() == 3
-            return
 
     @staticmethod
     def test_shadowed_ui(app) -> None:
@@ -2477,7 +2467,6 @@ class TestCacheDecorator:
         @app.cell
         def __(v):
             assert v == 3
-            return
 
     @staticmethod
     def test_cache_with_mutation_after_def(app) -> None:
@@ -2550,7 +2539,6 @@ class TestCacheDecorator:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 future = executor.submit(inner, extension)
                 assert future.result() == 5
-            return
 
 
 class TestPersistentCache:

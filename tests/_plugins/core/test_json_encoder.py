@@ -180,7 +180,7 @@ def test_list_mime_encoding() -> None:
     encoded = encode_json_str(mime_obj)
     assert (
         encoded
-        == '[{"mimetype":"text/plain","data":"data"},{"mimetype":"text/plain","data":"data"}]'  # noqa:E501
+        == '[{"mimetype":"text/plain","data":"data"},{"mimetype":"text/plain","data":"data"}]'
     )
 
 
@@ -195,7 +195,7 @@ def test_nested_mime_encoding() -> None:
     encoded = encode_json_str(mime_obj)
     assert (
         encoded
-        == '{"key":[{"mimetype":"text/plain","data":"data"},{"mimetype":"text/plain","data":"data"}]}'  # noqa:E501
+        == '{"key":[{"mimetype":"text/plain","data":"data"},{"mimetype":"text/plain","data":"data"}]}'
     )
 
 
@@ -225,7 +225,7 @@ def test_dataclass_with_list_encoding() -> None:
     encoded = encode_json_str(dataclass_obj)
     assert (
         encoded
-        == '{"a":1,"b":"hello","items":[1,"2",{"mimetype":"text/plain","data":"data"},{"mimetype":"text/html","data":"<button>Click me!</button>"}],"other_items":null}'  # noqa:E501
+        == '{"a":1,"b":"hello","items":[1,"2",{"mimetype":"text/plain","data":"data"},{"mimetype":"text/html","data":"<button>Click me!</button>"}],"other_items":null}'
     )
 
 
@@ -236,7 +236,7 @@ def test_dataclass_with_dict_encoding() -> None:
     encoded = encode_json_str(dataclass_obj)
     assert (
         encoded
-        == '{"a":1,"b":"hello","items":null,"other_items":{"key":{"mimetype":"text/plain","data":"data"}}}'  # noqa:E501
+        == '{"a":1,"b":"hello","items":null,"other_items":{"key":{"mimetype":"text/plain","data":"data"}}}'
     )
 
 
@@ -460,7 +460,7 @@ def test_uuid_encoding() -> None:
     # Random UUID
     uuid_obj = uuid.uuid4()
     encoded = encode_json_str(uuid_obj)
-    assert encoded == f'"{str(uuid_obj)}"'
+    assert encoded == f'"{uuid_obj!s}"'
 
 
 def test_circular_reference_encoding():
@@ -516,7 +516,7 @@ def test_complex_nested_structure():
 
 
 def test_png_encoding() -> None:
-    purple_square = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82"  # noqa: E501
+    purple_square = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x14\x00\x00\x00\x14\x08\x02\x00\x00\x00\x02\xeb\x8aZ\x00\x00\x00\tpHYs\x00\x00.#\x00\x00.#\x01x\xa5?v\x00\x00\x00\x1dIDAT8\xcbc\xac\x11\xa9g \x1701P\x00F5\x8fj\x1e\xd5<\xaa\x99r\xcd\x00m\xba\x017\xd3\x00\xdf\xcb\x00\x00\x00\x00IEND\xaeB`\x82"
     encoded = encode_json_str(purple_square)
     assert isinstance(encoded, str)
 

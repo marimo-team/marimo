@@ -53,7 +53,7 @@ class FigureManagers:
 
     def get(self, figure_id: str) -> FigureManagerWebAgg:
         if figure_id not in self.figure_managers:
-            raise RuntimeError(f"Figure {figure_id} not found.")  # noqa: E501
+            raise RuntimeError(f"Figure {figure_id} not found.")
         return self.figure_managers[str(figure_id)]
 
     def remove(self, manager: FigureManagerWebAgg) -> None:
@@ -332,7 +332,7 @@ def create_application() -> Starlette:
                     await websocket.send_json(
                         {
                             "type": "error",
-                            "message": f"WebSocket receive error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                            "message": f"WebSocket receive error: {e!s}. The matplotlib server may have restarted. Please refresh this plot.",
                         }
                     )
             finally:
@@ -355,7 +355,7 @@ def create_application() -> Starlette:
                     await websocket.send_json(
                         {
                             "type": "error",
-                            "message": f"WebSocket send error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                            "message": f"WebSocket send error: {e!s}. The matplotlib server may have restarted. Please refresh this plot.",
                         }
                     )
             finally:
@@ -369,7 +369,7 @@ def create_application() -> Starlette:
                 await websocket.send_json(
                     {
                         "type": "error",
-                        "message": f"WebSocket connection error: {str(e)}. The matplotlib server may have restarted. Please refresh this plot.",
+                        "message": f"WebSocket connection error: {e!s}. The matplotlib server may have restarted. Please refresh this plot.",
                     }
                 )
                 await websocket.close()
@@ -627,7 +627,7 @@ html_content = """
     <div id="figure"></div>
   </body>
 </html>
-""".strip()  # noqa: E501
+""".strip()
 
 # Custom CSS to make the mpl toolbar fit the marimo UI
 # We do not support dark mode at the moment as the iframe does not know

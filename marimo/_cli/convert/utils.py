@@ -5,8 +5,8 @@ from pathlib import Path
 
 import click
 
-import marimo._utils.requests as requests
 from marimo._cli.files.file_path import get_github_src_url, is_github_src
+from marimo._utils import requests
 from marimo._utils.url import is_url
 
 

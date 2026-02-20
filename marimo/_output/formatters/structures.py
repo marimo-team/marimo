@@ -47,7 +47,7 @@ def _leaf_formatter(
     if value is None:
         return value
     if isinstance(value, set):
-        return f"text/plain+set:{str(value)}"
+        return f"text/plain+set:{value!s}"
     if isinstance(value, tuple):
         return f"text/plain+tuple:{json.dumps(value)}"
 

@@ -318,13 +318,13 @@ def test_transform_duplicate_definitions():
 def test_transform_remove_duplicate_imports():
     sources = [
         "import numpy as np\nimport pandas as pd\nimport numpy as np",
-        "from sklearn.model_selection import train_test_split\nfrom sklearn.model_selection import cross_val_score",  # noqa: E501
+        "from sklearn.model_selection import train_test_split\nfrom sklearn.model_selection import cross_val_score",
         "import matplotlib.pyplot as plt\nimport numpy as np",
     ]
     result = transform_remove_duplicate_imports(sources)
     assert result == [
         "import numpy as np\nimport pandas as pd",
-        "from sklearn.model_selection import train_test_split\nfrom sklearn.model_selection import cross_val_score",  # noqa: E501
+        "from sklearn.model_selection import train_test_split\nfrom sklearn.model_selection import cross_val_score",
         "import matplotlib.pyplot as plt",
     ]
 
@@ -392,12 +392,12 @@ def test_transform_magic_commands_complex():
     expected = [
         '_df = mo.sql("""\nSELECT *\nFROM table\nWHERE condition\n""")',
         (
-            "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
+            "# magic command not supported in marimo; please file an issue to add support\n"
             "# %%time\nfor i in range(1000000):\n"
             "    pass"
         ),
         (
-            "# magic command not supported in marimo; please file an issue to add support\n"  # noqa: E501
+            "# magic command not supported in marimo; please file an issue to add support\n"
             "# %load_ext autoreload\n"
             "# '%autoreload 2' command supported automatically in marimo"
         ),
@@ -592,29 +592,29 @@ def test_transform_duplicate_definitions_complex():
 
 def test_transform_remove_duplicate_imports_complex():
     sources = [
-        "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",  # noqa: E501
-        "from sklearn.model_selection import train_test_split, cross_val_score\nimport numpy as np",  # noqa: E501
-        "from pandas import Series\nfrom matplotlib import pyplot as plt\nimport pandas as pd",  # noqa: E501
+        "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",
+        "from sklearn.model_selection import train_test_split, cross_val_score\nimport numpy as np",
+        "from pandas import Series\nfrom matplotlib import pyplot as plt\nimport pandas as pd",
     ]
     result = transform_remove_duplicate_imports(sources)
     assert result == [
-        "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",  # noqa: E501
-        "from sklearn.model_selection import train_test_split, cross_val_score",  # noqa: E501
-        "from pandas import Series\nimport pandas as pd",  # noqa: E501
+        "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",
+        "from sklearn.model_selection import train_test_split, cross_val_score",
+        "from pandas import Series\nimport pandas as pd",
     ]
 
 
 def test_transform_fixup_multiple_definitions_with_classes():
     sources = [
-        "class MyClass:\n    x = 1\n    def method(self):\n        return self.x",  # noqa: E501
+        "class MyClass:\n    x = 1\n    def method(self):\n        return self.x",
         "x = 2\nprint(x)",
-        "class MyClass:\n    x = 3\n    def method(self):\n        return self.x",  # noqa: E501
+        "class MyClass:\n    x = 3\n    def method(self):\n        return self.x",
     ]
     result = transform_fixup_multiple_definitions(sources)
     assert result == [
-        "class _MyClass:\n    x = 1\n\n    def method(self):\n        return self.x",  # noqa: E501
+        "class _MyClass:\n    x = 1\n\n    def method(self):\n        return self.x",
         "x = 2\nprint(x)",
-        "class _MyClass:\n    x = 3\n\n    def method(self):\n        return self.x",  # noqa: E501
+        "class _MyClass:\n    x = 3\n\n    def method(self):\n        return self.x",
     ]
 
 
@@ -625,8 +625,8 @@ def test_transform_magic_commands_unsupported():
     ]
     result = transform_magic_commands(sources)
     assert result == [
-        "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic arg1 arg2",  # noqa: E501
-        "# magic command not supported in marimo; please file an issue to add support\n# %%custom_cell_magic\n# some\n# content",  # noqa: E501
+        "# magic command not supported in marimo; please file an issue to add support\n# %custom_magic arg1 arg2",
+        "# magic command not supported in marimo; please file an issue to add support\n# %%custom_cell_magic\n# some\n# content",
     ]
 
 

@@ -15,7 +15,7 @@ Logger = marimo_logger()
 
 @mddoc
 def stat(
-    value: Union[str, int, float],
+    value: Union[str, float],
     label: Optional[str] = None,
     caption: Optional[str] = None,
     direction: Optional[Literal["increase", "decrease"]] = None,

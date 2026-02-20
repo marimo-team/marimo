@@ -24,7 +24,7 @@ def _get_free_port() -> int:
 class _FixedResponseHandler(http.server.BaseHTTPRequestHandler):
     RESPONSE = b"HELLO_FROM_SIMPLE_SERVER"
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(self.RESPONSE)))
@@ -32,7 +32,7 @@ class _FixedResponseHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(self.RESPONSE)
 
     # Silence default logging
-    def log_message(self, *args: Any) -> None:  # noqa: A003
+    def log_message(self, *args: Any) -> None:
         pass
 
 
@@ -48,7 +48,7 @@ def _start_simple_server(
     deadline = time.time() + 5
     while time.time() < deadline:
         with contextlib.suppress(Exception):
-            with urlopen(f"http://127.0.0.1:{port}/", timeout=0.25) as r:  # noqa: S310
+            with urlopen(f"http://127.0.0.1:{port}/", timeout=0.25) as r:
                 if r.status == 200:
                     break
         time.sleep(0.05)
@@ -60,7 +60,7 @@ def _wait_for_http_up(url: str, timeout_s: float = 10.0) -> None:
     last_err = None
     while time.time() < deadline:
         try:
-            with urlopen(url, timeout=0.5) as r:  # noqa: S310
+            with urlopen(url, timeout=0.5) as r:
                 if 200 <= r.status < 500:
                     return
         except Exception as e:  # noqa: BLE001
@@ -97,7 +97,7 @@ def test_cli_edit_mpl_endpoint_does_not_proxy_simple_server() -> None:
         "--timeout",
         "60",  # long enough that it won't self-terminate during the test
     ]
-    p = subprocess.Popen(  # noqa: S603
+    p = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -109,7 +109,7 @@ def test_cli_edit_mpl_endpoint_does_not_proxy_simple_server() -> None:
         _wait_for_http_up(f"http://127.0.0.1:{port}/", timeout_s=15)
 
         # Fetch from the simple server directly
-        with urlopen(f"http://127.0.0.1:{other_port}/", timeout=3) as r:  # noqa: S310
+        with urlopen(f"http://127.0.0.1:{other_port}/", timeout=3) as r:
             direct_body = r.read()
 
         # "curl" the marimo mpl endpoint that references the other_port
@@ -121,7 +121,7 @@ def test_cli_edit_mpl_endpoint_does_not_proxy_simple_server() -> None:
         # Use a plain GET; headers minimal
         req = Request(mpl_url, headers={"User-Agent": "pytest"})
         try:
-            with urlopen(req, timeout=3) as r:  # noqa: S310
+            with urlopen(req, timeout=3) as r:
                 marimo_body = r.read()
         except urllib.error.HTTPError as e:
             marimo_body = e.read()

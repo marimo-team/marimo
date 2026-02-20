@@ -251,13 +251,13 @@ def test_http_error_handling():
 
 def test_request_error_handling():
     """Test that other exceptions are converted to RequestError."""
-    with patch(
-        "urllib.request.urlopen", side_effect=Exception("Network error")
+    with (
+        patch(
+            "urllib.request.urlopen", side_effect=Exception("Network error")
+        ),
+        pytest.raises(RequestError, match="Request failed: Network error"),
     ):
-        with pytest.raises(
-            RequestError, match="Request failed: Network error"
-        ):
-            _make_request("GET", "https://api.example.com")
+        _make_request("GET", "https://api.example.com")
 
 
 @pytest.mark.parametrize(

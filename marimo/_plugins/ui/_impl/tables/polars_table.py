@@ -314,9 +314,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return ("time", dtype_string)
                 elif dtype == pl.Duration:
                     return ("number", dtype_string)
-                elif dtype == pl.Datetime:
-                    return ("datetime", dtype_string)
-                elif dtype.is_temporal():
+                elif dtype == pl.Datetime or dtype.is_temporal():
                     return ("datetime", dtype_string)
                 else:
                     return ("unknown", dtype_string)

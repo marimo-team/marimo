@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import sys
-from typing import Any, ClassVar, Literal, Optional, TypedDict, Union
+from typing import Any, ClassVar, Literal, Optional, TypedDict
 
 import pytest
 
@@ -92,7 +92,7 @@ def test_recursive_dataclass_to_openapi() -> None:
     }
 
 
-Colors = Union[Literal["red"], Literal["green"], Literal["blue"]]
+Colors = Literal["red", "green", "blue"]
 
 
 def test_named_union() -> None:

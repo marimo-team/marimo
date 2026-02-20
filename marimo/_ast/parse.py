@@ -369,8 +369,7 @@ class Extractor:
         code_result = self.extract_from_code(node)
         _violations.extend(code_result.violations)
         code = code_result.unwrap()
-        if code.endswith("\npass"):
-            code = code[: -len("\npass")]
+        code = code.removesuffix("\npass")
         return ParseResult(
             SetupCell(
                 code=code,

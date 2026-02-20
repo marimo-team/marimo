@@ -332,27 +332,22 @@ def _convert_value(
                 return datetime.date.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
-            elif dtype == nw.Float32:
+            elif dtype == nw.Float32 or dtype == nw.Float64:
                 return float(value)
-            elif dtype == nw.Float64:
-                return float(value)
-            elif dtype == nw.Int16:
+            elif (
+                dtype == nw.Int16
+                or dtype == nw.Int32
+                or dtype == nw.Int64
+                or dtype == nw.UInt16
+                or dtype == nw.UInt32
+                or dtype == nw.UInt64
+            ):
                 return int(value)
-            elif dtype == nw.Int32:
-                return int(value)
-            elif dtype == nw.Int64:
-                return int(value)
-            elif dtype == nw.UInt16:
-                return int(value)
-            elif dtype == nw.UInt32:
-                return int(value)
-            elif dtype == nw.UInt64:
-                return int(value)
-            elif dtype == nw.String:
-                return str(value)
-            elif dtype == nw.Enum:
-                return str(value)
-            elif dtype == nw.Categorical:
+            elif (
+                dtype == nw.String
+                or dtype == nw.Enum
+                or dtype == nw.Categorical
+            ):
                 return str(value)
             elif dtype == nw.Boolean:
                 return bool(value)

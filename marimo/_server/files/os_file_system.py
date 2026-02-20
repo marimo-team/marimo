@@ -344,7 +344,6 @@ class OSFileSystem(FileSystem):
                     return True
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")
-                    pass
 
             # Use system default if no editor specified
             if platform.system() == "Darwin":  # macOS

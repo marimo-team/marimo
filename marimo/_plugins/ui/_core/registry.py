@@ -78,13 +78,12 @@ class UIElementRegistry:
         # _Namespace if it contains `object_id`
         bindings: set[str] = set()
         for name, value in glbls.items():
-            if isinstance(value, UIElement) and self._has_parent_id(
-                value, object_id
+            if (
+                isinstance(value, UIElement)
+                and self._has_parent_id(value, object_id)
+                or isinstance(value, _Namespace)
+                and self._find_bindings_in_namespace(object_id, value)
             ):
-                bindings.add(name)
-            elif isinstance(
-                value, _Namespace
-            ) and self._find_bindings_in_namespace(object_id, value):
                 bindings.add(name)
         return bindings
 

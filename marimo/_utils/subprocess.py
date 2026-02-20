@@ -7,6 +7,7 @@ from typing import (
     IO,
     Any,
     Literal,
+    Optional,
     overload,
 )
 
@@ -164,7 +165,7 @@ def safe_popen(
     start_new_session: bool = ...,
     pass_fds: Sequence[int] = ...,
     *,
-    text: Literal[False, None] = ...,
+    text: Optional[Literal[False]] = ...,
     encoding: None = ...,
     errors: None = ...,
     user: str | int | None = ...,

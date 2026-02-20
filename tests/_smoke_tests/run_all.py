@@ -89,7 +89,7 @@ async def _run_test(
             if isinstance(failed_reason, list):
                 assert any(reason in stderr for reason in failed_reason), (
                     f"File: {file}. Expected error one of {failed_reason} in {stderr}"
-                )  # noqa: E501
+                )
             else:
                 assert failed_reason in stderr, f"File: {file}"
         # Allow MarimoStop

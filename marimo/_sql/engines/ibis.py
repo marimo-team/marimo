@@ -440,27 +440,22 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return "string"
         elif ibis_dtype.is_boolean():
             return "boolean"
-        elif ibis_dtype.is_string():
+        elif ibis_dtype.is_string() or ibis_dtype.is_binary():
             return "string"
-        elif ibis_dtype.is_binary():
-            return "string"
-        elif ibis_dtype.is_array():
+        elif (
+            ibis_dtype.is_array()
+            or ibis_dtype.is_map()
+            or ibis_dtype.is_struct()
+            or ibis_dtype.is_json()
+        ):
             return "unknown"
-        elif ibis_dtype.is_map():
-            return "unknown"
-        elif ibis_dtype.is_struct():
-            return "unknown"
-        elif ibis_dtype.is_json():
-            return "unknown"
-        elif ibis_dtype.is_uuid():
-            return "string"
-        elif ibis_dtype.is_macaddr():
-            return "string"
-        elif ibis_dtype.is_inet():
-            return "string"
-        elif ibis_dtype.is_linestring():
-            return "string"
-        elif ibis_dtype.is_multilinestring():
+        elif (
+            ibis_dtype.is_uuid()
+            or ibis_dtype.is_macaddr()
+            or ibis_dtype.is_inet()
+            or ibis_dtype.is_linestring()
+            or ibis_dtype.is_multilinestring()
+        ):
             return "string"
         else:
             raise IbisToMarimoConversionError

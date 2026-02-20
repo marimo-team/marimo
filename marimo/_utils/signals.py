@@ -12,7 +12,7 @@ def restore_signals() -> None:
     # which we definitely don't want! Otherwise a SIGTERM to this process
     # would be rerouted to the server.
     #
-    # See https://github.com/tiangolo/fastapi/discussions/7442#discussioncomment-5141007  # noqa: E501
+    # See https://github.com/tiangolo/fastapi/discussions/7442#discussioncomment-5141007
     signal.set_wakeup_fd(-1)
 
     signal.signal(signal.SIGTERM, signal.SIG_DFL)

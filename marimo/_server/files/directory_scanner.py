@@ -166,7 +166,7 @@ class DirectoryScanner:
                 # Store accumulated results before raising timeout
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_TIMEOUT,
-                    detail=f"Request timed out: Loading workspace files took too long. Showing first {file_count[0]} files.",  # noqa: E501
+                    detail=f"Request timed out: Loading workspace files took too long. Showing first {file_count[0]} files.",
                 )
 
             try:

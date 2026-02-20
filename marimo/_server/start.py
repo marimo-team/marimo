@@ -9,7 +9,6 @@ from typing import Optional
 
 import uvicorn
 
-import marimo._server.api.lifespans as lifespans
 from marimo._cli.print import echo
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
@@ -17,6 +16,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
+from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
@@ -60,9 +60,8 @@ def _execute_startup_command(
                         content="", status="start"
                     )
                 session.notify(content, from_consumer_id=None)
-            else:
-                buffer.content += content.content
-                buffer.status = content.status
+            buffer.content += content.content
+            buffer.status = content.status
 
         try:
             # Broadcast start message to all sessions
@@ -104,7 +103,7 @@ def _execute_startup_command(
 
         except Exception as e:
             # Broadcast error message
-            error_message = f"\nError executing startup command: {str(e)}\n"
+            error_message = f"\nError executing startup command: {e!s}\n"
             write_to_all_sessions(
                 StartupLogsNotification(content=error_message, status="done"),
                 buffer,

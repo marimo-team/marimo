@@ -11,8 +11,8 @@ RULE_CODES: dict[str, type[LintRule]] = (
 )
 
 __all__ = [
-    "RULE_CODES",
     "BREAKING_RULE_CODES",
-    "RUNTIME_RULE_CODES",
     "FORMATTING_RULE_CODES",
+    "RULE_CODES",
+    "RUNTIME_RULE_CODES",
 ]

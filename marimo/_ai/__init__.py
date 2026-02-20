@@ -2,13 +2,13 @@
 """AI utilities."""
 
 __all__ = [
+    "ChatAttachment",
     "ChatMessage",
     "ChatModelConfig",
-    "ChatAttachment",
     "llm",
 ]
 
-import marimo._ai.llm as llm
+from marimo._ai import llm
 from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,

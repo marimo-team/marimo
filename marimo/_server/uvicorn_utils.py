@@ -30,7 +30,6 @@ def initialize_signals() -> None:
         def noop(signum: int, frame: Any) -> None:
             del signum
             del frame
-            ...
 
         signal.signal(signal.SIGINT, noop)
 
@@ -60,7 +59,6 @@ def close_uvicorn(server: uvicorn.Server) -> None:
             def noop(signum: int, frame: Any) -> None:
                 del signum
                 del frame
-                ...
 
             signal.signal(signal.SIGINT, noop)
 

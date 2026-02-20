@@ -11,7 +11,7 @@ RUNTIME_RULE_CODES: dict[str, type[LintRule]] = {
 }
 
 __all__ = [
+    "RUNTIME_RULE_CODES",
     "BranchExpressionRule",
     "SelfImportRule",
-    "RUNTIME_RULE_CODES",
 ]

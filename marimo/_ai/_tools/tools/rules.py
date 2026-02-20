@@ -4,10 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import EmptyArgs, SuccessResult, ToolGuidelines
+from marimo._utils import requests
 from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
@@ -84,7 +84,7 @@ class GetMarimoRules(ToolBase[EmptyArgs, GetMarimoRulesOutput]):
 
             return GetMarimoRulesOutput(
                 status="error",
-                message=f"Failed to fetch marimo rules: {str(e)}",
+                message=f"Failed to fetch marimo rules: {e!s}",
                 source_url=MARIMO_RULES_URL,
                 next_steps=[
                     "Check internet connectivity",

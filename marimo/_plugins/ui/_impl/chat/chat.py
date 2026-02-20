@@ -377,7 +377,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             await self._handle_streaming_response(response)
             # For streaming, we don't have a final response string to add to history
             # The frontend will add the accumulated message
-            return None
+            return
 
         if inspect.isawaitable(response):
             response = await response

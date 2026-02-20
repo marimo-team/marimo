@@ -196,7 +196,6 @@ def _():
 def _():
     def test_missing_fixture(this_fixture_does_not_exist):
         """Test uses non-existent fixture - should fail with fixture not found."""
-        pass
 
 
 if __name__ == "__main__":

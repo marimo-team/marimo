@@ -193,7 +193,7 @@ async def usage(request: Request) -> JSONResponse:
                             - memory
                             - cpu
 
-    """  # noqa: E501
+    """
     import subprocess
 
     import psutil
@@ -341,7 +341,7 @@ def _is_gpu_available() -> bool:
 
     if DependencyManager.which("nvidia-smi"):
         try:
-            _ = subprocess.run(  # noqa: ASYNC221
+            _ = subprocess.run(
                 _GPU_STATS_CMD,
                 capture_output=True,
                 text=True,

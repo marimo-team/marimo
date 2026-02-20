@@ -76,7 +76,6 @@ def watch_and_export(
             output.write_bytes(result.bytez)
         else:
             echo(result.text)
-        return
 
     if output:
         output_path = Path(output)
@@ -107,7 +106,7 @@ def watch_and_export(
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
-                f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
+                f"File {file_path!s} changed. Re-exporting to {green(str(output))}"
             )
         try:
             # `export_callback` may call `asyncio_run()` internally. This callback

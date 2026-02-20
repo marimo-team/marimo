@@ -227,7 +227,7 @@ async def run_cell(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteCellsRequest)
     body.request = HTTPRequest.from_request(request)
@@ -264,7 +264,7 @@ async def run_scratchpad(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     return await dispatch_control_request(request, ExecuteScratchpadRequest)
 
 
@@ -293,7 +293,7 @@ async def run_post_mortem(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     return await dispatch_control_request(request, DebugCellRequest)
 
 
@@ -317,7 +317,7 @@ async def restart_session(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     app_state = AppState(request)
     session_manager = app_state.session_manager
 

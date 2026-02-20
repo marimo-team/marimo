@@ -315,7 +315,7 @@ async def ai_inline_completion(
         LOGGER.error("Error in AI inline completion: %s", str(e))
         raise HTTPException(
             status_code=500,  # Internal Server Error
-            detail=f"AI completion failed: {str(e)}",
+            detail=f"AI completion failed: {e!s}",
         ) from None
 
     # Filter out `<|file_separator|>` which is sometimes returned FIM models
@@ -383,7 +383,7 @@ async def invoke_tool(
                 success=False,
                 tool_name=body.tool_name,
                 result=None,
-                error=f"Tool invocation failed: {str(e)}",
+                error=f"Tool invocation failed: {e!s}",
             )
         )
 

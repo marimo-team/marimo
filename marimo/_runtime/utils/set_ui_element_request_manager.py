@@ -42,7 +42,7 @@ class _RunAccumulator(Generic[A, B]):
         self._merge_a = a[1]
         self._merge_b = b[1]
         self._current_run: list[A] | list[B] = []
-        self._current_type: type[A] | type[B] | None = None
+        self._current_type: type[A | B] | None = None
         self._result: list[A | B] = []
 
     def push(self, cmd: A | B) -> None:

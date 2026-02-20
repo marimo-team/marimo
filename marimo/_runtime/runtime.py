@@ -2066,7 +2066,7 @@ class Kernel:
                     debug(error_title, error_message)
                 except Exception as e:
                     error_title = "Exception"
-                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
+                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {e!s}"
                     LOGGER.info(error_message, exc_info=True)
                     debug(error_title, error_message)
 
@@ -2309,7 +2309,6 @@ class Kernel:
 
         async def handle_stop(request: StopKernelCommand) -> None:
             del request
-            return None
 
         handler.register(CreateNotebookCommand, handle_instantiate)
         handler.register(DeleteCellCommand, self.delete_cell)
@@ -2802,13 +2801,11 @@ class PackagesCallbacks:
         if self.package_manager is None:
             return
 
-        packages = list(
-            sorted(
-                pkg
-                for mod in missing_packages
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
-                )
+        packages = sorted(
+            pkg
+            for mod in missing_packages
+            if not self.package_manager.attempted_to_install(
+                pkg := self.package_manager.module_to_package(mod)
             )
         )
         # Deleting a cell can make the set of missing packages smaller
@@ -2884,7 +2881,7 @@ class PackagesCallbacks:
         if not missing_packages:
             return
 
-        packages = list(sorted(missing_packages))
+        packages = sorted(missing_packages)
         if self.package_manager.should_auto_install():
             version = {pkg: "" for pkg in packages}
             self._kernel.enqueue_control_request(

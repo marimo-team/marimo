@@ -13,7 +13,7 @@ def _convert_to_long_pathname(filename: str) -> str:
 if sys.platform == "win32":
     # Adapted from IPython.core.compilerop
     #
-    # https://github.com/ipython/ipykernel/blob/93a63fb7b8752899ed95118fa35e56f74eedd0c6/ipykernel/compiler.py  # noqa: E501
+    # https://github.com/ipython/ipykernel/blob/93a63fb7b8752899ed95118fa35e56f74eedd0c6/ipykernel/compiler.py
     try:
         import ctypes
         from ctypes.wintypes import DWORD, LPCWSTR, LPWSTR, MAX_PATH

@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 import pytest
 
-from marimo._plugins.ui._impl.mpl import (  # noqa: E402
+from marimo._plugins.ui._impl.mpl import (
     BoxSelection,
     EmptySelection,
     LassoSelection,
