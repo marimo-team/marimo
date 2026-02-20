@@ -19,10 +19,10 @@ BREAKING_RULE_CODES: dict[str, type[LintRule]] = {
 }
 
 __all__ = [
-    "MultipleDefinitionsRule",
-    "CycleDependenciesRule",
-    "SetupCellDependenciesRule",
-    "UnparsableRule",
-    "SyntaxErrorRule",
     "BREAKING_RULE_CODES",
+    "CycleDependenciesRule",
+    "MultipleDefinitionsRule",
+    "SetupCellDependenciesRule",
+    "SyntaxErrorRule",
+    "UnparsableRule",
 ]

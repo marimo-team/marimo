@@ -296,7 +296,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
         if not isinstance(db_df, pd.DataFrame):
             LOGGER.warning(
-                f"Failed to convert database result to DataFrame, result: {str(db_df)}"
+                f"Failed to convert database result to DataFrame, result: {db_df!s}"
             )
             return databases
 

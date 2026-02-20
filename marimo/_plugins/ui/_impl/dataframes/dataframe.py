@@ -274,7 +274,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         unique_values = self._manager.get_unique_column_values(args.column)
         if len(unique_values) <= LIMIT:
             return GetColumnValuesResponse(
-                values=list(sorted(unique_values, key=str)),
+                values=sorted(unique_values, key=str),
                 too_many_values=False,
             )
         else:
@@ -299,7 +299,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             self._last_transforms = transformations
             return self._undo(result)
         except Exception as e:
-            error = f"Error applying dataframe transform: {str(e)}\n\n"
+            error = f"Error applying dataframe transform: {e!s}\n\n"
             sys.stderr.write(error)
             self._error = error
             return self._undo(self._transform_container._original_df)

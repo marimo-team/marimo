@@ -28,7 +28,7 @@ def uri_decode_component(code: str) -> str:
     return urllib.parse.unquote(code)
 
 
-def normalize_dimension(value: Union[int, float, str, None]) -> Optional[str]:
+def normalize_dimension(value: Union[float, str, None]) -> Optional[str]:
     """Normalize dimension value to CSS string.
 
     Handles:

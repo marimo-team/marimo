@@ -97,8 +97,8 @@ class PollingFileWatcher(FileWatcher):
 def _create_watchdog(
     path: Path, callback: Callback, loop: asyncio.AbstractEventLoop
 ) -> FileWatcher:
-    import watchdog.events  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    import watchdog.observers  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import watchdog.events  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import watchdog.observers  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
     class WatchdogFileWatcher(FileWatcher):
         def __init__(
@@ -138,7 +138,7 @@ def _create_watchdog(
                 )
 
         def start(self) -> None:
-            event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore # noqa: E501
+            event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore
                 patterns=[str(self.path)]
             )
             event_handler.on_modified = self.on_modified  # type: ignore

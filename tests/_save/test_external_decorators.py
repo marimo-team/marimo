@@ -286,7 +286,6 @@ class TestAsExternalApp:
             defs["x"].append(1)
             _, defs = ex_app.run()
             assert len(defs["x"]) == 1
-            return
 
     @staticmethod
     async def test_as_external_app_in_kernel(
@@ -329,7 +328,6 @@ class TestAsExternalApp:
             r1 = await ex_app.embed()
             assert r1.defs["bar"] == 2
             assert r1.defs["cache"](1) == 2
-            return
 
     @staticmethod
     async def test_as_external_app_embedded_cloned(app) -> None:
@@ -343,7 +341,6 @@ class TestAsExternalApp:
             r2 = await ex_app.clone().embed()
             assert r2.defs["bar"] == 2
             assert r2.defs["cache"](1) == 2
-            return
 
     @staticmethod
     async def test_as_external_app_embedded_in_kernel(

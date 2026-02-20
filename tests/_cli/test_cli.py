@@ -1474,7 +1474,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)
 # parameterize to give coverage. We use a boolean to specify if output on that stream should be present.
 @pytest.mark.parametrize(
-    "shell,rc,expect_stdout,expect_stderr".split(","),
+    ("shell", "rc", "expect_stdout", "expect_stderr"),
     [
         # valid shell values, rc of 0, data only on stdout
         ("bash", 0, True, False),

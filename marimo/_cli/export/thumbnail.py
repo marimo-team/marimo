@@ -231,7 +231,7 @@ sys.stdout.write(result.text)
 
 
 class _ThumbnailRequestHandler(SimpleHTTPRequestHandler):
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         if self.path.split("?", 1)[0] == "/__marimo_thumbnail__.html":
             html = getattr(self.server, "thumbnail_html", "")
             self.send_response(200)
@@ -246,7 +246,6 @@ class _ThumbnailRequestHandler(SimpleHTTPRequestHandler):
         # Silence noisy server logs for CLI usage.
         del format
         del args
-        return
 
 
 class _ThumbnailHTTPServer(ThreadingHTTPServer):
@@ -310,7 +309,6 @@ class _ThumbnailAssetServer(AbstractContextManager["_ThumbnailAssetServer"]):
         if self._thread is not None:
             self._thread.join(timeout=1)
             self._thread = None
-        return None
 
 
 class _SandboxVenvPool:

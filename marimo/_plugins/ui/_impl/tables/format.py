@@ -42,7 +42,7 @@ def format_value(
             return formatter(value)
     except Exception as e:
         LOGGER.warning(
-            f"Error formatting for value {value} in column {col}: {str(e)}"
+            f"Error formatting for value {value} in column {col}: {e!s}"
         )
         return value
 

@@ -1011,8 +1011,7 @@ async def without_wrapping_backticks(
                     # Remove the starting backticks with lang
                     chunk = stripped_chunk[3 + len(lang) :]
                     # Also remove starting newline if present
-                    if chunk.startswith("\n"):
-                        chunk = chunk[1:]
+                    chunk = chunk.removeprefix("\n")
                     break
             # If no language-specific fence was found, check for plain backticks
             else:
@@ -1020,8 +1019,7 @@ async def without_wrapping_backticks(
                     has_starting_backticks = True
                     chunk = stripped_chunk[3:]  # Remove the starting backticks
                     # Also remove starting newline if present
-                    if chunk.startswith("\n"):
-                        chunk = chunk[1:]
+                    chunk = chunk.removeprefix("\n")
 
         # If we have a buffered chunk, yield it now
         if buffer is not None:

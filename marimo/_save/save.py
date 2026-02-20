@@ -74,24 +74,24 @@ class _cache_call(CacheContext):
     """Like functools.cache but notebook-aware. See `cache` docstring"""
 
     __slots__ = (
-        "base_block",
-        "scope",
-        "scoped_refs",
-        "pin_modules",
-        "hash_type",
+        "__wrapped__",
         "_args",
-        "_kwonly_args",
+        "_bound",
         "_defaults",
-        "_var_arg",
-        "_var_kwarg",
-        "_misses",
+        "_external",
+        "_frame_offset",
+        "_kwonly_args",
+        "_last_hash",
         "_loader",
         "_loader_partial",
-        "_bound",
-        "_last_hash",
-        "_frame_offset",
-        "_external",
-        "__wrapped__",
+        "_misses",
+        "_var_arg",
+        "_var_kwarg",
+        "base_block",
+        "hash_type",
+        "pin_modules",
+        "scope",
+        "scoped_refs",
     )
 
     base_block: Optional[BlockHasher]
@@ -743,7 +743,7 @@ class _cache_context(SkipContext, CacheContext):
                 sys.stderr.write(
                     "An exception was raised when attempting to cache this code "
                     "block with the following message:\n"
-                    f"{str(e)}\n"
+                    f"{e!s}\n"
                     "NOTE: The cell has run, but cache has not been saved.\n"
                 )
                 tmpio = io.StringIO()

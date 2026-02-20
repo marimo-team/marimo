@@ -794,9 +794,7 @@ def merge_config(
             merged["runtime"]["auto_reload"] = "off"
         elif (
             merged["runtime"].get("auto_reload") is True  # type:ignore[comparison-overlap]
-        ):
-            merged["runtime"]["auto_reload"] = "lazy"
-        elif (
+        ) or (
             merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"

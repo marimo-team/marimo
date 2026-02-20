@@ -53,7 +53,7 @@ def build_stub_fn(
 
     args = {arg.arg: arg for arg in func_body.args.args}
     if allowed is None:
-        allowed = [arg for arg in args.keys()]
+        allowed = [arg for arg in args]
     name = func_body.name
 
     # Typing checks for mypy - template structure is known
@@ -117,7 +117,7 @@ def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
         )
 
     args = {arg.arg: arg for arg in func_body.args.args}
-    fixtures = [arg for arg in args.keys() if arg.endswith("_fixture")]
+    fixtures = [arg for arg in args if arg.endswith("_fixture")]
     reserved = set(args.keys()) - set(fixtures)
     # The remaining expected attributes are needed to ensure attribute count
     # matches.

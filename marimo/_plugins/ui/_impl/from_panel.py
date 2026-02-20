@@ -180,7 +180,7 @@ def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
     are respected when rendering holoviews objects through Panel.
     """
     try:
-        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         # Check if the object is a holoviews object
         if not isinstance(

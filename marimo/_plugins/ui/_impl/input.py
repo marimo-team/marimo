@@ -572,7 +572,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
 
 def _infer_dtype(
     items: Sequence[Union[Numeric, Sequence[Numeric], None]],
-) -> type[int] | type[float]:
+) -> type[int | float]:
     """Infer the dtype of a sequence of numbers."""
     for item in items:
         if isinstance(item, Sequence):
@@ -1257,7 +1257,7 @@ class button(UIElement[Any, Any]):
             return self._on_click(self._value)  # type: ignore[no-untyped-call]
         except Exception:
             sys.stderr.write(
-                f"on_click handler for button ({str(self)}) raised an Exception:\n {traceback.format_exc()}\n"
+                f"on_click handler for button ({self!s}) raised an Exception:\n {traceback.format_exc()}\n"
             )
             return None
 

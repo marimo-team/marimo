@@ -21,7 +21,7 @@ class Env:
                 [
                     "sh",
                     "-c",
-                    "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -",  # noqa: E501
+                    "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -",
                 ]
             )
             .with_exec(["apt", "install", "-y", "nodejs"])

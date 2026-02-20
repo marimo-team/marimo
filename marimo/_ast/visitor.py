@@ -653,7 +653,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 )
                 and sql
             ):
-                import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+                import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
                 # Import ParseError outside try block so we can except it
                 # Use a Union approach to handle both cases

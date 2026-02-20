@@ -318,7 +318,7 @@ class UvPackageManager(PypiPackageManager):
         LOGGER.info(f"Running command: {cmd}")
 
         # Run the command and capture output
-        proc = safe_popen(  # noqa: ASYNC220
+        proc = safe_popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

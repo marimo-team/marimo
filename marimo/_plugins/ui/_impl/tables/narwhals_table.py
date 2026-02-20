@@ -273,9 +273,7 @@ class NarwhalsTableManager(
             return ("time", dtype_string)
         elif dtype == nw.Date:
             return ("date", dtype_string)
-        elif dtype == nw.Datetime:
-            return ("datetime", dtype_string)
-        elif dtype.is_temporal():
+        elif dtype == nw.Datetime or dtype.is_temporal():
             return ("datetime", dtype_string)
         elif dtype.is_numeric():
             return ("number", dtype_string)
@@ -460,35 +458,7 @@ class NarwhalsTableManager(
                         ),
                     }
                 )
-        elif is_narwhals_integer_type(dtype):
-            exprs.update(
-                {
-                    "unique": col.n_unique(),
-                    "min": col.min(),
-                    "max": col.max(),
-                    "mean": col.mean(),
-                    "std": col.std(),
-                    "median": col.median(),
-                }
-            )
-            if supports_numeric_quantiles:
-                exprs.update(
-                    {
-                        "p5": col.quantile(
-                            0.05, interpolation=quantile_interpolation
-                        ),
-                        "p25": col.quantile(
-                            0.25, interpolation=quantile_interpolation
-                        ),
-                        "p75": col.quantile(
-                            0.75, interpolation=quantile_interpolation
-                        ),
-                        "p95": col.quantile(
-                            0.95, interpolation=quantile_interpolation
-                        ),
-                    }
-                )
-        elif dtype.is_numeric():
+        elif is_narwhals_integer_type(dtype) or dtype.is_numeric():
             exprs.update(
                 {
                     "unique": col.n_unique(),

@@ -7,7 +7,6 @@ import urllib.error
 from datetime import datetime
 from typing import Any, Callable, cast
 
-import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._cli.print import echo, green, orange
 from marimo._config.cli_state import (
@@ -16,6 +15,7 @@ from marimo._config.cli_state import (
     write_cli_state,
 )
 from marimo._tracer import server_tracer
+from marimo._utils import requests
 from marimo._version import __version__ as current_version
 
 FETCH_TIMEOUT = 3
@@ -56,7 +56,6 @@ def check_for_updates(
     except Exception as e:
         LOGGER.warning("Failed to check for updates", exc_info=e)
         # Don't want to crash the CLI on any errors.
-        pass
 
 
 def _check_for_updates_internal(

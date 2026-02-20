@@ -266,7 +266,7 @@ def to_annotated_string(
     if not variable_data:
         return response
     for name in names:
-        if name in variable_data and variable_data[name]:
+        if variable_data.get(name):
             variable = variable_data[name]
             annotation = variable.annotation_data
             if annotation:

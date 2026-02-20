@@ -255,7 +255,6 @@ class TestCellRun:
         @app.cell
         def basic(lots, of_, incorrect, args):  # noqa: ARG001
             1  # noqa: B018
-            return
 
         assert basic.run() == (1, {})
         assert len(caplog.records) == 0
@@ -276,7 +275,6 @@ class TestCellRun:
             else:
                 b = a
             b  # noqa: B018
-            return
 
         assert cyclic.run() == (1, {"a": 1, "b": 1})
         assert cyclic() == 1
@@ -298,7 +296,6 @@ class TestReusableCell:
             # non transitive
             x = y - z
             x  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -327,7 +324,6 @@ class TestReusableCell:
         def uses_setup(y):
             z = y - x
             z  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -363,7 +359,6 @@ class TestReusableCell:
         def uses_setup(y):
             z = 0 * something_normally_scoped_for_a() + y - x
             z  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -464,7 +459,6 @@ def help_smoke() -> None:
     @app.cell
     async def f(x) -> None:
         await x
-        return
 
     @app.cell
     def g() -> None:

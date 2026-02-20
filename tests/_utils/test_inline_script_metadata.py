@@ -147,7 +147,7 @@ def test_pyproject_toml_to_requirements_txt_with_marker():
         },
     }
     assert _pyproject_toml_to_requirements_txt(pyproject) == [
-        "marimo @ git+https://github.com/marimo-team/marimo.git@0.1.0; python_version >= '3.12'",  # noqa: E501
+        "marimo @ git+https://github.com/marimo-team/marimo.git@0.1.0; python_version >= '3.12'",
         "polars",
     ]
 
@@ -169,7 +169,7 @@ def test_pyproject_toml_to_requirements_txt_with_url_sources():
         },
     }
     assert _pyproject_toml_to_requirements_txt(pyproject) == [
-        "marimo @ https://github.com/marimo-team/marimo/archive/refs/heads/main.zip",  # noqa: E501
+        "marimo @ https://github.com/marimo-team/marimo/archive/refs/heads/main.zip",
         "polars",
     ]
 

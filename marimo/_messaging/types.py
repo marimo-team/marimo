@@ -50,7 +50,6 @@ class Stdout(io.TextIOBase):
 
     def _stop(self) -> None:
         """Tear down resources, if any."""
-        pass
 
 
 class Stderr(io.TextIOBase):
@@ -67,7 +66,6 @@ class Stderr(io.TextIOBase):
 
     def _stop(self) -> None:
         """Tear down resources, if any."""
-        pass
 
 
 class Stdin(io.TextIOBase):
@@ -75,4 +73,3 @@ class Stdin(io.TextIOBase):
 
     def _stop(self) -> None:
         """Tear down resources, if any."""
-        pass

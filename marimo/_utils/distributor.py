@@ -154,4 +154,3 @@ class QueueDistributor(Distributor[T]):
 
     def flush(self) -> None:
         """Flush the distributor."""
-        pass

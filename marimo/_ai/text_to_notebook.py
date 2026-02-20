@@ -5,12 +5,12 @@ import datetime
 import urllib.parse
 from typing import Optional
 
-import marimo._utils.requests as requests
 from marimo._cli.print import bold, green, muted
 from marimo._config.cli_state import (
     get_cli_state,
     write_cli_state,
 )
+from marimo._utils import requests
 from marimo._utils.print import print_
 
 TERMS = """
@@ -82,7 +82,7 @@ def text_to_notebook(prompt: str) -> str:
         return result
 
     except Exception as e:
-        raise RuntimeError(f"Failed to generate notebook: {str(e)}") from e
+        raise RuntimeError(f"Failed to generate notebook: {e!s}") from e
 
 
 def _should_show_terms(last_accepted_at: Optional[str]) -> bool:
