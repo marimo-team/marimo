@@ -681,7 +681,7 @@ class TestFsspecFilesystem:
         mock_store = MagicMock()
         mock_store.protocol = "custom-proto"
         backend = self._make_backend(mock_store)
-        assert backend.display_name == "custom-proto"
+        assert backend.display_name == "Custom-proto"
 
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")

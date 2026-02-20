@@ -17,7 +17,7 @@ The sidebar provides quick access to panels you'll use frequently while working 
 
 | Panel | Description |
 |-------|-------------|
-| **Files** | Browse and open files in your workspace |
+| **Files** | Browse workspace files and [inspect remote storage connections](../working_with_data/remote_storage.md) |
 | **Variables** | Explore variables and data sources in your notebook |
 | **Packages** | View installed packages and manage dependencies |
 | **AI** | Chat with AI assistants and use agents |

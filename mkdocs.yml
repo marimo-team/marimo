@@ -85,11 +85,12 @@ nav:
       - Running cells: guides/reactivity.md
       - Interactive elements: guides/interactivity.md
       - Visualize outputs: guides/outputs.md
-      - SQL, dataframes, and plots:
-          - SQL, dataframes, and plots: guides/working_with_data/index.md
+      - Working with data:
+          - Working with data: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
+          - Remote Storage: guides/working_with_data/remote_storage.md
       - Migrate from Jupyter: guides/coming_from/jupyter.md
       - Expensive notebooks: guides/expensive_notebooks.md
       - Understanding errors:

@@ -124,7 +124,7 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     def display_name(self) -> str:
         protocol = self.protocol
         if protocol not in get_args(KNOWN_STORAGE_TYPES):
-            return protocol
+            return protocol.capitalize()
         if protocol == "s3":
             return "Amazon S3"
         elif protocol == "gcs":
