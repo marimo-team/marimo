@@ -95,6 +95,7 @@ class TestConvert:
             ["marimo", "convert", str(notebook_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
@@ -115,6 +116,7 @@ print('Hello from Markdown!')
             ["marimo", "convert", str(md_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
@@ -149,6 +151,7 @@ print('Hello from Markdown!')
             ["marimo", "convert", str(notebook_path), "-o", str(output_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         assert output_path.exists()
@@ -165,6 +168,7 @@ print('Hello from Markdown!')
             ["marimo", "convert", str(invalid_file)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode != 0
         assert "File must be an .ipynb, .md, or .py file" in p.stderr
@@ -202,6 +206,7 @@ print('Hello from Markdown!')
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
@@ -234,6 +239,7 @@ print('Hello from Remote Markdown!')
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
@@ -253,6 +259,7 @@ print('Hello from Remote Markdown!')
             ["marimo", "convert", http_server.get_url("invalid.txt")],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode != 0
         assert "File must be an .ipynb, .md, or .py file" in p.stderr
@@ -270,6 +277,7 @@ print('Hello from Remote Markdown!')
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode != 0
         # The error message will be from urllib.error.HTTPError
@@ -300,6 +308,7 @@ if __name__ == "__main__":
             ["marimo", "convert", str(marimo_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0
         assert "File is already a valid marimo notebook." in p.stdout
@@ -325,6 +334,7 @@ if __name__ == "__main__":
             ["marimo", "convert", str(script_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout
@@ -348,6 +358,7 @@ print(f"Result: {result}")
             ["marimo", "convert", str(script_path)],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert p.returncode == 0, p.stderr
         output = p.stdout

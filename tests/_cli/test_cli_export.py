@@ -47,7 +47,9 @@ def _run_export(
 ) -> subprocess.CompletedProcess[bytes]:
     """Helper to run marimo export commands."""
     cmd = ["marimo", "export", export_format, file, *extra_args]
-    return subprocess.run(cmd, capture_output=capture_output, input=input_data)
+    return subprocess.run(
+        cmd, capture_output=capture_output, input=input_data, check=False
+    )
 
 
 def _assert_success(p: subprocess.CompletedProcess[bytes]) -> None:

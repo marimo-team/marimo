@@ -22,6 +22,7 @@ def test_acts_like_script() -> None:
             "tests/_runtime/script_data/script_global_setup_difference.py",
         ],
         capture_output=True,
+        check=False,
     )
     assert p.returncode == 0
     result = p.stdout.decode()
@@ -70,6 +71,7 @@ def test_acts_as_test() -> None:
             "tests/_runtime/script_data/script_global_setup_difference.py",
         ],
         capture_output=True,
+        check=False,
     )
     result = p.stdout.decode()
     assert p.returncode == 0, result

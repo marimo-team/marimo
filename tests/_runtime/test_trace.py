@@ -21,6 +21,7 @@ class TestScriptTrace:
         p = subprocess.run(
             [sys.executable, "tests/_runtime/script_data/fn_exception.py"],
             capture_output=True,
+            check=False,
         )
         assert p.returncode == 1
 
@@ -47,6 +48,7 @@ class TestScriptTrace:
         p = subprocess.run(
             [sys.executable, "tests/_runtime/script_data/script_exception.py"],
             capture_output=True,
+            check=False,
         )
         assert p.returncode == 1
 
@@ -72,6 +74,7 @@ class TestScriptTrace:
                 "tests/_runtime/script_data/script_exception_with_output.py",
             ],
             capture_output=True,
+            check=False,
         )
         assert p.returncode == 1
 
@@ -88,6 +91,7 @@ class TestScriptTrace:
                 "tests/_runtime/script_data/script_exception_with_imported_function.py",
             ],
             capture_output=True,
+            check=False,
         )
         assert p.returncode == 1
 
@@ -115,6 +119,7 @@ class TestScriptTrace:
                 "tests/_runtime/script_data/script_exception_function.py",
             ],
             capture_output=True,
+            check=False,
         )
         assert p.returncode == 1
 
@@ -131,6 +136,7 @@ class TestScriptTrace:
                 "tests/_runtime/script_data/script_exception_setup_cell.py",
             ],
             capture_output=True,
+            check=False,
         )
         assert p.returncode == 1
 

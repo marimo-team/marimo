@@ -25,7 +25,6 @@ def try_assert_n_times(n: int, assert_fn: Callable[[], None]) -> None:
     while n_tries <= n - 1:
         try:
             assert_fn()
-            return
         except Exception:
             n_tries += 1
             time.sleep(0.1)

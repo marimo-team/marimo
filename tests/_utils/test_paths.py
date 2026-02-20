@@ -170,15 +170,17 @@ class TestPrettyPath:
 
     def test_base_dir_file_outside_falls_back_to_cwd_relative(self) -> None:
         """Test that files outside base_dir fall back to CWD-relative."""
-        with tempfile.TemporaryDirectory() as base:
-            with tempfile.TemporaryDirectory() as other:
-                # File is in 'other', not in 'base'
-                file_path = os.path.join(other, "outside.py")
-                Path(file_path).touch()
+        with (
+            tempfile.TemporaryDirectory() as base,
+            tempfile.TemporaryDirectory() as other,
+        ):
+            # File is in 'other', not in 'base'
+            file_path = os.path.join(other, "outside.py")
+            Path(file_path).touch()
 
-                result = pretty_path(file_path, base_dir=base)
-                # Should contain the filename (exact path depends on CWD)
-                assert "outside.py" in result
+            result = pretty_path(file_path, base_dir=base)
+            # Should contain the filename (exact path depends on CWD)
+            assert "outside.py" in result
 
     def test_base_dir_accepts_path_object(self) -> None:
         """Test that base_dir accepts Path objects."""

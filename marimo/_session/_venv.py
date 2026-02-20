@@ -155,6 +155,7 @@ def has_marimo_installed(venv_python: str) -> bool:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         return False
@@ -192,6 +193,7 @@ def check_python_version_compatibility(venv_python: str) -> bool:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     venv_version = result.stdout.strip()
     current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -217,6 +219,7 @@ def install_marimo_into_venv(venv_python: str) -> None:
         [uv_bin, "pip", "install", "--python", venv_python] + packages,
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         LOGGER.warning(

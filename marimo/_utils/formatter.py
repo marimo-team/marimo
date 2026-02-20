@@ -47,12 +47,14 @@ async def _run_subprocess_safe(
                     input=input_data,
                     capture_output=True,
                     timeout=30,  # Add reasonable timeout
+                    check=False,
                 )
             else:
                 result = subprocess.run(
                     args,
                     capture_output=True,
                     timeout=30,
+                    check=False,
                 )
             return result.stdout, result.stderr, result.returncode
 

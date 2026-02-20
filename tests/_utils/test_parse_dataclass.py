@@ -890,13 +890,13 @@ def test_date_and_datetime_types() -> None:
         isinstance(d, dt.datetime) for d in nested_parsed.datetimes.values()
     )
     assert nested_parsed.datetimes["morning"] == dt.datetime(
-        2023, 1, 15, 8, 0, 0
+        2023, 1, 15, 8, 0, 0, tzinfo=dt.timezone.utc
     )
     assert nested_parsed.datetimes["noon"] == dt.datetime(
-        2023, 1, 15, 12, 0, 0
+        2023, 1, 15, 12, 0, 0, tzinfo=dt.timezone.utc
     )
     assert nested_parsed.datetimes["evening"] == dt.datetime(
-        2023, 1, 15, 18, 0, 0
+        2023, 1, 15, 18, 0, 0, tzinfo=dt.timezone.utc
     )
 
 

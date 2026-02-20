@@ -254,7 +254,7 @@ def temp_possible_file(request: Any) -> str:
 def test_cli_help_exit_code() -> None:
     # smoke test: makes sure CLI starts
     # helpful for catching issues related to
-    p = subprocess.run(["marimo", "--help"])
+    p = subprocess.run(["marimo", "--help"], check=False)
     assert p.returncode == 0
 
 
@@ -392,6 +392,7 @@ def test_cli_edit_token_password_mutual_exclusivity() -> None:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode != 0
     assert (
@@ -479,6 +480,7 @@ def test_cli_edit_token_password_file_not_found() -> None:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode != 0
     assert "not found" in result.stderr.lower()
@@ -503,6 +505,7 @@ def test_cli_edit_token_password_file_empty() -> None:
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
         assert result.returncode != 0
         assert "no token password" in result.stderr.lower()
@@ -728,6 +731,7 @@ def test_cli_run_directory_gallery_rejects_check() -> None:
         ["marimo", "run", directory.name, "--check"],
         capture_output=True,
         text=True,
+        check=False,
     )
     output = result.stderr + result.stdout
     assert result.returncode != 0
@@ -1504,6 +1508,7 @@ def test_shell_completion(
         ["marimo", "shell-completion"],
         capture_output=True,
         env=test_env,
+        check=False,
     )
     assert p.returncode == rc
     assert bool(len(p.stdout)) == expect_stdout
