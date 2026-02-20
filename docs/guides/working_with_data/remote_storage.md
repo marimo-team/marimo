@@ -1,6 +1,6 @@
 # Remote Storage
 
-marimo makes it easy to work with cloud storage and remote filesystems by automatically detecting [Obstore](https://developmentseed.org/obstore/) and [fsspec](https://filesystem-spec.readthedocs.io/) storage connections in your notebook. From the **Remote Storage** panel in the sidebar, you can browse directories, search entries, copy URLs, and download files without leaving the editor.
+marimo makes it easy to work with cloud storage and remote filesystems by automatically detecting [Obstore](https://developmentseed.org/obstore/) and [fsspec](https://filesystem-spec.readthedocs.io/) storage connections in your notebook. From the Files panel, you can browse directories, search entries, copy URLs, and download files—all without leaving the editor.
 
 !!! example "Experimental"
 
