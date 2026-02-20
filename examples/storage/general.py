@@ -27,7 +27,7 @@ def _():
     from dotenv import load_dotenv
 
     load_dotenv()
-    return GithubFileSystem, LocalFileSystem, os
+    return GithubFileSystem, LocalFileSystem, os, s3fs
 
 
 @app.cell
@@ -48,7 +48,7 @@ def _(os):
         access_key_id=access_key_id,
         secret_access_key=secret_access_key,
     )
-    return
+    return (url,)
 
 
 @app.cell
@@ -64,12 +64,12 @@ def _(marimo_repo):
 
 
 @app.cell
-def _():
-    # s3_client = s3fs.S3FileSystem(
-    #     endpoint_url=url,
-    #     key=os.getenv("CLOUDFLARE_ACCESS_KEY_ID"),
-    #     secret=os.getenv("CLOUDFLARE_SECRET_ACCESS_KEY"),
-    # )
+def _(os, s3fs, url):
+    s3_client = s3fs.S3FileSystem(
+        endpoint_url=url,
+        key=os.getenv("CLOUDFLARE_ACCESS_KEY_ID"),
+        secret=os.getenv("CLOUDFLARE_SECRET_ACCESS_KEY"),
+    )
     return
 
 
