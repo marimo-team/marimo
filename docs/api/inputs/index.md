@@ -46,6 +46,6 @@ automatically run with the element's latest value.
 | Integration | Description |
 |-------------|-------------|
 | [`marimo.ui.altair_chart`][marimo.ui.altair_chart] | Interactive Altair charts |
+| [`marimo.ui.matplotlib`][marimo.ui.matplotlib] | Reactive Matplotlib plots |
 | [`marimo.ui.plotly`][marimo.ui.plotly] | Interactive Plotly charts |
-| [`marimo.mpl.interactive`][marimo.mpl.interactive] | Interactive Matplotlib plots |
 | [`marimo.ui.anywidget`][marimo.ui.anywidget] | Custom widgets |
