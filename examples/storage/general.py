@@ -5,6 +5,7 @@
 #     "marimo>=0.19.9",
 #     "obstore==0.8.2",
 #     "python-dotenv==1.2.1",
+#     "requests==2.32.5",
 #     "s3fs==2026.2.0",
 # ]
 # ///
@@ -19,13 +20,14 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     from fsspec.implementations.local import LocalFileSystem
+    from fsspec.implementations.github import GithubFileSystem
     import s3fs
     import obstore
     import os
     from dotenv import load_dotenv
 
     load_dotenv()
-    return LocalFileSystem, os, s3fs
+    return GithubFileSystem, LocalFileSystem, os, s3fs
 
 
 @app.cell
@@ -47,6 +49,18 @@ def _(os):
         secret_access_key=secret_access_key,
     )
     return (url,)
+
+
+@app.cell
+def _(GithubFileSystem):
+    marimo_repo = GithubFileSystem(org="marimo-team", repo="marimo")
+    return (marimo_repo,)
+
+
+@app.cell
+def _(marimo_repo):
+    print(marimo_repo.read_text("github://AGENTS.md"))
+    return
 
 
 @app.cell

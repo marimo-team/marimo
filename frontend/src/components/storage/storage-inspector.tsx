@@ -496,7 +496,20 @@ export const StorageInspector: React.FC = () => {
     return (
       <PanelEmptyState
         title="No storage connected"
-        description="Create an Obstore or fsspec connection in your notebook"
+        description={
+          <span>
+            Create an Obstore or fsspec connection in your notebook. See the{" "}
+            <a
+              className="text-link"
+              href="https://docs.marimo.io/guides/working_with_data/remote_storage/#quick-start"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              docs
+            </a>
+            .
+          </span>
+        }
         icon={<HardDriveIcon className="h-8 w-8" />}
       />
     );
