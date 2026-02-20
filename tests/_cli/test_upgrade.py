@@ -64,6 +64,18 @@ def test_print_latest_version_uses_manager_aware_commands(
         "python -m pip install --upgrade marimo" in call[0][0]
         for call in mock_echo.call_args_list
     )
+    assert any(
+        (
+            "Run pixi upgrade marimo or "
+            "python -m pip install --upgrade marimo to upgrade."
+        )
+        in call[0][0]
+        for call in mock_echo.call_args_list
+    )
+    assert not any(
+        call.args and str(call.args[0]).startswith("Or run ")
+        for call in mock_echo.call_args_list
+    )
 
 
 @patch("marimo._cli.upgrade._fetch_data_from_url")

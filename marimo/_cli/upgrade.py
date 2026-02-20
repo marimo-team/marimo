@@ -29,9 +29,12 @@ def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
     echo(orange(message))
     upgrade_commands = get_upgrade_commands("marimo")
     if upgrade_commands:
-        echo(f"Run {green(upgrade_commands[0])} to upgrade.")
-        if len(upgrade_commands) > 1:
-            echo(f"Or run {green(upgrade_commands[1])}.")
+        if len(upgrade_commands) == 1:
+            echo(f"Run {green(upgrade_commands[0])} to upgrade.")
+        else:
+            primary_command = green(upgrade_commands[0])
+            fallback_command = green(upgrade_commands[1])
+            echo(f"Run {primary_command} or {fallback_command} to upgrade.")
 
     if state.notices:
         echo()
