@@ -103,12 +103,7 @@ class VariableData:
     def language(self) -> Language:
         return (
             "sql"
-            if (
-                self.kind == "table"
-                or self.kind == "schema"
-                or self.kind == "view"
-                or self.kind == "catalog"
-            )
+            if (self.kind in {"table", "schema", "view", "catalog"})
             else "python"
         )
 
@@ -253,11 +248,11 @@ class ScopedVisitor(ast.NodeVisitor):
         # so marking it as a deleted ref is in practice a big deal. For 100%
         # correctness we would prune unbound locals from refs, not here but
         # when variables added as defs and refs.
-        return set(
+        return {
             name
             for name in self._refs
             if any(ref.deleted for ref in self._refs[name])
-        )
+        }
 
     def _if_local_then_mangle(
         self, name: str, ignore_scope: bool = False

@@ -19,7 +19,7 @@ T = TypeVar("T", covariant=True)
 Consumer = Callable[[T], None]
 
 
-class Distributor(Generic[T], Protocol):
+class Distributor(Protocol, Generic[T]):
     """Base class for distributors."""
 
     def add_consumer(self, consumer: Consumer[T]) -> Disposable:

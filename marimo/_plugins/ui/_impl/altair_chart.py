@@ -903,12 +903,17 @@ def _has_selection_param(chart: AltairChartType) -> bool:
     try:
         for param in chart.params:  # type: ignore
             try:
-                if isinstance(
-                    param,
-                    (alt.SelectionParameter, alt.TopLevelSelectionParameter),
+                if (
+                    isinstance(
+                        param,
+                        (
+                            alt.SelectionParameter,
+                            alt.TopLevelSelectionParameter,
+                        ),
+                    )
+                    and param.bind is alt.Undefined
                 ):
-                    if param.bind is alt.Undefined:
-                        return True
+                    return True
             except Exception:
                 pass
     except Exception:
@@ -925,12 +930,17 @@ def _has_legend_param(chart: AltairChartType) -> bool:
     try:
         for param in chart.params:  # type: ignore
             try:
-                if isinstance(
-                    param,
-                    (alt.SelectionParameter, alt.TopLevelSelectionParameter),
+                if (
+                    isinstance(
+                        param,
+                        (
+                            alt.SelectionParameter,
+                            alt.TopLevelSelectionParameter,
+                        ),
+                    )
+                    and param.bind == "legend"
                 ):
-                    if param.bind == "legend":
-                        return True
+                    return True
             except Exception:
                 pass
     except Exception:

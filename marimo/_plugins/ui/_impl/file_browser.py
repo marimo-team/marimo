@@ -236,8 +236,7 @@ class file_browser(
         if hasattr(self._initial_path, "client"):
             kwargs["client"] = self._initial_path.client  # type: ignore
 
-        path = self._path_cls(path_str, **kwargs)
-        return path
+        return self._path_cls(path_str, **kwargs)
 
     def _has_files_recursive(
         self, directory: Path, max_depth: int = 100
@@ -308,7 +307,7 @@ class file_browser(
 
         # Sort based on natural sort (alpha, then num)
         all_file_paths = sorted(
-            list(path.iterdir()), key=lambda f: natural_sort(f.name)
+            path.iterdir(), key=lambda f: natural_sort(f.name)
         )
         is_truncated = False
 

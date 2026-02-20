@@ -117,7 +117,7 @@ def formatted_code_block(
     # ```{.python.marimo attr=...}
     else:
         head = f"""{guard}{{.{language}.marimo{attribute_str}}}"""
-    return "\n".join([head, code, guard, ""])
+    return f"{head}\n{code}\n{guard}\n"
 
 
 def app_config_from_root(root: Element) -> dict[str, Any]:

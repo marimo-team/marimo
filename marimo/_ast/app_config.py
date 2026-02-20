@@ -59,11 +59,10 @@ class _AppConfig:
         for key in updates:
             if hasattr(config, key):
                 config.__setattr__(key, updates[key])
-            elif key not in other_allowed:
-                if not silent:
-                    LOGGER.warning(
-                        f"Unrecognized key '{key}' in app config. Ignoring."
-                    )
+            elif key not in other_allowed and not silent:
+                LOGGER.warning(
+                    f"Unrecognized key '{key}' in app config. Ignoring."
+                )
         return config
 
     def asdict(self) -> dict[str, Any]:

@@ -137,9 +137,8 @@ def _flatten(
     # Track ids of structures to make sure that the tree has a finite height,
     # ie, to make sure that no structure contains itself.
     value_id = id(value)
-    if isinstance(value, (tuple, list, dict)):
-        if value_id in seen:
-            raise CyclicStructureError("already seen ", value)
+    if isinstance(value, (tuple, list, dict)) and value_id in seen:
+        raise CyclicStructureError("already seen ", value)
 
     from marimo._output.formatters.structures import is_structures_formatter
     from marimo._output.formatting import get_formatter

@@ -147,12 +147,11 @@ def is_pytest_decorator(decorator: ast.AST) -> tuple[bool, str | None]:
         ):
             return True, None  # Nested attr, use eval
     # @pytest.fixture (no call)
-    if isinstance(decorator, ast.Attribute):
-        if (
-            isinstance(decorator.value, ast.Name)
-            and decorator.value.id == "pytest"
-        ):
-            return True, decorator.attr
+    if isinstance(decorator, ast.Attribute) and (
+        isinstance(decorator.value, ast.Name)
+        and decorator.value.id == "pytest"
+    ):
+        return True, decorator.attr
     return False, None
 
 

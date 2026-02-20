@@ -340,7 +340,7 @@ def update_class(old: object, new: object) -> None:
             pass  # skip non-writable attributes
 
     old_dict_keys = set(old.__dict__.keys())
-    for key in new.__dict__.keys():
+    for key in new.__dict__:
         if key not in old_dict_keys:
             try:
                 setattr(old, key, getattr(new, key))

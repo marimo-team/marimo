@@ -408,8 +408,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 self._figure, self._selection_data
             )
 
-        result = self.points
-        return result
+        return self.points
 
 
 def _append_heatmap_cells_to_selection(

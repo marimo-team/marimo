@@ -98,12 +98,12 @@ def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> set[str]:
     ):
         return _excluded_modules_cache[1]
 
-    result = set(
+    result = {
         modname
         for modname in modules
         if (m := modules.get(modname)) is not None
         and _is_third_party_module(m)
-    )
+    }
     _excluded_modules_cache = (cache_key, result)
     return result
 
@@ -120,10 +120,10 @@ def _check_modules(
     # haven't found a reliable way to do this, however.
     excludes = _get_excluded_modules(sys_modules)
 
-    target_modules = set(m for m in modified_modules if m is not None)
-    target_filenames = set(
+    target_modules = {m for m in modified_modules if m is not None}
+    target_filenames = {
         t.__file__ for t in target_modules if hasattr(t, "__file__")
-    )
+    }
 
     for modname, module in modules.items():
         if _depends_on(
@@ -185,7 +185,7 @@ def watch_modules(
             )
             with graph.lock:
                 LOGGER.debug("Acquired graph lock.")
-                for modname in stale_modules.keys():
+                for modname in stale_modules:
                     # prune definitions that are derived from stale modules
                     cell_id = modname_to_cell_id[modname]
                     cell = graph.cells[cell_id]
@@ -201,10 +201,7 @@ def watch_modules(
                 # staleness
                 stale_cell_ids = dataflow.transitive_closure(
                     graph,
-                    set(
-                        modname_to_cell_id[modname]
-                        for modname in stale_modules
-                    ),
+                    {modname_to_cell_id[modname] for modname in stale_modules},
                     relatives=dataflow.get_import_block_relatives(graph),
                 )
                 for cid in stale_cell_ids:

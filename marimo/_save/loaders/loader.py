@@ -34,7 +34,7 @@ class LoaderError(BaseException):
     """Base exception such that it can be raised as context for other errors."""
 
     def __init__(self, message: str) -> None:
-        self.message = "\n".join([message, INCONSISTENT_CACHE_BOILER_PLATE])
+        self.message = f"{message}\n{INCONSISTENT_CACHE_BOILER_PLATE}"
         super().__init__(message)
 
 

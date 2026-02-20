@@ -37,7 +37,7 @@ class ConfigReader:
         except Exception as e:
             if is_toml_error(e) or isinstance(e, FileNotFoundError):
                 return fallback
-            raise e
+            raise
 
     def write_toml(self, data: Any) -> None:
         import tomlkit

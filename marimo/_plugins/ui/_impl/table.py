@@ -569,7 +569,7 @@ class table(
 
         app_mode = get_mode()
         # Some panels are not as useful in non-edit mode and require an external dependency
-        show_column_explorer = app_mode == "edit" or app_mode == "run"
+        show_column_explorer = app_mode in {"edit", "run"}
         show_chart_builder = app_mode == "edit"
 
         show_page_size_selector = True
@@ -812,11 +812,7 @@ class table(
             self._has_any_selection = len(coordinates) > 0
             return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
-            indices = [
-                int(v)
-                for v in value
-                if isinstance(v, int) or isinstance(v, str)
-            ]
+            indices = [int(v) for v in value if isinstance(v, (int, str))]
             self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
@@ -966,7 +962,7 @@ class table(
                     column
                 )
                 # For boolean columns, we can drop the column since we use stats
-                if column_type == "boolean" or column_type == "unknown":
+                if column_type in {"boolean", "unknown"}:
                     cols_to_drop.append(column)
 
                 # Handle columns with all nulls first
@@ -1225,10 +1221,9 @@ class table(
         column = args.column
 
         # We use a placeholder for table names
-        column_preview = get_column_preview_dataset(
+        return get_column_preview_dataset(
             self._searched_manager, "_df", column
         )
-        return column_preview
 
     def _style_cells(
         self,
@@ -1466,7 +1461,7 @@ class table(
             )
 
         # For dictionary or list data, return sequential indices
-        if isinstance(self.data, dict) or isinstance(self.data, list):
+        if isinstance(self.data, (dict, list)):
             return GetRowIdsResponse(
                 row_ids=list(range(num_rows_searched)),
                 all_rows=False,

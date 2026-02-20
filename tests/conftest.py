@@ -481,14 +481,13 @@ def pytest_make_collect_report(collector):
     }[collector.path.stem]
 
     # Just a quick check to make sure the class is actually exported.
-    if app == app_pytest:
-        if len(classes) == 0:
-            report.outcome = "failed"
-            report.longrepr = (
-                f"Expected class in {collector.path}, found none "
-                " (tests/conftest.py)."
-            )
-            return report
+    if app == app_pytest and len(classes) == 0:
+        report.outcome = "failed"
+        report.longrepr = (
+            f"Expected class in {collector.path}, found none "
+            " (tests/conftest.py)."
+        )
+        return report
     for cls in classes:
         if not (
             cls.startswith("MarimoTestBlock")

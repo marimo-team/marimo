@@ -304,8 +304,7 @@ def get_and_update_context_from_scope(
     if scope_refs is None:
         scope_refs = set()
     for ref in scope_refs:
-        if ref in ctx_scope:
-            ctx_scope.remove(ref)
+        ctx_scope.discard(ref)
 
     # This is typically done in post execution hook, but it will not be
     # called in script mode.
@@ -1022,13 +1021,11 @@ class BlockHasher:
         ref_cells = set().union(
             *[self.graph.definitions.get(ref, set()) for ref in refs]
         )
-        ref_cells |= set(
-            [
-                cell
-                for ref in refs
-                if (cell := get_cell_from_local(ref, self.cell_id))
-            ]
-        )
+        ref_cells |= {
+            cell
+            for ref in refs
+            if (cell := get_cell_from_local(ref, self.cell_id))
+        }
         assert len(ref_cells) == 1, (
             "Inconsistent references, cannot determine execution path. "
             f"Got {ref_cells} expected set({self.cell_id}). "
@@ -1096,7 +1093,7 @@ def get_imports(scope: dict[str, Any]) -> dict[Name, ImportData]:
     """
     # In cases without context, we must build the imports
     # implicitly from scope.
-    imports = {
+    return {
         name: ImportData(
             module=obj.__name__,
             definition=name,
@@ -1104,7 +1101,6 @@ def get_imports(scope: dict[str, Any]) -> dict[Name, ImportData]:
         for name, obj in scope.items()
         if inspect.ismodule(obj)
     }
-    return imports
 
 
 def cache_attempt_from_hash(

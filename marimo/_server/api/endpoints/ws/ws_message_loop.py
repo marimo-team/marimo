@@ -107,7 +107,7 @@ class WebSocketMessageLoop:
                     )
             except Exception as e:
                 LOGGER.error("Error sending message to frontend: %s", str(e))
-                raise e
+                raise
 
     async def _listen_for_disconnect(self) -> None:
         """Listen for WebSocket disconnect."""
@@ -120,7 +120,7 @@ class WebSocketMessageLoop:
             self.on_disconnect(e, self._cancel_messages_task)
         except Exception as e:
             LOGGER.error("Error listening for disconnect: %s", str(e))
-            raise e
+            raise
 
     def _should_filter_operation(self, op: str) -> bool:
         """Determine if operation should be filtered based on kiosk mode.

@@ -95,7 +95,7 @@ def convert_from_ir_to_markdown(
         {
             k: v
             for k, v in metadata.items()
-            if v is not None and v != "" and v != []
+            if v is not None and v not in ("", [])
         },
         sort_keys=False,
     )

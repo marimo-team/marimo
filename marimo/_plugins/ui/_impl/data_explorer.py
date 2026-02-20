@@ -60,15 +60,15 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
 
         manager = get_table_manager(df_no_idx)
 
-        encoding_fields = dict(
-            x=x,
-            y=y,
-            row=row,
-            column=column,
-            color=color,
-            size=size,
-            shape=shape,
-        )
+        encoding_fields = {
+            "x": x,
+            "y": y,
+            "row": row,
+            "column": column,
+            "color": color,
+            "size": size,
+            "shape": shape,
+        }
 
         # Create ChartSpec structure for frontend
         initial_value: dict[str, Any] = {

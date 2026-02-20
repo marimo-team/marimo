@@ -28,8 +28,7 @@ def bad_divide_curry(x):
 
 @app.cell
 def _(bad_divide_curry):  # TODO: Consider removing from signature?
-    a = bad_divide_curry(1)
-    return a
+    return bad_divide_curry(1)
 
 
 if __name__ == "__main__":

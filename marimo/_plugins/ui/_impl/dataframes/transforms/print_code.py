@@ -56,7 +56,7 @@ def python_print_pandas(
             return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"
         elif operator == "ends_with":
             return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"
-        elif operator == "in" or operator == "not_in":
+        elif operator in {"in", "not_in"}:
             result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"
             return result if operator == "in" else f"~{result}"
         elif operator == "!=":
@@ -292,9 +292,9 @@ def python_print_polars(
             where.value,
         )
 
-        if operator == "==" or operator == "equals":
+        if operator in {"==", "equals"}:
             return f"pl.col({_as_literal(column_id)}) == {_as_literal(value)}"
-        elif operator == "does_not_equal" or operator == "!=":
+        elif operator in {"does_not_equal", "!="}:
             return f"pl.col({_as_literal(column_id)}) != {_as_literal(value)}"
         elif operator == "contains":
             return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)})"
@@ -304,7 +304,7 @@ def python_print_polars(
             return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"
         elif operator == "ends_with":
             return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"
-        elif operator == "in" or operator == "not_in":
+        elif operator in {"in", "not_in"}:
             result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"
             return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
@@ -509,9 +509,9 @@ def python_print_ibis(
             where.value,
         )
 
-        if operator == "==" or operator == "equals":
+        if operator in {"==", "equals"}:
             return f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
-        elif operator == "does_not_equal" or operator == "!=":
+        elif operator in {"does_not_equal", "!="}:
             return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"
         elif operator == "contains":
             return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"
@@ -521,7 +521,7 @@ def python_print_ibis(
             return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"
         elif operator == "ends_with":
             return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"
-        elif operator == "in" or operator == "not_in":
+        elif operator in {"in", "not_in"}:
             result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"
             return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:

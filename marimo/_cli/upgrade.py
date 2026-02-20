@@ -178,10 +178,9 @@ def update_notices(response: dict[str, Any]) -> list[str]:
             break
 
         # Add notice if version is greater than current but <= latest
-        if current_ver < notice_version <= latest_ver:
-            if notice_text:
-                collected_notices.insert(
-                    0, notice_text
-                )  # Add to front (reverse order)
+        if current_ver < notice_version <= latest_ver and notice_text:
+            collected_notices.insert(
+                0, notice_text
+            )  # Add to front (reverse order)
 
     return collected_notices

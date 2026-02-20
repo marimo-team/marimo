@@ -66,8 +66,7 @@ class ToolContext:
     def session_manager(self) -> SessionManager:
         app = self.get_app()
         state = AppStateBase.from_app(app)
-        session_manager = state.session_manager
-        return session_manager
+        return state.session_manager
 
     def get_app(self) -> Starlette:
         app = self.app
@@ -120,10 +119,7 @@ class ToolContext:
         files: list[MarimoNotebookInfo] = []
         for session_id, session in self.session_manager.sessions.items():
             state = session.connection_state()
-            if (
-                state == ConnectionState.OPEN
-                or state == ConnectionState.ORPHANED
-            ):
+            if state in (ConnectionState.OPEN, ConnectionState.ORPHANED):
                 full_file_path = session.app_file_manager.path
                 filename = session.app_file_manager.filename
                 basename = os.path.basename(filename) if filename else None
@@ -265,7 +261,7 @@ class ToolContext:
         )
 
 
-class ToolBase(Generic[ArgsT, OutT], ABC):
+class ToolBase(ABC, Generic[ArgsT, OutT]):
     """
     Minimal base class for dual-registered tools.
 

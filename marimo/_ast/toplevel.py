@@ -270,9 +270,9 @@ class TopLevelExtraction:
             self.collection.add(status)
 
         # Refresh names
-        potential_refs = set(
-            [status.name for status in self.statuses if not status.is_toplevel]
-        )
+        potential_refs = {
+            status.name for status in self.statuses if not status.is_toplevel
+        }
 
         self.unshadowed = BUILTINS - defs
         self.allowed_refs.update(self.unshadowed)

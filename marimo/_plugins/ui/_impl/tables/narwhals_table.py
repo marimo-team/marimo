@@ -117,7 +117,7 @@ class NarwhalsTableManager(
 
         frame = self.as_frame()
         _data = frame.to_dict(as_series=False).copy()
-        for col in _data.keys():
+        for col in _data:
             if col in format_mapping:
                 _data[col] = [
                     format_value(col, x, format_mapping) for x in _data[col]

@@ -250,9 +250,9 @@ class SessionView:
             self.variable_notifications = notification
 
             # Set of variable names that are in scope.
-            variable_names: set[str] = set(
-                [v.name for v in self.variable_notifications.variables]
-            )
+            variable_names: set[str] = {
+                v.name for v in self.variable_notifications.variables
+            }
 
             # Remove any variable values that are no longer in scope.
             next_values: dict[str, VariableValue] = {}

@@ -47,11 +47,10 @@ class ChartBuilder:
         This is useful when we don't know the var name of the data.
         """
         code = self.altair_code(data, column, simple)
-        code = code.replace(
+        return code.replace(
             f"alt.Chart({data})",
             f"alt.Chart([]) {REPLACE_DF_COMMENT}",
         )
-        return code
 
 
 @dataclass
@@ -458,10 +457,9 @@ class DateChartBuilder(ChartBuilder):
             opacity=alt.condition(nearest, alt.value(1), alt.value(0)),
         )
 
-        chart = add_common_config(
-            alt.layer(area, points, rule)
-        ).configure_axis(grid=False)
-        return chart
+        return add_common_config(alt.layer(area, points, rule)).configure_axis(
+            grid=False
+        )
 
     def altair_code(self, data: str, column: str, simple: bool = True) -> str:
         return (
@@ -820,11 +818,7 @@ def get_chart_builder(
         return WrapperChartBuilder(
             StringChartBuilder(should_limit_to_10_items)
         )
-    if (
-        column_type == "date"
-        or column_type == "datetime"
-        or column_type == "time"
-    ):
+    if column_type in {"date", "datetime", "time"}:
         return WrapperChartBuilder(DateChartBuilder())
     if column_type == "boolean":
         return WrapperChartBuilder(BooleanChartBuilder())

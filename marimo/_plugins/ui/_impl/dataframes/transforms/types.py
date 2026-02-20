@@ -78,7 +78,7 @@ class Condition:
         return hash((self.column_id, self.operator, self.value))
 
     def __post_init__(self) -> None:
-        if self.operator == "in" or self.operator == "not_in":
+        if self.operator in {"in", "not_in"}:
             if isinstance(self.value, list):
                 # Hack to convert to tuple for frozen dataclass
                 # Only tuples can be hashed

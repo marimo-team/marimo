@@ -15,6 +15,8 @@ StrPath = Union[str, os.PathLike[str]]
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
 
+    from typing_extensions import Self
+
 
 class AsyncPath(PurePath):
     """
@@ -23,7 +25,7 @@ class AsyncPath(PurePath):
     This class inherits from PurePath for path manipulation and adds async filesystem methods.
     """
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> AsyncPath:
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         # Create the path using the same logic as PurePath
         if cls is AsyncPath:
             cls = AsyncWindowsPath if os.name == "nt" else AsyncPosixPath

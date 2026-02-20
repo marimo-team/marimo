@@ -243,7 +243,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             mask: list[bool] = [
                 any(
                     query in str(cast(list[Any], self.data[key])[row]).lower()
-                    for key in self.data.keys()
+                    for key in self.data
                 )
                 for row in range(self.get_num_rows() or 0)
             ]

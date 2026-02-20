@@ -142,7 +142,7 @@ def image(
     # TODO: Consider downsampling here. This is something matplotlib does
     # implicitly, and can potentially remove the bottle-neck of very large
     # images.
-    if isinstance(src, io.BufferedReader) or isinstance(src, io.BytesIO):
+    if isinstance(src, (io.BufferedReader, io.BytesIO)):
         src.seek(0)
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):

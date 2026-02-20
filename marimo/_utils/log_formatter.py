@@ -131,9 +131,8 @@ class LogFormatter(logging.Formatter):
 
         formatted = self._fmt % record.__dict__
 
-        if record.exc_info:
-            if not record.exc_text:
-                record.exc_text = self.formatException(record.exc_info)
+        if record.exc_info and not record.exc_text:
+            record.exc_text = self.formatException(record.exc_info)
         if record.exc_text:
             # exc_text contains multiple lines.  We need to _safe_unicode
             # each line separately so that non-utf8 bytes don't cause

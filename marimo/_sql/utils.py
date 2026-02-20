@@ -212,7 +212,7 @@ def is_query_empty(query: str) -> bool:
         return True
 
     # If the query starts with -- or /*, it's likely just comments
-    if stripped.startswith("--") or stripped.startswith("/*"):
+    if stripped.startswith(("--", "/*")):
         import re
 
         # Remove /* */ comments

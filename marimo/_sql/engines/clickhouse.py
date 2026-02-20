@@ -213,7 +213,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         query = query.strip()
 
         sql_type = classify_sql_statement(query)
-        if sql_type == "DDL" or sql_type == "DML":
+        if sql_type in {"DDL", "DML"}:
             # TODO: Return the result of the command instead of an empty list
             self._connection.command(query)
             return []

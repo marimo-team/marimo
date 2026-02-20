@@ -100,8 +100,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             # (e.g., interval expressions like `interval '1 days'`)
             return "1"
 
-    result = "".join(print_part(part) for part in node.values)
-    return result
+    return "".join(print_part(part) for part in node.values)
 
 
 class _TokenExtractor:
@@ -473,7 +472,7 @@ class SQLRef:
         if kind in ("table", "view"):
             return ref == self.table
         if kind == "catalog":
-            return ref == self.catalog or ref == self.schema
+            return ref in (self.catalog, self.schema)
         return False
 
 

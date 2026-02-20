@@ -76,7 +76,7 @@ def log_level_string_to_int(level: str) -> int:
         return logging.DEBUG
     elif level == "INFO":
         return logging.INFO
-    elif level == "WARN" or level == "WARNING":
+    elif level in {"WARN", "WARNING"}:
         return logging.WARNING
     elif level == "ERROR":
         return logging.ERROR

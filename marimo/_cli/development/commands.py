@@ -434,9 +434,8 @@ def inline_packages(name: Path) -> None:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     imported_modules.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    imported_modules.add(node.module.split(".")[0])
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported_modules.add(node.module.split(".")[0])
 
         pypi_names = [
             package_names.get(mod, mod.replace("_", "-"))

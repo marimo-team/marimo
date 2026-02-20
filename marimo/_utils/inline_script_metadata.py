@@ -96,7 +96,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
         if name.endswith(".py"):
             return read_pyproject_from_script(contents)
 
-        if not (name.endswith(".md") or name.endswith(".qmd")):
+        if not (name.endswith((".md", ".qmd"))):
             raise ValueError(
                 f"Unsupported file type: {name}. Only .py and .md files are supported."
             )
@@ -153,12 +153,13 @@ def _pyproject_toml_to_requirements_txt(
         # attached, so we cannot do .index()
         dep_index: int | None = None
         for i, dep in enumerate(dependencies):
-            if (
-                dep == dependency
-                or dep.startswith(f"{dependency}==")
-                or dep.startswith(f"{dependency}<")
-                or dep.startswith(f"{dependency}>")
-                or dep.startswith(f"{dependency}~")
+            if dep == dependency or dep.startswith(
+                (
+                    f"{dependency}==",
+                    f"{dependency}<",
+                    f"{dependency}>",
+                    f"{dependency}~",
+                )
             ):
                 dep_index = i
                 break

@@ -102,15 +102,13 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
         def is_in_import_line(line: str) -> bool:
             if line.startswith("import marimo as mo"):
                 return True
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 return "import marimo as mo" in line
             return False
 
         # Slow check
         lines = cell.strip().split("\n")
-        if any(is_in_import_line(line) for line in lines):
-            return True
-        return False
+        return bool(any(is_in_import_line(line) for line in lines))
 
     already_has_marimo_import = any(
         has_marimo_import(cell.source) for cell in sources
@@ -141,15 +139,11 @@ def transform_add_subprocess_import(
 
         def is_in_import_line(line: str) -> bool:
             stripped = line.strip()
-            if stripped.startswith("import subprocess"):
-                return True
-            return False
+            return bool(stripped.startswith("import subprocess"))
 
         # Slow check
         lines = cell.strip().split("\n")
-        if any(is_in_import_line(line) for line in lines):
-            return True
-        return False
+        return bool(any(is_in_import_line(line) for line in lines))
 
     already_has_subprocess_import = any(
         has_subprocess_import(cell.source) for cell in sources

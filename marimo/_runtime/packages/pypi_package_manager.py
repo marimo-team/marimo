@@ -415,15 +415,13 @@ class UvPackageManager(PypiPackageManager):
             - These should be passed directly to uv which handles them correctly
             """
             # Git URLs: git+https://, git+ssh://, git://
-            if package.startswith("git+") or package.startswith("git://"):
+            if package.startswith(("git+", "git://")):
                 return True
             # Direct references with @ (PEP 440 direct references)
             if " @ " in package:
                 return True
             # URLs (https://, http://, file://)
-            if "://" in package:
-                return True
-            return False
+            return "://" in package
 
         def _is_installed(package: str) -> bool:
             return version_map.has(package)
@@ -445,7 +443,7 @@ class UvPackageManager(PypiPackageManager):
             if _is_direct_reference(im) or _is_installed(im)
         ]
 
-        if filepath.endswith(".md") or filepath.endswith(".qmd"):
+        if filepath.endswith((".md", ".qmd")):
             # md and qmd require writing to a faux python file first.
             return self._process_md_changes(
                 filepath, packages_to_add, packages_to_remove, upgrade=upgrade

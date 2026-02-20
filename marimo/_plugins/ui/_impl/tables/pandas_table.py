@@ -393,9 +393,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 if lower_dtype.startswith("interval"):
                     return ("string", dtype)
-                if lower_dtype.startswith("int") or lower_dtype.startswith(
-                    "uint"
-                ):
+                if lower_dtype.startswith(("int", "uint")):
                     return ("integer", dtype)
                 if lower_dtype.startswith("float"):
                     return ("number", dtype)
@@ -413,7 +411,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("string", dtype)
                 if lower_dtype == "category":
                     return ("string", dtype)
-                if lower_dtype == "string" or lower_dtype == "str":
+                if lower_dtype in {"string", "str"}:
                     return ("string", dtype)
                 if lower_dtype.startswith("complex"):
                     return ("unknown", dtype)

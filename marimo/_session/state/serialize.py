@@ -472,12 +472,10 @@ class SessionCacheManager:
             for code, cell in zip(key.codes, notebook_session["cells"])
         ):
             return False
-        if (
+        return (
             key.marimo_version
-            != notebook_session["metadata"]["marimo_version"]
-        ):
-            return False
-        return True
+            == notebook_session["metadata"]["marimo_version"]
+        )
 
     def read_session_view(self, key: SessionCacheKey) -> SessionView:
         """Read the session view from the cache files.

@@ -145,9 +145,7 @@ def is_narwhals_string_type(
     """
     Check if the given dtype is string type.
     """
-    return bool(
-        dtype == nw.String or dtype == nw.Categorical or dtype == nw.Enum
-    )
+    return bool(dtype in (nw.String, nw.Categorical, nw.Enum))
 
 
 def unwrap_narwhals_dataframe(df: Any) -> Any:
@@ -230,11 +228,7 @@ def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:
 
     Checks both v1 and main.
     """
-    return (
-        isinstance(df, nw.LazyFrame)
-        or isinstance(df, nw_main.LazyFrame)
-        or isinstance(df, nw1.LazyFrame)
-    )
+    return isinstance(df, (nw.LazyFrame, nw_main.LazyFrame, nw1.LazyFrame))
 
 
 def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
@@ -243,11 +237,7 @@ def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
 
     Checks both v1 and main.
     """
-    return (
-        isinstance(df, nw.DataFrame)
-        or isinstance(df, nw_main.DataFrame)
-        or isinstance(df, nw1.DataFrame)
-    )
+    return isinstance(df, (nw.DataFrame, nw_main.DataFrame, nw1.DataFrame))
 
 
 if TYPE_CHECKING:

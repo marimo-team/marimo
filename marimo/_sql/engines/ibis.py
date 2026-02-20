@@ -350,12 +350,11 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             target_catalog_tables = {row[0] for row in result}
 
             # Keep only tables that exist in the target catalog
-            filtered = [
+            return [
                 table
                 for table in table_names
                 if table in target_catalog_tables
             ]
-            return filtered
 
         except Exception as e:
             LOGGER.debug(f"Failed to filter temp tables: {e}")

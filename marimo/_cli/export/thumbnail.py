@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from types import TracebackType
 
+    from typing_extensions import Self
+
     from marimo._cli.sandbox import SandboxMode
 
 
@@ -275,7 +277,7 @@ class _ThumbnailAssetServer(AbstractContextManager["_ThumbnailAssetServer"]):
         assert self._server is not None
         self._server.thumbnail_html = html
 
-    def __enter__(self) -> _ThumbnailAssetServer:
+    def __enter__(self) -> Self:
         if not self._directory.is_dir():
             raise click.ClickException(
                 f"Static assets not found at {self._directory}"

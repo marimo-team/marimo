@@ -137,7 +137,7 @@ class MCPClient:
                 del self.connections[server_name]
 
         # Disconnect from servers that need to be updated (will reconnect below)
-        for server_name in diff.servers_to_update.keys():
+        for server_name in diff.servers_to_update:
             LOGGER.info(f"Updating server: {server_name}")
             await self.disconnect_from_server(server_name)
             # Clean up old connection, will be recreated below
@@ -419,8 +419,7 @@ class MCPClient:
 
         # Connect to servers concurrently
         tasks = [
-            self.connect_to_server(server_name)
-            for server_name in self.servers.keys()
+            self.connect_to_server(server_name) for server_name in self.servers
         ]
 
         connection_results = await asyncio.gather(

@@ -292,11 +292,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     dtype_string = dtype._string_repr()
                 except (TypeError, AttributeError):
                     dtype_string = str(dtype)
-                if (
-                    dtype == pl.String
-                    or dtype == pl.Categorical
-                    or dtype == pl.Enum
-                ):
+                if dtype in (pl.String, pl.Categorical, pl.Enum):
                     return ("string", dtype_string)
                 elif dtype == pl.Boolean:
                     return ("boolean", dtype_string)

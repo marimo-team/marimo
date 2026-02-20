@@ -94,12 +94,11 @@ class MarimoPath:
 
     @property
     def relative_name(self) -> str:
-        if self.strict:
-            if not self.is_relative_to(self.cwd):
-                raise ValueError(
-                    "Cannot get relative name for files outside"
-                    " of the current working directory"
-                )
+        if self.strict and not self.is_relative_to(self.cwd):
+            raise ValueError(
+                "Cannot get relative name for files outside"
+                " of the current working directory"
+            )
         # If can't return relative path, return absolute path
         if not self.is_relative_to(self.cwd):
             return str(self.path.absolute())

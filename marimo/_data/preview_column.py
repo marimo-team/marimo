@@ -37,8 +37,7 @@ ALTAIR_MISSING_PACKAGES = ["altair"]
 
 def get_table_manager(item: object) -> TableManager[Any] | None:
     try:
-        table = get_table_manager_or_none(item)
-        return table
+        return get_table_manager_or_none(item)
     except Exception as e:
         LOGGER.warning(
             "Failed to get table manager for item %s",
@@ -313,11 +312,7 @@ def _get_chart_spec(
 
     # Date types don't serialize well to csv,
     # so we don't transform them
-    dont_use_csv = (
-        column_type == "date"
-        or column_type == "datetime"
-        or column_type == "time"
-    )
+    dont_use_csv = column_type in {"date", "datetime", "time"}
     if dont_use_csv:
         # Default max_rows is 5_000, but we can support more.
         with alt.data_transformers.enable("default", max_rows=CHART_MAX_ROWS):
@@ -344,7 +339,7 @@ def _sanitize_data(
         col = nw.col(column_name)
         dtype = column_data.collect_schema()[column_name]
 
-        if dtype == nw.Categorical or dtype == nw.Enum:
+        if dtype in (nw.Categorical, nw.Enum):
             column_data = frame.with_columns(col.cast(nw.String))
         # Int128 and UInt128 are not supported by datafusion
         elif dtype == nw.Int128:

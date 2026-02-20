@@ -124,10 +124,9 @@ def _sanitize_version(output: str) -> str:
     output = output.replace(f"{__version__} (editable)", "0.0.0").replace(
         f"{__version__}", "0.0.0"
     )
-    output = re.sub(
+    return re.sub(
         r'"marimo_version": "[^"]*"', '"marimo_version": "0.0.0"', output
     )
-    return output
 
 
 def delete_lines_with_files(output: str) -> str:
@@ -155,12 +154,11 @@ def simplify_images(output: str) -> str:
     )
 
     # Handle "image/png": "*"
-    output = re.sub(
+    return re.sub(
         r'"image/png": ".*"',
         '"image/png": "IMAGE_BASE64_DATA"',
         output,
     )
-    return output
 
 
 def simplify_plotly(output: str) -> str:
@@ -240,13 +238,11 @@ def simplify_plotly(output: str) -> str:
         '\\"bdata\\":\\"PLOTLY_BINARY_DATA\\"',
         output,
     )
-    output = re.sub(
+    return re.sub(
         r'"bdata":"[^"]*"',
         '"bdata":"PLOTLY_BINARY_DATA"',
         output,
     )
-
-    return output
 
 
 NON_WINDOWS_EDGE_CASE_FILENAMES = [

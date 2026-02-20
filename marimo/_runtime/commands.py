@@ -157,8 +157,8 @@ class HTTPRequest(Mapping[str, Any]):
             query_params=query_params,
             path_params=request.path_params,
             cookies=request.cookies,
-            user=request["user"] if "user" in request else {},
-            meta=request["meta"] if "meta" in request else {},
+            user=request.get("user", {}),
+            meta=request.get("meta", {}),
             # Left out for now. This may contain information that the app author
             # does not want to expose.
             # session=request.session if "session" in request else {},

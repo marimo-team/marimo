@@ -35,7 +35,7 @@ def _hashable_walk(
 ) -> set[tuple[Path, tuple[str], tuple[str]]]:
     return cast(
         set[tuple[Path, tuple[str], tuple[str]]],
-        set((p, *map(tuple, r)) for p, *r in walked),
+        {(p, *map(tuple, r)) for p, *r in walked},
     )
 
 

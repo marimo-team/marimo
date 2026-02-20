@@ -225,7 +225,7 @@ def defs() -> tuple[str, ...]:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return tuple()
+        return ()
 
     if ctx.execution_context is not None:
         return tuple(
@@ -234,7 +234,7 @@ def defs() -> tuple[str, ...]:
                 for defn in ctx.graph.cells[ctx.execution_context.cell_id].defs
             )
         )
-    return tuple()
+    return ()
 
 
 @mddoc
@@ -247,7 +247,7 @@ def refs() -> tuple[str, ...]:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return tuple()
+        return ()
 
     # builtins that have not been shadowed by the user
     unshadowed_builtins = BUILTINS.difference(
@@ -263,7 +263,7 @@ def refs() -> tuple[str, ...]:
                 if defn not in unshadowed_builtins
             )
         )
-    return tuple()
+    return ()
 
 
 @mddoc
@@ -674,7 +674,7 @@ class Kernel:
         self.packages_callbacks.update_package_manager(package_manager)
 
         if (
-            (autoreload_mode == "lazy" or autoreload_mode == "autorun")
+            (autoreload_mode in {"lazy", "autorun"})
             # Pyodide doesn't support hot module reloading
             and not is_pyodide()
         ):
@@ -823,7 +823,7 @@ class Kernel:
             module_reloader is not None
             and module_reloader.cell_uses_stale_modules(cell)
         ):
-            self.graph.set_stale(set([cell.cell_id]), prune_imports=True)
+            self.graph.set_stale({cell.cell_id}, prune_imports=True)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
@@ -962,7 +962,7 @@ class Kernel:
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
-                        set([im.namespace for im in previous_cell.imports])
+                        {im.namespace for im in previous_cell.imports}
                         if previous_cell
                         else set()
                     )
@@ -1273,7 +1273,7 @@ class Kernel:
 
         self.errors = all_errors
         for cid in self.errors:
-            cell = self.graph.cells[cid] if cid in self.graph.cells else None
+            cell = self.graph.cells.get(cid, None)
             if (
                 cell is not None
                 and not cell.config.disabled
@@ -2732,7 +2732,7 @@ class SqlCallbacks:
             request.query, self._kernel.globals
         )
         validate_result = SqlCatalogCheckResult(
-            success=True if error_message is None else False,
+            success=error_message is None,
             error_message=error_message,
         )
         broadcast_notification(
@@ -2916,7 +2916,7 @@ class PackagesCallbacks:
             return
 
         resolved_packages: dict[str, PackageRequirement] = {}
-        for pkg in request.versions.keys():
+        for pkg in request.versions:
             pkg_req = PackageRequirement.parse(pkg)
             resolved_packages[pkg_req.name] = pkg_req
 
@@ -3017,12 +3017,12 @@ class PackagesCallbacks:
         # This consists of cells that either statically reference the installed
         # module, or that previously failed with a ModuleNotFoundError matching
         # an installed module.
-        cells_to_run = set(
+        cells_to_run = {
             cid
             for module in installed_modules
             if (cid := self._kernel.module_registry.defining_cell(module))
             is not None
-        )
+        }
 
         for cid, cell in self._kernel.graph.cells.items():
             if (

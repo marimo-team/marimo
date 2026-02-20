@@ -284,9 +284,7 @@ def patch_jedi_parameter_completion() -> None:
             lines = [
                 line.strip().lstrip("#") for line in maybe_comment.splitlines()
             ]
-            min_indent = min(
-                [len(line) - len(line.lstrip()) for line in lines]
-            )
+            min_indent = min(len(line) - len(line.lstrip()) for line in lines)
             return "\n".join(
                 line.strip().lstrip("#")[min_indent:]
                 for line in maybe_comment.splitlines()
