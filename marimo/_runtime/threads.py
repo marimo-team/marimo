@@ -149,10 +149,13 @@ class Thread(threading.Thread):
                 pass
 
         output = None
-        if (mctx := self._marimo_ctx) is not None and (
-            ectx := mctx.execution_context
-        ) is not None:
-            output = ectx.output
+        if self._marimo_ctx is not None:
+            if (exec_ctx := self._marimo_ctx.execution_context) is not None:
+                output = (
+                    [v for v in exec_ctx.output]
+                    if exec_ctx.output is not None
+                    else None
+                )
 
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
             self._marimo_ctx.execution_context = ExecutionContext(
