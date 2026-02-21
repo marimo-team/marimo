@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import html
+import re
 import sys
 import threading
 import time
@@ -68,6 +69,32 @@ DOC_CACHE_SIZE = 200
 #
 # We also add '/' for file path completion.
 COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "(", ",", "/"})
+# Matches display bracket delimiters: \[...\]
+_MATH_DISPLAY_BRACKET_PATTERN = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
+# Matches inline paren delimiters: \(...\)
+_MATH_INLINE_PAREN_PATTERN = re.compile(r"\\\((.+?)\\\)", re.DOTALL)
+# Matches display dollar delimiters: $$...$$
+_MATH_DISPLAY_DOLLAR_PATTERN = re.compile(
+    r"(?<!\\)\$\$(.+?)(?<!\\)\$\$",
+    re.DOTALL,
+)
+# Matches inline dollar delimiters: $...$
+_MATH_INLINE_DOLLAR_PATTERN = re.compile(
+    r"(?<![\\$])\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)"
+)
+
+
+def _contains_math_syntax(text: str) -> bool:
+    """Return True when a docstring contains supported math delimiters."""
+    return (
+        ".. math::" in text
+        or ":math:`" in text
+        or ":math:<code>" in text
+        or _MATH_DISPLAY_BRACKET_PATTERN.search(text) is not None
+        or _MATH_INLINE_PAREN_PATTERN.search(text) is not None
+        or _MATH_DISPLAY_DOLLAR_PATTERN.search(text) is not None
+        or _MATH_INLINE_DOLLAR_PATTERN.search(text) is not None
+    )
 
 
 @lru_cache(maxsize=DOC_CACHE_SIZE)
@@ -145,6 +172,12 @@ def _convert_docstring_to_markdown(raw_docstring: str) -> str:
     if doc_convert.can_convert(raw_docstring):
         return as_md_html(doc_convert.convert(raw_docstring))
 
+    # Prefer markdown rendering when math syntax is present.
+    # This ensures ``.. math::`` and markdown delimiters are interpreted by
+    # the same TeX pipeline used elsewhere in marimo output.
+    if _contains_math_syntax(raw_docstring):
+        return as_md_html(raw_docstring)
+
     # Then try RST
     try:
         return (
@@ -194,7 +227,7 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
                     if raw_init:
                         init_docstring = (
                             "__init__ docstring:\n\n"
-                            + _md(raw_init, apply_markdown_class=False).text
+                            + _convert_docstring_to_markdown(raw_init)
                         )
 
     # Build final docstring
