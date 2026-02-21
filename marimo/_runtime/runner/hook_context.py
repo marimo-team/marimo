@@ -83,6 +83,8 @@ class PostExecutionHookContext:
     # Whether data (variables, datasets, etc.) should be broadcast
     # to the frontend. Computed once per run to avoid repeated checks.
     should_broadcast_data: bool = False
+    # User configuration, for hooks that need access to runtime settings
+    user_config: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

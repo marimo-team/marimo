@@ -4781,6 +4781,8 @@ export interface components {
       exception_type: string;
       msg: string;
       raising_cell: string | null;
+      /** @default null */
+      traceback?: string | null;
       /** @enum {unknown} */
       type: "exception";
     };
@@ -5328,6 +5330,9 @@ export interface components {
      *            The default is None.
      *         - `default_csv_encoding`: the default encoding for CSV exports.
      *             The default is `"utf-8"`.
+     *         - `show_error_tracebacks`: if `True`, show detailed error tracebacks in run mode.
+     *             When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
+     *             The default is `True`.
      */
     RuntimeConfig: {
       auto_instantiate: boolean;
@@ -5348,6 +5353,7 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
+      show_error_tracebacks?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";

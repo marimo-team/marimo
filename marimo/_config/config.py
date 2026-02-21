@@ -169,6 +169,9 @@ class RuntimeConfig(TypedDict):
        The default is None.
     - `default_csv_encoding`: the default encoding for CSV exports.
         The default is `"utf-8"`.
+    - `show_error_tracebacks`: if `True`, show detailed error tracebacks in run mode.
+        When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
+        The default is `True`.
     """
 
     auto_instantiate: bool
@@ -183,6 +186,7 @@ class RuntimeConfig(TypedDict):
     default_sql_output: SqlOutputType
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
+    show_error_tracebacks: NotRequired[bool]
 
 
 @mddoc
@@ -702,6 +706,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         ),
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",
+        "show_error_tracebacks": False,
     },
     "save": {
         "autosave": "after_delay",

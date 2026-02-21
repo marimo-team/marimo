@@ -135,6 +135,7 @@ class Runner:
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
+        user_config: dict[str, Any] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -144,6 +145,7 @@ class Runner:
         )
         self.execution_context = execution_context
         self._hooks = hooks
+        self.user_config = user_config
 
         # runtime globals
         self.glbls = glbls
@@ -176,6 +178,24 @@ class Runner:
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
+
+    def _should_write_traceback(self) -> bool:
+        """Whether tracebacks should be written to console output.
+
+        In edit mode, tracebacks are always written.
+        In run mode, tracebacks are only written if
+        show_error_tracebacks is enabled, to avoid leaking
+        sensitive details.
+        """
+        if _should_broadcast_data():
+            # Edit mode: always show tracebacks
+            return True
+        # Run mode: only if show_error_tracebacks is enabled
+        if self.user_config is not None:
+            return self.user_config.get("runtime", {}).get(
+                "show_error_tracebacks", False
+            )
+        return False
 
     @staticmethod
     def compute_cells_to_run(
@@ -499,10 +519,11 @@ class Runner:
             # Async cells can only be cancelled via a user interrupt
             run_result = RunResult(output=None, exception=MarimoInterrupt())
             # Still provide a general traceback.
-            tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
-            tmpio.seek(0)
-            write_traceback(tmpio.read())
+            if self._should_write_traceback():
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         # Strict mode errors may also raise errors outside of execution.
         except MarimoNameError as e:
             self.cancel(cell_id)
@@ -552,7 +573,10 @@ class Runner:
             # this call as well, so this should be lifted out of `run`.
             self.cancel(cell_id)
 
-            if should_show_traceback(run_result.exception):
+            if (
+                should_show_traceback(run_result.exception)
+                and self._should_write_traceback()
+            ):
                 tmpio = io.StringIO()
                 # The executors explicitly raise cell exceptions from base
                 # exceptions such that the stack trace is cleaner.
@@ -583,10 +607,11 @@ class Runner:
                 self.cancel(cell_id)
                 unknown_error = UnknownError(f"{e}")
                 run_result = RunResult(output=None, exception=unknown_error)
-                tmpio = io.StringIO()
-                traceback.print_exc(file=tmpio)
-                tmpio.seek(0)
-                write_traceback(tmpio.read())
+                if self._should_write_traceback():
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    write_traceback(tmpio.read())
         finally:
             # TODO(akshayka): some of this logic should be lifted out
             # of `run`, (in particular to where execution context is not set)
@@ -719,6 +744,7 @@ class Runner:
             cancelled_cells=self.cancelled_cells,
             all_temporaries=all_temporaries,
             should_broadcast_data=_should_broadcast_data(),
+            user_config=self.user_config,
         )
 
         while self.pending():

@@ -401,12 +401,43 @@ def _broadcast_outputs(
         msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
+
+        # Include formatted traceback if enabled in config
+        formatted_traceback = None
+        show_tracebacks = False
+        if ctx.user_config is not None:
+            show_tracebacks = ctx.user_config.get("runtime", {}).get(
+                "show_error_tracebacks", False
+            )
+
+        if show_tracebacks:
+            import traceback as tb
+
+            from marimo._messaging.tracebacks import (
+                _highlight_traceback,
+                _trim_traceback,
+            )
+
+            if (
+                hasattr(run_result.exception, "__traceback__")
+                and run_result.exception.__traceback__
+            ):
+                tb_lines = tb.format_exception(
+                    type(run_result.exception),
+                    run_result.exception,
+                    run_result.exception.__traceback__,
+                )
+                formatted_traceback = _highlight_traceback(
+                    _trim_traceback("".join(tb_lines))
+                )
+
         CellNotificationUtils.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
                     msg=msg,
                     exception_type=exception_type,
                     raising_cell=None,
+                    traceback=formatted_traceback,
                 )
             ],
             clear_console=False,
