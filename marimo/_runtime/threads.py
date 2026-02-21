@@ -147,11 +147,18 @@ class Thread(threading.Thread):
                 initialize_context(self._marimo_ctx)
             except RuntimeError:
                 pass
+
+        output = None
+        if (mctx := self._marimo_ctx) is not None and (
+            ectx := mctx.execution_context
+        ) is not None:
+            output = ectx.output
+
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
             self._marimo_ctx.execution_context = ExecutionContext(
                 cell_id=self._marimo_ctx.stream.cell_id,  # type: ignore
                 setting_element_value=False,
-                output=self._marimo_ctx.execution_context.output,
+                output=output,
             )
         thread_id = threading.get_ident()
         THREADS.add(thread_id)
