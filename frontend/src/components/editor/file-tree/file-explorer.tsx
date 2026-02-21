@@ -19,6 +19,7 @@ import {
   ListTreeIcon,
   MoreVerticalIcon,
   PlaySquareIcon,
+  PlusIcon,
   RefreshCcwIcon,
   Trash2Icon,
   UploadIcon,
@@ -286,11 +287,20 @@ const Toolbar = ({
           variant="text"
           size="xs"
         >
-          <img
-            src={marimoIcon}
-            className="w-4 h-4 shrink-0 filter grayscale"
-            alt="Marimo"
-          />
+          <div className="relative w-4 h-4 shrink-0">
+            <img
+              src={marimoIcon}
+              className="absolute top-0 left-0 w-full h-full filter grayscale"
+              alt="Marimo"
+            />
+            <PlusIcon
+              size={7}
+              strokeWidth={4}
+              className="absolute bottom-0 right-0 text-gray-800 dark:text-gray-200
+                bg-background dark:bg-(--slate-1) rounded-full"
+              style={{ transform: "translate(20%, 20%)" }}
+            />
+          </div>
         </Button>
       </Tooltip>
       <Tooltip content="Add file">
@@ -569,11 +579,20 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         {node.data.isDirectory && (
           <>
             <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
-              <img
-                src={marimoIcon}
-                className="w-[14px] h-[14px] mr-2 shrink-0 filter grayscale"
-                alt="Marimo"
-              />
+              <div className="relative w-[14px] h-[14px] mr-2 shrink-0">
+                <img
+                  src={marimoIcon}
+                  className="absolute top-0 left-0 w-full h-full filter grayscale"
+                  alt="Marimo"
+                />
+                <PlusIcon
+                  size={6}
+                  strokeWidth={3}
+                  className="absolute bottom-0 right-0 text-gray-800 dark:text-gray-200
+                    bg-popover rounded-full"
+                  style={{ transform: "translate(20%, 20%)" }}
+                />
+              </div>
               Create notebook
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleCreateFile()}>
