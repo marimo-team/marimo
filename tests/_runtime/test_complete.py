@@ -179,7 +179,11 @@ After :math:`y`
         init_docstring=None,
     )
 
-    assert ".. math::" in result
+    if DependencyManager.docstring_to_markdown.has():
+        # docstring_to_markdown may normalize fenced code content to $$.
+        assert "$$" in result
+    else:
+        assert ".. math::" in result
     assert ":math:`y`" not in result
     assert result.count("<marimo-tex") == 1
 

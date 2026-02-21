@@ -166,7 +166,13 @@ def _convert_docstring_to_markdown(raw_docstring: str) -> str:
     if DependencyManager.docstring_to_markdown.has():
         import docstring_to_markdown  # type: ignore
 
-        return as_md_html(docstring_to_markdown.convert(raw_docstring))
+        try:
+            return as_md_html(docstring_to_markdown.convert(raw_docstring))
+        except docstring_to_markdown.UnknownFormatError:
+            LOGGER.debug(
+                "docstring_to_markdown could not infer docstring format; "
+                "falling back",
+            )
 
     # Then try our custom MarimoConverter
     if doc_convert.can_convert(raw_docstring):
