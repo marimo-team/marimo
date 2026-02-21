@@ -91,10 +91,7 @@ class AppKernelRunner:
         ) -> None:
             """Update the app's cached outputs."""
             del ctx
-            if (
-                run_result.output is None
-                and run_result.accumulated_output
-            ):
+            if run_result.output is None and run_result.accumulated_output:
                 self.outputs[cell.cell_id] = (
                     run_result.accumulated_output.stack()
                 )

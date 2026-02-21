@@ -120,9 +120,7 @@ def flush() -> None:
         return
 
     output = ctx.execution_context.output
-    write_internal(
-        cell_id=ctx.execution_context.cell_id, value=output.stack()
-    )
+    write_internal(cell_id=ctx.execution_context.cell_id, value=output.stack())
 
 
 def remove(value: object) -> None:

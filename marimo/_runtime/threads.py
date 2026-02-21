@@ -7,6 +7,7 @@ from typing import Any
 from marimo._messaging.streams import ThreadSafeStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.cell_output_list import CellOutputList
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.script_context import ScriptRuntimeContext
 from marimo._runtime.context.types import (
@@ -17,7 +18,6 @@ from marimo._runtime.context.types import (
     runtime_context_installed,
     teardown_context,
 )
-from marimo._runtime.cell_output_list import CellOutputList
 
 # Set of thread ids for running mo.Threads
 THREADS: set[int] = set()
