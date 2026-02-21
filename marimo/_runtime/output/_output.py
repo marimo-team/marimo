@@ -6,7 +6,6 @@ from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
-from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._types.ids import CellId_t
@@ -43,11 +42,12 @@ def replace(value: object) -> None:
     if ctx.execution_context is None:
         return
 
-    # Mutate in place to preserve list sharing with mo.Thread.
-    ctx.execution_context.output.clear()
-    if value is not None:
-        ctx.execution_context.output.append(formatting.as_html(value))
-    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
+    output = ctx.execution_context.output
+    with output.lock:
+        output.clear()
+        if value is not None:
+            output.append(formatting.as_html(value))
+        write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
 @mddoc
@@ -69,18 +69,14 @@ def replace_at_index(value: object, idx: int) -> None:
 
     if ctx.execution_context is None or not ctx.execution_context.output:
         return
-    elif idx > len(ctx.execution_context.output):
-        raise IndexError(
-            f"idx is {idx}, must be <= {len(ctx.execution_context.output)}"
+
+    output = ctx.execution_context.output
+    with output.lock:
+        output.replace_at_index(formatting.as_html(value), idx)
+        write_internal(
+            cell_id=ctx.execution_context.cell_id,
+            value=output.stack(),
         )
-    elif idx == len(ctx.execution_context.output):
-        ctx.execution_context.output.append(formatting.as_html(value))
-    else:
-        ctx.execution_context.output[idx] = formatting.as_html(value)
-    write_internal(
-        cell_id=ctx.execution_context.cell_id,
-        value=vstack(ctx.execution_context.output),
-    )
 
 
 @mddoc
@@ -101,11 +97,13 @@ def append(value: object) -> None:
     if ctx.execution_context is None:
         return
 
-    ctx.execution_context.output.append(formatting.as_html(value))
-    write_internal(
-        cell_id=ctx.execution_context.cell_id,
-        value=vstack(ctx.execution_context.output),
-    )
+    output = ctx.execution_context.output
+    with output.lock:
+        output.append(formatting.as_html(value))
+        write_internal(
+            cell_id=ctx.execution_context.cell_id,
+            value=output.stack(),
+        )
 
 
 @mddoc
@@ -124,11 +122,11 @@ def flush() -> None:
     if ctx.execution_context is None:
         return
 
-    if ctx.execution_context.output:
-        value = vstack(ctx.execution_context.output)
-    else:
-        value = None
-    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
+    output = ctx.execution_context.output
+    with output.lock:
+        write_internal(
+            cell_id=ctx.execution_context.cell_id, value=output.stack()
+        )
 
 
 def remove(value: object) -> None:
@@ -140,8 +138,7 @@ def remove(value: object) -> None:
 
     if ctx.execution_context is None or not ctx.execution_context.output:
         return
-    # Mutate in place to preserve list sharing with mo.Thread.
-    ctx.execution_context.output[:] = [
-        item for item in ctx.execution_context.output if item is not value
-    ]
-    flush()
+    output = ctx.execution_context.output
+    with output.lock:
+        output.remove(value)
+        flush()
