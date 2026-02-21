@@ -90,7 +90,7 @@ def infer_package_manager_from_pyproject(
             if manager in data["tool"]:
                 return manager
 
-        return None
+        return None  # noqa: TRY300
     except Exception:
         # Fallback to None
         return None

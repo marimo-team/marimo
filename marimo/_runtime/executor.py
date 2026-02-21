@@ -111,7 +111,7 @@ class DefaultExecutor(Executor):
             if _is_coroutine(cell.body):
                 await eval(cell.body, glbls)
             else:
-                exec(cell.body, glbls)
+                exec(cell.body, glbls)  # noqa: S102
 
             if _is_coroutine(cell.last_expr):
                 return await eval(cell.last_expr, glbls)
@@ -135,7 +135,7 @@ class DefaultExecutor(Executor):
                 return None
             assert cell.last_expr is not None
 
-            exec(cell.body, glbls)
+            exec(cell.body, glbls)  # noqa: S102
             return eval(cell.last_expr, glbls)
         except NameError as e:
             _raise_name_error(graph, e)

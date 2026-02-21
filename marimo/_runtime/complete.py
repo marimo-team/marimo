@@ -686,7 +686,7 @@ def complete(
         try:
             # if an interpreter was used, the lock might be held
             glbls_lock.release()
-        except Exception:
+        except Exception:  # noqa: S110
             # RLock raises if released when not acquired.
             pass
         else:

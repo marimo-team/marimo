@@ -437,7 +437,7 @@ class Runner:
                         )
                         LOGGER.error(error_message)
                         exception = output
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
         # Handle SQL parsing errors
         elif unwrapped_exception is not None and is_sql_parse_error(

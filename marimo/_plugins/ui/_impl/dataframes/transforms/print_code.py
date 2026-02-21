@@ -326,7 +326,7 @@ def python_print_polars(
             import polars.datatypes as pl_datatypes
 
             data_type = str(pl_datatypes.numpy_char_code_to_dtype(data_type))
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         return f"{df_name}.cast({{{_as_literal(column_id)}: pl.{data_type}}}, strict={transform.errors == 'raise'})"
 

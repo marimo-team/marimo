@@ -70,7 +70,7 @@ def watch_directory(
 class DirectoryState(PathState):
     """Wrapper for directory state."""
 
-    _forbidden_attributes = {
+    _forbidden_attributes = {  # noqa: RUF012
         "open",
         "rename",
         "replace",

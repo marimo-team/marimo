@@ -14,7 +14,7 @@ UTF8_SUPPORTED = False
 try:
     "🌊🍃".encode(sys.stdout.encoding)
     UTF8_SUPPORTED = True
-except Exception:
+except Exception:  # noqa: S110
     pass
 
 
@@ -45,7 +45,7 @@ def print_startup(
             print_tabbed(
                 f"{_utf8('➜')}  {green('Network')}: {_colorized_url(_get_network_url(url))}"
             )
-        except Exception:
+        except Exception:  # noqa: S110
             # If we can't get the network URL, just skip it
             pass
     print_()
@@ -113,7 +113,7 @@ def _colorized_url(url_string: str) -> str:
     try:
         if url.port:
             url_string += f":{url.port}"
-    except Exception:
+    except Exception:  # noqa: S110
         # If the port is not a number, don't include it
         pass
 

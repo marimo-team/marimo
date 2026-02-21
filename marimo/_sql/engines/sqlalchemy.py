@@ -345,7 +345,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             primary_keys = self.inspector.get_pk_constraint(
                 table_name, schema=schema_name
             )["constrained_columns"]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # TODO: Handle multi column PK and indexes

@@ -116,7 +116,7 @@ class openai(ChatModel):
             api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
             if api_key:
                 return api_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         raise ValueError(
@@ -252,7 +252,7 @@ class anthropic(ChatModel):
             api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
             if api_key:
                 return api_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Then check the environment variable
@@ -356,7 +356,7 @@ class google(ChatModel):
             api_key = get_context().marimo_config["ai"]["google"]["api_key"]
             if api_key:
                 return api_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Then check the environment variable

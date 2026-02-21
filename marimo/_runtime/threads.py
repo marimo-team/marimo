@@ -98,7 +98,7 @@ class Thread(threading.Thread):
                     redirect_console=False,
                 )
             else:
-                raise RuntimeError(
+                raise RuntimeError(  # noqa: TRY004
                     "Unsupported stream type " + str(type(ctx.stream))
                 )
         elif isinstance(self._marimo_ctx, ScriptRuntimeContext):
@@ -113,7 +113,7 @@ class Thread(threading.Thread):
                     redirect_console=False,
                 )
             else:
-                raise RuntimeError(
+                raise RuntimeError(  # noqa: TRY004
                     "Unsupported stream type " + str(type(ctx.stream))
                 )
 
@@ -170,7 +170,7 @@ def current_thread() -> Thread:
     """
     thread = threading.current_thread()
     if not isinstance(thread, Thread):
-        raise RuntimeError(
+        raise RuntimeError(  # noqa: TRY004
             "mo.current_thread() must be called from a "
             "thread created with mo.Thread."
         )

@@ -46,8 +46,6 @@ LOGGER = _loggers.marimo_logger()
 ArgsT = TypeVar("ArgsT")
 OutT = TypeVar("OutT")
 
-ArgsP = TypeVar("ArgsP", contravariant=True)
-OutC = TypeVar("OutC", covariant=True)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -394,7 +392,7 @@ class ToolBase(ABC, Generic[ArgsT, OutT]):
                 ],
                 return_annotation=Output,
             )
-        except Exception:
+        except Exception:  # noqa: S110
             # Best-effort only; safe to skip if inspect behavior changes
             pass
 

@@ -36,7 +36,7 @@ def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
             elif formatted.endswith("..."):
                 formatted = formatted.rsplit("\n", 1)[0].rstrip()
                 formatted = formatted.removesuffix(":")
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         else:
             return formatted

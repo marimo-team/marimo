@@ -461,7 +461,7 @@ def _reset_matplotlib_context(
     del run_result
     if get_global_context().mpl_installed:
         # ensures that every cell gets a fresh axis.
-        exec("__marimo__._output.mpl.close_figures()", ctx.glbls)
+        exec("__marimo__._output.mpl.close_figures()", ctx.glbls)  # noqa: S102
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHook] = [

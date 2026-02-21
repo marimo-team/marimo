@@ -32,7 +32,7 @@ def json(
         Html: `Html` object
     """
     if not isinstance(data, (str, dict, list)):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             "Argument `data` must be a str, dict, or list, "
             f"but got: {type(data)}"
         )

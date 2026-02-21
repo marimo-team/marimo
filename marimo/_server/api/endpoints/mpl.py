@@ -299,5 +299,5 @@ async def mpl_websocket(websocket: WebSocket) -> None:
     finally:
         try:
             await websocket.close()
-        except Exception:
+        except Exception:  # noqa: S110
             pass

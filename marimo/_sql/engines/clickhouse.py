@@ -457,7 +457,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
                 table_type = "view"  # TODO: We should add support for general table types
 
             total_rows = table_df["total_rows"].iloc[0]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         try:

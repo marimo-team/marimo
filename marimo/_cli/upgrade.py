@@ -102,9 +102,9 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         api_url = "https://marimo.io/api/oss/latest-version"
 
     # We only update the state once a day
-    now = datetime.now()
+    now = datetime.now()  # noqa: DTZ005
     if state.last_checked_at:
-        last_checked_date = datetime.strptime(
+        last_checked_date = datetime.strptime(  # noqa: DTZ007
             state.last_checked_at, DATE_FORMAT
         )
         if _is_same_day(last_checked_date, now):

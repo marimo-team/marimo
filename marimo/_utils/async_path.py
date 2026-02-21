@@ -28,7 +28,7 @@ class AsyncPath(PurePath):
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         # Create the path using the same logic as PurePath
         if cls is AsyncPath:
-            cls = AsyncWindowsPath if os.name == "nt" else AsyncPosixPath
+            cls = AsyncWindowsPath if os.name == "nt" else AsyncPosixPath  # noqa: PLW0642
         return super().__new__(cls, *args, **kwargs)  # type: ignore
 
     def __truediv__(self, other: StrPath) -> AsyncPath:

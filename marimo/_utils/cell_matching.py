@@ -27,7 +27,7 @@ def similarity_score(s1: str, s2: str) -> float:
         for c1, c2 in zip(s1_rev, s2_rev):
             if c1 != c2:
                 break
-            suffix_len += 1
+            suffix_len += 1  # noqa: SIM113
     else:
         suffix_len = 0
 

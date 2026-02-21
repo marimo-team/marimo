@@ -49,7 +49,7 @@ class AltairFormatter(FormatterFactory):
             mimebundle: MimeBundleOrTuple = {}
             try:
                 mimebundle = chart._repr_mimebundle_() or {}  # type: ignore
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
             # Handle where there are multiple mime types

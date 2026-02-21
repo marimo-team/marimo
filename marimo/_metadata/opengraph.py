@@ -354,7 +354,7 @@ def _load_generator_from_notebook_source(
     ast.fix_missing_locations(extracted)
     namespace: dict[str, Any] = {}
     try:
-        exec(compile(extracted, notebook_path, "exec"), namespace)
+        exec(compile(extracted, notebook_path, "exec"), namespace)  # noqa: S102
     except Exception as e:
         LOGGER.warning("Failed to exec OpenGraph generator stub: %s", e)
         return None
@@ -453,7 +453,7 @@ def _run_opengraph_generator(
         if callable(close):
             try:
                 close()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
         LOGGER.warning(
             "OpenGraph generator returned an awaitable (must be sync): %s",

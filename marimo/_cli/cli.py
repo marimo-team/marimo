@@ -731,7 +731,7 @@ def new(
             def _cleanup() -> None:
                 try:
                     os.unlink(temp_file.name)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
             atexit.register(_cleanup)
@@ -739,7 +739,7 @@ def new(
             if temp_file is not None:
                 try:
                     os.unlink(temp_file.name)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
             raise click.ClickException(

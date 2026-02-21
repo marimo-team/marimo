@@ -92,7 +92,7 @@ def open_url_in_browser(browser: str, url: str) -> None:
             ["xdg-open", url],
             # don't forward signals: ctrl-c shouldn't kill the browser
             # TODO: test/workaround on windows
-            preexec_fn=preexec_fn,
+            preexec_fn=preexec_fn,  # noqa: PLW1509
             stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT,
         )

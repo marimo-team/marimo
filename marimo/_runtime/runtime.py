@@ -626,7 +626,7 @@ class Kernel:
         if not is_pyodide():
             patches.patch_micropip(self.globals)
 
-        exec("import marimo as __marimo__", self.globals)
+        exec("import marimo as __marimo__", self.globals)  # noqa: S102
 
         # Lifespans
         lifespan = Lifespans(_KERNEL_LIFESPAN_REGISTRY.get_all())
@@ -1607,7 +1607,7 @@ class Kernel:
 
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:
+                except Exception:  # noqa: S112
                     # The cell was not parsable.
                     continue
                 graph.register_cell(cell_id=cid, cell=cell)
@@ -1617,7 +1617,7 @@ class Kernel:
             for er in execution_requests:
                 try:
                     cell = compile_cell(er.code, cell_id=er.cell_id)
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
                 graph.register_cell(cell_id=er.cell_id, cell=cell)
                 ancestors |= graph.ancestors(er.cell_id)

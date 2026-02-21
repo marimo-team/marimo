@@ -19,7 +19,7 @@ class FunctionStub:
         # TODO: Fix line cache and associate with the correct module.
         code_obj = compile(self.code, "<string>", "exec")
         lcls: dict[str, Any] = {}
-        exec(code_obj, glbls, lcls)
+        exec(code_obj, glbls, lcls)  # noqa: S102
         # Update the global scope with the function.
         for value in lcls.values():
             return value

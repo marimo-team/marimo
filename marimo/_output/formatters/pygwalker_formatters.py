@@ -20,5 +20,5 @@ class PygWalkerFormatter(FormatterFactory):
                 from pygwalker.api.marimo import walk  # type: ignore
 
                 pygwalker.walk = walk  # type: ignore
-            except Exception:
+            except Exception:  # noqa: S110
                 pass

@@ -67,7 +67,7 @@ def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
         value = unwrap_py_scalar(value)
         value = float(value)
         if not isinstance(value, (int, float)):
-            raise ValueError("Expected a number. Got: " + str(type(value)))
+            raise ValueError("Expected a number. Got: " + str(type(value)))  # noqa: TRY004
         return value
 
     return NumberSeriesInfo(

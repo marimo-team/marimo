@@ -26,7 +26,7 @@ from marimo._server.ai.mcp.transport import (
 )
 from marimo._server.ai.mcp.types import MCPToolArgs
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Client classes
     "MCPClient",
     "MCPServerConnection",

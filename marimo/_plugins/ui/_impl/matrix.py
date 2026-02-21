@@ -38,7 +38,7 @@ def _broadcast(
 
     for i, row in enumerate(param):
         if not isinstance(row, (list, tuple)):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"`{name}` row {i} must be a list, got {type(row)}"
             )
         if len(row) != cols:
@@ -47,7 +47,7 @@ def _broadcast(
             )
         for j, cell in enumerate(row):
             if isinstance(cell, (list, tuple)):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY004
                     f"`{name}` must be 2D, but found a nested "
                     f"sequence at position [{i}][{j}]"
                 )
@@ -66,7 +66,7 @@ def _to_flat_list(
         value = value.tolist()
 
     if not isinstance(value, list):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"`value` must be a list or array-like, got {type(value)}"
         )
 
@@ -75,7 +75,7 @@ def _to_flat_list(
 
     for i, v in enumerate(value):
         if isinstance(v, (list, tuple)):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"`value` must be 1D, but element {i} is a {type(v).__name__}"
             )
 
@@ -101,7 +101,7 @@ def _1d_to_2d(
     # Must be a flat list at this point
     for i, v in enumerate(param):
         if isinstance(v, (list, tuple)):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"`{name}` must be scalar or 1D, "
                 f"but element {i} is a {type(v).__name__}"
             )
@@ -121,7 +121,7 @@ def _parse_value(
         value = value.tolist()
 
     if not isinstance(value, list):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"`value` must be a list of lists or array-like, got {type(value)}"
         )
 

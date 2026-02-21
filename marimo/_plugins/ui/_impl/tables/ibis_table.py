@@ -166,8 +166,8 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 for row in numeric_bin_values.itertuples(index=False):
                     if dtype.is_date():
-                        bin_start = datetime.date.fromtimestamp(row.bin_start)
-                        bin_end = datetime.date.fromtimestamp(row.bin_end)
+                        bin_start = datetime.date.fromtimestamp(row.bin_start)  # noqa: DTZ012
+                        bin_end = datetime.date.fromtimestamp(row.bin_end)  # noqa: DTZ012
                     elif dtype.is_time():
                         ms = int(row.bin_start)
                         bin_start = _convert_ms_to_time(ms)
@@ -175,10 +175,10 @@ class IbisTableManagerFactory(TableManagerFactory):
                         ms = int(row.bin_end)
                         bin_end = _convert_ms_to_time(ms)
                     else:
-                        bin_start = datetime.datetime.fromtimestamp(
+                        bin_start = datetime.datetime.fromtimestamp(  # noqa: DTZ006
                             row.bin_start
                         )
-                        bin_end = datetime.datetime.fromtimestamp(row.bin_end)
+                        bin_end = datetime.datetime.fromtimestamp(row.bin_end)  # noqa: DTZ006
 
                     bin_values.append(
                         BinValue(

@@ -305,7 +305,7 @@ class BaseLspServer(LspServer):
                         # Try to read any remaining stderr
                         # Note: stderr might be empty if already consumed during wait()
                         stderr_output = self.process.stderr.read()
-                    except Exception:
+                    except Exception:  # noqa: S110
                         pass
 
                 LOGGER.error(

@@ -87,7 +87,7 @@ def _normalize_image(src: ImageLike) -> Image:
 
     # Verify that this is a image object
     if not isinstance(src, (str, bytes, io.BytesIO, io.BufferedReader, Path)):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"Expected an image object, but got {type(src)} instead."
         )
     return src

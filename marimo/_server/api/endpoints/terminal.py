@@ -381,7 +381,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await websocket.close(
                     code=1011, reason="Failed to initialize terminal"
                 )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         return
 

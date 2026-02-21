@@ -40,7 +40,7 @@ def _flatten_sequence(
     elif isinstance(value, tuple):
         base_type = tuple
     else:
-        raise ValueError("value is not a list or tuple: ", value)
+        raise ValueError("value is not a list or tuple: ", value)  # noqa: TRY004
 
     # Algorithm:
     #
@@ -120,7 +120,7 @@ def _flatten_sequence(
         elif isinstance(value, list):
             return list(itertools.chain(*unflattened_pieces))
         else:
-            raise ValueError("Invalid type of value ", type(value))
+            raise ValueError("Invalid type of value ", type(value))  # noqa: TRY004
 
     return (
         list(itertools.chain(*flattened_pieces)),
