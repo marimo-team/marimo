@@ -10,7 +10,7 @@ from marimo._runtime.cell_output_list import CellOutputList
 
 def _html(text: str) -> MagicMock:
     m = MagicMock()
-    m.__repr__ = lambda self: text
+    m.__repr__ = lambda _: text
     return m
 
 

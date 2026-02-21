@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     )
     from marimo._config.config import MarimoConfig
     from marimo._messaging.types import Stderr, Stdout, Stream
-    from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime import dataflow
     from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
