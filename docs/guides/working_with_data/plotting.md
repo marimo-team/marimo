@@ -85,8 +85,7 @@ def __():
 @app.cell
 def __():
     mask = ax.value.get_mask(x, y)
-    selected_x, selected_y = x[mask], y[mask]
-    mo.md(f"**Selected {selected_x.size} / {x.size} points**")
+    np.column_stack([x[mask], y[mask]])
     return
 ```
 
