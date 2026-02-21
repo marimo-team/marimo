@@ -111,6 +111,12 @@ class PathState(State[Path]):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._value})"
 
+    def __fspath__(self) -> str:
+        return self._value.__fspath__()
+
+    def __str__(self) -> str:
+        return str(self._value)
+
     def exists(self) -> bool:
         """Check if the path exists."""
         exists = self._value.exists()
