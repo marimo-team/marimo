@@ -170,7 +170,7 @@ class _DataclassParser:
         """Returns instance of dataclass [cls] instantiated from [values]."""
 
         if not isinstance(values, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "value passed to build_dataclass needs to be a dictionary"
             )
 

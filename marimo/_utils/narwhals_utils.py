@@ -65,7 +65,7 @@ def assert_narwhals_series(series: nw.Series[Any]) -> None:
     Assert that the given series is a valid narwhals series.
     """
     if not isinstance(series, nw.Series):
-        raise ValueError(f"Unsupported series type. Got {type(series)}")
+        raise ValueError(f"Unsupported series type. Got {type(series)}")  # noqa: TRY004
 
 
 def can_narwhalify(

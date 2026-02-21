@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from marimo import _loggers
 from marimo._server.files.os_file_system import natural_sort_file
@@ -44,21 +44,22 @@ def is_marimo_app(full_path: str) -> bool:
             header = f.read(READ_LIMIT)
 
         if path.is_markdown():
-            return b"marimo-version:" in header
-
-        if path.is_python():
+            result = b"marimo-version:" in header
+        elif path.is_python():
             if contains_marimo_app(header):
-                return True
-
-            if b"# /// script" in header:
+                result = True
+            elif b"# /// script" in header:
                 full_content = path.read_bytes()
-                if contains_marimo_app(full_content):
-                    return True
-
-        return False
+                result = contains_marimo_app(full_content)
+            else:
+                result = False
+        else:
+            result = False
     except Exception as e:
         LOGGER.debug("Error reading file %s: %s", full_path, e)
         return False
+    else:
+        return result
 
 
 class DirectoryScanner:
@@ -76,7 +77,7 @@ class DirectoryScanner:
     MAX_FILES = 1000
     MAX_EXECUTION_TIME = 10  # seconds
 
-    SKIP_DIRS = {
+    SKIP_DIRS: ClassVar[set[str]] = {
         # Python virtual environments
         "venv",
         ".venv",

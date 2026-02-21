@@ -427,7 +427,7 @@ def test_print_code_result_matches_actual_transform_pandas(
 
     try:
         loc = {"pd": pd, "my_df": my_df.copy()}
-        exec(pandas_code, {}, loc)
+        exec(pandas_code, {}, loc)  # noqa: S102
         code_result = loc.get("my_df_next")
     except Exception as code_error:
         code_result = code_error
@@ -667,7 +667,7 @@ def test_print_code_result_matches_actual_transform_polars(
 
     try:
         loc = {"pl": pl, "my_df": my_df.clone()}
-        exec(polars_code, globals(), loc)
+        exec(polars_code, globals(), loc)  # noqa: S102
         code_result = loc.get("my_df_next")
     except Exception as code_error:
         code_result = code_error
@@ -866,7 +866,7 @@ def test_print_code_result_matches_actual_transform_ibis(
     assert ibis_code
 
     loc = {"ibis": ibis, "my_df": my_df}
-    exec(ibis_code, {}, loc)
+    exec(ibis_code, {}, loc)  # noqa: S102
     code_result = loc.get("my_df_next")
 
     # For pivot transform the column order can be different, enforce column order by sorting.
@@ -933,10 +933,10 @@ class TestCombinedTransforms:
         # Apply code
         if isinstance(df, pl.DataFrame):
             loc = {"pl": pl, "df": df.clone()}
-            exec(code, globals(), loc)
+            exec(code, globals(), loc)  # noqa: S102
         elif isinstance(df, pd.DataFrame):
             loc = {"pd": pd, "df": df.copy()}
-            exec(code, {}, loc)
+            exec(code, {}, loc)  # noqa: S102
 
         assert loc.get("df_next") is not None
 

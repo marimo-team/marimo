@@ -2358,7 +2358,7 @@ class TestCacheDecorator:
                 x = state()
 
                 def g():
-                    global state
+                    global state  # noqa: PLW0602
 
                     def f(state):
                         return x + state()

@@ -189,7 +189,7 @@ async def test_loro_cleanup_on_session_close(
 
             try:
                 cell_ws.send_bytes(initial_code)
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0

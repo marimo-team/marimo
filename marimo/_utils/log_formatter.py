@@ -18,7 +18,7 @@ def _stderr_supports_color() -> bool:
             curses.setupterm()  # type: ignore[attr-defined,unused-ignore]
             if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined,unused-ignore]
                 return True
-    except Exception:
+    except Exception:  # noqa: S110
         # Very broad exception handling because it's always better to
         # fall back to non-colored logs than to break at startup.
         pass

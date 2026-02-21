@@ -459,7 +459,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     }
 
     glbls = {}
-    exec(other_cells_code, {}, glbls)
+    exec(other_cells_code, {}, glbls)  # noqa: S102
     # check existence of variables in globals and their type
     assert isinstance(
         glbls.get("ipython_data"), glbls.get("CustomData", Exception)
