@@ -46,13 +46,13 @@ def is_external_cell_id(cell_id: CellId_t) -> bool:
     Check if cell_id is from an embedded/nested app.
 
     Detects only the embedded case: a UUID4 prefix (36 chars) followed by
-    a cell ID suffix (4+ chars). Returns False for all other formats,
-    including normal 4-char cell IDs and bare UUIDs (e.g. from VSCode).
+    a non-empty cell ID suffix. Returns False for all other formats,
+    including normal cell IDs and bare UUIDs (e.g. from VSCode).
 
     Cell ID formats:
         - "Hbol"              -> normal cell (4 chars)
         - "<uuid>"            -> VSCode cell (36 chars)
-        - "<uuid>Hbol"        -> embedded cell (40+ chars) ← detected here
+        - "<uuid>Hbol"        -> embedded cell (37+ chars) ← detected here
 
     >>> is_external_cell_id("c9bf9e57-1685-4c89-bafb-ff5af830be8aHbol")
     True
