@@ -102,6 +102,7 @@ class TestStorageBackendToStorageNamespace:
     def test_converts_backend_to_namespace(self) -> None:
         mock_backend: Any = MagicMock()
         mock_backend.variable_name = VariableName("test_store")
+        mock_backend.display_name = "Amazon S3"
         mock_backend.protocol = "s3"
         mock_backend.root_path = "my-bucket"
 
@@ -110,7 +111,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("test_store"),
-                display_name="test_store",
+                display_name="Amazon S3",
                 protocol="s3",
                 root_path="my-bucket",
                 storage_entries=[],
@@ -118,30 +119,12 @@ class TestStorageBackendToStorageNamespace:
         )
         mock_backend.list_entries.assert_not_called()
 
-    def test_handles_none_variable_name(self) -> None:
-        mock_backend: Any = MagicMock()
-        mock_backend.variable_name = None
-        mock_backend.protocol = "file"
-        mock_backend.root_path = "/tmp"
-        mock_backend.list_entries.return_value = []
-
-        result = storage_backend_to_storage_namespace(mock_backend)
-
-        assert result == snapshot(
-            StorageNamespace(
-                name=None,
-                display_name="",
-                protocol="file",
-                root_path="/tmp",
-                storage_entries=[],
-            )
-        )
-
     def test_handles_none_root_path(self) -> None:
         mock_backend: Any = MagicMock()
         mock_backend.variable_name = VariableName("mem")
         mock_backend.protocol = "in-memory"
         mock_backend.root_path = None
+        mock_backend.display_name = "In-memory"
         mock_backend.list_entries.return_value = []
 
         result = storage_backend_to_storage_namespace(mock_backend)
@@ -149,7 +132,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem"),
-                display_name="mem",
+                display_name="In-memory",
                 protocol="in-memory",
                 root_path="",
                 storage_entries=[],
@@ -169,7 +152,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem_fs"),
-                display_name="mem_fs",
+                display_name="Memory",
                 protocol="memory",
                 root_path="/",
                 storage_entries=[],
@@ -188,7 +171,7 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem_store"),
-                display_name="mem_store",
+                display_name="In-memory",
                 protocol="in-memory",
                 root_path="",
                 storage_entries=[],

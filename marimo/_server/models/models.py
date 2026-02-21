@@ -23,6 +23,8 @@ from marimo._runtime.commands import (
     ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
+    StorageDownloadCommand,
+    StorageListEntriesCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
@@ -132,6 +134,25 @@ class ValidateSQLRequest(ValidateSQLCommand, tag=False):
             engine=self.engine,
             dialect=self.dialect,
             request_id=self.request_id,
+        )
+
+
+class StorageListEntriesRequest(StorageListEntriesCommand, tag=False):
+    def as_command(self) -> StorageListEntriesCommand:
+        return StorageListEntriesCommand(
+            request_id=self.request_id,
+            namespace=self.namespace,
+            limit=self.limit,
+            prefix=self.prefix,
+        )
+
+
+class StorageDownloadRequest(StorageDownloadCommand, tag=False):
+    def as_command(self) -> StorageDownloadCommand:
+        return StorageDownloadCommand(
+            request_id=self.request_id,
+            namespace=self.namespace,
+            path=self.path,
         )
 
 

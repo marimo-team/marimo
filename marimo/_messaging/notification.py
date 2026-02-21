@@ -17,7 +17,10 @@ import msgspec
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
-from marimo._data._external_storage.models import StorageNamespace
+from marimo._data._external_storage.models import (
+    StorageEntry,
+    StorageNamespace,
+)
 from marimo._data.models import (
     ColumnStats,
     DataSourceConnection,
@@ -589,6 +592,46 @@ class StorageNamespacesNotification(Notification, tag="storage-namespaces"):
     namespaces: list[StorageNamespace]
 
 
+class StorageEntriesNotification(Notification, tag="storage-entries"):
+    """Result of a storage operation that returns entries.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        entries: Storage entries returned by the operation.
+        namespace: Variable name of the storage backend.
+        prefix: The prefix that was listed (set by list_entries).
+        query: The search query that was used (set by search).
+        error: Error message if the operation failed.
+    """
+
+    name: ClassVar[str] = "storage-entries"
+    request_id: RequestId
+    entries: list[StorageEntry]
+    namespace: str
+    prefix: Optional[str] = None
+    query: Optional[str] = None
+    error: Optional[str] = None
+
+
+class StorageDownloadReadyNotification(
+    Notification, tag="storage-download-ready"
+):
+    """Signals that a storage file download is ready as a virtual file.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        url: Virtual file URL to download from.
+        filename: Suggested filename for the download.
+        error: Error message if the download failed.
+    """
+
+    name: ClassVar[str] = "storage-download-ready"
+    request_id: RequestId
+    url: Optional[str] = None
+    filename: Optional[str] = None
+    error: Optional[str] = None
+
+
 class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
     """SQL query validation result.
 
@@ -770,6 +813,8 @@ NotificationMessage = Union[
     ValidateSQLResultNotification,
     # Storage
     StorageNamespacesNotification,
+    StorageEntriesNotification,
+    StorageDownloadReadyNotification,
     # Secrets
     SecretKeysResultNotification,
     # Cache

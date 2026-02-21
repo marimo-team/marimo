@@ -9,7 +9,7 @@ import pytest
 from dirty_equals import IsDatetime, IsPositiveFloat
 from inline_snapshot import snapshot
 
-from marimo._data._external_storage.models import StorageEntry
+from marimo._data._external_storage.models import DownloadResult, StorageEntry
 from marimo._data._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
@@ -182,6 +182,101 @@ class TestObstore:
         assert result == b"hello world"
         mock_store.get_async.assert_called_once_with("some/path.txt")
 
+    async def test_download_file(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"file content")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("bucket/data/report.csv")
+
+        assert result == DownloadResult(
+            file_bytes=b"file content",
+            filename="report.csv",
+            ext="csv",
+        )
+
+    async def test_download_file_no_extension(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"data")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("bucket/noext")
+
+        assert result == DownloadResult(
+            file_bytes=b"data",
+            filename="noext",
+            ext="bin",
+        )
+
+    async def test_download_file_nested_path(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"nested")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("a/b/c/deep.tar.gz")
+
+        assert result == DownloadResult(
+            file_bytes=b"nested",
+            filename="deep.tar.gz",
+            ext="gz",
+        )
+
+    async def test_download_file_trailing_dot(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"data")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("bucket/file.")
+
+        assert result == DownloadResult(
+            file_bytes=b"data",
+            filename="file.",
+            ext="bin",
+        )
+
+    async def test_download_file_empty_path(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"data")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("")
+
+        assert result == DownloadResult(
+            file_bytes=b"data",
+            filename="download",
+            ext="bin",
+        )
+
     def test_protocol_memory(self) -> None:
         from obstore.store import MemoryStore
 
@@ -246,6 +341,13 @@ class TestObstore:
         assert Obstore.is_compatible("not a store") is False
         assert Obstore.is_compatible(42) is False
         assert Obstore.is_compatible(None) is False
+
+    def test_display_name_known_protocol(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        backend = self._make_backend(store)
+        assert backend.display_name == "In-memory"
 
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")
@@ -516,6 +618,21 @@ class TestFsspecFilesystem:
         result = await backend.download("path/to/file.txt")
         assert result == b"text content"
 
+    async def test_download_file(self) -> None:
+        mock_store = MagicMock()
+        mock_file = MagicMock()
+        mock_file.read.return_value = b"csv data"
+        mock_store.open.return_value = mock_file
+
+        backend = self._make_backend(mock_store)
+        result = await backend.download_file("bucket/export.csv")
+
+        assert result == DownloadResult(
+            file_bytes=b"csv data",
+            filename="export.csv",
+            ext="csv",
+        )
+
     def test_protocol_tuple(self) -> None:
         mock_store = MagicMock()
         mock_store.protocol = ("gcs", "gs")
@@ -553,6 +670,18 @@ class TestFsspecFilesystem:
 
         fs = MemoryFileSystem()
         assert FsspecFilesystem.is_compatible(fs) is True
+
+    def test_display_name_known_protocol(self) -> None:
+        mock_store = MagicMock()
+        mock_store.protocol = "s3"
+        backend = self._make_backend(mock_store)
+        assert backend.display_name == "Amazon S3"
+
+    def test_display_name_unknown_protocol(self) -> None:
+        mock_store = MagicMock()
+        mock_store.protocol = "custom-proto"
+        backend = self._make_backend(mock_store)
+        assert backend.display_name == "Custom-proto"
 
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")

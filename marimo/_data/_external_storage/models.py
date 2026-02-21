@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Generic, Literal, TypeVar
+from dataclasses import dataclass
+from typing import Any, Generic, Literal, TypeVar, get_args
 
 import msgspec
 
 from marimo._types.ids import VariableName
+from marimo._utils.assert_never import log_never
 
 KNOWN_STORAGE_TYPES = Literal[
     "s3", "gcs", "azure", "http", "file", "in-memory"
@@ -43,7 +45,7 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
         storage_entries: The storage entries in the storage namespace.
     """
 
-    name: VariableName | None
+    name: VariableName
     display_name: str
     protocol: str
     root_path: str
@@ -52,13 +54,27 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
 
 DEFAULT_FETCH_LIMIT = 100
 
+
+@dataclass
+class DownloadResult:
+    """Result of downloading a file from external storage.
+
+    Attributes:
+        file_bytes: The raw bytes of the downloaded file.
+        filename: The suggested filename extracted from the path.
+        ext: The file extension (without dot), or "bin" if none.
+    """
+
+    file_bytes: bytes
+    filename: str
+    ext: str
+
+
 Backend = TypeVar("Backend")
 
 
 class StorageBackend(abc.ABC, Generic[Backend]):
-    def __init__(
-        self, store: Backend, variable_name: VariableName | None
-    ) -> None:
+    def __init__(self, store: Backend, variable_name: VariableName) -> None:
         self.store = store
         self.variable_name = variable_name
 
@@ -82,10 +98,48 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     async def download(self, path: str) -> bytes:
         """Download the file at the given path."""
 
+    async def download_file(self, path: str) -> DownloadResult:
+        """Download the file at the given path with extracted metadata.
+
+        Calls download() and extracts the filename and extension from the path.
+        Subclasses can override this to customize filename extraction
+        (e.g., using content-disposition headers).
+        """
+        file_bytes = await self.download(path)
+        filename = path.rsplit("/", 1)[-1] or "download"
+        _, sep, suffix = filename.rpartition(".")
+        ext = suffix if sep and suffix else "bin"
+        return DownloadResult(
+            file_bytes=file_bytes,
+            filename=filename,
+            ext=ext,
+        )
+
     @property
     @abc.abstractmethod
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         """Return the protocol of the storage backend."""
+
+    @property
+    def display_name(self) -> str:
+        protocol = self.protocol
+        if protocol not in get_args(KNOWN_STORAGE_TYPES):
+            return protocol.capitalize()
+        if protocol == "s3":
+            return "Amazon S3"
+        elif protocol == "gcs":
+            return "Google Cloud Storage"
+        elif protocol == "azure":
+            return "Azure Blob Storage"
+        elif protocol == "http":
+            return "HTTP"
+        elif protocol == "file":
+            return "File"
+        elif protocol == "in-memory":
+            return "In-memory"
+        else:
+            log_never(protocol)  # type: ignore[arg-type]
+            return protocol
 
     @property
     @abc.abstractmethod

@@ -23,6 +23,7 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StorageNamespacesNotification,
     UIElementMessageNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
@@ -150,6 +151,10 @@ class SessionView:
         # The most recent data-connectors notification
         self.data_connectors = DataSourceConnectionsNotification(
             connections=[]
+        )
+        # The most recent external storage namespaces notification
+        self.external_storage_namespaces = StorageNamespacesNotification(
+            namespaces=[]
         )
         # The most recent Variables notification.
         self.variable_notifications: VariablesNotification = (
@@ -292,6 +297,16 @@ class SessionView:
                 connections=list(next_connections.values())
             )
 
+            # Remove any external storage namespaces that are no longer in scope.
+            next_namespaces = [
+                ns
+                for ns in self.external_storage_namespaces.namespaces
+                if ns.name in variable_names
+            ]
+            self.external_storage_namespaces = StorageNamespacesNotification(
+                namespaces=next_namespaces
+            )
+
         elif isinstance(notification, VariableValuesNotification):
             for value in notification.variables:
                 self.variable_values[value.name] = value
@@ -325,6 +340,16 @@ class SessionView:
 
             self.data_connectors = DataSourceConnectionsNotification(
                 connections=list(connections.values())
+            )
+
+        elif isinstance(notification, StorageNamespacesNotification):
+            # Merge external storage namespaces, dedupe by name and keep the latest
+            prev_namespaces = self.external_storage_namespaces.namespaces
+            namespaces_by_name = {ns.name: ns for ns in prev_namespaces}
+            for ns in notification.namespaces:
+                namespaces_by_name[ns.name] = ns
+            self.external_storage_namespaces = StorageNamespacesNotification(
+                namespaces=list(namespaces_by_name.values())
             )
 
         elif isinstance(notification, SQLTablePreviewNotification):
@@ -517,6 +542,8 @@ class SessionView:
             all_notifications.append(self.datasets)
         if self.data_connectors.connections:
             all_notifications.append(self.data_connectors)
+        if self.external_storage_namespaces.namespaces:
+            all_notifications.append(self.external_storage_namespaces)
 
         # Model messages must come before cell notifications to ensure
         # the model exists before the view tries to use it.
