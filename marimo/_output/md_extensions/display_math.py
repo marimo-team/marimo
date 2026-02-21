@@ -231,10 +231,9 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                         i += 1
                         continue
 
-                    is_option_line = (
-                        self._count_indent(current_line) > base_indent
-                        and current_line.strip().startswith(":")
-                    )
+                    is_option_line = self._count_indent(
+                        current_line
+                    ) > base_indent and current_line.strip().startswith(":")
                     if is_option_line:
                         i += 1
                         continue
