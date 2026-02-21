@@ -125,12 +125,16 @@ export class RequestingTree {
     await this.refreshAll([parentPath]);
   }
 
-  async createFile(name: string, parentId: string | null): Promise<void> {
+  async createFile(
+    name: string,
+    parentId: string | null,
+    type: "file" | "notebook" = "file",
+  ): Promise<void> {
     const parentPath = parentId
       ? (this.delegate.find(parentId)?.data.path ?? parentId)
       : this.rootPath;
     const newFile = await this.callbacks
-      .createFileOrFolder({ path: parentPath, type: "file", name: name })
+      .createFileOrFolder({ path: parentPath, type: type, name: name })
       .then(this.handleResponse);
     if (!newFile?.info) {
       return;
