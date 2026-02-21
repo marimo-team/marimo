@@ -41,7 +41,7 @@ points inside the selection. When nothing is selected, `fig.value` is falsy and
 
 #### Example
 
-<!-- TODO add a WASM version when shipped. -->
+/// tab | code
 
 ```python
 import matplotlib.pyplot as plt
@@ -61,6 +61,38 @@ ax
 mask = ax.value.get_mask(x, y)
 selected_x, selected_y = x[mask], y[mask]
 ```
+
+///
+
+/// tab | live example
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    x = np.random.randn(500)
+    y = np.random.randn(500)
+    plt.scatter(x, y)
+    ax = mo.ui.matplotlib(plt.gca())
+    ax
+    return
+
+@app.cell
+def __():
+    mask = ax.value.get_mask(x, y)
+    selected_x, selected_y = x[mask], y[mask]
+    mo.md(f"**Selected {selected_x.size} / {x.size} points**")
+    return
+```
+
+///
+
+///
 
 #### Debouncing
 
@@ -284,7 +316,7 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 @app.cell(hide_code=True)
 async def __():
     import micropip
-    await micropip.install("plotly[express]")
+    await micropip.install(["plotly[express]", "pandas"])
     import plotly.express as px
     return px,
 
