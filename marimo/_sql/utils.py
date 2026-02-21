@@ -112,9 +112,11 @@ def convert_to_output(
             raise ValueError("to_native is required for native output format")
         return to_native()
 
-    if sql_output_format in ("polars", "lazy-polars"):
-        if not DependencyManager.polars.has():
-            raise_df_import_error("polars[pyarrow]")
+    if (
+        sql_output_format in ("polars", "lazy-polars")
+        and not DependencyManager.polars.has()
+    ):
+        raise_df_import_error("polars[pyarrow]")
 
     if sql_output_format == "polars":
         return to_polars()

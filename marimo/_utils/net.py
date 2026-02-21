@@ -127,7 +127,7 @@ def _bind_sockets(
                     raise
         if reuse_port:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        if af == socket.AF_INET6:
+        if af == socket.AF_INET6:  # noqa: SIM102
             # On linux, ipv6 sockets accept ipv4 too by default,
             # but this makes it impossible to bind to both
             # 0.0.0.0 in ipv4 and :: in ipv6.  On other systems,
@@ -192,7 +192,6 @@ def find_free_port(port: int, attempts: int = 100, addr: str = "") -> int:
     try:
         sockets = _bind_sockets(port, addr)
         sockets[0].close()
-        return port
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             LOGGER.debug("Port %d already in use, trying another port.", port)
@@ -201,6 +200,8 @@ def find_free_port(port: int, attempts: int = 100, addr: str = "") -> int:
             getattr(errno, "WSAEACCES", errno.EACCES),
         ):
             LOGGER.warning("Permission to listen on port %d denied.", port)
+    else:
+        return port
 
     next_port = min(port + 1, 65535)
     if next_port == port:

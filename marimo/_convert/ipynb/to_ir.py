@@ -76,11 +76,11 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
             transformed_tree = visitor.visit(tree)
             # Don't unparse if no changes were made
             # otherwise we lose comments and formatting
+            if visitor.made_changes:
+                return ast.unparse(transformed_tree)
         except SyntaxError:
             return source
         else:
-            if visitor.made_changes:
-                return ast.unparse(transformed_tree)
             return source
 
     return [transform(source) for source in sources]
@@ -707,7 +707,7 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
                             # Use the original spec (preserves git URLs)
                             resolved.append(original_specs[pkg_name])
                 return sorted(set(resolved))
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):  # noqa: S110
         # uv not available or failed, fall through to unpinning
         pass
 

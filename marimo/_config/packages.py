@@ -63,7 +63,7 @@ def infer_package_manager() -> PackageManagerKind:
             return "pip"
 
         # If no specific markers found, default to pip
-        return "pip"
+        return "pip"  # noqa: TRY300
     except Exception:
         # Fallback to pip
         return "pip"
@@ -110,6 +110,5 @@ def infer_package_manager_from_lockfile(
         for lockfile, manager in lockfile_map.items():
             if (root_dir / lockfile).exists():
                 return manager
-        return None
     except Exception:
         return None

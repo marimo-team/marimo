@@ -108,7 +108,7 @@ def _has_geoshape(spec: altair.TopLevelMixin) -> bool:
                 return any(_has_geoshape(layer) for layer in spec.hconcat)
             return False
         mark = spec.mark  # type: ignore
-        return mark == "geoshape" or mark.type == "geoshape"  # type: ignore
+        return mark == "geoshape" or mark.type == "geoshape"  # type: ignore  # noqa: TRY300
     except Exception:
         return False
 
@@ -233,7 +233,7 @@ def _filter_dataframe(
 
     for channel, fields in selection.items():
         if not isinstance(channel, str) or not isinstance(fields, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Invalid selection format for channel: {channel}"
             )
 
@@ -291,17 +291,16 @@ def _filter_dataframe(
 
             # Validate that resolved values have compatible types
             # If coercion failed, the values will still be strings when they should be dates/numbers
-            if nw.Date == dtype or (
-                nw.Datetime == dtype and isinstance(dtype, nw.Datetime)
-            ):
-                # Check if any values are still strings (indicating failed coercion)
-                if any(isinstance(v, str) for v in resolved_values):
-                    LOGGER.error(
-                        f"Type mismatch for field '{field}': Column has {dtype} type, "
-                        f"but values {resolved_values} could not be properly coerced. "
-                        "Skipping this filter condition."
-                    )
-                    continue
+            if (
+                nw.Date == dtype
+                or (nw.Datetime == dtype and isinstance(dtype, nw.Datetime))
+            ) and any(isinstance(v, str) for v in resolved_values):
+                LOGGER.error(
+                    f"Type mismatch for field '{field}': Column has {dtype} type, "
+                    f"but values {resolved_values} could not be properly coerced. "
+                    "Skipping this filter condition."
+                )
+                continue
 
             try:
                 if is_point_selection and not is_binned:
@@ -381,7 +380,7 @@ def _coerce_value(value: Any, dtype: Any) -> Any:
             # Value is milliseconds since epoch
             # so we convert to seconds since epoch
             if isinstance(value, (int, float)):
-                return datetime.date.fromtimestamp(value / 1000)
+                return datetime.date.fromtimestamp(value / 1000)  # noqa: DTZ012
             # If value is already a date or datetime, return as-is
             if isinstance(value, datetime.date):
                 return value
@@ -544,7 +543,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         self._chart = original_chart
 
         if not isinstance(chart, (alt.TopLevelMixin)):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Invalid type for chart: {type(chart)}; expected altair.Chart"
             )
 
@@ -858,15 +857,19 @@ def maybe_make_full_width(chart: AltairChartType) -> AltairChartType:
                 and hasattr(chart.encoding, "column")
                 and chart.encoding.column is not alt.Undefined
             ):
-                return chart
-            return chart.properties(width="container")
-        return chart
+                result = chart
+            else:
+                result = chart.properties(width="container")
+        else:
+            result = chart
     except Exception:
         LOGGER.exception(
             "Failed to set width to full container. "
             "This is likely due to a missing dependency or an invalid chart."
         )
         return chart
+    else:
+        return result
 
 
 def maybe_fix_vegafusion_background(chart: AltairChartType) -> AltairChartType:
@@ -879,19 +882,20 @@ def maybe_fix_vegafusion_background(chart: AltairChartType) -> AltairChartType:
 
     try:
         if not _using_vegafusion():
-            return chart
-
-        # Only set background if it's not already set
-        if chart._get("background") is alt.Undefined:  # type: ignore
+            result = chart
+        elif chart._get("background") is alt.Undefined:  # type: ignore
             LOGGER.debug("setting background to transparent for vegafusion")
-            return chart.properties(background="transparent")
-        return chart
+            result = chart.properties(background="transparent")
+        else:
+            result = chart
     except Exception:
         LOGGER.exception(
             "Failed to set vegafusion background to transparent. "
             "Using chart as-is."
         )
         return chart
+    else:
+        return result
 
 
 def _has_selection_param(chart: AltairChartType) -> bool:
@@ -914,9 +918,9 @@ def _has_selection_param(chart: AltairChartType) -> bool:
                     and param.bind is alt.Undefined
                 ):
                     return True
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     return False
 
@@ -941,9 +945,9 @@ def _has_legend_param(chart: AltairChartType) -> bool:
                     and param.bind == "legend"
                 ):
                     return True
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     return False
 
