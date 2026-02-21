@@ -66,7 +66,7 @@ def replace_at_index(value: object, idx: int) -> None:
     except ContextNotInitializedError:
         return
 
-    if ctx.execution_context is None or not ctx.execution_context.output:
+    if ctx.execution_context is None:
         return
 
     output = ctx.execution_context.output
