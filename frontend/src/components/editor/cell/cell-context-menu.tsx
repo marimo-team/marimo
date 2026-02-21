@@ -151,11 +151,25 @@ export const CellActionsContextMenu = ({
       icon: <ImageIcon size={13} strokeWidth={1.5} />,
       label: "Download image",
       hidden: !imageRightClicked,
-      handle: () => {
+      handle: async () => {
         if (imageRightClicked) {
+          const response = await fetch(imageRightClicked.src);
+          const blob = await response.blob();
+
+          // This list should be kept in sync with the image MIME types
+          // handled in frontend/src/components/editor/Output.tsx
+          const extensions = ["avif", "bmp", "gif", "jpeg", "svg", "tiff"];
+          let fileExtension = "png"; // Default extension
+          for (const extension of extensions) {
+            // Use blob.type (e.g., "image/svg+xml") to check for extension
+            if (blob.type.includes(extension)) {
+              fileExtension = extension;
+              break;
+            }
+          }
           const link = document.createElement("a");
-          link.download = "image.png";
-          link.href = imageRightClicked.src;
+          link.download = `image.${fileExtension}`;
+          link.href = URL.createObjectURL(blob);
           link.click();
         }
       },
