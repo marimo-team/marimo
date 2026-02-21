@@ -16,6 +16,7 @@ import {
   updateEditorCodeFromPython,
 } from "../language/utils";
 import { createNotebookLens, type NotebookLens } from "./lens";
+import { normalizeLspDocumentation } from "./normalize-markdown-math";
 import {
   CellDocumentUri,
   type ILanguageServerClient,
@@ -88,6 +89,56 @@ const defaultGetNotebookEditors = () => {
   const evs = getNotebook().cellHandles;
   return Objects.mapValues(evs, (r) => r.current?.editorViewOrNull);
 };
+
+function normalizeTextDocumentation(
+  documentation: string | LSP.MarkupContent | undefined,
+): string | LSP.MarkupContent | undefined {
+  const normalized = normalizeLspDocumentation(
+    documentation as LSP.MarkupContent | LSP.MarkedString | undefined,
+  );
+  if (Array.isArray(normalized)) {
+    return documentation;
+  }
+  return normalized as string | LSP.MarkupContent | undefined;
+}
+
+function normalizeCompletionItem(item: LSP.CompletionItem): LSP.CompletionItem {
+  return {
+    ...item,
+    documentation: normalizeTextDocumentation(item.documentation),
+  };
+}
+
+function normalizeCompletionResponse(
+  response: LSP.CompletionList | LSP.CompletionItem[] | null,
+): LSP.CompletionList | LSP.CompletionItem[] | null {
+  if (response == null) {
+    return null;
+  }
+  if (Array.isArray(response)) {
+    return response.map((item) => normalizeCompletionItem(item));
+  }
+  return {
+    ...response,
+    items: response.items.map((item) => normalizeCompletionItem(item)),
+  };
+}
+
+function normalizeSignatureHelpResponse(
+  response: LSP.SignatureHelp,
+): LSP.SignatureHelp {
+  return {
+    ...response,
+    signatures: response.signatures.map((signature) => ({
+      ...signature,
+      documentation: normalizeTextDocumentation(signature.documentation),
+      parameters: signature.parameters?.map((parameter) => ({
+        ...parameter,
+        documentation: normalizeTextDocumentation(parameter.documentation),
+      })),
+    })),
+  };
+}
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
   public readonly documentUri: LSP.DocumentUri;
@@ -372,7 +423,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return null;
     }
 
-    return response;
+    return normalizeSignatureHelpResponse(response);
   }
 
   /**
@@ -569,7 +620,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return cached;
     }
 
-    const resolved = this.client.completionItemResolve(params);
+    const resolved = this.client
+      .completionItemResolve(params)
+      .then((item) => normalizeCompletionItem(item));
     this.completionItemCache.set(key, resolved);
     return resolved;
   }
@@ -626,6 +679,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         value: hover.contents.value,
       };
     }
+    hover.contents =
+      normalizeLspDocumentation(hover.contents) ?? hover.contents;
 
     // Empty
     if (hover.contents === "") {
@@ -679,13 +734,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const transformedPosition = lens.transformPosition(params.position, cellId);
 
-    return this.client.textDocumentCompletion({
+    const response = await this.client.textDocumentCompletion({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
       position: transformedPosition,
     });
+    return normalizeCompletionResponse(response);
   }
 
   /**
