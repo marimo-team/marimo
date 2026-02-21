@@ -9,7 +9,7 @@ from __future__ import annotations
 import abc
 import threading
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app_config import _AppConfig
@@ -67,8 +67,8 @@ class ExecutionContext:
     # Cell ID corresponding to local graph object, and not prefixed in script
     # context.
     local_cell_id: Optional[CellId_t] = None
-    # output object set imperatively
-    output: Optional[list[Html]] = None
+    # output objects set imperatively via mo.output.append/replace
+    output: list[Html] = field(default_factory=list)
     duckdb_connection: duckdb.DuckDBPyConnection | None = None
 
     @contextmanager

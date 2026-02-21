@@ -331,7 +331,7 @@ def _broadcast_outputs(
     # 2. otherwise if exc_ctx.output is None, then need to send
     #    the (empty) output (to clear it)
     should_send_output = (
-        run_result.output is not None or run_result.accumulated_output is None
+        run_result.output is not None or not run_result.accumulated_output
     )
     if (
         run_result.success()

@@ -95,7 +95,7 @@ class AppKernelRunner:
             del ctx
             if (
                 run_result.output is None
-                and run_result.accumulated_output is not None
+                and run_result.accumulated_output
             ):
                 self.outputs[cell.cell_id] = vstack(
                     run_result.accumulated_output

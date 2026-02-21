@@ -42,10 +42,11 @@ def replace(value: object) -> None:
 
     if ctx.execution_context is None:
         return
-    elif value is None:
-        ctx.execution_context.output = None
-    else:
-        ctx.execution_context.output = [formatting.as_html(value)]
+
+    # Mutate in place to preserve list sharing with mo.Thread.
+    ctx.execution_context.output.clear()
+    if value is not None:
+        ctx.execution_context.output.append(formatting.as_html(value))
     write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
@@ -66,7 +67,7 @@ def replace_at_index(value: object, idx: int) -> None:
     except ContextNotInitializedError:
         return
 
-    if ctx.execution_context is None or ctx.execution_context.output is None:
+    if ctx.execution_context is None or not ctx.execution_context.output:
         return
     elif idx > len(ctx.execution_context.output):
         raise IndexError(
@@ -100,10 +101,7 @@ def append(value: object) -> None:
     if ctx.execution_context is None:
         return
 
-    if ctx.execution_context.output is None:
-        ctx.execution_context.output = [formatting.as_html(value)]
-    else:
-        ctx.execution_context.output.append(formatting.as_html(value))
+    ctx.execution_context.output.append(formatting.as_html(value))
     write_internal(
         cell_id=ctx.execution_context.cell_id,
         value=vstack(ctx.execution_context.output),
@@ -126,7 +124,7 @@ def flush() -> None:
     if ctx.execution_context is None:
         return
 
-    if ctx.execution_context.output is not None:
+    if ctx.execution_context.output:
         value = vstack(ctx.execution_context.output)
     else:
         value = None
@@ -140,10 +138,10 @@ def remove(value: object) -> None:
     except ContextNotInitializedError:
         return
 
-    if ctx.execution_context is None or ctx.execution_context.output is None:
+    if ctx.execution_context is None or not ctx.execution_context.output:
         return
-    output = [
+    # Mutate in place to preserve list sharing with mo.Thread.
+    ctx.execution_context.output[:] = [
         item for item in ctx.execution_context.output if item is not value
     ]
-    ctx.execution_context.output = output if output else None
     flush()
