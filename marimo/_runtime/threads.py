@@ -84,6 +84,16 @@ class Thread(threading.Thread):
         ctx = get_context()
         ctx.cell_lifecycle_registry.add(ThreadLifecycle())
 
+        # Ensure the parent's output list exists so child threads can
+        # share it.  This keeps accumulated_output non-None after the
+        # cell finishes, preventing the post-execution hook from
+        # wiping thread-produced output.
+        if (
+            ctx.execution_context is not None
+            and ctx.execution_context.output is None
+        ):
+            ctx.execution_context.output = []
+
         if isinstance(ctx, KernelRuntimeContext):
             self._marimo_ctx = KernelRuntimeContext(**ctx.__dict__)
             # standard IO is not yet threadsafe
@@ -151,11 +161,9 @@ class Thread(threading.Thread):
         output = None
         if self._marimo_ctx is not None:
             if (exec_ctx := self._marimo_ctx.execution_context) is not None:
-                output = (
-                    [v for v in exec_ctx.output]
-                    if exec_ctx.output is not None
-                    else None
-                )
+                # Share the parent's output list so appends from any
+                # thread are visible to the main execution context.
+                output = exec_ctx.output
 
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
             self._marimo_ctx.execution_context = ExecutionContext(
