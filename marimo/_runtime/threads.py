@@ -151,6 +151,7 @@ class Thread(threading.Thread):
             self._marimo_ctx.execution_context = ExecutionContext(
                 cell_id=self._marimo_ctx.stream.cell_id,  # type: ignore
                 setting_element_value=False,
+                output=self._marimo_ctx.execution_context.output,
             )
         thread_id = threading.get_ident()
         THREADS.add(thread_id)
