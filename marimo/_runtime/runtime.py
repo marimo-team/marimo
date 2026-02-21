@@ -674,7 +674,7 @@ class Kernel:
         self.packages_callbacks.update_package_manager(package_manager)
 
         if (
-            (autoreload_mode in {"lazy", "autorun"})
+            (autoreload_mode == "lazy" or autoreload_mode == "autorun")  # noqa: PLR1714
             # Pyodide doesn't support hot module reloading
             and not is_pyodide()
         ):

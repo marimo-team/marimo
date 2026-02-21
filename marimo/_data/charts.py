@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 import narwhals.stable.v2 as nw
 
 from marimo._data.models import DataType
-from marimo._utils import assert_never
+from marimo._utils.assert_never import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
 from marimo._utils.theme import get_current_theme
 
@@ -818,7 +818,11 @@ def get_chart_builder(
         return WrapperChartBuilder(
             StringChartBuilder(should_limit_to_10_items)
         )
-    if column_type in {"date", "datetime", "time"}:
+    if (
+        column_type == "date"  # noqa: PLR1714
+        or column_type == "datetime"
+        or column_type == "time"
+    ):
         return WrapperChartBuilder(DateChartBuilder())
     if column_type == "boolean":
         return WrapperChartBuilder(BooleanChartBuilder())

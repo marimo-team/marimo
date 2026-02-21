@@ -360,9 +360,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
         keep = transform.keep
-        if keep in {"any", "none"}:
+        if keep == "any" or keep == "none":  # noqa: PLR1714
             return df.unique(subset=transform.column_ids, keep=keep)
-        if keep in {"first", "last"}:
+        if keep == "first" or keep == "last":  # noqa: PLR1714
             # Note: narwhals unique requires collecting first for unique with keep "first/last
             return (
                 df.collect()

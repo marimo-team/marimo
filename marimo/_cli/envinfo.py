@@ -80,7 +80,7 @@ def get_default_locale() -> str:
     except Exception:
         return "--"
     else:
-        return result
+        return result or "--"
 
 
 def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:

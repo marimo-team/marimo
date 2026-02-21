@@ -112,3 +112,4 @@ def infer_package_manager_from_lockfile(
                 return manager
     except Exception:
         return None
+    return None

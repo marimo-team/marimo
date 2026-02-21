@@ -92,6 +92,7 @@ def _check_port_in_use(port: int) -> Optional[str]:
                 return container_id
     except subprocess.CalledProcessError:
         return None
+    return None
 
 
 def run_in_docker(

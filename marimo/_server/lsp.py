@@ -682,7 +682,7 @@ class NoopLspServer(LspServer):
 
 
 class CompositeLspServer(LspServer):
-    LANGUAGE_SERVERS: ClassVar[dict[str, type[LspServer]]] = {
+    LANGUAGE_SERVERS: ClassVar[dict[str, type[BaseLspServer]]] = {
         "pylsp": PyLspServer,
         "basedpyright": BasedpyrightServer,
         "ty": TyServer,
