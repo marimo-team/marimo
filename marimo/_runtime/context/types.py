@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app_config import _AppConfig
 from marimo._messaging.context import HTTP_REQUEST_CTX
-from marimo._runtime.cell_output import CellOutputList
+from marimo._runtime.cell_output_list import CellOutputList
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -68,7 +68,7 @@ class ExecutionContext:
     # Cell ID corresponding to local graph object, and not prefixed in script
     # context.
     local_cell_id: Optional[CellId_t] = None
-    # output objects set imperatively via mo.output.append/replace
+    # outputs set imperatively via mo.output.append and associated functions
     output: CellOutputList = field(default_factory=CellOutputList)
     duckdb_connection: duckdb.DuckDBPyConnection | None = None
 

@@ -43,11 +43,10 @@ def replace(value: object) -> None:
         return
 
     output = ctx.execution_context.output
-    with output.lock:
-        output.clear()
-        if value is not None:
-            output.append(formatting.as_html(value))
-        write_internal(cell_id=ctx.execution_context.cell_id, value=value)
+    output.clear()
+    if value is not None:
+        output.append(formatting.as_html(value))
+    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
 @mddoc
@@ -71,12 +70,11 @@ def replace_at_index(value: object, idx: int) -> None:
         return
 
     output = ctx.execution_context.output
-    with output.lock:
-        output.replace_at_index(formatting.as_html(value), idx)
-        write_internal(
-            cell_id=ctx.execution_context.cell_id,
-            value=output.stack(),
-        )
+    output.replace_at_index(formatting.as_html(value), idx)
+    write_internal(
+        cell_id=ctx.execution_context.cell_id,
+        value=output.stack(),
+    )
 
 
 @mddoc
@@ -98,12 +96,11 @@ def append(value: object) -> None:
         return
 
     output = ctx.execution_context.output
-    with output.lock:
-        output.append(formatting.as_html(value))
-        write_internal(
-            cell_id=ctx.execution_context.cell_id,
-            value=output.stack(),
-        )
+    output.append(formatting.as_html(value))
+    write_internal(
+        cell_id=ctx.execution_context.cell_id,
+        value=output.stack(),
+    )
 
 
 @mddoc
@@ -123,10 +120,9 @@ def flush() -> None:
         return
 
     output = ctx.execution_context.output
-    with output.lock:
-        write_internal(
-            cell_id=ctx.execution_context.cell_id, value=output.stack()
-        )
+    write_internal(
+        cell_id=ctx.execution_context.cell_id, value=output.stack()
+    )
 
 
 def remove(value: object) -> None:
@@ -139,6 +135,5 @@ def remove(value: object) -> None:
     if ctx.execution_context is None or not ctx.execution_context.output:
         return
     output = ctx.execution_context.output
-    with output.lock:
-        output.remove(value)
-        flush()
+    output.remove(value)
+    flush()

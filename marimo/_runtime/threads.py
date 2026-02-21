@@ -17,7 +17,7 @@ from marimo._runtime.context.types import (
     runtime_context_installed,
     teardown_context,
 )
-from marimo._runtime.cell_output import CellOutputList
+from marimo._runtime.cell_output_list import CellOutputList
 
 # Set of thread ids for running mo.Threads
 THREADS: set[int] = set()
@@ -152,9 +152,8 @@ class Thread(threading.Thread):
         output = CellOutputList()
         if self._marimo_ctx is not None:
             if (exec_ctx := self._marimo_ctx.execution_context) is not None:
-                # Share the parent's CellOutputList so appends from any
-                # thread are visible to the main execution context,
-                # and the shared RLock serialises mutate+broadcast.
+                # Share the parent's CellOutputList so appends from threads
+                # are visible to the main execution context.
                 output = exec_ctx.output
 
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
