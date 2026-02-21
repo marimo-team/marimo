@@ -569,7 +569,7 @@ class table(
 
         app_mode = get_mode()
         # Some panels are not as useful in non-edit mode and require an external dependency
-        show_column_explorer = app_mode == "edit" or app_mode == "run"
+        show_column_explorer = app_mode in {"edit", "run"}
         show_chart_builder = app_mode == "edit"
 
         show_page_size_selector = True
@@ -812,11 +812,7 @@ class table(
             self._has_any_selection = len(coordinates) > 0
             return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
-            indices = [
-                int(v)
-                for v in value
-                if isinstance(v, int) or isinstance(v, str)
-            ]
+            indices = [int(v) for v in value if isinstance(v, (int, str))]
             self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
@@ -966,7 +962,7 @@ class table(
                     column
                 )
                 # For boolean columns, we can drop the column since we use stats
-                if column_type == "boolean" or column_type == "unknown":
+                if column_type in {"boolean", "unknown"}:
                     cols_to_drop.append(column)
 
                 # Handle columns with all nulls first
@@ -1106,7 +1102,6 @@ class table(
         if DependencyManager.pyarrow.has():
             try:
                 data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
-                return data_url, "arrow"
             except NotImplementedError:
                 LOGGER.debug(
                     "Arrow export not implemented, falling back to CSV."
@@ -1117,23 +1112,25 @@ class table(
         # Try CSV
         try:
             data_url = mo_data.csv(table_manager.to_csv({})).url
-            return data_url, "csv"
         except (ValueError, NotImplementedError):
             LOGGER.debug("CSV export failed, falling back to JSON.")
         except Exception as e:
             LOGGER.error("Unexpected error exporting CSV: %s", e)
+        else:
+            return data_url, "csv"
 
         # Fallback to JSON
         try:
             data_url = mo_data.json(
                 table_manager.to_json({}, ensure_ascii=True)
             ).url
-            return data_url, "json"
         except Exception as e:
             LOGGER.error(
                 "Failed to export table data as Arrow, CSV, or JSON: %s", e
             )
             raise
+        else:
+            return data_url, "json"
 
     def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
         """Get the data URL for the entire table. Used for charting."""
@@ -1225,10 +1222,9 @@ class table(
         column = args.column
 
         # We use a placeholder for table names
-        column_preview = get_column_preview_dataset(
+        return get_column_preview_dataset(
             self._searched_manager, "_df", column
         )
-        return column_preview
 
     def _style_cells(
         self,
@@ -1466,7 +1462,7 @@ class table(
             )
 
         # For dictionary or list data, return sequential indices
-        if isinstance(self.data, dict) or isinstance(self.data, list):
+        if isinstance(self.data, (dict, list)):
             return GetRowIdsResponse(
                 row_ids=list(range(num_rows_searched)),
                 all_rows=False,
@@ -1523,9 +1519,12 @@ def _validate_frozen_columns(
     )
 
     # Convert sequences to sets for O(1) lookups
-    if freeze_columns_left_set and freeze_columns_right_set:
-        if not freeze_columns_left_set.isdisjoint(freeze_columns_right_set):
-            raise ValueError("The same column cannot be frozen on both sides.")
+    if (
+        freeze_columns_left_set
+        and freeze_columns_right_set
+        and not freeze_columns_left_set.isdisjoint(freeze_columns_right_set)
+    ):
+        raise ValueError("The same column cannot be frozen on both sides.")
 
     # Check all frozen columns exist
     if freeze_columns_left_set:

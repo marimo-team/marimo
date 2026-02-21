@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import random
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -162,7 +162,7 @@ def test_save_with_header(client: TestClient) -> None:
     path = Path(filename)
     assert path.exists()
 
-    copyright_year = datetime.now().year
+    copyright_year = datetime.now(tz=timezone.utc).year
     header = (
         '"""This is a docstring"""\n\n'
         + f"# Copyright {copyright_year}\n# Linter ignore\n"
@@ -337,7 +337,8 @@ def test_copy_file(client: TestClient) -> None:
     assert filename_copy in response.text
 
     def _assert_contents():
-        file_contents = open(copied_file).read()
+        with open(copied_file) as f:
+            file_contents = f.read()
         assert "import marimo as mo" in file_contents
         assert 'marimo.App(width="full"' in file_contents
 

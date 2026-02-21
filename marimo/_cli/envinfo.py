@@ -55,25 +55,32 @@ def get_default_locale() -> str:
         # Use getlocale() with LC_ALL as a fallback chain
         loc = locale.getlocale(locale.LC_ALL)
         if loc[0]:
-            return loc[0]
-        # Try LC_MESSAGES on Unix-like systems
-        try:
-            loc = locale.getlocale(locale.LC_MESSAGES)
-            if loc[0]:
-                return loc[0]
-        except AttributeError:
-            pass
-        # Fall back to environment variable check
-        import os
+            result = loc[0]
+        else:
+            # Try LC_MESSAGES on Unix-like systems
+            result = None
+            try:
+                loc = locale.getlocale(locale.LC_MESSAGES)
+            except AttributeError:
+                pass
+            else:
+                if loc[0]:
+                    result = loc[0]
+            if result is None:
+                # Fall back to environment variable check
+                import os
 
-        for env_var in ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"):
-            val = os.environ.get(env_var)
-            if val:
-                # Extract locale name (e.g., "en_US" from "en_US.UTF-8")
-                return val.split(".")[0]
-        return "--"
+                result = "--"
+                for env_var in ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"):
+                    val = os.environ.get(env_var)
+                    if val:
+                        # Extract locale name (e.g., "en_US" from "en_US.UTF-8")
+                        result = val.split(".")[0]
+                        break
     except Exception:
         return "--"
+    else:
+        return result or "--"
 
 
 def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:

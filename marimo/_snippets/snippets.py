@@ -80,7 +80,7 @@ def get_title_from_code(code: str) -> str:
     if not code:
         return ""
     code = code.strip()
-    if not (code.startswith("mo.md") or code.startswith("#")):
+    if not (code.startswith(("mo.md", "#"))):
         return ""
 
     start = code.find("#")

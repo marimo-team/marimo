@@ -97,12 +97,8 @@ class NavMenuItemGroup:
 def _build_and_validate_menu(menu: dict[str, JSONType]) -> NavMenu:
     def validate_href(href: str) -> str:
         if not isinstance(href, str):
-            raise ValueError(f"Invalid href: {href}, expected string")
-        if (
-            href.startswith("/")
-            or href.startswith("#")
-            or href.startswith("http")
-        ):
+            raise ValueError(f"Invalid href: {href}, expected string")  # noqa: TRY004
+        if href.startswith(("/", "#", "http")):
             return href
         raise ValueError(f"Invalid href: {href}, must start with / or #")
 
@@ -145,12 +141,12 @@ def _build_and_validate_menu(menu: dict[str, JSONType]) -> NavMenu:
                         )
                     )
                 else:
-                    raise ValueError(
+                    raise ValueError(  # noqa: TRY004
                         f"Invalid submenu item: {vv}, expected string, or dict"
                     )
             items.append(NavMenuItemGroup(label=md(k).text, items=subitems))
         else:
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Invalid menu item: {v}, expected string or dict"
             )
     return NavMenu(items=items)

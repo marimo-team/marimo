@@ -67,7 +67,7 @@ async def test_stop_output(execution_kernel: Kernel) -> None:
     )
     # Run the cell through the runner to get the output
     runner = cell_runner.Runner(
-        set(["0"]),
+        {"0"},
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,

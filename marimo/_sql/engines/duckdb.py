@@ -118,11 +118,14 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             with self._install_connection(connection):
                 row = connection.sql("SELECT CURRENT_DATABASE()").fetchone()
             if row is not None and row[0] is not None:
-                return str(row[0])
-            return None
+                result = str(row[0])
+            else:
+                result = None
         except Exception:
             LOGGER.info("Failed to get current database")
             return None
+        else:
+            return result
 
     def get_default_schema(self) -> Optional[str]:
         try:
@@ -134,11 +137,14 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             with self._install_connection(connection):
                 row = connection.sql("SELECT CURRENT_SCHEMA()").fetchone()
             if row is not None and row[0] is not None:
-                return str(row[0])
-            return None
+                result = str(row[0])
+            else:
+                result = None
         except Exception:
             LOGGER.info("Failed to get current schema")
             return None
+        else:
+            return result
 
     def get_databases(
         self,

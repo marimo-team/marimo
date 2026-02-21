@@ -172,24 +172,26 @@ class TestPrintOverride:
             context.execution_context = MagicMock(spec=ExecutionContext)
             context.execution_context.cell_id = "cell1"
 
-            with patch(
-                "marimo._messaging.print_override._original_print"
-            ) as mock_print:
-                with patch(
+            with (
+                patch(
+                    "marimo._messaging.print_override._original_print"
+                ) as mock_print,
+                patch(
                     "marimo._messaging.print_override.get_context",
                     return_value=context,
-                ):
-                    print_override("Hello", 123, True, None)
+                ),
+            ):
+                print_override("Hello", 123, True, None)
 
-                    # Original print should not be called
-                    mock_print.assert_not_called()
+                # Original print should not be called
+                mock_print.assert_not_called()
 
-                    # Message should be sent to the stream with all args converted to strings
-                    assert len(stream.operations) == 1
-                    assert (
-                        stream.operations[0]["console"]["data"]
-                        == "Hello 123 True None\n"
-                    )
+                # Message should be sent to the stream with all args converted to strings
+                assert len(stream.operations) == 1
+                assert (
+                    stream.operations[0]["console"]["data"]
+                    == "Hello 123 True None\n"
+                )
         finally:
             # Clean up
             if thread_id in THREADS:

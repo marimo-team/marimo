@@ -78,7 +78,7 @@ def test_tool_msgspec_structs_expose_pydantic_hook() -> None:
     for cls in TOOL_IO_CLASSES:
         for ann in (getattr(cls, "__annotations__", {}) or {}).values():
             for resolved_type in _iter_types(ann):
-                if isinstance(resolved_type, type) and issubclass(
+                if isinstance(resolved_type, type) and issubclass(  # noqa: SIM102
                     resolved_type, msgspec.Struct
                 ):
                     if not callable(

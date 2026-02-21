@@ -345,7 +345,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             primary_keys = self.inspector.get_pk_constraint(
                 table_name, schema=schema_name
             )["constrained_columns"]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # TODO: Handle multi column PK and indexes
@@ -461,7 +461,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             else:
                 sql_statement_type = "Query / Unknown"
 
-            data = {
+            return {
                 "result_type": str(type(result)),
                 "column_info": column_info,
                 "sqlalchemy_rowcount": result.rowcount,
@@ -469,7 +469,6 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 "cache_status": str(result.context.cache_hit.name),
             }
 
-            return data
         except Exception:
             LOGGER.warning(
                 "Failed to convert cursor result to df", exc_info=True

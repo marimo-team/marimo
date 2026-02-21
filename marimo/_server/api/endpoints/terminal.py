@@ -144,7 +144,6 @@ def _decode_pty_data(
     try:
         # Decode and send data, handling partial UTF-8 sequences
         text = buffer.decode("utf-8", errors="ignore")
-        return text, b""
     except UnicodeDecodeError:
         # Keep buffer if we have incomplete UTF-8 sequence
         if len(buffer) > max_buffer_size:
@@ -152,6 +151,8 @@ def _decode_pty_data(
             text = buffer.decode("utf-8", errors="replace")
             return text, b""
         return "", buffer
+    else:
+        return text, b""
 
 
 def _should_close_on_command(command_buffer: str, data: str) -> bool:
@@ -332,9 +333,10 @@ def supports_terminal() -> bool:
     try:
         import pty  # noqa: F401
 
-        return True
     except ImportError:
         return False
+    else:
+        return True
 
 
 @router.websocket("/ws")
@@ -379,7 +381,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await websocket.close(
                     code=1011, reason="Failed to initialize terminal"
                 )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         return
 
@@ -396,8 +398,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     except WebSocketDisconnect:
         LOGGER.debug("Client disconnected from terminal")
-    except Exception as e:
-        LOGGER.exception(f"Terminal websocket error: {e}")
+    except Exception:
+        LOGGER.exception("Terminal websocket error")
     finally:
         # Ensure all tasks are cleaned up
         await _cancel_tasks([reader_task, writer_task])

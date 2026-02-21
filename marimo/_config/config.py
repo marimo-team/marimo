@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import (
     TYPE_CHECKING,
@@ -695,10 +695,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)  # noqa: PLW1508
         ),
         "std_stream_max_bytes": int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)  # noqa: PLW1508
         ),
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",

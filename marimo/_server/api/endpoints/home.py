@@ -183,7 +183,7 @@ def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
     files: list[MarimoFile] = []
     for session_id, session in app_state.session_manager.sessions.items():
         state = session.connection_state()
-        if state == ConnectionState.OPEN or state == ConnectionState.ORPHANED:
+        if state in (ConnectionState.OPEN, ConnectionState.ORPHANED):
             filename = session.app_file_manager.filename
             basename = os.path.basename(filename) if filename else None
             files.append(

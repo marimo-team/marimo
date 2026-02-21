@@ -73,7 +73,7 @@ class refresh(UIElement[int, int]):
             resolved_options = options
 
         if not isinstance(resolved_options, list):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 f"Invalid type: `options` must be a list, not {type(resolved_options)}"
             )
 

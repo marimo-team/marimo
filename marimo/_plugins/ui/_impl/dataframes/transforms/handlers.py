@@ -112,12 +112,11 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_sort_column(
         df: DataFrame, transform: SortColumnTransform
     ) -> DataFrame:
-        result = df.sort(
+        return df.sort(
             transform.column_id,
             descending=not transform.ascending,
             nulls_last=transform.na_position == "last",
         )
-        return result
 
     @staticmethod
     def handle_filter_rows(
@@ -361,9 +360,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
         keep = transform.keep
-        if keep == "any" or keep == "none":
+        if keep == "any" or keep == "none":  # noqa: PLR1714
             return df.unique(subset=transform.column_ids, keep=keep)
-        if keep == "first" or keep == "last":
+        if keep == "first" or keep == "last":  # noqa: PLR1714
             # Note: narwhals unique requires collecting first for unique with keep "first/last
             return (
                 df.collect()

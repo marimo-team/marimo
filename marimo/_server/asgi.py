@@ -260,8 +260,8 @@ class DynamicDirectoryMiddleware:
                     cache_key, cache_key
                 )
                 LOGGER.debug(f"Successfully created app for {cache_key}")
-            except Exception as e:
-                LOGGER.exception(f"Failed to create app for {cache_key}: {e}")
+            except Exception:
+                LOGGER.exception("Failed to create app for %s", cache_key)
                 await self.app(scope, receive, send)
                 return
 
@@ -275,9 +275,9 @@ class DynamicDirectoryMiddleware:
             LOGGER.debug(
                 f"Successfully handled {scope['type']} request for {cache_key}"
             )
-        except Exception as e:
+        except Exception:
             LOGGER.exception(
-                f"Error handling {scope['type']} request for {cache_key}: {e}"
+                "Error handling %s request for %s", scope["type"], cache_key
             )
             # If the app fails, fall back to the main app
             await self.app(scope, receive, send)

@@ -155,7 +155,10 @@ class EmptyCellRule(UnsafeFixRule):
         try:
             # Parse the code to check what statements it contains
             tree = ast_parse(stripped)
-
+        except SyntaxError:
+            # If it doesn't parse, check if it's only comments
+            return self._is_only_comments(code)
+        else:
             # If no statements, it's empty
             if not tree.body:
                 return True
@@ -166,10 +169,6 @@ class EmptyCellRule(UnsafeFixRule):
                     return False
 
             return True
-
-        except SyntaxError:
-            # If it doesn't parse, check if it's only comments
-            return self._is_only_comments(code)
 
     def _is_only_comments(self, code: str) -> bool:
         """Check if code contains only comments and whitespace.

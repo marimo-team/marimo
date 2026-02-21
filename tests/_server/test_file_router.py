@@ -34,31 +34,26 @@ class TestAppFileRouter(unittest.TestCase):
         # Create a temporary directory
         self.test_dir = tempfile.mkdtemp()
         # Create temporary files
-        self.test_file1 = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             delete=False, dir=self.test_dir, suffix=".py"
-        )
-        self.test_file2 = tempfile.NamedTemporaryFile(
+        ) as self.test_file1:
+            self.test_file1.write(file_contents.encode())
+        with tempfile.NamedTemporaryFile(
             delete=False, dir=self.test_dir, suffix=".py"
-        )
-        self.test_file_3 = tempfile.NamedTemporaryFile(
+        ) as self.test_file2:
+            self.test_file2.write(file_contents.encode())
+        with tempfile.NamedTemporaryFile(
             delete=False, dir=self.test_dir, suffix=".md"
-        )
-        # Write to the temporary files
-        self.test_file1.write(file_contents.encode())
-        self.test_file1.close()
-        self.test_file2.write(file_contents.encode())
-        self.test_file2.close()
-        self.test_file_3.write(b"marimo-version: 0.0.0")
-        self.test_file_3.close()
+        ) as self.test_file_3:
+            self.test_file_3.write(b"marimo-version: 0.0.0")
 
         # Create a nested directory and file
         self.nested_dir = os.path.join(self.test_dir, "nested")
         os.mkdir(self.nested_dir)
-        self.nested_file = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             delete=False, dir=self.nested_dir, suffix=".py"
-        )
-        self.nested_file.write(file_contents.encode())
-        self.nested_file.close()
+        ) as self.nested_file:
+            self.nested_file.write(file_contents.encode())
 
     def tearDown(self):
         # Clean up temporary files and directory

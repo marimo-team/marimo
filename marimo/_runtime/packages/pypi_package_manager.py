@@ -103,7 +103,7 @@ class PypiPackageManager(CanonicalizingPackageManager):
         if not self.is_manager_installed():
             return []
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8"
+            cmd, capture_output=True, text=True, encoding="utf-8", check=False
         )
         if proc.returncode != 0:
             return []
@@ -203,11 +203,12 @@ class MicropipPackageManager(PypiPackageManager):
             await micropip.install(split_packages(package))
             if log_callback:
                 log_callback(f"Successfully installed {package}\n")
-            return True
         except ValueError as e:
             if log_callback:
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
+        else:
+            return True
 
     async def uninstall(
         self, package: str, group: Optional[str] = None
@@ -219,9 +220,10 @@ class MicropipPackageManager(PypiPackageManager):
 
         try:
             micropip.uninstall(package)
-            return True
         except ValueError:
             return False
+        else:
+            return True
 
     def list_packages(self) -> list[PackageDescription]:
         assert is_pyodide()
@@ -415,15 +417,13 @@ class UvPackageManager(PypiPackageManager):
             - These should be passed directly to uv which handles them correctly
             """
             # Git URLs: git+https://, git+ssh://, git://
-            if package.startswith("git+") or package.startswith("git://"):
+            if package.startswith(("git+", "git://")):
                 return True
             # Direct references with @ (PEP 440 direct references)
             if " @ " in package:
                 return True
             # URLs (https://, http://, file://)
-            if "://" in package:
-                return True
-            return False
+            return "://" in package
 
         def _is_installed(package: str) -> bool:
             return version_map.has(package)
@@ -445,7 +445,7 @@ class UvPackageManager(PypiPackageManager):
             if _is_direct_reference(im) or _is_installed(im)
         ]
 
-        if filepath.endswith(".md") or filepath.endswith(".qmd"):
+        if filepath.endswith((".md", ".qmd")):
             # md and qmd require writing to a faux python file first.
             return self._process_md_changes(
                 filepath, packages_to_add, packages_to_remove, upgrade=upgrade
@@ -640,11 +640,11 @@ class UvPackageManager(PypiPackageManager):
         """Check if a file contains PEP 723 inline script metadata."""
         try:
             file = Path(filename)
-            return self.SCRIPT_METADATA_MARKER in file.read_text(
-                encoding="utf-8"
-            )
+            content = file.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return False
+        else:
+            return self.SCRIPT_METADATA_MARKER in content
 
     def dependency_tree(
         self, filename: Optional[str] = None
@@ -674,13 +674,13 @@ class UvPackageManager(PypiPackageManager):
             if filename is None and len(tree.dependencies) == 1:
                 return tree.dependencies[0]
 
-            return tree
-
         except subprocess.CalledProcessError:
             # Only log error if the script has dependency metadata
             if filename and self._has_script_metadata(filename):
                 LOGGER.error(f"Failed to get dependency tree for {filename}")
             return None
+        else:
+            return tree
 
 
 class RyePackageManager(PypiPackageManager):
@@ -718,7 +718,10 @@ class PoetryPackageManager(PypiPackageManager):
 
     def _get_poetry_version(self) -> int:
         proc = subprocess.run(
-            ["poetry", "--version"], capture_output=True, text=True
+            ["poetry", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if proc.returncode != 0:
             return -1  # and raise on the impl side
@@ -755,7 +758,7 @@ class PoetryPackageManager(PypiPackageManager):
             return []
 
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8"
+            cmd, capture_output=True, text=True, encoding="utf-8", check=False
         )
         if proc.returncode != 0:
             return []

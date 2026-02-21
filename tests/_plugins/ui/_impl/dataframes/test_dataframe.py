@@ -56,9 +56,7 @@ def df_length(df: IntoDataFrame | IntoLazyFrame) -> int:
 
 
 def is_not_narwhals_dataframe(df: IntoDataFrame | IntoLazyFrame) -> bool:
-    if is_narwhals_lazyframe(df) or is_narwhals_dataframe(df):
-        return False
-    return True
+    return not (is_narwhals_lazyframe(df) or is_narwhals_dataframe(df))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

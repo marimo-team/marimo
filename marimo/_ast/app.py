@@ -723,7 +723,7 @@ class App:
 
             if self._filename is not None:
                 # Run linting checks to provide better error messages for breaking errors.
-                linter, messages = collect_messages(self._filename)
+                _linter, messages = collect_messages(self._filename)
                 if messages:
                     sys.stderr.write(messages)
                 # Re-raise the original exception but without trace

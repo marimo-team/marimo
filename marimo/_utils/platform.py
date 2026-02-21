@@ -32,7 +32,6 @@ def check_shared_memory_available() -> tuple[bool, str]:
         shm = shared_memory.SharedMemory(name=test_name, create=True, size=8)
         shm.close()
         shm.unlink()
-        return True, ""
     except ImportError as e:
         return (
             False,
@@ -48,3 +47,5 @@ def check_shared_memory_available() -> tuple[bool, str]:
         )
     except Exception as e:
         return False, f"Unexpected error checking shared memory: {e}"
+    else:
+        return True, ""

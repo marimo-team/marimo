@@ -129,10 +129,10 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                 for method in cursor_methods
             )
 
-            return has_required_methods and has_cursor_methods
-
         except Exception:
             return False
+        else:
+            return has_required_methods and has_cursor_methods
 
     @staticmethod
     def is_dbapi_cursor(obj: Any) -> bool:
@@ -154,14 +154,15 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
             has_description_attr = hasattr(obj, "description")
             has_rowcount = hasattr(obj, "rowcount")
 
+        except Exception:
+            return False
+        else:
             return (
                 has_execute
                 and has_fetch
                 and has_description_attr
                 and has_rowcount
             )
-        except Exception:
-            return False
 
     @staticmethod
     def get_cursor_metadata(cursor: Any) -> dict[str, Any]:
@@ -220,11 +221,11 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                 sql_type = "Query/DML"
             meta["sql_statement_type"] = sql_type
 
-            return meta
-
         except Exception:
             LOGGER.warning("Failed to extract cursor metadata", exc_info=True)
             return {
                 "result_type": f"{type(cursor)}",
                 "error": "Failed to extract metadata",
             }
+        else:
+            return meta

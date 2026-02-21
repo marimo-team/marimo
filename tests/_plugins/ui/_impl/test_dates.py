@@ -15,7 +15,10 @@ HAS_PANDAS = DependencyManager.pandas.has()
 def test_date() -> None:
     date = ui.date()
     today = date.value
-    assert today == datetime.date.today()
+    assert (
+        today
+        == datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
+    )
 
     date._update("2024-01-01")
     assert date.value == datetime.date(2024, 1, 1)
@@ -31,7 +34,7 @@ def test_date() -> None:
 def test_datetime() -> None:
     # Test default initialization
     dt = ui.datetime()
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(tz=datetime.timezone.utc).astimezone()
     assert dt.value
     assert dt.value.date() == now.date()
     assert dt.value.hour == now.hour
@@ -87,10 +90,13 @@ def test_datetime_min_max_iso_format() -> None:
     # Verify exact format for datetime.min
     assert start_arg == "0001-01-01T00:00:00"
 
-    # Test with explicit datetime.min and datetime.max
+    # Test with explicit datetime.min and datetime.max (use strftime to avoid
+    # timezone suffix that the UI parser doesn't support)
+    min_dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+    max_dt = datetime.datetime.max.replace(tzinfo=datetime.timezone.utc)
     dt_explicit = ui.datetime(
-        start=datetime.datetime.min,
-        stop=datetime.datetime.max,
+        start=min_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+        stop=max_dt.strftime("%Y-%m-%dT%H:%M:%S"),
     )
     start_explicit = dt_explicit._args.args.get("start")
     stop_explicit = dt_explicit._args.args.get("stop")
@@ -102,7 +108,7 @@ def test_datetime_min_max_iso_format() -> None:
 def test_date_range() -> None:
     # Test default initialization
     dr = ui.date_range()
-    today = datetime.date.today()
+    today = datetime.datetime.now(tz=datetime.timezone.utc).astimezone().date()
     assert dr.value == (today, today)
 
     # Test initialization with specific values

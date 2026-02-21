@@ -31,8 +31,7 @@ def empty_ibis_backend() -> SQLBackend:
     """Create an empty in-memory DuckDB database for testing with Ibis."""
     import ibis
 
-    backend = ibis.duckdb.connect()
-    return backend
+    return ibis.duckdb.connect()
 
 
 @pytest.fixture

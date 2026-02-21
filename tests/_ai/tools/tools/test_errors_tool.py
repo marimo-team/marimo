@@ -67,8 +67,7 @@ def tool() -> GetNotebookErrors:
 @pytest.fixture
 def mock_context() -> Mock:
     """Create a mock ToolContext."""
-    context = Mock(spec=ToolContext)
-    return context
+    return Mock(spec=ToolContext)
 
 
 def test_get_notebook_errors_empty_session(mock_context: Mock) -> None:

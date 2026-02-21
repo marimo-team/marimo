@@ -185,7 +185,7 @@ async def test_message_callback_format(
     """Test that message_callback receives properly formatted JSON."""
     received_messages: list[str] = []
 
-    session, _ = create_session(
+    _session, _ = create_session(
         filename=str(mock_app_file),
         query_params={},
         message_callback=lambda text: received_messages.append(text),

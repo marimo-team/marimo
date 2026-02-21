@@ -86,12 +86,9 @@ class run_button(UIElement[Any, Any]):
         )
 
     def _convert_value(self, value: Any) -> Any:
-        if value == 0:
-            # frontend's value == 0 only during initialization; first value
-            # frontend will send is 1
-            return False
-        else:
-            return True
+        # frontend's value == 0 only during initialization; first value
+        # frontend will send is 1
+        return value != 0
 
     def _on_update_completion(self) -> bool:
         from marimo._runtime.context import get_context

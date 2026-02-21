@@ -43,9 +43,11 @@ def test_terminal_ws(client: TestClient) -> None:
 def test_terminal_ws_not_allowed_in_run(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect("/terminal/ws") as websocket:
-            websocket.send_text("echo hello")
+    with (
+        pytest.raises(WebSocketDisconnect),
+        client.websocket_connect("/terminal/ws") as websocket,
+    ):
+        websocket.send_text("echo hello")
     session_manager.mode = SessionMode.EDIT
 
 
@@ -422,9 +424,11 @@ def test_terminal_ws_invalid_session_mode(client: TestClient) -> None:
     try:
         # Test with RUN mode
         session_manager.mode = SessionMode.RUN
-        with pytest.raises(WebSocketDisconnect):
-            with client.websocket_connect("/terminal/ws"):
-                pass  # Should fail immediately
+        with (
+            pytest.raises(WebSocketDisconnect),
+            client.websocket_connect("/terminal/ws"),
+        ):
+            pass  # Should fail immediately
 
     finally:
         # Restore original mode

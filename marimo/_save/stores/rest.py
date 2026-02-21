@@ -39,10 +39,10 @@ class RestStore(Store):
                 if response.status == 200:
                     LOGGER.debug(f"GET {url} - Status: {response.status}")
                     return response.read()  # type: ignore[no-any-return]
-                if response.status >= 400 and response.status < 500:
+                if 400 <= response.status < 500:
                     # 400s are fine, they just mean the key doesn't exist
                     return None
-                raise
+                raise ValueError(f"Unexpected HTTP status: {response.status}")
         except urllib.error.HTTPError as e:
             if e.code >= 400 and e.code < 500:
                 # 400s are fine, they just mean the key doesn't exist

@@ -148,7 +148,7 @@ async def test_lens_not_bound(k: Kernel, exec_req: ExecReqProvider) -> None:
     array = k.globals["array"]
     registry = get_context().ui_element_registry
     assert not registry.bound_names(array[0]._id)
-    assert registry.bound_names(array._id) == set(["array"])
+    assert registry.bound_names(array._id) == {"array"}
 
 
 async def test_parent_bound_to_view(
@@ -167,7 +167,7 @@ async def test_parent_bound_to_view(
     )
     array = k.globals["array"]
     registry = get_context().ui_element_registry
-    assert registry.bound_names(array._id) == set(["array", "child"])
+    assert registry.bound_names(array._id) == {"array", "child"}
 
 
 async def test_dont_delete_element_with_wrong_python_id(

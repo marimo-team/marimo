@@ -103,12 +103,11 @@ def io_to_data_url(
     if DependencyManager.numpy.imported():
         import numpy as np
 
-        if isinstance(src, np.ndarray):
-            if DependencyManager.pillow.imported():
-                from PIL import Image
+        if isinstance(src, np.ndarray) and DependencyManager.pillow.imported():
+            from PIL import Image
 
-                img = Image.fromarray(np.uint8(src))
-                return io_to_data_url(img, "image/png")
+            img = Image.fromarray(np.uint8(src))
+            return io_to_data_url(img, "image/png")
 
     # Handle pathlib.Path
     if isinstance(src, pathlib.Path):

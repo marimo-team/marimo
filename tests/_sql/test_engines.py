@@ -325,8 +325,7 @@ class TestExecuteExplainModeSQLAlchemy:
         import sqlalchemy as sa
 
         sqlite_engine = sa.create_engine("sqlite:///:memory:")
-        engine = SQLAlchemyEngine(sqlite_engine)
-        return engine
+        return SQLAlchemyEngine(sqlite_engine)
 
     def test_sqlalchemy_execute(self, engine: SQLAlchemyEngine) -> None:
         """Test SQLAlchemyEngine execute method."""

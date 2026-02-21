@@ -293,11 +293,11 @@ def get_table_columns(
                 sample_values=[],
             )
             columns.append(column)
-        return columns
-
     except Exception:
         LOGGER.debug("Failed to get columns from DuckDB")
         return []
+    else:
+        return columns
 
 
 def form_databases_from_dict(
@@ -462,7 +462,6 @@ def _get_duckdb_database_names(
             # Only include non-internal databases
             if not internal:
                 database_names.append(database_name)
-        return database_names
     except Exception as e:
         if DependencyManager.duckdb.has():
             import duckdb
@@ -474,6 +473,8 @@ def _get_duckdb_database_names(
 
         LOGGER.debug("Failed to get database names from DuckDB")
         return []
+    else:
+        return database_names
 
 
 _INTEGER_TYPES = {
@@ -539,11 +540,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     if db_type in _INTEGER_TYPES or db_type.startswith("uint"):
         return "integer"
 
-    if (
-        db_type in _NUMERIC_TYPES
-        or db_type.startswith("decimal")
-        or db_type.startswith("float")
-    ):
+    if db_type in _NUMERIC_TYPES or db_type.startswith(("decimal", "float")):
         return "number"
 
     if db_type in _BOOLEAN_TYPES:
@@ -569,13 +566,9 @@ def _db_type_to_data_type(db_type: str) -> DataType:
 
     # Nested types
     if (
-        db_type.startswith("union")
-        or db_type.startswith("map")
-        or db_type.startswith("struct")
-        or db_type.startswith("list")
-        or db_type.startswith("array")
-        or db_type.startswith("json")
-        or ("[" in db_type and "]" in db_type)
+        db_type.startswith(("union", "map", "struct", "list", "array", "json"))
+        or "[" in db_type
+        and "]" in db_type
     ):
         return "unknown"
 

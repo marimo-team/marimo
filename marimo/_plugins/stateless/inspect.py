@@ -191,7 +191,7 @@ class inspect(Html):
 
         if attributes:
             table_rows = []
-            for name, value, attr_type, error in attributes:
+            for name, value, attr_type, error in attributes:  # noqa: PLR1704
                 table_rows.append(
                     _render_attribute_row(name, value, attr_type, error, docs)
                 )
@@ -323,7 +323,7 @@ def _render_value(obj: object) -> str:
         html_obj = as_html(obj)
         _, data = html_obj._mime_()
         return h.div(data, style=container_style)
-    except Exception:
+    except Exception:  # noqa: S110
         # Fall back to repr
         pass
 
@@ -463,7 +463,7 @@ def _render_value_inline(value: object) -> str:
                 data, style="font-size: 0.75rem; display: inline-block;"
             )
         return h.span(data, style="display: inline-block;")
-    except Exception:
+    except Exception:  # noqa: S110
         # Fall back to repr
         pass
 

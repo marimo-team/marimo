@@ -238,7 +238,6 @@ class DependencyManager:
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
-    dotenv = Dependency("dotenv")
     docstring_to_markdown = Dependency(
         "docstring_to_markdown", min_version="0.17.0"
     )

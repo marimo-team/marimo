@@ -27,15 +27,13 @@ UNCLONABLE_TYPES = [
     "marimo._runtime.watch._directory.DirectoryState",
 ]
 
-UNCLONABLE_MODULES = set(
-    [
-        "_asyncio",
-        "_io",
-        "marimo._ast",
-        "marimo._plugins.ui",
-        "numpy.lib.npyio",
-    ]
-)
+UNCLONABLE_MODULES = {
+    "_asyncio",
+    "_io",
+    "marimo._ast",
+    "marimo._plugins.ui",
+    "numpy.lib.npyio",
+}
 
 
 def is_external(value: Any) -> bool:
@@ -147,13 +145,13 @@ def is_unclonable_type(obj: object) -> bool:
     # Cell objects in particular are hidden by functools.wraps.
     if isinstance(obj, Cell):
         return True
-    return any([is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES])
+    return any(is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES)
 
 
 def from_unclonable_module(obj: object) -> bool:
     obj = obj if hasattr(obj, "__module__") else obj.__class__
     return hasattr(obj, "__module__") and any(
-        [obj.__module__.startswith(name) for name in UNCLONABLE_MODULES]
+        obj.__module__.startswith(name) for name in UNCLONABLE_MODULES
     )
 
 
@@ -232,14 +230,12 @@ def is_pure_function(
         # A pure function can only refer to other functions, classes, or
         # modules.
         # External variable reference makes it inherently impure.
-        if ref in defs:
-            # Recursion allows for effective DFS
-            if not (
-                inspect.ismodule(defs[ref])
-                or is_pure_function(ref, defs[ref], defs, cache, graph)
-            ):
-                cache[value] = False
-                return False
+        if ref in defs and not (
+            inspect.ismodule(defs[ref])
+            or is_pure_function(ref, defs[ref], defs, cache, graph)
+        ):
+            cache[value] = False
+            return False
         return True
 
     if graph is not None:

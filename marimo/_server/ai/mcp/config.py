@@ -50,11 +50,13 @@ def append_presets(config: MCPConfig) -> MCPConfig:
 
     # Add preset servers if not already present
     for preset_name in presets_to_add:
-        if preset_name not in updated_config["mcpServers"]:
-            if preset_name in MCP_PRESETS:
-                updated_config["mcpServers"][preset_name] = MCP_PRESETS[
-                    preset_name
-                ]
+        if (
+            preset_name not in updated_config["mcpServers"]
+            and preset_name in MCP_PRESETS
+        ):
+            updated_config["mcpServers"][preset_name] = MCP_PRESETS[
+                preset_name
+            ]
 
     return updated_config
 

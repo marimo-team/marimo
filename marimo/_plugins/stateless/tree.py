@@ -33,7 +33,7 @@ def tree(
         Html: `Html` object
     """
     if not isinstance(items, (list, tuple, dict)):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             "Argument `items` must be a list, tuple, or dict, "
             + f"but got: {type(items)}"
         )

@@ -260,15 +260,15 @@ def test_memoryview_encoding() -> None:
 
 
 def test_set_encoding() -> None:
-    set_obj = set(["a", "b"])
+    set_obj = {"a", "b"}
     encoded = encode_json_str(set_obj)
-    assert encoded == '["a","b"]' or encoded == '["b","a"]'
+    assert encoded in {'["a","b"]', '["b","a"]'}
     empty_set = set()
     encoded_empty = encode_json_str(empty_set)
     assert encoded_empty == "[]"
-    number_set = set([1, 2])
+    number_set = {1, 2}
     encoded_number = encode_json_str(number_set)
-    assert encoded_number == "[1,2]" or encoded_number == "[2,1]"
+    assert encoded_number in {"[1,2]", "[2,1]"}
 
 
 def test_tuple_encoding() -> None:
@@ -284,13 +284,13 @@ def test_collections_encoding() -> None:
     # frozenset
     frozen_set_obj = frozenset(["a", "b"])
     encoded = encode_json_str(frozen_set_obj)
-    assert encoded == '["a","b"]' or encoded == '["b","a"]'
+    assert encoded in {'["a","b"]', '["b","a"]'}
     empty_frozen_set = frozenset()
     encoded_empty = encode_json_str(empty_frozen_set)
     assert encoded_empty == "[]"
     number_frozen_set = frozenset([1, 2])
     encoded_number = encode_json_str(number_frozen_set)
-    assert encoded_number == "[1,2]" or encoded_number == "[2,1]"
+    assert encoded_number in {"[1,2]", "[2,1]"}
 
     # deque
     deque_obj = collections.deque([1, 2, 3])
@@ -769,7 +769,7 @@ def test_superjson_with_bytes() -> None:
         ([1, 2, 3], "[1,2,3]"),
         ({"a": 1, "b": 2}, '{"a":1,"b":2}'),
         ((), "[]"),
-        (set([1, 2, 3]), "[1,2,3]"),
+        ({1, 2, 3}, "[1,2,3]"),
         (frozenset([1, 2, 3]), "[1,2,3]"),
         (range(10), "[0,1,2,3,4,5,6,7,8,9]"),
         (datetime.datetime(2023, 1, 1, 12, 30, 45), '"2023-01-01 12:30:45"'),

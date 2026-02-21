@@ -94,6 +94,7 @@ if __name__ == "__main__":
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         # Check that the command completed successfully
@@ -132,6 +133,7 @@ def test_export_overwrite_behavior_with_noninteractive_terminal(
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
 
     # Check that the command completed successfully
@@ -243,6 +245,7 @@ def test_convert_with_yes_flag(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
 
     # Check that the command completed successfully

@@ -41,32 +41,32 @@ class SQLVisitor(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         # Check if the call is a method call and the method is named
         # either 'execute' or 'sql'
-        if isinstance(node.func, ast.Attribute) and node.func.attr in (
-            "execute",
-            "sql",
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in ("execute", "sql")
+            and node.args
         ):
             # Check if there are arguments and the first argument is a
             # string or f-string
-            if node.args:
-                first_arg = node.args[0]
-                sql: Optional[str] = None
-                if isinstance(first_arg, ast.Constant):
-                    sql = first_arg.value
-                elif isinstance(first_arg, ast.JoinedStr):
-                    if self._raw:
-                        f_sql = ast.unparse(first_arg)
-                        sql = dedent(
-                            f_sql[1:]
-                            .strip(f_sql[1])
-                            .encode()
-                            .decode("unicode_escape")
-                        )
-                    else:
-                        sql = normalize_sql_f_string(first_arg)
+            first_arg = node.args[0]
+            sql: Optional[str] = None
+            if isinstance(first_arg, ast.Constant):
+                sql = first_arg.value
+            elif isinstance(first_arg, ast.JoinedStr):
+                if self._raw:
+                    f_sql = ast.unparse(first_arg)
+                    sql = dedent(
+                        f_sql[1:]
+                        .strip(f_sql[1])
+                        .encode()
+                        .decode("unicode_escape")
+                    )
+                else:
+                    sql = normalize_sql_f_string(first_arg)
 
-                if sql is not None:
-                    # Append the SQL query to the list
-                    self._sqls.append(sql)
+            if sql is not None:
+                # Append the SQL query to the list
+                self._sqls.append(sql)
         # Continue walking through the AST
         self.generic_visit(node)
 
@@ -100,8 +100,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             # (e.g., interval expressions like `interval '1 days'`)
             return "1"
 
-    result = "".join(print_part(part) for part in node.values)
-    return result
+    return "".join(print_part(part) for part in node.values)
 
 
 class _TokenExtractor:
@@ -473,7 +472,7 @@ class SQLRef:
         if kind in ("table", "view"):
             return ref == self.table
         if kind == "catalog":
-            return ref == self.catalog or ref == self.schema
+            return ref in (self.catalog, self.schema)
         return False
 
 
@@ -562,9 +561,10 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             if root := build_scope(expression):
                 for scope in root.traverse():  # type: ignore
                     for _node, source in scope.selected_sources.values():
-                        if isinstance(source, exp.Table):
-                            if ref := get_ref_from_table(source):
-                                refs.add(ref)
+                        if isinstance(source, exp.Table) and (
+                            ref := get_ref_from_table(source)
+                        ):
+                            refs.add(ref)
         except OptimizeError:
             # Fall back to extracting table references without scope analysis.
             # This can happen with valid SQL that has duplicate aliases

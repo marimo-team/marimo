@@ -228,7 +228,7 @@ def test_date_chart_builder_guess_date_format_with_non_narwhalifiable_data():
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_date_chart_builder_get_date_format():
-    from datetime import date, datetime, time
+    from datetime import date, datetime, time, timezone
 
     import pandas as pd
     import polars as pl
@@ -249,7 +249,7 @@ def test_date_chart_builder_get_date_format():
             "dates": pl.Series("dates", [date(2021, 1, 1)], dtype=pl.Date),
             "times": pl.Series("times", [time(12, 0, 0)], dtype=pl.Time),
             "datetimes": pl.Series(
-                "datetimes", [datetime.now()], dtype=pl.Datetime
+                "datetimes", [datetime.now(tz=timezone.utc)], dtype=pl.Datetime
             ),
         },
     )

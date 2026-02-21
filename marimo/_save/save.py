@@ -221,11 +221,11 @@ class _cache_call(CacheContext):
         if graph is not None:
             self.scoped_refs |= graph.cells[cell_id].defs & set(glbls.keys())
             # The defined private variables of this cell, normalized
-            self.scoped_refs |= set(
+            self.scoped_refs |= {
                 unmangle_local(x).name
-                for x in glbls.keys()
+                for x in glbls
                 if is_mangled_local(x, cell_id)
-            )
+            }
 
         # Load global cache from state
         name = self.__name__
@@ -454,9 +454,9 @@ class _cache_call(CacheContext):
             runtime = time.time() - start_time
 
             self._finalize_cache_update(attempt, response, runtime, scope)
-        except Exception as e:
+        except Exception:
             failed = True
-            raise e
+            raise
         finally:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
@@ -564,9 +564,9 @@ class _cache_call_async(_cache_call):
             runtime = time.time() - start_time
 
             self._finalize_cache_update(attempt, response, runtime, scope)
-        except Exception as e:
+        except Exception:
             failed = True
-            raise e
+            raise
         finally:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
@@ -685,9 +685,12 @@ class _cache_context(SkipContext, CacheContext):
                 # Start timing for runtime tracking
                 self._start_time = time.time()
 
-                if self._cache and self._cache.hit:
-                    if lineno >= self._body_start:
-                        self.skip()
+                if (
+                    self._cache
+                    and self._cache.hit
+                    and lineno >= self._body_start
+                ):
+                    self.skip()
                 return
             # <module> -> _trace_wrapper -> _trace
             elif i > 3:
@@ -750,9 +753,9 @@ class _cache_context(SkipContext, CacheContext):
                 traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
-        except Exception as e:
+        except Exception:
             failed = True
-            raise e
+            raise
         finally:
             if not failed:
                 # Conditional because pendantically, the side effect is on restore /

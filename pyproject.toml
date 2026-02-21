@@ -382,6 +382,9 @@ ignore = [
     "FA102", # Use `from __future__ import annotations`
     "UP007", # Use X | Y for type annotations, wasn't supported in 3.9
     "UP045", # Use X | None for optional type annotations, wasn't supported in 3.9
+    "RET504", # Unnecessary assignment before return statement. We use this for readability.
+    "BLE001", # TODO: Blind exception catches
+    "DTZ001", # TODO: Specify dtzinfo in datetime objects
 ]
 extend-select = [
     # pyflakes

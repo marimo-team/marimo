@@ -86,17 +86,18 @@ async def save_user_config(
         if (
             not is_mcp_config_empty(mcp_config)
             and not DependencyManager.mcp.has()
+            and session_id is not None
+            and session is not None
         ):
             # If we're in an edit session, send an package installation request
-            if session_id is not None and session is not None:
-                send_message_to_consumer(
-                    session=session,
-                    operation=MissingPackageAlertNotification(
-                        packages=["mcp"],
-                        isolated=is_python_isolated(),
-                    ),
-                    consumer_id=ConsumerId(session_id),
-                )
+            send_message_to_consumer(
+                session=session,
+                operation=MissingPackageAlertNotification(
+                    packages=["mcp"],
+                    isolated=is_python_isolated(),
+                ),
+                consumer_id=ConsumerId(session_id),
+            )
 
         try:
             from marimo._server.ai.mcp import get_mcp_client

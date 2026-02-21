@@ -51,10 +51,8 @@ class BreaklessListsPreprocessor(preprocessors.Preprocessor):  # type: ignore[mi
                     current_line.strip()  # Current line has content
                     and self.LIST_START_PATTERN.match(next_line)
                 ):  # Next line starts a list
-                    # Check if there's already a blank line
-                    if current_line.strip():
-                        # Insert blank line to enable list interruption
-                        result_lines.append("")
+                    # Insert blank line to enable list interruption
+                    result_lines.append("")
 
             i += 1
 

@@ -87,7 +87,7 @@ def _normalize_image(src: ImageLike) -> Image:
 
     # Verify that this is a image object
     if not isinstance(src, (str, bytes, io.BytesIO, io.BufferedReader, Path)):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"Expected an image object, but got {type(src)} instead."
         )
     return src
@@ -142,7 +142,7 @@ def image(
     # TODO: Consider downsampling here. This is something matplotlib does
     # implicitly, and can potentially remove the bottle-neck of very large
     # images.
-    if isinstance(src, io.BufferedReader) or isinstance(src, io.BytesIO):
+    if isinstance(src, (io.BufferedReader, io.BytesIO)):
         src.seek(0)
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):

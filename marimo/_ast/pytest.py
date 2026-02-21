@@ -60,13 +60,13 @@ def build_stub_fn(
     fn = copy.deepcopy(PYTEST_BASE)
     body = fn.body[0]
     if not isinstance(body, ast.FunctionDef):
-        raise ValueError("Invalid pytest scaffold template structure")
+        raise ValueError("Invalid pytest scaffold template structure")  # noqa: TRY004
     returned = body.body[-1]
     if not isinstance(returned, ast.Return):
-        raise ValueError("Invalid pytest scaffold template structure")
+        raise ValueError("Invalid pytest scaffold template structure")  # noqa: TRY004
     call = returned.value
     if not isinstance(call, ast.Call):
-        raise ValueError("Invalid pytest scaffold template structure")
+        raise ValueError("Invalid pytest scaffold template structure")  # noqa: TRY004
 
     # Using _pytest_scaffold as a template, the resultant function will look
     # like:
@@ -102,7 +102,7 @@ def build_stub_fn(
 
     response = local[name]
     if not callable(response):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"Expected callable for '{name}', got {type(response)}"
         )
     return response
@@ -112,7 +112,7 @@ def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
     func_ast = ast_parse(inspect.getsource(func))
     func_body = func_ast.body[0]
     if not isinstance(func_body, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"Expected function definition, got {type(func_body).__name__}"
         )
 
@@ -147,12 +147,11 @@ def is_pytest_decorator(decorator: ast.AST) -> tuple[bool, str | None]:
         ):
             return True, None  # Nested attr, use eval
     # @pytest.fixture (no call)
-    if isinstance(decorator, ast.Attribute):
-        if (
-            isinstance(decorator.value, ast.Name)
-            and decorator.value.id == "pytest"
-        ):
-            return True, decorator.attr
+    if isinstance(decorator, ast.Attribute) and (
+        isinstance(decorator.value, ast.Name)
+        and decorator.value.id == "pytest"
+    ):
+        return True, decorator.attr
     return False, None
 
 
@@ -445,7 +444,7 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
     if not isinstance(
         scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
     ):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             f"Expected function or class definition, got {type(scope).__name__}"
         )
     # Get first frame not in library to insert the class.

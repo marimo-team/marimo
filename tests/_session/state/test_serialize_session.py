@@ -872,9 +872,7 @@ class TestSessionCacheManager:
         manager = SessionCacheManager(view, None, 0.1)
         assert (
             manager.read_session_view(
-                SessionCacheKey(
-                    codes=tuple(), marimo_version="-1", cell_ids=tuple()
-                )
+                SessionCacheKey(codes=(), marimo_version="-1", cell_ids=())
             )
             == view
         )
@@ -887,9 +885,7 @@ class TestSessionCacheManager:
             manager = SessionCacheManager(view, path, 0.1)
             assert (
                 manager.read_session_view(
-                    SessionCacheKey(
-                        codes=tuple(), marimo_version="-1", cell_ids=tuple()
-                    )
+                    SessionCacheKey(codes=(), marimo_version="-1", cell_ids=())
                 )
                 == view
             )

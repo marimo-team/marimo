@@ -105,10 +105,7 @@ def test_favicon(client: TestClient) -> None:
     response = client.get("/favicon.ico")
     assert response.status_code == 200, response.text
     content_type = response.headers["content-type"]
-    assert (
-        content_type == "image/x-icon"
-        or content_type == "image/vnd.microsoft.icon"
-    )
+    assert content_type in {"image/x-icon", "image/vnd.microsoft.icon"}
 
 
 def test_unknown_file(client: TestClient) -> None:

@@ -65,10 +65,9 @@ class MarimoIslandStub:
     def output(self) -> Optional[CellOutput]:
         # Leave output accessible for direct use for non-interactive cases e.g.
         # pdf.
-        if self._output is None:
-            if self._session_view is not None:
-                outputs = self._session_view.get_cell_outputs([self._cell_id])
-                self._output = outputs.get(self._cell_id, None)
+        if self._output is None and self._session_view is not None:
+            outputs = self._session_view.get_cell_outputs([self._cell_id])
+            self._output = outputs.get(self._cell_id, None)
         return self._output
 
     @property
@@ -516,7 +515,7 @@ class MarimoIslandGenerator:
             margin = "auto"
         if max_width is None:
             width = self._config.width
-            if width == "compact" or width == "normal":
+            if width in {"compact", "normal"}:
                 max_width = "740px"
             elif width == "medium":
                 max_width = "1110px"

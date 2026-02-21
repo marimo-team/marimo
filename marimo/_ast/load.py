@@ -199,7 +199,8 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
 
         app = load_notebook_ir(notebook_ir)
         app._cell_manager.ensure_one_cell()
-        return app
     except MarimoFileError as e:
         LOGGER.error(FAILED_LOAD_NOTEBOOK_MESSAGE)
         raise MarimoFileError(FAILED_LOAD_NOTEBOOK_MESSAGE) from e
+    else:
+        return app

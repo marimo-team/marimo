@@ -246,7 +246,7 @@ class ChatMessage(msgspec.Struct):
                 if is_dataclass(part):
                     return cast(ChatPart, part)
                 return parse_raw(part, cls=PartType, allow_unknown_keys=True)
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
         LOGGER.debug(

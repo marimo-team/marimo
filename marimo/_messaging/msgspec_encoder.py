@@ -141,12 +141,13 @@ def enc_hook(obj: Any) -> Any:
             return obj.to_list()
 
         # Handle Polars data types
-        if hasattr(pl, "datatypes") and hasattr(obj, "__class__"):
-            # Check if it's a Polars data type
-            if hasattr(pl.datatypes, "DataType") and isinstance(
-                obj, pl.datatypes.DataType
-            ):
-                return str(obj)
+        if (
+            hasattr(pl, "datatypes")
+            and hasattr(obj, "__class__")
+            and hasattr(pl.datatypes, "DataType")
+            and isinstance(obj, pl.datatypes.DataType)
+        ):
+            return str(obj)
 
     # Handle Pillow images
     if DependencyManager.pillow.imported():
@@ -209,10 +210,10 @@ def enc_hook(obj: Any) -> Any:
 
     # Handle collections types
     if isinstance(obj, (list, tuple, set, frozenset)):
-        return list([enc_hook(item) for item in obj])
+        return [enc_hook(item) for item in obj]
 
     if isinstance(obj, collections.deque):
-        return list([enc_hook(item) for item in obj])
+        return [enc_hook(item) for item in obj]
 
     # Handle dict and dict-like types
     if isinstance(

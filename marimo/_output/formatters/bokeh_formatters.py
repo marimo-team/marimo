@@ -80,7 +80,7 @@ class BokehFormatter(FormatterFactory):
                 background_fill_color = attrs.get("BaseColorBar", {}).get(
                     "background_fill_color"
                 ) or attrs.get("Plot", {}).get("background_fill_color")
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
             # Maybe add <style> to the content

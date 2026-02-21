@@ -209,8 +209,7 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
         + "\n"
         + textwrap.dedent("\n".join(md_lines[1:]))
     )
-    md = md.strip()
-    return md
+    return md.strip()
 
 
 def extract_markdown(code: str) -> Optional[str]:
@@ -557,13 +556,12 @@ def ir_cell_factory(
     # Because this is never invoked in script mode.
     source_position = None
     # EXCEPT in the case of debugpy, where we need to preserve source position.
-    if os.environ.get("DEBUGPY_RUNNING"):
-        if filename and cell_def.lineno:
-            source_position = SourcePosition(
-                filename=filename,
-                lineno=cell_def.lineno,
-                col_offset=cell_def.col_offset,
-            )
+    if os.environ.get("DEBUGPY_RUNNING") and filename and cell_def.lineno:
+        source_position = SourcePosition(
+            filename=filename,
+            lineno=cell_def.lineno,
+            col_offset=cell_def.col_offset,
+        )
 
     prefix = ""
     if isinstance(cell_def, (FunctionCell, ClassCell)):

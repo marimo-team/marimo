@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 from textwrap import dedent
+from typing import ClassVar
 
 from marimo._runtime.patches import patch_jedi_parameter_completion
 
@@ -244,7 +245,12 @@ class MarimoConverter:
     def __init__(self) -> None:
         patch_jedi_parameter_completion()
 
-    SECTION_HEADERS = ["Args", "Returns", "Raises", "Examples"]
+    SECTION_HEADERS: ClassVar[list[str]] = [
+        "Args",
+        "Returns",
+        "Raises",
+        "Examples",
+    ]
 
     def convert(self, docstring: str) -> str:
         return google_docstring_to_markdown(docstring)

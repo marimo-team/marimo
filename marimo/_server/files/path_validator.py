@@ -61,17 +61,19 @@ class PathValidator:
             for temp_dir in list(self._allowed_temp_dirs):
                 try:
                     file_normalized.relative_to(temp_dir)
-                    return True
                 except ValueError:
                     # Not a child of this temp directory, try next
                     continue
-            return False
+                else:
+                    return True
         except Exception as e:
             LOGGER.warning(
                 "Error checking if file %s is in allowed temp dir: %s",
                 filepath,
                 e,
             )
+            return False
+        else:
             return False
 
     def _normalize_path_without_resolving_symlinks(

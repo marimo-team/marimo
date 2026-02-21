@@ -351,7 +351,7 @@ def test_function_like_objects_fallback_on_exception() -> None:
     fmt = get_formatter(b)
     assert fmt is not None
     mime, data = fmt(b)
-    assert mime == "text/html" or mime == "text/plain"
+    assert mime in {"text/html", "text/plain"}
     # Fallback path returns plain text repr wrapped via plain_text
     # which ultimately produces HTML; accept either to be robust.
     assert isinstance(data, str)
@@ -359,7 +359,7 @@ def test_function_like_objects_fallback_on_exception() -> None:
 
 
 def test_is_structures_formatter() -> None:
-    assert is_structures_formatter(get_formatter(tuple()))
+    assert is_structures_formatter(get_formatter(()))
     assert is_structures_formatter(get_formatter([]))
     assert is_structures_formatter(get_formatter({1: 2}))
 

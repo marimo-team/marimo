@@ -11,9 +11,8 @@ from marimo._utils.files import natural_sort
 
 @pytest.fixture
 def test_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    temp_dir = tmp_path_factory.mktemp("marimo_test")
+    return tmp_path_factory.mktemp("marimo_test")
     # pytest handles cleanup
-    return temp_dir
 
 
 @pytest.fixture
@@ -462,7 +461,7 @@ def test_search_result_ordering(test_dir: Path, fs: OSFileSystem) -> None:
 
     # Exact matches should come first
     exact_matches = [
-        name for name in file_names if name == "test" or name == "test.txt"
+        name for name in file_names if name in {"test", "test.txt"}
     ]
     assert len(exact_matches) >= 1
 

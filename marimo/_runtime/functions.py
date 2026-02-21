@@ -56,7 +56,7 @@ class Function(Generic[S, T]):
             return self.function(parse_raw(args, self.arg_cls))
         except Exception as e:
             LOGGER.error(f"Error calling function {self.name}: {e}")
-            raise e
+            raise
 
 
 @dataclasses.dataclass

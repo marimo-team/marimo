@@ -57,7 +57,7 @@ class RTCWebSocketHandler:
 
         # Set up update handling
         def handle_doc_update(event: DiffEvent) -> None:
-            LOGGER.debug("RTC: doc updated", event)
+            LOGGER.debug("RTC: doc updated: %s", event)
 
         # Subscribe to LoroDoc updates
         subscription = doc.subscribe_root(handle_doc_update)

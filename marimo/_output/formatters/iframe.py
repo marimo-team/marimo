@@ -20,12 +20,13 @@ def _has_script_tag_without_src(html_content: str) -> bool:
     parser = ScriptTagParser()
     try:
         parser.feed(html_content)  # type: ignore
-        return parser.has_script_without_src
     except StopIteration:
         return parser.has_script_without_src
     except Exception:
         # Don't fail on bad HTML
         return False
+    else:
+        return parser.has_script_without_src
 
 
 class ScriptTagParser(HTMLParser):
@@ -36,8 +37,7 @@ class ScriptTagParser(HTMLParser):
     def handle_starttag(
         self, tag: str, attrs: list[tuple[str, str | None]]
     ) -> None:
-        if tag == "script":
-            if not any(attr[0] == "src" for attr in attrs):
-                self.has_script_without_src = True
-                # Terminate early
-                raise StopIteration
+        if tag == "script" and not any(attr[0] == "src" for attr in attrs):
+            self.has_script_without_src = True
+            # Terminate early
+            raise StopIteration

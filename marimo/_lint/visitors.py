@@ -17,12 +17,13 @@ class VariableLineVisitor(ast.NodeVisitor):
 
     def visit_Name(self, node: ast.Name) -> None:
         """Visit Name nodes to find variable definitions."""
-        if node.id == self.target_variable:
+        if node.id == self.target_variable and isinstance(
+            node.ctx, (ast.Store, ast.Del)
+        ):
             # Check if this is a definition (not just a reference)
-            if isinstance(node.ctx, (ast.Store, ast.Del)):
-                self.line_number = node.lineno
-                self.column_number = node.col_offset + 1
-                return
+            self.line_number = node.lineno
+            self.column_number = node.col_offset + 1
+            return
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -44,10 +45,7 @@ class VariableLineVisitor(ast.NodeVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Visit ImportFrom nodes to find imported variable definitions."""
         for alias in node.names:
-            if (
-                alias.asname == self.target_variable
-                or alias.name == self.target_variable
-            ):
+            if self.target_variable in (alias.asname, alias.name):
                 self.line_number = node.lineno
                 self.column_number = node.col_offset + 1
                 return
@@ -56,10 +54,7 @@ class VariableLineVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         """Visit Import nodes to find imported variable definitions."""
         for alias in node.names:
-            if (
-                alias.asname == self.target_variable
-                or alias.name == self.target_variable
-            ):
+            if self.target_variable in (alias.asname, alias.name):
                 self.line_number = node.lineno
                 self.column_number = node.col_offset + 1
                 return

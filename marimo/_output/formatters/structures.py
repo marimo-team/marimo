@@ -19,7 +19,7 @@ from marimo._utils.flatten import CyclicStructureError, flatten
 def is_structures_formatter(
     formatter: formatting.Formatter[object] | None,
 ) -> bool:
-    return formatter is formatting.get_formatter(tuple())
+    return formatter is formatting.get_formatter(())
 
 
 def _leaf_formatter(
@@ -111,7 +111,7 @@ class StructuresFormatter(FormatterFactory):
             ):
                 if str(t) != str(dict(t)):
                     return plain_text(str(t))._mime_()
-            elif isinstance(t, defaultdict) and type(t) is not defaultdict:
+            elif isinstance(t, defaultdict) and type(t) is not defaultdict:  # noqa: SIM102
                 if str(t) != str(defaultdict(t.default_factory, t)):
                     return plain_text(str(t))._mime_()
 

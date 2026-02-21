@@ -137,12 +137,13 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 default_handler=str,
                             )
                             assert json_str is not None
-                            return json_str
                         except Exception as e:
                             LOGGER.warning(
                                 "Error serializing to JSON. Falling back to to_dict. Error: %s",
                                 e,
                             )
+                        else:
+                            return json_str
                     return result.to_dict(orient="records")  # type: ignore
 
                 from pandas.api.types import (
@@ -393,9 +394,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 if lower_dtype.startswith("interval"):
                     return ("string", dtype)
-                if lower_dtype.startswith("int") or lower_dtype.startswith(
-                    "uint"
-                ):
+                if lower_dtype.startswith(("int", "uint")):
                     return ("integer", dtype)
                 if lower_dtype.startswith("float"):
                     return ("number", dtype)
@@ -413,7 +412,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("string", dtype)
                 if lower_dtype == "category":
                     return ("string", dtype)
-                if lower_dtype == "string" or lower_dtype == "str":
+                if lower_dtype in {"string", "str"}:
                     return ("string", dtype)
                 if lower_dtype.startswith("complex"):
                     return ("unknown", dtype)

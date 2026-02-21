@@ -71,9 +71,9 @@ def _set_imported_defs(
     with ctx.graph.lock:
         LOGGER.debug("Acquired graph lock to update import workspace.")
         if cell.import_workspace.is_import_block:
-            cell.import_workspace.imported_defs = set(
+            cell.import_workspace.imported_defs = {
                 name for name in cell.defs if name in ctx.glbls
-            )
+            }
 
 
 @kernel_tracer.start_as_current_span("set_status_idle")
@@ -126,7 +126,7 @@ def _broadcast_variables(
     values = [
         create_variable_value(
             name=variable,
-            value=(ctx.glbls[variable] if variable in ctx.glbls else None),
+            value=(ctx.glbls.get(variable, None)),
         )
         for variable in cell.defs
     ]
@@ -267,11 +267,11 @@ def _store_reference_to_output(
 
     # Stores a reference to the output if it contains a UIElement;
     # this is required to make RPCs work for unnamed UI elements.
-    if isinstance(run_result.output, UIElement):
+    if isinstance(run_result.output, UIElement) or (
+        run_result.output is not None
+        and contains_instance(run_result.output, UIElement)
+    ):
         cell.set_output(run_result.output)
-    elif run_result.output is not None:
-        if contains_instance(run_result.output, UIElement):
-            cell.set_output(run_result.output)
 
 
 def _store_state_reference(
@@ -461,7 +461,7 @@ def _reset_matplotlib_context(
     del run_result
     if get_global_context().mpl_installed:
         # ensures that every cell gets a fresh axis.
-        exec("__marimo__._output.mpl.close_figures()", ctx.glbls)
+        exec("__marimo__._output.mpl.close_figures()", ctx.glbls)  # noqa: S102
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHook] = [

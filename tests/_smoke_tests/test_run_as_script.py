@@ -44,6 +44,7 @@ class TestRunTutorialsAsScripts:
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_not_errored(p)
 
@@ -58,6 +59,7 @@ class TestRunTutorialsAsScripts:
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_not_errored(p)
 
@@ -72,6 +74,7 @@ class TestRunTutorialsAsScripts:
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_errored(p, reason="CycleError")
 
@@ -86,6 +89,7 @@ class TestRunTutorialsAsScripts:
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_not_errored(p)
 
@@ -104,6 +108,7 @@ class TestRunTutorialsAsScripts:
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_not_errored(p)
 
@@ -120,6 +125,7 @@ class TestRunTutorialsAsScripts:
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_errored(p, reason="MultipleDefinitionError")
 
@@ -148,6 +154,7 @@ if __name__ == "__main__":
         p = subprocess.run(
             ["python", str(file)],
             capture_output=True,
+            check=False,
         )
         self.assert_not_errored(p)
         assert "enabled cell" in p.stdout.decode()

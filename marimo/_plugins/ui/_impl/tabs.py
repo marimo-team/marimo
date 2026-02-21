@@ -79,7 +79,7 @@ class tabs(UIElement[str, str]):
         )
 
         self._tab_keys = list(tabs.keys())
-        tab_labels = list(md(label).text for label in tabs)
+        tab_labels = [md(label).text for label in tabs]
 
         index = (
             str(self._tab_keys.index(value))

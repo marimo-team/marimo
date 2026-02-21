@@ -37,7 +37,6 @@ async def _run_subprocess_safe(
             )
             stdout, stderr = await process.communicate()
 
-        return stdout, stderr, process.returncode or 0
     except NotImplementedError:
         # Windows may throw NotImplementedError if using _WindowsSelectorEventLoop
         def run_sync() -> tuple[bytes, bytes, int]:
@@ -47,16 +46,20 @@ async def _run_subprocess_safe(
                     input=input_data,
                     capture_output=True,
                     timeout=30,  # Add reasonable timeout
+                    check=False,
                 )
             else:
                 result = subprocess.run(
                     args,
                     capture_output=True,
                     timeout=30,
+                    check=False,
                 )
             return result.stdout, result.stderr, result.returncode
 
         return await asyncio.to_thread(run_sync)
+    else:
+        return stdout, stderr, process.returncode or 0
 
 
 async def ruff(codes: CellCodes, *cmd: str) -> CellCodes:

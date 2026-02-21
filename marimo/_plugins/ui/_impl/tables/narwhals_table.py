@@ -117,7 +117,7 @@ class NarwhalsTableManager(
 
         frame = self.as_frame()
         _data = frame.to_dict(as_series=False).copy()
-        for col in _data.keys():
+        for col in _data:
             if col in format_mapping:
                 _data[col] = [
                     format_value(col, x, format_mapping) for x in _data[col]
@@ -600,7 +600,7 @@ class NarwhalsTableManager(
                 # Use timedelta to handle dates before Unix epoch (1970)
                 # which cause OSError on Windows with fromtimestamp
                 try:
-                    bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                    bin_end = datetime.date.fromtimestamp(bin_end / ms_time)  # noqa: DTZ012
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
                     epoch = datetime.datetime(
@@ -614,7 +614,7 @@ class NarwhalsTableManager(
                 # Use timedelta to handle datetimes before Unix epoch (1970)
                 # which cause OSError on Windows with fromtimestamp
                 try:
-                    bin_end = datetime.datetime.fromtimestamp(
+                    bin_end = datetime.datetime.fromtimestamp(  # noqa: DTZ006
                         bin_end / ms_time
                     )
                 except (OSError, OverflowError, ValueError):

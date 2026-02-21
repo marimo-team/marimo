@@ -157,7 +157,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                 if table is not None:
                     data_tables.append(table)
 
-            return data_tables
+            return data_tables  # noqa: TRY300
         except Exception:
             LOGGER.warning("Failed to get tables in schema", exc_info=True)
             return []

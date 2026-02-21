@@ -186,7 +186,7 @@ class VirtualFileStorageManager:
     _instance: VirtualFileStorageManager | None = None
     _storage: VirtualFileStorage | None = None
 
-    def __new__(cls) -> VirtualFileStorageManager:
+    def __new__(cls) -> VirtualFileStorageManager:  # noqa: PYI034
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance

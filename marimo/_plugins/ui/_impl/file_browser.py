@@ -236,8 +236,7 @@ class file_browser(
         if hasattr(self._initial_path, "client"):
             kwargs["client"] = self._initial_path.client  # type: ignore
 
-        path = self._path_cls(path_str, **kwargs)
-        return path
+        return self._path_cls(path_str, **kwargs)
 
     def _has_files_recursive(
         self, directory: Path, max_depth: int = 100
@@ -281,11 +280,12 @@ class file_browser(
                     # Recursively check subdirectories with decremented depth
                     if self._has_files_recursive(item, max_depth - 1):
                         return True
-            return False
         except (PermissionError, OSError):
             # If we can't access the directory, assume it's not empty
             # to avoid hiding potentially accessible subdirectories
             return True
+        else:
+            return False
 
     def _list_directory(
         self, args: ListDirectoryArgs
@@ -308,7 +308,7 @@ class file_browser(
 
         # Sort based on natural sort (alpha, then num)
         all_file_paths = sorted(
-            list(path.iterdir()), key=lambda f: natural_sort(f.name)
+            path.iterdir(), key=lambda f: natural_sort(f.name)
         )
         is_truncated = False
 
@@ -321,14 +321,20 @@ class file_browser(
                 continue
 
             # Skip non-matching file types (case-insensitive)
-            if self._filetypes and not is_directory:
-                if extension.lower() not in self._filetypes:
-                    continue
+            if (
+                self._filetypes
+                and not is_directory
+                and extension.lower() not in self._filetypes
+            ):
+                continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
-            if self._ignore_empty_dirs and is_directory:
-                if not self._has_files_recursive(file):
-                    continue
+            if (
+                self._ignore_empty_dirs
+                and is_directory
+                and not self._has_files_recursive(file)
+            ):
+                continue
 
             file_info = TypedFileBrowserFileInfo(
                 id=str(file),

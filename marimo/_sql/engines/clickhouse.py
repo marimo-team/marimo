@@ -213,7 +213,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         query = query.strip()
 
         sql_type = classify_sql_statement(query)
-        if sql_type == "DDL" or sql_type == "DML":
+        if sql_type in {"DDL", "DML"}:
             # TODO: Return the result of the command instead of an empty list
             self._connection.command(query)
             return []
@@ -457,7 +457,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
                 table_type = "view"  # TODO: We should add support for general table types
 
             total_rows = table_df["total_rows"].iloc[0]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         try:

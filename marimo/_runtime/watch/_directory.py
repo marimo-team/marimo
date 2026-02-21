@@ -35,7 +35,7 @@ def _hashable_walk(
 ) -> set[tuple[Path, tuple[str], tuple[str]]]:
     return cast(
         set[tuple[Path, tuple[str], tuple[str]]],
-        set((p, *map(tuple, r)) for p, *r in walked),
+        {(p, *map(tuple, r)) for p, *r in walked},
     )
 
 
@@ -70,7 +70,7 @@ def watch_directory(
 class DirectoryState(PathState):
     """Wrapper for directory state."""
 
-    _forbidden_attributes = {
+    _forbidden_attributes = {  # noqa: RUF012
         "open",
         "rename",
         "replace",

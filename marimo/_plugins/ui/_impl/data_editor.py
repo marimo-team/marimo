@@ -332,22 +332,18 @@ def _convert_value(
                 return datetime.date.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
-            elif dtype == nw.Float32 or dtype == nw.Float64:
+            elif dtype in (nw.Float32, nw.Float64):
                 return float(value)
-            elif (
-                dtype == nw.Int16
-                or dtype == nw.Int32
-                or dtype == nw.Int64
-                or dtype == nw.UInt16
-                or dtype == nw.UInt32
-                or dtype == nw.UInt64
+            elif dtype in (
+                nw.Int16,
+                nw.Int32,
+                nw.Int64,
+                nw.UInt16,
+                nw.UInt32,
+                nw.UInt64,
             ):
                 return int(value)
-            elif (
-                dtype == nw.String
-                or dtype == nw.Enum
-                or dtype == nw.Categorical
-            ):
+            elif dtype in (nw.String, nw.Enum, nw.Categorical):
                 return str(value)
             elif dtype == nw.Boolean:
                 return bool(value)
@@ -453,7 +449,7 @@ def _apply_positional_edit_row_oriented(
     """Apply a positional edit to row-oriented data."""
     if edit["rowIdx"] >= len(data):
         # Create a new row with None values for all columns
-        new_row = {col: None for col in data[0].keys()}
+        new_row = {col: None for col in data[0]}
         data.append(new_row)
     original_value = data[0][edit["columnId"]] if data else None
     dtype = schema.get(edit["columnId"]) if schema else None
@@ -619,7 +615,7 @@ def _apply_column_edit_row_oriented(
 
         for row in data:
             new_row = {}
-            for key in row.keys():
+            for key in row:
                 if key == column_name:
                     new_row[new_column_name] = row[key]
                 else:

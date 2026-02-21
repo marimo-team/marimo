@@ -49,7 +49,7 @@ def watch_file(
 class FileState(PathState):
     """Wrapper for file state."""
 
-    _forbidden_attributes = {
+    _forbidden_attributes = {  # noqa: RUF012
         "open",
         "iterdir",
         "glob",

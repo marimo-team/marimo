@@ -22,10 +22,10 @@ import msgspec
 import msgspec.json
 
 # Import NotRequired from typing_extensions for Python < 3.11
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 T = TypeVar("T")
 
@@ -170,7 +170,7 @@ class _DataclassParser:
         """Returns instance of dataclass [cls] instantiated from [values]."""
 
         if not isinstance(values, dict):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "value passed to build_dataclass needs to be a dictionary"
             )
 

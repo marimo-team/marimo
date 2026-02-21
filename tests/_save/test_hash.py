@@ -109,8 +109,7 @@ class TestHash:
 
         @app.cell
         def _():
-            non_primitive = [object()]
-            return non_primitive
+            return [object()]
 
         @app.cell
         def _(non_primitive) -> tuple[int]:
@@ -130,8 +129,7 @@ class TestHash:
 
         @app2.cell
         def _():
-            non_primitive = [object(), object()]
-            return non_primitive
+            return [object(), object()]
 
         @app2.cell
         def _(non_primitive) -> tuple[int]:
@@ -164,8 +162,7 @@ class TestHash:
 
         @app.cell
         def load() -> tuple[int]:
-            shared = [None, object()]
-            return shared
+            return [None, object()]
 
         @app.cell
         def one(persistent_cache, MockLoader, shared) -> tuple[int]:
@@ -263,8 +260,7 @@ class TestHash:
 
         @app.cell
         def load() -> tuple[int]:
-            shared = [None, object()]
-            return shared
+            return [None, object()]
 
     @staticmethod
     def test_transitive_content_hash() -> None:

@@ -102,9 +102,9 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         api_url = "https://marimo.io/api/oss/latest-version"
 
     # We only update the state once a day
-    now = datetime.now()
+    now = datetime.now()  # noqa: DTZ005
     if state.last_checked_at:
-        last_checked_date = datetime.strptime(
+        last_checked_date = datetime.strptime(  # noqa: DTZ007
             state.last_checked_at, DATE_FORMAT
         )
         if _is_same_day(last_checked_date, now):
@@ -118,12 +118,11 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         state.notices = update_notices(response)
         state.latest_version = version
         state.last_checked_at = now.strftime(DATE_FORMAT)
-        return state
     except Exception:
         # Set that we have checked for updates
         # so we don't fail multiple times a day
         state.last_checked_at = now.strftime(DATE_FORMAT)
-        return state
+    return state
 
 
 def _fetch_data_from_url(url: str) -> dict[str, Any]:
@@ -178,10 +177,9 @@ def update_notices(response: dict[str, Any]) -> list[str]:
             break
 
         # Add notice if version is greater than current but <= latest
-        if current_ver < notice_version <= latest_ver:
-            if notice_text:
-                collected_notices.insert(
-                    0, notice_text
-                )  # Add to front (reverse order)
+        if current_ver < notice_version <= latest_ver and notice_text:
+            collected_notices.insert(
+                0, notice_text
+            )  # Add to front (reverse order)
 
     return collected_notices

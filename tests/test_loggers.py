@@ -154,23 +154,28 @@ def test_windows_safe_handler(tmp_path: Path):
 
 def test_file_handler_uses_windows_safe_on_windows(tmp_path: Path):
     """Test that _file_handler uses WindowsSafeRotatingFileHandler on Windows."""
+    del tmp_path
     from marimo._loggers import _file_handler
 
     # Test on Windows
-    with patch("sys.platform", "win32"):
-        with patch("marimo._loggers.get_log_directory", return_value=tmp_path):
-            handler = _file_handler()
-            assert isinstance(handler, WindowsSafeRotatingFileHandler)
-            handler.close()
+    with (
+        patch("sys.platform", "win32"),
+        patch("marimo._utils.platform.is_windows", return_value=True),
+    ):
+        handler = _file_handler()
+        assert isinstance(handler, WindowsSafeRotatingFileHandler)
+        handler.close()
 
     # Test on non-Windows
-    with patch("sys.platform", "linux"):
-        with patch("marimo._loggers.get_log_directory", return_value=tmp_path):
-            handler = _file_handler()
-            assert isinstance(handler, TimedRotatingFileHandler)
-            # Should not be the Windows-safe subclass on non-Windows
-            assert not isinstance(handler, WindowsSafeRotatingFileHandler)
-            handler.close()
+    with (
+        patch("sys.platform", "linux"),
+        patch("marimo._utils.platform.is_windows", return_value=False),
+    ):
+        handler = _file_handler()
+        assert isinstance(handler, TimedRotatingFileHandler)
+        # Should not be the Windows-safe subclass on non-Windows
+        assert not isinstance(handler, WindowsSafeRotatingFileHandler)
+        handler.close()
 
 
 @pytest.fixture(autouse=True)

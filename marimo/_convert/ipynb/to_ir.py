@@ -78,8 +78,9 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
             # otherwise we lose comments and formatting
             if visitor.made_changes:
                 return ast.unparse(transformed_tree)
-            return source
         except SyntaxError:
+            return source
+        else:
             return source
 
     return [transform(source) for source in sources]
@@ -102,15 +103,13 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
         def is_in_import_line(line: str) -> bool:
             if line.startswith("import marimo as mo"):
                 return True
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 return "import marimo as mo" in line
             return False
 
         # Slow check
         lines = cell.strip().split("\n")
-        if any(is_in_import_line(line) for line in lines):
-            return True
-        return False
+        return bool(any(is_in_import_line(line) for line in lines))
 
     already_has_marimo_import = any(
         has_marimo_import(cell.source) for cell in sources
@@ -141,15 +140,11 @@ def transform_add_subprocess_import(
 
         def is_in_import_line(line: str) -> bool:
             stripped = line.strip()
-            if stripped.startswith("import subprocess"):
-                return True
-            return False
+            return bool(stripped.startswith("import subprocess"))
 
         # Slow check
         lines = cell.strip().split("\n")
-        if any(is_in_import_line(line) for line in lines):
-            return True
-        return False
+        return bool(any(is_in_import_line(line) for line in lines))
 
     already_has_subprocess_import = any(
         has_subprocess_import(cell.source) for cell in sources
@@ -510,9 +505,10 @@ def _is_compilable_expression(expr: str) -> bool:
     """
     try:
         compile(expr, "<string>", "eval")
-        return True
     except (SyntaxError, ValueError):
         return False
+    else:
+        return True
 
 
 def _shlex_to_subprocess_call(
@@ -694,6 +690,7 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                check=False,
             )
 
             if result.returncode == 0 and out_file.exists():
@@ -710,7 +707,7 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
                             # Use the original spec (preserves git URLs)
                             resolved.append(original_specs[pkg_name])
                 return sorted(set(resolved))
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):  # noqa: S110
         # uv not available or failed, fall through to unpinning
         pass
 

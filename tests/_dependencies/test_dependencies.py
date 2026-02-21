@@ -141,7 +141,9 @@ def test_versions():
             why="for testing", min_version="10.0.0"
         )
 
-    assert "Mismatched version of test: expected >=2.0.0, got 1.0.0"
+    assert "Mismatched version of test: expected >=2.0.0, got 1.0.0" in str(
+        excinfo.value
+    )
 
     assert (
         DependencyManager.altair.require_at_version(

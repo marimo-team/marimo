@@ -95,7 +95,7 @@ def split_packages(package: str) -> list[str]:
             current_package.append(part)
         elif in_environment_marker:
             current_package.append(part)
-            if part.endswith("'") or part.endswith('"'):
+            if part.endswith(("'", '"')):
                 in_environment_marker = False
                 packages.append(" ".join(current_package))
                 current_package = []

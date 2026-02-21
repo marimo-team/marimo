@@ -457,8 +457,7 @@ class WebSocketHandler(SessionConsumer):
     def on_detach(self) -> None:
         # If the websocket is open, send a close message
         is_connected = (
-            self.status == ConnectionState.OPEN
-            or self.status == ConnectionState.CONNECTING
+            self.status in (ConnectionState.OPEN, ConnectionState.CONNECTING)
         ) and self.websocket.application_state is WebSocketState.CONNECTED
         if is_connected:
             asyncio.create_task(

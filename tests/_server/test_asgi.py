@@ -693,9 +693,7 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
                 # Check the marimo app file as added to the scope prior.
                 file = scope["marimo_app_file"]
                 assert isinstance(file, str)
-                assert file.endswith(str(allowed_file)) or file.endswith(
-                    str(blocked_file)
-                )
+                assert file.endswith((str(allowed_file), str(blocked_file)))
 
                 if scope["type"] == "http":
 

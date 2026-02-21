@@ -95,7 +95,7 @@ def convert_from_ir_to_markdown(
         {
             k: v
             for k, v in metadata.items()
-            if v is not None and v != "" and v != []
+            if v is not None and v not in ("", [])
         },
         sort_keys=False,
     )
@@ -201,6 +201,9 @@ def _get_sql_options_from_cell(code: str) -> dict[str, str] | None:
             value = body.value  # type: ignore[attr-defined]
         else:
             return None
+    except (AssertionError, AttributeError, ValueError):
+        return None
+    else:
         if value.keywords:
             for keyword in value.keywords:  # type: ignore[attr-defined]
                 options[keyword.arg] = const_or_id(keyword.value)  # type: ignore[attr-defined]
@@ -209,5 +212,3 @@ def _get_sql_options_from_cell(code: str) -> dict[str, str] | None:
             options["hide_output"] = "True"
 
         return options
-    except (AssertionError, AttributeError, ValueError):
-        return None

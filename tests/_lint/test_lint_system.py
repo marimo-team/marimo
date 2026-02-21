@@ -225,7 +225,7 @@ class TestMessageCollectionEntryPoints:
         with patch("sys.stderr", captured_stderr):
             try:
                 app._maybe_initialize()
-            except Exception:
+            except Exception:  # noqa: S110
                 pass  # Expected to potentially raise an error
 
         # Verify that if there were errors, linting messages were written to stderr

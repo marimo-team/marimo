@@ -434,19 +434,19 @@ import marimo
     )
 
     # Mock the prompt to return True (simulating user typing 'y')
-    with patch("marimo._cli.sandbox.click.confirm", return_value=True):
-        with patch(
+    with (
+        patch("marimo._cli.sandbox.click.confirm", return_value=True),
+        patch(
             "marimo._cli.sandbox.DependencyManager.which",
             return_value="/usr/bin/uv",
-        ):
-            with patch(
-                "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
-            ):
-                result = resolve_sandbox_mode(
-                    sandbox=None,
-                    name=str(script_path),
-                )
-                assert result is SandboxMode.SINGLE
+        ),
+        patch("marimo._cli.sandbox.sys.stdin.isatty", return_value=True),
+    ):
+        result = resolve_sandbox_mode(
+            sandbox=None,
+            name=str(script_path),
+        )
+        assert result is SandboxMode.SINGLE
 
 
 def test_resolve_sandbox_mode_explicit_single() -> None:

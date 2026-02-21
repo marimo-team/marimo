@@ -110,9 +110,10 @@ def _resolve_style() -> _StyleFn:
     try:
         import click
 
-        return click.style
     except ModuleNotFoundError:
         return _ansi_style
+    else:
+        return click.style
 
 
 _style: _StyleFn = _resolve_style()

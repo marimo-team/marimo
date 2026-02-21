@@ -117,7 +117,7 @@ def formatted_code_block(
     # ```{.python.marimo attr=...}
     else:
         head = f"""{guard}{{.{language}.marimo{attribute_str}}}"""
-    return "\n".join([head, code, guard, ""])
+    return f"{head}\n{code}\n{guard}\n"
 
 
 def app_config_from_root(root: Element) -> dict[str, Any]:
@@ -256,7 +256,7 @@ class IdentityParser(Markdown):
     # is comparable to some of the code in markdown extensions- and given this
     # library has been around since 2004, the internals should be relatively
     # stable.
-    output_formats: dict[Literal["identity"], Callable[[Element], str]] = {  # type: ignore[assignment, misc]
+    output_formats: dict[Literal["identity"], Callable[[Element], str]] = {  # type: ignore[assignment, misc]  # noqa: RUF012
         "identity": lambda x: x.text if x.text else "",
     }
 
@@ -290,7 +290,7 @@ class MarimoMdParser(IdentityParser):
 
     meta: dict[str, Any]
 
-    output_formats: dict[ConvertKeys, Callable[[Element], SafeWrap[Any]]] = {  # type: ignore[assignment, misc]
+    output_formats: dict[ConvertKeys, Callable[[Element], SafeWrap[Any]]] = {  # type: ignore[assignment, misc]  # noqa: RUF012
         "marimo-ir": _tree_to_ir,
     }
 

@@ -208,14 +208,18 @@ def compute_edges_for_cell(
             if language == "sql" and cell.language == "python":
                 # SQL table/db def -> Python ref is not an edge
                 continue
-            if language == "sql" and cell.language == "sql":
+            if (
+                language == "sql"
+                and cell.language == "sql"
+                and sql_ref
                 # Edges between SQL cells need to respect hierarchy.
-                if sql_ref and not sql_ref.matches_hierarchical_ref(
+                and not sql_ref.matches_hierarchical_ref(
                     variable_name,
                     other_variable_data.qualified_name or name,
                     kind=cast(SQLTypes, other_variable_data.kind),
-                ):
-                    continue
+                )
+            ):
+                continue
             parents.add(other_id)
 
         # Next, any cell that deletes this referenced variable is made

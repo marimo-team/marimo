@@ -108,8 +108,7 @@ def test_cell_has_builtin_refs():
 )
 @app.cell
 def test_cell_fails_correctly():
-    z = 1 / 0
-    return z
+    return 1 / 0
 
 
 @app.cell

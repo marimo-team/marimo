@@ -20,7 +20,7 @@ from marimo._convert.common.format import (
     sql_to_marimo,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # utils
     "get_download_filename",
     "get_filename",

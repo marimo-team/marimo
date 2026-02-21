@@ -443,5 +443,5 @@ class TestFormatterIntegration:
         """Test CellCodes type alias works as expected."""
         codes: CellCodes = {"cell1": "code1", "cell2": "code2"}
         assert isinstance(codes, dict)
-        assert all(isinstance(k, str) for k in codes.keys())
+        assert all(isinstance(k, str) for k in codes)
         assert all(isinstance(v, str) for v in codes.values())

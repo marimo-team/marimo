@@ -512,7 +512,7 @@ class CellManager:
         self._cell_data = new_cell_data
 
         # Add the new ids to the set, so we don't reuse them in the future
-        for _id in id_mapping.keys():
+        for _id in id_mapping:
             self._cell_id_generator.seen_ids.add(_id)
 
     @property

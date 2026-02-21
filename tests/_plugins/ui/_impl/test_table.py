@@ -119,7 +119,7 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
     assert str(e.value) == "data must be a list or tuple or a dict of lists."
 
     # Test with invalid data structure
-    data3: Any = [set([1, 2, 3])]
+    data3: Any = [{1, 2, 3}]
     with pytest.raises(ValueError) as e:
         _normalize_data(data3)
     assert (
@@ -1870,9 +1870,10 @@ def test_cell_styles_sorted_with_pagination(df: Any):
         # Handle both Python numbers and numpy numbers
         try:
             numeric_value = float(value)
-            return {"color": "black" if numeric_value > 0 else "red"}
         except (TypeError, ValueError):
             return {}
+        else:
+            return {"color": "black" if numeric_value > 0 else "red"}
 
     table = ui.table(df, style_cell=cell_style)
 

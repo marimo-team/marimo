@@ -68,10 +68,9 @@ class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
             code = match.group(3)
 
             # Only process if no language is specified
-            if not language:
-                if self._detect_pycon(code):
-                    # Replace with pycon language
-                    return f"{indent}```pycon\n{code}{indent}```"
+            if not language and self._detect_pycon(code):
+                # Replace with pycon language
+                return f"{indent}```pycon\n{code}{indent}```"
 
             # Return original
             return match.group(0)

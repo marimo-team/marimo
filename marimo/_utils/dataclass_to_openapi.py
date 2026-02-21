@@ -21,10 +21,10 @@ from typing import (
 
 from marimo._utils.case import to_camel_case
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import Sequence  # noqa: UP035
 

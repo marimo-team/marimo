@@ -294,9 +294,7 @@ def _convert_output_to_ipynb(
     if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
         return None
 
-    if output.mimetype == "text/plain" and (
-        output.data == [] or output.data == ""
-    ):
+    if output.mimetype == "text/plain" and (output.data in ([], "")):
         return None
 
     data: dict[str, Any] = {}
@@ -451,11 +449,9 @@ def _convert_latex_delimiters_for_jupyter(markdown_string: str) -> str:
         content = match.group(1)
         return f"${content.strip()}$"
 
-    markdown_string = re.sub(
+    return re.sub(
         r"\\\((.*?)\\\)", replace_inline, markdown_string, flags=re.DOTALL
     )
-
-    return markdown_string
 
 
 def _convert_marimo_tex_to_latex(html_string: str) -> str:

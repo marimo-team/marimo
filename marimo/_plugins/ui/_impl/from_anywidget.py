@@ -202,7 +202,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         self, value: ModelIdRef | AnyWidgetState
     ) -> AnyWidgetState:
         if not isinstance(value, dict):
-            raise ValueError(f"Expected dict, got {type(value)}")
+            raise ValueError(f"Expected dict, got {type(value)}")  # noqa: TRY004
 
         # Check if this is a ModelIdRef (initial value from frontend)
         model_id = value.get("model_id")

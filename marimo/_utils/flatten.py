@@ -40,7 +40,7 @@ def _flatten_sequence(
     elif isinstance(value, tuple):
         base_type = tuple
     else:
-        raise ValueError("value is not a list or tuple: ", value)
+        raise ValueError("value is not a list or tuple: ", value)  # noqa: TRY004
 
     # Algorithm:
     #
@@ -120,7 +120,7 @@ def _flatten_sequence(
         elif isinstance(value, list):
             return list(itertools.chain(*unflattened_pieces))
         else:
-            raise ValueError("Invalid type of value ", type(value))
+            raise ValueError("Invalid type of value ", type(value))  # noqa: TRY004
 
     return (
         list(itertools.chain(*flattened_pieces)),
@@ -137,9 +137,8 @@ def _flatten(
     # Track ids of structures to make sure that the tree has a finite height,
     # ie, to make sure that no structure contains itself.
     value_id = id(value)
-    if isinstance(value, (tuple, list, dict)):
-        if value_id in seen:
-            raise CyclicStructureError("already seen ", value)
+    if isinstance(value, (tuple, list, dict)) and value_id in seen:
+        raise CyclicStructureError("already seen ", value)
 
     from marimo._output.formatters.structures import is_structures_formatter
     from marimo._output.formatting import get_formatter

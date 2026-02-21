@@ -66,13 +66,11 @@ class AppScriptRunner:
         self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
-        cancelled = set(
+        cancelled = {
             cid
-            for cid in dataflow.transitive_closure(
-                self.app.graph, set([cell_id])
-            )
+            for cid in dataflow.transitive_closure(self.app.graph, {cell_id})
             if cid in self.cells_to_run
-        )
+        }
         for cid in cancelled:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
         self.cells_cancelled |= cancelled
@@ -113,7 +111,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()
@@ -156,7 +154,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()
@@ -217,8 +215,6 @@ class AppScriptRunner:
                 outputs, defs = self._run_synchronous(
                     post_execute_hooks=post_execute_hooks,
                 )
-            return outputs, defs
-
         # Cell runner manages the exception handling for kernel
         # runner, but script runner should raise the wrapped
         # exception if invoked directly.
@@ -239,6 +235,8 @@ class AppScriptRunner:
             # from "None" to indicate this is an Error propagation, and to not
             # muddy the stacktrace from the failing cells themselves.
             raise e.__cause__ from None  # type: ignore
+        else:
+            return outputs, defs
         finally:
             if installed_script_context:
                 teardown_context()

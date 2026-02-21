@@ -14,10 +14,10 @@ from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
-if sys.version_info < (3, 11):
-    from typing_extensions import TypeGuard
-else:
+if sys.version_info >= (3, 11):
     from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 
 if TYPE_CHECKING:
@@ -65,7 +65,7 @@ def assert_narwhals_series(series: nw.Series[Any]) -> None:
     Assert that the given series is a valid narwhals series.
     """
     if not isinstance(series, nw.Series):
-        raise ValueError(f"Unsupported series type. Got {type(series)}")
+        raise ValueError(f"Unsupported series type. Got {type(series)}")  # noqa: TRY004
 
 
 def can_narwhalify(
@@ -78,12 +78,13 @@ def can_narwhalify(
         return False
     try:
         nw.from_native(obj, pass_through=False, eager_only=eager_only)  # type: ignore[call-overload]
-        return True
     except (TypeError, AttributeError):
         # TypeError: object is not a supported type
         # AttributeError: object has __module__ = None (e.g., SymPy dynamic classes)
         # See: https://github.com/marimo-team/marimo/issues/7158
         return False
+    else:
+        return True
 
 
 def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
@@ -145,9 +146,7 @@ def is_narwhals_string_type(
     """
     Check if the given dtype is string type.
     """
-    return bool(
-        dtype == nw.String or dtype == nw.Categorical or dtype == nw.Enum
-    )
+    return bool(dtype in (nw.String, nw.Categorical, nw.Enum))
 
 
 def unwrap_narwhals_dataframe(df: Any) -> Any:
@@ -230,11 +229,7 @@ def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:
 
     Checks both v1 and main.
     """
-    return (
-        isinstance(df, nw.LazyFrame)
-        or isinstance(df, nw_main.LazyFrame)
-        or isinstance(df, nw1.LazyFrame)
-    )
+    return isinstance(df, (nw.LazyFrame, nw_main.LazyFrame, nw1.LazyFrame))
 
 
 def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
@@ -243,11 +238,7 @@ def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
 
     Checks both v1 and main.
     """
-    return (
-        isinstance(df, nw.DataFrame)
-        or isinstance(df, nw_main.DataFrame)
-        or isinstance(df, nw1.DataFrame)
-    )
+    return isinstance(df, (nw.DataFrame, nw_main.DataFrame, nw1.DataFrame))
 
 
 if TYPE_CHECKING:

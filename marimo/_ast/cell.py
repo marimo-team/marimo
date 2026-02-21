@@ -274,9 +274,9 @@ class CellImpl:
     @property
     def imported_namespaces(self) -> set[Name]:
         """Return a set of the namespaces imported by this cell."""
-        return set(
+        return {
             import_data.module.split(".")[0] for import_data in self.imports
-        )
+        }
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
         """Returns the variable name corresponding to an imported namespace
@@ -322,7 +322,7 @@ class CellImpl:
         # Check that def matches the single definition
         name = tree.body[0].name
         ast_name = unmangle_local(variables.pop()).name
-        if not (name == ast_name):
+        if name != ast_name:
             return None
 
         if name.startswith("_"):
@@ -334,7 +334,7 @@ class CellImpl:
         ):
             return None
 
-        return list(variable_data)[0]
+        return next(iter(variable_data))
 
     @property
     def init_variable_data(self) -> dict[Name, VariableData]:
@@ -646,14 +646,16 @@ class Cell:
 
         # Inject setup cell definitions so that we do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
-        if "PYTEST_CURRENT_TEST" not in os.environ:
-            if self._app._app._setup is not None:
-                from_setup = {
-                    k: v
-                    for k, v in self._app._app._setup._glbls.items()
-                    if k in self._cell.refs
-                }
-                refs = {**from_setup, **refs}
+        if (
+            "PYTEST_CURRENT_TEST" not in os.environ
+            and self._app._app._setup is not None
+        ):
+            from_setup = {
+                k: v
+                for k, v in self._app._app._setup._glbls.items()
+                if k in self._cell.refs
+            }
+            refs = {**from_setup, **refs}
 
         try:
             if self._is_coroutine:
@@ -701,14 +703,16 @@ class Cell:
         actual_count = len(args) + len(kwargs)
 
         mismatch_context = ""
-        if self._expected_signature is not None:
-            if tuple(arg_names) != self._expected_signature:
-                mismatch_context = (
-                    f"The signature of function ``{self._name}'': {self._expected_signature} "
-                    f"does not match the expected signature: {tuple(arg_names)}. "
-                    "A mismatch in arguments likely means you should "
-                    "resave the notebook in the marimo editor."
-                )
+        if (
+            self._expected_signature is not None
+            and tuple(arg_names) != self._expected_signature
+        ):
+            mismatch_context = (
+                f"The signature of function ``{self._name}'': {self._expected_signature} "
+                f"does not match the expected signature: {tuple(arg_names)}. "
+                "A mismatch in arguments likely means you should "
+                "resave the notebook in the marimo editor."
+            )
 
         # If all the arguments are provided, then run as if it were a normal
         # function call. An incorrect number of arguments will raise a

@@ -116,7 +116,7 @@ class openai(ChatModel):
             api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
             if api_key:
                 return api_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         raise ValueError(
@@ -252,7 +252,7 @@ class anthropic(ChatModel):
             api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
             if api_key:
                 return api_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Then check the environment variable
@@ -356,7 +356,7 @@ class google(ChatModel):
             api_key = get_context().marimo_config["ai"]["google"]["api_key"]
             if api_key:
                 return api_key
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         # Then check the environment variable
@@ -803,7 +803,6 @@ class pydantic_ai(ChatModel):
                     "Serialized vercel ai chunk is not a dictionary: %s",
                     result,
                 )
-            return result  # type: ignore[no-any-return]
         except TypeError:
             # Fallback for pydantic-ai < 1.52.0 which doesn't have sdk_version param
             try:
@@ -822,6 +821,8 @@ class pydantic_ai(ChatModel):
         except Exception as e:
             LOGGER.error("Error serializing vercel ai chunk: %s", e)
             return None
+        else:
+            return result  # type: ignore[no-any-return]
 
     async def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig

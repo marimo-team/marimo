@@ -57,7 +57,7 @@ def text_to_notebook(prompt: str) -> str:
             raise ValueError("Terms not accepted.")
 
         # Update state with acceptance
-        today = datetime.datetime.now().date().strftime("%Y-%m-%d")
+        today = datetime.datetime.now().date().strftime("%Y-%m-%d")  # noqa: DTZ005
         state.accepted_text_to_notebook_terms_at = today
 
         write_cli_state(state)
@@ -79,10 +79,10 @@ def text_to_notebook(prompt: str) -> str:
                 "Invalid response from API: missing 'marimo.App' key"
             )
 
-        return result
-
     except Exception as e:
         raise RuntimeError(f"Failed to generate notebook: {e!s}") from e
+    else:
+        return result
 
 
 def _should_show_terms(last_accepted_at: Optional[str]) -> bool:
@@ -97,7 +97,7 @@ def _should_show_terms(last_accepted_at: Optional[str]) -> bool:
     """
     if not last_accepted_at:
         return True
-    last_accepted_date = datetime.datetime.strptime(
+    last_accepted_date = datetime.datetime.strptime(  # noqa: DTZ007
         last_accepted_at, "%Y-%m-%d"
     )
     return last_accepted_date < TERMS_LAST_UPDATED

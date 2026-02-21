@@ -296,7 +296,7 @@ def to_functiondef(
     if allowed_refs is None:
         allowed_refs = BUILTINS
 
-    refs: tuple[str, ...] = tuple()
+    refs: tuple[str, ...] = ()
     sorted_refs = sorted(cell.refs)
     for ref in sorted_refs:
         if ref not in allowed_refs:
@@ -323,7 +323,7 @@ def to_functiondef(
     # external call. We collect them such that we can determine if a variable
     # def is actually ever used. This is a nice little trick such that mypy and
     # other static analysis tools can capture unused variables across cells.
-    defs: tuple[str, ...] = tuple()
+    defs: tuple[str, ...] = ()
     if cell.defs:
         # SQL defs should not be included in the return value.
         sql_defs = (
@@ -389,7 +389,7 @@ def to_top_functiondef(
             decorator = to_decorator(cell.config, fn="class_definition")
         else:
             decorator = to_decorator(cell.config, fn="function")
-        return "\n".join([decorator, cell.code.strip()])
+        return f"{decorator}\n{cell.code.strip()}"
     return ""
 
 
@@ -589,9 +589,9 @@ def recover(filepath: Path) -> str:
 
 def is_multiline_comment(node: ast.stmt) -> bool:
     """Checks if a node is a docstring or a multiline comment."""
-    if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
-        return True
-    return False
+    return bool(
+        isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+    )
 
 
 def get_header_comments(filename: str | Path) -> Optional[str]:

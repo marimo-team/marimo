@@ -45,13 +45,14 @@ def validate_auth(
         return True  # Success
 
     # Check for access_token
-    if TOKEN_QUERY_PARAM in conn.query_params:
-        # Validate the access_token
-        if conn.query_params[TOKEN_QUERY_PARAM] == auth_token:
-            LOGGER.debug("Validated access_token from query param")
-            # Set the cookie
-            cookie_session.set_access_token(auth_token)
-            return True  # Success
+    if (
+        TOKEN_QUERY_PARAM in conn.query_params
+        and conn.query_params[TOKEN_QUERY_PARAM] == auth_token
+    ):
+        LOGGER.debug("Validated access_token from query param")
+        # Set the cookie
+        cookie_session.set_access_token(auth_token)
+        return True  # Success
 
     # Check for form data
     if form_dict is not None:

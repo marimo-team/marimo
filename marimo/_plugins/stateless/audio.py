@@ -47,15 +47,13 @@ def convert_numpy_to_wav(
     scaled_bytes = scaled.astype("<h").tobytes()
 
     buffer = io.BytesIO()
-    waveobj = wave.open(buffer, mode="wb")
-    waveobj.setnchannels(nchannels)
-    waveobj.setframerate(rate)
-    waveobj.setsampwidth(2)
-    waveobj.setcomptype("NONE", "NONE")
-    waveobj.writeframes(scaled_bytes)
-    val = buffer.getvalue()
-    waveobj.close()
-    return val
+    with wave.open(buffer, mode="wb") as waveobj:
+        waveobj.setnchannels(nchannels)
+        waveobj.setframerate(rate)
+        waveobj.setsampwidth(2)
+        waveobj.setcomptype("NONE", "NONE")
+        waveobj.writeframes(scaled_bytes)
+    return buffer.getvalue()
 
 
 def get_resolved_src(

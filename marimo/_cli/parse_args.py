@@ -55,9 +55,9 @@ def parse_args(
                     pass
 
             # Try boolean conversion
-            if value == "True" or value == "true":
+            if value in {"True", "true"}:
                 value = True
-            elif value == "false" or value == "False":
+            elif value in {"false", "False"}:
                 value = False
 
             # Create a list for duplicate arguments

@@ -133,14 +133,14 @@ def _merge_model_commands(
             for path, buf in zip(cmd.message.buffer_paths, cmd.buffers):
                 model_buffers[mid][tuple(path)] = buf
 
-    for mid in model_state:
+    for mid, state in model_state.items():
         paths = list(model_buffers[mid].keys())
         bufs = list(model_buffers[mid].values())
         result.append(
             ModelCommand(
                 model_id=mid,
                 message=ModelUpdateMessage(
-                    state=model_state[mid],
+                    state=state,
                     buffer_paths=[list(p) for p in paths],
                 ),
                 buffers=bufs,

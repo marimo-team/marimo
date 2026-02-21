@@ -201,7 +201,7 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
 
         figure = axes.get_figure()
         if not isinstance(figure, Figure):
-            raise ValueError("Axes must be attached to a figure.")
+            raise ValueError("Axes must be attached to a figure.")  # noqa: TRY004
         self._ax: Axes = axes
 
         fig_width_px, fig_height_px = _figure_pixel_size(figure)

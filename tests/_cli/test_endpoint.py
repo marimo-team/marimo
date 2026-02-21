@@ -47,10 +47,12 @@ def _start_simple_server(
     # Wait until the socket is accepting connections
     deadline = time.time() + 5
     while time.time() < deadline:
-        with contextlib.suppress(Exception):
-            with urlopen(f"http://127.0.0.1:{port}/", timeout=0.25) as r:
-                if r.status == 200:
-                    break
+        with (
+            contextlib.suppress(Exception),
+            urlopen(f"http://127.0.0.1:{port}/", timeout=0.25) as r,
+        ):
+            if r.status == 200:
+                break
         time.sleep(0.05)
     return httpd, thread
 
@@ -63,7 +65,7 @@ def _wait_for_http_up(url: str, timeout_s: float = 10.0) -> None:
             with urlopen(url, timeout=0.5) as r:
                 if 200 <= r.status < 500:
                     return
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             last_err = e
         time.sleep(0.05)
     raise RuntimeError(

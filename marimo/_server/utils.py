@@ -5,8 +5,6 @@ import asyncio
 import sys
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from marimo._utils.net import find_free_port as find_free_port
-
 if TYPE_CHECKING:
     from collections.abc import Coroutine
 

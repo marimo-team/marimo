@@ -112,10 +112,11 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
             LOGGER.info(
                 f"MCP servers connected: {list(mcp_client.servers.keys())}"
             )
-            return mcp_client
         except Exception as e:
             LOGGER.warning(f"Failed to connect MCP servers: {e}")
             return None
+        else:
+            return mcp_client
 
     task = asyncio.create_task(background_connect_mcp_servers())
     background_tasks.add(task)  # Keep a reference to prevent GC

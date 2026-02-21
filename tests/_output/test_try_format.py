@@ -97,10 +97,7 @@ def test_primitives():
     assert try_format(1.0 + 1.0j).data == "<pre class='text-xs'>(1+1j)</pre>"
     assert try_format([1, 2, 3]).data == "[1, 2, 3]"
     assert try_format({"a": 1, "b": 2}).data == '{"a": 1, "b": 2}'
-    assert (
-        try_format(set([1, 2, 3])).data
-        == "<pre class='text-xs'>{1, 2, 3}</pre>"
-    )
+    assert try_format({1, 2, 3}).data == "<pre class='text-xs'>{1, 2, 3}</pre>"
 
 
 def test_none_value():

@@ -98,7 +98,7 @@ class date(UIElement[str, dt.date]):
 
         if value is None:
             if start is None and stop is None:
-                value = dt.date.today()
+                value = dt.date.today()  # noqa: DTZ011
             elif start is not None:
                 value = start
             else:
@@ -157,7 +157,7 @@ class date(UIElement[str, dt.date]):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
-        return dt.datetime.strptime(value, self.DATE_FORMAT).date()
+        return dt.datetime.strptime(value, self.DATE_FORMAT).date()  # noqa: DTZ007
 
     @property
     def start(self) -> dt.date:
@@ -241,8 +241,8 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
                 f"precision must be 'hour', 'minute', or 'second', got {precision}"
             )
 
-        self._start = dt.datetime.min if start is None else start
-        self._stop = dt.datetime.max if stop is None else stop
+        self._start = dt.datetime.min if start is None else start  # noqa: DTZ901
+        self._stop = dt.datetime.max if stop is None else stop  # noqa: DTZ901
         self._precision = precision
 
         if self._stop < self._start:
@@ -253,7 +253,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
 
         if value is None:
             if start is None and stop is None:
-                value = dt.datetime.today()
+                value = dt.datetime.today()  # noqa: DTZ002
             elif start is not None:
                 value = start
             else:
@@ -312,7 +312,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         ]
         for fmt in POSSIBLE_FORMATS:
             try:
-                return dt.datetime.strptime(value, fmt)
+                return dt.datetime.strptime(value, fmt)  # noqa: DTZ007
             except ValueError:
                 pass
         raise ValueError(f"Invalid datetime format: {value}")
@@ -403,7 +403,7 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
 
         if value is None:
             if start is None or stop is None:
-                value = (dt.date.today(), dt.date.today())
+                value = (dt.date.today(), dt.date.today())  # noqa: DTZ011
             else:
                 value = (start, stop)
         elif (
@@ -461,7 +461,7 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
             return value
         if isinstance(value, dt.datetime):
             return value.date()
-        return dt.datetime.strptime(value, self.DATEFORMAT).date()
+        return dt.datetime.strptime(value, self.DATEFORMAT).date()  # noqa: DTZ007
 
     @property
     def start(self) -> dt.date:

@@ -31,11 +31,7 @@ def get_sql_stats(
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "{column_name}") as p95
         FROM {table_name}
         """
-    elif (
-        column_type == "date"
-        or column_type == "datetime"
-        or column_type == "time"
-    ):
+    elif column_type in {"date", "datetime", "time"}:
         stats_query = f"""
         SELECT
             COUNT(*) as count,
@@ -101,11 +97,7 @@ def get_sql_stats(
             p75=p75,
             p95=p95,
         )
-    elif (
-        column_type == "date"
-        or column_type == "datetime"
-        or column_type == "time"
-    ):
+    elif column_type in {"date", "datetime", "time"}:
         count, unique, null_count, min_val, max_val = stats_result
         return ColumnStats(
             total=count,

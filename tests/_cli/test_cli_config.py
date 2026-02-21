@@ -13,6 +13,7 @@ def test_config_show() -> None:
     p = subprocess.run(
         ["marimo", "config", "show"],
         capture_output=True,
+        check=False,
     )
     assert p.returncode == 0, p.stderr.decode()
     output = p.stdout.decode()
@@ -24,5 +25,6 @@ def test_config_describe() -> None:
     p = subprocess.run(
         ["marimo", "config", "describe"],
         capture_output=True,
+        check=False,
     )
     assert p.returncode == 0, p.stderr.decode()

@@ -51,13 +51,9 @@ def _should_include_name(name: str, prefix: str) -> bool:
         if not is_dunder_name:
             # Never include names that start with a single underscore
             return False
-        elif not prefix.startswith("_"):
-            return False
-        else:
-            # Only include dunder names when prefix starts with an underscore
-            return True
-    else:
-        return True
+        # Only include dunder names when prefix starts with an underscore
+        return prefix.startswith("_")
+    return True
 
 
 DOC_CACHE_SIZE = 200
@@ -392,7 +388,7 @@ def _key_options_from_ipython_method(obj: Any) -> list[str]:
 
 
 def _key_options_via_keys_method(obj: HasKeysMethod) -> list[str]:
-    return [str(key) for key in obj.keys()]
+    return [str(key) for key in obj.keys()]  # noqa: SIM118
 
 
 # TODO refactor to customize the `CompletionOption.info` with `"columns"`
@@ -457,7 +453,7 @@ def _resolve_chained_key_path(obj_name: str, document: str) -> list[list[str]]:
 
         # if nodes directly after `obj_name` node are not key accessor `[""]`, exit
         # we expect to never hit this condition
-        if not node.type == "trailer":
+        if node.type != "trailer":
             break
 
         key_path.append(ast.literal_eval(node.get_code()))
@@ -591,7 +587,7 @@ def complete(
             graph.cells[cid].code
             for cid in dataflow.topological_sort(
                 graph,
-                set(graph.cells.keys()) - set([request.cell_id]),
+                set(graph.cells.keys()) - {request.cell_id},
             )
         ]
 
@@ -684,13 +680,13 @@ def complete(
         )
     except Exception as e:
         # jedi failed to provide completion
-        LOGGER.debug("Completion with jedi failed: ", str(e))
+        LOGGER.debug("Completion with jedi failed: %s", str(e))
         _write_no_completions(stream, request.id)
     finally:
         try:
             # if an interpreter was used, the lock might be held
             glbls_lock.release()
-        except Exception:
+        except Exception:  # noqa: S110
             # RLock raises if released when not acquired.
             pass
         else:

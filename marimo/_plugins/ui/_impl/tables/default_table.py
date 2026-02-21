@@ -243,7 +243,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             mask: list[bool] = [
                 any(
                     query in str(cast(list[Any], self.data[key])[row]).lower()
-                    for key in self.data.keys()
+                    for key in self.data
                 )
                 for row in range(self.get_num_rows() or 0)
             ]
@@ -473,7 +473,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         # Assert that data is a list
         if not isinstance(data, (list, tuple)):
-            raise ValueError(
+            raise ValueError(  # noqa: TRY004
                 "data must be a list or tuple or a dict of lists."
             )
 
@@ -484,7 +484,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # Handle single-column data
         if not isinstance(data[0], dict):
             if not isinstance(data[0], (str, int, float, bool, type(None))):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY004
                     "data must be a sequence of JSON-serializable types, or a "
                     "sequence of dicts."
                 )

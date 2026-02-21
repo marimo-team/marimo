@@ -171,7 +171,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
 
         files = self.store.ls(path=prefix, detail=True)
         if not isinstance(files, list):
-            raise ValueError(f"Files is not a list: {files}")
+            raise ValueError(f"Files is not a list: {files}")  # noqa: TRY004
         total_files = len(files)
         if total_files > limit:
             LOGGER.debug(
@@ -202,7 +202,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
     async def get_entry(self, path: str) -> StorageEntry:
         entry = await asyncio.to_thread(self.store.info, path)
         if not isinstance(entry, dict):
-            raise ValueError(f"Entry at {path} is not a dictionary")
+            raise ValueError(f"Entry at {path} is not a dictionary")  # noqa: TRY004
         return self._create_storage_entry(entry)
 
     def _create_storage_entry(self, file: dict[str, Any]) -> StorageEntry:

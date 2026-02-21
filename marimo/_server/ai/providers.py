@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Generic,
     Literal,
     Optional,
@@ -439,13 +440,10 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
             return False
 
         # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
-        if (
+        return not (
             self.config.base_url
             and "api.openai.com" not in self.config.base_url
-        ):
-            return False
-
-        return True
+        )
 
 
 class AzureOpenAIProvider(OpenAIProvider):
@@ -720,7 +718,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     # https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
     # Extended thinking requires temperature of 1
     DEFAULT_EXTENDED_THINKING_TEMPERATURE = 1
-    EXTENDED_THINKING_MODEL_PREFIXES = [
+    EXTENDED_THINKING_MODEL_PREFIXES: ClassVar[list[str]] = [
         "claude-opus-4",
         "claude-sonnet-4",
         "claude-haiku-4-5",

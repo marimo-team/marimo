@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
-    import pdb
+    import pdb  # noqa: T100
 
     # Patch Pdb so manually instantiated debuggers create our debugger
     pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
@@ -79,7 +79,7 @@ def patch_micropip(glbls: dict[Any, Any]) -> None:
     # again.
     had_sys = "sys" in glbls
     if not had_sys:
-        exec("import sys", glbls)
+        exec("import sys", glbls)  # noqa: S102
 
     if eval(
         "bool(sys.meta_path and sys.meta_path[-1].__class__.__name__ == '_MicropipFinder')",
@@ -152,11 +152,11 @@ del Loader; del MetaPathFinder
 """
     )
 
-    exec(definitions, glbls)
+    exec(definitions, glbls)  # noqa: S102
 
     # append the finder to the end of meta_path, in case the user
     # already has a package called micropip
-    exec(
+    exec(  # noqa: S102
         "sys.meta_path.append(_MicropipFinder());",
         glbls,
     )
@@ -284,9 +284,7 @@ def patch_jedi_parameter_completion() -> None:
             lines = [
                 line.strip().lstrip("#") for line in maybe_comment.splitlines()
             ]
-            min_indent = min(
-                [len(line) - len(line.lstrip()) for line in lines]
-            )
+            min_indent = min(len(line) - len(line.lstrip()) for line in lines)
             return "\n".join(
                 line.strip().lstrip("#")[min_indent:]
                 for line in maybe_comment.splitlines()

@@ -340,10 +340,11 @@ class OSFileSystem(FileSystem):
 
                 try:
                     # For GUI editors
-                    subprocess.run([editor, *args])
-                    return True
+                    subprocess.run([editor, *args], check=False)
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")
+                else:
+                    return True
 
             # Use system default if no editor specified
             if platform.system() == "Darwin":  # macOS
@@ -353,10 +354,11 @@ class OSFileSystem(FileSystem):
                 os.startfile(path)  # type: ignore[attr-defined]
             else:  # Linux variants
                 subprocess.call(("xdg-open", path))
-            return True
         except Exception as e:
             LOGGER.error(f"Error opening file: {e}")
             return False
+        else:
+            return True
 
 
 def editor_open_file_in_line_args(

@@ -82,7 +82,7 @@ class AppKernelRunner:
 
         ctx = get_context()
         if not isinstance(ctx, KernelRuntimeContext):
-            raise RuntimeError("AppKernelRunner requires a kernel context.")
+            raise RuntimeError("AppKernelRunner requires a kernel context.")  # noqa: TRY004
 
         def cache_output(
             cell: CellImpl,

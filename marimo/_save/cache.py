@@ -147,10 +147,10 @@ class Cache:
         elif isinstance(value, set):
             # Sets cannot be recursive (require hashable items), but keep the
             # reference.
-            result = set(
+            result = {
                 self._restore_from_stub_if_needed(item, scope, memo)
                 for item in value
-            )
+            }
             value.clear()
             value.update(result)
             result = value
@@ -277,10 +277,10 @@ class Cache:
             )
         elif isinstance(value, set):
             # sets cannot be recursive (require hashable items)
-            converted = set(
+            converted = {
                 self._convert_to_stub_if_needed(item, memo, preserve_pointers)
                 for item in value
-            )
+            }
             if preserve_pointers:
                 value.clear()
                 value.update(converted)
@@ -398,7 +398,7 @@ class CacheContext(abc.ABC):
     """Tracks cache loader state and statistics.
     Base class for cache interfaces."""
 
-    __slots__ = "_loader"
+    __slots__ = ("_loader",)
     _loader: Optional[State[Loader]]
 
     # Match functools api
