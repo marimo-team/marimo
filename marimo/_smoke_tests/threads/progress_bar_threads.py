@@ -7,8 +7,8 @@ app = marimo.App()
 @app.cell
 def _():
     import marimo as mo
-    import time
     import random
+    import time
     import threading
 
     return mo, random, threading, time
@@ -16,28 +16,26 @@ def _():
 
 @app.cell
 def _(mo, random, threading, time):
-    def step(pbar: mo.status.progress_bar, work: int, lock: threading.Lock):
+    def step(pbar: mo.status.progress_bar, work: int):
         for _ in range(work):
             # Sleep... or anything else that releases GIL
             time.sleep(random.uniform(0.5, 1))
-            with lock:
-                pbar.update(
-                    subtitle=f"work completed by thread {threading.get_ident()}"
-                )
+            pbar.update(
+                subtitle=f"work completed by thread {threading.get_ident()}"
+            )
 
     return (step,)
 
 
 @app.cell
-def _(mo, random, step, threading, time):
+def _(mo, random, step, time):
     total = 30
-    lock = threading.Lock()
     with mo.status.progress_bar(total=total) as pbar:
         n_threads = 4
         work = total // n_threads
         remainder = total % n_threads
         threads = [
-            mo.Thread(target=step, args=(pbar, work, lock))
+            mo.Thread(target=step, args=(pbar, work))
             for _ in range(n_threads)
         ]
         for t in threads:
