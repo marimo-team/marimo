@@ -15,6 +15,7 @@ from typing import Literal, Optional, Union
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
+from marimo._session.notebook.file_manager import AppFileManager
 from marimo._utils.files import natural_sort
 
 LOGGER = _loggers.marimo_logger()
@@ -126,7 +127,7 @@ class OSFileSystem(FileSystem):
     def create_file_or_directory(
         self,
         path: str,
-        file_type: Literal["file", "directory"],
+        file_type: Literal["file", "directory", "notebook"],
         name: str,
         contents: Optional[bytes],
     ) -> FileInfo:
@@ -153,6 +154,13 @@ class OSFileSystem(FileSystem):
 
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
+        elif file_type == "notebook" and not contents:
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            # Create a new AppFileManager to get the default notebook code
+            # We pass None as filename to get the empty notebook template
+            notebook_code = AppFileManager(None).to_code()
+            full_path.write_text(notebook_code, encoding="utf-8")
+            contents = notebook_code.encode("utf-8")
         else:
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_bytes(contents or b"")

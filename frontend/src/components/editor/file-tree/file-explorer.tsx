@@ -19,6 +19,7 @@ import {
   ListTreeIcon,
   MoreVerticalIcon,
   PlaySquareIcon,
+  PlusIcon,
   RefreshCcwIcon,
   Trash2Icon,
   UploadIcon,
@@ -128,6 +129,15 @@ export const FileExplorer: React.FC<{
     });
   });
 
+  const handleCreateNotebook = useEvent(async () => {
+    openPrompt({
+      title: "Notebook name",
+      onConfirm: async (name) => {
+        tree.createFile(name, null, "notebook");
+      },
+    });
+  });
+
   const handleCollapseAll = useEvent(() => {
     treeRef.current?.closeAll();
     setOpenState({});
@@ -182,6 +192,7 @@ export const FileExplorer: React.FC<{
         onRefresh={handleRefresh}
         onHidden={handleHiddenFilesToggle}
         onCreateFile={handleCreateFile}
+        onCreateNotebook={handleCreateNotebook}
         onCreateFolder={handleCreateFolder}
         onCollapseAll={handleCollapseAll}
         tree={tree}
@@ -248,6 +259,7 @@ interface ToolbarProps {
   onRefresh: () => void;
   onHidden: () => void;
   onCreateFile: () => void;
+  onCreateNotebook: () => void;
   onCreateFolder: () => void;
   onCollapseAll: () => void;
   tree: RequestingTree;
@@ -257,6 +269,7 @@ const Toolbar = ({
   onRefresh,
   onHidden,
   onCreateFile,
+  onCreateNotebook,
   onCreateFolder,
   onCollapseAll,
 }: ToolbarProps) => {
@@ -267,6 +280,29 @@ const Toolbar = ({
 
   return (
     <div className="flex items-center justify-end px-2 shrink-0 border-b">
+      <Tooltip content="Add notebook">
+        <Button
+          data-testid="file-explorer-add-notebook-button"
+          onClick={onCreateNotebook}
+          variant="text"
+          size="xs"
+        >
+          <div className="relative w-4 h-4 shrink-0">
+            <img
+              src={marimoIcon}
+              className="absolute top-0 left-0 w-full h-full filter grayscale"
+              alt="Marimo"
+            />
+            <PlusIcon
+              size={7}
+              strokeWidth={4}
+              className="absolute bottom-0 right-0 text-gray-800 dark:text-gray-200
+                bg-background dark:bg-(--slate-1) rounded-full"
+              style={{ transform: "translate(20%, 20%)" }}
+            />
+          </div>
+        </Button>
+      </Tooltip>
       <Tooltip content="Add file">
         <Button
           data-testid="file-explorer-add-file-button"
@@ -467,6 +503,16 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     });
   });
 
+  const handleCreateNotebook = useEvent(async () => {
+    node.open();
+    openPrompt({
+      title: "Notebook name",
+      onConfirm: async (name) => {
+        tree?.createFile(name, node.id, "notebook");
+      },
+    });
+  });
+
   const handleDuplicate = useEvent(async () => {
     if (!tree || node.data.isDirectory) {
       return;
@@ -532,6 +578,23 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         )}
         {node.data.isDirectory && (
           <>
+            <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
+              <div className="relative w-[14px] h-[14px] mr-2 shrink-0">
+                <img
+                  src={marimoIcon}
+                  className="absolute top-0 left-0 w-full h-full filter grayscale"
+                  alt="Marimo"
+                />
+                <PlusIcon
+                  size={6}
+                  strokeWidth={3}
+                  className="absolute bottom-0 right-0 text-gray-800 dark:text-gray-200
+                    bg-popover rounded-full"
+                  style={{ transform: "translate(20%, 20%)" }}
+                />
+              </div>
+              Create notebook
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleCreateFile()}>
               <FilePlus2Icon {...iconProps} />
               Create file

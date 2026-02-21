@@ -4005,7 +4005,7 @@ export interface components {
       name: string;
       path: string;
       /** @enum {unknown} */
-      type: "directory" | "file";
+      type: "directory" | "file" | "notebook";
     };
     /** FileCreateResponse */
     FileCreateResponse: {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -28,6 +29,34 @@ def test_create_file(test_dir: Path, fs: OSFileSystem) -> None:
     assert expected_path.exists()
 
 
+def test_create_notebook(test_dir: Path, fs: OSFileSystem) -> None:
+    test_notebook_name = "test_notebook.py"
+    fs.create_file_or_directory(
+        str(test_dir),
+        "notebook",
+        test_notebook_name,
+        None,
+    )
+    expected_path = test_dir / test_notebook_name
+    assert expected_path.exists()
+    notebook_code = expected_path.read_text("utf-8")
+    assert "import marimo" in notebook_code
+    assert "app.run()" in notebook_code
+
+
+def test_create_notebook_with_contents(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    test_notebook_name = "test_notebook.py"
+    fs.create_file_or_directory(
+        str(test_dir), "notebook", test_notebook_name, b"marimo"
+    )
+    expected_path = test_dir / test_notebook_name
+    assert expected_path.exists()
+    notebook_code = expected_path.read_text("utf-8")
+    assert notebook_code == "marimo"
+
+
 def test_create_file_with_duplicate_name(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
@@ -38,12 +67,13 @@ def test_create_file_with_duplicate_name(
     assert expected_path.exists()
 
 
+@pytest.mark.parametrize("file_type", ["file", "notebook"])
 def test_create_file_and_parent_directories(
-    test_dir: Path, fs: OSFileSystem
+    test_dir: Path, fs: OSFileSystem, file_type: Literal["file", "notebook"]
 ) -> None:
     test_file_name = "test_file.txt"
     fs.create_file_or_directory(
-        str(test_dir / "parent"), "file", test_file_name, None
+        str(test_dir / "parent"), file_type, test_file_name, None
     )
     expected_path = test_dir / "parent" / test_file_name
     assert expected_path.exists()
