@@ -244,6 +244,32 @@ async def save_app_config(
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveAppConfigurationRequest)
     session = app_state.require_current_session()
+
+    old_css_file = session.app_file_manager.app.config.css_file
     contents = session.app_file_manager.save_app_config(body.config)
+
+    # If css_file changed, push new CSS to the frontend and update watcher
+    if "css_file" in body.config:
+        new_css_file = session.app_file_manager.app.config.css_file
+        if old_css_file != new_css_file:
+            from marimo._messaging.notification import (
+                UpdateCssNotification,
+            )
+            from marimo._session.file_watcher_integration import (
+                SessionFileWatcherExtension,
+            )
+            from marimo._session.session import SessionImpl
+
+            css_content = session.app_file_manager.read_css_file() or ""
+            session.notify(
+                UpdateCssNotification(css=css_content),
+                from_consumer_id=None,
+            )
+
+            if isinstance(session, SessionImpl):
+                for ext in session.extensions:
+                    if isinstance(ext, SessionFileWatcherExtension):
+                        ext.update_css_watcher(session)
+                        break
 
     return PlainTextResponse(content=contents)

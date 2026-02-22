@@ -731,6 +731,17 @@ class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
     cell_ids: list[CellId_t]
 
 
+class UpdateCssNotification(Notification, tag="update-css"):
+    """Pushes updated CSS content to the frontend.
+
+    Attributes:
+        css: The new CSS content (empty string clears custom CSS).
+    """
+
+    name: ClassVar[str] = "update-css"
+    css: str
+
+
 NotificationMessage = Union[
     # Cell operations
     CellNotification,
@@ -779,4 +790,6 @@ NotificationMessage = Union[
     FocusCellNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
+    # CSS hot reload
+    UpdateCssNotification,
 ]

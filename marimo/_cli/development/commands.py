@@ -133,6 +133,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.UpdateCellCodesNotification,
         notifications.UpdateCellIdsNotification,
         notifications.FocusCellNotification,
+        notifications.UpdateCssNotification,
         notifications.NotificationMessage,
         # ai
         ChatMessage,
