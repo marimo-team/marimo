@@ -296,32 +296,36 @@ def test_restart_session(client: TestClient) -> None:
     # Shutdown the kernel
 
 
-def test_resume_session_with_watch(client: TestClient) -> None:
+def test_resume_session_after_file_change(client: TestClient) -> None:
     session_manager = get_session_manager(client)
-    session_manager.watch = True
+    # Don't set session_manager.watch = True here; it would start a
+    # file-watcher thread whose async callbacks can race with the
+    # synchronous _handle_file_change_locked call below, reading the
+    # file while it is being written and producing a spurious
+    # "not a marimo notebook" error.  The test invokes the handler
+    # directly, so no watcher is needed.
 
     with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
 
-        # Stop the watcher before writing to avoid async race conditions
         session = get_session(client, SessionId("123"))
         assert session
-        session_manager._watcher_manager.stop_all()
-        session_manager.watch = False
 
         # Write to the notebook file to add a new cell
         # we write it as the second to last cell
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
-        with open(filename, "r+") as f:
+        with open(filename, "r") as f:
             content = f.read()
-            last_cell_pos = content.rindex("@app.cell")
-            f.seek(last_cell_pos)
-            f.write(
-                "\n@app.cell\ndef _(): x=10; x\n" + content[last_cell_pos:]
-            )
-            f.close()
+        last_cell_pos = content.rindex("@app.cell")
+        new_content = (
+            content[:last_cell_pos]
+            + "\n@app.cell\ndef _(): x=10; x\n"
+            + content[last_cell_pos:]
+        )
+        with open(filename, "w") as f:
+            f.write(new_content)
 
         # Directly trigger the file change handler (synchronous) instead
         # of relying on the async file watcher, which is inherently racy.
