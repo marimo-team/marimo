@@ -10,6 +10,10 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
@@ -413,8 +417,12 @@ def inline_packages(name: Path) -> None:
 
     # Validate uv is installed
     if not DependencyManager.which("uv"):
-        raise click.UsageError(
-            "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
+        raise MarimoCLIMissingDependencyError(
+            "uv is not installed.",
+            "uv",
+            additional_tip=(
+                "See https://docs.astral.sh/uv/getting-started/installation/"
+            ),
         )
 
     # Validate the file exists
@@ -664,8 +672,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         uvicorn.run(app, host=host, port=port, log_level="error")
 
     except Exception as e:
-        click.echo(f"Error creating preview: {e}", err=True)
-        raise click.Abort() from e
+        raise MarimoCLIRuntimeError(f"Error creating preview: {e}") from e
 
 
 development.add_command(inline_packages)

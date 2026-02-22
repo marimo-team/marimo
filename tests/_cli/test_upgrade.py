@@ -41,6 +41,43 @@ def test_check_for_updates(
     )
 
 
+@patch("marimo._cli.upgrade.get_upgrade_commands")
+@patch("marimo._cli.upgrade.echo")
+def test_print_latest_version_uses_manager_aware_commands(
+    mock_echo: Any, mock_get_upgrade_commands: Any
+) -> None:
+    state = MarimoCLIState(
+        latest_version="0.1.2", last_checked_at="2020-01-01"
+    )
+    mock_get_upgrade_commands.return_value = [
+        "pixi upgrade marimo",
+        "python -m pip install --upgrade marimo",
+    ]
+
+    print_latest_version("0.1.0", state)
+
+    assert any(
+        "pixi upgrade marimo" in call[0][0]
+        for call in mock_echo.call_args_list
+    )
+    assert any(
+        "python -m pip install --upgrade marimo" in call[0][0]
+        for call in mock_echo.call_args_list
+    )
+    assert any(
+        (
+            "Run pixi upgrade marimo or "
+            "python -m pip install --upgrade marimo to upgrade."
+        )
+        in call[0][0]
+        for call in mock_echo.call_args_list
+    )
+    assert not any(
+        call.args and str(call.args[0]).startswith("Or run ")
+        for call in mock_echo.call_args_list
+    )
+
+
 @patch("marimo._cli.upgrade._fetch_data_from_url")
 def test_update_with_latest_version(mock_fetch_data_from_url: Any) -> None:
     # Mocks
