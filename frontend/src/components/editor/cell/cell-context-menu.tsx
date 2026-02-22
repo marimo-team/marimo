@@ -26,6 +26,7 @@ import { isOutputEmpty } from "@/core/cells/outputs";
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyToClipboard } from "@/utils/copy";
+import { getImageExtension } from "@/utils/filenames";
 import { Logger } from "@/utils/Logger";
 import type { ActionButton } from "../actions/types";
 import {
@@ -151,25 +152,12 @@ export const CellActionsContextMenu = ({
       icon: <ImageIcon size={13} strokeWidth={1.5} />,
       label: "Download image",
       hidden: !imageRightClicked,
-      handle: async () => {
+      handle: () => {
         if (imageRightClicked) {
-          const response = await fetch(imageRightClicked.src);
-          const blob = await response.blob();
-
-          // This list should be kept in sync with the image MIME types
-          // handled in frontend/src/components/editor/Output.tsx
-          const extensions = ["avif", "bmp", "gif", "jpeg", "svg", "tiff"];
-          let fileExtension = "png"; // Default extension
-          for (const extension of extensions) {
-            // Use blob.type (e.g., "image/svg+xml") to check for extension
-            if (blob.type.includes(extension)) {
-              fileExtension = extension;
-              break;
-            }
-          }
           const link = document.createElement("a");
-          link.download = `image.${fileExtension}`;
-          link.href = URL.createObjectURL(blob);
+          link.href = imageRightClicked.src;
+          const ext = getImageExtension(imageRightClicked.src) || "png";
+          link.download = `image.${ext}`;
           link.click();
         }
       },
