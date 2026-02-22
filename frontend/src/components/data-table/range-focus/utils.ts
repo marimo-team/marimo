@@ -44,6 +44,69 @@ export function getTabSeparatedValues(values: string[][]) {
 }
 
 /**
+ * Count selected cells excluding the select checkbox column.
+ */
+export function countDataCellsInSelection(
+  selectedCellIds: Set<string>,
+): number {
+  let count = 0;
+  for (const cellId of selectedCellIds) {
+    if (!cellId.includes(SELECT_COLUMN_ID)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Extract numeric values from the selected cells. Only finite numbers and
+ * non-empty numeric strings (e.g. "42", "3.14", "0") are included. Skips select
+ * checkbox column, missing cells, and all other types (boolean, null, etc.).
+ */
+export function getNumericValuesFromSelectedCells<TData>(
+  table: Table<TData>,
+  selectedCellIds: Set<string>,
+): number[] {
+  const numericValues: number[] = [];
+  for (const cellId of selectedCellIds) {
+    if (cellId.includes(SELECT_COLUMN_ID)) {
+      continue;
+    }
+    const rowId = cellId.split("_")[0];
+    const row = table.getRow(rowId);
+    if (!row) {
+      continue;
+    }
+
+    const tableCell = row.getAllCells().find((c) => c.id === cellId);
+    if (!tableCell) {
+      continue;
+    }
+
+    const value = tableCell.getValue();
+    // Only accept numbers and strings
+    // Skip booleans, null, etc.
+    let num: number;
+    if (typeof value === "number") {
+      num = value;
+    } else if (typeof value === "string") {
+      if (value.trim() === "") {
+        continue;
+      }
+      num = Number(value);
+    } else {
+      continue;
+    }
+
+    // Skip NaN and Infinity
+    if (Number.isFinite(num)) {
+      numericValues.push(num);
+    }
+  }
+  return numericValues;
+}
+
+/**
  * Get the cell ids between two cells.
  */
 export function getCellsBetween<TData>(
