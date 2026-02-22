@@ -149,7 +149,7 @@ export const FormWrapper = <T,>({
           "bg-(--amber-1) border-(--amber-7)": !synchronized && bordered,
         })}
         onKeyDown={(evt) => {
-          // Handle (enter + ctrl) and (enter + shift)/meta key
+          // Handle enter + ctrl/meta/shift key
           if (
             evt.key === "Enter" &&
             (evt.ctrlKey || evt.metaKey || evt.shiftKey)
