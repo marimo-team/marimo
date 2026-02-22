@@ -2,8 +2,8 @@
 import { useCallback, useState } from "react";
 
 export function useNonce() {
-  const [_nonce, setNonce] = useState(0);
+  const [, setNonce] = useState(0);
   return useCallback(() => {
-    setNonce((n: number) => n + 1);
+    setNonce((n) => n + 1);
   }, []);
 }

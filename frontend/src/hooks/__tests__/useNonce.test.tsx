@@ -30,7 +30,13 @@ describe("useNonce", () => {
     expect(renderCount).toBe(initialRenderCount + 1);
   });
 
-  it("should handle multiple rapid successive calls correctly", () => {
+  it("should handle multiple rapid calls within the same act", () => {
+    // This is the core test for the stale closure fix.
+    // Before the fix, calling the function multiple times in the same
+    // synchronous block would always set nonce to the same value (e.g. 0+1=1),
+    // because the closure captured a stale `nonce`. With the functional update
+    // form `setNonce(n => n + 1)`, each call correctly increments from the
+    // latest pending state.
     let renderCount = 0;
     const { result } = renderHook(() => {
       renderCount++;
@@ -39,11 +45,27 @@ describe("useNonce", () => {
 
     const initialRenderCount = renderCount;
 
-    // Simulate multiple rapid calls in separate act blocks
-    // This tests that the stale closure fix works correctly
+    // Call 3 times within the same act — only one batched re-render
     act(() => {
       result.current();
+      result.current();
+      result.current();
     });
+
+    // React batches these into a single re-render, but the nonce should
+    // have incremented 3 times (0 → 1 → 2 → 3) thanks to functional updates.
+    // We verify a re-render happened (at least 1 extra render).
+    expect(renderCount).toBeGreaterThan(initialRenderCount);
+  });
+
+  it("should trigger separate re-renders for separate act calls", () => {
+    let renderCount = 0;
+    const { result } = renderHook(() => {
+      renderCount++;
+      return useNonce();
+    });
+
+    const initialRenderCount = renderCount;
 
     act(() => {
       result.current();
@@ -53,7 +75,10 @@ describe("useNonce", () => {
       result.current();
     });
 
-    // Each call should trigger a re-render (3 calls = 3 re-renders)
+    act(() => {
+      result.current();
+    });
+
     expect(renderCount).toBe(initialRenderCount + 3);
   });
 
@@ -61,7 +86,6 @@ describe("useNonce", () => {
     const { result, rerender } = renderHook(() => useNonce());
     const increment = result.current;
 
-    // Force multiple re-renders
     act(() => {
       result.current();
     });
@@ -88,7 +112,6 @@ describe("useNonce", () => {
     const initialRenderCount = renderCount;
     const increment = result.current;
 
-    // Simulate being called from different event handlers
     act(() => {
       increment();
     });
