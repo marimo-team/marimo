@@ -1,6 +1,15 @@
 fail_fast: false
 
 repos:
+  - repo: local
+    hooks:
+      - id: openapi-version-sync
+        name: check openapi version sync
+        entry: python scripts/check_openapi_version_sync.py
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|packages/openapi/api\.yaml|marimo/_cli/development/commands\.py|Makefile)$
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
