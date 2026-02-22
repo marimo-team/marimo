@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.11"
+__generated_with = "0.20.1"
 app = marimo.App()
 
 
@@ -39,16 +39,12 @@ def _(compute_embedding):
 
 
 @app.cell
-def _(embedding, mnist, plt):
+def _(embedding, mnist, plt, pymde):
     x = embedding[:, 0]
     y = embedding[:, 1]
 
-    plt.scatter(x=x, y=y, s=0.05, cmap="Spectral", c=mnist.attributes["digits"])
-    plt.yticks([-2, 0, 2])
-    plt.xticks([-2, 0, 2])
-    plt.ylim(-2.5, 2.5)
-    plt.xlim(-2.5, 2.5)
-    ax = plt.gca()
+    ax = pymde.plot(X=embedding, color_by=mnist.attributes["digits"])
+    plt.tight_layout()
     return ax, x, y
 
 
@@ -68,6 +64,71 @@ def _(embedding, fig, x, y):
 @app.cell
 def _(fig):
     fig.value if fig.value else "No selection!"
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## Edge-data test
+
+    Points are clustered right at the axes edges. Clicking on tick labels,
+    axis labels, or the title should **not** start a selection. Previously
+    the click was clamped to the nearest edge, which would select these
+    edge points via `get_mask()`.
+    """)
+    return
+
+
+@app.cell
+def _(np, plt):
+    rng = np.random.default_rng(99)
+    # Points hugging the four edges of [0, 10] x [0, 10]
+    edge_n = 30
+    edge_x = np.concatenate([
+        rng.uniform(0, 0.3, edge_n),        # left edge
+        rng.uniform(9.7, 10, edge_n),       # right edge
+        rng.uniform(0, 10, edge_n),          # bottom edge
+        rng.uniform(0, 10, edge_n),          # top edge
+        rng.uniform(3, 7, edge_n),           # centre (control)
+    ])
+    edge_y = np.concatenate([
+        rng.uniform(0, 10, edge_n),          # left edge
+        rng.uniform(0, 10, edge_n),          # right edge
+        rng.uniform(0, 0.3, edge_n),         # bottom edge
+        rng.uniform(9.7, 10, edge_n),        # top edge
+        rng.uniform(3, 7, edge_n),           # centre (control)
+    ])
+
+    plt.figure()
+    plt.scatter(edge_x, edge_y, s=20, c=edge_y, cmap="viridis")
+    plt.colorbar(label="y value")
+    plt.xlim(0, 10)
+    plt.ylim(0, 10)
+    plt.xlabel("X axis (click here should NOT select)")
+    plt.ylabel("Y axis (click here should NOT select)")
+    plt.title("Title area (click here should NOT select)")
+    edge_ax = plt.gca()
+    return edge_ax, edge_x, edge_y
+
+
+@app.cell
+def _(edge_ax, mo):
+    edge_fig = mo.ui.matplotlib(edge_ax)
+    edge_fig
+    return (edge_fig,)
+
+
+@app.cell
+def _(edge_fig, edge_x, edge_y):
+    _m = edge_fig.value.get_mask(edge_x, edge_y)
+    f"Selected {_m.sum()} / {len(edge_x)} points"
+    return
+
+
+@app.cell
+def _(edge_fig):
+    edge_fig.value if edge_fig.value else "No selection!"
     return
 
 
