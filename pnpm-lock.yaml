@@ -381,7 +381,7 @@ importers:
         version: 0.16.28
       lodash-es:
         specifier: ^4.17.22
-        version: 4.17.22
+        version: 4.17.23
       loro-codemirror:
         specifier: ^0.3.3
         version: 0.3.3(@codemirror/state@6.5.4)(@codemirror/view@6.39.13)(loro-crdt@1.10.5)
@@ -7245,9 +7245,6 @@ packages:
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
-
-  lodash-es@4.17.22:
-    resolution: {integrity: sha512-XEawp1t0gxSi9x01glktRZ5HDy0HXqrM0x5pXQM98EaI0NxO6jVM7omDOxsuEo5UIASAnm2bRp1Jt/e0a2XU8Q==}
 
   lodash-es@4.17.23:
     resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
@@ -18071,8 +18068,6 @@ snapshots:
   locate-path@6.0.0:
     dependencies:
       p-locate: 5.0.0
-
-  lodash-es@4.17.22: {}
 
   lodash-es@4.17.23: {}
 
