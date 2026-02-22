@@ -1002,6 +1002,13 @@ Example:
     hidden=True,
     help="Custom asset URL for loading static resources. Can include {version} placeholder.",
 )
+@click.option(
+    "--show-error-tracebacks/--no-show-error-tracebacks",
+    is_flag=True,
+    default=None,
+    type=bool,
+    help="Show detailed error tracebacks in a modal when exceptions occur.",
+)
 @click.pass_context
 @click.argument(
     "name",
@@ -1030,6 +1037,7 @@ def run(
     trusted: Optional[bool],
     server_startup_command: Optional[str],
     asset_url: Optional[str],
+    show_error_tracebacks: Optional[bool],
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -1162,6 +1170,7 @@ def run(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         sandbox_mode=sandbox_mode,
+        show_error_tracebacks=show_error_tracebacks,
     )
 
 

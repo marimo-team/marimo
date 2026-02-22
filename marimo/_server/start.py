@@ -179,6 +179,7 @@ def start(
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
     sandbox_mode: SandboxMode | None = None,
+    show_error_tracebacks: Optional[bool] = None,
 ) -> None:
     """
     Start the server.
@@ -228,6 +229,16 @@ def start(
                 # if the user's package manager does not support sandboxes.
                 "package_management": {
                     "manager": "uv",
+                }
+            }
+        )
+
+    # Apply CLI overrides for runtime config if explicitly set
+    if show_error_tracebacks is not None:
+        config_reader = config_reader.with_overrides(
+            {
+                "runtime": {
+                    "show_error_tracebacks": show_error_tracebacks,
                 }
             }
         )

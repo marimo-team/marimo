@@ -126,6 +126,7 @@ export const UserConfigSchema = z
         default_auto_download: z
           .array(z.enum(AUTO_DOWNLOAD_FORMATS))
           .prefault([]),
+        show_error_tracebacks: z.boolean().prefault(false),
       })
       .prefault({}),
     display: z

@@ -477,6 +477,7 @@ export const MarimoErrorOutput = ({
               );
             }
 
+            // All other exceptions
             return (
               <li className="my-2" key={`exception-${idx}`}>
                 {error.raising_cell == null ? (
@@ -484,14 +485,33 @@ export const MarimoErrorOutput = ({
                     <p className="text-muted-foreground">
                       {processTextForUrls(error.msg, `exception-${idx}`)}
                     </p>
-                    <div className="text-muted-foreground mt-2">
-                      See the console area for a traceback.
-                    </div>
+                    {"traceback" in error && error.traceback ? (
+                      <div
+                        className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text"
+                        // biome-ignore lint/security/noDangerouslySetInnerHtml: traceback from backend
+                        dangerouslySetInnerHTML={{
+                          __html: error.traceback,
+                        }}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground mt-2">
+                        See the console area for a traceback.
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
                     {processTextForUrls(error.msg, `exception-${idx}`)}
-                    <CellLinkError cellId={error.raising_cell as CellId} />
+                    <CellLinkError cellId={error.raising_cell} />
+                    {"traceback" in error && error.traceback && (
+                      <div
+                        className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text"
+                        // biome-ignore lint/security/noDangerouslySetInnerHtml: traceback from backend
+                        dangerouslySetInnerHTML={{
+                          __html: error.traceback,
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </li>

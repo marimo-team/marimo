@@ -13,6 +13,7 @@ from uuid import uuid4
 from marimo import _loggers as loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import (
+    MarimoExceptionRaisedError,
     MarimoInternalError,
     is_sensitive_error,
 )
@@ -227,12 +228,31 @@ class CellNotificationUtils:
         # and then broadcast a new error such that the data is hidden.
         safe_errors: list[Error] = []
         if get_mode() == "run":
+            # Check if show_error_tracebacks is enabled
+            show_error_tracebacks = False
+            try:
+                ctx = get_context()
+                show_error_tracebacks = ctx.marimo_config["runtime"].get(
+                    "show_error_tracebacks", False
+                )
+            except ContextNotInitializedError:
+                pass
+
             for error in data:
                 # Skip non-sensitive errors
                 if not is_sensitive_error(error):
                     safe_errors.append(error)
                     continue
 
+                # show raised exceptions only if `show_error_tracebacks` is enabled
+                if (
+                    isinstance(error, MarimoExceptionRaisedError)
+                    and show_error_tracebacks
+                ):
+                    safe_errors.append(error)
+                    continue
+
+                # Sanitize sensitive errors
                 error_id = uuid4()
                 LOGGER.error(
                     f"(error_id={error_id}) {error.describe()}",
