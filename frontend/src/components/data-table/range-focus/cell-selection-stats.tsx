@@ -34,7 +34,7 @@ export const CellSelectionStats = <TData,>({
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-3 px-2 py-1 text-xs text-muted-foreground shrink-0 ml-auto",
+        "flex items-center justify-end gap-3 px-2 pt-1 text-xs text-muted-foreground shrink-0 ml-auto",
         className,
       )}
     >
