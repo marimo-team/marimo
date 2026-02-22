@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import AsyncIterable, Iterable, Sized
 from typing import (
@@ -55,6 +56,7 @@ class _Progress(Html):
         self.show_rate = show_rate
         self.show_eta = show_eta
         self.start_time = time.time()
+        self._lock = threading.Lock()
         super().__init__(self._get_text())
 
     def update_progress(
@@ -63,7 +65,7 @@ class _Progress(Html):
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
     ) -> None:
-        """Update the progress indicator.
+        """Update the progress indicator. Thread-safe.
 
         Examples:
             Increment by 1:
@@ -83,18 +85,19 @@ class _Progress(Html):
             title (str, optional): New title. Defaults to None.
             subtitle (str, optional): New subtitle. Defaults to None.
         """
-        if self.closed:
-            raise RuntimeError(
-                "Progress indicators cannot be updated after exiting "
-                "the context manager that created them. "
-            )
-        self.current += increment
-        if title is not None:
-            self.title = title
-        if subtitle is not None:
-            self.subtitle = subtitle
+        with self._lock:
+            if self.closed:
+                raise RuntimeError(
+                    "Progress indicators cannot be updated after exiting "
+                    "the context manager that created them. "
+                )
+            self.current += increment
+            if title is not None:
+                self.title = title
+            if subtitle is not None:
+                self.subtitle = subtitle
 
-        self._text = self._get_text()
+            self._text = self._get_text()
         self.debounced_flush()
 
     @debounce(0.15)

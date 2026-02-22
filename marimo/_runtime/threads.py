@@ -7,6 +7,7 @@ from typing import Any
 from marimo._messaging.streams import ThreadSafeStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.cell_output_list import CellOutputList
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.script_context import ScriptRuntimeContext
 from marimo._runtime.context.types import (
@@ -148,11 +149,12 @@ class Thread(threading.Thread):
             except RuntimeError:
                 pass
 
-        output = None
-        if (mctx := self._marimo_ctx) is not None and (
-            ectx := mctx.execution_context
-        ) is not None:
-            output = ectx.output
+        output = CellOutputList()
+        if self._marimo_ctx is not None:
+            if (exec_ctx := self._marimo_ctx.execution_context) is not None:
+                # Share the parent's CellOutputList so appends from threads
+                # are visible to the main execution context.
+                output = exec_ctx.output
 
         if isinstance(self._marimo_ctx, KernelRuntimeContext):
             self._marimo_ctx.execution_context = ExecutionContext(
