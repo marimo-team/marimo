@@ -450,16 +450,21 @@ class UIElement(Html, Generic[S, T]):
         """Update value, given a value from the frontend
 
         Calls the on_change handler with the element's new value as a
-        side-effect.
+        side-effect, but only when the value actually changed (so the same
+        value set twice only triggers one callback).
         """
+        old_value = self._value
         self._value_frontend = value
         try:
             self._value = self._convert_value(value)
         except MarimoConvertValueException:
             raise
-
-        if self._on_change is not None:
-            self._on_change(self._value)
+        new_value = self._value
+        if self._on_change is None:
+            return
+        if old_value is new_value or old_value == new_value:
+            return
+        self._on_change(new_value)
 
     def _on_update_completion(self) -> bool:
         """Callback to run after the kernel has processed a value update.
