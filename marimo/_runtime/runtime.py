@@ -69,6 +69,7 @@ from marimo._messaging.notification import (
     SQLMetadata,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
+    UpdateCellIdsNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -2095,6 +2096,10 @@ class Kernel:
             del request
             LOGGER.info("App is already instantiated, skipping instantiation.")
             return
+
+        broadcast_notification(
+            UpdateCellIdsNotification(cell_ids=list(request.cell_ids))
+        )
 
         # Handle markdown cells specially during kernel-ready initialization
         execution_requests = {

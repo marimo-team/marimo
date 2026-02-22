@@ -180,6 +180,7 @@ def test_ui_values(session_view: SessionView) -> None:
     session_view.add_control_request(
         CreateNotebookCommand(
             execution_requests=(),
+            cell_ids=(),
             set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                 [("test_ui3", 101112)]
             ),
@@ -501,6 +502,7 @@ def test_last_run_code(session_view: SessionView) -> None:
             execution_requests=(
                 ExecuteCellCommand(cell_id=cell_id, code="print('hello')"),
             ),
+            cell_ids=(cell_id, "cell_2"),
             set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                 []
             ),

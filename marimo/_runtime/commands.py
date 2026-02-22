@@ -269,9 +269,9 @@ class ExecuteCellsCommand(Command):
         ]
 
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
+        assert len(self.cell_ids) == len(
+            self.codes
+        ), "Mismatched cell_ids and codes"
 
 
 class SyncGraphCommand(Command):
@@ -367,9 +367,9 @@ class UpdateUIElementCommand(Command):
         return f"UpdateUIElementCommand(n_elements={len(self.object_ids)}, token={self.token})"
 
     def __post_init__(self) -> None:
-        assert len(self.object_ids) == len(self.values), (
-            "Mismatched object_ids and values"
-        )
+        assert len(self.object_ids) == len(
+            self.values
+        ), "Mismatched object_ids and values"
         # Empty token is not valid (but let's not fail)
         if not self.token:
             LOGGER.warning(
@@ -488,16 +488,16 @@ class CreateNotebookCommand(Command):
 
     Attributes:
         execution_requests: ExecuteCellCommand for each notebook cell.
-        cell_ids: Initial cell IDs in the notebook (unused for now).
+        cell_ids: Initial cell IDs in the notebook.
         set_ui_element_value_request: Initial UI element values.
         auto_run: Whether to automatically execute cells on instantiation.
         request: HTTP request context if available.
     """
 
     execution_requests: tuple[ExecuteCellCommand, ...]
+    cell_ids: tuple[CellId_t, ...]
     set_ui_element_value_request: UpdateUIElementCommand
     auto_run: bool
-    cell_ids: Optional[tuple[CellId_t, ...]] = None
     request: Optional[HTTPRequest] = None
 
 
