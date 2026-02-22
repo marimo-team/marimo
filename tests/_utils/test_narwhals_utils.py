@@ -112,6 +112,18 @@ def test_dataframe_to_csv(df: IntoDataFrame) -> None:
     assert '2,"y"' in csv or "2,y" in csv
 
 
+@pytest.mark.parametrize(
+    "df", create_dataframes({"a": [1, 2], "b": ["x", "y"]})
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_to_csv_with_separator(df: IntoDataFrame) -> None:
+    df_wrapped = nw.from_native(df)
+    csv = dataframe_to_csv(df_wrapped, separator=";")
+    assert "a;b" in csv
+    assert "1;x" in csv
+    assert "2;y" in csv
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_narwhals_type_checks():
     assert is_narwhals_integer_type(nw.Int64)

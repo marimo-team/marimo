@@ -360,6 +360,22 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
+    def test_dataframe_download_csv_separator() -> None:
+        df = pd.DataFrame({"A": [1, 2], "B": ["x", "y"]})
+        subject = ui.dataframe(
+            df,
+            download_csv_separator=";",
+        )
+
+        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_text = from_data_uri(csv_url)[1].decode("utf-8")
+        assert "A;B" in csv_text
+        assert "1;x" in csv_text
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_dataframe_download_json_ensure_ascii() -> None:
         df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
         subject = ui.dataframe(
