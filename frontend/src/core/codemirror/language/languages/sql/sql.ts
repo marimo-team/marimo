@@ -5,7 +5,12 @@ import { insertTab } from "@codemirror/commands";
 import { type SQLDialect, type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import {
+  EditorView,
+  keymap,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
 import {
   defaultSqlHoverTheme,
   NodeSqlParser,
@@ -421,76 +426,85 @@ const SQL_VALIDATION_DEBOUNCE_MS = 300;
  * Custom extension to run SQL queries in EXPLAIN mode on keypress.
  */
 function sqlValidationExtension(): Extension {
-  let debounceTimeout: number | undefined;
-  let lastValidationRequest: string | null = null;
+  return ViewPlugin.define((view) => {
+    let debounceTimeout: number | undefined;
+    let lastValidationRequest: string | null = null;
+    const cellId = view.state.facet(cellIdState);
 
-  return EditorView.updateListener.of((update) => {
-    // Only run validation if the document has changed
-    // The extension only runs on keypress, so we don't need to check for focus
-    // This lets AI completions / external calls trigger validation
-    if (!update.docChanged) {
-      return;
-    }
-
-    const sqlMode = getSQLMode();
-    if (sqlMode === "default") {
-      return;
-    }
-
-    const metadata = getSQLMetadata(update.state);
-    const connectionName = metadata.engine;
-
-    // Currently only DuckDB is supported
-    if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
-      return;
-    }
-
-    const doc = update.state.doc;
-    const sqlContent = doc.toString();
-
-    // Clear existing timeout
-    if (debounceTimeout) {
-      window.clearTimeout(debounceTimeout);
-    }
-
-    // Debounce the validation call
-    debounceTimeout = window.setTimeout(async () => {
-      // Skip if content hasn't changed since last validation
-      if (lastValidationRequest === sqlContent) {
-        return;
-      }
-
-      lastValidationRequest = sqlContent;
-      const cellId = update.view.state.facet(cellIdState);
-
-      if (sqlContent === "") {
-        clearSqlValidationError(cellId);
-        return;
-      }
-
-      try {
-        const dialect = connectionNameToParserDialect(connectionName);
-        const result = await validateSQL(
-          sqlContent,
-          connectionName,
-          dialect,
-          sqlMode,
-        );
-        const validateResult = result.validate_result;
-
-        if (validateResult?.error_message) {
-          setSqlValidationError({
-            cellId,
-            errorMessage: validateResult.error_message,
-            dialect,
-          });
-        } else {
-          clearSqlValidationError(cellId);
+    return {
+      update(update: ViewUpdate) {
+        // Only run validation if the document has changed
+        // The extension only runs on keypress, so we don't need to check for focus
+        // This lets AI completions / external calls trigger validation
+        if (!update.docChanged) {
+          return;
         }
-      } catch (error) {
-        Logger.error("Failed to validate SQL", { error });
-      }
-    }, SQL_VALIDATION_DEBOUNCE_MS);
+
+        const sqlMode = getSQLMode();
+        if (sqlMode === "default") {
+          return;
+        }
+
+        const metadata = getSQLMetadata(update.state);
+        const connectionName = metadata.engine;
+
+        // Currently only DuckDB is supported
+        if (!INTERNAL_SQL_ENGINES.has(connectionName)) {
+          return;
+        }
+
+        const sqlContent = update.state.doc.toString();
+
+        if (debounceTimeout) {
+          window.clearTimeout(debounceTimeout);
+        }
+
+        debounceTimeout = window.setTimeout(async () => {
+          // Skip if the SQL content has not changed
+          if (lastValidationRequest === sqlContent) {
+            return;
+          }
+
+          lastValidationRequest = sqlContent;
+
+          if (sqlContent === "") {
+            clearSqlValidationError(cellId);
+            return;
+          }
+
+          try {
+            const dialect = connectionNameToParserDialect(connectionName);
+            const result = await validateSQL(
+              sqlContent,
+              connectionName,
+              dialect,
+              sqlMode,
+            );
+            const validateResult = result.validate_result;
+
+            if (validateResult?.error_message) {
+              setSqlValidationError({
+                cellId,
+                errorMessage: validateResult.error_message,
+                dialect,
+              });
+            } else {
+              clearSqlValidationError(cellId);
+            }
+          } catch (error) {
+            Logger.error("Failed to validate SQL", { error });
+          }
+        }, SQL_VALIDATION_DEBOUNCE_MS);
+      },
+
+      // Remove side-effects on plugin removal
+      destroy() {
+        if (debounceTimeout) {
+          window.clearTimeout(debounceTimeout);
+        }
+        clearSqlValidationError(cellId);
+      },
+    };
   });
 }
 
