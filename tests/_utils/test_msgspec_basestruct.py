@@ -25,6 +25,10 @@ from marimo._ai._tools.tools.lint import (
 from marimo._ai._tools.tools.notebooks import (
     GetActiveNotebooksOutput,
 )
+from marimo._ai._tools.tools.start_session import (
+    StartSessionArgs,
+    StartSessionOutput,
+)
 from marimo._ai._tools.tools.tables_and_variables import (
     TablesAndVariablesArgs,
     TablesAndVariablesOutput,
@@ -46,6 +50,8 @@ TOOL_IO_CLASSES = [
     LintNotebookOutput,
     GetCellOutputArgs,
     GetCellOutputOutput,
+    StartSessionArgs,
+    StartSessionOutput,
 ]
 
 

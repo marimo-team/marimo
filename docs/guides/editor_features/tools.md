@@ -34,6 +34,12 @@ These tools are available when using the [chat panel in ask mode](ai_completion.
 | **get_notebook_errors** | Get all errors in the notebook organized by cell. Takes `session_id` parameter. Returns error summary (total errors, affected cells) and per-cell error details (type, message, traceback). |
 | **lint_notebook** | Get all marimo lint errors in the notebook. Returns lint errors as defined in the [lint rules documentation](../lint_rules/index.md). |
 
+### Session Management
+
+| Tool | Description |
+|------|-------------|
+| **start_session** | Start a session for an existing marimo notebook file. Takes a `file_path` parameter (absolute path to a `.py` file). Registers the notebook with the running server and returns a URL to open it in the browser. |
+
 ### Reference
 
 | Tool | Description |
