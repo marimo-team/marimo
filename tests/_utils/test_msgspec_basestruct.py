@@ -14,6 +14,10 @@ from marimo._ai._tools.tools.datasource import (
     GetDatabaseTablesArgs,
     GetDatabaseTablesOutput,
 )
+from marimo._ai._tools.tools.dependency_graph import (
+    GetCellDependencyGraphArgs,
+    GetCellDependencyGraphOutput,
+)
 from marimo._ai._tools.tools.errors import (
     GetNotebookErrorsArgs,
     GetNotebookErrorsOutput,
@@ -46,6 +50,8 @@ TOOL_IO_CLASSES = [
     LintNotebookOutput,
     GetCellOutputArgs,
     GetCellOutputOutput,
+    GetCellDependencyGraphArgs,
+    GetCellDependencyGraphOutput,
 ]
 
 
