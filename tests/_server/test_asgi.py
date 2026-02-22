@@ -333,6 +333,44 @@ class TestASGIAppBuilder(unittest.TestCase):
         session_manager = starlette_app.state.session_manager
         assert session_manager.redirect_console_to_browser is False
 
+    def test_html_head_parameter(self):
+        """Test that html_head parameter is passed to app state."""
+        custom_head = (
+            '<script src="https://analytics.example.com/tracker.js"></script>'
+        )
+        builder = create_asgi_app(
+            quiet=True, include_code=True, html_head=custom_head
+        )
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder.build()
+
+        starlette_app = builder._app_cache[self.app1]
+        assert starlette_app.state.html_head == custom_head
+
+    def test_html_head_none_by_default(self):
+        """Test that html_head is None when not specified."""
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder.build()
+
+        starlette_app = builder._app_cache[self.app1]
+        assert starlette_app.state.html_head is None
+
+    def test_html_head_injected_in_response(self):
+        """Test that html_head content appears in the served page."""
+        custom_head = (
+            '<script src="https://analytics.example.com/tracker.js"></script>'
+        )
+        builder = create_asgi_app(
+            quiet=True, include_code=True, html_head=custom_head
+        )
+        builder = builder.with_app(path="/app1", root=self.app1)
+        app = builder.build()
+        client = TestClient(app)
+        response = client.get("/app1")
+        assert response.status_code == 200
+        assert custom_head in response.text
+
 
 class TestDynamicDirectoryMiddleware(unittest.TestCase):
     def setUp(self):

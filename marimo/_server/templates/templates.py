@@ -223,6 +223,7 @@ def notebook_page_template(
     notebook_snapshot: Optional[NotebookV1] = None,
     runtime_config: Optional[list[dict[str, Any]]] = None,
     asset_url: Optional[str] = None,
+    html_head: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
@@ -296,7 +297,11 @@ def notebook_page_template(
     html = _inject_custom_css_for_config(html, user_config, filename)
     html = _inject_custom_css_for_config(html, config_overrides, filename)
 
-    # Add HTML head file contents if specified
+    # Add global HTML head contents if specified (from create_asgi_app)
+    if html_head:
+        html = html.replace("</head>", f"{html_head}</head>")
+
+    # Add per-notebook HTML head file contents if specified
     if app_config.html_head_file:
         head_contents = read_html_head_file(
             app_config.html_head_file, filename=filename
