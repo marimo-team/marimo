@@ -139,10 +139,10 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    /// Tip | "Data sources panel"
+    /// Tip | "Variables panel"
 
-        Click the database "barrel" icon in the left toolbar to see all dataframes and in-
-        memory tables that your notebook has access to.
+        Open the variables panel in the left toolbar to see all dataframes
+        and in-memory tables that your notebook has access to.
     ///
     """)
     return
