@@ -316,7 +316,7 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         # we write it as the second to last cell
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
-        with open(filename, "r") as f:
+        with open(filename) as f:
             content = f.read()
         last_cell_pos = content.rindex("@app.cell")
         new_content = (
