@@ -21,6 +21,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Literal,
     Optional,
     cast,
 )
@@ -343,6 +344,51 @@ def app_meta() -> AppMeta:
         AppMeta: An AppMeta object containing the app's metadata.
     """
     return AppMeta()
+
+
+@mddoc
+def set_theme(theme: Literal["light", "dark"]) -> None:
+    """Set the display theme of the app at runtime.
+
+    This allows you to programmatically change the app's theme from Python code,
+    for example in response to a button click.
+
+    Args:
+        theme: The theme to set. Must be either "light" or "dark".
+
+    Examples:
+        Toggle theme with a button:
+
+        ```python
+        import marimo as mo
+
+        button = mo.ui.button(
+            label="Toggle Dark Mode",
+            on_click=lambda _: mo.set_theme(
+                "light" if mo.app_meta().theme == "dark" else "dark"
+            ),
+        )
+        button
+        ```
+    """
+    if theme not in ("light", "dark"):
+        raise ValueError(f"theme must be 'light' or 'dark', got {theme!r}")
+
+    from marimo._messaging.notification import SetThemeNotification
+    from marimo._messaging.notification_utils import broadcast_notification
+    from marimo._runtime.context.types import (
+        ContextNotInitializedError,
+        get_context,
+    )
+
+    try:
+        ctx = get_context()
+        # Update the config in the context so app_meta().theme reflects the change
+        ctx.marimo_config["display"]["theme"] = theme
+    except ContextNotInitializedError:
+        pass
+
+    broadcast_notification(SetThemeNotification(theme=theme))
 
 
 @mddoc
