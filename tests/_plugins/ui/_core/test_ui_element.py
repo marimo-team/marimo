@@ -18,7 +18,6 @@ class Element(UIElement[int, int]):
 
     def on_change_method(self, value: int) -> None:
         del value
-        ...
 
     def _convert_value(self, value: int) -> int:
         return value

@@ -138,7 +138,7 @@ class Linter:
             self.errored = True
             file_status.failed = True
             file_status.message = f"Failed to parse: {file_path}"
-            file_status.details = [f"SyntaxError: {str(e)}"]
+            file_status.details = [f"SyntaxError: {e!s}"]
             return file_status
         except MarimoFileError as e:
             # Handle syntax errors in notebooks
@@ -155,7 +155,7 @@ class Linter:
                 file_status.message = (
                     f"Not recognizable as a marimo notebook: {file_path}"
                 )
-                file_status.details = [f"MarimoFileError: {str(e)}"]
+                file_status.details = [f"MarimoFileError: {e!s}"]
                 return file_status
 
         file_status.notebook = load_result.notebook

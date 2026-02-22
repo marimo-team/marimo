@@ -63,7 +63,7 @@ def test_markdown_snapshots() -> None:
     sys.platform == "win32", reason="Failing on Windows CI due to emojis"
 )
 def test_idempotent_markdown_to_marimo() -> None:
-    for script in modules.keys():
+    for script in modules:
         with open(DIR_PATH + f"/snapshots/{script}.md.txt") as f:
             md = f.read()
         python_source = sanitized_version(md_to_py(md))

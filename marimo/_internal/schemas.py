@@ -1,9 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Internal API for notebook schemas."""
 
-import marimo._schemas.notebook as notebook
-import marimo._schemas.serialization as serialization
-import marimo._schemas.session as session
+from marimo._schemas import notebook, serialization, session
 
 __all__ = [
     "notebook",

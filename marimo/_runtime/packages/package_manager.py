@@ -57,7 +57,7 @@ class PackageManager(abc.ABC):
             return True
         LOGGER.error(
             f"{self.name} is not available. "
-            f"Check out the docs for installation instructions: {self.docs_url}"  # noqa: E501
+            f"Check out the docs for installation instructions: {self.docs_url}"
         )
         return False
 
@@ -150,7 +150,7 @@ class PackageManager(abc.ABC):
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = safe_popen(  # noqa: ASYNC220
+        proc = safe_popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

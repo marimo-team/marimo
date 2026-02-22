@@ -188,7 +188,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 system_prompt += (
                     f"\n\n## Rules for {lang}:\n{_rules(language_rule)}"
                 )
-    elif language in language_rules and language_rules[language]:
+    elif language_rules.get(language):
         system_prompt += (
             f"\n\n## Rules for {language}\n{_rules(language_rules[language])}"
         )

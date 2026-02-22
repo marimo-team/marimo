@@ -310,7 +310,7 @@ def test_ibis_sql_types() -> None:
     assert table.num_rows is None
 
     for column in table.columns:
-        assert column.name in expected_marimo_type.keys()
+        assert column.name in expected_marimo_type
         assert column.type == expected_marimo_type[column.name], (
             f"{column.name} {column.type} {expected_marimo_type[column.name]}"
         )

@@ -21,8 +21,8 @@ from marimo._session.managers.kernel import KernelManagerImpl
 from marimo._session.managers.queue import QueueManagerImpl
 
 __all__ = [
-    "QueueManagerImpl",
-    "KernelManagerImpl",
-    "IPCQueueManagerImpl",
     "IPCKernelManagerImpl",
+    "IPCQueueManagerImpl",
+    "KernelManagerImpl",
+    "QueueManagerImpl",
 ]

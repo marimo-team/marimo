@@ -631,7 +631,7 @@ class BlockHasher:
 
                 ref_list = ", ".join(
                     [
-                        f"{ref}: {get_type(ref)} ({str(e)})"
+                        f"{ref}: {get_type(ref)} ({e!s})"
                         for ref, e in zip(failed, exceptions)
                     ]
                 )

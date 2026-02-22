@@ -16,11 +16,9 @@ class SimpleClass:
 
     def method(self):
         """A public method."""
-        pass
 
     def _private_method(self):
         """A private method."""
-        pass
 
 
 def simple_function(x: int, y: str = "default") -> str:

@@ -268,7 +268,6 @@ async def mpl_websocket(websocket: WebSocket) -> None:
         LOGGER.warning(
             f"Invalid figure number in WebSocket connection: {query_params.get('figure')}"
         )
-        pass
 
     try:
         async with websockets.connect(

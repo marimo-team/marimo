@@ -68,7 +68,7 @@ class FormatterRegistry:
         # Search for formatters in the object's type hierarchy
         try:
             mro_list = top_level_type.mro()
-        except BaseException as e:  # noqa: E722
+        except BaseException as e:
             # Some exotic metaclasses or broken types may raise when calling mro
             LOGGER.warning(
                 "Failed to read MRO for type %s: %s", top_level_type, str(e)
@@ -236,7 +236,7 @@ def try_format(
         try:
             mimetype, data = formatter(obj)
             return FormattedOutput(mimetype=mimetype, data=data)
-        except BaseException as e:  # noqa: E722
+        except BaseException as e:
             # Catching base exception so we're robust to bugs in libraries
             return FormattedOutput(
                 mimetype="text/plain",

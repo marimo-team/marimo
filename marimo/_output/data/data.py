@@ -192,7 +192,7 @@ MIN_SAFE_INTEGER = -9007199254740991
 BIGINT_KEY = "$bigint"
 
 
-def is_bigint(value: int | float) -> bool:
+def is_bigint(value: float) -> bool:
     return value > MAX_SAFE_INTEGER or value < MIN_SAFE_INTEGER
 
 

@@ -12,7 +12,7 @@ from marimo._utils.platform import is_pyodide
 
 def in_virtual_environment() -> bool:
     """Returns True if a venv/virtualenv is activated"""
-    # https://stackoverflow.com/questions/1871549/how-to-determine-if-python-is-running-inside-a-virtualenv/40099080#40099080  # noqa: E501
+    # https://stackoverflow.com/questions/1871549/how-to-determine-if-python-is-running-inside-a-virtualenv/40099080#40099080
     base_prefix = (
         getattr(sys, "base_prefix", None)
         or getattr(sys, "real_prefix", None)
@@ -70,19 +70,22 @@ def split_packages(package: str) -> list[str]:
     "package1 -e /path/to/package1 package2" -> ["package1 -e /path/to/package1", "package2"]
     "package1 @ /path/to/package1" -> ["package1 @ /path/to/package1"]
     "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'" -> ["foo==1.0; python_version>'3.6'", "bar==2.0; sys_platform=='win32'"]
-    """  # noqa: E501
+    """
     packages: list[str] = []
     current_package: list[str] = []
     in_environment_marker = False
 
     for part in package.split():
-        if part in ["-e", "--editable", "@"]:
-            current_package.append(part)
-        elif current_package and current_package[-1] in [
-            "-e",
-            "--editable",
-            "@",
-        ]:
+        if (
+            part in ["-e", "--editable", "@"]
+            or current_package
+            and current_package[-1]
+            in [
+                "-e",
+                "--editable",
+                "@",
+            ]
+        ):
             current_package.append(part)
         elif part.endswith(";"):
             if current_package:

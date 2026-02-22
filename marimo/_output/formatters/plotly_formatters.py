@@ -20,8 +20,8 @@ class PlotlyFormatter(FormatterFactory):
         return "plotly"
 
     def register(self) -> None:
-        import plotly.graph_objects  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import plotly.graph_objects  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._output import formatting
 
@@ -72,7 +72,7 @@ class PlotlyFormatter(FormatterFactory):
     def render_plotly_dict(
         json: dict[Any, Any], config: dict[str, Any] | None = None
     ) -> Html:
-        import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         resolved_config: dict[str, Any] = {}
 

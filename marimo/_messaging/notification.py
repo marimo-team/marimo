@@ -182,8 +182,6 @@ class ModelCustom(msgspec.Struct, tag="custom", tag_field="method"):
 class ModelClose(msgspec.Struct, tag="close", tag_field="method"):
     """Widget destruction."""
 
-    pass
-
 
 ModelMessage = Union[ModelOpen, ModelUpdate, ModelCustom, ModelClose]
 

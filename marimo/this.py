@@ -32,4 +32,4 @@ immersion
 interactivity
 dualities
 beauty
-joy.""")  # noqa: T201, W293
+joy.""")  # noqa: T201

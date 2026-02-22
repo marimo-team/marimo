@@ -30,7 +30,7 @@ def get_sql_stats(
             PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY "{column_name}") as p75,
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "{column_name}") as p95
         FROM {table_name}
-        """  # noqa: E501
+        """
     elif (
         column_type == "date"
         or column_type == "datetime"
@@ -44,7 +44,7 @@ def get_sql_stats(
             MIN("{column_name}") as min,
             MAX("{column_name}") as max
         FROM {table_name}
-        """  # noqa: E501
+        """
     elif column_type == "boolean":
         stats_query = f"""
         SELECT
@@ -54,7 +54,7 @@ def get_sql_stats(
             SUM(CASE WHEN "{column_name}" = TRUE THEN 1 ELSE 0 END) as true_count,
             SUM(CASE WHEN "{column_name}" = FALSE THEN 1 ELSE 0 END) as false_count
         FROM {table_name}
-        """  # noqa: E501
+        """
     else:
         stats_query = f"""
         SELECT
@@ -62,7 +62,7 @@ def get_sql_stats(
             COUNT(DISTINCT "{column_name}") as unique,
             SUM(CASE WHEN "{column_name}" IS NULL THEN 1 ELSE 0 END) as null_count
         FROM {table_name}
-        """  # noqa: E501
+        """
 
     stats_result: tuple[int, ...] | None = wrapped_sql(
         stats_query, connection=None

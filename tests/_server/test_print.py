@@ -139,49 +139,47 @@ def test_print_startup() -> None:
         assert "localhost:8000" in output
 
     # Test with network=True
-    with io.StringIO() as buf, redirect_stdout(buf):
-        with patch(
-            "marimo._server.print._get_network_url"
-        ) as mock_get_network_url:
-            mock_get_network_url.return_value = "http://192.168.1.100:8000"
-            print_startup(
-                file_name=None,
-                url="http://localhost:8000",
-                run=False,
-                new=False,
-                network=True,
-            )
-            output = buf.getvalue()
-            assert "Create or edit notebooks" in output
-            assert "URL" in output
-            assert "localhost:8000" in output
-            assert "Network" in output
-            assert "192.168.1.100:8000" in output
-            mock_get_network_url.assert_called_once_with(
-                "http://localhost:8000"
-            )
+    with (
+        io.StringIO() as buf,
+        redirect_stdout(buf),
+        patch("marimo._server.print._get_network_url") as mock_get_network_url,
+    ):
+        mock_get_network_url.return_value = "http://192.168.1.100:8000"
+        print_startup(
+            file_name=None,
+            url="http://localhost:8000",
+            run=False,
+            new=False,
+            network=True,
+        )
+        output = buf.getvalue()
+        assert "Create or edit notebooks" in output
+        assert "URL" in output
+        assert "localhost:8000" in output
+        assert "Network" in output
+        assert "192.168.1.100:8000" in output
+        mock_get_network_url.assert_called_once_with("http://localhost:8000")
 
     # Test with network=True and _get_network_url raising an exception
-    with io.StringIO() as buf, redirect_stdout(buf):
-        with patch(
-            "marimo._server.print._get_network_url"
-        ) as mock_get_network_url:
-            mock_get_network_url.side_effect = Exception("Test exception")
-            print_startup(
-                file_name=None,
-                url="http://localhost:8000",
-                run=False,
-                new=False,
-                network=True,
-            )
-            output = buf.getvalue()
-            assert "Create or edit notebooks" in output
-            assert "URL" in output
-            assert "localhost:8000" in output
-            assert "Network" not in output
-            mock_get_network_url.assert_called_once_with(
-                "http://localhost:8000"
-            )
+    with (
+        io.StringIO() as buf,
+        redirect_stdout(buf),
+        patch("marimo._server.print._get_network_url") as mock_get_network_url,
+    ):
+        mock_get_network_url.side_effect = Exception("Test exception")
+        print_startup(
+            file_name=None,
+            url="http://localhost:8000",
+            run=False,
+            new=False,
+            network=True,
+        )
+        output = buf.getvalue()
+        assert "Create or edit notebooks" in output
+        assert "URL" in output
+        assert "localhost:8000" in output
+        assert "Network" not in output
+        mock_get_network_url.assert_called_once_with("http://localhost:8000")
 
 
 def test_print_shutdown() -> None:

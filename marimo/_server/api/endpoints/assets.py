@@ -165,7 +165,7 @@ def og_thumbnail(*, request: Request) -> Response:
 
 async def _fetch_index_html_from_url(asset_url: str) -> str:
     """Fetch index.html from the given asset URL."""
-    import marimo._utils.requests as requests
+    from marimo._utils import requests
     from marimo._version import __version__
 
     # Replace {version} placeholder if present

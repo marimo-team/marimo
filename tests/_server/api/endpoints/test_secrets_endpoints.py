@@ -87,18 +87,20 @@ def test_secrets_forbidden_in_read_mode(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_create_secret_write_failure(client: TestClient) -> None:
     """Test handling when write_secret fails."""
-    with patch(
-        "marimo._server.api.endpoints.secrets.write_secret",
-        side_effect=Exception("Write failed"),
+    with (
+        patch(
+            "marimo._server.api.endpoints.secrets.write_secret",
+            side_effect=Exception("Write failed"),
+        ),
+        pytest.raises(Exception, match="Write failed"),
     ):
-        with pytest.raises(Exception, match="Write failed"):
-            client.post(
-                "/api/secrets/create",
-                headers=HEADERS,
-                json={
-                    "key": "TEST_SECRET",
-                    "value": "test_value",
-                    "provider": "env",
-                    "name": "test",
-                },
-            )
+        client.post(
+            "/api/secrets/create",
+            headers=HEADERS,
+            json={
+                "key": "TEST_SECRET",
+                "value": "test_value",
+                "provider": "env",
+                "name": "test",
+            },
+        )

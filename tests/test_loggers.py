@@ -177,4 +177,3 @@ def test_file_handler_uses_windows_safe_on_windows(tmp_path: Path):
 def clear_loggers():
     # Clear the logger cache before each test
     _LOGGERS.clear()
-    return

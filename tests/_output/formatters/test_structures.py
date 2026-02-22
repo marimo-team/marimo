@@ -304,7 +304,7 @@ def test_function_like_objects_are_pretty_inspected() -> None:
 
     # Method
     class C:
-        def m(self, a: int) -> int:  # noqa: D401, ARG002
+        def m(self, a: int) -> int:
             return a
 
     fmt = get_formatter(C.m)

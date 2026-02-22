@@ -381,8 +381,9 @@ class CopilotLspServer(BaseLspServer):
             )
             if result.returncode == 0:
                 version_str = result.stdout.strip()
-                if version_str.startswith("v"):
-                    version_str = version_str[1:]  # Remove 'v' prefix
+                version_str = version_str.removeprefix(
+                    "v"
+                )  # Remove 'v' prefix
 
                 # Parse major version
                 major_version = int(version_str.split(".")[0])

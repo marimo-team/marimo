@@ -10,7 +10,7 @@ from collections.abc import (
     Iterable,
     Iterator,
     Mapping,
-    Sequence,  # noqa: TC003
+    Sequence,
 )
 from dataclasses import dataclass
 from pathlib import Path

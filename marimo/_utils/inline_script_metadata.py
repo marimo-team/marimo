@@ -141,7 +141,7 @@ def _pyproject_toml_to_requirements_txt(
         pyproject: A dict containing the pyproject.toml contents.
         config_path: The path to the pyproject.toml or inline script metadata. This
             is used to resolve relative paths used in the dependencies.
-    """  # noqa: E501
+    """
     dependencies = cast(list[str], pyproject.get("dependencies", []))
     if not dependencies:
         return []
@@ -186,7 +186,7 @@ def _pyproject_toml_to_requirements_txt(
             if not source_path.is_absolute() and config_path:
                 config_dir = Path(config_path).parent
                 source_path = normalize_path(config_dir / source_path)
-            new_dependency = f"{dependency} @ {str(source_path)}"
+            new_dependency = f"{dependency} @ {source_path!s}"
 
         # Handle URLs
         elif "url" in source:

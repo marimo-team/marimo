@@ -232,7 +232,7 @@ def with_read_session(
 def token_header(
     token: str | AuthToken = "fake-token", skew_id: str = "skew-id-1"
 ) -> dict[str, str]:
-    encoded = base64.b64encode(f"marimo:{str(token)}".encode()).decode()
+    encoded = base64.b64encode(f"marimo:{token!s}".encode()).decode()
     return {
         "Authorization": f"Basic {encoded}",
         "Marimo-Server-Token": skew_id,

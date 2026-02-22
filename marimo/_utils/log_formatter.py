@@ -16,8 +16,8 @@ def _stderr_supports_color() -> bool:
     try:
         if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
             if curses:
-                curses.setupterm()  # type: ignore[attr-defined,unused-ignore] # noqa: E501
-                if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined,unused-ignore] # noqa: E501
+                curses.setupterm()  # type: ignore[attr-defined,unused-ignore]
+                if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined,unused-ignore]
                     return True
     except Exception:
         # Very broad exception handling because it's always better to
@@ -47,7 +47,7 @@ class LogFormatter(logging.Formatter):
        signature to be compatible with `logging.config.dictConfig`.
     """
 
-    DEFAULT_FORMAT = "%(color)s[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]%(end_color)s %(message)s"  # noqa: E501
+    DEFAULT_FORMAT = "%(color)s[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]%(end_color)s %(message)s"
     DEFAULT_DATE_FORMAT = "%y%m%d %H:%M:%S"
     DEFAULT_COLORS = {
         logging.DEBUG: 4,  # Blue
@@ -88,7 +88,7 @@ class LogFormatter(logging.Formatter):
         if color and _stderr_supports_color():
             if curses is not None:
                 fg_color = (
-                    curses.tigetstr("setaf") or curses.tigetstr("setf") or b""  # type: ignore[attr-defined,unused-ignore] # noqa: E501
+                    curses.tigetstr("setaf") or curses.tigetstr("setf") or b""  # type: ignore[attr-defined,unused-ignore]
                 )
 
                 for levelno, code in colors.items():
@@ -97,9 +97,9 @@ class LogFormatter(logging.Formatter):
                     # logging module.
                     self._colors[levelno] = str(
                         curses.tparm(fg_color, code),
-                        "ascii",  # type: ignore[attr-defined,unused-ignore] # noqa: E501
+                        "ascii",  # type: ignore[attr-defined,unused-ignore]
                     )
-                normal = curses.tigetstr("sgr0")  # type: ignore[attr-defined,unused-ignore] # noqa: E501
+                normal = curses.tigetstr("sgr0")  # type: ignore[attr-defined,unused-ignore]
                 if normal is not None:
                     self._normal = str(normal, "ascii")
                 else:

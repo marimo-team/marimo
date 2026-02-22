@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.applications import (
-    Starlette,  # noqa: TCH002 - required at runtime
+    Starlette,  # noqa: TC002 - required at runtime
 )
 
 from marimo import _loggers
@@ -135,7 +135,7 @@ class ToolManager:
                         )
                     return is_valid, error_message
             except Exception as e:
-                error_msg = f"Error in tool-specific validation for '{tool_name}': {str(e)}"
+                error_msg = f"Error in tool-specific validation for '{tool_name}': {e!s}"
                 LOGGER.error(error_msg)
                 return False, error_msg
 
@@ -159,7 +159,7 @@ class ToolManager:
             return [self._convert_mcp_tool(tool) for tool in mcp_tools]
 
         except Exception as e:
-            LOGGER.error(f"Failed to get MCP tools: {str(e)}")
+            LOGGER.error(f"Failed to get MCP tools: {e!s}")
             return []
 
     def _convert_mcp_tool(self, mcp_tool: MCPRawTool) -> ToolDefinition:
@@ -287,7 +287,7 @@ class ToolManager:
                 )
 
         except Exception as e:
-            error_message = f"Error invoking tool '{tool_name}': {str(e)}"
+            error_message = f"Error invoking tool '{tool_name}': {e!s}"
             LOGGER.error(error_message)
             return ToolCallResult(
                 tool_name=tool_name, result=None, error=str(error_message)

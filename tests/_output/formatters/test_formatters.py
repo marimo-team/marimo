@@ -185,7 +185,7 @@ def test_repr_markdown():
     assert mime == "text/html"
     assert (
         content
-        == '<span class="markdown prose dark:prose-invert contents"><h1 id="hello-world">Hello, World!</h1></span>'  # noqa: E501
+        == '<span class="markdown prose dark:prose-invert contents"><h1 id="hello-world">Hello, World!</h1></span>'
     )
 
 
@@ -201,7 +201,7 @@ def test_repr_latex():
     assert mime == "text/html"
     assert (
         content
-        == '<span class="markdown prose dark:prose-invert contents"><span class="paragraph"><marimo-tex class="arithmatex">||(f(x) = e^x||)</marimo-tex></span></span>'  # noqa: E501
+        == '<span class="markdown prose dark:prose-invert contents"><span class="paragraph"><marimo-tex class="arithmatex">||(f(x) = e^x||)</marimo-tex></span></span>'
     )
 
 
@@ -265,7 +265,7 @@ def test_repr_jpeg():
 
 
 def test_repr_svg():
-    svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'></svg>"  # noqa: E501
+    svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'></svg>"
 
     class ReprSVG:
         def _repr_svg_(self):

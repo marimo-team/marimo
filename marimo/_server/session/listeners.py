@@ -48,7 +48,6 @@ class RecentsTrackerListener(SessionExtension, SessionEventListener):
 
     async def on_session_closed(self, session: Session) -> None:
         """No action needed on session close."""
-        pass
 
     async def on_session_resumed(
         self, session: Session, old_id: SessionId

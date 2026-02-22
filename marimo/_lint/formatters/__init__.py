@@ -16,11 +16,11 @@ from marimo._lint.formatters.json import (
 
 __all__ = [
     "DiagnosticFormatter",
-    "FullFormatter",
-    "JSONFormatter",
     "DiagnosticJSON",
     "FileErrorJSON",
+    "FullFormatter",
     "IssueJSON",
+    "JSONFormatter",
     "LintResultJSON",
     "SummaryJSON",
 ]

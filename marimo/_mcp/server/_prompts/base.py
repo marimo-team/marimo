@@ -52,7 +52,7 @@ class PromptBase(ABC):
             except Exception as e:
                 # Return error as a prompt message instead of raising
                 error_message = (
-                    f"Error generating prompt '{self.name}': {str(e)}\n\n"
+                    f"Error generating prompt '{self.name}': {e!s}\n\n"
                     f"Please try again or contact support if the issue persists."
                 )
                 return [

@@ -221,7 +221,7 @@ class Runner:
         return sorted_cells
 
     # Adapted from
-    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
+    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312
     @staticmethod
     @contextlib.contextmanager
     def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:

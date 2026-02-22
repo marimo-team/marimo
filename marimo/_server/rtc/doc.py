@@ -46,7 +46,6 @@ class LoroDocManager:
             LOGGER.debug(
                 f"RTC: clean_loro_doc task cancelled for file {file_key} - likely due to reconnection"
             )
-            pass
 
     async def create_doc(
         self,

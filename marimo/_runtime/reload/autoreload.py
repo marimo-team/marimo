@@ -373,7 +373,7 @@ UPDATE_RULES.extend(
     [
         (
             lambda a, b: isinstance2(a, b, types.MethodType),
-            lambda a, b: update_function(a.__func__, b.__func__),  # type: ignore[attr-defined]  # noqa: E501
+            lambda a, b: update_function(a.__func__, b.__func__),  # type: ignore[attr-defined]
         ),
     ]
 )
@@ -457,7 +457,7 @@ def superreload(
         # It's possible that the module fails to reload for some other reason.
         # In this case, too, the failure shouldn't be silent!
         sys.stderr.write(
-            f"Error trying to reload module {module.__name__}: {str(e)} \n"
+            f"Error trying to reload module {module.__name__}: {e!s} \n"
         )
         tmpio = io.StringIO()
         traceback.print_exc(file=tmpio)

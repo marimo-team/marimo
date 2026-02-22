@@ -52,7 +52,7 @@ async def add_package(request: Request) -> PackageOperationResponse:
         package_manager.alert_not_installed()
         return PackageOperationResponse.of_failure(
             f"{package_manager.name} is not available. "
-            f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
+            f"Check out the docs for installation instructions: {package_manager.docs_url}"
         )
 
     upgrade = body.upgrade or False
@@ -104,7 +104,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
         package_manager.alert_not_installed()
         return PackageOperationResponse.of_failure(
             f"{package_manager.name} is not available. "
-            f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
+            f"Check out the docs for installation instructions: {package_manager.docs_url}"
         )
 
     group = body.group or None

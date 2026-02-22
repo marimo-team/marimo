@@ -21,8 +21,8 @@ from marimo._session.types import (
 from marimo._session.utils import send_message_to_consumer
 
 __all__ = [
-    "Session",
     "KernelManager",
     "QueueManager",
+    "Session",
     "send_message_to_consumer",
 ]

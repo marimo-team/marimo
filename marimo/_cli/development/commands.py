@@ -25,30 +25,32 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import msgspec.json
     from starlette.schemas import SchemaGenerator
 
-    import marimo._config.config as config
     import marimo._data._external_storage.models as storage
     import marimo._data.models as data
-    import marimo._messaging.errors as errors
     import marimo._messaging.notification as notifications
-    import marimo._metadata.opengraph as opengraph
-    import marimo._runtime.commands as commands
     import marimo._secrets.models as secrets_models
-    import marimo._server.models.completion as completion
-    import marimo._server.models.export as export
-    import marimo._server.models.files as files
-    import marimo._server.models.home as home
-    import marimo._server.models.lsp as lsp
-    import marimo._server.models.models as models
-    import marimo._server.models.packages as packages
-    import marimo._server.models.secrets as secrets
-    import marimo._snippets.snippets as snippets
     from marimo._ai._types import ChatMessage
     from marimo._ast.cell import CellConfig, RuntimeStateType
+    from marimo._config import config
+    from marimo._messaging import errors
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
+    from marimo._metadata import opengraph
+    from marimo._runtime import commands
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
+    from marimo._server.models import (
+        completion,
+        export,
+        files,
+        home,
+        lsp,
+        models,
+        packages,
+        secrets,
+    )
+    from marimo._snippets import snippets
     from marimo._version import __version__
 
     MODELS = [
@@ -489,7 +491,6 @@ def print_routes() -> None:
                 print_all_routes(route.app, new_base_path)
 
     print_all_routes(app)
-    return
 
 
 @click.command(cls=ColoredCommand, help="Preview a marimo file as static HTML")

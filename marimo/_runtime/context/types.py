@@ -122,7 +122,6 @@ class RuntimeContext(abc.ABC):
         Get the marimo configuration.
         This is a merged configuration from the user config and project config.
         """
-        pass
 
     @property
     def request(self) -> Optional[HTTPRequest]:
@@ -133,25 +132,21 @@ class RuntimeContext(abc.ABC):
     @abc.abstractmethod
     def cell_id(self) -> Optional[CellId_t]:
         """Get the cell id of the currently executing cell, if any."""
-        pass
 
     @property
     @abc.abstractmethod
     def argv(self) -> list[str]:
         """The original argv the context was created with."""
-        pass
 
     @property
     @abc.abstractmethod
     def cli_args(self) -> CLIArgs:
         """Get the CLI args."""
-        pass
 
     @property
     @abc.abstractmethod
     def query_params(self) -> QueryParams:
         """Get the query params."""
-        pass
 
     @abc.abstractmethod
     def get_ui_initial_value(self, object_id: str) -> Any:

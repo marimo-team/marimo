@@ -51,83 +51,89 @@ class TestMatplotlibProxyEndpoints:
         """Test connection failure returns 503."""
         figure_endpoints[1] = "8888"
 
-        with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=True
+        with (
+            patch(
+                "marimo._server.api.endpoints.mpl.validate_auth",
+                return_value=True,
+            ),
+            patch("urllib.request.urlopen") as mock_urlopen,
         ):
-            with patch("urllib.request.urlopen") as mock_urlopen:
-                from urllib.error import URLError
+            from urllib.error import URLError
 
-                mock_urlopen.side_effect = URLError("Connection refused")
-                response = client.get("/mpl/1/test_path")
-                assert response.status_code == 503, response.text
-                assert "Matplotlib server is not available" in response.text
+            mock_urlopen.side_effect = URLError("Connection refused")
+            response = client.get("/mpl/1/test_path")
+            assert response.status_code == 503, response.text
+            assert "Matplotlib server is not available" in response.text
 
     @staticmethod
     def test_successful_proxy(client: TestClient) -> None:
         """Test successful proxying to matplotlib server."""
         figure_endpoints[1] = "8888"
 
-        with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=True
+        with (
+            patch(
+                "marimo._server.api.endpoints.mpl.validate_auth",
+                return_value=True,
+            ),
+            patch("urllib.request.urlopen") as mock_urlopen,
         ):
-            with patch("urllib.request.urlopen") as mock_urlopen:
-                mock_response = MagicMock()
-                mock_response.status = 200
-                mock_response.headers = {"content-type": "text/html"}
-                mock_response.read.return_value = b"<html>Success</html>"
-                mock_urlopen.return_value.__enter__.return_value = (
-                    mock_response
-                )
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.headers = {"content-type": "text/html"}
+            mock_response.read.return_value = b"<html>Success</html>"
+            mock_urlopen.return_value.__enter__.return_value = mock_response
 
-                response = client.get("/mpl/1/test")
-                assert response.status_code == 200, response.text
-                assert response.text == "<html>Success</html>"
+            response = client.get("/mpl/1/test")
+            assert response.status_code == 200, response.text
+            assert response.text == "<html>Success</html>"
 
     @staticmethod
     def test_query_params_forwarded(client: TestClient) -> None:
         """Test query parameters are forwarded to matplotlib server."""
         figure_endpoints[1] = "8888"
 
-        with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=True
+        with (
+            patch(
+                "marimo._server.api.endpoints.mpl.validate_auth",
+                return_value=True,
+            ),
+            patch("urllib.request.urlopen") as mock_urlopen,
         ):
-            with patch("urllib.request.urlopen") as mock_urlopen:
-                mock_response = MagicMock()
-                mock_response.status = 200
-                mock_response.headers = {}
-                mock_response.read.return_value = b""
-                mock_urlopen.return_value.__enter__.return_value = (
-                    mock_response
-                )
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.headers = {}
+            mock_response.read.return_value = b""
+            mock_urlopen.return_value.__enter__.return_value = mock_response
 
-                client.get("/mpl/1/test?param1=value1&param2=value2")
+            client.get("/mpl/1/test?param1=value1&param2=value2")
 
-                request_obj = mock_urlopen.call_args[0][0]
-                assert "param1=value1" in request_obj.full_url
-                assert "param2=value2" in request_obj.full_url
+            request_obj = mock_urlopen.call_args[0][0]
+            assert "param1=value1" in request_obj.full_url
+            assert "param2=value2" in request_obj.full_url
 
     @staticmethod
     def test_headers_filtered(client: TestClient) -> None:
         """Test that problematic headers (host, content-length) are filtered."""
         figure_endpoints[1] = "8888"
 
-        with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=True
+        with (
+            patch(
+                "marimo._server.api.endpoints.mpl.validate_auth",
+                return_value=True,
+            ),
+            patch("urllib.request.urlopen") as mock_urlopen,
         ):
-            with patch("urllib.request.urlopen") as mock_urlopen:
-                mock_response = MagicMock()
-                mock_response.status = 200
-                mock_response.headers = {}
-                mock_response.read.return_value = b""
-                mock_urlopen.return_value.__enter__.return_value = (
-                    mock_response
-                )
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.headers = {}
+            mock_response.read.return_value = b""
+            mock_urlopen.return_value.__enter__.return_value = mock_response
 
-                client.get("/mpl/1/test")
+            client.get("/mpl/1/test")
 
-                request_obj = mock_urlopen.call_args[0][0]
-                assert "Host" not in request_obj.headers
-                assert "Content-length" not in request_obj.headers
+            request_obj = mock_urlopen.call_args[0][0]
+            assert "Host" not in request_obj.headers
+            assert "Content-length" not in request_obj.headers
 
     @staticmethod
     def test_websocket_requires_auth(client: TestClient) -> None:
@@ -152,32 +158,35 @@ class TestMatplotlibProxyEndpoints:
         from starlette.websockets import WebSocketDisconnect
 
         # Mock validate_auth to return True (authenticated)
-        with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=True
+        with (
+            patch(
+                "marimo._server.api.endpoints.mpl.validate_auth",
+                return_value=True,
+            ),
+            patch("websockets.connect") as mock_connect,
         ):
-            with patch("websockets.connect") as mock_connect:
-                mock_ws = MagicMock()
-                mock_context = MagicMock()
-                mock_context.__aenter__ = AsyncMock(return_value=mock_ws)
-                mock_context.__aexit__ = AsyncMock(return_value=None)
-                mock_connect.return_value = mock_context
+            mock_ws = MagicMock()
+            mock_context = MagicMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_ws)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_connect.return_value = mock_context
 
-                async def mock_iter():
-                    return
-                    yield
+            async def mock_iter():
+                return
+                yield
 
-                mock_ws.__aiter__ = mock_iter
+            mock_ws.__aiter__ = mock_iter
 
-                try:
-                    with client.websocket_connect("/mpl/8888/ws?figure=123"):
-                        pass
-                except WebSocketDisconnect:
+            try:
+                with client.websocket_connect("/mpl/8888/ws?figure=123"):
                     pass
+            except WebSocketDisconnect:
+                pass
 
-                # Verify websockets.connect was called with correct port
-                mock_connect.assert_called()
-                call_url = mock_connect.call_args[0][0]
-                assert "localhost:8888" in call_url
-                # Verify max_size is set to handle large matplotlib PNGs
-                call_kwargs = mock_connect.call_args[1]
-                assert call_kwargs.get("max_size") == WS_MAX_SIZE
+            # Verify websockets.connect was called with correct port
+            mock_connect.assert_called()
+            call_url = mock_connect.call_args[0][0]
+            assert "localhost:8888" in call_url
+            # Verify max_size is set to handle large matplotlib PNGs
+            call_kwargs = mock_connect.call_args[1]
+            assert call_kwargs.get("max_size") == WS_MAX_SIZE

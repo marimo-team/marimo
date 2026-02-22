@@ -7,7 +7,7 @@ import typing
 from typing import TYPE_CHECKING, Any, Optional
 
 import starlette
-import starlette.status as status
+from starlette import status
 from starlette.datastructures import Secret
 from starlette.exceptions import HTTPException
 from starlette.middleware.authentication import AuthenticationMiddleware

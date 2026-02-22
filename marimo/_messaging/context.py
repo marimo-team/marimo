@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 from marimo._runtime.commands import HTTPRequest
 
@@ -26,7 +26,7 @@ class run_id_context:
     def __enter__(self) -> None:
         self.token = RUN_ID_CTX.set(self.run_id)
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         RUN_ID_CTX.reset(self.token)
 
 
@@ -42,5 +42,5 @@ class http_request_context:
     def __enter__(self) -> None:
         self.token = HTTP_REQUEST_CTX.set(self.request)
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         HTTP_REQUEST_CTX.reset(self.token)

@@ -3149,13 +3149,13 @@ class TestSQL:
             [
                 ExecuteCellCommand(
                     cell_id="2",
-                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",
                 ),
                 # cell 1 should automatically execute due to the definition of
                 # t1
                 ExecuteCellCommand(
                     cell_id="3",
-                    code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                    code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",
                 ),
             ]
         )
@@ -3186,13 +3186,13 @@ class TestSQL:
             [
                 ExecuteCellCommand(
                     cell_id="2",
-                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
+                    code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",
                 ),
                 # cell 1 should automatically execute due to the definition of
                 # t1
                 ExecuteCellCommand(
                     cell_id="3",
-                    code="duckdb.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
+                    code="duckdb.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",
                 ),
             ]
         )
@@ -3225,7 +3225,7 @@ class TestSQL:
                 # t1
                 ExecuteCellCommand(
                     cell_id="2",
-                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",  # noqa: E501
+                    code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",
                 ),
             ]
         )
@@ -3336,7 +3336,7 @@ class TestStateTransitions:
         await k.run(
             [
                 exec_req.get(
-                    "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()"  # noqa: E501
+                    "from marimo._runtime.control_flow import MarimoInterrupt; raise MarimoInterrupt()"
                 ),
             ]
         )

@@ -1500,7 +1500,7 @@ def test_unparsable_sql_doesnt_fail() -> None:
 def test_sql_attach() -> None:
     code = "\n".join(
         [
-            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"  # noqa:E501
+            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"
         ]
     )
     v = visitor.ScopedVisitor()
@@ -1514,7 +1514,7 @@ def test_sql_attach() -> None:
 def test_sql_attach_f_string() -> None:
     code = "\n".join(
         [
-            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"  # noqa:E501
+            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"
         ]
     )
     v = visitor.ScopedVisitor()

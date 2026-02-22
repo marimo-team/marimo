@@ -86,9 +86,9 @@ __all__ = [
     "UIElementMessageNotification",
     "UpdateCellCodesNotification",
     "UpdateCellIdsNotification",
+    "ValidateSQLResultNotification",
     "VariableDeclarationNotification",
     "VariableValue",
     "VariableValuesNotification",
     "VariablesNotification",
-    "ValidateSQLResultNotification",
 ]

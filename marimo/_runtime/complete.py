@@ -10,8 +10,8 @@ from collections.abc import Collection, Mapping
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-import jedi  # type: ignore # noqa: F401
-import jedi.api  # type: ignore # noqa: F401
+import jedi  # type: ignore
+import jedi.api  # type: ignore
 
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -410,9 +410,9 @@ def _key_options_dispatcher(obj: Any) -> list[str]:
         return _key_options_from_ipython_method(obj)
     elif isinstance(obj, Mapping):
         return _key_options_via_keys_method(obj)
-    elif _isinstance_external(obj, class_ref="pandas.DataFrame"):
-        return _key_options_via_columns_method(obj)
-    elif _isinstance_external(obj, class_ref="polars.DataFrame"):
+    elif _isinstance_external(
+        obj, class_ref="pandas.DataFrame"
+    ) or _isinstance_external(obj, class_ref="polars.DataFrame"):
         return _key_options_via_columns_method(obj)
 
     LOGGER.debug(

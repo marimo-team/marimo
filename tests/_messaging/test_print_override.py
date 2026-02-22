@@ -29,17 +29,19 @@ class TestPrintOverride:
         THREADS.add(thread_id)
 
         try:
-            with patch(
-                "marimo._messaging.print_override._original_print"
-            ) as mock_print:
-                with patch(
+            with (
+                patch(
+                    "marimo._messaging.print_override._original_print"
+                ) as mock_print,
+                patch(
                     "marimo._messaging.print_override.get_context",
                     side_effect=ContextNotInitializedError,
-                ):
-                    print_override("Hello, world!")
+                ),
+            ):
+                print_override("Hello, world!")
 
-                    # Original print should be called as a fallback
-                    mock_print.assert_called_once_with("Hello, world!")
+                # Original print should be called as a fallback
+                mock_print.assert_called_once_with("Hello, world!")
         finally:
             # Clean up
             if thread_id in THREADS:
@@ -59,33 +61,32 @@ class TestPrintOverride:
             context.execution_context = MagicMock(spec=ExecutionContext)
             context.execution_context.cell_id = "cell1"
 
-            with patch(
-                "marimo._messaging.print_override._original_print"
-            ) as mock_print:
-                with patch(
+            with (
+                patch(
+                    "marimo._messaging.print_override._original_print"
+                ) as mock_print,
+                patch(
                     "marimo._messaging.print_override.get_context",
                     return_value=context,
-                ):
-                    print_override("Hello, world!")
+                ),
+            ):
+                print_override("Hello, world!")
 
-                    # Original print should not be called
-                    mock_print.assert_not_called()
+                # Original print should not be called
+                mock_print.assert_not_called()
 
-                    # Message should be sent to the stream
-                    assert len(stream.messages) == 1
-                    assert stream.operations[0]["op"] == "cell-op"
-                    assert stream.operations[0]["cell_id"] == "cell1"
-                    assert (
-                        stream.operations[0]["console"]["channel"] == "stdout"
-                    )
-                    assert (
-                        stream.operations[0]["console"]["mimetype"]
-                        == "text/plain"
-                    )
-                    assert (
-                        stream.operations[0]["console"]["data"]
-                        == "Hello, world!\n"
-                    )
+                # Message should be sent to the stream
+                assert len(stream.messages) == 1
+                assert stream.operations[0]["op"] == "cell-op"
+                assert stream.operations[0]["cell_id"] == "cell1"
+                assert stream.operations[0]["console"]["channel"] == "stdout"
+                assert (
+                    stream.operations[0]["console"]["mimetype"] == "text/plain"
+                )
+                assert (
+                    stream.operations[0]["console"]["data"]
+                    == "Hello, world!\n"
+                )
         finally:
             # Clean up
             if thread_id in THREADS:
@@ -101,17 +102,19 @@ class TestPrintOverride:
             context = MagicMock(spec=RuntimeContext)
             context.execution_context = None
 
-            with patch(
-                "marimo._messaging.print_override._original_print"
-            ) as mock_print:
-                with patch(
+            with (
+                patch(
+                    "marimo._messaging.print_override._original_print"
+                ) as mock_print,
+                patch(
                     "marimo._messaging.print_override.get_context",
                     return_value=context,
-                ):
-                    print_override("Hello, world!")
+                ),
+            ):
+                print_override("Hello, world!")
 
-                    # Original print should be called
-                    mock_print.assert_called_once_with("Hello, world!")
+                # Original print should be called
+                mock_print.assert_called_once_with("Hello, world!")
         finally:
             # Clean up
             if thread_id in THREADS:
@@ -131,24 +134,25 @@ class TestPrintOverride:
             context.execution_context = MagicMock(spec=ExecutionContext)
             context.execution_context.cell_id = "cell1"
 
-            with patch(
-                "marimo._messaging.print_override._original_print"
-            ) as mock_print:
-                with patch(
+            with (
+                patch(
+                    "marimo._messaging.print_override._original_print"
+                ) as mock_print,
+                patch(
                     "marimo._messaging.print_override.get_context",
                     return_value=context,
-                ):
-                    print_override("Hello", "world", sep="-", end="!")
+                ),
+            ):
+                print_override("Hello", "world", sep="-", end="!")
 
-                    # Original print should not be called
-                    mock_print.assert_not_called()
+                # Original print should not be called
+                mock_print.assert_not_called()
 
-                    # Message should be sent to the stream with custom sep and end
-                    assert len(stream.operations) == 1
-                    assert (
-                        stream.operations[0]["console"]["data"]
-                        == "Hello-world!"
-                    )
+                # Message should be sent to the stream with custom sep and end
+                assert len(stream.operations) == 1
+                assert (
+                    stream.operations[0]["console"]["data"] == "Hello-world!"
+                )
         finally:
             # Clean up
             if thread_id in THREADS:

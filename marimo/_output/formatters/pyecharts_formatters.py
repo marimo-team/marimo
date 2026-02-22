@@ -14,7 +14,7 @@ class PyechartsFormatter(FormatterFactory):
         return "pyecharts"
 
     def register(self) -> None:
-        from pyecharts.charts.base import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        from pyecharts.charts.base import (  # type: ignore[import-not-found,import-untyped,unused-ignore]
             Base,
         )
 

@@ -62,19 +62,16 @@ class BaseEngine(ABC, Generic[CONN]):
     @abstractmethod
     def source(self) -> str:
         """Return the source of the engine. Usually the name of the library used to connect to the database."""
-        pass
 
     @property
     @abstractmethod
     def dialect(self) -> str:
         """Return the sqlglot dialect for this engine."""
-        pass
 
     @staticmethod
     @abstractmethod
     def is_compatible(var: Any) -> bool:
         """Check if a variable is a compatible engine."""
-        pass
 
 
 T = TypeVar("T", bound=BaseEngine[Any])
@@ -87,17 +84,14 @@ class EngineCatalog(BaseEngine[CONN], ABC):
     @abstractmethod
     def inference_config(self) -> InferenceConfig:
         """Return the inference config for the engine."""
-        pass
 
     @abstractmethod
     def get_default_database(self) -> Optional[str]:
         """Return the default database for the engine."""
-        pass
 
     @abstractmethod
     def get_default_schema(self) -> Optional[str]:
         """Return the default schema for the engine."""
-        pass
 
     @abstractmethod
     def get_databases(
@@ -108,21 +102,18 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
         """Return the databases for the engine."""
-        pass
 
     @abstractmethod
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        pass
 
     @abstractmethod
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
-        pass
 
 
 class QueryEngine(BaseEngine[CONN], ABC):
@@ -131,7 +122,6 @@ class QueryEngine(BaseEngine[CONN], ABC):
     @abstractmethod
     def execute(self, query: str) -> Any:
         """Execute a SQL query and return a dataframe."""
-        pass
 
     def sql_output_format(self) -> SqlOutputType:
         if runtime_context_installed():
@@ -168,8 +158,6 @@ class QueryEngine(BaseEngine[CONN], ABC):
 
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
     """Combines the catalog and query interfaces for an SQL engine."""
-
-    pass
 
 
 SQLConnectionType = Union[EngineCatalog[Any], QueryEngine[Any]]
