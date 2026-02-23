@@ -15,6 +15,7 @@ from typing import (
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm
@@ -83,15 +84,6 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
     el = _cache.get(widget)
     if el is None:
-        # Sync widget state before creating the wrapper.
-        # Some widgets (e.g. plotly FigureWidget, plotly-resampler) only sync
-        # their internal data to widget traits during _repr_mimebundle_().
-        # Without this, the comm's initial state may be stale/empty.
-        #
-        # NOTE: If you are a widget author and need to sync state from your widget,
-        # do not do this in the repr_mimebundle method.
-        # This is not a supported pattern and may break in the future.
-        _sync_widget_state(widget)
         el = anywidget(widget)
         _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return el
@@ -229,6 +221,38 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         comm = self.widget.comm
         if isinstance(comm, MarimoComm):
             comm.ui_element_id = self._id
+
+    def _ensure_widget_synced(self) -> None:
+        """Sync widget state lazily on first access (idempotent).
+
+        Some widgets (e.g. plotly FigureWidget, plotly-resampler) only sync
+        their internal data to widget traits during _repr_mimebundle_().
+        This ensures the sync happens once, the first time the element is
+        rendered.
+
+        NOTE: @once cannot be used here because Html is a @dataclass with
+        eq=True/frozen=False, making instances unhashable (WeakKeyDictionary
+        requires hashable keys).
+
+        NOTE: If you are a widget author and need to sync state from your
+        widget, do not do this in the repr_mimebundle method.
+        This is not a supported pattern and may break in the future.
+        """
+        # Use object.__dict__ directly to bypass anywidget's
+        # custom __getattr__/__setattr__
+        if self.__dict__.get("_widget_synced", False):
+            return
+        object.__setattr__(self, "_widget_synced", True)
+        _sync_widget_state(self.widget)
+
+    @property
+    def text(self) -> str:
+        self._ensure_widget_synced()
+        return super().text
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        self._ensure_widget_synced()
+        return super()._mime_()
 
     def _convert_value(
         self, value: ModelIdRef | AnyWidgetState
