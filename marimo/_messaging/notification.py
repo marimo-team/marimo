@@ -715,12 +715,16 @@ class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
         cell_ids: Cells to update.
         codes: New code for each cell.
         code_is_stale: If True, code was not executed on backend (output may not match).
+        names: Cell names for each cell (optional, for file reload).
+        configs: Cell configs for each cell (optional, for file reload).
     """
 
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: list[CellId_t]
     codes: list[str]
     code_is_stale: bool
+    names: list[str] = msgspec.field(default_factory=list)
+    configs: list[CellConfig] = msgspec.field(default_factory=list)
 
 
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
