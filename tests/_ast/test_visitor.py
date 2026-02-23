@@ -1572,7 +1572,9 @@ def test_sql_join_using_f_string() -> None:
     # When an f-string expression appears in a USING clause, the placeholder
     # "1" makes duckdb.extract_statements fail, which used to cause all SQL
     # table references to be lost.
-    code = "mo.sql(f'SELECT {col}, colC, colD FROM df1 JOIN df2 USING ({col})')"
+    code = (
+        "mo.sql(f'SELECT {col}, colC, colD FROM df1 JOIN df2 USING ({col})')"
+    )
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)

@@ -655,17 +655,6 @@ class ScopedVisitor(ast.NodeVisitor):
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
-                # Import ParseError outside try block so we can except it
-                # Use a Union approach to handle both cases
-                ParseErrorType: type[Exception]
-                if DependencyManager.sqlglot.has():
-                    from sqlglot.errors import ParseError as SQLGLOTParseError
-
-                    ParseErrorType = SQLGLOTParseError
-                else:
-                    # Fallback when sqlglot is not available
-                    ParseErrorType = Exception
-
                 # TODO: Handle other SQL languages
                 # TODO: Get the engine so we can differentiate tables in diff engines
 
@@ -770,25 +759,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(None, _catalog, VariableData("catalog"))
                         defined_names.add(_catalog)
 
-                    sql_refs: set[SQLRef] = set()
-                    try:
-                        # Take results
-                        sql_refs = find_sql_refs_cached(statement_sql)
-                    except (
-                        duckdb.ProgrammingError,
-                        duckdb.IOException,
-                        ParseErrorType,
-                        BaseException,
-                    ) as e:
-                        # Use first_arg (SQL string node) for accurate positioning
-                        log_sql_error(
-                            LOGGER.error,
-                            message=f"Error parsing SQL statement: {e}",
-                            exception=e,
-                            node=first_arg,
-                            rule_code="MF005",
-                            sql_content=statement_sql,
-                        )
+                    sql_refs = find_sql_refs_cached(statement_sql)
 
                     for ref in sql_refs:
                         name = ref.qualified_name
