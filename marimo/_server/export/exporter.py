@@ -382,6 +382,101 @@ class Exporter:
             return None
         return pdf_data
 
+    async def export_as_slides_pdf(
+        self,
+        *,
+        app: InternalApp,
+        session_view: SessionView | None,
+        include_inputs: bool = True,
+    ) -> bytes | None:
+        """Export a slides notebook as PDF using reveal.js + Playwright.
+
+        Converts to iPynb with Jupyter slideshow metadata, renders to
+        reveal.js HTML via nbconvert's SlidesExporter, then uses
+        Playwright (async API) to print to PDF via ?print-pdf mode.
+
+        Must be called from an async context since Playwright's async API
+        is required when running inside an asyncio event loop.
+
+        Args:
+            app: The app to export
+            session_view: The session view to export. If None, outputs
+                are not included.
+            include_inputs: Whether to include code cell inputs.
+
+        Returns:
+            PDF data
+        """
+        DependencyManager.require_many(
+            "for PDF export",
+            DependencyManager.nbformat,
+            DependencyManager.nbconvert,
+            DependencyManager.playwright,
+        )
+
+        ipynb_json_str = self.export_as_ipynb(
+            app=app, sort_mode="top-down", session_view=session_view
+        )
+
+        import nbformat
+
+        notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+
+        return await self._export_slides_as_pdf(notebook, include_inputs)
+
+    @staticmethod
+    async def _export_slides_as_pdf(
+        notebook: Any,
+        include_inputs: bool,
+    ) -> bytes | None:
+        """Render slides notebook to PDF using Playwright async API."""
+        import os
+        import tempfile
+
+        from nbconvert import SlidesExporter  # type: ignore[import-not-found]
+
+        # Add slideshow metadata so each cell becomes a slide
+        for cell in notebook.cells:
+            if "slideshow" not in cell.metadata:
+                cell.metadata["slideshow"] = {}
+            cell.metadata["slideshow"]["slide_type"] = "slide"
+
+        # Convert to reveal.js HTML
+        slides_exporter = SlidesExporter()
+        slides_exporter.exclude_input = not include_inputs
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)
+
+        # Write HTML to a temp file for Playwright to load
+        with tempfile.NamedTemporaryFile(
+            suffix=".html", delete=False, mode="w", encoding="utf-8"
+        ) as f:
+            f.write(html_data)
+            temp_path = f.name
+
+        try:
+            from playwright.async_api import (  # type: ignore[import-not-found]
+                async_playwright,
+            )
+
+            async with async_playwright() as p:
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
+                # ?print-pdf tells reveal.js to use a linear print layout
+                await page.goto(f"file://{temp_path}?print-pdf")
+                await page.wait_for_load_state("networkidle")
+                pdf_data = await page.pdf(
+                    print_background=True,
+                    prefer_css_page_size=True,
+                )
+                await browser.close()
+
+            if not isinstance(pdf_data, bytes):
+                LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
+                return None
+            return pdf_data
+        finally:
+            os.unlink(temp_path)
+
     def export_assets(
         self, directory: Path, ignore_index_html: bool = False
     ) -> None:
