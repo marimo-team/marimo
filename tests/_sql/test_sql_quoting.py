@@ -42,9 +42,13 @@ class TestQuoteSqlIdentifier:
             # MySQL same as clickhouse
             ("table", "mysql", "`table`"),
             ("has`backtick", "mysql", "`has``backtick`"),
-            # Unknown dialect falls back to double-quote (ANSI SQL)
-            ("table", "sqlite", '"table"'),
-            ('has"quotes', "unknown", '"has""quotes"'),
+            # BigQuery uses backtick style
+            ("table", "bigquery", "`table`"),
+            ("my table", "bigquery", "`my table`"),
+            ("has`backtick", "bigquery", "`has``backtick`"),
+            # Unknown dialect returns unquoted
+            ("table", "sqlite", "table"),
+            ("my table", "unknown", "my table"),
         ],
     )
     def test_quote_identifier(
