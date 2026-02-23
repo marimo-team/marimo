@@ -32,6 +32,7 @@ const SlidesComponent = ({
   wrapAround = false,
 }: PropsWithChildren<SlidesComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const { hasFullscreen } = useIframeCapabilities();
 
@@ -54,80 +55,88 @@ const SlidesComponent = ({
     ? [Keyboard, Pagination, Zoom, Navigation]
     : [Virtual, Keyboard, Pagination, Zoom, Navigation];
 
+  // Wrap Swiper in a container so that fullscreen is requested on the
+  // container rather than the Swiper element itself. Swiper applies
+  // `overflow: hidden` which clips portal-based UI (popovers, selects, etc.)
+  // rendered via withFullScreenAsRoot into document.fullscreenElement.
   return (
-    <Swiper
-      ref={el}
-      className={cn(
-        "relative w-full border rounded bg-background mo-slides-theme prose-slides",
-        className,
-      )}
-      spaceBetween={50}
-      style={{
-        height: isFullscreen ? "100%" : height || "550px",
-      }}
-      slidesPerView={1}
-      modules={modules}
-      zoom={{
-        maxRatio: 5,
-      }}
-      // touch controls interfere with UI elements
-      simulateTouch={false}
-      keyboard={{
-        // Only enable keyboard controls when in fullscreen
-        enabled: isFullscreen || forceKeyboardNavigation,
-      }}
-      navigation={true}
-      pagination={{
-        clickable: true,
-      }}
-      virtual={!wrapAround} // virtual is incompatible with loop, turn off if loop is on
-      // Instant swipes, which make sequences of slides
-      // that overlay content more legible
-      speed={1}
-      loop={wrapAround}
+    <div
+      ref={containerRef}
+      className={cn("relative", isFullscreen && "h-full bg-background")}
     >
-      {React.Children.map(children, (child, index) => {
-        if (child == null) {
-          return null;
-        }
-        return (
-          <SwiperSlide key={index}>
-            <div
-              onKeyDown={(e) => {
-                // If the target is from a marimo element, stop propagation
-                if (
-                  e.target instanceof HTMLElement &&
-                  e.target.tagName.toLocaleLowerCase().startsWith("marimo-")
-                ) {
-                  e.stopPropagation();
-                }
-              }}
-              className={cn(
-                "h-full w-full flex box-border overflow-y-auto overflow-x-hidden",
-                isFullscreen ? "p-20" : "p-6 pb-12",
-              )}
-            >
-              <div className="mo-slide-content">{child}</div>
-            </div>
-          </SwiperSlide>
-        );
-      })}
+      <Swiper
+        ref={el}
+        className={cn(
+          "relative w-full border rounded bg-background mo-slides-theme prose-slides",
+          className,
+        )}
+        spaceBetween={50}
+        style={{
+          height: isFullscreen ? "100%" : height || "550px",
+        }}
+        slidesPerView={1}
+        modules={modules}
+        zoom={{
+          maxRatio: 5,
+        }}
+        // touch controls interfere with UI elements
+        simulateTouch={false}
+        keyboard={{
+          // Only enable keyboard controls when in fullscreen
+          enabled: isFullscreen || forceKeyboardNavigation,
+        }}
+        navigation={true}
+        pagination={{
+          clickable: true,
+        }}
+        virtual={!wrapAround} // virtual is incompatible with loop, turn off if loop is on
+        // Instant swipes, which make sequences of slides
+        // that overlay content more legible
+        speed={1}
+        loop={wrapAround}
+      >
+        {React.Children.map(children, (child, index) => {
+          if (child == null) {
+            return null;
+          }
+          return (
+            <SwiperSlide key={index}>
+              <div
+                onKeyDown={(e) => {
+                  // If the target is from a marimo element, stop propagation
+                  if (
+                    e.target instanceof HTMLElement &&
+                    e.target.tagName.toLocaleLowerCase().startsWith("marimo-")
+                  ) {
+                    e.stopPropagation();
+                  }
+                }}
+                className={cn(
+                  "h-full w-full flex box-border overflow-y-auto overflow-x-hidden",
+                  isFullscreen ? "p-20" : "p-6 pb-12",
+                )}
+              >
+                <div className="mo-slide-content">{child}</div>
+              </div>
+            </SwiperSlide>
+          );
+        })}
+      </Swiper>
       {hasFullscreen && (
         <Button
           variant="link"
           size="sm"
           data-testid="marimo-plugin-slides-fullscreen"
           onClick={async () => {
-            if (!el.current) {
+            if (!containerRef.current) {
               return;
             }
-            const domEl = el.current as unknown as HTMLElement;
 
             if (document.fullscreenElement) {
               await document.exitFullscreen();
               setIsFullscreen(false);
             } else {
-              await domEl.requestFullscreen();
+              await containerRef.current.requestFullscreen();
               setIsFullscreen(true);
             }
           }}
@@ -136,7 +145,7 @@ const SlidesComponent = ({
           {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
         </Button>
       )}
-    </Swiper>
+    </div>
   );
 };
 
