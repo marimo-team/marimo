@@ -87,6 +87,10 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
         # Some widgets (e.g. plotly FigureWidget, plotly-resampler) only sync
         # their internal data to widget traits during _repr_mimebundle_().
         # Without this, the comm's initial state may be stale/empty.
+        #
+        # NOTE: If you are a widget author and need to sync state from your widget,
+        # do not do this in the repr_mimebundle method.
+        # This is not a supported pattern and may break in the future.
         _sync_widget_state(widget)
         el = anywidget(widget)
         _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
