@@ -286,7 +286,7 @@ class DynamicDirectoryMiddleware:
                     self.directory
                 ).as_posix()
                 if relative_notebook.endswith(".py"):
-                    relative_notebook = relative_notebook[:-3]
+                    relative_notebook = relative_notebook.removesuffix(".py")
                 # Compute the URL prefix for this notebook. When
                 # root_path already ends with base_path (because the
                 # parent mount includes it), avoid doubling the prefix.
