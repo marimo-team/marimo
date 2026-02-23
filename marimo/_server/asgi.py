@@ -173,11 +173,26 @@ class DynamicDirectoryMiddleware:
             return
 
         path = scope["path"]
-        if not path.startswith(self.base_path + "/"):
+        root_path = scope.get("root_path", "")
+
+        # Determine the app_path, accounting for external mounting.
+        # When this ASGI app is mounted at a sub-path by a parent framework
+        # (e.g., Starlette's app.mount("/server2", ...)), the framework sets
+        # root_path but may keep the mount prefix in scope["path"]. Strip
+        # root_path from the path before matching against our base_path.
+        if root_path and path.startswith(root_path + "/"):
+            effective_path = path[len(root_path) :]
+        else:
+            effective_path = path
+
+        if self.base_path and effective_path.startswith(self.base_path + "/"):
+            app_path = effective_path[len(self.base_path) + 1 :]
+        elif self.base_path and root_path.endswith(self.base_path):
+            # Fallback: base_path was fully stripped by parent framework
+            app_path = effective_path.lstrip("/")
+        else:
             await self.app(scope, receive, send)
             return
-
-        app_path = path[len(self.base_path) + 1 :]
 
         # Empty path or starts with an underscore is not a valid app
         if not app_path or app_path.startswith("/_"):
@@ -258,9 +273,29 @@ class DynamicDirectoryMiddleware:
         cache_key = str(marimo_file)
         if cache_key not in self._app_cache:
             LOGGER.debug(f"Creating new app for {cache_key}")
+            # Compute the URL base path for this notebook.
+            # This is used for template rendering (e.g., OpenGraph URLs).
+            try:
+                relative_notebook = str(
+                    marimo_file.relative_to(self.directory)
+                )
+                if relative_notebook.endswith(".py"):
+                    relative_notebook = relative_notebook[:-3]
+                # Compute the URL prefix for this notebook. When
+                # root_path already ends with base_path (because the
+                # parent mount includes it), avoid doubling the prefix.
+                if self.base_path and root_path.endswith(self.base_path):
+                    url_prefix = root_path
+                elif self.base_path:
+                    url_prefix = root_path + self.base_path
+                else:
+                    url_prefix = root_path
+                notebook_base_url = f"{url_prefix}/{relative_notebook}"
+            except ValueError:
+                notebook_base_url = ""
             try:
                 self._app_cache[cache_key] = self.app_builder(
-                    cache_key, cache_key
+                    notebook_base_url, cache_key
                 )
                 LOGGER.debug(f"Successfully created app for {cache_key}")
             except Exception as e:
