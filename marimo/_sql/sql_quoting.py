@@ -56,6 +56,15 @@ def parse_fully_qualified_table_name(
     Raises ValueError for malformed input (unterminated quotes, stray quotes,
     wrong number of parts).
     """
+    # Fast path for simple unquoted identifiers (no quotes)
+    if '"' not in fully_qualified_table_name:
+        parts = fully_qualified_table_name.split(".")
+        if len(parts) != 3:
+            raise ValueError(
+                f"Invalid fully qualified table name: {fully_qualified_table_name}"
+            )
+        return parts[0], parts[1], parts[2]
+
     # Each identifier is either:
     #   - a quoted identifier: "..." with escaped "" inside
     #   - an unquoted identifier: no dots or quotes
