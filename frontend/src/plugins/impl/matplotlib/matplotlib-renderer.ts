@@ -257,6 +257,11 @@ function isPointInBox(
   return pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY;
 }
 
+function isInAxes(pt: PixelPoint, g: AxesGeometry): boolean {
+  const [axLeft, axTop, axRight, axBottom] = g.axesPixelBounds;
+  return pt.x >= axLeft && pt.x <= axRight && pt.y >= axTop && pt.y <= axBottom;
+}
+
 export const visibleForTesting = {
   createScale,
   pixelToData,
@@ -264,6 +269,7 @@ export const visibleForTesting = {
   pointInPolygon,
   clampToAxes,
   isPointInBox,
+  isInAxes,
 };
 
 export class MatplotlibRenderer {
@@ -568,6 +574,9 @@ export class MatplotlibRenderer {
 
     // Shift+click -> start lasso
     if (e.shiftKey) {
+      if (!isInAxes(pt, this.#state)) {
+        return;
+      }
       this.#interaction = {
         type: "lasso",
         points: [clampToAxes(pt, this.#state)],
@@ -620,7 +629,10 @@ export class MatplotlibRenderer {
       this.#clearSelection();
     }
 
-    // Start new box selection
+    // Start new box selection (only inside axes)
+    if (!isInAxes(pt, this.#state)) {
+      return;
+    }
     const clamped = clampToAxes(pt, this.#state);
     this.#interaction = {
       type: "box",

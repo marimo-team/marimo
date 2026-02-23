@@ -90,15 +90,10 @@ class AppKernelRunner:
             run_result: cell_runner.RunResult,
         ) -> None:
             """Update the app's cached outputs."""
-            from marimo._plugins.stateless.flex import vstack
-
             del ctx
-            if (
-                run_result.output is None
-                and run_result.accumulated_output is not None
-            ):
-                self.outputs[cell.cell_id] = vstack(
-                    run_result.accumulated_output
+            if run_result.output is None and run_result.accumulated_output:
+                self.outputs[cell.cell_id] = (
+                    run_result.accumulated_output.stack()
                 )
             else:
                 self.outputs[cell.cell_id] = run_result.output

@@ -26,6 +26,7 @@ import { isOutputEmpty } from "@/core/cells/outputs";
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyToClipboard } from "@/utils/copy";
+import { getImageExtension } from "@/utils/filenames";
 import { Logger } from "@/utils/Logger";
 import type { ActionButton } from "../actions/types";
 import {
@@ -154,8 +155,9 @@ export const CellActionsContextMenu = ({
       handle: () => {
         if (imageRightClicked) {
           const link = document.createElement("a");
-          link.download = "image.png";
           link.href = imageRightClicked.src;
+          const ext = getImageExtension(imageRightClicked.src) || "png";
+          link.download = `image.${ext}`;
           link.click();
         }
       },

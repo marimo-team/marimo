@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from typing import Any
 
 import matplotlib.pyplot as plt  # noqa: E402
@@ -253,6 +254,72 @@ def test_figure_to_base64() -> None:
     result = _figure_to_base64(fig)
     assert result.startswith("data:image/png;base64,")
     assert len(result) > 50
+
+
+# ============================================================================
+# HTML output tests
+# ============================================================================
+
+
+def test_axes_bounds_match_constrained_layout() -> None:
+    """Axes bounds should reflect post-layout position with constrained_layout."""
+    fig, ax = plt.subplots(constrained_layout=True)
+    ax.scatter([1, 2, 3], [4, 5, 6])
+    ax.set_xlabel("X label")
+    ax.set_ylabel("Y label")
+    ax.set_title("Title")
+    plt.close(fig)
+
+    widget = matplotlib(ax)
+    args = widget._component_args
+
+    # Render independently with the same settings to get expected bounds
+    fig2 = ax.get_figure()
+    fig2.savefig(
+        io.BytesIO(), format="png", dpi=fig2.get_dpi(), bbox_inches=None
+    )
+    bbox = ax.get_position()
+    w, h = _figure_pixel_size(fig2)
+
+    expected = [
+        bbox.x0 * w,
+        (1 - bbox.y1) * h,
+        bbox.x1 * w,
+        (1 - bbox.y0) * h,
+    ]
+    for actual, exp in zip(args["axes-pixel-bounds"], expected):
+        assert abs(actual - exp) < 1e-6
+
+
+def test_axes_bounds_match_tight_layout() -> None:
+    """Axes bounds should reflect post-layout position with tight_layout."""
+    fig, ax = plt.subplots()
+    ax.scatter([1, 2, 3], [4, 5, 6])
+    ax.set_xlabel("X label")
+    ax.set_ylabel("Y label")
+    ax.set_title("Title")
+    fig.tight_layout()
+    plt.close(fig)
+
+    widget = matplotlib(ax)
+    args = widget._component_args
+
+    # Render independently with the same settings to get expected bounds
+    fig2 = ax.get_figure()
+    fig2.savefig(
+        io.BytesIO(), format="png", dpi=fig2.get_dpi(), bbox_inches=None
+    )
+    bbox = ax.get_position()
+    w, h = _figure_pixel_size(fig2)
+
+    expected = [
+        bbox.x0 * w,
+        (1 - bbox.y1) * h,
+        bbox.x1 * w,
+        (1 - bbox.y0) * h,
+    ]
+    for actual, exp in zip(args["axes-pixel-bounds"], expected):
+        assert abs(actual - exp) < 1e-6
 
 
 # ============================================================================

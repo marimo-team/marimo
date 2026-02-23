@@ -135,7 +135,7 @@ def _figure_pixel_size(figure: Figure) -> tuple[float, float]:
 def _figure_to_base64(figure: Figure) -> str:
     """Render a matplotlib figure to a base64-encoded PNG data URL."""
     buf = io.BytesIO()
-    figure.savefig(buf, format="png")
+    figure.savefig(buf, format="png", dpi=figure.get_dpi(), bbox_inches=None)
     buf.seek(0)
     encoded = base64.b64encode(buf.read()).decode("utf-8")
     buf.close()
@@ -204,18 +204,7 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             raise ValueError("Axes must be attached to a figure.")
         self._ax: Axes = axes
 
-        fig_width_px, fig_height_px = _figure_pixel_size(figure)
-
-        # Axes pixel bounds: [left, top, right, bottom]
-        # relative to the full figure image
-        bbox = axes.get_position()
-        axes_pixel_bounds: list[float] = [
-            bbox.x0 * fig_width_px,  # left
-            (1 - bbox.y1) * fig_height_px,  # top
-            bbox.x1 * fig_width_px,  # right
-            (1 - bbox.y0) * fig_height_px,  # bottom
-        ]
-
+        # Validate scales first (fail fast, no side effects)
         _SUPPORTED_SCALES = ("linear", "log")
         x_scale = axes.get_xscale()
         y_scale = axes.get_yscale()
@@ -230,12 +219,26 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                 f"mo.ui.matplotlib supports: {', '.join(_SUPPORTED_SCALES)}."
             )
 
+        # Render the figure first — savefig triggers the draw which
+        # finalizes layout (tight_layout, constrained_layout, etc.)
+        chart_base64 = _figure_to_base64(figure)
+
+        # Now capture axes position — reflects post-layout bounds
+        fig_width_px, fig_height_px = _figure_pixel_size(figure)
+        bbox = axes.get_position()
+        axes_pixel_bounds: list[float] = [
+            bbox.x0 * fig_width_px,  # left
+            (1 - bbox.y1) * fig_height_px,  # top
+            bbox.x1 * fig_width_px,  # right
+            (1 - bbox.y0) * fig_height_px,  # bottom
+        ]
+
         super().__init__(
             component_name=matplotlib.name,
             initial_value={},
             label="",
             args={
-                "chart-base64": _figure_to_base64(figure),
+                "chart-base64": chart_base64,
                 "x-bounds": list(axes.get_xlim()),
                 "y-bounds": list(axes.get_ylim()),
                 "axes-pixel-bounds": axes_pixel_bounds,

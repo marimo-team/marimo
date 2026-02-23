@@ -3,8 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { Data } from "../matplotlib-renderer";
 import { visibleForTesting } from "../matplotlib-renderer";
 
-const { pixelToData, dataToPixel, pointInPolygon, clampToAxes, isPointInBox } =
-  visibleForTesting;
+const {
+  pixelToData,
+  dataToPixel,
+  pointInPolygon,
+  clampToAxes,
+  isPointInBox,
+  isInAxes,
+} = visibleForTesting;
 
 // A simple axes geometry for testing:
 // axes occupy pixels [100, 50] to [500, 350] (400px wide, 300px tall)
@@ -148,5 +154,34 @@ describe("isPointInBox", () => {
     // Swap start and end (end is top-left, start is bottom-right)
     expect(isPointInBox({ x: 30, y: 30 }, boxEnd, boxStart)).toBe(true);
     expect(isPointInBox({ x: 5, y: 30 }, boxEnd, boxStart)).toBe(false);
+  });
+});
+
+describe("isInAxes", () => {
+  it("returns true for a point inside the axes", () => {
+    expect(isInAxes({ x: 300, y: 200 }, LINEAR_AXES)).toBe(true);
+  });
+
+  it("returns true for a point on the boundary", () => {
+    expect(isInAxes({ x: 100, y: 50 }, LINEAR_AXES)).toBe(true); // top-left
+    expect(isInAxes({ x: 500, y: 350 }, LINEAR_AXES)).toBe(true); // bottom-right
+    expect(isInAxes({ x: 100, y: 350 }, LINEAR_AXES)).toBe(true); // bottom-left
+    expect(isInAxes({ x: 500, y: 50 }, LINEAR_AXES)).toBe(true); // top-right
+  });
+
+  it("returns false for a point left of axes", () => {
+    expect(isInAxes({ x: 99, y: 200 }, LINEAR_AXES)).toBe(false);
+  });
+
+  it("returns false for a point right of axes", () => {
+    expect(isInAxes({ x: 501, y: 200 }, LINEAR_AXES)).toBe(false);
+  });
+
+  it("returns false for a point above axes", () => {
+    expect(isInAxes({ x: 300, y: 49 }, LINEAR_AXES)).toBe(false);
+  });
+
+  it("returns false for a point below axes", () => {
+    expect(isInAxes({ x: 300, y: 351 }, LINEAR_AXES)).toBe(false);
   });
 });
