@@ -108,6 +108,12 @@ class DynamicDirectoryMiddleware:
     ) -> None:
         self.app = app
         self.base_path = base_path.rstrip("/")
+        if not self.base_path:
+            raise ValueError(
+                "with_dynamic_directory requires a non-empty path "
+                "(e.g., path='/apps'). "
+                "Using path='/' or path='' is not supported."
+            )
         self.directory = Path(directory)
         self.app_builder = app_builder
         self._app_cache: dict[str, ASGIApp] = {}
@@ -185,9 +191,9 @@ class DynamicDirectoryMiddleware:
         else:
             effective_path = path
 
-        if self.base_path and effective_path.startswith(self.base_path + "/"):
+        if effective_path.startswith(self.base_path + "/"):
             app_path = effective_path[len(self.base_path) + 1 :]
-        elif self.base_path and root_path.endswith(self.base_path):
+        elif root_path.endswith(self.base_path):
             # Fallback: base_path was fully stripped by parent framework
             app_path = effective_path.lstrip("/")
         else:
@@ -284,12 +290,10 @@ class DynamicDirectoryMiddleware:
                 # Compute the URL prefix for this notebook. When
                 # root_path already ends with base_path (because the
                 # parent mount includes it), avoid doubling the prefix.
-                if self.base_path and root_path.endswith(self.base_path):
+                if root_path.endswith(self.base_path):
                     url_prefix = root_path
-                elif self.base_path:
-                    url_prefix = root_path + self.base_path
                 else:
-                    url_prefix = root_path
+                    url_prefix = root_path + self.base_path
                 notebook_base_url = f"{url_prefix}/{relative_notebook}"
             except ValueError:
                 notebook_base_url = ""
@@ -303,9 +307,15 @@ class DynamicDirectoryMiddleware:
                 await self.app(scope, receive, send)
                 return
 
-        # Update scope to use the remaining path
+        # Update scope to use the remaining path.
+        # Reset root_path so the inner Starlette app's routing works
+        # correctly. In Starlette 0.40+, get_route_path() strips
+        # root_path from scope["path"]; if root_path comes from an
+        # external mount (e.g., "/server2") but the inner path is
+        # "/assets/...", the mismatch causes StaticFiles 404s.
         old_path = scope["path"]
         new_scope["path"] = f"/{remaining_path}" if remaining_path else "/"
+        new_scope["root_path"] = ""
         LOGGER.debug(f"Updated path: {old_path} -> {new_scope['path']}")
 
         try:

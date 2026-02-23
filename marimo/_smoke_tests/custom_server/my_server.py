@@ -9,10 +9,14 @@
 #     "python-multipart",
 #     "passlib",
 #     "pydantic",
+#     "marimo",
 #     "polars",
 #     "pandas",
+#     "altair",
 #     "vega-datasets==0.9.0",
 # ]
+# [tool.uv.sources]
+# marimo = {path = "../../..", editable = true}
 # ///
 
 # Smoke test for marimo ASGI integration with FastAPI.
@@ -65,8 +69,6 @@ server2 = (
     .with_dynamic_directory(
         path="/apps", directory=str(dirname / "altair_examples")
     )
-    # Dynamic directory at root: "/" becomes /server2/ when mounted
-    .with_dynamic_directory(path="/", directory=str(dirname / "smoke_tests"))
 )
 
 app = FastAPI()
@@ -174,8 +176,6 @@ async def homepage():
                 <li><a href="/server2/apps/altair_polars/">Altair Polars</a> <span class="badge">dynamic_directory</span></li>
                 <li><a href="/server2/apps/altair_geoshape/">Altair Geoshape</a> <span class="badge">dynamic_directory</span></li>
                 <li><a href="/server2/apps/hconcat_vconcat/">Chart Concatenation</a> <span class="badge">dynamic_directory</span></li>
-                <li><a href="/server2/dataframe/">Dataframes (root mount)</a> <span class="badge">dynamic_directory</span></li>
-                <li><a href="/server2/buttons/">Buttons (root mount)</a> <span class="badge">dynamic_directory</span></li>
             </ul>
 
             <h2>Additional Endpoints</h2>

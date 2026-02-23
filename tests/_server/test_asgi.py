@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import pytest
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response
 from starlette.testclient import TestClient
@@ -1045,6 +1046,58 @@ class TestDynamicDirectoryMiddlewareSubMount(unittest.TestCase):
 
         response = client.get("/server2/apps/test_app/")
         assert response.status_code == 200
+
+    def test_inner_app_receives_empty_root_path(self):
+        """Inner app must receive root_path='' so Starlette's StaticFiles work."""
+        received_root_paths: list[str] = []
+
+        def app_builder(base_url: str, file_path: str) -> Starlette:
+            del base_url, file_path
+            app = Starlette()
+
+            async def handle(request: Request) -> Response:
+                received_root_paths.append(request.scope.get("root_path", ""))
+                return PlainTextResponse("OK")
+
+            app.add_route("/{path:path}", handle)
+            return app
+
+        middleware = DynamicDirectoryMiddleware(
+            app=self.base_app,
+            base_path="/apps",
+            directory=self.temp_dir,
+            app_builder=app_builder,
+        )
+
+        outer_app = Starlette()
+        outer_app.mount("/server2", middleware)
+        client = TestClient(outer_app)
+
+        response = client.get("/server2/apps/test_app/")
+        assert response.status_code == 200
+        assert received_root_paths == [""]
+
+    def test_empty_base_path_raises_error(self) -> None:
+        """Using path='/' or path='' should raise ValueError."""
+
+        def noop_builder(base_url: str, file_path: str) -> Starlette:
+            del base_url, file_path
+            return Starlette()
+
+        with pytest.raises(ValueError, match="non-empty path"):
+            DynamicDirectoryMiddleware(
+                app=self.base_app,
+                base_path="/",
+                directory=self.temp_dir,
+                app_builder=noop_builder,
+            )
+        with pytest.raises(ValueError, match="non-empty path"):
+            DynamicDirectoryMiddleware(
+                app=self.base_app,
+                base_path="",
+                directory=self.temp_dir,
+                app_builder=noop_builder,
+            )
 
 
 def default_app_builder(base_url: str, file_path: str) -> Starlette:
