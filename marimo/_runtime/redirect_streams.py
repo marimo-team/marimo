@@ -25,10 +25,14 @@ def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
 
     decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
     while True:
-        data = os.read(fd, 4096)
-        if not data:
+        try:
+            data = os.read(fd, 4096)
+            if not data:
+                break
+            text = decoder.decode(data)
+        except Exception:
+            # fd is likely invalid or closed; stop reading.
             break
-        text = decoder.decode(data)
         if text:
             stream_object.write(text)
 
