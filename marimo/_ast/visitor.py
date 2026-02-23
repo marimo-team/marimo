@@ -681,10 +681,13 @@ class ScopedVisitor(ast.NodeVisitor):
                     statements = duckdb.extract_statements(sql)
                 except (duckdb.ProgrammingError, duckdb.IOException):
                     # The user's sql query may have a syntax error,
-                    # or duckdb failed for an unknown reason; don't
-                    # break marimo.
-                    self.generic_visit(node)
-                    return node
+                    # or duckdb failed for an unknown reason.
+                    #
+                    # Don't bail out, and instead fall through to use sqlglot
+                    # for ref extraction on the full SQL string. This handles
+                    # cases where f-string placeholders produce SQL that
+                    # duckdb rejects but sqlglot can still parse.
+                    statements = []
                 except BaseException as e:
                     # We catch base exceptions because we don't want to
                     # fail due to bugs in duckdb -- users code should
@@ -697,8 +700,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         rule_code="MF005",
                         sql_content=sql,
                     )
-                    self.generic_visit(node)
-                    return node
+                    statements = []
 
                 # Try to process each statement individually
                 # For some SQL types (e.g., PIVOT with certain clauses),
