@@ -191,6 +191,12 @@ class TestParseFullyQualifiedTableName:
             "",
             '"single_quoted"',
             '"two"."parts"',
+            # Malformed quoted FQNs: unterminated or stray quotes
+            '"unterminated',
+            '"db"."schema"."table',
+            'db"."schema"."table"',
+            '"db".schema"."table',
+            'db.sch"ema.table',
         ],
     )
     def test_parse_invalid(self, fqn: str) -> None:

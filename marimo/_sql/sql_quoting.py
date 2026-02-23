@@ -10,7 +10,10 @@ def quote_sql_identifier(identifier: str, *, dialect: str = "duckdb") -> str:
 
     Args:
         identifier: The raw identifier string (database, schema, or table name).
-        dialect: The SQL dialect. Supported: "duckdb", "redshift", "clickhouse".
+        dialect: The SQL dialect.
+            Double-quote style: "duckdb", "redshift", "postgresql"/"postgres".
+            Backtick style: "clickhouse", "mysql".
+            Unknown dialects fall back to double-quote (ANSI SQL standard).
 
     Returns:
         The properly quoted identifier string.
@@ -49,15 +52,29 @@ def parse_fully_qualified_table_name(
     Handles both quoted and unquoted identifiers:
       - "my.db"."schema"."table" => ("my.db", "schema", "table")
       - db.schema.table => ("db", "schema", "table")
+
+    Raises ValueError for malformed input (unterminated quotes, stray quotes,
+    wrong number of parts).
     """
-    # Match either a quoted identifier ("...") or an unquoted segment (no dots)
-    pattern = r'"([^"]*(?:""[^"]*)*)"|([^.]+)'
-    parts = [
-        m.group(1).replace('""', '"') if m.group(1) is not None else m.group(2)
-        for m in re.finditer(pattern, fully_qualified_table_name)
-    ]
-    if len(parts) != 3:
+    # Each identifier is either:
+    #   - a quoted identifier: "..." with escaped "" inside
+    #   - an unquoted identifier: no dots or quotes
+    _ident = r'(?:"([^"]*(?:""[^"]*)*)"|([^."]+))'
+    pattern = re.compile(rf"^{_ident}\.{_ident}\.{_ident}$")
+    match = pattern.fullmatch(fully_qualified_table_name)
+    if not match:
         raise ValueError(
             f"Invalid fully qualified table name: {fully_qualified_table_name}"
         )
-    return parts[0], parts[1], parts[2]
+
+    def _segment(quoted_group: int, unquoted_group: int) -> str:
+        value = match.group(quoted_group)
+        if value is not None:
+            return value.replace('""', '"')
+        return match.group(unquoted_group)
+
+    return (
+        _segment(1, 2),
+        _segment(3, 4),
+        _segment(5, 6),
+    )
