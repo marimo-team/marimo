@@ -592,6 +592,8 @@ def _quote_identifier(identifier: str) -> str:
     Quote a DuckDB identifier with double quotes, escaping embedded double quotes.
     This prevents errors when the identifier contains special characters which need to be escaped.
     Eg. table.name -> "table.name"
+
+    https://duckdb.org/docs/stable/sql/dialect/keywords_and_identifiers
     """
     escaped = identifier.replace('"', '""')
     return f'"{escaped}"'
