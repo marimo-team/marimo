@@ -282,9 +282,9 @@ class DynamicDirectoryMiddleware:
             # Compute the URL base path for this notebook.
             # This is used for template rendering (e.g., OpenGraph URLs).
             try:
-                relative_notebook = str(
-                    marimo_file.relative_to(self.directory)
-                )
+                relative_notebook = marimo_file.relative_to(
+                    self.directory
+                ).as_posix()
                 if relative_notebook.endswith(".py"):
                     relative_notebook = relative_notebook[:-3]
                 # Compute the URL prefix for this notebook. When

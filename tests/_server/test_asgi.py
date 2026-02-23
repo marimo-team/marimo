@@ -740,8 +740,9 @@ class TestDynamicDirectoryMiddlewareSubMount(unittest.TestCase):
     This reproduces GitHub issue #8322: when the ASGI app is mounted at a
     sub-path that matches the dynamic directory's base_path (e.g.,
     app.mount("/marimo", ...) + with_dynamic_directory(path="/marimo", ...)),
-    the parent framework strips the prefix from scope["path"] and adds it to
-    scope["root_path"], causing the middleware to never match.
+    the parent framework keeps the mount prefix in scope["path"] while also
+    setting scope["root_path"], causing the middleware's path matching logic
+    to not behave as originally expected.
     """
 
     def setUp(self):
