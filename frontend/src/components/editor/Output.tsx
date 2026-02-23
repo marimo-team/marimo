@@ -14,7 +14,11 @@ import { VideoOutput } from "./output/VideoOutput";
 
 import "./output/Outputs.css";
 import { useAtomValue } from "jotai";
-import { ExpandIcon } from "lucide-react";
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  ExpandIcon,
+} from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
@@ -34,7 +38,6 @@ import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
-import { ExpandCollapseButton } from "./output/ExpandCollapseButton";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
 
@@ -446,11 +449,27 @@ const ExpandableOutput = React.memo(
                 </Tooltip>
               )}
               {(isOverflowing || isExpanded) && !forceExpand && (
-                <ExpandCollapseButton
-                  isExpanded={isExpanded}
-                  onToggle={() => setIsExpanded(!isExpanded)}
-                  visibilityClassName="hover-action"
-                />
+                <Button
+                  data-testid="expand-output-button"
+                  className={cn(
+                    "hover:border-border border border-transparent hover:bg-muted",
+                    // Force show button if expanded
+                    !isExpanded && "hover-action",
+                  )}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  size="xs"
+                  variant="text"
+                >
+                  {isExpanded ? (
+                    <Tooltip content="Collapse output" side="left">
+                      <ChevronsDownUpIcon className="h-4 w-4" />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip content="Expand output" side="left">
+                      <ChevronsUpDownIcon className="h-4 w-4 opacity-60" />
+                    </Tooltip>
+                  )}
+                </Button>
               )}
             </div>
           </div>

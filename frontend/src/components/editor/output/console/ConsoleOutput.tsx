@@ -1,10 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { ChevronRightIcon, WrapTextIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  WrapTextIcon,
+} from "lucide-react";
 import React, { useLayoutEffect } from "react";
 import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
@@ -20,7 +26,6 @@ import { invariant } from "@/utils/invariant";
 import { NameCellContentEditable } from "../../actions/name-cell-input";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { type OnRefactorWithAI, OutputRenderer } from "../../Output";
-import { ExpandCollapseButton } from "../ExpandCollapseButton";
 import { useWrapText } from "../useWrapText";
 import { processOutput } from "./process-output";
 import { RenderTextWithLinks } from "./text-rendering";
@@ -127,20 +132,8 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   return (
     <div className="relative group">
-      {hasOutputs && (isOverflowing || isExpanded) && (
-        <div className="relative print:hidden">
-          <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
-            <ExpandCollapseButton
-              isExpanded={isExpanded}
-              onToggle={() => setIsExpanded(!isExpanded)}
-              visibilityClassName="opacity-0 group-hover:opacity-100"
-              testId="expand-console-output-button"
-            />
-          </div>
-        </div>
-      )}
       {hasOutputs && (
-        <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
+        <div className="absolute top-1 right-4 z-10 opacity-0 group-hover:opacity-100 flex items-center gap-1 print:hidden">
           <CopyClipboardIcon
             tooltip="Copy console output"
             value={getOutputString}
@@ -158,6 +151,25 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
               </ToggleButton>
             </span>
           </Tooltip>
+          {(isOverflowing || isExpanded) && (
+            <Button
+              aria-label={isExpanded ? "Collapse output" : "Expand output"}
+              className="p-0 mb-px"
+              onClick={() => setIsExpanded(!isExpanded)}
+              size="xs"
+              variant={null}
+            >
+              {isExpanded ? (
+                <Tooltip content="Collapse output">
+                  <ChevronsDownUpIcon className="h-4 w-4" />
+                </Tooltip>
+              ) : (
+                <Tooltip content="Expand output">
+                  <ChevronsUpDownIcon className="h-4 w-4 " />
+                </Tooltip>
+              )}
+            </Button>
+          )}
         </div>
       )}
       <div
