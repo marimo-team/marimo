@@ -386,6 +386,10 @@ class TestExplainQueries:
         assert is_explain_query("EXPLAIN (FORMAT JSON) SELECT 1")
         assert is_explain_query("EXPLAIN ANALYZE SELECT 1")
         assert is_explain_query("EXPLAIN QUERY PLAN SELECT 1")
+        assert is_explain_query("EXPLAIN\nSELECT 1")
+        assert is_explain_query("EXPLAIN\n  SELECT 1")
+        assert is_explain_query("EXPLAIN\tSELECT 1")
+        assert is_explain_query("explain\nSELECT 1")
 
         # Test non-EXPLAIN queries
         assert not is_explain_query("SELECT 1")

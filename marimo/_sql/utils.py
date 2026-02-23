@@ -190,7 +190,9 @@ def sql_type_to_data_type(type_str: str) -> DataType:
 
 def is_explain_query(query: str) -> bool:
     """Check if a SQL query is an EXPLAIN query."""
-    return query.lstrip().lower().startswith("explain ")
+    import re
+
+    return bool(re.match(r"\s*explain\s", query, re.IGNORECASE))
 
 
 def wrap_query_with_explain(query: str) -> str:
