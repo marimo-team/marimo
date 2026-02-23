@@ -9,7 +9,9 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
+
+from marimo._mcp.setup import McpType
 
 import click
 from click.core import ParameterSource
@@ -257,6 +259,24 @@ edit_help_msg = "\n".join(
 )
 
 
+class _OptionalValueOption(click.Option):
+    """A click Option that supports an optional value.
+
+    Works around a regression in click 8.3.x where the documented
+    ``is_flag=False, flag_value=...`` pattern is broken.
+    See: https://github.com/pallets/click/issues/3084
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        opt_flag_value = kwargs.pop("flag_value", None)
+        kwargs.setdefault("default", None)
+        kwargs["is_flag"] = False
+        super().__init__(*args, **kwargs)
+        self._flag_needs_value = True
+        if opt_flag_value is not None:
+            self.flag_value = opt_flag_value
+
+
 @main.command(help=edit_help_msg)
 @click.option(
     "-p",
@@ -368,11 +388,12 @@ edit_help_msg = "\n".join(
 )
 @click.option(
     "--mcp",
-    is_flag=True,
-    default=False,
-    type=bool,
+    cls=_OptionalValueOption,
+    flag_value="tools",
+    default=None,
+    type=click.Choice(["tools", "code-mode"]),
     hidden=True,
-    help="Enable MCP server endpoint at /mcp/server for LLM integration.",
+    help="Enable MCP server endpoint.",
 )
 @click.option(
     "--mcp-allow-remote",
@@ -433,7 +454,7 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
-    mcp: bool,
+    mcp: Optional[str],
     mcp_allow_remote: bool,
     server_startup_command: Optional[str],
     asset_url: Optional[str],
@@ -581,7 +602,7 @@ def edit(
         redirect_console_to_browser=True,
         ttl_seconds=session_ttl,
         remote_url=remote_url,
-        mcp=mcp,
+        mcp=cast(McpType, mcp) if mcp is not None else None,
         mcp_allow_remote=mcp_allow_remote,
         server_startup_command=server_startup_command,
         asset_url=asset_url,

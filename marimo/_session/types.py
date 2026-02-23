@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
+    from marimo._session.extensions.types import SessionExtension
     from marimo._session.model import (
         ConnectionState,
         SessionMode,
@@ -179,6 +180,14 @@ class Session(Protocol):
         http_request: Optional[commands.HTTPRequest],
     ) -> None:
         """Instantiate the app."""
+        ...
+
+    def attach_extension(self, extension: SessionExtension) -> None:
+        """Dynamically attach an extension to the session."""
+        ...
+
+    def detach_extension(self, extension: SessionExtension) -> None:
+        """Dynamically detach an extension from the session."""
         ...
 
     def close(self) -> None:
