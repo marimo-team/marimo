@@ -20,6 +20,7 @@ from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
 from marimo._utils.code import hash_code
+from marimo._utils.methods import getcallable
 
 AnyWidgetState: TypeAlias = dict[str, Any]
 
@@ -82,9 +83,36 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
     el = _cache.get(widget)
     if el is None:
+        # Sync widget state before creating the wrapper.
+        # Some widgets (e.g. plotly FigureWidget, plotly-resampler) only sync
+        # their internal data to widget traits during _repr_mimebundle_().
+        # Without this, the comm's initial state may be stale/empty.
+        _sync_widget_state(widget)
         el = anywidget(widget)
         _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return el
+
+
+def _sync_widget_state(widget: AnyWidget) -> None:
+    """Call _repr_mimebundle_ to sync widget state if available.
+
+    Plotly's FigureWidget (and subclasses like plotly-resampler's
+    FigureWidgetResampler) maintain a split internal model: the figure's
+    data lives in _data/_layout_obj, but the widget traits (_widget_data,
+    _widget_layout) are only updated during _repr_mimebundle_(). This call
+    ensures the widget traits reflect the current figure state before the
+    comm sends state to the frontend.
+    """
+    repr_mimebundle = getcallable(widget, "_repr_mimebundle_")
+    if repr_mimebundle is not None:
+        try:
+            repr_mimebundle()
+        except Exception:
+            # Not critical — widget may still work without this sync
+            LOGGER.debug(
+                "Failed to call _repr_mimebundle_ on %s",
+                type(widget).__name__,
+            )
 
 
 def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
