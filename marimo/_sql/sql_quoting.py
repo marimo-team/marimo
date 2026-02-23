@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 
-def quote_sql_identifier(identifier: str, dialect: str = "duckdb") -> str:
+def quote_sql_identifier(identifier: str, *, dialect: str = "duckdb") -> str:
     """
     Quote a SQL identifier for the given dialect, escaping special characters.
 
@@ -37,7 +37,7 @@ def quote_qualified_name(*parts: str, dialect: str = "duckdb") -> str:
         quote_qualified_name("my db", "public", "my.table", dialect="duckdb")
         # => '"my db"."public"."my.table"'
     """
-    return ".".join(quote_sql_identifier(p, dialect) for p in parts)
+    return ".".join(quote_sql_identifier(p, dialect=dialect) for p in parts)
 
 
 def parse_fully_qualified_table_name(

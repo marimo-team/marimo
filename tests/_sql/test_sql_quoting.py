@@ -50,7 +50,7 @@ class TestQuoteSqlIdentifier:
     def test_quote_identifier(
         self, identifier: str, dialect: str, expected: str
     ) -> None:
-        assert quote_sql_identifier(identifier, dialect) == expected
+        assert quote_sql_identifier(identifier, dialect=dialect) == expected
 
     @pytest.mark.parametrize(
         "identifier",
@@ -67,7 +67,7 @@ class TestQuoteSqlIdentifier:
     )
     def test_duckdb_roundtrip_safe(self, identifier: str) -> None:
         """Verify that quoting an identifier produces valid DuckDB syntax."""
-        quoted = quote_sql_identifier(identifier, "duckdb")
+        quoted = quote_sql_identifier(identifier, dialect="duckdb")
         # Must start and end with double quotes
         assert quoted.startswith('"')
         assert quoted.endswith('"')
@@ -88,7 +88,7 @@ class TestQuoteSqlIdentifier:
     )
     def test_clickhouse_roundtrip_safe(self, identifier: str) -> None:
         """Verify that quoting an identifier produces valid ClickHouse syntax."""
-        quoted = quote_sql_identifier(identifier, "clickhouse")
+        quoted = quote_sql_identifier(identifier, dialect="clickhouse")
         assert quoted.startswith("`")
         assert quoted.endswith("`")
         inner = quoted[1:-1]

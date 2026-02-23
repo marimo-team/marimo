@@ -364,7 +364,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
         tables: list[DataTable] = []
         try:
-            quoted_db = quote_sql_identifier(database, "clickhouse")
+            quoted_db = quote_sql_identifier(database, dialect="clickhouse")
             query = f"SHOW TABLES FROM {quoted_db}"
             table_df = self._connection.query_df(query)
         except Exception:
@@ -469,8 +469,12 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             pass
 
         try:
-            quoted_db = quote_sql_identifier(database_name, "clickhouse")
-            quoted_table = quote_sql_identifier(table_name, "clickhouse")
+            quoted_db = quote_sql_identifier(
+                database_name, dialect="clickhouse"
+            )
+            quoted_table = quote_sql_identifier(
+                table_name, dialect="clickhouse"
+            )
             query = f"DESCRIBE TABLE {quoted_db}.{quoted_table}"
             desc_df = self._connection.query_df(query)
         except Exception:

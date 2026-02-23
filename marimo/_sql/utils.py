@@ -65,7 +65,7 @@ def execute_duckdb_sql(
     query: str,
     params: list[Any],
     connection: Optional[duckdb.DuckDBPyConnection] = None,
-) -> duckdb.DuckDBPyRelation:
+) -> duckdb.DuckDBPyConnection:
     """Execute a parameterized DuckDB query with kernel globals context.
 
     Like wrapped_sql, but uses connection.execute() to support
@@ -89,7 +89,7 @@ def execute_duckdb_sql(
             else nullcontext
         )
         with install_connection(connection):
-            result = eval(
+            result: duckdb.DuckDBPyConnection = eval(
                 "connection.execute(query, params)",
                 ctx.globals,
                 {
