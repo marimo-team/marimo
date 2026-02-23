@@ -595,5 +595,6 @@ def _quote_identifier(identifier: str) -> str:
 
     https://duckdb.org/docs/stable/sql/dialect/keywords_and_identifiers
     """
-    escaped = identifier.replace('"', '""')
-    return f'"{escaped}"'
+    from marimo._sql.sql_quoting import quote_sql_identifier
+
+    return quote_sql_identifier(identifier, dialect="duckdb")

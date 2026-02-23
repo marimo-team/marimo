@@ -61,6 +61,46 @@ def wrapped_sql(
     return relation
 
 
+def execute_duckdb_sql(
+    query: str,
+    params: list[Any],
+    connection: Optional[duckdb.DuckDBPyConnection] = None,
+) -> duckdb.DuckDBPyRelation:
+    """Execute a parameterized DuckDB query with kernel globals context.
+
+    Like wrapped_sql, but uses connection.execute() to support
+    parameterized queries ($1, $2, ...) for safe value interpolation.
+    """
+    DependencyManager.duckdb.require("to execute sql")
+
+    if connection is None:
+        import duckdb
+
+        connection = cast(duckdb.DuckDBPyConnection, duckdb)
+
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return connection.execute(query, params)
+    else:
+        install_connection = (
+            ctx.execution_context.with_connection
+            if ctx.execution_context is not None
+            else nullcontext
+        )
+        with install_connection(connection):
+            result = eval(
+                "connection.execute(query, params)",
+                ctx.globals,
+                {
+                    "query": query,
+                    "params": params,
+                    "connection": connection,
+                },
+            )
+            return result
+
+
 def try_convert_to_polars(
     *,
     query: str,
