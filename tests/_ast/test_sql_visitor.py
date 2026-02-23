@@ -201,7 +201,7 @@ class TestFindSQLDefs:
         CREATE TABLE table1 (id INT);
         CREATE OR REPLACE TEMPORARY TABLE IF NOT EXISTS table2 (name VARCHAR(255));
         CREATE TABLE table3 (date DATE);
-        """  # noqa: E501
+        """
         assert find_sql_defs(sql) == SQLDefs(
             tables=[
                 SQLRef(table="table1"),
@@ -214,7 +214,7 @@ class TestFindSQLDefs:
         CREATE VIEW table1 (id INT);
         CREATE OR REPLACE TEMPORARY VIEW IF NOT EXISTS table2 (name VARCHAR(255));
         CREATE VIEW table3 (date DATE);
-        """  # noqa: E501
+        """
         assert find_sql_defs(sql) == SQLDefs(
             views=[
                 SQLRef(table="table1"),

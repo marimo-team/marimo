@@ -26,21 +26,20 @@ class AsyncBackgroundTask(ABC):
         The main task routine that should be implemented by subclasses.
         This method contains the actual task logic.
         """
-        pass
 
     async def startup(self) -> None:
         """
         Optional startup routine that can be implemented by subclasses.
         This method is called before the main task starts.
         """
-        return None
+        return
 
     async def shutdown(self) -> None:
         """
         Optional shutdown routine that can be implemented by subclasses.
         This method is called after the main task stops.
         """
-        return None
+        return
 
     async def _task_wrapper(self) -> None:
         """

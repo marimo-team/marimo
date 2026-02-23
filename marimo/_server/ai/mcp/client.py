@@ -157,7 +157,7 @@ class MCPClient:
             # Connect to servers concurrently
             tasks = [
                 self.connect_to_server(server_name)
-                for server_name in servers_to_connect.keys()
+                for server_name in servers_to_connect
             ]
             connection_results = await asyncio.gather(
                 *tasks, return_exceptions=True
@@ -284,7 +284,7 @@ class MCPClient:
                 # AsyncExitStack cleans up automatically here in same task
 
         except Exception as e:
-            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {str(e)}"
+            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {e!s}"
             LOGGER.error(error_msg)
             self._update_server_status(
                 server_name, MCPServerStatus.ERROR, error_msg
@@ -355,7 +355,7 @@ class MCPClient:
                 return current_status == MCPServerStatus.CONNECTING
 
         except Exception as e:
-            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {str(e)}"
+            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {e!s}"
             LOGGER.error(error_msg)
             if server_name in self.connections:
                 self._update_server_status(
@@ -387,7 +387,7 @@ class MCPClient:
 
         except Exception as e:
             LOGGER.error(
-                f"Tool discovery failed for {connection.definition.name}: {str(e)}"
+                f"Tool discovery failed for {connection.definition.name}: {e!s}"
             )
 
     def _create_namespaced_tool_name(
@@ -529,12 +529,10 @@ class MCPClient:
 
         except Exception as e:
             LOGGER.error(
-                f"Failed to invoke tool {namespaced_tool_name} with params: {str(e)}"
+                f"Failed to invoke tool {namespaced_tool_name} with params: {e!s}"
             )
 
-            return self._create_error_result(
-                f"Tool execution failed: {str(e)}"
-            )
+            return self._create_error_result(f"Tool execution failed: {e!s}")
 
     def create_tool_params(
         self,
@@ -848,7 +846,7 @@ class MCPClient:
             # No retry or forced cleanup - disconnection failures are logged but not blocking.
             # Local state cleanup happens in _connection_lifecycle finally block regardless.
             LOGGER.error(
-                f"Error disconnecting from server {server_name}: {str(e)}"
+                f"Error disconnecting from server {server_name}: {e!s}"
             )
             return False
 

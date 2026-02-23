@@ -21,7 +21,7 @@ def python_print_transforms(
     strs: list[str] = []
     for transform in transforms:
         strs.append(
-            f"{df_next_name} = {print_transform(df_next_name, all_columns, transform)}"  # noqa: E501
+            f"{df_next_name} = {print_transform(df_next_name, all_columns, transform)}"
         )
     return "\n".join([f"{df_next_name} = {df_name}"] + strs)
 
@@ -49,22 +49,22 @@ def python_print_pandas(
                 f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
             )
         elif operator == "contains":
-            return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)})"  # noqa: E501
+            return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)})"
         elif operator == "regex":
-            return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)}, regex=True)"  # noqa: E501
+            return f"{df_name}[{_as_literal(column_id)}].str.contains({_as_literal(value)}, regex=True)"
         elif operator == "starts_with":
-            return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"  # noqa: E501
+            return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"
         elif operator == "ends_with":
-            return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"  # noqa: E501
+            return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"
         elif operator == "in" or operator == "not_in":
-            result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+            result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"
             return result if operator == "in" else f"~{result}"
         elif operator == "!=":
             return (
                 f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
             )
         elif operator in [">", ">=", "<", "<="]:
-            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
+            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"
         elif operator == "is_null":
             return f"{df_name}[{_as_literal(column_id)}].isna()"
         elif operator == "is_not_null":
@@ -82,14 +82,14 @@ def python_print_pandas(
             transform.data_type,
             transform.errors,
         )
-        return f'{df_name}\n{df_name}[{_as_literal(column_id)}] = {df_name}[{_as_literal(column_id)}].astype("{data_type}", errors="{errors}")'  # noqa: E501
+        return f'{df_name}\n{df_name}[{_as_literal(column_id)}] = {df_name}[{_as_literal(column_id)}].astype("{data_type}", errors="{errors}")'
 
     elif transform.type == TransformType.RENAME_COLUMN:
         column_id, new_column_id = (
             transform.column_id,
             transform.new_column_id,
         )
-        return f"{df_name}.rename(columns={{{_as_literal(column_id)}: {_as_literal(new_column_id)}}})"  # noqa: E501
+        return f"{df_name}.rename(columns={{{_as_literal(column_id)}: {_as_literal(new_column_id)}}})"
 
     elif transform.type == TransformType.SORT_COLUMN:
         column_id, ascending, na_position = (
@@ -297,18 +297,18 @@ def python_print_polars(
         elif operator == "does_not_equal" or operator == "!=":
             return f"pl.col({_as_literal(column_id)}) != {_as_literal(value)}"
         elif operator == "contains":
-            return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)})"  # noqa: E501
+            return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)})"
         elif operator == "regex":
-            return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)}, literal=False)"  # noqa: E501
+            return f"pl.col({_as_literal(column_id)}).str.contains({_as_literal(value)}, literal=False)"
         elif operator == "starts_with":
-            return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"  # noqa: E501
+            return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"
         elif operator == "ends_with":
-            return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"  # noqa: E501
+            return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"
         elif operator == "in" or operator == "not_in":
-            result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+            result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"
             return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
-            return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"  # noqa: E501
+            return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"
         elif operator == "is_null":
             return f"pl.col({_as_literal(column_id)}).is_null()"
         elif operator == "is_not_null":
@@ -328,7 +328,7 @@ def python_print_polars(
             data_type = str(pl_datatypes.numpy_char_code_to_dtype(data_type))
         except Exception:
             pass
-        return f"{df_name}.cast({{{_as_literal(column_id)}: pl.{data_type}}}, strict={transform.errors == 'raise'})"  # noqa: E501
+        return f"{df_name}.cast({{{_as_literal(column_id)}: pl.{data_type}}}, strict={transform.errors == 'raise'})"
 
     elif transform.type == TransformType.RENAME_COLUMN:
         column_id, new_column_id = (
@@ -340,7 +340,7 @@ def python_print_polars(
             str(new_column_id) if col == column_id else col
             for col in all_columns
         ]
-        return f"{df_name}.rename({{{_as_literal(column_id)}: {_as_literal(new_column_id)}}})"  # noqa: E501
+        return f"{df_name}.rename({{{_as_literal(column_id)}: {_as_literal(new_column_id)}}})"
 
     elif transform.type == TransformType.SORT_COLUMN:
         column_id, ascending, na_position = (
@@ -348,7 +348,7 @@ def python_print_polars(
             transform.ascending,
             transform.na_position,
         )
-        return f"{df_name}.sort({_as_literal(column_id)}, descending={not ascending}, nulls_last={na_position == 'last'})"  # noqa: E501
+        return f"{df_name}.sort({_as_literal(column_id)}, descending={not ascending}, nulls_last={na_position == 'last'})"
 
     elif transform.type == TransformType.FILTER_ROWS:
         operation, where = transform.operation, transform.where
@@ -412,7 +412,7 @@ def python_print_polars(
                     f"pl.col({col_ref}).max().alias({_as_literal(agg_alias)})"
                 )
         group_cols = [f"pl.col({_as_literal(col)})" for col in column_ids]
-        return f"{df_name}.group_by([{', '.join(group_cols)}], maintain_order=True).agg([{', '.join(aggs)}])"  # noqa: E501
+        return f"{df_name}.group_by([{', '.join(group_cols)}], maintain_order=True).agg([{', '.join(aggs)}])"
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
@@ -433,11 +433,11 @@ def python_print_polars(
 
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
-        return f"{df_name}.hstack(pl.DataFrame({df_name}.select({column_id}).to_series().to_list())).drop({column_id})"  # noqa: E501
+        return f"{df_name}.hstack(pl.DataFrame({df_name}.select({column_id}).to_series().to_list())).drop({column_id})"
 
     elif transform.type == TransformType.UNIQUE:
         column_ids = transform.column_ids
-        return f"{df_name}.unique(subset={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
+        return f"{df_name}.unique(subset={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"
 
     elif transform.type == TransformType.PIVOT:
         if not transform.index_column_ids:
@@ -485,7 +485,7 @@ def python_print_polars(
             else ""
         )
         lambda_code = (
-            f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'  # noqa: E501
+            f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'
             if len(transform.value_column_ids) == 1
             else f"lambda col, replacements=replacements: f'{{col.translate(replacements)}}_{transform.aggregation}'"
         ) + f" if col not in {index_column_ids} else col"
@@ -512,20 +512,20 @@ def python_print_ibis(
         if operator == "==" or operator == "equals":
             return f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
         elif operator == "does_not_equal" or operator == "!=":
-            return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"
         elif operator == "contains":
-            return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"
         elif operator == "regex":
-            return f"({df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)}))"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)}))"
         elif operator == "starts_with":
-            return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"
         elif operator == "ends_with":
-            return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"
         elif operator == "in" or operator == "not_in":
-            result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
+            result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"
             return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
-            return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"
         elif operator == "is_null":
             return f"({df_name}[{_as_literal(column_id)}].isnull())"
         elif operator == "is_not_null":
@@ -548,7 +548,7 @@ def python_print_ibis(
             return (
                 f"{df_name}.mutate("
                 f"ibis.coalesce("
-                f"{df_name}[{_as_literal(column_id)}].cast(ibis.dtype({transform_data_type})), "  # noqa: E501
+                f"{df_name}[{_as_literal(column_id)}].cast(ibis.dtype({transform_data_type})), "
                 f"{df_name}[{_as_literal(column_id)}]"
                 f").name({_as_literal(column_id)}))"
             )
@@ -561,12 +561,12 @@ def python_print_ibis(
             )
 
     elif transform.type == TransformType.RENAME_COLUMN:
-        column_id, new_column_id = transform.column_id, transform.new_column_id  # noqa: E501
-        return f"{df_name}.rename({{{_as_literal(new_column_id)}: {_as_literal(column_id)}}})"  # noqa: E501
+        column_id, new_column_id = transform.column_id, transform.new_column_id
+        return f"{df_name}.rename({{{_as_literal(new_column_id)}: {_as_literal(column_id)}}})"
 
     elif transform.type == TransformType.SORT_COLUMN:
         column_id, ascending = transform.column_id, transform.ascending
-        return f"{df_name}.order_by([{df_name}[{_as_literal(column_id)}].{'asc' if ascending else 'desc'}()])"  # noqa: E501
+        return f"{df_name}.order_by([{df_name}[{_as_literal(column_id)}].{'asc' if ascending else 'desc'}()])"
 
     elif transform.type == TransformType.FILTER_ROWS:
         conditions, operation = transform.where, transform.operation
@@ -601,7 +601,7 @@ def python_print_ibis(
             aggs.append(
                 f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
             )
-        return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"  # noqa: E501
+        return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
@@ -609,7 +609,7 @@ def python_print_ibis(
 
     elif transform.type == TransformType.SAMPLE_ROWS:
         n, seed = transform.n, transform.seed
-        return f"{df_name}.sample({n} / {df_name}.count().execute(), method='row', seed={seed})"  # noqa: E501
+        return f"{df_name}.sample({n} / {df_name}.count().execute(), method='row', seed={seed})"
 
     elif transform.type == TransformType.SHUFFLE_ROWS:
         return f"{df_name}.order_by(ibis.random())"
@@ -624,7 +624,7 @@ def python_print_ibis(
 
     elif transform.type == TransformType.UNIQUE:
         column_ids = transform.column_ids
-        return f"{df_name}.distinct(on={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
+        return f"{df_name}.distinct(on={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"
 
     elif transform.type == TransformType.PIVOT:
         if not transform.index_column_ids:
@@ -669,7 +669,7 @@ def python_print_ibis(
             f"values_agg={_as_literal(agg_func)})"
         )
 
-        rename_code = f'{df_name} = {df_name}.rename(**{{f"{{col}}_{agg_func}": col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})'  # noqa: E501
+        rename_code = f'{df_name} = {df_name}.rename(**{{f"{{col}}_{agg_func}": col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})'
         return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)

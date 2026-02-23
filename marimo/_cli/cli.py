@@ -743,7 +743,7 @@ def new(
                     pass
 
             raise click.ClickException(
-                f"Failed to generate notebook: {str(e)}"
+                f"Failed to generate notebook: {e!s}"
             ) from e
 
     if file_router is None:

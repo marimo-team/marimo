@@ -498,7 +498,7 @@ class AutoExporter:
 
 def get_html_contents() -> str:
     if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
-        import marimo._utils.requests as requests
+        from marimo._utils import requests
 
         # Fetch from a CDN
         LOGGER.info(

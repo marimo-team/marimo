@@ -453,7 +453,6 @@ class WebSocketHandler(SessionConsumer):
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
         del event_bus
-        return None
 
     def on_detach(self) -> None:
         # If the websocket is open, send a close message
@@ -499,7 +498,7 @@ class WebSocketHandler(SessionConsumer):
             release_url = "https://github.com/marimo-team/marimo/releases"
 
             # Build description with notices if present
-            description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"  # noqa: E501
+            description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"
 
             if state.notices:
                 notices_text = (

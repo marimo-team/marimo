@@ -119,14 +119,12 @@ async def test_run_until_completion_with_stack_trace() -> None:
     @app.cell()
     def _():
         print("running internal tests")
-        return
 
     @app.cell()
     def _():
         import sys
 
         sys.stderr.write("internal error\n")
-        return
 
     @app.cell()
     def _():
@@ -135,7 +133,6 @@ async def test_run_until_completion_with_stack_trace() -> None:
             raise ValueError(
                 "Failed to authenticate. The correct password is 's3cret'."
             )
-        return
 
     file_manager = AppFileManager.from_app(InternalApp(app))
 

@@ -645,9 +645,7 @@ class table(
             page_size = total_rows
         # pagination defaults to True if there are more than page_size rows
         if pagination is None:
-            if total_rows == "too_many":
-                pagination = True
-            elif total_rows > page_size:
+            if total_rows == "too_many" or total_rows > page_size:
                 pagination = True
             else:
                 pagination = False
@@ -1482,7 +1480,7 @@ class table(
             return GetRowIdsResponse(
                 row_ids=[],
                 all_rows=False,
-                error=f"Failed to get row IDs: {str(e)}",
+                error=f"Failed to get row IDs: {e!s}",
             )
 
     # Override _mime_ to return a plain HTML representation in non-interactive environments

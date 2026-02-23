@@ -61,6 +61,7 @@ __all__ = [
     "ListOrValue",
     "ListSQLTablesCommand",
     "ListSecretKeysCommand",
+    "ModelCommand",
     "ModelMessage",
     "PreviewDatasetColumnCommand",
     "PreviewSQLTableCommand",
@@ -74,7 +75,6 @@ __all__ = [
     "UpdateCellConfigCommand",
     "UpdateUIElementCommand",
     "UpdateUserConfigCommand",
-    "ModelCommand",
     "ValidateSQLCommand",
     "kebab_case",
 ]

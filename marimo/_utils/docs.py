@@ -272,8 +272,9 @@ def _process_code_block_content(description: str) -> str:
 
     def replace_code_block(match: re.Match[str]) -> str:
         code_content = match.group(1).strip()
-        if code_content.startswith("python\n"):
-            code_content = code_content[7:]  # Remove "python\n"
+        code_content = code_content.removeprefix(
+            "python\n"
+        )  # Remove "python\n"
 
         return (
             f"<pre><code>{code_content.replace(chr(10), '<br>')}</code></pre>"

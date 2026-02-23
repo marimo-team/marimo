@@ -18,7 +18,7 @@ class HoloViewsFormatter(FormatterFactory):
         return "holoviews"
 
     def register(self) -> None:
-        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._output import formatting
 

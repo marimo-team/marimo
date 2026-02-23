@@ -84,9 +84,9 @@ __all__ = [
     "FileStore",
     "RedisStore",
     "RestStore",
-    "TieredStore",
     "Store",
     "StoreKey",
     "StoreType",
+    "TieredStore",
     "get_store",
 ]

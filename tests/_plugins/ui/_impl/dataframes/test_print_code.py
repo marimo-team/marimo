@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import datetime
 import string
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -70,10 +70,10 @@ defined_column_id = st.sampled_from(
 
 def create_transform_strategy(
     column_id: st.SearchStrategy[str],
-    string_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
-    bool_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
-    comparison_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
-    list_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
+    string_column_id: None | st.SearchStrategy[str | int] = None,
+    bool_column_id: None | st.SearchStrategy[str | int] = None,
+    comparison_column_id: None | st.SearchStrategy[str | int] = None,
+    list_column_id: None | st.SearchStrategy[str | int] = None,
     df_size: int = 3,
 ) -> st.SearchStrategy[Transform]:
     column_ids = st.lists(column_id, min_size=1, unique=True)
@@ -476,8 +476,8 @@ def test_print_code_result_matches_actual_transform_pandas(
 
         # For pivot transform the column order can be different, enforce column order by sorting.
         if transform.type == TransformType.PIVOT:
-            code_result = code_result.loc[:, list(sorted(code_result.columns))]
-            real_result = real_result.loc[:, list(sorted(real_result.columns))]
+            code_result = code_result.loc[:, sorted(code_result.columns)]
+            real_result = real_result.loc[:, sorted(real_result.columns)]
 
         code_result = cast(pd.DataFrame, code_result).reset_index(drop=True)
         real_result = real_result.reset_index(drop=True)

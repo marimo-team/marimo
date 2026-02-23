@@ -125,7 +125,7 @@ def _process_image_to_url(src: ImageLike) -> str:
             )
     except Exception as e:
         # return an error message otherwise
-        error_message = f"Error processing image: {str(e)}"
+        error_message = f"Error processing image: {e!s}"
         # Using a comment instead of print for logging
         # print(f"Warning: {error_message}")
         return f"data:text/plain,{error_message}"

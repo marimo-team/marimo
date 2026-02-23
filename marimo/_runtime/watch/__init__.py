@@ -7,6 +7,6 @@ from marimo._runtime.watch._file import file
 # marimo/_server/sessions.py captures notebook level changes.
 
 __all__ = [
-    "file",
     "directory",
+    "file",
 ]
