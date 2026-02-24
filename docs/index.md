@@ -1,16 +1,30 @@
 ---
+title: marimo - Documentation for the Reactive Python Notebook
+description: "marimo is an open-source reactive Python notebook. Run a cell or interact with a UI element, and marimo automatically runs dependent cells, keeping code and outputs consistent."
 hide:
   - navigation
 ---
 <style>
-  .md-typeset h1,
+  .md-typeset h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
   .md-content__button {
     display: none;
   }
 </style>
 
+# marimo: The Reactive Python Notebook
+
 <p align="center" style="margin-top: 40px; margin-bottom: 40px;">
-  <img src="_static/marimo-logotype-thick.svg" width="210px">
+  <img src="_static/marimo-logotype-thick.svg" width="210px" alt="marimo - reactive Python notebook">
 </p>
 
 marimo is an [open-source](https://github.com/marimo-team/marimo) reactive
@@ -137,7 +151,7 @@ that depend on Python values and execute them against dataframes, databases, lak
 CSVs, Google Sheets, or anything else using our built-in SQL engine, which
 returns the result as a Python dataframe.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" alt="SQL cell in marimo querying a dataframe" />
 
 Your notebooks are still pure Python, even if they use SQL.
 
@@ -303,22 +317,22 @@ and our [gallery](https://marimo.io/gallery) to learn more.
   <tr>
     <td>
       <a target="_blank" href="https://molab.marimo.io/notebooks/nb_TWVGCgZZK4L8zj5ziUBNVL">
-        <img src="https://marimo.io/molab-shield.svg"/>
+        <img src="https://marimo.io/molab-shield.svg" alt="Open in molab"/>
       </a>
     </td>
     <td>
       <a target="_blank" href="https://molab.marimo.io/notebooks/nb_WuoXgs7mjg5yqrMxJXjRpF">
-        <img src="https://marimo.io/molab-shield.svg"/>
+        <img src="https://marimo.io/molab-shield.svg" alt="Open in molab"/>
       </a>
     </td>
     <td>
       <a target="_blank" href="https://molab.marimo.io/notebooks/nb_vXxD13t2RoMTLjC89qdn6c">
-        <img src="https://marimo.io/molab-shield.svg"/>
+        <img src="https://marimo.io/molab-shield.svg" alt="Open in molab"/>
       </a>
     </td>
     <td>
       <a target="_blank" href="https://molab.marimo.io/notebooks/nb_XpXx8MX99dWAjn4k1b3xiU">
-        <img src="https://marimo.io/molab-shield.svg"/>
+        <img src="https://marimo.io/molab-shield.svg" alt="Open in molab"/>
       </a>
     </td>
   </tr>
@@ -352,7 +366,7 @@ We're building a community. Come hang out with us!
 ecosystem and is a member of the NumFOCUS community, which includes projects
 such as NumPy, SciPy, and Matplotlib.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/numfocus_affiliated_project.png" style="height:40px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/numfocus_affiliated_project.png" style="height:40px" alt="NumFOCUS affiliated project" />
 
 ## Inspiration ✨
 
@@ -378,5 +392,5 @@ declarative, and reactive programming are transforming a broad range of tools
 for the better.
 
 <p align="right">
-  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" style="height:200px">
+  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" style="height:200px" alt="marimo logo">
 </p>

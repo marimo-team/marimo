@@ -1,4 +1,5 @@
 ---
+description: "Frequently asked questions about marimo: how it differs from Jupyter, why reactive execution, deployment, and troubleshooting."
 hide:
   - navigation
 ---

@@ -1,3 +1,7 @@
+---
+description: "Install marimo with pip, uv, or conda. Set up a virtual environment and get started with the reactive Python notebook."
+---
+
 # Installation
 
 Before installing marimo, we recommend creating and activating a Python

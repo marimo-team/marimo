@@ -1,3 +1,7 @@
+---
+description: "marimo interactive UI inputs: sliders, dropdowns, tables, checkboxes, text fields, chat, and more. Build powerful notebook interfaces with marimo.ui."
+---
+
 # Inputs
 
 marimo comes packaged with interactive UI elements that you can use to build

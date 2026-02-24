@@ -1,3 +1,7 @@
+---
+description: "Deploy marimo notebooks as interactive web apps. Customize layouts with drag-and-drop, add authentication, and share with users."
+---
+
 # Run as an app
 
 The marimo CLI lets you run any notebook as an app: `marimo run` lays out

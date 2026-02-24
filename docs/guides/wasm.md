@@ -1,3 +1,7 @@
+---
+description: "Run marimo notebooks entirely in the browser with WebAssembly. No backend required. Share and embed interactive notebooks anywhere."
+---
+
 # WebAssembly Notebooks
 
 marimo lets you execute notebooks _entirely in the browser_,

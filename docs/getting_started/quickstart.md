@@ -1,3 +1,7 @@
+---
+description: "Quickstart guide for marimo: create notebooks, run tutorials, execute as apps and scripts, and convert Jupyter notebooks."
+---
+
 # Quickstart
 
 Installing marimo gets you the `marimo` command-line interface (CLI), the entry

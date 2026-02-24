@@ -300,6 +300,9 @@ nav:
   - Security: security.md
 plugins:
   - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      fallback_to_build_date: true
   - social:
       cards_layout_options:
         background_color: '#FFFFFF'
