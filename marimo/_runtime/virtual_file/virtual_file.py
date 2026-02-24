@@ -80,22 +80,11 @@ class VirtualFile:
         )
 
     @staticmethod
-    def create_and_register(
-        buffer: bytes,
-        ext: str,
-        *,
-        expires_after_seconds: float | None = None,
-    ) -> VirtualFile:
+    def create_and_register(buffer: bytes, ext: str) -> VirtualFile:
         """Create a virtual file and register it in the current context.
 
         Falls back to a data URL if no runtime context is available,
         virtual files aren't supported, or the buffer is empty.
-
-        Args:
-            buffer: The file contents.
-            ext: File extension (without leading dot).
-            expires_after_seconds: If set, the file will be automatically
-                removed from the registry after this many seconds.
         """
         from marimo._runtime.context import get_context
 
@@ -120,9 +109,7 @@ class VirtualFile:
             return return_data_url()
 
         vfile = VirtualFile(filename=vfile_name, buffer=buffer)
-        ctx.virtual_file_registry.add(
-            vfile, ctx, expires_after_seconds=expires_after_seconds
-        )
+        ctx.virtual_file_registry.add(vfile, ctx)
         return vfile
 
 
@@ -265,13 +252,7 @@ class VirtualFileRegistry:
             return self.registry[filename].refcount
         return 0
 
-    def add(
-        self,
-        virtual_file: VirtualFile,
-        context: RuntimeContext,
-        *,
-        expires_after_seconds: float | None = None,
-    ) -> None:
+    def add(self, virtual_file: VirtualFile, context: RuntimeContext) -> None:
         if not context.virtual_files_supported:
             return
 
@@ -289,13 +270,6 @@ class VirtualFileRegistry:
 
         self.storage.store(key, buffer)
         self.registry[key] = VirtualFileRegistryItem(refcount=0)
-
-        if expires_after_seconds is not None:
-            timer = threading.Timer(
-                expires_after_seconds, self.remove, args=[virtual_file]
-            )
-            timer.daemon = True
-            timer.start()
 
     def remove(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename

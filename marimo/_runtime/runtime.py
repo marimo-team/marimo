@@ -212,6 +212,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
+    from marimo._runtime.virtual_file.virtual_file import VirtualFile
 
 LOGGER = _loggers.marimo_logger()
 
@@ -2689,6 +2690,24 @@ class ExternalStorageCallbacks:
             "storage backend (expected obstore or fsspec)"
         )
 
+    _VFILE_TTL_SECONDS = 60
+
+    def _schedule_vfile_cleanup(self, vfile: VirtualFile) -> None:
+        """Best-effort cleanup of a virtual file after a TTL."""
+        import asyncio
+
+        from marimo._runtime.context import get_context
+
+        try:
+            registry = get_context().virtual_file_registry
+            loop = asyncio.get_running_loop()
+            loop.call_later(self._VFILE_TTL_SECONDS, registry.remove, vfile)
+        except Exception:
+            LOGGER.debug(
+                "Could not schedule virtual file cleanup for %s",
+                vfile.filename,
+            )
+
     @kernel_tracer.start_as_current_span("storage_list_entries")
     async def list_entries(self, request: StorageListEntriesCommand) -> None:
         """List storage entries at a given prefix."""
@@ -2773,8 +2792,8 @@ class ExternalStorageCallbacks:
             vfile = VirtualFile.create_and_register(
                 result.file_bytes,
                 result.ext,
-                expires_after_seconds=60,
             )
+            self._schedule_vfile_cleanup(vfile)
 
             broadcast_notification(
                 StorageDownloadReadyNotification(

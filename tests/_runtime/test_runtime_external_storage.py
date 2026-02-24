@@ -586,6 +586,52 @@ class TestExternalStorageCallbacks:
             )
         ]
 
+    async def test_download_fallback_schedules_cleanup(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        import asyncio
+
+        k = mocked_kernel.k
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        await store.put_async("tmp/file.bin", b"data")
+
+        request = StorageDownloadCommand(
+            request_id=RequestId("req-24"),
+            namespace=STORAGE_VAR,
+            path="tmp/file.bin",
+        )
+
+        loop = asyncio.get_running_loop()
+        scheduled: list[tuple[float, object]] = []
+        original_call_later = loop.call_later
+
+        def spy_call_later(
+            delay: float, callback: object, *args: object
+        ) -> asyncio.TimerHandle:
+            scheduled.append((delay, callback))
+            return original_call_later(delay, callback, *args)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(loop, "call_later", spy_call_later)
+            await k.handle_message(request)
+
+        assert len(scheduled) == 1
+        delay, _callback = scheduled[0]
+        assert delay == 60
+
     async def test_download_backend_exception(
         self, mocked_kernel: MockedKernel
     ) -> None:
