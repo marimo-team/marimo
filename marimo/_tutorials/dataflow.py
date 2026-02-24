@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.19.11"
 app = marimo.App()
 
 
@@ -96,14 +96,12 @@ def _(mo):
 
 @app.cell
 def _(amplitude, mo, period, plot_wave):
-    mo.md(
-        f"""
-        {mo.as_html(plot_wave(amplitude, period))}
+    mo.md(f"""
+    {mo.as_html(plot_wave(amplitude, period))}
 
-        - `refs: {mo.refs()}`
-        - `defs: {mo.defs()}`
-        """
-    )
+    - `refs: {mo.refs()}`
+    - `defs: {mo.defs()}`
+    """)
     return
 
 

@@ -117,6 +117,23 @@ class GetCellDependencyGraph(
                 suggested_fix="Fix the syntax errors in the notebook cells first",
             ) from e
 
+        # Validate depth parameter
+        if args.depth is not None:
+            if args.depth < 0:
+                raise ToolExecutionError(
+                    f"depth must be non-negative, got {args.depth}",
+                    code="BAD_ARGUMENTS",
+                    is_retryable=False,
+                    suggested_fix="Use depth >= 0 (1 = direct parents/children, 2 = two hops, etc.)",
+                )
+            if args.cell_id is None:
+                raise ToolExecutionError(
+                    "depth requires a cell_id to center the graph on",
+                    code="BAD_ARGUMENTS",
+                    is_retryable=False,
+                    suggested_fix="Provide a cell_id when using depth, or omit depth for the full graph",
+                )
+
         # Determine which cells to include
         if args.cell_id is not None:
             if args.cell_id not in graph.cells:
@@ -168,9 +185,12 @@ class GetCellDependencyGraph(
 
         multiply_defined = sorted(graph.get_multiply_defined())
 
-        # Cycles
+        # Cycles (sorted for deterministic output)
         cycles: list[CycleInfo] = []
-        for cycle_edges in graph.cycles:
+        for cycle_edges in sorted(
+            graph.cycles,
+            key=lambda edges: sorted({cid for e in edges for cid in e}),
+        ):
             cycle_cell_ids: set[str] = set()
             edges_list: list[list[str]] = []
             for parent_id, child_id in cycle_edges:
@@ -201,11 +221,11 @@ def _get_cells_within_depth(
     depth: Optional[int],
 ) -> set[CellId_t]:
     if depth is None:
-        result = graph.ancestors(center_cell_id) | graph.descendants(
+        all_related = graph.ancestors(center_cell_id) | graph.descendants(
             center_cell_id
         )
-        result.add(center_cell_id)
-        return result
+        all_related.add(center_cell_id)
+        return all_related
 
     result: set[CellId_t] = {center_cell_id}
     queue: deque[tuple[CellId_t, int]] = deque([(center_cell_id, 0)])
