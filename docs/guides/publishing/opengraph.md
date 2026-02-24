@@ -2,7 +2,7 @@
 
 marimo can attach OpenGraph metadata to notebooks for:
 
-- previews in the `marimo run <directory>` [gallery](../apps.md#gallery-mode)
+- previews in the `marimo run <directory>` [gallery](../apps.md#gallery)
 - link previews (OpenGraph tags in the notebook HTML)
 
 You configure this metadata in your notebook file using inline script metadata (PEP 723), under `[tool.marimo.opengraph]`.

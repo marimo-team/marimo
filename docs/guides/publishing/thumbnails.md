@@ -1,6 +1,6 @@
 # Thumbnails
 
-Generate screenshot-based thumbnail images for notebooks, used by [OpenGraph previews](opengraph.md) and cards in [gallery mode](../apps.md#gallery-mode).
+Generate screenshot-based thumbnail images for notebooks, used by [OpenGraph previews](opengraph.md) and cards in [gallery mode](../apps.md#gallery).
 
 ```bash
 marimo export thumbnail notebook.py
