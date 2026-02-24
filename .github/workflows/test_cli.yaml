@@ -54,7 +54,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+        uses: ./.github/actions/setup-hatch
 
       - name: 📦 Build marimo wheel
         run: hatch build -t wheel

@@ -1,0 +1,19 @@
+name: Setup Hatch
+description: Install uv and hatch
+
+inputs:
+  hatch-version:
+    description: 'Hatch version to install'
+    required: false
+    default: '1.16.4'
+
+runs:
+  using: 'composite'
+
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+
+    - name: Install Hatch
+      shell: bash
+      run: uv tool install hatch==${{ inputs.hatch-version }}

@@ -44,8 +44,8 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - name: ⬇️ Install Hatch
-        uses: pypa/hatch@install
+      - name: 🥚 Install Hatch
+        uses: ./.github/actions/setup-hatch
 
       - name: 📚 Build docs
         id: docs
@@ -69,7 +69,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+        uses: ./.github/actions/setup-hatch
 
       - name: 🧹 Lint
         id: lint
@@ -147,7 +147,7 @@ jobs:
           fetch-depth: 0 # Fetch all history for git diff
 
       - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+        uses: ./.github/actions/setup-hatch
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
@@ -235,7 +235,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+        uses: ./.github/actions/setup-hatch
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
