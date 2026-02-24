@@ -44,6 +44,7 @@ import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
+import { ErrorState } from "../datasources/components";
 import { Button } from "../ui/button";
 import { renderFileIcon, renderProtocolIcon } from "./components";
 
@@ -445,12 +446,12 @@ const StorageNamespaceSection: React.FC<{
             </div>
           )}
           {error && entries.length === 0 && (
-            <div
-              className="py-1 text-xs text-destructive"
+            <ErrorState
+              error={error}
               style={indentStyle(1)}
-            >
-              Failed to load entries: {error.message}
-            </div>
+              className="py-1 text-xs h-auto"
+              showIcon={false}
+            />
           )}
           {!isPending && entries.length === 0 && !error && (
             <div
