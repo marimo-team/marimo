@@ -3,7 +3,7 @@
 import type { Table } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { cn } from "@/utils/cn";
-import { type SelectedCells, selectedCellsAtom } from "./atoms";
+import { selectedCellsAtom } from "./atoms";
 import {
   countDataCellsInSelection,
   getNumericValuesFromSelectedCells,
@@ -38,7 +38,7 @@ export const CellSelectionStats = <TData,>({
         className,
       )}
     >
-      <CountStat selectedCells={selectedCells} />
+      <CountStat count={dataCellCount} />
       <SumStat numericValues={numericValues} />
       <AverageStat numericValues={numericValues} />
     </div>
@@ -53,8 +53,7 @@ const StatSpan = (statName: string, statValue: number) => {
   );
 };
 
-const CountStat = ({ selectedCells }: { selectedCells: SelectedCells }) => {
-  const count = countDataCellsInSelection(selectedCells);
+const CountStat = ({ count }: { count: number }) => {
   return StatSpan("Count", count);
 };
 
