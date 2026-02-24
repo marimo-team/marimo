@@ -20,19 +20,15 @@ export function getCellValues<TData>(
       continue;
     }
 
-    const [rowId] = cellId.split("_"); // CellId is rowId_columnId
+    const { rowId, columnId } = getRowAndColumnId(cellId);
     const row = table.getRow(rowId);
     if (!row) {
       continue;
     }
 
-    const tableCell = row.getAllCells().find((c) => c.id === cellId);
-    if (!tableCell) {
-      continue;
-    }
-
+    const cellValue = row.getValue(columnId);
     const values = rowValues.get(rowId) ?? [];
-    values.push(stringifyUnknownValue({ value: tableCell.getValue() }));
+    values.push(stringifyUnknownValue({ value: cellValue }));
     rowValues.set(rowId, values);
   }
 
@@ -72,18 +68,14 @@ export function getNumericValuesFromSelectedCells<TData>(
     if (cellId.includes(SELECT_COLUMN_ID)) {
       continue;
     }
-    const rowId = cellId.split("_")[0];
+    const { rowId, columnId } = getRowAndColumnId(cellId);
     const row = table.getRow(rowId);
     if (!row) {
       continue;
     }
 
-    const tableCell = row.getAllCells().find((c) => c.id === cellId);
-    if (!tableCell) {
-      continue;
-    }
+    const value = row.getValue(columnId);
 
-    const value = tableCell.getValue();
     // Only accept numbers and strings
     // Skip booleans, null, etc.
     let num: number;
@@ -165,4 +157,11 @@ export function getCellsBetween<TData>(
  */
 function getCellId(rowId: string, columnId: string) {
   return `${rowId}_${columnId}`;
+}
+
+function getRowAndColumnId(cellId: string) {
+  const sepIdx = cellId.indexOf("_");
+  const rowId = cellId.slice(0, sepIdx);
+  const columnId = cellId.slice(sepIdx + 1);
+  return { rowId, columnId };
 }
