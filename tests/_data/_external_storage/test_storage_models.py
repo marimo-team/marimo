@@ -1,9 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import tempfile
+from datetime import datetime, timedelta, timezone
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from dirty_equals import IsDatetime, IsPositiveFloat
@@ -342,6 +343,63 @@ class TestObstore:
         assert Obstore.is_compatible(42) is False
         assert Obstore.is_compatible(None) is False
 
+    async def test_sign_download_url_returns_none_for_non_cloud_store(
+        self,
+    ) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        backend = self._make_backend(store)
+        result = await backend.sign_download_url("some/path.txt")
+        assert result is None
+
+    async def test_sign_download_url_returns_none_for_local_store(
+        self,
+    ) -> None:
+        from obstore.store import LocalStore
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = LocalStore(tmpdir)
+            backend = self._make_backend(store)
+            result = await backend.sign_download_url("some/path.txt")
+            assert result is None
+
+    async def test_sign_download_url_calls_sign_async_for_s3(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("test-bucket", skip_signature=True)
+        backend = self._make_backend(store)
+
+        with patch(
+            "obstore.sign_async",
+            new_callable=AsyncMock,
+            return_value="https://signed.example.com/file",
+        ) as mock_sign:
+            result = await backend.sign_download_url(
+                "data/file.csv", expiration=600
+            )
+
+        assert result == "https://signed.example.com/file"
+        mock_sign.assert_called_once()
+        args, kwargs = mock_sign.call_args
+        assert args == (store, "GET", "data/file.csv")
+        assert kwargs["expires_in"] == timedelta(seconds=600)
+
+    async def test_sign_download_url_returns_none_on_exception(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("test-bucket", skip_signature=True)
+        backend = self._make_backend(store)
+
+        with patch(
+            "obstore.sign_async",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("signing failed"),
+        ):
+            result = await backend.sign_download_url("data/file.csv")
+
+        assert result is None
+
     def test_display_name_known_protocol(self) -> None:
         from obstore.store import MemoryStore
 
@@ -677,6 +735,49 @@ class TestFsspecFilesystem:
         backend = self._make_backend(mock_store)
         assert backend.display_name == "Amazon S3"
 
+    async def test_sign_download_url_returns_signed_url(self) -> None:
+        mock_store = MagicMock()
+        mock_store.sign.return_value = "https://signed.example.com/path"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.sign_download_url(
+            "bucket/file.csv", expiration=900
+        )
+
+        assert result == "https://signed.example.com/path"
+        mock_store.sign.assert_called_once_with(
+            "bucket/file.csv", expiration=900
+        )
+
+    async def test_sign_download_url_returns_none_on_not_implemented(
+        self,
+    ) -> None:
+        mock_store = MagicMock()
+        mock_store.sign.side_effect = NotImplementedError
+
+        backend = self._make_backend(mock_store)
+        result = await backend.sign_download_url("bucket/file.csv")
+
+        assert result is None
+
+    async def test_sign_download_url_returns_none_on_exception(self) -> None:
+        mock_store = MagicMock()
+        mock_store.sign.side_effect = RuntimeError("unexpected error")
+
+        backend = self._make_backend(mock_store)
+        result = await backend.sign_download_url("bucket/file.csv")
+
+        assert result is None
+
+    async def test_sign_download_url_converts_result_to_str(self) -> None:
+        mock_store = MagicMock()
+        mock_store.sign.return_value = 12345
+
+        backend = self._make_backend(mock_store)
+        result = await backend.sign_download_url("path")
+
+        assert result == "12345"
+
     def test_display_name_unknown_protocol(self) -> None:
         mock_store = MagicMock()
         mock_store.protocol = "custom-proto"
@@ -738,6 +839,18 @@ class TestFsspecFilesystemIntegration:
                 metadata={"created": IsDatetime()},
             )
         )
+
+    async def test_sign_download_url_not_implemented_by_memory_fs(
+        self,
+    ) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/file.txt", b"hello")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.sign_download_url("/test/file.txt")
+        assert result is None
 
     def test_protocol_memory_filesystem(self) -> None:
         from fsspec.implementations.memory import MemoryFileSystem
@@ -808,6 +921,18 @@ class TestObstoreIntegration:
                 metadata={"e_tag": "0"},
             )
         )
+
+    async def test_sign_download_url_returns_none_for_memory_store(
+        self,
+    ) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("data.txt", b"test")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.sign_download_url("data.txt")
+        assert result is None
 
 
 class TestNormalizeProtocol:

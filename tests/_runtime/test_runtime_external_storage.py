@@ -489,6 +489,103 @@ class TestExternalStorageCallbacks:
             )
         ]
 
+    async def test_download_uses_signed_url_when_available(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        backend = Obstore(store, VariableName(STORAGE_VAR))
+        backend.sign_download_url = AsyncMock(  # type: ignore[method-assign]
+            return_value="https://signed.example.com/data.csv?token=abc",
+        )
+        # download_file should NOT be called when signing succeeds
+        backend.download_file = AsyncMock(  # type: ignore[method-assign]
+            side_effect=AssertionError("should not be called"),
+        )
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                k.external_storage_callbacks,
+                "_get_storage_backend",
+                lambda _: (backend, None),
+            )
+            request = StorageDownloadCommand(
+                request_id=RequestId("req-22"),
+                namespace=STORAGE_VAR,
+                path="reports/data.csv",
+            )
+            await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageDownloadReadyNotification)
+        ]
+        assert results == [
+            StorageDownloadReadyNotification(
+                request_id=RequestId("req-22"),
+                url="https://signed.example.com/data.csv?token=abc",
+                filename="data.csv",
+            )
+        ]
+
+    async def test_download_falls_back_when_signing_returns_none(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        await store.put_async("local/readme.txt", b"hello world")
+
+        # MemoryStore can't sign, so sign_download_url returns None
+        # and the handler falls back to virtual file
+        request = StorageDownloadCommand(
+            request_id=RequestId("req-23"),
+            namespace=STORAGE_VAR,
+            path="local/readme.txt",
+        )
+        await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageDownloadReadyNotification)
+        ]
+        assert results == [
+            StorageDownloadReadyNotification(
+                request_id=RequestId("req-23"),
+                url=IsStr(),  # pyright: ignore[reportArgumentType]
+                filename="readme.txt",
+            )
+        ]
+
     async def test_download_backend_exception(
         self, mocked_kernel: MockedKernel
     ) -> None:

@@ -2739,7 +2739,7 @@ class ExternalStorageCallbacks:
 
     @kernel_tracer.start_as_current_span("storage_download")
     async def download(self, request: StorageDownloadCommand) -> None:
-        """Download a storage entry and create a virtual file."""
+        """Download a storage entry, preferring a signed URL."""
         backend, error = self._get_storage_backend(request.namespace)
         if error is not None or backend is None:
             broadcast_notification(
@@ -2752,12 +2752,28 @@ class ExternalStorageCallbacks:
             )
             return
 
+        filename = request.path.rsplit("/", 1)[-1] or "download"
+
         try:
+            signed_url = await backend.sign_download_url(request.path)
+            if signed_url is not None:
+                broadcast_notification(
+                    StorageDownloadReadyNotification(
+                        request_id=request.request_id,
+                        url=signed_url,
+                        filename=filename,
+                    ),
+                )
+                return
+
+            # Signing not supported; fall back to virtual file with TTL
             from marimo._runtime.virtual_file.virtual_file import VirtualFile
 
             result = await backend.download_file(request.path)
             vfile = VirtualFile.create_and_register(
-                result.file_bytes, result.ext
+                result.file_bytes,
+                result.ext,
+                expires_after_seconds=60,
             )
 
             broadcast_notification(

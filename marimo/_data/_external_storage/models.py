@@ -13,6 +13,7 @@ from marimo._utils.assert_never import log_never
 KNOWN_STORAGE_TYPES = Literal[
     "s3", "gcs", "azure", "http", "file", "in-memory"
 ]
+SIGNED_URL_EXPIRATION = 3600
 
 
 # Note: We may want to consolidate with FileInfo from _server/models/files.py
@@ -97,6 +98,12 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     @abc.abstractmethod
     async def download(self, path: str) -> bytes:
         """Download the file at the given path."""
+
+    @abc.abstractmethod
+    async def sign_download_url(
+        self, path: str, expiration: int = SIGNED_URL_EXPIRATION
+    ) -> str | None:
+        """Return a signed URL for direct browser download, or None if unsupported."""
 
     async def download_file(self, path: str) -> DownloadResult:
         """Download the file at the given path with extracted metadata.
