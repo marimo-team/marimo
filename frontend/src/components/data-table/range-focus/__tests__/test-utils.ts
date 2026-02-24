@@ -29,15 +29,21 @@ export function createMockRow(
   id: string,
   cells: Cell<unknown, unknown>[],
 ): Row<unknown> {
+  const cellMap = new Map(cells.map((cell) => [cell.id, cell]));
   return {
     id,
     index: Number.parseInt(id, 10),
     getAllCells: () => cells,
+    getValue: (columnId: string) => {
+      const cellId = `${id}_${columnId}`;
+      return (
+        cellMap.get(cellId)?.getValue() ?? cellMap.get(columnId)?.getValue()
+      );
+    },
     original: {},
     depth: 0,
     subRows: [],
     getVisibleCells: vi.fn(),
-    getValue: vi.fn(),
     getUniqueValues: vi.fn(),
     renderValue: vi.fn(),
   } as unknown as Row<unknown>;
