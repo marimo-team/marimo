@@ -327,7 +327,7 @@ describe("getNumericValuesFromSelectedCells", () => {
 
   it("should skip NaN and Infinity", () => {
     const cell1 = createMockCell("0_0", 5);
-    const cell2 = createMockCell("0_1", NaN);
+    const cell2 = createMockCell("0_1", Number.NaN);
     const cell3 = createMockCell("0_2", Infinity);
     const row = createMockRow("0", [cell1, cell2, cell3]);
     const table = createMockTable([row], []);

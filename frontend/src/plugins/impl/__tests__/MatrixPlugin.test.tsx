@@ -206,7 +206,7 @@ describe("MatrixPlugin", () => {
     const plugin = new MatrixPlugin();
     const props = makeProps({
       value: [
-        [0.00153, 1234567],
+        [0.001_53, 1_234_567],
         [0, -0.042],
       ],
       data: {
