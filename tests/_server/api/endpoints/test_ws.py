@@ -4,7 +4,8 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
+from unittest.mock import MagicMock, patch
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
@@ -16,9 +17,12 @@ from marimo._messaging.notification import (
     KernelCapabilitiesNotification,
     KernelReadyNotification,
 )
+from marimo._server.api.endpoints.ws.ws_connection_validator import (
+    ConnectionParams,
+)
 from marimo._server.codes import WebSocketCodes
 from marimo._server.session_manager import SessionManager
-from marimo._session.model import SessionMode
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import (
     get_kernel_tasks,
@@ -468,6 +472,119 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
             # Session should still exist (TTL was canceled)
             session = session_manager.get_session("123")
             assert session is not None
+
+
+async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
+    client: TestClient,
+) -> None:
+    """Regression: old handler's TTL timer must not kill a session that has
+    been taken over by a new consumer (same session_id).
+
+    Sequence:
+      1. Consumer A connects → session created
+      2. Consumer A disconnects → TTL timer scheduled
+      3. Consumer B connects with same session_id → takes over session
+      4. TTL timer fires → must NOT close the session
+    """
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+    session_manager.ttl_seconds = 120  # enable TTL (run mode default)
+
+    # Step 1: Consumer A connects
+    with client.websocket_connect(WS_URL) as ws_a:
+        data = ws_a.receive_json()
+        assert_kernel_ready_response(data)
+
+        session = session_manager.get_session("123")
+        assert session is not None
+
+        # Override session TTL to a very short value for the test
+        session.ttl_seconds = 0.3
+
+    # Consumer A has disconnected — _on_disconnect schedules _close() in 0.3s
+    # Step 2: Consumer B connects immediately (before TTL fires)
+    with client.websocket_connect(WS_URL) as ws_b:
+        data = ws_b.receive_json()
+        assert data["op"] == "reconnected", (
+            f"Expected reconnected, got {data.get('op')} — "
+            "session may have been closed before Consumer B connected"
+        )
+
+        # Step 3: Wait for Consumer A's TTL timer to fire
+        # (Unit test test_ttl_close_skips_when_session_has_active_consumer
+        # verifies the fix; integration timing may vary with TestClient)
+        await asyncio.sleep(0.4)
+
+        # Session must still be alive — Consumer B is actively connected
+        # (Without the fix, the old handler's TTL timer would have killed it)
+        session = session_manager.get_session("123")
+        assert session is not None, (
+            "Session was killed by old handler's TTL timer "
+            "despite having an active consumer"
+        )
+        assert session.connection_state() == ConnectionState.OPEN
+
+
+def test_ttl_close_skips_when_session_has_active_consumer() -> None:
+    """Unit test: _close() must not kill session when another consumer has taken over.
+
+    Patches call_later to fire the TTL callback immediately after setup,
+    simulating the bug scenario where Consumer A's timer fires while
+    Consumer B owns the session.
+    """
+    from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
+
+    captured_callback: list[tuple[float, Callable[[], None]]] = []
+
+    def capture_call_later(
+        delay: float, callback: Callable[[], None]
+    ) -> MagicMock:
+        captured_callback.append((delay, callback))
+        return MagicMock()
+
+    # Session with active consumer (Consumer B has taken over)
+    session_with_consumer = MagicMock()
+    session_with_consumer.connection_state.return_value = ConnectionState.OPEN
+    session_with_consumer.ttl_seconds = 0.1
+
+    manager = MagicMock(spec=SessionManager)
+    manager.ttl_seconds = 120
+    manager.get_session.return_value = session_with_consumer
+    manager.close_session = MagicMock()
+
+    params = ConnectionParams(
+        session_id="123",
+        file_key="test.py",
+        kiosk=False,
+        auto_instantiate=False,
+        rtc_enabled=False,
+    )
+
+    handler = WebSocketHandler(
+        websocket=MagicMock(),
+        manager=manager,
+        params=params,
+        mode=SessionMode.RUN,
+    )
+    handler.status = ConnectionState.CLOSED  # Consumer A disconnected
+
+    cleanup_fn = MagicMock()
+
+    with patch(
+        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_event_loop"
+    ) as mock_loop:
+        mock_loop.return_value.call_later = capture_call_later
+        handler._on_disconnect(Exception("disconnect"), cleanup_fn)
+
+    assert len(captured_callback) == 1
+    _, ttl_callback = captured_callback[0]
+
+    # Fire the TTL callback (simulates timer firing)
+    ttl_callback()
+
+    # With the fix: session has active consumer, so close_session must NOT be called
+    manager.close_session.assert_not_called()
+    cleanup_fn.assert_not_called()
 
 
 @pytest.mark.parametrize(
