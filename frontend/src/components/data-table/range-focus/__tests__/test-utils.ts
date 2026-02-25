@@ -36,9 +36,13 @@ export function createMockRow(
     getAllCells: () => cells,
     getValue: (columnId: string) => {
       const cellId = `${id}_${columnId}`;
-      return (
-        cellMap.get(cellId)?.getValue() ?? cellMap.get(columnId)?.getValue()
-      );
+      if (cellMap.has(cellId)) {
+        return cellMap.get(cellId)!.getValue();
+      }
+      if (cellMap.has(columnId)) {
+        return cellMap.get(columnId)!.getValue();
+      }
+      return undefined;
     },
     original: {},
     depth: 0,

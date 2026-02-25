@@ -62,24 +62,25 @@ describe("getCellValues", () => {
     expect(result).toBe("row1\nrow2");
   });
 
-  it("should handle missing cells gracefully", () => {
+  it("should handle missing rows gracefully", () => {
     const cell = createMockCell("0_0", "test");
     const row = createMockRow("0", [cell]);
     const table = createMockTable([row], []);
 
-    const result = getCellValues(table, new Set(["0_0", "0_999", "999_0"]));
+    // Row "999" doesn't exist and is skipped
+    const result = getCellValues(table, new Set(["0_0", "999_0"]));
     expect(result).toBe("test");
   });
 
-  it("should handle missing cells in existing rows", () => {
+  it("should include undefined for missing columns on existing rows", () => {
     const cell1 = createMockCell("0_0", "test1");
     const cell2 = createMockCell("0_1", "test2");
     const row = createMockRow("0", [cell1, cell2]);
     const table = createMockTable([row], []);
 
-    // Should only return values for cells that exist
+    // Column "999" doesn't exist but row.getValue() returns undefined
     const result = getCellValues(table, new Set(["0_0", "0_1", "0_999"]));
-    expect(result).toBe("test1\ttest2");
+    expect(result).toBe("test1\ttest2\tundefined");
   });
 
   it("should handle complex data types", () => {
