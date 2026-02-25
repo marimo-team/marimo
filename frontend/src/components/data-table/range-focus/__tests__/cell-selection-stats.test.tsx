@@ -10,19 +10,19 @@ import { CellSelectionStats } from "../cell-selection-stats";
 import { CellSelectionProvider } from "../provider";
 import { createMockCell, createMockRow, createMockTable } from "./test-utils";
 
-function TestHarness({
+const TestHarness = ({
   table,
   selectedCellIds,
 }: {
   table: Table<unknown>;
   selectedCellIds: Set<string>;
-}) {
+}) => {
   const actions = useCellSelectionReducerActions();
   useEffect(() => {
     actions.setSelectedCells(selectedCellIds);
   }, [actions, selectedCellIds]);
   return <CellSelectionStats table={table} />;
-}
+};
 
 describe("CellSelectionStats", () => {
   it("should return null when fewer than 2 cells are selected", () => {
@@ -109,8 +109,8 @@ describe("CellSelectionStats", () => {
 
   it("should round sum and average to 8 decimal places", () => {
     const row = createMockRow("0", [
-      createMockCell("0_0", 0.1122334411),
-      createMockCell("0_1", 0.1122334411),
+      createMockCell("0_0", 0.112_233_441_1),
+      createMockCell("0_1", 0.112_233_441_1),
     ]);
     const table = createMockTable([row], []);
 
@@ -126,8 +126,8 @@ describe("CellSelectionStats", () => {
 
   it("should correctly round sum and average to 8 decimal places", () => {
     const row = createMockRow("0", [
-      createMockCell("0_0", 0.1122334433),
-      createMockCell("0_1", 0.1122334433),
+      createMockCell("0_0", 0.112_233_443_3),
+      createMockCell("0_1", 0.112_233_443_3),
     ]);
     const table = createMockTable([row], []);
 
@@ -232,7 +232,7 @@ describe("CellSelectionStats", () => {
   it("should skip NaN and Infinity and show stats for finite values only", () => {
     const row = createMockRow("0", [
       createMockCell("0_0", 5),
-      createMockCell("0_1", NaN),
+      createMockCell("0_1", Number.NaN),
       createMockCell("0_2", Infinity),
     ]);
     const table = createMockTable([row], []);
