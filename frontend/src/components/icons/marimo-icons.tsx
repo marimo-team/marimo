@@ -70,6 +70,7 @@ export const MarimoIcon = ({
   fill,
   stroke,
   strokeWidth = 2,
+  viewBox = "0 0 24 24",
   ...props
 }: React.SVGProps<SVGSVGElement> & {
   size?: number | string;
@@ -78,7 +79,7 @@ export const MarimoIcon = ({
     <svg
       width={width || size}
       height={height || size}
-      viewBox="0 0 24 24"
+      viewBox={viewBox}
       {...props}
     >
       <title>marimo icon</title>
@@ -103,6 +104,7 @@ const MarimoMultiIcon = ({
   maskCenterY,
   maskRadius,
   children,
+  viewBox = "0 0 24 24",
   ...props
 }: React.SVGProps<SVGSVGElement> & {
   size?: number | string;
@@ -115,7 +117,7 @@ const MarimoMultiIcon = ({
     <svg
       width={width || size}
       height={height || size}
-      viewBox="0 0 24 24"
+      viewBox={viewBox}
       {...props}
     >
       <title>marimo multi icon</title>
