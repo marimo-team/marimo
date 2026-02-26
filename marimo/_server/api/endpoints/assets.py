@@ -53,9 +53,28 @@ server_config = (
 assets_dir = root / "assets"
 follow_symlinks = server_config.get("follow_symlink", False)
 
-if not follow_symlinks and assets_dir.is_symlink():
+
+def _has_symlinks(directory: Path) -> bool:
+    """Check if a directory is a symlink or contains symlinked files."""
+    if directory.is_symlink():
+        return True
+    try:
+        # Check a small sample of files for symlinks
+        for i, child in enumerate(directory.iterdir()):
+            if child.is_symlink():
+                return True
+            if i >= 5:
+                break
+    except OSError:
+        pass
+    return False
+
+
+if not follow_symlinks and _has_symlinks(assets_dir):
     LOGGER.error(
-        "Assets directory is a symlink but follow_symlink=false.\n"
+        "Assets directory contains symlinks but follow_symlink=false.\n"
+        "This commonly happens with package managers like pdm/uv "
+        "that use symlinks for installed packages.\n"
         "To fix this:\n"
         "1. Run 'marimo config show' to see your current config\n"
         "2. Add 'follow_symlink = true' under the [server] section in your config\n"
