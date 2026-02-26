@@ -9,7 +9,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import click
 from click.core import ParameterSource
@@ -453,7 +453,7 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
-    mcp: Optional[str],
+    mcp: Optional[McpType],
     mcp_allow_remote: bool,
     server_startup_command: Optional[str],
     asset_url: Optional[str],
@@ -601,7 +601,7 @@ def edit(
         redirect_console_to_browser=True,
         ttl_seconds=session_ttl,
         remote_url=remote_url,
-        mcp=cast(McpType, mcp) if mcp is not None else None,
+        mcp=mcp,
         mcp_allow_remote=mcp_allow_remote,
         server_startup_command=server_startup_command,
         asset_url=asset_url,

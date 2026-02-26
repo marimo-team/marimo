@@ -9,11 +9,12 @@ from marimo._mcp.code_server.lifespan import code_mcp_server_lifespan
 
 pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
 
+from typing import TYPE_CHECKING
+
 from starlette.applications import Starlette
 from starlette.authentication import AuthCredentials, SimpleUser
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.requests import HTTPConnection
 from starlette.testclient import TestClient
 
 from marimo._mcp.code_server.main import setup_code_mcp_server
@@ -23,6 +24,9 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.api.middleware import AuthBackend
 from marimo._session.model import ConnectionState
 from tests._server.mocks import get_mock_session_manager
+
+if TYPE_CHECKING:
+    from starlette.requests import HTTPConnection
 
 
 def create_test_app() -> Starlette:
@@ -254,7 +258,9 @@ class TestExecuteCode:
             output_data="4", stdout=["debug\n"]
         )
 
-        def set_notification(*args, **kwargs):
+        def set_notification(*args: object, **kwargs: object):
+            del args
+            del kwargs
             mock_session.session_view.cell_notifications = {
                 SCRATCH_CELL_ID: notif
             }

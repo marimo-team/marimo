@@ -12,6 +12,11 @@ import asyncio
 import os
 from typing import TYPE_CHECKING, Any
 
+from marimo._ai._tools.types import (
+    CodeExecutionResult,
+    ListSessionsResult,
+    MarimoNotebookInfo,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
 from marimo._messaging.cell_output import CellChannel
@@ -50,6 +55,7 @@ class _ScratchCellListener(SessionEventListener):
 
     # SessionExtension protocol
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        del session
         event_bus.subscribe(self)
 
     def on_detach(self) -> None:
@@ -121,17 +127,17 @@ def setup_code_mcp_server(
     listener = _ScratchCellListener()
 
     @mcp.tool()
-    async def list_sessions() -> dict[str, Any]:
+    async def list_sessions() -> ListSessionsResult:
         """List active marimo sessions.
 
-        Returns a dict with a 'sessions' key containing a list of active
-        sessions, each with 'name', 'path', and 'session_id' fields.
+        Returns a list of active sessions, each with 'name', 'path',
+        and 'session_id' fields.
         Use the session_id with execute_code to run code in that session.
         """
         state = AppStateBase.from_app(app)
         session_manager = state.session_manager
 
-        sessions: list[dict[str, str]] = []
+        sessions: list[MarimoNotebookInfo] = []
         for session_id, session in session_manager.sessions.items():
             conn_state = session.connection_state()
             if conn_state in (ConnectionState.OPEN, ConnectionState.ORPHANED):
@@ -139,17 +145,17 @@ def setup_code_mcp_server(
                 filename = session.app_file_manager.filename
                 basename = os.path.basename(filename) if filename else None
                 sessions.append(
-                    {
-                        "name": basename or "new notebook",
-                        "path": full_path or "(unsaved notebook)",
-                        "session_id": session_id,
-                    }
+                    MarimoNotebookInfo(
+                        name=basename or "new notebook",
+                        path=full_path or "(unsaved notebook)",
+                        session_id=SessionId(session_id),
+                    )
                 )
 
-        return {"sessions": sessions[::-1]}
+        return ListSessionsResult(sessions=sessions[::-1])
 
     @mcp.tool()
-    async def execute_code(session_id: str, code: str) -> dict[str, Any]:
+    async def execute_code(session_id: str, code: str) -> CodeExecutionResult:
         """Execute Python code in a notebook's kernel scratchpad.
 
         The code runs in the scratchpad — a temporary execution environment
@@ -159,19 +165,16 @@ def setup_code_mcp_server(
         Args:
             session_id: The session ID of the notebook (from list_sessions).
             code: Python code to execute.
-
-        Returns:
-            A dict with 'success', 'output', 'stdout', 'stderr', and 'errors' fields.
         """
         state = AppStateBase.from_app(app)
         session = state.session_manager.get_session(SessionId(session_id))
 
         if session is None:
-            return {
-                "success": False,
-                "error": f"Session '{session_id}' not found. "
+            return CodeExecutionResult(
+                success=False,
+                error=f"Session '{session_id}' not found. "
                 "Use list_sessions to find valid session IDs.",
-            }
+            )
 
         # Attach listener as a session extension
         session.attach_extension(listener)
@@ -191,10 +194,10 @@ def setup_code_mcp_server(
                 # Wait for the scratch cell to become idle
                 await asyncio.wait_for(done.wait(), timeout=_EXECUTION_TIMEOUT)
             except asyncio.TimeoutError:
-                return {
-                    "success": False,
-                    "error": f"Execution timed out after {_EXECUTION_TIMEOUT}s",
-                }
+                return CodeExecutionResult(
+                    success=False,
+                    error=f"Execution timed out after {_EXECUTION_TIMEOUT}s",
+                )
             finally:
                 session.detach_extension(listener)
 
@@ -221,17 +224,11 @@ def setup_code_mcp_server(
     app.state.code_mcp = mcp
 
 
-def _extract_result(session: Any) -> dict[str, Any]:
+def _extract_result(session: Any) -> CodeExecutionResult:
     """Read the scratch cell's final state from the session view."""
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
     if cell_notif is None:
-        return {
-            "success": True,
-            "output": None,
-            "stdout": [],
-            "stderr": [],
-            "errors": [],
-        }
+        return CodeExecutionResult(success=True)
 
     # Output
     output_data = None
@@ -266,10 +263,10 @@ def _extract_result(session: Any) -> dict[str, Any]:
         for err in cell_notif.output.data:
             errors.append(str(getattr(err, "msg", None) or err))
 
-    return {
-        "success": len(errors) == 0,
-        "output": output_data,
-        "stdout": stdout,
-        "stderr": stderr,
-        "errors": errors,
-    }
+    return CodeExecutionResult(
+        success=len(errors) == 0,
+        output=output_data,
+        stdout=stdout,
+        stderr=stderr,
+        errors=errors,
+    )
