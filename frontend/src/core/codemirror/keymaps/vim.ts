@@ -338,10 +338,8 @@ class CodeMirrorVimSync {
             }
             break;
           case "insert":
-            // Only enter insert mode if we're not already in it
-            if (!vim.insertMode) {
-              Vim.handleKey(cm, "i", "");
-            }
+            // Do not force other editors into insert mode. Using handleKey here
+            // replays synthetic keystrokes and breaks vim macros.
             break;
           case "visual":
             // We don't switch to visual mode across instances
