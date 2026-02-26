@@ -42,7 +42,7 @@ def _(mo):
 @app.cell
 def _(api_key, httpx, openai, with_headers):
     client = openai.Client(
-        base_url="https://api.githubcopilot.com/",
+        base_url="https://models.github.ai/inference",
         api_key=api_key.value,
         http_client=httpx.Client(verify=False),
         default_headers={

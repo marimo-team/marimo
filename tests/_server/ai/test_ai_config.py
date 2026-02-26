@@ -145,14 +145,14 @@ class TestAnyProviderConfig:
         config: AiConfig = {
             "github": {
                 "api_key": "test-github-key",
-                "base_url": "https://api.githubcopilot.com/",
+                "base_url": "https://models.github.ai/inference",
             }
         }
 
         provider_config = AnyProviderConfig.for_github(config)
 
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://api.githubcopilot.com/"
+        assert provider_config.base_url == "https://models.github.ai/inference"
 
     def test_for_github_with_fallback_base_url(self):
         """Test GitHub configuration uses fallback base URL when not specified."""
@@ -165,7 +165,7 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_github(config)
 
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://api.githubcopilot.com/"
+        assert provider_config.base_url == "https://models.github.ai/inference"
 
     def test_for_github_default_extra_headers(self):
         """Test GitHub configuration includes default extra headers."""
@@ -237,7 +237,7 @@ class TestAnyProviderConfig:
         # Note: copilot_settings is stored in config but not used by AnyProviderConfig
         # It's used by the frontend LSP client
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://api.githubcopilot.com/"
+        assert provider_config.base_url == "https://models.github.ai/inference"
 
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""

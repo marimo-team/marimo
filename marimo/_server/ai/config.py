@@ -115,8 +115,9 @@ class AnyProviderConfig:
             "github",
             "GitHub",
             fallback_key=fallback_key,
-            # Default base URL for GitHub Copilot
-            fallback_base_url="https://api.githubcopilot.com/",
+            # Default base URL for GitHub Copilot, taken from
+            # https://github.com/pydantic/pydantic-ai/blob/8b9ac2bde2355b0d431abea6cf210a36fffe0c43/pydantic_ai_slim/pydantic_ai/providers/github.py#L41C17-L41C51
+            fallback_base_url="https://models.github.ai/inference",
             require_key=True,
         )
 
