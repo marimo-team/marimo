@@ -63,7 +63,7 @@ def _has_symlinks(directory: Path) -> bool:
         for i, child in enumerate(directory.iterdir()):
             if child.is_symlink():
                 return True
-            if i >= 5:
+            if i >= 1:
                 break
     except OSError:
         pass
