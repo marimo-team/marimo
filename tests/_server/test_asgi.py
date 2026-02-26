@@ -371,6 +371,50 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 200
         assert custom_head in response.text
 
+    def test_asgi_auth_middleware_propagates_to_http_and_websocket(self):
+        """Test that a pure ASGI middleware sets scope['user'] and scope['meta']
+        for both HTTP and WebSocket connections (the recommended pattern)."""
+
+        # Track which scope types the middleware was invoked for
+        invoked_for: list[str] = []
+
+        class AuthMiddleware:
+            """Pure ASGI middleware that sets user/meta on both HTTP and WS."""
+
+            def __init__(self, app: ASGIApp):
+                self.app = app
+
+            async def __call__(
+                self, scope: Scope, receive: Receive, send: Send
+            ) -> None:
+                if scope["type"] in ("http", "websocket"):
+                    invoked_for.append(scope["type"])
+                    scope["user"] = {
+                        "is_authenticated": True,
+                        "username": "test_user",
+                    }
+                    scope["meta"] = {"tenant": "acme"}
+                await self.app(scope, receive, send)
+
+        builder = create_asgi_app(quiet=True, include_code=True)
+        marimo_app = builder.with_app(
+            path="/", root=self.app1, middleware=[AuthMiddleware]
+        ).build()
+
+        client = TestClient(marimo_app)
+
+        # HTTP request should succeed (middleware sets user)
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "http" in invoked_for
+
+        # WebSocket should also have user/meta in scope.
+        with client.websocket_connect("/ws?session_id=test123") as ws:
+            data = ws.receive_text()
+            assert data  # kernel-ready message
+
+        assert "websocket" in invoked_for
+
 
 class TestDynamicDirectoryMiddleware(unittest.TestCase):
     def setUp(self):
