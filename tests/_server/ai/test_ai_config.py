@@ -12,7 +12,9 @@ from marimo._config.config import (
     AiConfig,
     MarimoConfig,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import (
+    GITHUB_COPILOT_BASE_URL,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -166,6 +168,18 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-github-key"
         assert provider_config.base_url == "https://models.github.ai/inference"
+
+    @pytest.mark.skipif(
+        not DependencyManager.pydantic_ai.has(),
+        reason="pydantic-ai is not installed",
+    )
+    def test_github_base_url_matches_pydantic_ai(self):
+        """Test GitHub configuration base URL matches pydantic-ai."""
+        from pydantic_ai.providers.github import GitHubProvider
+
+        assert (
+            GitHubProvider(api_key="dummy").base_url == GITHUB_COPILOT_BASE_URL
+        )
 
     def test_for_github_default_extra_headers(self):
         """Test GitHub configuration includes default extra headers."""
