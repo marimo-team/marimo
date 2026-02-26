@@ -22,7 +22,7 @@ import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
 import { notebookCells } from "../cells/utils";
-import { formatAll } from "../codemirror/format";
+import { fixAll, formatAll } from "../codemirror/format";
 import { autoSaveConfigAtom } from "../config/config";
 import { useAutoExport } from "../export/hooks";
 import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
@@ -117,6 +117,10 @@ export function useSaveNotebook() {
       if (userInitiated && autoSaveConfig.format_on_save) {
         Logger.log("formatting notebook (onSave)");
         await formatAll();
+      }
+      if (userInitiated && autoSaveConfig.fix_on_save) {
+        Logger.log("fixing notebook (onSave)");
+        await fixAll();
       }
 
       // Grab the latest notebook state, after formatting

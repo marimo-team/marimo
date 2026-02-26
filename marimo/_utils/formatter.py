@@ -130,6 +130,16 @@ class RuffFormatter(Formatter):
             codes, "format", "--line-length", str(self.line_length)
         )
 
+    async def fix(self, codes: CellCodes) -> CellCodes:
+        return await ruff(
+            codes,
+            "check",
+            "--fix",
+            "--exit-zero",
+            "--line-length",
+            str(self.line_length),
+        )
+
 
 class BlackFormatter(Formatter):
     async def format(self, codes: CellCodes) -> CellCodes:

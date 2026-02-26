@@ -3923,7 +3923,8 @@ components:
       description: "Configuration for saving.\n\n    **Keys.**\n\n    - `autosave`:\
         \ one of `\"off\"` or `\"after_delay\"`\n    - `delay`: number of milliseconds\
         \ to wait before autosaving\n    - `format_on_save`: if `True`, format the\
-        \ code on save"
+        \ code on save\n    - `fix_on_save`: if `True`, fix the code on save (ruff\
+        \ check --fix)"
       properties:
         autosave:
           enum:
@@ -3931,11 +3932,14 @@ components:
           - 'off'
         autosave_delay:
           type: integer
+        fix_on_save:
+          type: boolean
         format_on_save:
           type: boolean
       required:
       - autosave
       - autosave_delay
+      - fix_on_save
       - format_on_save
       title: SaveConfig
       type: object
@@ -5812,6 +5816,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Delete a cell
+  /api/kernel/fix:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormatCellsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormatResponse'
+          description: Format code
   /api/kernel/format:
     post:
       requestBody:

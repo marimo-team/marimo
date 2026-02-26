@@ -131,6 +131,7 @@ export interface EditRequests {
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
+  sendFix: (request: FormatCellsRequest) => Promise<FormatResponse>;
   sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;

@@ -27,14 +27,17 @@ import { replaceEditorContent } from "./replace-editor-content";
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
 /**
- * Format the code in the editor views via the marimo server,
+ * Format/fix the code in the editor views via the marimo server,
  * and update the editor views with the formatted code.
  */
-export async function formatEditorViews(views: Record<CellId, EditorView>) {
-  const { sendFormat } = getRequestClient();
+export async function formatEditorViews(
+  views: Record<CellId, EditorView>,
+  type: "format" | "fix",
+) {
+  const client = getRequestClient();
+  const send = type === "format" ? client.sendFormat : client.sendFix;
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
-
-  const formatResponse = await sendFormat({
+  const formatResponse = await send({
     codes,
     lineLength: getResolvedMarimoConfig().formatting.line_length,
   });
@@ -71,7 +74,15 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
  */
 export function formatAll() {
   const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views);
+  return formatEditorViews(views, "format");
+}
+
+/**
+ * Fix all cells in the notebook.
+ */
+export function fixAll() {
+  const views = notebookCellEditorViews(getNotebook());
+  return formatEditorViews(views, "fix");
 }
 
 /**

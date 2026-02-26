@@ -1577,6 +1577,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/fix": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FormatCellsRequest"];
+        };
+      };
+      responses: {
+        /** @description Format code */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FormatResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/format": {
     parameters: {
       query?: never;
@@ -5522,11 +5561,13 @@ export interface components {
      *         - `autosave`: one of `"off"` or `"after_delay"`
      *         - `delay`: number of milliseconds to wait before autosaving
      *         - `format_on_save`: if `True`, format the code on save
+     *         - `fix_on_save`: if `True`, fix the code on save (ruff check --fix)
      */
     SaveConfig: {
       /** @enum {unknown} */
       autosave: "after_delay" | "off";
       autosave_delay: number;
+      fix_on_save: boolean;
       format_on_save: boolean;
     };
     /** SaveNotebookRequest */

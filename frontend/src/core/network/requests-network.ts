@@ -91,6 +91,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    sendFix: (request) => {
+      return getClient()
+        .POST("/api/kernel/fix", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     sendInterrupt: () => {
       return getClient()
         .POST("/api/kernel/interrupt", {

@@ -67,11 +67,13 @@ class SaveConfig(TypedDict):
     - `autosave`: one of `"off"` or `"after_delay"`
     - `delay`: number of milliseconds to wait before autosaving
     - `format_on_save`: if `True`, format the code on save
+    - `fix_on_save`: if `True`, fix the code on save (ruff check --fix)
     """
 
     autosave: Literal["off", "after_delay"]
     autosave_delay: int
     format_on_save: bool
+    fix_on_save: bool
 
 
 @mddoc
@@ -707,6 +709,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "autosave": "after_delay",
         "autosave_delay": 1000,
         "format_on_save": False,
+        "fix_on_save": False,
     },
     "package_management": {"manager": infer_package_manager()},
     "server": {

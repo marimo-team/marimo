@@ -23,7 +23,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
-from marimo._utils.formatter import DefaultFormatter
+from marimo._utils.formatter import DefaultFormatter, RuffFormatter
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -146,6 +146,39 @@ async def format_cell(request: Request) -> FormatResponse:
             # Re-raise without name so error handler won't send install notification
             raise ModuleNotFoundError(
                 "Server does not have a formatter. Please install ruff"
+            ) from None
+        raise
+
+
+@router.post("/fix")
+@requires("edit")
+async def fix_cell(request: Request) -> FormatResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FormatCellsRequest"
+    responses:
+        200:
+            description: Format code
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/FormatResponse"
+    """
+    body = await parse_request(request, cls=FormatCellsRequest)
+    formatter = RuffFormatter(line_length=body.line_length)
+
+    try:
+        return FormatResponse(codes=await formatter.fix(body.codes))
+    except ModuleNotFoundError:
+        app_state = AppState(request)
+        # Installation occurs in the kernel which is not useful for multi mode.
+        if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
+            # Re-raise without name so error handler won't send install notification
+            raise ModuleNotFoundError(
+                "Server does not have a linter. Please install ruff"
             ) from None
         raise
 
