@@ -79,7 +79,7 @@ def setup_code_mcp_server(
     """Create and configure the Code Mode MCP server.
 
     Mounts at /mcp with a single /server streamable HTTP endpoint.
-    Exposes two tools: get_active_notebooks and execute_code.
+    Exposes two tools: `list_sessions` and `execute_code`.
 
     Args:
         app: Starlette application instance for accessing marimo state
@@ -121,24 +121,24 @@ def setup_code_mcp_server(
     listener = _ScratchCellListener()
 
     @mcp.tool()
-    async def get_active_notebooks() -> dict[str, Any]:
-        """List active marimo notebooks with their session IDs.
+    async def list_sessions() -> dict[str, Any]:
+        """List active marimo sessions.
 
-        Returns a dict with a 'notebooks' key containing a list of active
-        notebooks, each with 'name', 'path', and 'session_id' fields.
-        Use the session_id with execute_code to run code in that notebook.
+        Returns a dict with a 'sessions' key containing a list of active
+        sessions, each with 'name', 'path', and 'session_id' fields.
+        Use the session_id with execute_code to run code in that session.
         """
         state = AppStateBase.from_app(app)
         session_manager = state.session_manager
 
-        notebooks: list[dict[str, str]] = []
+        sessions: list[dict[str, str]] = []
         for session_id, session in session_manager.sessions.items():
             conn_state = session.connection_state()
             if conn_state in (ConnectionState.OPEN, ConnectionState.ORPHANED):
                 full_path = session.app_file_manager.path
                 filename = session.app_file_manager.filename
                 basename = os.path.basename(filename) if filename else None
-                notebooks.append(
+                sessions.append(
                     {
                         "name": basename or "new notebook",
                         "path": full_path or "(unsaved notebook)",
@@ -146,7 +146,7 @@ def setup_code_mcp_server(
                     }
                 )
 
-        return {"notebooks": notebooks[::-1]}
+        return {"sessions": sessions[::-1]}
 
     @mcp.tool()
     async def execute_code(session_id: str, code: str) -> dict[str, Any]:
@@ -157,7 +157,7 @@ def setup_code_mcp_server(
         affect the notebook's cells or dependency graph.
 
         Args:
-            session_id: The session ID of the notebook (from get_active_notebooks).
+            session_id: The session ID of the notebook (from list_sessions).
             code: Python code to execute.
 
         Returns:
@@ -170,7 +170,7 @@ def setup_code_mcp_server(
             return {
                 "success": False,
                 "error": f"Session '{session_id}' not found. "
-                "Use get_active_notebooks to find valid session IDs.",
+                "Use list_sessions to find valid session IDs.",
             }
 
         # Attach listener as a session extension

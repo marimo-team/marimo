@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, cast
 
-from marimo._mcp.setup import McpType
-
 import click
 from click.core import ParameterSource
 
@@ -44,6 +42,7 @@ from marimo._cli.utils import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
+from marimo._mcp.setup import McpType
 from marimo._server.file_router import (
     AppFileRouter,
     LazyListOfFilesAppFileRouter,
