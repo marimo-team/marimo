@@ -32,6 +32,8 @@ marimo run notebook_a.py notebook_b.py folder/
 
 This shows a page with one card per notebook. Cards can use notebook OpenGraph metadata for the title, description, and thumbnail image. Configure [OpenGraph previews](publishing/opengraph.md) and optionally generate images with [Thumbnails](publishing/thumbnails.md).
 
+If you run a single folder with watch mode (`marimo run folder/ --watch`), the gallery index is refreshed on subsequent workspace requests so file additions and deletions show up after refreshing the gallery page. See [Using your own editor](editor_features/watching.md) for watch behavior and security considerations.
+
 ## Layout
 
 While editing a notebook with `marimo edit`, you can preview the notebook

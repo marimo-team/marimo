@@ -275,11 +275,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 if not expressions:
                     return self
 
-                or_expr = expressions[0]
-                for expr in expressions[1:]:
-                    or_expr = or_expr | expr
-
-                filtered = self._original_data.filter(or_expr)
+                filtered = self._original_data.filter(
+                    pl.any_horizontal(expressions)
+                )
                 return PolarsTableManager(filtered)
 
             # We override the default implementation to use polars's

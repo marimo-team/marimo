@@ -329,11 +329,9 @@ class NarwhalsTableManager(
         if not expressions:
             return NarwhalsTableManager(self.data.filter(nw.lit(False)))
 
-        or_expr = expressions[0]
-        for expr in expressions[1:]:
-            or_expr = or_expr | expr
-
-        filtered = self.data.filter(or_expr)
+        filtered = self.data.filter(
+            nw.any_horizontal(expressions, ignore_nulls=False)
+        )
         return NarwhalsTableManager(filtered)
 
     def get_stats(self, column: str) -> ColumnStats:

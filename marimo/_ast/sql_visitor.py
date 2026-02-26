@@ -526,9 +526,13 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             table=table_name, schema=schema_name, catalog=catalog_name
         )
 
-    # May raise a ParseError
-    with _loggers.suppress_warnings_logs("sqlglot"):
-        expression_list = parse(sql_statement, dialect="duckdb")
+    from sqlglot.errors import ParseError
+
+    try:
+        with _loggers.suppress_warnings_logs("sqlglot"):
+            expression_list = parse(sql_statement, dialect="duckdb")
+    except ParseError:
+        return set()
 
     refs: set[SQLRef] = set()
 

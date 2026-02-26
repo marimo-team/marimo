@@ -21,10 +21,15 @@ from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup
 from marimo._cli.parse_args import parse_args
+from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
@@ -37,7 +42,11 @@ from marimo._cli.utils import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
-from marimo._server.file_router import AppFileRouter, flatten_files
+from marimo._server.file_router import (
+    AppFileRouter,
+    LazyListOfFilesAppFileRouter,
+    flatten_files,
+)
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import MarimoFile
 from marimo._server.start import start
@@ -54,17 +63,7 @@ from marimo._version import __version__
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
-    if file is None:
-        file = click.get_text_stream("stderr")
-    color = None
-    click.echo(
-        red("Error") + f": {self.format_message()}\n",
-        file=file,
-        color=color,
-    )
-    if self.ctx is not None:
-        color = self.ctx.color
-        click.echo(self.ctx.get_help(), file=file, color=color)
+    show_compact_usage_error(self, file=file)
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -376,6 +375,14 @@ edit_help_msg = "\n".join(
     help="Enable MCP server endpoint at /mcp/server for LLM integration.",
 )
 @click.option(
+    "--mcp-allow-remote",
+    is_flag=True,
+    default=False,
+    type=bool,
+    hidden=True,
+    help="Allow remote access to MCP server by disabling DNS rebinding protection.",
+)
+@click.option(
     "--server-startup-command",
     default=None,
     type=str,
@@ -427,6 +434,7 @@ def edit(
     remote_url: Optional[str],
     convert: bool,
     mcp: bool,
+    mcp_allow_remote: bool,
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     timeout: Optional[float],
@@ -461,10 +469,6 @@ def edit(
         return
 
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
-    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
-        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
-        # Check for version updates
-        check_for_updates(print_latest_version)
 
     if name is not None:
         # Validate name, or download from URL
@@ -517,10 +521,9 @@ def edit(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.ClickException(
-                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
+                "marimo[sandbox]",
             )
 
         # Enable script metadata management for sandboxed notebooks
@@ -533,16 +536,26 @@ def edit(
 
     shm_available, shm_error = check_shared_memory_available()
     if not shm_available:
-        _loggers.marimo_logger().error(
-            f"marimo failed to start: marimo edit requires shared memory support for multiprocessing.\n\n"
+        shm_mount_example = "--shm-size=256m or -v /dev/shm:/dev/shm"
+        docker_shm_line = " ".join(
+            [
+                "  - If running in Docker, ensure /dev/shm is mounted with sufficient size",
+                f"(e.g., {shm_mount_example})",
+            ]
+        )
+        raise MarimoCLIRuntimeError(
+            "marimo edit requires shared memory support for multiprocessing.\n\n"
             f"{shm_error}\n\n"
             "Possible solutions:\n"
-            "  - If running in Docker, ensure /dev/shm is mounted with sufficient size\n"
-            "    (e.g., --shm-size=256m or -v /dev/shm:/dev/shm)\n"
+            f"{docker_shm_line}\n"
             "  - If /dev/shm is full, clear unused shared memory segments\n"
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
-        sys.exit(1)
+
+    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
+        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
+        # Check for version updates after preflight checks pass.
+        check_for_updates(print_latest_version)
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -569,6 +582,7 @@ def edit(
         ttl_seconds=session_ttl,
         remote_url=remote_url,
         mcp=mcp,
+        mcp_allow_remote=mcp_allow_remote,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
@@ -841,6 +855,8 @@ def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
             for file_info in flatten_files(file_infos):
                 if not file_info.is_marimo_file:
                     continue
+                if "__marimo__" in Path(file_info.path).parts:
+                    continue
                 absolute_path = str(directory / file_info.path)
                 files_by_path[absolute_path] = MarimoFile(
                     name=file_info.name,
@@ -858,6 +874,38 @@ def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
     files = sorted(files_by_path.values(), key=lambda file: file.path)
     root_dir = _resolve_root_dir(directories, files)
     return _CollectedRunFiles(files=files, root_dir=root_dir)
+
+
+def _create_run_file_router(
+    validated_paths: list[str], *, watch: bool
+) -> AppFileRouter:
+    """Create the file router for `marimo run`.
+
+    For `--watch` with a single directory, use a lazy directory router so the
+    gallery index can reflect file additions/deletions on subsequent requests.
+    For all other invocation shapes, preserve static snapshot behavior.
+    """
+    if (
+        watch
+        and len(validated_paths) == 1
+        and Path(validated_paths[0]).is_dir()
+    ):
+        return LazyListOfFilesAppFileRouter(
+            validated_paths[0], include_markdown=True
+        )
+
+    has_directory = any(Path(path).is_dir() for path in validated_paths)
+    is_multi = has_directory or len(validated_paths) > 1
+    if is_multi:
+        marimo_files = _collect_marimo_files(validated_paths)
+        return AppFileRouter.from_files(
+            marimo_files.files,
+            directory=marimo_files.root_dir,
+            allow_single_file_key=False,
+            allow_dynamic=False,
+        )
+
+    return AppFileRouter.from_filename(MarimoPath(validated_paths[0]))
 
 
 @main.command(
@@ -1117,24 +1165,12 @@ def run(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.ClickException(
-                "pyzmq is required when running a gallery with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running a gallery with --sandbox.",
+                "marimo[sandbox]",
             )
 
-    if is_multi:
-        marimo_files = _collect_marimo_files(validated_paths)
-        file_router = AppFileRouter.from_files(
-            marimo_files.files,
-            directory=marimo_files.root_dir,
-            allow_single_file_key=False,
-            allow_dynamic=False,
-        )
-    else:
-        file_router = AppFileRouter.from_filename(
-            MarimoPath(validated_paths[0])
-        )
+    file_router = _create_run_file_router(validated_paths, watch=watch)
 
     start(
         file_router=file_router,
@@ -1299,7 +1335,7 @@ def env() -> None:
 def shell_completion() -> None:
     shell = os.environ.get("SHELL", "")
     if not shell:
-        raise click.UsageError(
+        raise MarimoCLIRuntimeError(
             "Could not determine shell. Please set $SHELL environment variable.",
         )
 
@@ -1324,10 +1360,9 @@ def shell_completion() -> None:
 
     if shell_name not in commands:
         supported = ", ".join(commands.keys())
-        raise click.UsageError(
+        raise MarimoCLIRuntimeError(
             f"Unsupported shell: {shell_name} (from $SHELL). Supported shells: {supported}",
         )
-        return
 
     cmd, rc_file = commands[shell_name]
     click.secho("Run this command to enable completions:", fg="green")

@@ -7,9 +7,11 @@ from typing import Callable, Literal, Optional
 
 import click
 
+from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
+from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import (
     echo,
@@ -486,9 +488,13 @@ def ipynb(
             )
             return
 
-    DependencyManager.nbformat.require(
-        why="to convert marimo notebooks to ipynb"
-    )
+    try:
+        DependencyManager.nbformat.require(
+            why="to convert marimo notebooks to ipynb"
+        )
+    except ModuleNotFoundError as e:
+        package = getattr(e, "name", None) or "nbformat"
+        raise MarimoCLIMissingDependencyError(str(e), package) from None
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
@@ -617,14 +623,15 @@ def pdf(
             DependencyManager.nbconvert,
         )
     except ManyModulesNotFoundError as e:
-        from marimo._cli.print import bold
-
-        pkgs = " ".join(e.package_names)
-        raise click.ClickException(
-            f"{e}\n\n"
-            f"  {green('Tip:')} Install with:\n\n"
-            f"    pip install {pkgs}\n\n"
-            f"  or rerun with {bold(f'marimo export pdf {name} --output {output} --sandbox')} (requires uv)"
+        sandbox_rerun_command = (
+            f"marimo export pdf {name} --output {output} --sandbox"
+        )
+        raise MarimoCLIMissingDependencyError(
+            str(e),
+            e.package_names,
+            followup_commands=sandbox_rerun_command,
+            followup_label="Alternative:",
+            additional_tip="Requires uv.",
         ) from None
 
     cli_args = parse_args(args) if include_outputs else {}
@@ -645,12 +652,10 @@ def pdf(
             )
         except ModuleNotFoundError as e:
             if getattr(e, "name", None) == "playwright":
-                raise click.ClickException(
-                    "Playwright is required for WebPDF export.\n\n"
-                    f"  {green('Tip:')} Install webpdf dependencies with:\n\n"
-                    "    pip install 'nbconvert[webpdf]'\n\n"
-                    "  and install Chromium with:\n\n"
-                    "    python -m playwright install chromium"
+                raise MarimoCLIMissingDependencyError(
+                    "Playwright is required for WebPDF export.",
+                    "nbconvert[webpdf]",
+                    followup_commands=get_playwright_chromium_setup_commands(),
                 ) from None
             raise
         except Exception as e:

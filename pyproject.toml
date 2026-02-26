@@ -84,7 +84,7 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 sql = [
     "duckdb>=1.0.0",           # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    "sqlglot[rs]>=26.2.0,<28.7.0"  # SQL cells parsing; <28.7.0 due to ibis compatibility issue
+    "sqlglot[c]>=26.2.0"       # SQL cells parsing;
 ]
 
 # For per-notebook sandboxed kernels
@@ -123,7 +123,7 @@ dev = [
     "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
-    "sqlglot[rs]>=26.2.0",
+    "sqlglot[c]>=26.2.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -168,7 +168,7 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot[rs]>=26.2.0,<28.7.0",  # <28.7.0 due to ibis compatibility issue
+    "sqlglot[c]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -246,7 +246,7 @@ dependencies = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot[rs]>=26.2.0",
+    "sqlglot[c]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",

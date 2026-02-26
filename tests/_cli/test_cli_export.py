@@ -328,9 +328,8 @@ class TestExportHTML:
             line = p.stderr.readline().decode()
             if line:
                 assert (
-                    "Cannot use --watch without providing "
-                    + "an output file with --output."
-                    in line
+                    "cannot use --watch without providing an output file "
+                    "with --output" in line
                 )
                 break
 
@@ -470,7 +469,7 @@ class TestExportScript:
     @staticmethod
     def test_export_script_async(temp_async_marimo_file: str) -> None:
         p = _run_export("script", temp_async_marimo_file)
-        assert p.returncode == 2, p.stderr.decode()
+        assert p.returncode == 1, p.stderr.decode()
         assert (
             "Cannot export a notebook with async code to a flat script"
             in p.stderr.decode()
@@ -567,9 +566,8 @@ class TestExportScript:
             line = p.stderr.readline().decode()
             if line:
                 assert (
-                    "Cannot use --watch without providing "
-                    + "an output file with --output."
-                    in line
+                    "cannot use --watch without providing an output file "
+                    "with --output" in line
                 )
                 break
 
@@ -672,9 +670,8 @@ class TestExportMarkdown:
             line = p.stderr.readline().decode()
             if line:
                 assert (
-                    "Cannot use --watch without providing "
-                    + "an output file with --output."
-                    in line
+                    "cannot use --watch without providing an output file "
+                    "with --output" in line
                 )
                 break
 
