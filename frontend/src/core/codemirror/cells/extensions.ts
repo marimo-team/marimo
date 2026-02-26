@@ -5,6 +5,10 @@ import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
 import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
+import {
+  clearPendingCutAtom,
+  pendingCutCellIdsAtom,
+} from "@/core/cells/pending-cut-service";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { duplicateWithCtrlModifier } from "@/core/hotkeys/shortcuts";
@@ -324,6 +328,12 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
         code: nextCode,
         formattingChange: isFormattingChange,
       });
+
+      // Clear pending cut state if this cell was marked for cut
+      const pendingCutCellIds = store.get(pendingCutCellIdsAtom);
+      if (pendingCutCellIds.has(cellId)) {
+        store.set(clearPendingCutAtom);
+      }
     }
   });
 

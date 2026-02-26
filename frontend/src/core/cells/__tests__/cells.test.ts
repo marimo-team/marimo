@@ -196,6 +196,20 @@ describe("cell reducer", () => {
     `);
   });
 
+  it("can add a cell with name and config", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: "x = 1",
+      name: "My Cell",
+      config: { hide_code: true, disabled: false },
+    });
+    const newCellId = state.cellIds.inOrderIds[1];
+    expect(state.cellData[newCellId].name).toBe("My Cell");
+    expect(state.cellData[newCellId].config.hide_code).toBe(true);
+    expect(state.cellData[newCellId].config.disabled).toBe(false);
+  });
+
   it("can delete a Python cell and undo delete", () => {
     actions.createNewCell({
       cellId: firstCellId,
@@ -452,6 +466,179 @@ describe("cell reducer", () => {
       [0] ''
 
       [2] ''
+      "
+    `);
+  });
+
+  it("can move multiple cells relative to target", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+      "
+    `);
+
+    // Move first two cells after the third
+    actions.moveCellsRelativeTo({
+      cellIds: [firstCellId, "1" as CellId],
+      targetCellId: "2" as CellId,
+      position: "after",
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [2] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+  });
+
+  it("can undo cut-paste (move with previousPlacements)", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+      "
+    `);
+
+    const col = state.cellIds.findWithId(firstCellId);
+    const previousPlacements = [
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          firstCellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          "1" as CellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
+    ];
+
+    actions.moveCellsRelativeTo({
+      cellIds: [firstCellId, "1" as CellId],
+      targetCellId: "2" as CellId,
+      position: "after",
+      previousPlacements,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [2] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+      "
+    `);
+  });
+
+  it("undo order: cut-paste then delete — first undo restores delete, second undo undoes move", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+    });
+
+    const col = state.cellIds.findWithId(firstCellId);
+    const previousPlacements = [
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          firstCellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          "1" as CellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
+    ];
+
+    actions.moveCellsRelativeTo({
+      cellIds: [firstCellId, "1" as CellId],
+      targetCellId: "2" as CellId,
+      position: "after",
+      previousPlacements,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [2] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.deleteCell({ cellId: "2" as CellId });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [3] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [3] ''
       "
     `);
   });

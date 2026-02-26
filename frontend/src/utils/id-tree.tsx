@@ -861,6 +861,67 @@ export class MultiColumn<T> {
     return new MultiColumn(newColumns);
   }
 
+  /**
+   * Move multiple cells to be immediately before (or after) a target cell.
+   * Cells are inserted in their original order.
+   *
+   * @throws Error if any cellId is not found in any column.
+   * If targetId is among the moved cells, cells are inserted at the end of the target column.
+   */
+  moveCellsRelativeTo(
+    cellIds: T[],
+    targetId: T,
+    position: "before" | "after",
+  ): MultiColumn<T> {
+    if (cellIds.length === 0) {
+      return this;
+    }
+
+    const cellIdSet = new Set(cellIds);
+    const targetColumn = this.findWithId(targetId);
+    const targetColIndex = this.indexOfOrThrow(targetColumn.id);
+
+    // Collect nodes to move
+    const nodesToMove: TreeNode<T>[] = [];
+    for (const id of cellIds) {
+      const col = this.findWithId(id);
+      const node = col.nodes.find((n) => n.value === id);
+      if (!node) {
+        throw new Error(`Node ${id} not found in column ${col.id}`);
+      }
+      nodesToMove.push(node);
+    }
+
+    // Remove moved cells from all columns
+    const columnsWithRemovals = this.columns.map((col) =>
+      col.withNodes(col.nodes.filter((n) => !cellIdSet.has(n.value))),
+    );
+
+    // Find target index in the cleaned column
+    const cleanedTargetCol = columnsWithRemovals[targetColIndex];
+    let insertIndex = cleanedTargetCol.nodes.findIndex(
+      (n) => n.value === targetId,
+    );
+
+    // If target was one of the moved cells, insert at end
+    if (insertIndex === -1) {
+      insertIndex = cleanedTargetCol.nodes.length;
+    } else if (position === "after") {
+      insertIndex += 1;
+    }
+
+    // Insert all moved nodes at target position
+    const newTargetNodes = arrayInsertMany(
+      cleanedTargetCol.nodes,
+      insertIndex,
+      nodesToMove,
+    );
+    columnsWithRemovals[targetColIndex] =
+      cleanedTargetCol.withNodes(newTargetNodes);
+
+    return new MultiColumn(columnsWithRemovals);
+  }
+
   indexOfOrThrow(id: CellColumnId): number {
     const index = this.columns.findIndex((c) => c.id === id);
     if (index === -1) {
@@ -961,6 +1022,31 @@ export class MultiColumn<T> {
 
   deleteById(cellId: T): MultiColumn<T> {
     return this.transformWithCellId(cellId, (c) => c.delete(cellId));
+  }
+
+  /**
+   * Remove the given cells from the tree, then re-insert each at its
+   * (columnId, index). Used to undo a move (e.g. cut-paste) by restoring
+   * cells to their previous positions. Placements are sorted by
+   * (columnId, index) so insert order keeps indices valid.
+   */
+  placeCells(
+    placements: Array<{ id: T; columnId: CellColumnId; index: CellIndex }>,
+  ): MultiColumn<T> {
+    if (placements.length === 0) return this;
+    let result: MultiColumn<T> = this;
+    for (const { id } of placements) {
+      result = result.deleteById(id);
+    }
+    const sorted = [...placements].sort((a, b) => {
+      if (a.columnId !== b.columnId)
+        return a.columnId.localeCompare(b.columnId);
+      return (a.index as number) - (b.index as number);
+    });
+    for (const { id, columnId, index } of sorted) {
+      result = result.insertId(id, columnId, index);
+    }
+    return result;
   }
 
   compact(): MultiColumn<T> {
