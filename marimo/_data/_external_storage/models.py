@@ -13,7 +13,7 @@ from marimo._utils.assert_never import log_never
 KNOWN_STORAGE_TYPES = Literal[
     "s3", "gcs", "azure", "http", "file", "in-memory"
 ]
-SIGNED_URL_EXPIRATION = 3600
+SIGNED_URL_EXPIRATION = 60
 
 
 # Note: We may want to consolidate with FileInfo from _server/models/files.py

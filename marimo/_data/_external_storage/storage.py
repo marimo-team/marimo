@@ -109,7 +109,7 @@ class Obstore(StorageBackend["ObjectStore"]):
                 expires_in=timedelta(seconds=expiration),
             )
         except Exception:
-            LOGGER.debug("Failed to sign URL for %s", path)
+            LOGGER.info("Failed to sign URL for %s", path)
             return None
 
     @property
@@ -271,7 +271,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         return file
 
     async def sign_download_url(
-        self, path: str, expiration: int = 3600
+        self, path: str, expiration: int = SIGNED_URL_EXPIRATION
     ) -> str | None:
         try:
             url = await asyncio.to_thread(
@@ -281,7 +281,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         except NotImplementedError:
             return None
         except Exception:
-            LOGGER.debug("Failed to sign URL for %s", path)
+            LOGGER.info("Failed to sign URL for %s", path)
             return None
 
     @property
