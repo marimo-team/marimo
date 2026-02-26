@@ -46,7 +46,7 @@ import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
 import { ErrorState } from "../datasources/components";
 import { Button } from "../ui/button";
-import { renderFileIcon, renderProtocolIcon } from "./components";
+import { ProtocolIcon, renderFileIcon } from "./components";
 
 // Pixels per depth level. Applied as paddingLeft on each full-width item
 // so the selection highlight still spans the entire panel.
@@ -408,7 +408,7 @@ const StorageNamespaceSection: React.FC<{
             isExpanded && "rotate-90",
           )}
         />
-        {renderProtocolIcon(namespace.protocol)}
+        <ProtocolIcon protocol={namespace.protocol} />
         <span>{namespace.displayName}</span>
         {namespace.name && (
           <span className="text-xs text-muted-foreground font-normal">

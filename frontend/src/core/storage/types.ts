@@ -50,6 +50,8 @@ export type KnownStorageProtocol =
   | "s3"
   | "gcs"
   | "azure"
+  | "coreweave"
+  | "cloudflare"
   | "http"
   | "file"
   | "in-memory";
