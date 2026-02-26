@@ -202,7 +202,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             message_history=vercel_adapter.load_messages(
                 self.convert_messages(messages)
             ),
-            instructions=system_prompt,
         ) as result:
             async for message in result.stream_text(delta=True):
                 yield message
