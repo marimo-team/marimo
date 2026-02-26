@@ -147,14 +147,14 @@ class TestAnyProviderConfig:
         config: AiConfig = {
             "github": {
                 "api_key": "test-github-key",
-                "base_url": "https://models.github.ai/inference",
+                "base_url": "https://some-base-url",
             }
         }
 
         provider_config = AnyProviderConfig.for_github(config)
 
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://models.github.ai/inference"
+        assert provider_config.base_url == "https://some-base-url"
 
     def test_for_github_with_fallback_base_url(self):
         """Test GitHub configuration uses fallback base URL when not specified."""
@@ -173,7 +173,7 @@ class TestAnyProviderConfig:
         not DependencyManager.pydantic_ai.has(),
         reason="pydantic-ai is not installed",
     )
-    def test_github_base_url_matches_pydantic_ai(self):
+    def test_github_default_base_url_matches_pydantic_ai(self):
         """Test GitHub configuration base URL matches pydantic-ai."""
         from pydantic_ai.providers.github import GitHubProvider
 
