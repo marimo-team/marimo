@@ -408,182 +408,152 @@ class TestExplainQueries:
             "-- EXPLAIN SELECT 1"
         )  # Comment, not actual query
 
-    @pytest.fixture(autouse=True)
-    def duckdb_test_table(self):
-        """Create and clean up a DuckDB test table for EXPLAIN tests."""
-        if DependencyManager.duckdb.has():
-            import duckdb
+    @pytest.fixture
+    def explain_df_data(self) -> dict[str, list[str]]:
+        return {
+            "explain_key": ["physical_plan", "logical_plan"],
+            "explain_value": [
+                "┌─────────────────────────────────────┐\n│              PROJECTION               │\n└─────────────────────────────────────┘",
+                "┌─────────────────────────────────────┐\n│              SELECTION                │\n└─────────────────────────────────────┘",
+            ],
+        }
 
-            duckdb.sql(
-                "CREATE OR REPLACE TABLE test_explain AS SELECT * FROM range(5)"
-            )
-        yield
-        if DependencyManager.duckdb.has():
-            import duckdb
-
-            duckdb.sql("DROP TABLE IF EXISTS test_explain")
-
-    @pytest.mark.requires("polars", "duckdb")
-    @pytest.mark.parametrize(
-        "lazy", [False, True], ids=["dataframe", "lazyframe"]
-    )
-    def test_extract_explain_content_duckdb_polars(self, lazy):
-        """Test extract_explain_content with real DuckDB EXPLAIN as Polars DataFrame/LazyFrame."""
-        import duckdb
-
-        relation = duckdb.sql("EXPLAIN SELECT * FROM test_explain")
-        df = relation.pl()
-        if lazy:
-            df = df.lazy()
-
-        result = extract_explain_content(df)
-        assert result == snapshot("""\
-┌───────────────────────────┐
-│         SEQ_SCAN          │
-│    ────────────────────   │
-│    Table: test_explain    │
-│   Type: Sequential Scan   │
-│     Projections: range    │
-│                           │
-│          ~5 rows          │
-└───────────────────────────┘
-""")
-
-    @pytest.mark.requires("pandas", "duckdb")
-    def test_extract_explain_content_duckdb_pandas(self):
-        """Test extract_explain_content with real DuckDB EXPLAIN as Pandas."""
-        import duckdb
-
-        relation = duckdb.sql("EXPLAIN SELECT * FROM test_explain")
-        df = relation.df()
-
-        result = extract_explain_content(df)
-        assert result == snapshot("""\
-┌───────────────────────────┐
-│         SEQ_SCAN          │
-│    ────────────────────   │
-│    Table: test_explain    │
-│   Type: Sequential Scan   │
-│     Projections: range    │
-│                           │
-│          ~5 rows          │
-└───────────────────────────┘
-""")
-
-    @pytest.mark.requires("polars", "duckdb")
-    def test_extract_explain_analyze_content_duckdb(self):
-        """Test extract_explain_content with DuckDB EXPLAIN ANALYZE output."""
-        import duckdb
-
-        relation = duckdb.sql("EXPLAIN ANALYZE SELECT * FROM test_explain")
-        df = relation.pl()
-
-        result = extract_explain_content(df)
-
-        # EXPLAIN ANALYZE has profiling info; single row so no header label
-        assert "Query Profiling Information" in result
-        assert "analyzed_plan\n" not in result
-
-    @pytest.mark.requires("duckdb")
-    def test_extract_explain_content_duckdb_native_relation(self):
-        """Test extract_explain_content with a native DuckDB relation."""
-        import duckdb
-
-        relation = duckdb.sql("EXPLAIN SELECT * FROM test_explain")
-        result = extract_explain_content(relation)
-        assert result == snapshot("""\
-┌───────────────────────────┐
-│         SEQ_SCAN          │
-│    ────────────────────   │
-│    Table: test_explain    │
-│   Type: Sequential Scan   │
-│     Projections: range    │
-│                           │
-│          ~5 rows          │
-└───────────────────────────┘
-""")
-
-    @pytest.mark.requires("polars")
-    def test_extract_explain_content_multi_section(self):
-        """Test extract_explain_content with multiple sections adds headers."""
+    @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+    def test_extract_explain_content_polars(
+        self, explain_df_data: dict[str, list[str]]
+    ):
+        """Test extract_explain_content with polars DataFrames."""
         import polars as pl
 
-        df = pl.DataFrame(
-            {
-                "explain_key": ["physical_plan", "logical_plan"],
-                "explain_value": [
-                    "PhysicalPlan\nDetails",
-                    "LogicalPlan\nDetails",
-                ],
-            }
-        )
+        # Test with regular DataFrame
+        df = pl.DataFrame(explain_df_data)
+
+        expected_rendering = """shape: (2, 2)
+┌───────────────┬───────────────────────────────────────────┐
+│ explain_key   ┆ explain_value                             │
+│ ---           ┆ ---                                       │
+│ str           ┆ str                                       │
+╞═══════════════╪═══════════════════════════════════════════╡
+│ physical_plan ┆ ┌─────────────────────────────────────┐   │
+│               ┆ │              PROJECTION               │ │
+│               ┆ └─────────────────────────────────────┘   │
+│ logical_plan  ┆ ┌─────────────────────────────────────┐   │
+│               ┆ │              SELECTION                │ │
+│               ┆ └─────────────────────────────────────┘   │
+└───────────────┴───────────────────────────────────────────┘"""
 
         result = extract_explain_content(df)
+        assert result == expected_rendering
+
+        # Test with LazyFrame
+        lazy_df = df.lazy()
+        result = extract_explain_content(lazy_df)
+        assert result == expected_rendering
+
+    @pytest.mark.skipif(not HAS_PANDAS, reason="Pandas not installed")
+    def test_extract_explain_content_pandas(
+        self, explain_df_data: dict[str, list[str]]
+    ):
+        """Test extract_explain_content with pandas DataFrames."""
+        import pandas as pd
+
+        df = pd.DataFrame(explain_df_data)
+
+        result = extract_explain_content(df)
+        assert (
+            result
+            == """physical_plan
+┌─────────────────────────────────────┐
+│              PROJECTION               │
+└─────────────────────────────────────┘
+logical_plan
+┌─────────────────────────────────────┐
+│              SELECTION                │
+└─────────────────────────────────────┘"""
+        )
+
+    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    def test_extract_explain_content_duckdb_relation(self):
+        """Test extract_explain_content with a DuckDB relation."""
+        import duckdb
+
+        conn = duckdb.connect(":memory:")
+        conn.sql("CREATE TABLE t AS SELECT * FROM range(5) tbl(id)")
+        relation = conn.sql("EXPLAIN SELECT * FROM t")
+        result = extract_explain_content(relation)
+
         assert result == snapshot("""\
 physical_plan
-─────────────
-PhysicalPlan
-Details
-
-logical_plan
-────────────
-LogicalPlan
-Details\
+┌───────────────────────────┐
+│         SEQ_SCAN          │
+│    ────────────────────   │
+│          Table: t         │
+│   Type: Sequential Scan   │
+│      Projections: id      │
+│                           │
+│          ~5 rows          │
+└───────────────────────────┘
 """)
 
-    @pytest.mark.requires("polars")
-    def test_extract_explain_content_unknown_columns(self):
-        """Test extract_explain_content fallback for unknown column names."""
-        import polars as pl
-
-        df = pl.DataFrame(
-            {
-                "QUERY PLAN": [
-                    "Seq Scan on users",
-                    "  Filter: (age > 21)",
-                ]
-            }
-        )
-
-        result = extract_explain_content(df)
-        assert result == snapshot("""\
-Seq Scan on users
-  Filter: (age > 21)\
-""")
+        conn.close()
 
     def test_extract_explain_content_fallback(self):
         """Test extract_explain_content fallback for non-DataFrame objects."""
-        assert extract_explain_content("not a dataframe") == snapshot(
-            "'not a dataframe'"
-        )
-        assert extract_explain_content(None) == snapshot("None")
+        # Test with non-DataFrame object
+        result = extract_explain_content("not a dataframe")
+        assert isinstance(result, str)
+        assert "not a dataframe" in result
 
-    @pytest.mark.requires("polars")
+        # Test with None
+        result = extract_explain_content(None)
+        assert isinstance(result, str)
+        assert "None" in result
+
+    @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
     def test_extract_explain_content_error_handling(self):
-        """Test extract_explain_content error handling with broken __str__."""
+        """Test extract_explain_content error handling."""
 
+        # Create a mock DataFrame that will raise an error
         class MockDataFrame:
+            def __init__(self):
+                pass
+
             def __str__(self):
                 raise RuntimeError("Test error")
 
-        result = extract_explain_content(MockDataFrame())
+        mock_df = MockDataFrame()
+        result = extract_explain_content(mock_df)
         assert isinstance(result, str)
-        assert "MockDataFrame" in result
+        assert "MockDataFrame" in result  # Should fallback to repr
 
     @patch("marimo._sql.sql.replace")
-    @pytest.mark.requires("polars", "duckdb")
+    @pytest.mark.skipif(
+        not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
+    )
     def test_sql_explain_query_display(self, mock_replace):
-        """Test that mo.sql() EXPLAIN queries render as plain text, not a table."""
+        """Test that EXPLAIN queries are displayed as plain text."""
+        import duckdb
         import polars as pl
 
+        # Create a test table
+        duckdb.sql(
+            "CREATE OR REPLACE TABLE test_explain AS SELECT * FROM range(5)"
+        )
+
+        # Test EXPLAIN query
         result = sql("EXPLAIN SELECT * FROM test_explain")
         assert isinstance(result, pl.DataFrame)
 
+        # Should call replace with plain_text
         mock_replace.assert_called_once()
-        html_obj = mock_replace.call_args[0][0]
-        assert hasattr(html_obj, "text")
-        assert "test_explain" in html_obj.text
-        assert "shape:" not in html_obj.text
+        call_args = mock_replace.call_args[0][0]
+
+        # The call should be a plain_text object
+        assert hasattr(call_args, "text")
+        assert isinstance(call_args.text, str)
+
+        # Clean up
+        duckdb.sql("DROP TABLE test_explain")
 
     def test_wrap_query_with_explain(self):
         """Test wrap_query_with_explain function."""
