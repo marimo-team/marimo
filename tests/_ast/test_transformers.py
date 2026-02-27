@@ -459,6 +459,7 @@ class TestRemoveReturnsBareReturn:
         result = RemoveReturns().visit(tree)
         code = ast.unparse(result)
         assert "return" not in code
+        assert "* = None" in code
 
 
 def test_extract_with_block_simple() -> None:

@@ -477,19 +477,13 @@ class RemoveReturns(ast.NodeTransformer):
     # NB: Won't work for generators since not replacing Yield.
     # Note that functools caches the generator, which is then dequeue'd,
     # so in that sense, it doesn't work either.
-    def visit_Return(
-        self, node: ast.Return
-    ) -> ast.Expr | ast.Assign | ast.Pass:
-        if node.value is None:
-            p = ast.Pass()
-            p.lineno = node.lineno
-            p.col_offset = node.col_offset
-            return p
+    def visit_Return(self, node: ast.Return) -> ast.Expr | ast.Assign:
+        value = node.value or ast.Constant(value=None)
 
         self._has_name = False
         super().generic_visit(node)
         if self._has_name:
-            expr = ast.Expr(value=cast(ast.expr, node.value))
+            expr = ast.Expr(value=cast(ast.expr, value))
             expr.lineno = node.lineno
             expr.col_offset = node.col_offset
             return expr
@@ -501,7 +495,7 @@ class RemoveReturns(ast.NodeTransformer):
         target.col_offset = node.col_offset
         assign = ast.Assign(
             targets=[target],
-            value=cast(ast.expr, node.value),
+            value=cast(ast.expr, value),
         )
         assign.lineno = node.lineno
         assign.col_offset = node.col_offset
