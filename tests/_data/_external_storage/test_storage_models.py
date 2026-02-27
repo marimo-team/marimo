@@ -284,6 +284,55 @@ class TestObstore:
             ext="bin",
         )
 
+    async def test_read_range_full_file_delegates_to_download(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"full content")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("file.txt")
+        assert result == b"full content"
+        mock_store.get_async.assert_called_once_with("file.txt")
+
+    async def test_read_range_with_offset_and_length(self) -> None:
+        mock_store = MagicMock()
+        backend = self._make_backend(mock_store)
+
+        with patch(
+            "obstore.get_range_async",
+            new_callable=AsyncMock,
+            return_value=b"partial",
+        ) as mock_get_range:
+            result = await backend.read_range(
+                "file.txt", offset=10, length=100
+            )
+
+        assert result == b"partial"
+        mock_get_range.assert_called_once_with(
+            mock_store, "file.txt", start=10, length=100
+        )
+
+    async def test_read_range_with_length_only(self) -> None:
+        mock_store = MagicMock()
+        backend = self._make_backend(mock_store)
+
+        with patch(
+            "obstore.get_range_async",
+            new_callable=AsyncMock,
+            return_value=b"first bytes",
+        ) as mock_get_range:
+            result = await backend.read_range("file.txt", length=50)
+
+        assert result == b"first bytes"
+        mock_get_range.assert_called_once_with(
+            mock_store, "file.txt", start=0, length=50
+        )
+
     def test_protocol_memory(self) -> None:
         from obstore.store import MemoryStore
 
@@ -708,6 +757,47 @@ class TestFsspecFilesystem:
             ext="csv",
         )
 
+    async def test_read_range_returns_bytes(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = b"partial content"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt", offset=0, length=15)
+        assert result == b"partial content"
+        mock_store.cat_file.assert_called_once_with(
+            "path/file.txt", start=0, end=15
+        )
+
+    async def test_read_range_encodes_string_to_bytes(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = "text content"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt", offset=0, length=50)
+        assert result == b"text content"
+
+    async def test_read_range_with_offset(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = b"middle"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt", offset=10, length=6)
+        assert result == b"middle"
+        mock_store.cat_file.assert_called_once_with(
+            "path/file.txt", start=10, end=16
+        )
+
+    async def test_read_range_full_file(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = b"entire file"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt")
+        assert result == b"entire file"
+        mock_store.cat_file.assert_called_once_with(
+            "path/file.txt", start=0, end=None
+        )
+
     def test_protocol_tuple(self) -> None:
         mock_store = MagicMock()
         mock_store.protocol = ("gcs", "gs")
@@ -872,6 +962,36 @@ class TestFsspecFilesystemIntegration:
         result = await backend.sign_download_url("/test/file.txt")
         assert result is None
 
+    async def test_read_range_full_file(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt")
+        assert result == b"hello world"
+
+    async def test_read_range_partial(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt", offset=0, length=5)
+        assert result == b"hello"
+
+    async def test_read_range_with_offset(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt", offset=6, length=5)
+        assert result == b"world"
+
     def test_protocol_memory_filesystem(self) -> None:
         from fsspec.implementations.memory import MemoryFileSystem
 
@@ -956,6 +1076,36 @@ class TestObstoreIntegration:
         backend = Obstore(store, VariableName("mem_store"))
         result = await backend.sign_download_url("data.txt")
         assert result is None
+
+    async def test_read_range_full_file(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt")
+        assert result == b"hello world"
+
+    async def test_read_range_partial(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt", offset=0, length=5)
+        assert result == b"hello"
+
+    async def test_read_range_with_offset(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt", offset=6, length=5)
+        assert result == b"world"
 
 
 class TestNormalizeProtocol:
