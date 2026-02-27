@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { sanitizeHtml } from "@/plugins/core/sanitize";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { Outline, OutlineItem } from "../cells/outline";
@@ -46,7 +47,12 @@ function getOutline(html: string): Outline | null {
     }
 
     const level = Number.parseInt(heading.tagName[1], 10);
-    items.push({ name, level, by: headingToIdentifier(heading) });
+    const innerHTML = heading.innerHTML;
+    const item: OutlineItem = { name, level, by: headingToIdentifier(heading) };
+    if (innerHTML !== name) {
+      item.html = sanitizeHtml(innerHTML);
+    }
+    items.push(item);
   }
 
   return { items };
