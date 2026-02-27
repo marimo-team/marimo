@@ -298,18 +298,45 @@ def _format_explain_sections(sections: list[tuple[str, str]]) -> str:
     return "\n\n".join(parts)
 
 
+def _extract_from_relation(df: Any) -> Optional[str]:
+    """Try to extract explain content from a DuckDB relation or similar
+    object that has .columns and .fetchall().
+
+    Returns None if the object doesn't quack like a relation.
+    """
+    columns = getattr(df, "columns", None)
+    fetchall = getattr(df, "fetchall", None)
+    if columns is None or fetchall is None:
+        return None
+
+    rows = fetchall()
+    col_list = list(columns)
+    if "explain_key" in col_list and "explain_value" in col_list:
+        key_idx = col_list.index("explain_key")
+        val_idx = col_list.index("explain_value")
+        sections = [(row[key_idx], row[val_idx]) for row in rows]
+        return _format_explain_sections(sections)
+
+    # Fallback: last column
+    if col_list and rows:
+        last_idx = len(col_list) - 1
+        return "\n".join(str(row[last_idx]) for row in rows)
+
+    return None
+
+
 def extract_explain_content(df: Any) -> str:
     """Extract the query plan text from a DataFrame for EXPLAIN queries.
 
-    For DuckDB, EXPLAIN returns a DataFrame with columns 'explain_key'
+    For DuckDB, EXPLAIN returns a result with columns 'explain_key'
     and 'explain_value'. This function extracts just the plan text,
     presenting it cleanly without DataFrame chrome.
 
-    For other engines or unknown formats, it extracts the content of
-    the last column or falls back to repr().
+    Supports DuckDB relations, Polars/Pandas DataFrames, and falls
+    back to repr() for unknown types.
 
     Args:
-        df: DataFrame (pandas or polars). If not pandas / polars, return repr(df).
+        df: A DuckDB relation, Polars/Pandas DataFrame, or other object.
 
     Returns:
         String containing the query plan text.
@@ -359,7 +386,11 @@ def extract_explain_content(df: Any) -> str:
                 all_values = df.values.flatten().tolist()
                 return "\n".join(str(val) for val in all_values)
 
-        # Fallback to repr for other types
+        # Try duck-typed relation (DuckDB relation, DB-API cursor, etc.)
+        result = _extract_from_relation(df)
+        if result is not None:
+            return result
+
         return repr(df)
 
     except Exception as e:

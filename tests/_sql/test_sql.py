@@ -484,6 +484,25 @@ class TestExplainQueries:
         assert "Query Profiling Information" in result
         assert "analyzed_plan\n" not in result
 
+    @pytest.mark.requires("duckdb")
+    def test_extract_explain_content_duckdb_native_relation(self):
+        """Test extract_explain_content with a native DuckDB relation."""
+        import duckdb
+
+        relation = duckdb.sql("EXPLAIN SELECT * FROM test_explain")
+        result = extract_explain_content(relation)
+        assert result == snapshot("""\
+┌───────────────────────────┐
+│         SEQ_SCAN          │
+│    ────────────────────   │
+│    Table: test_explain    │
+│   Type: Sequential Scan   │
+│     Projections: range    │
+│                           │
+│          ~5 rows          │
+└───────────────────────────┘
+""")
+
     @pytest.mark.requires("polars")
     def test_extract_explain_content_multi_section(self):
         """Test extract_explain_content with multiple sections adds headers."""
