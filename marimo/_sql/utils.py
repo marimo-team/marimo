@@ -280,31 +280,82 @@ def is_query_empty(query: str) -> bool:
     return False
 
 
+def _format_explain_sections(sections: list[tuple[str, str]]) -> str:
+    """Format explain sections into a readable string.
+
+    If there is a single section, returns just the value text.
+    If there are multiple sections, adds a header for each section.
+    """
+    if len(sections) == 1:
+        return str(sections[0][1])
+
+    parts: list[str] = []
+    for key, value in sections:
+        key_str = str(key)
+        separator = "\u2500" * len(key_str)
+        header = f"{key_str}\n{separator}"
+        parts.append(f"{header}\n{value}")
+    return "\n\n".join(parts)
+
+
 def extract_explain_content(df: Any) -> str:
-    """Extract all content from a DataFrame for EXPLAIN queries.
+    """Extract the query plan text from a DataFrame for EXPLAIN queries.
+
+    For DuckDB, EXPLAIN returns a DataFrame with columns 'explain_key'
+    and 'explain_value'. This function extracts just the plan text,
+    presenting it cleanly without DataFrame chrome.
+
+    For other engines or unknown formats, it extracts the content of
+    the last column or falls back to repr().
 
     Args:
         df: DataFrame (pandas or polars). If not pandas / polars, return repr(df).
 
     Returns:
-        String containing content of dataframe
+        String containing the query plan text.
     """
     try:
-        if DependencyManager.polars.has():
+        if DependencyManager.polars.imported():
             import polars as pl
 
             if isinstance(df, pl.LazyFrame):
                 df = df.collect()
             if isinstance(df, pl.DataFrame):
-                # Display full strings without truncation
+                columns = df.columns
+
+                # DuckDB EXPLAIN format: explain_key + explain_value columns
+                if "explain_key" in columns and "explain_value" in columns:
+                    keys = df["explain_key"].to_list()
+                    values = df["explain_value"].to_list()
+                    return _format_explain_sections(list(zip(keys, values)))
+
+                # Generic fallback: use the last column
+                if len(columns) > 0:
+                    last_col_values = df[columns[-1]].to_list()
+                    return "\n".join(str(v) for v in last_col_values)
+
+                # Final fallback
                 with pl.Config(fmt_str_lengths=1000):
                     return str(df)
 
-        if DependencyManager.pandas.has():
+        if DependencyManager.pandas.imported():
             import pandas as pd
 
             if isinstance(df, pd.DataFrame):
-                # Preserve newlines in the data
+                columns = list(df.columns)
+
+                # DuckDB EXPLAIN format: explain_key + explain_value columns
+                if "explain_key" in columns and "explain_value" in columns:
+                    keys = df["explain_key"].tolist()
+                    values = df["explain_value"].tolist()
+                    return _format_explain_sections(list(zip(keys, values)))
+
+                # Generic fallback: use the last column
+                if len(columns) > 0:
+                    last_col_values = df[columns[-1]].tolist()
+                    return "\n".join(str(v) for v in last_col_values)
+
+                # Final fallback
                 all_values = df.values.flatten().tolist()
                 return "\n".join(str(val) for val in all_values)
 
