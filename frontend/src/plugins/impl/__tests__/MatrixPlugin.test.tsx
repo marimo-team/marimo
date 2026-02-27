@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IPluginProps } from "../../types";
 import { MatrixPlugin } from "../MatrixPlugin";
@@ -383,6 +383,68 @@ describe("MatrixPlugin", () => {
     expect(setValueMock).toHaveBeenCalledWith([
       [6, 0],
       [0, 0],
+    ]);
+  });
+
+  it("drag after value prop reset uses new value, not stale draft", () => {
+    // Regression: after a cell re-run resets the value prop, starting a
+    // new drag should use the fresh value, not the stale draft from the
+    // previous interaction.
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+
+    // Wrapper so we can re-render with new props (simulating cell re-run)
+    const Wrapper = ({ value }: { value: number[][] }) => {
+      return plugin.render(
+        makeProps({ value, setValue: setValueMock }),
+      );
+    };
+
+    const { getByTestId, rerender } = render(
+      <Wrapper
+        value={[
+          [0, 0],
+          [0, 0],
+        ]}
+      />,
+    );
+
+    const cell00 = getByTestId("matrix-cell-0-0");
+    const container = getByTestId("marimo-plugin-matrix");
+
+    // User drags cell (0,0) to value 3
+    fireEvent.pointerDown(cell00, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(container, { clientX: 130 }); // +3 steps
+    fireEvent.pointerUp(container);
+    expect(setValueMock).toHaveBeenLastCalledWith([
+      [3, 0],
+      [0, 0],
+    ]);
+
+    setValueMock.mockClear();
+
+    // Cell re-runs: value prop resets to identity matrix
+    act(() => {
+      rerender(
+        <Wrapper
+          value={[
+            [1, 0],
+            [0, 1],
+          ]}
+        />,
+      );
+    });
+
+    // Drag cell (0,0) by +2 steps — should start from 1 (the new value),
+    // NOT from 3 (the stale draft).
+    const cell00After = getByTestId("matrix-cell-0-0");
+    fireEvent.pointerDown(cell00After, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(container, { clientX: 120 }); // +2 steps
+    fireEvent.pointerUp(container);
+
+    expect(setValueMock).toHaveBeenLastCalledWith([
+      [3, 0],
+      [0, 1],
     ]);
   });
 

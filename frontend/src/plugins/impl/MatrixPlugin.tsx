@@ -122,6 +122,10 @@ const MatrixComponent = ({
         startX: e.clientX,
         startValue: displayValue[row][col],
       };
+      // Sync draft from the current prop-driven displayValue before
+      // switching to draft-based rendering. This ensures a fresh start
+      // after cell re-runs reset the value prop.
+      setDraft(displayValue);
       setActiveCell({ row, col });
     },
     [disabled, displayValue],
