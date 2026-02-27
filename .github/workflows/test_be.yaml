@@ -227,7 +227,7 @@ jobs:
             --picked=first \
           || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
         env:
-          UV_RESOLUTION: lowest
+          UV_RESOLUTION: lowest-direct
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:
