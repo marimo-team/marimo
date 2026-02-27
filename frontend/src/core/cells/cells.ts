@@ -591,7 +591,7 @@ const {
 
     // release the granular atom(s) created for this cell
     releaseCellAtoms(cellId);
-    const prevData = state.cellData[cellId] || { name: "", config: {} };
+    const prevData = state.cellData[cellId];
     return {
       ...state,
       cellIds: state.cellIds.deleteById(cellId),
