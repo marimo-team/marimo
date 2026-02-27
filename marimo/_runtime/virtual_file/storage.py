@@ -221,9 +221,10 @@ class InMemoryStorage(VirtualFileStorage):
     ) -> Iterator[bytes]:
         if key not in self._storage:
             raise KeyError(f"Virtual file not found: {key}")
-        data = self._storage[key][:byte_length]
-        for i in range(0, len(data), chunk_size):
-            yield data[i : i + chunk_size]
+        buffer = self._storage[key]
+        end = min(byte_length, len(buffer))
+        for i in range(0, end, chunk_size):
+            yield buffer[i : min(i + chunk_size, end)]
 
     def remove(self, key: str) -> None:
         if key in self._storage:
