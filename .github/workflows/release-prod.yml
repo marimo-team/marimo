@@ -35,8 +35,11 @@ jobs:
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
 
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
+
       - name: 📦 Build marimo
-        run: hatch build
+        run: uv build
 
       - name: 📤 Upload to PyPI
         env:
@@ -47,7 +50,7 @@ jobs:
       - name: 🔨 Get version
         id: get_version
         run: |
-          echo "marimo_version=$(hatch version)" >> $GITHUB_OUTPUT
+          echo "marimo_version=$(uv version --short)" >> $GITHUB_OUTPUT
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

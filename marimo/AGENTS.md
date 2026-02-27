@@ -71,8 +71,8 @@ Besides heavy dependencies, always import at the top of the file. If there are c
 Tests live in `tests/` folder, mirroring `marimo/` structure.
 
 ```bash
-uvx hatch run +py=3.12 test:test tests/path/to/test.py
-uvx hatch run +py=3.12 test-optional:test tests/path/to/test.py  # with optional deps
+uv run --python 3.12 --group test pytest tests/path/to/test.py
+uv run --python 3.12 --group test-optional pytest tests/path/to/test.py  # with optional deps
 ```
 
 ### Best Practices

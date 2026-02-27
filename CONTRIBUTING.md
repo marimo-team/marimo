@@ -22,7 +22,7 @@ or [on Discord](https://marimo.io/discord?ref=contributing).
 ## Setup
 _Note: We recommend that Windows developers use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and clone the marimo repository [into the WSL environment and not the Windows mount](https://learn.microsoft.com/en-us/windows/wsl/filesystems)._
 
-Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed, using `hatch` as the environment manager.
+Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed.
 
 > [!NOTE]
 >
@@ -30,16 +30,16 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 > Note that developing in Gitpod is not officially supported by the marimo team.
 
 > [!TIP]
-> New to both `pixi` and `hatch`? Pick `pixi`. It installs and manages both the Python and Node toolchains, then drops you into a ready shell with one command. Choose `hatch` only if you already maintain Node 20+/pnpm 9+ yourself and just want a Python environment manager. Typical flows:
+> `pixi` installs and manages both the Python and Node toolchains, then drops you into a ready shell with one command. If you already have Node 20+/pnpm 9+/uv installed, you can skip pixi and use `uv sync` directly. Typical flows:
 > - `pixi shell` → `make fe && make py` → `make dev`
-> - `hatch shell` → `make fe && make py` → `make dev`
+> - `uv sync` → `make fe && make py` → `make dev`
 
 ```bash
 pixi shell
 ```
 
-If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply activate your `marimo` development
-environment with `hatch shell`.
+If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply sync your `marimo` development
+environment with `uv sync`.
 
 Now you can install the environment frontend and Python dependencies.
 
@@ -66,7 +66,7 @@ make dev
 or if not using `pixi`:
 
 ```bash
-hatch shell
+uv sync
 make fe && make py
 make dev
 ```
@@ -139,16 +139,16 @@ make fe-check
 <table>
   <tr>
     <th>Using <code>make</code></th>
-    <th>Using <code>hatch</code></th>
+    <th>Using <code>uv</code></th>
   </tr>
   <tr>
     <td>
       <pre><code>make py-check         </code></pre>
     </td>
     <td>
-      <pre><code>hatch run lint
-hatch run format
-hatch run typecheck:check     </code></pre>
+      <pre><code>uv run ruff check --fix
+uv run ruff format
+uv run --group typecheck mypy marimo --exclude=marimo/_tutorials/</code></pre>
     </td>
   </tr>
 </table>
@@ -186,38 +186,24 @@ We use [pytest syntax](https://docs.pytest.org/en/stable/how-to/usage.html) for 
 make py-test
 ```
 
-#### Using Hatch
+#### Using uv
 
 Run a specific test
 
 ```bash
-hatch run +py=3.13 test:test tests/_ast/
+uv run --python 3.13 --group test pytest tests/_ast/
 ```
 
 Run all changed tests
 
 ```bash
-hatch run +py=3.13 test:test --picked
+uv run --python 3.13 --group test pytest --picked
 ```
 
 Run tests with optional dependencies
 
 ```bash
-hatch run +py=3.13 test-optional:test tests/_ast/
-```
-
-Run tests across all Python versions (omit `+py`)
-
-```bash
-hatch run test:test tests/_ast/
-```
-
-Run all tests across all Python versions
-
-Not recommended since it takes a long time.
-
-```bash
-hatch run test:test
+uv run --python 3.13 --group test-optional pytest tests/_ast/
 ```
 
 ### End-to-end

@@ -45,8 +45,8 @@ docs/             # Documentation site
 ```bash
 # Python
 make py-check              # Typecheck and lint Python
-uvx hatch run +py=3.12 test:test tests/path/to/test.py
-uvx hatch run +py=3.12 test-optional:test tests/path/to/test.py  # with optional deps
+uv run --python 3.12 --group test pytest tests/path/to/test.py
+uv run --python 3.12 --group test-optional pytest tests/path/to/test.py  # with optional deps
 
 # Frontend
 make fe-check              # Typecheck and lint frontend
