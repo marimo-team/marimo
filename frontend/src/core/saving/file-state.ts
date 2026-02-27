@@ -10,6 +10,13 @@ import { getFilenameFromDOM } from "../dom/htmlUtils";
 export const filenameAtom = atom<string | null>(getFilenameFromDOM());
 
 /**
+ * Atom for storing the absolute filesystem path of the notebook.
+ * In directory mode, filenameAtom may be a relative display path;
+ * this atom always holds the absolute path when available.
+ */
+export const filepathAtom = atom<string | null>(null);
+
+/**
  * Set for static notebooks.
  */
 export const codeAtom = atom<string | undefined>(undefined);

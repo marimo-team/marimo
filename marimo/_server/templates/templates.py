@@ -46,6 +46,7 @@ def json_script(data: Any) -> str:
 def _get_mount_config(
     *,
     filename: Optional[str],
+    filepath: Optional[str] = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
@@ -63,6 +64,7 @@ def _get_mount_config(
 
     options: dict[str, Any] = {
         "filename": filename or "",
+        "filepath": filepath or "",
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
@@ -81,6 +83,7 @@ def _get_mount_config(
 
     return """{{
             "filename": {filename},
+            "filepath": {filepath},
             "mode": {mode},
             "version": {version},
             "serverToken": {server_token},
@@ -255,6 +258,7 @@ def notebook_page_template(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=filename,
+            filepath=filepath,
             mode="read" if mode == SessionMode.RUN else "edit",
             server_token=server_token,
             user_config=user_config,
@@ -343,6 +347,7 @@ def static_notebook_template(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=filename,
+            filepath=None,  # filepath is not used for static notebooks
             mode="read",
             server_token=server_token,
             user_config=user_config,
