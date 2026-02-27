@@ -1367,6 +1367,32 @@ def shell_completion() -> None:
     )
 
 
+def _resolve_lint_config(
+    select_rules: str | None,
+    ignore_rules: str | None,
+) -> dict[str, list[str]] | None:
+    """Resolve lint config from config files and CLI overrides."""
+    from marimo._config.manager import get_default_config_manager
+
+    config_mgr = get_default_config_manager(current_path=os.getcwd())
+    full_config = config_mgr.get_config(hide_secrets=False)
+    lint_config = dict(full_config.get("lint", {}))
+
+    # CLI --select replaces config select entirely
+    if select_rules is not None:
+        lint_config["select"] = [
+            s.strip() for s in select_rules.split(",") if s.strip()
+        ]
+
+    # CLI --ignore appends to config ignore
+    if ignore_rules is not None:
+        parsed = [s.strip() for s in ignore_rules.split(",") if s.strip()]
+        existing = list(lint_config.get("ignore", []))
+        lint_config["ignore"] = existing + parsed
+
+    return lint_config if lint_config else None
+
+
 @main.command(help="""Check and format marimo files.""")
 @click.option(
     "--fix",
@@ -1411,6 +1437,26 @@ def shell_completion() -> None:
     type=click.Choice(["full", "json"], case_sensitive=False),
     help="Output format for diagnostics.",
 )
+@click.option(
+    "--select",
+    "select_rules",
+    default=None,
+    type=str,
+    help=(
+        "Comma-separated rule codes/prefixes to enable, replacing config. "
+        "e.g. --select MB,MR001"
+    ),
+)
+@click.option(
+    "--ignore",
+    "ignore_rules",
+    default=None,
+    type=str,
+    help=(
+        "Comma-separated rule codes/prefixes to ignore. "
+        "e.g. --ignore MF004,MF007"
+    ),
+)
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
 def check(
     fix: bool,
@@ -1419,11 +1465,15 @@ def check(
     unsafe_fixes: bool,
     ignore_scripts: bool,
     formatter: str,
+    select_rules: str | None,
+    ignore_rules: str | None,
     files: tuple[str, ...],
 ) -> None:
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
+
+    lint_config = _resolve_lint_config(select_rules, ignore_rules)
 
     # Pass click.echo directly as pipe for streaming output, or None for JSON
     pipe = click.echo if verbose and formatter != "json" else None
@@ -1434,6 +1484,7 @@ def check(
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
         formatter=formatter,
+        lint_config=lint_config,
     )
 
     if formatter == "json":

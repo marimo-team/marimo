@@ -12,6 +12,8 @@ from marimo._utils.files import async_expand_file_patterns
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from marimo._config.config import LintConfig
+
 
 # Define severity ordering (lower index = higher priority)
 SEVERITY_ORDER = {
@@ -28,6 +30,7 @@ def run_check(
     unsafe_fixes: bool = False,
     ignore_scripts: bool = False,
     formatter: str = "full",
+    lint_config: LintConfig | None = None,
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -41,6 +44,7 @@ def run_check(
         unsafe_fixes: Whether to enable unsafe fixes that may change behavior
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
         formatter: Output format for diagnostics ("full" or "json")
+        lint_config: Optional lint rule selection config
 
     Returns:
         Linter with per-file status and diagnostics
@@ -54,6 +58,7 @@ def run_check(
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
         formatter=formatter,
+        lint_config=lint_config,
     )
     linter.run_streaming(files_to_check)
     return linter

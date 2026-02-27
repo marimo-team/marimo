@@ -22,6 +22,7 @@ from marimo._utils import async_path
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
 
+    from marimo._config.config import LintConfig
     from marimo._lint.rules.base import LintRule
 
 
@@ -88,11 +89,14 @@ class Linter:
         rules: list[LintRule] | None = None,
         ignore_scripts: bool = False,
         formatter: str = "full",
+        lint_config: LintConfig | None = None,
     ):
         if rules is not None:
             self.rule_engine = RuleEngine(rules, early_stopping)
         else:
-            self.rule_engine = RuleEngine.create_default(early_stopping)
+            self.rule_engine = RuleEngine.create_default(
+                early_stopping, lint_config=lint_config
+            )
         self.pipe = pipe
         self.fix_files = fix_files
         self.unsafe_fixes = unsafe_fixes

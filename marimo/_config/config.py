@@ -501,6 +501,26 @@ class DiagnosticsConfig(TypedDict, total=False):
 
 
 @dataclass
+class LintConfig(TypedDict, total=False):
+    """Configuration for lint rule selection.
+
+    Follows ruff-inspired semantics for selecting which rules to run
+    during ``marimo check``.
+
+    **Keys.**
+
+    - ``select``: list of rule code prefixes that replaces the default
+      enabled set. Use ``"ALL"`` to select all rules.
+      Example: ``["MB", "MR001"]``
+    - ``ignore``: list of rule code prefixes to remove from the
+      enabled set.
+    """
+
+    select: list[str]
+    ignore: list[str]
+
+
+@dataclass
 class SnippetsConfig(TypedDict):
     """Configuration for snippets.
 
@@ -592,6 +612,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
+    lint: NotRequired[LintConfig]
     experimental: NotRequired[ExperimentalConfigType]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
@@ -661,6 +682,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
+    lint: NotRequired[LintConfig]
     experimental: NotRequired[ExperimentalConfigType]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
