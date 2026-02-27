@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import mimetypes
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -86,6 +87,7 @@ class Obstore(StorageBackend["ObjectStore"]):
             last_modified=last_modified.timestamp() if last_modified else None,
             kind="object",
             metadata=entry_meta,
+            mime_type=mimetypes.guess_type(path or "")[0],
         )
 
     async def download(self, path: str) -> bytes:
@@ -252,12 +254,16 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         else:
             resolved_kind = self._identify_kind(entry_type)
 
+        resolved_path = name or ""
         return StorageEntry(
-            path=name or "",
+            path=resolved_path,
             size=size or 0,
             last_modified=file.get("mtime"),
             kind=resolved_kind,
             metadata=entry_meta,
+            mime_type=mimetypes.guess_type(resolved_path)[0]
+            if resolved_kind != "directory"
+            else None,
         )
 
     async def download(self, path: str) -> bytes:

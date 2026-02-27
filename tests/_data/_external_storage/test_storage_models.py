@@ -65,6 +65,7 @@ class TestObstore:
                     size=0,
                     last_modified=None,
                     metadata={},
+                    mime_type=None,
                 ),
                 StorageEntry(
                     path="file1.txt",
@@ -72,6 +73,7 @@ class TestObstore:
                     size=100,
                     last_modified=now.timestamp(),
                     metadata={"e_tag": "abc"},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="dir/file2.txt",
@@ -79,6 +81,7 @@ class TestObstore:
                     size=200,
                     last_modified=now.timestamp(),
                     metadata={"version": "v1"},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -110,10 +113,11 @@ class TestObstore:
         assert entry == snapshot(
             StorageEntry(
                 path="",
+                kind="object",
                 size=0,
                 last_modified=None,
-                kind="object",
                 metadata={},
+                mime_type=None,
             )
         )
 
@@ -134,10 +138,11 @@ class TestObstore:
         assert entry == snapshot(
             StorageEntry(
                 path="test.csv",
+                kind="object",
                 size=500,
                 last_modified=now.timestamp(),
-                kind="object",
                 metadata={"e_tag": "etag123", "version": "v2"},
+                mime_type="text/csv",
             )
         )
 
@@ -160,10 +165,11 @@ class TestObstore:
         assert result == snapshot(
             StorageEntry(
                 path="test.txt",
+                kind="object",
                 size=42,
                 last_modified=now.timestamp(),
-                kind="object",
                 metadata={"e_tag": "e1"},
+                mime_type="text/plain",
             )
         )
         mock_store.head_async.assert_called_once_with("test.txt")
@@ -441,17 +447,19 @@ class TestFsspecFilesystem:
             [
                 StorageEntry(
                     path="file1.txt",
+                    kind="file",
                     size=100,
                     last_modified=1234567890.0,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="subdir",
+                    kind="directory",
                     size=0,
                     last_modified=1234567891.0,
-                    kind="directory",
                     metadata={},
+                    mime_type=None,
                 ),
             ]
         )
@@ -485,10 +493,11 @@ class TestFsspecFilesystem:
             [
                 StorageEntry(
                     path="file0.txt",
+                    kind="file",
                     size=0,
                     last_modified=None,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="file1.txt",
@@ -496,6 +505,7 @@ class TestFsspecFilesystem:
                     size=10,
                     last_modified=None,
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="file2.txt",
@@ -503,6 +513,7 @@ class TestFsspecFilesystem:
                     size=20,
                     last_modified=None,
                     metadata={},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -530,17 +541,19 @@ class TestFsspecFilesystem:
             [
                 StorageEntry(
                     path="good.txt",
+                    kind="file",
                     size=10,
                     last_modified=None,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="also_good.txt",
+                    kind="file",
                     size=20,
                     last_modified=None,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -579,9 +592,9 @@ class TestFsspecFilesystem:
         assert entry == snapshot(
             StorageEntry(
                 path="data.csv",
+                kind="file",
                 size=1024,
                 last_modified=1700000000.0,
-                kind="file",
                 metadata={
                     "e_tag": "abc123",
                     "is_link": False,
@@ -589,6 +602,7 @@ class TestFsspecFilesystem:
                     "n_link": 1,
                     "created": 1699000000.0,
                 },
+                mime_type="text/csv",
             )
         )
 
@@ -602,10 +616,11 @@ class TestFsspecFilesystem:
         assert entry == snapshot(
             StorageEntry(
                 path="",
+                kind="file",
                 size=0,
                 last_modified=None,
-                kind="file",
                 metadata={},
+                mime_type=None,
             )
         )
 
@@ -619,10 +634,11 @@ class TestFsspecFilesystem:
         assert entry == snapshot(
             StorageEntry(
                 path="my_dir/",
+                kind="directory",
                 size=0,
                 last_modified=None,
-                kind="directory",
                 metadata={},
+                mime_type=None,
             )
         )
 
@@ -640,10 +656,11 @@ class TestFsspecFilesystem:
         assert result == snapshot(
             StorageEntry(
                 path="test.txt",
+                kind="file",
                 size=42,
                 last_modified=1700000000.0,
-                kind="file",
                 metadata={},
+                mime_type="text/plain",
             )
         )
 
@@ -808,6 +825,7 @@ class TestFsspecFilesystemIntegration:
                     size=11,
                     last_modified=None,
                     metadata={"created": IsPositiveFloat()},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="/test/data.csv",
@@ -815,6 +833,7 @@ class TestFsspecFilesystemIntegration:
                     size=11,
                     last_modified=None,
                     metadata={"created": IsPositiveFloat()},
+                    mime_type="text/csv",
                 ),
             ]
         )
@@ -837,6 +856,7 @@ class TestFsspecFilesystemIntegration:
                 size=12,
                 last_modified=None,
                 metadata={"created": IsDatetime()},
+                mime_type="text/plain",
             )
         )
 
@@ -883,6 +903,7 @@ class TestObstoreIntegration:
                     size=5,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                     metadata={"e_tag": "0"},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="test/file2.txt",
@@ -890,6 +911,7 @@ class TestObstoreIntegration:
                     size=6,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                     metadata={"e_tag": "1"},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -919,6 +941,7 @@ class TestObstoreIntegration:
                 size=12,
                 last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                 metadata={"e_tag": "0"},
+                mime_type="text/plain",
             )
         )
 

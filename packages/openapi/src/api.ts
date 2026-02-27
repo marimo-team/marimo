@@ -5787,6 +5787,7 @@ export interface components {
      *             size: The size of the storage entry.
      *             last_modified: The last modified time of the storage entry.
      *             metadata: The metadata of the storage entry.
+     *             mime_type: The MIME type of the storage entry, or None for directories.
      */
     StorageEntry: {
       /** @enum {unknown} */
@@ -5794,6 +5795,8 @@ export interface components {
       lastModified: number | null;
       /** @default {} */
       metadata?: Record<string, any>;
+      /** @default null */
+      mimeType?: string | null;
       path: string;
       size: number;
     };

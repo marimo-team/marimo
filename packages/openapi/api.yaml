@@ -4372,7 +4372,8 @@ components:
         \ systems\n\n    Attributes:\n        path: The path of the storage entry.\n\
         \        kind: The kind of the storage entry.\n        size: The size of the\
         \ storage entry.\n        last_modified: The last modified time of the storage\
-        \ entry.\n        metadata: The metadata of the storage entry."
+        \ entry.\n        metadata: The metadata of the storage entry.\n        mime_type:\
+        \ The MIME type of the storage entry, or None for directories."
       properties:
         kind:
           enum:
@@ -4386,6 +4387,11 @@ components:
         metadata:
           default: {}
           type: object
+        mimeType:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         path:
           type: string
         size:
