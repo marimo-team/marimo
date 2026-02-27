@@ -2839,7 +2839,7 @@ class ExternalStorageCallbacks:
             request.path, offset=0, length=self._PREVIEW_MAX_BYTES
         )
         _, ext = os.path.splitext(filename)
-        vfile = VirtualFile.create_and_register(data, ext or ".txt")
+        vfile = VirtualFile.create_and_register(data, ext.lstrip(".") or "txt")
         self._schedule_vfile_cleanup(vfile)
 
         broadcast_notification(
