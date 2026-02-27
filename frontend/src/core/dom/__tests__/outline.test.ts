@@ -323,6 +323,9 @@ describe("parseOutline", () => {
       <marimo-accordion>
         <h2 id="excluded-heading-accordion">Excluded Heading in Accordion</h2>
       </marimo-accordion>
+      <marimo-sidebar>
+        <h2 id="excluded-heading-sidebar">Excluded Heading in Sidebar</h2>
+      </marimo-sidebar>
       <h2 id="another-included-heading">Another Included Heading</h2>
     </div>
     `;

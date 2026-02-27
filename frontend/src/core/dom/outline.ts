@@ -6,7 +6,12 @@ import type { Outline, OutlineItem } from "../cells/outline";
 import type { OutputMessage } from "../kernel/messages";
 
 // Tags that we don't want to include in the outline
-const excludedTags = ["marimo-carousel", "marimo-tabs", "marimo-accordion"];
+const excludedTags = [
+  "marimo-carousel",
+  "marimo-tabs",
+  "marimo-accordion",
+  "marimo-sidebar",
+];
 
 // We go up to h6. Previously we did h3 to match Google Docs and Notion, but users have requested more levels.
 // This could be made configurable in the future.
