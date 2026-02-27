@@ -482,6 +482,13 @@ class RemoveReturns(ast.NodeTransformer):
 
         self._has_name = False
         super().generic_visit(node)
+        # TODO(dmadisetti): consider removing on breaking cache update to
+        # prevent collisions.
+        # e.g. missed case:
+        #
+        # def f(): foo
+        # vs
+        # def f(): return foo
         if self._has_name:
             expr = ast.Expr(value=cast(ast.expr, value))
             expr.lineno = node.lineno
