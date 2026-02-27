@@ -1030,6 +1030,147 @@ def test_line_chart_selection() -> None:
     assert result[2]["Y"] == 25
 
 
+def test_scattergl_line_selection() -> None:
+    """Test box selection on pure scattergl line chart."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 30]},
+        "points": [],  # Empty for pure lines
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return points at x=2, 3, 4
+    assert len(result) == 3
+    assert result[0]["X"] == 2
+    assert result[0]["Y"] == 20
+    assert result[1]["X"] == 3
+    assert result[1]["Y"] == 15
+    assert result[2]["X"] == 4
+    assert result[2]["Y"] == 25
+
+
+def test_scattergl_line_filters_by_x_range_only() -> None:
+    """Test scattergl line selection uses x-range only."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 50, 15, 60, 30],  # y values outside narrow selection
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 20]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should include all points with x in [2, 4], regardless of y.
+    assert len(result) == 3
+    assert result[0]["x"] == 2
+    assert result[0]["y"] == 50
+    assert result[1]["x"] == 3
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == 4
+    assert result[2]["y"] == 60
+
+
+def test_scattergl_selection_datetime_x_axis() -> None:
+    """Test scattergl line selection with datetime x-axis from frontend ISO strings."""
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Scattergl(x=dates, y=values, mode="lines"))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {
+            "x": [dates[1].isoformat(), dates[3].isoformat()],
+            "y": [0, 50],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 3
+    assert result[0]["x"] == dates[1]
+    assert result[0]["y"] == 20
+    assert result[1]["x"] == dates[2]
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == dates[3]
+    assert result[2]["y"] == 25
+
+
+def test_scattergl_multiple_line_traces_selection() -> None:
+    """Test box selection on multiple scattergl line traces."""
+    fig = go.Figure(
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=[1, 2, 3, 4],
+            y=[10, 20, 15, 25],
+            mode="lines",
+            name="Series A",
+        )
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=[1, 2, 3, 4],
+            y=[15, 10, 20, 18],
+            mode="lines",
+            name="Series B",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return 6 points total: 3 from each trace
+    assert len(result) == 6
+
+    # Check Series A points
+    series_a_points = [p for p in result if p.get("name") == "Series A"]
+    assert len(series_a_points) == 3
+    assert series_a_points[0]["X"] == 2
+    assert series_a_points[1]["X"] == 3
+    assert series_a_points[2]["X"] == 4
+
+    # Check Series B points
+    series_b_points = [p for p in result if p.get("name") == "Series B"]
+    assert len(series_b_points) == 3
+    assert series_b_points[0]["X"] == 2
+    assert series_b_points[1]["X"] == 3
+    assert series_b_points[2]["X"] == 4
+
+
 def test_line_markers_selection() -> None:
     """Test box selection on line chart with markers."""
     fig = go.Figure(
@@ -1310,6 +1451,34 @@ def test_scatter_points_numpy_and_fallback() -> None:
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
     # Compare each point
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+        assert np_point["x"] == fb_point["x"]
+        assert np_point["y"] == fb_point["y"]
+        assert np_point["curveNumber"] == fb_point["curveNumber"]
+
+
+def test_scattergl_points_numpy_and_fallback() -> None:
+    """Test numpy/fallback parity for scattergl extraction."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+
+    x_min, x_max = 2, 4
+    numpy_result = _extract_scatter_points_numpy(fig, x_min, x_max)
+    fallback_result = _extract_scatter_points_fallback(fig, x_min, x_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(point: dict[str, Any]) -> tuple[Any, ...]:
+        return (point["x"], point["y"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
     for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]

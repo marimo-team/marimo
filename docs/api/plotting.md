@@ -105,9 +105,9 @@ alt.data_transformers.enable('marimo_csv')
 !!! warning "Supported charts"
 
     marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
-    supports reactive selections for scatter plots, bar charts, heatmaps,
-    treemaps, and sunburst charts. If you require other kinds of selection,
-    please [file an issue](https://github.com/marimo-team/marimo/issues).
+    supports reactive selections for scatter/scattergl plots, bar charts,
+    heatmaps, treemaps, and sunburst charts. If you require other kinds of
+    selection, please [file an issue](https://github.com/marimo-team/marimo/issues).
 
 ::: marimo.ui.plotly
 
