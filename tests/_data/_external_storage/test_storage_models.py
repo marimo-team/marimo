@@ -299,6 +299,23 @@ class TestObstore:
         assert result == b"full content"
         mock_store.get_async.assert_called_once_with("file.txt")
 
+    async def test_read_range_offset_without_length_slices_download(
+        self,
+    ) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"hello world")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("file.txt", offset=6)
+        assert result == b"world"
+        mock_store.get_async.assert_called_once_with("file.txt")
+
     async def test_read_range_with_offset_and_length(self) -> None:
         mock_store = MagicMock()
         backend = self._make_backend(mock_store)
@@ -992,6 +1009,16 @@ class TestFsspecFilesystemIntegration:
         result = await backend.read_range("/test/data.txt", offset=6, length=5)
         assert result == b"world"
 
+    async def test_read_range_offset_without_length(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt", offset=6)
+        assert result == b"world"
+
     def test_protocol_memory_filesystem(self) -> None:
         from fsspec.implementations.memory import MemoryFileSystem
 
@@ -1105,6 +1132,16 @@ class TestObstoreIntegration:
 
         backend = Obstore(store, VariableName("mem_store"))
         result = await backend.read_range("file.txt", offset=6, length=5)
+        assert result == b"world"
+
+    async def test_read_range_offset_without_length(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt", offset=6)
         assert result == b"world"
 
 

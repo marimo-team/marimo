@@ -98,8 +98,9 @@ class Obstore(StorageBackend["ObjectStore"]):
     async def read_range(
         self, path: str, *, offset: int = 0, length: int | None = None
     ) -> bytes:
-        if length is None and offset == 0:
-            return await self.download(path)
+        if length is None:
+            data = await self.download(path)
+            return data[offset:]
         from obstore import get_range_async
 
         return bytes(
@@ -298,7 +299,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         )
         if isinstance(data, str):
             return data.encode("utf-8")
-        return data
+        return bytes(data)
 
     async def sign_download_url(
         self, path: str, expiration: int = SIGNED_URL_EXPIRATION
