@@ -113,3 +113,15 @@ def test_stdin(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
+
+
+@with_session(SESSION_ID)
+def test_focus_cell(client: TestClient) -> None:
+    response = client.post(
+        "/api/kernel/focus_cell",
+        headers=HEADERS,
+        json={"cell_id": "some-cell-id"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    assert "success" in response.json()
