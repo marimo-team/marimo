@@ -692,18 +692,21 @@ class StorageListEntriesCommand(Command):
 class StorageDownloadCommand(Command):
     """Download a storage entry.
 
-    Downloads file bytes from storage and creates a virtual file
+    Obtains a pre-signed URL or downloads the file locally and returns a virtual file URL
     so the frontend can fetch the contents.
 
     Attributes:
         request_id: Unique identifier for this request.
         namespace: Variable name identifying the storage backend.
         path: Full path of the entry to download.
+        preview: If true, a local preview of the file is returned.
+            This is useful if you need to bypass CORS.
     """
 
     request_id: RequestId
     namespace: str
     path: str
+    preview: bool = False
 
 
 class ListSecretKeysCommand(Command):

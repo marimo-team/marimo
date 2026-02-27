@@ -102,6 +102,12 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         """Download the file at the given path."""
 
     @abc.abstractmethod
+    async def read_range(
+        self, path: str, *, offset: int = 0, length: int | None = None
+    ) -> bytes:
+        """Read a byte range from the file. If length is None, read the entire file."""
+
+    @abc.abstractmethod
     async def sign_download_url(
         self, path: str, expiration: int = SIGNED_URL_EXPIRATION
     ) -> str | None:

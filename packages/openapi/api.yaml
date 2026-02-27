@@ -4257,16 +4257,21 @@ components:
       title: StopKernelCommand
       type: object
     StorageDownloadCommand:
-      description: "Download a storage entry.\n\n    Downloads file bytes from storage\
-        \ and creates a virtual file\n    so the frontend can fetch the contents.\n\
-        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
-        \        namespace: Variable name identifying the storage backend.\n     \
-        \   path: Full path of the entry to download."
+      description: "Download a storage entry.\n\n    Obtains a pre-signed URL or downloads\
+        \ the file locally and returns a virtual file URL\n    so the frontend can\
+        \ fetch the contents.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request.\n        namespace: Variable name identifying the storage\
+        \ backend.\n        path: Full path of the entry to download.\n        preview:\
+        \ If true, a local preview of the file is returned.\n            This is useful\
+        \ if you need to bypass CORS."
       properties:
         namespace:
           type: string
         path:
           type: string
+        preview:
+          default: false
+          type: boolean
         requestId:
           type: string
         type:
@@ -4318,6 +4323,9 @@ components:
           type: string
         path:
           type: string
+        preview:
+          default: false
+          type: boolean
         requestId:
           type: string
       required:
@@ -6525,3 +6533,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
