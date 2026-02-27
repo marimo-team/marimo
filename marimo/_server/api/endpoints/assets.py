@@ -13,6 +13,7 @@ from starlette.responses import (
     HTMLResponse,
     RedirectResponse,
     Response,
+    StreamingResponse,
 )
 from starlette.staticfiles import StaticFiles
 
@@ -20,7 +21,10 @@ from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
-from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
+from marimo._runtime.virtual_file import (
+    EMPTY_VIRTUAL_FILE,
+    read_virtual_file_chunked,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
@@ -390,12 +394,15 @@ def virtual_file(
             detail="Invalid byte length in virtual file request",
         )
 
-    buffer_contents = read_virtual_file(filename, int(byte_length))
+    chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
-    return Response(
-        content=buffer_contents,
+    return StreamingResponse(
+        content=chunks,
         media_type=mimetype,
-        headers={"Cache-Control": "max-age=86400"},
+        headers={
+            "Cache-Control": "max-age=86400",
+            "Content-Length": byte_length,
+        },
     )
 
 
