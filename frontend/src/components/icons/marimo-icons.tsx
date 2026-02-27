@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 import type React from "react";
 import { useId } from "react";
 
