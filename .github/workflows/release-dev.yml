@@ -14,6 +14,11 @@ jobs:
   publish_dev_release:
     name: 📤 Publish dev release
     runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
     defaults:
       run:
         shell: bash
@@ -61,10 +66,9 @@ jobs:
         run: uv build
 
       - name: 📤 Upload to TestPyPI (marimo)
-        env:
-          HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: uvx hatch publish --repo test
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
       - name: Clean output dir
         run: rm -rf dist
@@ -79,10 +83,9 @@ jobs:
         run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to TestPyPI (marimo-base)
-        env:
-          HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
-        run: uvx hatch publish --repo test
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

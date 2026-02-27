@@ -15,6 +15,10 @@ jobs:
   publish_release:
     name: 📤 Publish release
     runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         shell: bash
@@ -39,10 +43,7 @@ jobs:
         run: hatch build
 
       - name: 📤 Upload to PyPI
-        env:
-          HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_PASSWORD }}
-        run: hatch publish
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: 🔨 Get version
         id: get_version
