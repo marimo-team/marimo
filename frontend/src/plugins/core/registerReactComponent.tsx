@@ -109,7 +109,13 @@ function PluginSlotInternal<T>(
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      setValue(getInitialValue());
+      // Read initial value directly from the data attribute instead of
+      // getInitialValue(), which consults the UIElementRegistry first.
+      // When reset is triggered by a random-id change (cell re-run), the
+      // registry may still hold the stale interaction value from the
+      // previous element instance that shared the same deterministic
+      // object-id.
+      setValue(parseAttrValue(hostElement.dataset.initialValue) as T);
       setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
       setResetNonce((n) => n + 1);
     },

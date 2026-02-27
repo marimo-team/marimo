@@ -90,6 +90,14 @@ const MatrixComponent = ({
   // Outside of a drag we always read from the prop `value` directly,
   // which avoids stale-state bugs when the matrix shape changes.
   const [draft, setDraft] = useState(value);
+  // Sync draft when the value prop changes (e.g. cell re-run resets the
+  // value). Using the "state during render" pattern so it takes effect
+  // synchronously before any event handlers can fire with stale state.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDraft(value);
+  }
   const displayValue = activeCell == null ? value : draft;
 
   const formatValue = (val: number) =>
@@ -122,10 +130,6 @@ const MatrixComponent = ({
         startX: e.clientX,
         startValue: displayValue[row][col],
       };
-      // Sync draft from the current prop-driven displayValue before
-      // switching to draft-based rendering. This ensures a fresh start
-      // after cell re-runs reset the value prop.
-      setDraft(displayValue);
       setActiveCell({ row, col });
     },
     [disabled, displayValue],
