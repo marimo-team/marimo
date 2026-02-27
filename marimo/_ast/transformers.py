@@ -467,12 +467,36 @@ class DeprivateVisitor(ast.NodeTransformer):
 
 
 class RemoveReturns(ast.NodeTransformer):
+    def __init__(self):
+        self._has_name = False
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        self._has_name = True
+        return node
+
     # NB: Won't work for generators since not replacing Yield.
     # Note that functools caches the generator, which is then dequeue'd,
     # so in that sense, it doesn't work either.
-    def visit_Return(self, node: ast.Return) -> ast.Assign:
-        # Convert "return expr" to "_ = expr" to preserve constant values in bytecode.
-        target = ast.Name(id="_", ctx=ast.Store())
+    def visit_Return(
+        self, node: ast.Return
+    ) -> ast.Expr | ast.Assign | ast.Pass:
+        if node.value is None:
+            p = ast.Pass()
+            p.lineno = node.lineno
+            p.col_offset = node.col_offset
+            return p
+
+        self._has_name = False
+        super().generic_visit(node)
+        if self._has_name:
+            expr = ast.Expr(value=cast(ast.expr, node.value))
+            expr.lineno = node.lineno
+            expr.col_offset = node.col_offset
+            return expr
+
+        # Convert "return expr" to "* = expr" to preserve constant values
+        # in bytecode.  "*" is not a valid identifier so it cannot collide.
+        target = ast.Name(id="*", ctx=ast.Store())
         target.lineno = node.lineno
         target.col_offset = node.col_offset
         assign = ast.Assign(

@@ -2284,6 +2284,61 @@ va_hits = varargs.hits
         )
 
 
+def _hash_fn(fn: object) -> bytes:
+    """Run the full get_hashable_ast -> compile -> hash pipeline."""
+    from marimo._ast.transformers import get_hashable_ast
+    from marimo._save.hash import hash_raw_module
+
+    assert callable(fn)
+    return hash_raw_module(get_hashable_ast(fn))
+
+
+class TestRemoveReturnsBytecode:
+    """Bytecode-level tests for RemoveReturns (regression #8364)."""
+
+    def test_different_name_exprs_different_hash(self) -> None:
+        """Changing the returned expression must change the hash."""
+
+        def fn_add(x: int, y: int) -> int:
+            return x + y
+
+        def fn_sub(x: int, y: int) -> int:
+            return x - y
+
+        assert _hash_fn(fn_add) != _hash_fn(fn_sub)
+
+    def test_different_constants_different_hash(self) -> None:
+        """Different numeric returns must hash differently."""
+
+        def fn_a() -> int:
+            return 11 + 19
+
+        def fn_b() -> int:
+            return 11 + 29
+
+        assert _hash_fn(fn_a) != _hash_fn(fn_b)
+
+    def test_different_single_constants_different_hash(self) -> None:
+        def fn_a() -> int:
+            return 42
+
+        def fn_b() -> int:
+            return 99
+
+        assert _hash_fn(fn_a) != _hash_fn(fn_b)
+
+    def test_different_pure_lambdas_different_hash(self) -> None:
+        """Pure lambdas with different bodies must hash differently."""
+
+        def fn_a() -> object:
+            return lambda: 1
+
+        def fn_b() -> object:
+            return lambda: 2
+
+        assert _hash_fn(fn_a) != _hash_fn(fn_b)
+
+
 def test_decorator_params_affect_hash() -> None:
     """Verify that changing decorator parameters changes the function hash.
 
