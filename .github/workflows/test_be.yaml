@@ -222,7 +222,7 @@ jobs:
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
             --picked=first
         env:
-          UV_RESOLUTION: lowest
+          UV_RESOLUTION: lowest-direct
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:
