@@ -124,6 +124,14 @@ py-test:
 	uv run typos
 	./scripts/pytest.sh --optional $(ARGS)
 
+.PHONY: py-test-narwhals
+# 🧪 Test narwhals-related tests (used externally by narwhals repo)
+py-test-narwhals:
+	uv run --python 3.12 --group test pytest \
+		tests/_data/ \
+		tests/_plugins/ui/_impl/ \
+		tests/_utils/test_narwhals_utils.py
+
 .PHONY: py-snapshots
 # 📸 Update snapshots
 py-snapshots:
