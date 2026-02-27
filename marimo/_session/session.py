@@ -353,6 +353,12 @@ class SessionImpl(Session):
         self.room.close()
         self._kernel_manager.close_kernel()
 
+        # Explicitly clear the session view to release cell outputs,
+        # variable values, and other cached data. Without this, large
+        # outputs stay in memory until the session object is GC'd, which
+        # can be delayed by reference chains (e.g. distributor threads).
+        self.session_view = SessionView()
+
     def instantiate(
         self,
         request: InstantiateNotebookRequest,

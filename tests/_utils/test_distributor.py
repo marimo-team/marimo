@@ -90,7 +90,7 @@ def test_queued_distributor() -> None:
     # Remove one of the consumers
     dispose()
     time.sleep(0.1)
-    assert distributor.consumers == [consumer2]
+    assert distributor._consumers == [consumer2]
 
     # Send
     q.put_nowait("msg3")
@@ -108,3 +108,39 @@ def test_queued_distributor() -> None:
     distributor.stop()
     thread.join(timeout=1.0)
     assert not thread.is_alive()
+
+
+def test_queued_distributor_clears_consumers_on_stop() -> None:
+    """Consumers must be cleared when the loop exits to release captured
+    references (e.g. session closures that keep large data alive)."""
+    q: queue.Queue[str | None] = queue.Queue()
+    distributor = QueueDistributor[str](q)
+
+    captured: list[str] = []
+    distributor.add_consumer(lambda msg: captured.append(msg))
+    assert len(distributor._consumers) == 1
+
+    thread = distributor.start()
+
+    # Send a message, then stop
+    q.put("hello")
+    distributor.stop()
+    thread.join(timeout=2.0)
+    assert not thread.is_alive()
+
+    # Consumer list should have been cleared by the loop exit
+    assert distributor._consumers == []
+    # The message was still delivered before stop
+    assert captured == ["hello"]
+
+
+def test_queued_distributor_stop_sets_flag() -> None:
+    """stop() should set _stop flag and send None sentinel."""
+    q: queue.Queue[str | None] = queue.Queue()
+    distributor = QueueDistributor[str](q)
+
+    assert distributor._stop is False
+    distributor.stop()
+    assert distributor._stop is True
+    # None sentinel should be in the queue
+    assert q.get_nowait() is None
