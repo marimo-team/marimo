@@ -543,13 +543,13 @@ importers:
         specifier: ^1.58.2
         version: 1.58.2
       '@storybook/addon-docs':
-        specifier: ^10.2.11
+        specifier: ^10.2.12
         version: 10.2.13(@types/react@19.2.10)(esbuild@0.27.3)(rolldown-vite@7.3.1(@types/node@24.10.15)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(yaml@2.8.2))(rollup@4.50.1)(storybook@10.2.13(@testing-library/dom@10.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(webpack@5.100.2(esbuild@0.27.3))
       '@storybook/addon-links':
-        specifier: ^10.2.11
+        specifier: ^10.2.12
         version: 10.2.13(react@19.2.4)(storybook@10.2.13(@testing-library/dom@10.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       '@storybook/react-vite':
-        specifier: ^10.2.11
+        specifier: ^10.2.12
         version: 10.2.13(esbuild@0.27.3)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(rolldown-vite@7.3.1(@types/node@24.10.15)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(yaml@2.8.2))(rollup@4.50.1)(storybook@10.2.13(@testing-library/dom@10.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(typescript@5.9.3)(webpack@5.100.2(esbuild@0.27.3))
       '@swc-jotai/react-refresh':
         specifier: ^0.5.0
@@ -654,7 +654,7 @@ importers:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
       storybook:
-        specifier: ^10.2.11
+        specifier: ^10.2.12
         version: 10.2.13(@testing-library/dom@10.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       stylelint:
         specifier: ^16.26.1
