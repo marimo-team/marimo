@@ -78,18 +78,18 @@ export const MarimoIcon = ({
 }) => {
   return (
     <svg
-      width={width || size}
-      height={height || size}
+      width={width ?? size}
+      height={height ?? size}
       viewBox={viewBox}
       {...props}
     >
       <title>marimo icon</title>
       <MarimoCirclePaths
         fill={fill}
-        stroke={stroke || "currentColor"}
+        stroke={stroke ?? "currentColor"}
         strokeWidth={strokeWidth}
       />
-      <MarimoLetterPaths stroke={stroke || "currentColor"} />
+      <MarimoLetterPaths stroke={stroke ?? "currentColor"} />
     </svg>
   );
 };
@@ -116,8 +116,8 @@ const MarimoMultiIcon = ({
   const maskId = useId();
   return (
     <svg
-      width={width || size}
-      height={height || size}
+      width={width ?? size}
+      height={height ?? size}
       viewBox={viewBox}
       {...props}
     >
@@ -137,12 +137,12 @@ const MarimoMultiIcon = ({
       <g mask={`url(#${maskId})`}>
         <MarimoCirclePaths
           fill={fill}
-          stroke={stroke || "currentColor"}
+          stroke={stroke ?? "currentColor"}
           strokeWidth={strokeWidth}
         />
       </g>
       {children}
-      <MarimoLetterPaths stroke={stroke || "currentColor"} />
+      <MarimoLetterPaths stroke={stroke ?? "currentColor"} />
     </svg>
   );
 };
@@ -163,7 +163,7 @@ export const MarimoPlusIcon = ({
     >
       {/* plus symbol at lower right corner */}
       <path
-        stroke={stroke || "currentColor"}
+        stroke={stroke ?? "currentColor"}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         d="M16 19h6M19 16v6"
