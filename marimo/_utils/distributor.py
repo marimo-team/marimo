@@ -114,10 +114,10 @@ class ConnectionDistributor(Distributor[T]):
 
 class QueueDistributor(Distributor[T]):
     def __init__(self, queue: QueueType[Union[T, None]]) -> None:
-        self.consumers: list[Consumer[T]] = []
+        self._consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
-        self.queue = queue
-        self.thread: threading.Thread | None = None
+        self._queue = queue
+        self._thread: threading.Thread | None = None
         self._stop = False
         # protects the consumers list
         self._lock = threading.Lock()
@@ -125,32 +125,39 @@ class QueueDistributor(Distributor[T]):
     def add_consumer(self, consumer: Consumer[T]) -> Disposable:
         """Add a consumer to the distributor."""
         with self._lock:
-            self.consumers.append(consumer)
+            self._consumers.append(consumer)
 
         def _remove() -> None:
             with self._lock:
-                if consumer in self.consumers:
-                    self.consumers.remove(consumer)
+                if consumer in self._consumers:
+                    self._consumers.remove(consumer)
 
         return Disposable(_remove)
 
     def _loop(self) -> None:
         while not self._stop:
-            msg = self.queue.get()
+            msg = self._queue.get()
             if msg is None:
                 break
 
             with self._lock:
-                for consumer in self.consumers:
+                for consumer in self._consumers:
                     consumer(msg)
 
+        # Clear consumers to release any captured references (e.g. session
+        # closures) as soon as the loop exits, rather than waiting for GC
+        # of the distributor object.
+        with self._lock:
+            self._consumers.clear()
+
     def start(self) -> threading.Thread:
-        self.thread = threading.Thread(target=self._loop, daemon=True)
-        self.thread.start()
-        return self.thread
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        return self._thread
 
     def stop(self) -> None:
-        self.queue.put_nowait(None)
+        self._stop = True
+        self._queue.put_nowait(None)
 
     def flush(self) -> None:
         """Flush the distributor."""
