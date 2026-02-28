@@ -179,8 +179,7 @@ class TestRuffFormatter:
         mock_ruff.assert_called_once_with(
             codes,
             "check",
-            "--fix",
-            "--exit-zero",
+            "--fix-only",
             "--line-length",
             "100",
             "--stdin-filename",

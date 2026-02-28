@@ -147,8 +147,7 @@ class RuffFormatter(Formatter):
         return await ruff(
             codes,
             "check",
-            "--fix",
-            "--exit-zero",
+            "--fix-only",
             "--line-length",  # override ruff.toml/pyproject.toml settings (Issue #6844)
             str(self.line_length),
             *stdin_filename,
