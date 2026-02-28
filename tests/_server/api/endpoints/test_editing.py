@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -8,7 +10,8 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from tests._server.mocks import token_header, with_session
 
-HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
+HAS_RUFF = DependencyManager.ruff.has()
+HAS_FORMATTER = HAS_RUFF or DependencyManager.black.has()
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -61,6 +64,7 @@ def test_format_cell(client: TestClient) -> None:
                 "cell-123": "def foo():\n  return 1",
             },
             "lineLength": 80,
+            "filename": None,
         },
     )
     assert response.status_code == 200, response.text
@@ -68,6 +72,75 @@ def test_format_cell(client: TestClient) -> None:
     formatted_codes = response.json().get("codes", {})
     assert "cell-123" in formatted_codes
     assert formatted_codes["cell-123"] == "def foo():\n    return 1"
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
+def test_format_cell_with_filename(client: TestClient) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        config = '[format]\nquote-style = "single"'
+        tmp_path.joinpath("ruff.toml").write_text(config)
+        response = client.post(
+            "/api/kernel/format",
+            headers=HEADERS,
+            json={
+                "codes": {
+                    "cell-123": 'x="1"',
+                },
+                "lineLength": 80,
+                "filename": str(tmp_path / "notebook.py"),  # Added filename
+            },
+        )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    formatted_codes = response.json().get("codes", {})
+    assert "cell-123" in formatted_codes
+    assert formatted_codes["cell-123"] == "x = '1'"
+
+
+def _fix_cell(client: TestClient, config: str, code: str) -> str:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        config = f"[lint]\n{config}"
+        tmp_path.joinpath("ruff.toml").write_text(config)
+        response = client.post(
+            "/api/kernel/fix",
+            headers=HEADERS,
+            json={
+                "codes": {
+                    "cell-123": code,
+                },
+                "lineLength": 80,
+                "filename": str(tmp_path / "notebook.py"),
+            },
+        )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    fixed_codes = response.json().get("codes", {})
+    assert "cell-123" in fixed_codes
+    return fixed_codes["cell-123"]
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
+def test_fix_cell_isort(client: TestClient) -> None:
+    fixed_code = _fix_cell(client, 'select=["I"]', "import sys\nimport os")
+    assert fixed_code == "import os\nimport sys"
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
+def test_fix_cell_pyflakes(client: TestClient) -> None:
+    fixed_code = _fix_cell(client, 'select=["F"]', 'x=f"a"')
+    assert fixed_code == 'x="a"'
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
+def test_fix_cell_ignore_unused_import(client: TestClient) -> None:
+    fixed_code = _fix_cell(client, 'select=["ALL"]', "import os")
+    assert fixed_code == "import os"
 
 
 @with_session(SESSION_ID)

@@ -152,6 +152,7 @@ class RuffFormatter(Formatter):
             "--line-length",  # override ruff.toml/pyproject.toml settings (Issue #6844)
             str(self.line_length),
             *stdin_filename,
+            "--ignore=F401",  # ignore unused-import
         )
 
 

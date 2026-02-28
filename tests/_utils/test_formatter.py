@@ -37,11 +37,13 @@ class TestDefaultFormatter:
     @patch("marimo._utils.formatter.RuffFormatter")
     @patch("marimo._dependencies.dependencies.DependencyManager.which")
     @patch("marimo._dependencies.dependencies.DependencyManager.ruff")
+    @pytest.mark.parametrize("filename", [None, "/tmp/notebook.py"])
     async def test_uses_ruff_when_available(
         self,
         mock_ruff: MagicMock,
         mock_which: MagicMock,
         mock_ruff_formatter: MagicMock,
+        filename: str | None,
     ) -> None:
         """Test DefaultFormatter uses RuffFormatter when ruff is available."""
         # Mock ruff as available
@@ -56,22 +58,24 @@ class TestDefaultFormatter:
         formatter = DefaultFormatter(line_length=88)
         codes: CellCodes = {"cell1": "x=1"}
 
-        result = await formatter.format(codes)
+        result = await formatter.format(codes, filename)
 
         mock_ruff_formatter.assert_called_once_with(88)
-        mock_instance.format.assert_called_once_with(codes)
+        mock_instance.format.assert_called_once_with(codes, filename)
         assert result == {"cell1": "formatted_code"}
 
     @patch("marimo._utils.formatter.BlackFormatter")
     @patch("marimo._dependencies.dependencies.DependencyManager.black")
     @patch("marimo._dependencies.dependencies.DependencyManager.which")
     @patch("marimo._dependencies.dependencies.DependencyManager.ruff")
+    @pytest.mark.parametrize("filename", [None, "/tmp/notebook.py"])
     async def test_uses_black_when_ruff_unavailable_but_black_available(
         self,
         mock_ruff: MagicMock,
         mock_which: MagicMock,
         mock_black: MagicMock,
         mock_black_formatter: MagicMock,
+        filename: str | None,
     ) -> None:
         """Test DefaultFormatter uses BlackFormatter when ruff unavailable but black available."""
         # Mock ruff as unavailable, black as available
@@ -87,7 +91,7 @@ class TestDefaultFormatter:
         formatter = DefaultFormatter(line_length=88)
         codes: CellCodes = {"cell1": "x=1"}
 
-        result = await formatter.format(codes)
+        result = await formatter.format(codes, filename)
 
         mock_black_formatter.assert_called_once_with(88)
         mock_instance.format.assert_called_once_with(codes)
@@ -137,6 +141,53 @@ class TestRuffFormatter:
             codes, "format", "--line-length", "100"
         )
         assert result == {"cell1": "formatted_code"}
+
+    @patch("marimo._utils.formatter.ruff")
+    async def test_ruff_formatter_calls_ruff_function_with_filename(
+        self, mock_ruff: MagicMock
+    ) -> None:
+        """Test RuffFormatter.format calls the ruff function with filename."""
+        mock_ruff.return_value = {"cell1": "formatted_code"}
+        formatter = RuffFormatter(line_length=100)
+        codes: CellCodes = {"cell1": "x=1"}
+        filename = "/tmp/notebook.py"
+
+        result = await formatter.format(codes, filename)
+
+        mock_ruff.assert_called_once_with(
+            codes,
+            "format",
+            "--line-length",
+            "100",
+            "--stdin-filename",
+            filename,
+        )
+        assert result == {"cell1": "formatted_code"}
+
+    @patch("marimo._utils.formatter.ruff")
+    async def test_ruff_formatter_calls_ruff_function_for_fix_with_filename(
+        self, mock_ruff: MagicMock
+    ) -> None:
+        """Test RuffFormatter.fix calls the ruff function with correct arguments and filename."""
+        mock_ruff.return_value = {"cell1": "fixed_code"}
+        formatter = RuffFormatter(line_length=100)
+        codes: CellCodes = {"cell1": "x=1"}
+        filename = "/tmp/notebook.py"
+
+        result = await formatter.fix(codes, filename)
+
+        mock_ruff.assert_called_once_with(
+            codes,
+            "check",
+            "--fix",
+            "--exit-zero",
+            "--line-length",
+            "100",
+            "--stdin-filename",
+            filename,
+            "--ignore=F401",
+        )
+        assert result == {"cell1": "fixed_code"}
 
     @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_propagates_exceptions(
