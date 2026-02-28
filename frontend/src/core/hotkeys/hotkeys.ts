@@ -138,6 +138,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-m",
   },
+  "cell.viewAsSQL": {
+    name: "Toggle SQL",
+    group: "Editing",
+    key: "Mod-Shift-l",
+  },
   "cell.complete": {
     name: "Code completion",
     group: "Editing",

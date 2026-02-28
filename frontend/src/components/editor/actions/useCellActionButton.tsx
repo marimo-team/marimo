@@ -41,7 +41,10 @@ import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
-import { toggleToLanguage } from "@/core/codemirror/language/commands";
+import {
+  getCurrentLanguageAdapter,
+  toggleToLanguage,
+} from "@/core/codemirror/language/commands";
 import { switchLanguage } from "@/core/codemirror/language/extension";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
@@ -235,35 +238,41 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         },
         hidden: isSetupCell,
       },
-      {
-        icon: <DatabaseIcon size={13} strokeWidth={1.5} />,
-        label: "Convert to SQL",
-        handle: () => {
-          const editorView = getEditorView();
-          if (!editorView) {
-            return;
+      // We need to check this here because the user may have toggled the language
+      getCurrentLanguageAdapter(getEditorView()) === "sql"
+        ? {
+            icon: <PythonIcon />,
+            label: "View as Python",
+            hotkey: "cell.viewAsSQL",
+            handle: () => {
+              const editorView = getEditorView();
+              if (!editorView) {
+                return;
+              }
+              toggleToLanguage(editorView, "python", { force: true });
+            },
+            hidden: isSetupCell,
           }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
-          switchLanguage(editorView, {
-            language: "sql",
-            keepCodeAsIs: false,
-          });
-        },
-        hidden: isSetupCell,
-      },
-      {
-        icon: <PythonIcon />,
-        label: "Toggle as Python",
-        handle: () => {
-          const editorView = getEditorView();
-          if (!editorView) {
-            return;
-          }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
-          toggleToLanguage(editorView, "python", { force: true });
-        },
-        hidden: isSetupCell,
-      },
+        : {
+            icon: <DatabaseIcon size={13} strokeWidth={1.5} />,
+            label: "Convert to SQL",
+            hotkey: "cell.viewAsSQL",
+            handle: () => {
+              const editorView = getEditorView();
+              if (!editorView) {
+                return;
+              }
+              maybeAddMarimoImport({
+                autoInstantiate,
+                createNewCell: createCell,
+              });
+              switchLanguage(editorView, {
+                language: "sql",
+                keepCodeAsIs: false,
+              });
+            },
+            hidden: isSetupCell,
+          },
     ],
 
     // Movement
