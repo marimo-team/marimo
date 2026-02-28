@@ -32,7 +32,7 @@ export const formattingChangeEffect = StateEffect.define<boolean>();
  */
 export async function formatEditorViews(
   views: Record<CellId, EditorView>,
-  type: "format" | "fix",
+  type: "format" | "fix" = "format",
 ) {
   const client = getRequestClient();
   const send = type === "format" ? client.sendFormat : client.sendFix;
