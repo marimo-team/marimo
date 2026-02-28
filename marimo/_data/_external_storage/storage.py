@@ -338,8 +338,8 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
 
         if isinstance(store_protocol, tuple):
             for store_protocol_item in store_protocol:
-                if protocol := normalize_protocol(store_protocol_item):
-                    return protocol
+                if normalized := normalize_protocol(store_protocol_item):
+                    return normalized
             return "-".join(store_protocol)
 
         return normalize_protocol(store_protocol) or store_protocol
