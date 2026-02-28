@@ -4267,6 +4267,8 @@ export interface components {
       codes: {
         [key: string]: string;
       };
+      /** @default null */
+      filename?: string | null;
       lineLength: number;
     };
     /** FormatResponse */

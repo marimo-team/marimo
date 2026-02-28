@@ -110,10 +110,13 @@ class DefaultFormatter(Formatter):
     Tries ruff, then black, then no formatting.
     """
 
-    async def format(self, codes: CellCodes) -> CellCodes:
+    async def format(
+        self, codes: CellCodes, filename: str | None = None
+    ) -> CellCodes:
         # Ruff may be installed in venv or globally
         if DependencyManager.ruff.has() or DependencyManager.which("ruff"):
-            return await RuffFormatter(self.line_length).format(codes)
+            formatter = RuffFormatter(self.line_length)
+            return await formatter.format(codes, filename)
         # Black must be installed in venv
         elif DependencyManager.black.has():
             return await BlackFormatter(self.line_length).format(codes)
@@ -125,19 +128,30 @@ class DefaultFormatter(Formatter):
 
 
 class RuffFormatter(Formatter):
-    async def format(self, codes: CellCodes) -> CellCodes:
+    async def format(
+        self, codes: CellCodes, filename: str | None = None
+    ) -> CellCodes:
+        stdin_filename = ["--stdin-filename", filename] if filename else []
         return await ruff(
-            codes, "format", "--line-length", str(self.line_length)
+            codes,
+            "format",
+            "--line-length",  # override ruff.toml/pyproject.toml settings (Issue #6844)
+            str(self.line_length),
+            *stdin_filename,
         )
 
-    async def fix(self, codes: CellCodes) -> CellCodes:
+    async def fix(
+        self, codes: CellCodes, filename: str | None = None
+    ) -> CellCodes:
+        stdin_filename = ["--stdin-filename", filename] if filename else []
         return await ruff(
             codes,
             "check",
             "--fix",
             "--exit-zero",
-            "--line-length",
+            "--line-length",  # override ruff.toml/pyproject.toml settings (Issue #6844)
             str(self.line_length),
+            *stdin_filename,
         )
 
 

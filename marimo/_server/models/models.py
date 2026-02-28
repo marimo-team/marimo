@@ -224,6 +224,7 @@ class ErrorResponse(BaseResponse):
 class FormatCellsRequest(msgspec.Struct, rename="camel"):
     codes: dict[CellId_t, str]
     line_length: int
+    filename: Optional[str] = None
 
 
 class FormatResponse(msgspec.Struct, rename="camel"):

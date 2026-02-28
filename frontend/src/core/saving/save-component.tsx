@@ -116,11 +116,11 @@ export function useSaveNotebook() {
 
       if (userInitiated && autoSaveConfig.format_on_save) {
         Logger.log("formatting notebook (onSave)");
-        await formatAll();
+        await formatAll(filename);
       }
       if (userInitiated && autoSaveConfig.fix_on_save) {
         Logger.log("fixing notebook (onSave)");
-        await fixAll();
+        await fixAll(filename);
       }
 
       // Grab the latest notebook state, after formatting

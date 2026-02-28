@@ -1843,6 +1843,11 @@ components:
           additionalProperties:
             type: string
           type: object
+        filename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         lineLength:
           type: integer
       required:

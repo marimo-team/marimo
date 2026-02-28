@@ -26,20 +26,27 @@ import { replaceEditorContent } from "./replace-editor-content";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
+interface FormatOptions {
+  type?: "format" | "fix";
+  filename?: string;
+}
+
 /**
  * Format/fix the code in the editor views via the marimo server,
  * and update the editor views with the formatted code.
  */
 export async function formatEditorViews(
   views: Record<CellId, EditorView>,
-  type: "format" | "fix" = "format",
+  options?: FormatOptions,
 ) {
   const client = getRequestClient();
+  const type = options?.type || "format";
   const send = type === "format" ? client.sendFormat : client.sendFix;
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
   const formatResponse = await send({
     codes,
     lineLength: getResolvedMarimoConfig().formatting.line_length,
+    filename: options?.filename || null,
   });
 
   for (const [cellIdString, formattedCode] of Objects.entries(
@@ -72,17 +79,17 @@ export async function formatEditorViews(
 /**
  * Format all cells in the notebook.
  */
-export function formatAll() {
+export function formatAll(filename?: string) {
   const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views, "format");
+  return formatEditorViews(views, { type: "format", filename });
 }
 
 /**
  * Fix all cells in the notebook.
  */
-export function fixAll() {
+export function fixAll(filename?: string) {
   const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views, "fix");
+  return formatEditorViews(views, { type: "fix", filename });
 }
 
 /**

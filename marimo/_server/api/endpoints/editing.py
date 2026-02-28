@@ -138,7 +138,8 @@ async def format_cell(request: Request) -> FormatResponse:
     formatter = DefaultFormatter(line_length=body.line_length)
 
     try:
-        return FormatResponse(codes=await formatter.format(body.codes))
+        codes = await formatter.format(body.codes, body.filename)
+        return FormatResponse(codes)
     except ModuleNotFoundError:
         app_state = AppState(request)
         # Installation occurs in the kernel which is not useful for multi mode.
@@ -171,7 +172,8 @@ async def fix_cell(request: Request) -> FormatResponse:
     formatter = RuffFormatter(line_length=body.line_length)
 
     try:
-        return FormatResponse(codes=await formatter.fix(body.codes))
+        codes = await formatter.fix(body.codes, body.filename)
+        return FormatResponse(codes)
     except ModuleNotFoundError:
         app_state = AppState(request)
         # Installation occurs in the kernel which is not useful for multi mode.
