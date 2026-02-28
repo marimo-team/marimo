@@ -9,8 +9,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import * as React from "react";
 import { useLocale } from "react-aria";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
@@ -237,8 +239,73 @@ export const DataTablePagination = <TData,>({
           <span className="sr-only">Go to last page</span>
           <ChevronsRight className="h-4 w-4" />
         </Button>
+        <GoToPageInput
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) =>
+            handlePageChange(() => table.setPageIndex(page))
+          }
+          tableLoading={tableLoading}
+        />
       </div>
     </div>
+  );
+};
+
+export const GoToPageInput = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  tableLoading,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  tableLoading?: boolean;
+}) => {
+  const [value, setValue] = React.useState(String(currentPage));
+  const [isFocused, setIsFocused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isFocused) {
+      setValue(String(currentPage));
+    }
+  }, [currentPage, isFocused]);
+
+  const goToPage = () => {
+    const parsed = parseInt(value, 10);
+    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= totalPages) {
+      onPageChange(parsed - 1);
+      setValue(String(parsed));
+    } else {
+      setValue(String(currentPage));
+    }
+    setIsFocused(false);
+  };
+
+  return (
+    <span className="flex items-center justify-center text-xs font-medium gap-1">
+      <span className="bottom-0">Go to</span>
+      <Input
+        type="number"
+        min={1}
+        max={totalPages}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={goToPage}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            goToPage();
+          }
+        }}
+        disabled={tableLoading}
+        className="h-6 w-12 text-xs px-1.5 m-0 py-0 border rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        data-testid="go-to-page-input"
+        aria-label="Go to page number"
+      />
+    </span>
   );
 };
 

@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 import { Functions } from "@/utils/functions";
-import { PageSelector } from "../pagination";
+import { GoToPageInput, PageSelector } from "../pagination";
 
 function getOptions(currentPage: number) {
   const { container } = render(
@@ -149,4 +149,52 @@ test("pagination upper middle", () => {
       "200",
     ]
   `);
+});
+
+test("GoToPageInput navigates on blur with valid page", () => {
+  const onPageChange = vi.fn();
+  render(
+    <GoToPageInput
+      currentPage={1}
+      totalPages={200}
+      onPageChange={onPageChange}
+    />,
+  );
+  const input = screen.getByTestId("go-to-page-input");
+  fireEvent.change(input, { target: { value: "200" } });
+  fireEvent.blur(input);
+  expect(onPageChange).toHaveBeenCalledTimes(1);
+  expect(onPageChange).toHaveBeenCalledWith(199);
+});
+
+test("GoToPageInput navigates on Enter with valid page", () => {
+  const onPageChange = vi.fn();
+  render(
+    <GoToPageInput
+      currentPage={50}
+      totalPages={200}
+      onPageChange={onPageChange}
+    />,
+  );
+  const input = screen.getByTestId("go-to-page-input");
+  fireEvent.change(input, { target: { value: "100" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(onPageChange).toHaveBeenCalledTimes(1);
+  expect(onPageChange).toHaveBeenCalledWith(99);
+});
+
+test("GoToPageInput does not navigate when value is out of range", () => {
+  const onPageChange = vi.fn();
+  render(
+    <GoToPageInput
+      currentPage={1}
+      totalPages={200}
+      onPageChange={onPageChange}
+    />,
+  );
+  const input = screen.getByTestId("go-to-page-input");
+  fireEvent.change(input, { target: { value: "999" } });
+  fireEvent.blur(input);
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect((input as HTMLInputElement).value).toBe("1");
 });
