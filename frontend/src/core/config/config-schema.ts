@@ -85,6 +85,7 @@ export const UserConfigSchema = z
             return copilot;
           }),
         codeium_api_key: z.string().nullish(),
+        disable_autocompletion_on_enter: z.boolean().prefault(false),
       })
       .prefault({}),
     save: z

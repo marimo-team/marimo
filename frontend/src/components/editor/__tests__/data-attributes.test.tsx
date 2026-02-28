@@ -67,6 +67,7 @@ describe("Cell data attributes", () => {
         activate_on_typing: true,
         signature_hint_on_typing: false,
         copilot: false,
+        disable_autocompletion_on_enter: false,
       },
       formatting: { line_length: 88 },
       package_management: { manager: "pip" },

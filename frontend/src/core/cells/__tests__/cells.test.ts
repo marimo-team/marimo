@@ -90,6 +90,7 @@ function createEditor(content: string) {
           signature_hint_on_typing: false,
           copilot: false,
           codeium_api_key: null,
+          disable_autocompletion_on_enter: false,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",

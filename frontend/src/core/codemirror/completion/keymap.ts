@@ -7,6 +7,7 @@ import {
 } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import type { CompletionConfig } from "@/core/config/config-schema";
 import { isInVimMode } from "../utils";
 
 const KEYS_TO_REMOVE = new Set<string | undefined>([
@@ -22,9 +23,16 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   "Alt-`",
 ]);
 
-export function completionKeymap(): Extension {
+export function completionKeymap(
+  completionConfig: CompletionConfig,
+): Extension {
+  const keysToRemove = new Set(KEYS_TO_REMOVE);
+  if (completionConfig.disable_autocompletion_on_enter === true) {
+    keysToRemove.add("Enter");
+  }
+
   const withoutKeysToRemove = defaultCompletionKeymap.filter(
-    (binding) => !KEYS_TO_REMOVE.has(binding.key),
+    (binding) => !keysToRemove.has(binding.key),
   );
 
   return Prec.highest(

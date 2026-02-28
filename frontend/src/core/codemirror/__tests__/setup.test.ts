@@ -51,6 +51,7 @@ function getOpts() {
       signature_hint_on_typing: false,
       copilot: false,
       codeium_api_key: null,
+      disable_autocompletion_on_enter: false,
     },
     keymapConfig: {
       preset: "default",
