@@ -104,7 +104,7 @@ fe-typecheck:
 .PHONY: fe-codegen
 # 🔄 Generate frontend API
 fe-codegen:
-	uv run --python=3.12 ./marimo development openapi > packages/openapi/api.yaml
+	uv run ./marimo development openapi > packages/openapi/api.yaml
 	pnpm run codegen
 	pnpm format packages/openapi/
 
@@ -127,7 +127,7 @@ py-test:
 .PHONY: py-test-narwhals
 # 🧪 Test narwhals-related tests (used externally by narwhals repo)
 py-test-narwhals:
-	uv run --python 3.12 --group test pytest \
+	uv run --group test pytest \
 		tests/_data/ \
 		tests/_plugins/ui/_impl/ \
 		tests/_utils/test_narwhals_utils.py
@@ -135,7 +135,7 @@ py-test-narwhals:
 .PHONY: py-snapshots
 # 📸 Update snapshots
 py-snapshots:
-	uv run --python 3.12 --group test pytest \
+	uv run --group test pytest \
 		tests/_server/templates/test_templates.py \
 		tests/_server/api/endpoints/test_export.py \
 		tests/test_api.py

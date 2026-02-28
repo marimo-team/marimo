@@ -251,7 +251,7 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          uv run --python 3.13 --group test-optional pytest \
+          uv run --group test-optional pytest \
             -v \
             tests/ \
             -k "not test_cli" \
