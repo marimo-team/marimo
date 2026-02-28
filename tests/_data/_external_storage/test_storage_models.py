@@ -14,6 +14,7 @@ from marimo._data._external_storage.models import DownloadResult, StorageEntry
 from marimo._data._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
+    detect_protocol_from_url,
     normalize_protocol,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -1024,8 +1025,7 @@ class TestFsspecFilesystemIntegration:
 
         fs = MemoryFileSystem()
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
-        # MemoryFileSystem protocol is "memory", which doesn't match known types
-        assert backend.protocol == "memory"
+        assert backend.protocol == "in-memory"
 
 
 @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")
@@ -1152,26 +1152,45 @@ class TestNormalizeProtocol:
             ("s3", "s3"),
             ("s3a", "s3"),
             ("S3", "s3"),
+            ("gs", "gcs"),
             ("gcs", "gcs"),
-            ("GCS", "gcs"),
-            ("gs-gcs", "gcs"),
-            ("azure", "azure"),
-            ("Azure", "azure"),
-            ("abfs-azure", "azure"),
+            ("abfs", "azure"),
+            ("abfss", "azure"),
+            ("az", "azure"),
             ("http", "http"),
-            ("HTTP", "http"),
-            ("https-http", "http"),
+            ("https", "http"),
             ("file", "file"),
-            ("FILE", "file"),
-            ("local-file", "file"),
-            ("ftp", "ftp"),
-            ("custom", "custom"),
+            ("local", "file"),
+            ("memory", "in-memory"),
+            ("r2", "cloudflare"),
             ("  s3  ", "s3"),
-            ("  gcs  ", "gcs"),
+            ("unknown", None),
+            ("ftp", None),
         ],
     )
-    def test_normalize_protocol(self, protocol: str, expected: str) -> None:
+    def test_normalize_protocol(
+        self, protocol: str, expected: str | None
+    ) -> None:
         assert normalize_protocol(protocol) == expected
+
+
+class TestDetectProtocolFromUrl:
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("https://account.r2.cloudflarestorage.com", "cloudflare"),
+            ("https://s3.amazonaws.com", "s3"),
+            ("https://s3.us-east-1.amazonaws.com", "s3"),
+            ("https://storage.googleapis.com", "gcs"),
+            ("https://account.blob.core.windows.net", "azure"),
+            ("https://minio.example.com", None),
+            ("https://my-custom-endpoint.com", None),
+        ],
+    )
+    def test_detect_protocol_from_url(
+        self, url: str, expected: str | None
+    ) -> None:
+        assert detect_protocol_from_url(url) == expected
 
 
 # --- Helpers ---
