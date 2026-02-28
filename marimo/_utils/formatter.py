@@ -152,6 +152,8 @@ class RuffFormatter(Formatter):
             str(self.line_length),
             *stdin_filename,
             "--ignore=F401",  # ignore unused-import
+            "--config",
+            "lint.isort.required-imports=[]",  # ignore required-imports
         )
 
 

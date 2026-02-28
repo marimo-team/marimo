@@ -146,6 +146,14 @@ def test_fix_cell_ignore_unused_import(client: TestClient) -> None:
 
 @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
 @with_session(SESSION_ID)
+def test_fix_cell_ignore_required_imports(client: TestClient) -> None:
+    config = 'select=["ALL"]\n[lint.isort]\nrequired-imports = ["import os"]'
+    fixed_code = _fix_cell(client, config, "x=1")
+    assert fixed_code == "x=1"
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
 def test_fix_cell_with_invalid_code(client: TestClient) -> None:
     fixed_code = _fix_cell(client, 'select=["ALL"]', "x=")
     assert fixed_code == "x="

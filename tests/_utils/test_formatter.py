@@ -185,6 +185,8 @@ class TestRuffFormatter:
             "--stdin-filename",
             filename,
             "--ignore=F401",
+            "--config",
+            "lint.isort.required-imports=[]",
         )
         assert result == {"cell1": "fixed_code"}
 
