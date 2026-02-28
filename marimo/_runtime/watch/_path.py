@@ -41,7 +41,12 @@ def write_side_effect(data: str | bytes) -> None:
 
 
 class PathState(State[Path]):
-    """Base class for path state."""
+    """Base class for reactive path watchers.
+
+    Args:
+        path: The filesystem path to watch for changes.
+        allow_self_loops: Whether to allow self-referential reactivity.
+    """
 
     _forbidden_attributes: set[str]
     _target: Callable[[Path, Self, threading.Event], None]
