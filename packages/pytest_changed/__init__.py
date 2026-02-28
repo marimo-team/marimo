@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import json
+from collections import deque
 import subprocess
 from pathlib import Path
 
@@ -166,10 +167,10 @@ def find_affected_files(
     """
     affected: set[Path] = set(changed_files)
     visited: set[str] = set()
-    queue: list[Path] = list(changed_files)
+    queue: deque[Path] = deque(changed_files)
 
     while queue:
-        current = queue.pop(0)
+        current = queue.popleft()
         current_str = str(current)
 
         if current_str in visited:
