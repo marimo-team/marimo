@@ -572,20 +572,7 @@ export const UserConfigForm: React.FC = () => {
                       Tab to accept suggestions.
                     </FormDescription>
 
-                    <div>
-                      <Button
-                        variant="link"
-                        className="mb-0 px-0"
-                        type="button"
-                        onClick={(evt) => {
-                          evt.preventDefault();
-                          evt.stopPropagation();
-                          setActiveCategory("ai");
-                        }}
-                      >
-                        Edit AI autocomplete
-                      </Button>
-                    </div>
+                    <div />
                   </div>
                 )}
               />
