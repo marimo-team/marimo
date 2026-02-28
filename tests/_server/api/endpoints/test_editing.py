@@ -85,9 +85,7 @@ def test_format_cell_with_filename(client: TestClient) -> None:
             "/api/kernel/format",
             headers=HEADERS,
             json={
-                "codes": {
-                    "cell-123": 'x="1"',
-                },
+                "codes": {"cell-123": 'x="1"'},
                 "lineLength": 80,
                 "filename": str(tmp_path / "notebook.py"),  # Added filename
             },
@@ -99,7 +97,7 @@ def test_format_cell_with_filename(client: TestClient) -> None:
     assert formatted_codes["cell-123"] == "x = '1'"
 
 
-def _fix_cell(client: TestClient, config: str, code: str) -> str:
+def _fix_cell(client: TestClient, config: str, code: str) -> str | None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
         config = f"[lint]\n{config}"
@@ -108,18 +106,14 @@ def _fix_cell(client: TestClient, config: str, code: str) -> str:
             "/api/kernel/fix",
             headers=HEADERS,
             json={
-                "codes": {
-                    "cell-123": code,
-                },
+                "codes": {"cell-123": code},
                 "lineLength": 80,
                 "filename": str(tmp_path / "notebook.py"),
             },
         )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
-    fixed_codes = response.json().get("codes", {})
-    assert "cell-123" in fixed_codes
-    return fixed_codes["cell-123"]
+    return response.json().get("codes", {}).get("cell-123")
 
 
 @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
@@ -138,9 +132,23 @@ def test_fix_cell_pyflakes(client: TestClient) -> None:
 
 @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
 @with_session(SESSION_ID)
+def test_fix_cell_flake8_bugbear(client: TestClient) -> None:
+    fixed_code = _fix_cell(client, 'select=["B"]', "x={1,2,1}")
+    assert fixed_code == "x={1,2}"
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
 def test_fix_cell_ignore_unused_import(client: TestClient) -> None:
     fixed_code = _fix_cell(client, 'select=["ALL"]', "import os")
     assert fixed_code == "import os"
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+@with_session(SESSION_ID)
+def test_fix_cell_with_invalid_ruff_config(client: TestClient) -> None:
+    fixed_code = _fix_cell(client, 'select=["ALL"', "import os")
+    assert fixed_code is None
 
 
 @with_session(SESSION_ID)
