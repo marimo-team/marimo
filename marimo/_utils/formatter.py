@@ -128,6 +128,12 @@ class DefaultFormatter(Formatter):
 
 
 class RuffFormatter(Formatter):
+    def __init__(
+        self, line_length: int, ignore: list[str] | None = None
+    ) -> None:
+        super().__init__(line_length)
+        self.ignore = ignore
+
     async def format(
         self, codes: CellCodes, filename: str | None = None
     ) -> CellCodes:
@@ -144,6 +150,7 @@ class RuffFormatter(Formatter):
         self, codes: CellCodes, filename: str | None = None
     ) -> CellCodes:
         stdin_filename = ["--stdin-filename", filename] if filename else []
+        ignore = ["--ignore", ",".join(self.ignore)] if self.ignore else []
         return await ruff(
             codes,
             "check",
@@ -151,9 +158,7 @@ class RuffFormatter(Formatter):
             "--line-length",  # override ruff.toml/pyproject.toml settings (Issue #6844)
             str(self.line_length),
             *stdin_filename,
-            "--ignore=F401",  # ignore unused-import
-            "--config",
-            "lint.isort.required-imports=[]",  # ignore required-imports
+            *ignore,
         )
 
 

@@ -165,12 +165,15 @@ class TestRuffFormatter:
         assert result == {"cell1": "formatted_code"}
 
     @patch("marimo._utils.formatter.ruff")
+    @pytest.mark.parametrize(
+        ("ignore", "args"), [(None, []), (["A", "B"], ["--ignore", "A,B"])]
+    )
     async def test_ruff_formatter_calls_ruff_function_for_fix_with_filename(
-        self, mock_ruff: MagicMock
+        self, mock_ruff: MagicMock, ignore: list[str] | None, args: list[str]
     ) -> None:
         """Test RuffFormatter.fix calls the ruff function with correct arguments and filename."""
         mock_ruff.return_value = {"cell1": "fixed_code"}
-        formatter = RuffFormatter(line_length=100)
+        formatter = RuffFormatter(line_length=100, ignore=ignore)
         codes: CellCodes = {"cell1": "x=1"}
         filename = "/tmp/notebook.py"
 
@@ -184,9 +187,7 @@ class TestRuffFormatter:
             "100",
             "--stdin-filename",
             filename,
-            "--ignore=F401",
-            "--config",
-            "lint.isort.required-imports=[]",
+            *args,
         )
         assert result == {"cell1": "fixed_code"}
 

@@ -169,7 +169,13 @@ async def fix_cell(request: Request) -> FormatResponse:
                         $ref: "#/components/schemas/FormatResponse"
     """
     body = await parse_request(request, cls=FormatCellsRequest)
-    formatter = RuffFormatter(line_length=body.line_length)
+
+    # We ignore F401 (unused-import) and I002 (required-imports) because
+    # marimo performs 'fix' on a per-cell basis.
+    # Fixing imports per-cell leads to incorrect results.
+    ignore = ["F401", "I002"]
+
+    formatter = RuffFormatter(line_length=body.line_length, ignore=ignore)
 
     try:
         codes = await formatter.fix(body.codes, body.filename)
