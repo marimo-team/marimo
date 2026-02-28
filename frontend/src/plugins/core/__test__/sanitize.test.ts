@@ -288,9 +288,19 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"<div>Text</div>"`);
   });
 
-  test("removes use element from SVG", () => {
+  test("preserves use element in SVG", () => {
     const html = '<svg><use xlink:href="#icon"></use></svg>';
-    expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"<svg></svg>"`);
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use xlink:href=\"#icon\"></use></svg>"`,
+    );
+  });
+
+  test("preserves SVG defs and use pattern", () => {
+    const html =
+      '<svg width="60" height="60"><circle cx="30" cy="30" r="30" fill="orange"></circle><defs><circle id="myCircle" cx="0" cy="0" r="10" fill="green"></circle></defs><use href="#myCircle" x="20" y="20"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg width=\"60\" height=\"60\"><circle cx=\"30\" cy=\"30\" r=\"30\" fill=\"orange\"></circle><defs><circle id=\"myCircle\" cx=\"0\" cy=\"0\" r=\"10\" fill=\"green\"></circle></defs><use href=\"#myCircle\" x=\"20\" y=\"20\"></use></svg>"`,
+    );
   });
 
   test("removes javascript in SVG href", () => {
