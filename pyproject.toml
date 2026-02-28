@@ -116,7 +116,6 @@ mcp = [
 
 [dependency-groups]
 dev = [
-    "black~=23.12.1",
     # Typo checking
     "typos~=1.23.6",
     # For tracing debugging
@@ -499,8 +498,6 @@ extend-exclude = [
     "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
 ]
 
-[tool.black]
-line-length = 79
 
 [tool.marimo.ai]
 rules = "- prefer polars over pandas\n- make charts using altair"
