@@ -22,6 +22,7 @@ export const MockRequestClient = {
       sendCopy: vi.fn().mockResolvedValue({}),
       sendStdin: vi.fn().mockResolvedValue({}),
       sendFormat: vi.fn().mockResolvedValue({ codes: {} }),
+      sendFix: vi.fn().mockResolvedValue({ codes: {} }),
       sendInterrupt: vi.fn().mockResolvedValue({}),
       sendShutdown: vi.fn().mockResolvedValue({}),
       sendRun: vi.fn().mockResolvedValue({}),

@@ -18,7 +18,7 @@ import type { MarimoConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { type CodemirrorCellActions, cellActionsState } from "../cells/state";
 import { cellIdState } from "../config/extension";
-import { formatAll, formatEditorViews, formatSQL } from "../format";
+import { fixAll, formatAll, formatEditorViews, formatSQL } from "../format";
 import {
   adaptiveLanguageConfiguration,
   switchLanguage,
@@ -126,6 +126,7 @@ describe("format", () => {
           [cellId2]: "import pandas as    pd",
         },
         lineLength: 88,
+        filename: null,
       });
 
       expect(views[cellId1].state.doc.toString()).toBe(formattedCode1);
@@ -139,6 +140,44 @@ describe("format", () => {
         cellId: cellId2,
         code: formattedCode2,
         formattingChange: true,
+      });
+    });
+
+    it("should format code in editor views with filename", async () => {
+      const cellId1 = "1" as CellId;
+      const views = {
+        [cellId1]: createEditor("import numpy as    np", cellId1),
+      };
+
+      vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
+
+      await formatEditorViews(views, { filename: "test.py" });
+
+      expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
+        codes: {
+          [cellId1]: "import numpy as    np",
+        },
+        lineLength: 88,
+        filename: "test.py",
+      });
+    });
+
+    it("should fix code in editor views with filename", async () => {
+      const cellId1 = "1" as CellId;
+      const views = {
+        [cellId1]: createEditor("import sys\nimport os", cellId1),
+      };
+
+      vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
+
+      await formatEditorViews(views, { type: "fix", filename: "test.py" });
+
+      expect(mockRequestClient.sendFix).toHaveBeenCalledWith({
+        codes: {
+          [cellId1]: "import sys\nimport os",
+        },
+        lineLength: 88,
+        filename: "test.py",
       });
     });
 
@@ -192,11 +231,78 @@ describe("format", () => {
           [cellId2]: "import pandas as    pd",
         },
         lineLength: 88,
+        filename: null,
       });
 
       expect(updateCellCode).toHaveBeenCalledWith({
         cellId: cellId1,
         code: "import numpy as np",
+        formattingChange: true,
+      });
+    });
+
+    it("should format all cells in notebook with filename", async () => {
+      const cellId1 = "1" as CellId;
+      const views = {
+        [cellId1]: createEditor("import numpy as    np", cellId1),
+      };
+
+      vi.mocked(getNotebook).mockReturnValueOnce({} as NotebookState);
+      vi.mocked(notebookCellEditorViews).mockReturnValueOnce(views);
+
+      vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
+
+      await formatAll("test.py");
+
+      expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
+        codes: {
+          [cellId1]: "import numpy as    np",
+        },
+        lineLength: 88,
+        filename: "test.py",
+      });
+    });
+  });
+
+  describe("fixAll", () => {
+    it("should fix all cells in notebook with filename", async () => {
+      const cellId1 = "1" as CellId;
+      const cellId2 = "2" as CellId;
+      const views = {
+        [cellId1]: createEditor("import sys\nimport os", cellId1),
+        [cellId2]: createEditor("x={1, 2, 1}", cellId2),
+      };
+
+      vi.mocked(getNotebook).mockReturnValueOnce({} as NotebookState);
+      vi.mocked(notebookCellEditorViews).mockReturnValueOnce(views);
+      mockRequestClient.sendFix.mockResolvedValueOnce({
+        codes: {
+          [cellId1]: "import os\nimport sys",
+          [cellId2]: "x={1, 2}",
+        },
+      });
+
+      vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
+
+      await fixAll("test.py");
+
+      expect(mockRequestClient.sendFix).toHaveBeenCalledWith({
+        codes: {
+          [cellId1]: "import sys\nimport os",
+          [cellId2]: "x={1, 2, 1}",
+        },
+        lineLength: 88,
+        filename: "test.py",
+      });
+
+      expect(updateCellCode).toHaveBeenCalledWith({
+        cellId: cellId1,
+        code: "import os\nimport sys",
+        formattingChange: true,
+      });
+      expect(updateCellCode).toHaveBeenCalledWith({
+        cellId: cellId2,
+        code: "x={1, 2}",
         formattingChange: true,
       });
     });
