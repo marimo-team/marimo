@@ -185,7 +185,7 @@ test-optional = [
     "duckdb>=1.0.0",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
-    "pillow>=10.4.0",
+    "pillow~=10.4.0",
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
