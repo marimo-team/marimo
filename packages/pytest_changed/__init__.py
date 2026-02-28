@@ -11,8 +11,8 @@ Usage:
 from __future__ import annotations
 
 import json
-from collections import deque
 import subprocess
+from collections import deque
 from pathlib import Path
 
 import pytest
