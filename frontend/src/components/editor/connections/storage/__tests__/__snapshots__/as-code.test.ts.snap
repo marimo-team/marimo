@@ -4,8 +4,8 @@ exports[`generateStorageCode > Azure > basic connection with account key 1`] = `
 "from obstore.store import AzureStore
 
 store = AzureStore("my-container",
-account_name="storageaccount",
-account_key="base64accountkey==",
+    account_name="storageaccount",
+    account_key="base64accountkey==",
 )"
 `;
 
@@ -16,8 +16,8 @@ import os
 _account_name = os.environ.get("AZURE_ACCOUNT")
 _account_key = os.environ.get("AZURE_KEY")
 store = AzureStore("my-container",
-account_name=_account_name,
-account_key=_account_key,
+    account_name=_account_name,
+    account_key=_account_key,
 )"
 `;
 
@@ -25,7 +25,7 @@ exports[`generateStorageCode > Azure > without account key 1`] = `
 "from obstore.store import AzureStore
 
 store = AzureStore("my-container",
-account_name="storageaccount",
+    account_name="storageaccount",
 )"
 `;
 
