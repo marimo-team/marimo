@@ -74,7 +74,10 @@ def _get_comm_class() -> type[Any]:
             return dict(msg.message, _buffers=buffers)
 
         def send(
-            self, data: Any = None, metadata: Any = None, buffers: Any = None  # noqa: ARG002
+            self,
+            data: Any = None,
+            metadata: Any = None,
+            buffers: Any = None,  # noqa: ARG002
         ) -> None:
             if self._ui_element_id is None:
                 return
