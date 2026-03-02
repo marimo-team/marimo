@@ -4,13 +4,25 @@
 import type { Table } from "@tanstack/react-table";
 import { range } from "lodash-es";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import React from "react";
 import { useLocale } from "react-aria";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
@@ -23,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import type { DataTableSelection } from "./types";
+import type { DataTableSelection, PageRange } from "./types";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -251,73 +263,143 @@ export const PageSelector = ({
   totalPages: number;
   onPageChange: (page: number) => void;
 }) => {
-  const renderOption = (i: number) => (
-    <option key={i} value={i + 1}>
-      {i + 1}
-    </option>
+  const [open, setOpen] = React.useState(false);
+  const [jumpValue, setJumpValue] = React.useState("");
+  const jumpInputId = React.useId();
+
+  const pageRanges = React.useMemo(
+    () => getPageRanges(currentPage, totalPages),
+    [currentPage, totalPages],
   );
 
-  const renderEllipsis = (key: number) => (
-    <option key={`__${key}__`} disabled={true} value={`__${key}__`}>
-      ...
-    </option>
-  );
-
-  const renderPageOptions = () => {
-    /* If this is too large, this can cause the browser to hang. */
-    if (totalPages <= 100) {
-      return range(totalPages).map((i) => renderOption(i));
+  const handleJump = () => {
+    const page = Number.parseInt(jumpValue, 10);
+    if (page >= 1 && page <= totalPages) {
+      onPageChange(page - 1);
+      setJumpValue("");
+      setOpen(false);
     }
-
-    const middle = Math.floor(totalPages / 2);
-
-    // Show the first 10 pages, the middle 10 pages, and the last 10 pages.
-    const firstPages = range(10).map((i) => renderOption(i));
-    const middlePages = range(10).map((i) => renderOption(middle - 5 + i));
-    const lastPages = range(10).map((i) => renderOption(totalPages - 10 + i));
-
-    const result = [
-      ...firstPages,
-      renderEllipsis(1),
-      ...middlePages,
-      renderEllipsis(2),
-      ...lastPages,
-    ];
-
-    if (currentPage > 10 && currentPage <= middle - 5) {
-      result.splice(
-        10,
-        1, // delete the first ellipsis
-        renderEllipsis(1),
-        renderOption(currentPage - 1),
-        renderEllipsis(11),
-      );
-    }
-
-    if (currentPage > middle + 5 && currentPage <= totalPages - 10) {
-      result.splice(
-        -11,
-        1, // delete the first ellipsis
-        renderEllipsis(2),
-        renderOption(currentPage - 1),
-        renderEllipsis(22),
-      );
-    }
-
-    return result;
   };
 
   return (
-    <select
-      className="cursor-pointer border rounded"
-      value={currentPage}
-      data-testid="page-select"
-      onChange={(e) => onPageChange(Number(e.target.value) - 1)}
-    >
-      {renderPageOptions()}
-    </select>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild={true}>
+        <button
+          type="button"
+          className="border rounded justify-between pl-1.5 pr-0.5 min-w-9 text-xs items-center hover:bg-accent inline-flex gap-0.5"
+          data-testid="page-select"
+        >
+          {currentPage}
+          <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="w-36 overflow-hidden flex flex-col"
+        scrollable={false}
+        align="center"
+        sideOffset={6}
+        style={{ maxHeight: "22rem" }}
+      >
+        <div className="overflow-y-auto flex-1 min-h-0">
+          {pageRanges.map((item) =>
+            item.type === "ellipsis" ? (
+              <DropdownMenuLabel
+                key={item.key}
+                className="text-center text-xs text-muted-foreground"
+              >
+                ...
+              </DropdownMenuLabel>
+            ) : (
+              <DropdownMenuItem
+                key={item.page}
+                data-testid="page-option"
+                className={cn(
+                  "text-xs cursor-pointer",
+                  item.page === currentPage && "font-semibold bg-accent",
+                )}
+                onSelect={() => onPageChange(item.page - 1)}
+                onMouseDown={Events.preventFocus}
+              >
+                {item.page}
+              </DropdownMenuItem>
+            ),
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div
+          className="px-2 pt-0.5 shrink-0"
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <label
+            htmlFor={jumpInputId}
+            className="text-xs text-muted-foreground block mb-1"
+          >
+            Jump to page
+          </label>
+          <Input
+            id={jumpInputId}
+            type="number"
+            min={1}
+            max={totalPages}
+            placeholder={`1-${totalPages}`}
+            value={jumpValue}
+            onChange={(e) => setJumpValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleJump();
+              }
+              e.stopPropagation();
+            }}
+            className="h-6 text-xs"
+            data-testid="page-jump-input"
+          />
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
+
+export function getPageRanges(
+  currentPage: number,
+  totalPages: number,
+): PageRange[] {
+  if (totalPages <= 100) {
+    return range(totalPages).map((i) => ({ type: "page", page: i + 1 }));
+  }
+
+  const middle = Math.floor(totalPages / 2);
+
+  const items: PageRange[] = [];
+  const addPages = (start: number, count: number) => {
+    for (let i = 0; i < count; i++) {
+      items.push({ type: "page", page: start + i });
+    }
+  };
+
+  addPages(1, 10);
+  items.push({ type: "ellipsis", key: "e1" });
+
+  if (currentPage > 10 && currentPage <= middle - 5) {
+    items.push(
+      { type: "page", page: currentPage },
+      { type: "ellipsis", key: "e1b" },
+    );
+  }
+
+  addPages(middle - 4, 10);
+  items.push({ type: "ellipsis", key: "e2" });
+
+  if (currentPage > middle + 5 && currentPage <= totalPages - 10) {
+    items.push(
+      { type: "page", page: currentPage },
+      { type: "ellipsis", key: "e2b" },
+    );
+  }
+
+  addPages(totalPages - 9, 10);
+
+  return items;
+}
 
 export function prettifyRowCount(rowCount: number, locale: string): string {
   return `${prettyNumber(rowCount, locale)} ${new PluralWord("row").pluralize(rowCount)}`;
