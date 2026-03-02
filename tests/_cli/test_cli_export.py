@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 import pytest
+from click.testing import CliRunner
 
 from marimo._cli.export.commands import pdf
 from marimo._dependencies.dependencies import DependencyManager
@@ -936,6 +937,133 @@ class TestExportPDF:
         _assert_failure(p)
         stderr = p.stderr.decode()
         assert "Rasterization options require --include-outputs." in stderr
+
+    @staticmethod
+    def test_export_pdf_passes_preset_to_export_pipeline(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        output_file = tmp_path / "out.pdf"
+        runner = CliRunner()
+        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--as",
+                    "slides",
+                    "--no-sandbox",
+                    "--no-include-outputs",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert output_file.read_bytes() == b"mock_pdf"
+        assert mock_run_app.await_count == 1
+        call_kwargs = mock_run_app.await_args.kwargs
+        assert call_kwargs["export_as"] == "slides"
+
+    @staticmethod
+    def test_export_pdf_slides_shows_live_raster_recommendation(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        output_file = tmp_path / "slides-tip.pdf"
+        runner = CliRunner()
+        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.DependencyManager.playwright.require"
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--as",
+                    "slides",
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "For --as=slides, prefer --raster-server=live" in result.output
+        assert mock_run_app.await_count == 1
+        call_kwargs = mock_run_app.await_args.kwargs
+        assert call_kwargs["rasterization_options"].server_mode == "static"
+
+    @staticmethod
+    def test_export_pdf_shows_slides_hint_when_preset_missing(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        output_file = tmp_path / "hint.pdf"
+        runner = CliRunner()
+        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.notebook_uses_slides_layout",
+                return_value=True,
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--no-sandbox",
+                    "--no-include-outputs",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "Use --as=slides for slide-style PDF export." in result.output
+        assert mock_run_app.await_count == 1
+        call_kwargs = mock_run_app.await_args.kwargs
+        assert call_kwargs["export_as"] is None
 
 
 @pytest.mark.skipif(

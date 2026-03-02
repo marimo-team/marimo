@@ -32,7 +32,10 @@ from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
-from marimo._server.models.export import ExportAsHTMLRequest
+from marimo._server.models.export import (
+    ExportAsHTMLRequest,
+    ExportPDFPreset,
+)
 from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
@@ -176,6 +179,25 @@ def export_as_wasm(
     )
 
 
+def notebook_uses_slides_layout(filepath: MarimoPath) -> bool:
+    """Return whether a notebook declares the slides layout."""
+    try:
+        file_router = AppFileRouter.from_filename(filepath)
+        file_key = file_router.get_unique_file_key()
+        if file_key is None:
+            return False
+        file_manager = file_router.get_file_manager(file_key)
+        layout_config = file_manager.read_layout_config()
+        return layout_config is not None and layout_config.type == "slides"
+    except Exception as e:
+        LOGGER.debug(
+            "Unable to infer notebook layout for %s: %s",
+            filepath.absolute_name,
+            e,
+        )
+        return False
+
+
 async def run_app_then_export_as_ipynb(
     filepath: MarimoPath,
     sort_mode: Literal["top-down", "topological"],
@@ -216,6 +238,7 @@ async def run_app_then_export_as_pdf(
     webpdf: bool,
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
+    export_as: ExportPDFPreset | None,
     include_inputs: bool = True,
     rasterization_options: PDFRasterizationOptions | None = None,
 ) -> tuple[bytes | None, bool]:
@@ -256,14 +279,22 @@ async def run_app_then_export_as_pdf(
                 argv=argv,
                 options=rasterization_options,
             )
-
-    pdf_data = Exporter().export_as_pdf(
-        app=file_manager.app,
-        session_view=session_view,
-        png_fallbacks=png_fallbacks,
-        include_inputs=include_inputs,
-        webpdf=webpdf,
-    )
+    exporter = Exporter()
+    if export_as == "slides":
+        pdf_data = await exporter.export_as_slides_pdf(
+            app=file_manager.app,
+            session_view=session_view,
+            png_fallbacks=png_fallbacks,
+            include_inputs=include_inputs,
+        )
+    else:
+        pdf_data = exporter.export_as_pdf(
+            app=file_manager.app,
+            session_view=session_view,
+            png_fallbacks=png_fallbacks,
+            include_inputs=include_inputs,
+            webpdf=webpdf,
+        )
     return pdf_data, did_error
 
 

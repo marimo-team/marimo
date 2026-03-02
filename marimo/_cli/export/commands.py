@@ -27,6 +27,7 @@ from marimo._server.export import (
     export_as_md,
     export_as_script,
     export_as_wasm,
+    notebook_uses_slides_layout,
     run_app_then_export_as_html,
     run_app_then_export_as_ipynb,
     run_app_then_export_as_pdf,
@@ -525,6 +526,10 @@ Optionally pass CLI args to the notebook:
 
     marimo export pdf notebook.py -o notebook.pdf -- -arg1 foo -arg2 bar
 
+Export PDFs in a specific format such as slides:
+
+    marimo export pdf notebook.py -o notebook.pdf --as=slides
+
 Requires nbformat and nbconvert to be installed.
 """,
 )
@@ -570,7 +575,18 @@ Requires nbformat and nbconvert to be installed.
     default="static",
     help=(
         "Server mode used for raster capture. Use 'static' (default) for "
-        "faster captures, or 'live' if outputs require a live Python connection."
+        "faster captures, or 'live' if outputs require a live Python connection. "
+        "For --as=slides, 'live' is recommended."
+    ),
+)
+@click.option(
+    "--as",
+    "export_as",
+    type=click.Choice(["document", "slides"]),
+    default=None,
+    help=(
+        "PDF export preset. Use `slides` for reveal.js slide-style output. "
+        "If omitted, marimo exports as a standard document PDF."
     ),
 )
 @click.option(
@@ -618,6 +634,7 @@ def pdf(
     rasterize_outputs: bool,
     raster_scale: float,
     raster_server: str,
+    export_as: Literal["document", "slides"] | None,
     sandbox: Optional[bool],
     force: bool,
     args: tuple[str],
@@ -676,8 +693,26 @@ def pdf(
             additional_tip="Requires uv.",
         ) from None
 
+    if export_as is None and notebook_uses_slides_layout(MarimoPath(name)):
+        echo(
+            f"{green('Tip:')} Notebook is using slides layout. "
+            "Use --as=slides for slide-style PDF export.",
+            err=True,
+        )
+
     cli_args = parse_args(args) if include_outputs else {}
     rasterization_enabled = include_outputs and rasterize_outputs
+    if (
+        export_as == "slides"
+        and rasterization_enabled
+        and raster_server.lower() != "live"
+    ):
+        echo(
+            f"{green('Tip:')} For --as=slides, prefer --raster-server=live "
+            "for better aspect-ratio capture and widget compatibility.",
+            err=True,
+        )
+
     if rasterization_enabled:
         try:
             DependencyManager.playwright.require(
@@ -710,6 +745,7 @@ def pdf(
                     include_outputs=include_outputs,
                     include_inputs=include_inputs,
                     webpdf=webpdf,
+                    export_as=export_as,
                     cli_args=cli_args,
                     argv=list(args) if include_outputs else None,
                     rasterization_options=rasterization_options,

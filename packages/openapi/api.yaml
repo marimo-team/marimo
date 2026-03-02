@@ -1533,6 +1533,25 @@ components:
       type: object
     ExportAsPDFRequest:
       properties:
+        includeInputs:
+          default: false
+          type: boolean
+        preset:
+          default: document
+          enum:
+          - document
+          - slides
+        rasterScale:
+          default: 4.0
+          type: number
+        rasterServer:
+          default: static
+          enum:
+          - live
+          - static
+        rasterizeOutputs:
+          default: true
+          type: boolean
         webpdf:
           type: boolean
       required:

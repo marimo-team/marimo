@@ -188,6 +188,23 @@ marimo export pdf examples/outputs/live_raster.py \
     playwright install chromium
     ```
 
+To export as a slide deck PDF, use the slides preset:
+
+```bash
+marimo export pdf notebook.py -o notebook.pdf --as=slides --raster-server=live
+```
+
+`--raster-server=live` is recommended for slide exports because it better preserves
+slide aspect ratio and captures widget-heavy outputs more reliably.
+
+Available presets:
+
+- `--as=document`: Standard document PDF (default)
+- `--as=slides`: Slide-style PDF using reveal.js print layout
+
+If a notebook uses slides layout and `--as` is omitted, marimo keeps
+document export as the default and prints a CLI hint for `--as=slides`.
+
 If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
 need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [TeX](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
@@ -234,7 +251,7 @@ You can also use other tools that work with Jupyter notebooks:
     This feature is experimental. Enable it in **Settings > Experimental > Better PDF Export**.
 
 You can export your notebook to PDF directly from the command palette (Ctrl+K) by clicking
-**Download as PDF**. This uses `nbconvert` under the hood and will attempt the
+**Download as PDF** or **Download as Slide PDF**. This uses `nbconvert` under the hood and will attempt the
 following:
 
 1. **Standard PDF export** (requires [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [TeX](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex)) — produces higher quality PDFs

@@ -54,10 +54,16 @@ WAIT_FOR_PAGE_READY = r"""
   const root = document.getElementById("root");
   if (!root) return false;
 
-  const cells = document.querySelectorAll('div[id^="cell-"]');
-  if (cells.length === 0) return false;
-
   return root.childElementCount > 0;
+}
+"""
+
+GO_TO_NEXT_SLIDE = r"""
+() => {
+  const swiper = document.querySelector('.swiper')?.swiper;
+  if (swiper) {
+    swiper.slideNext();
+  }
 }
 """
 
@@ -82,6 +88,12 @@ CaptureExpectation = Literal["anywidget", "vega"]
 class _RasterTarget:
     cell_id: CellId_t
     expects: tuple[CaptureExpectation, ...]
+
+
+def _format_target_expects(expects: tuple[CaptureExpectation, ...]) -> str:
+    if not expects:
+        return "generic"
+    return ",".join(expects)
 
 
 def _contains_marker(content: Any, markers: tuple[str, ...]) -> bool:
@@ -440,6 +452,12 @@ async def collect_pdf_png_fallbacks(
         len(targets),
         server_mode,
     )
+    LOGGER.info(
+        "Rasterizing %s component(s) for PDF [mode=%s, scale=%s].",
+        len(targets),
+        server_mode,
+        options.scale,
+    )
 
     if server_mode == "live":
         LOGGER.debug("Raster capture strategy: live-only.")
@@ -583,23 +601,47 @@ async def _capture_pngs_from_page(
             wait_until="domcontentloaded",
             timeout=_READINESS_TIMEOUT_MS,
         )
+        LOGGER.debug("Page loaded, waiting for readiness...")
+
         await _wait_for_network_idle(
             page,
             timeout_ms=_NETWORK_IDLE_TIMEOUT_MS,
             timeout_error=PlaywrightTimeoutError,
         )
+        LOGGER.debug(
+            "Initial network idle achieved, waiting for page ready..."
+        )
+
         await page.wait_for_function(
             WAIT_FOR_PAGE_READY,
             timeout=_READINESS_TIMEOUT_MS,
         )
+        LOGGER.debug("Page ready, waiting for final network idle...")
+
         await _wait_for_network_idle(
             page,
             timeout_ms=_NETWORK_IDLE_TIMEOUT_MS,
             timeout_error=PlaywrightTimeoutError,
         )
+        LOGGER.debug("Page network idle, starting target captures...")
 
-        for target in targets:
-            locator = page.locator(f"#output-{target.cell_id}").first
+        for index, target in enumerate(targets, start=1):
+            LOGGER.info(
+                "Rasterizing [%s/%s] cell=%s (%s)",
+                index,
+                len(targets),
+                target.cell_id,
+                _format_target_expects(target.expects),
+            )
+            LOGGER.debug(
+                "Processing raster target: cell_id=%s expects=%s",
+                target.cell_id,
+                target.expects,
+            )
+
+            # In live notebook mode, output wrappers often use `display: contents`,
+            # which cannot be directly screenshotted, so we target a concrete child node.
+            locator = page.locator(f"#output-{target.cell_id} > .output").first
             if not await _wait_for_target_ready(
                 page=page,
                 target=target,
@@ -613,6 +655,7 @@ async def _capture_pngs_from_page(
                 continue
 
             try:
+                await page.evaluate(GO_TO_NEXT_SLIDE)
                 await page.evaluate(WAIT_FOR_NEXT_PAINT)
                 image = await locator.screenshot(
                     type="png",
@@ -637,6 +680,11 @@ async def _capture_pngs_from_page(
 
     LOGGER.debug(
         "Raster page capture complete: %s/%s captured",
+        len(captures),
+        len(targets),
+    )
+    LOGGER.info(
+        "Rasterization complete: captured %s/%s component(s).",
         len(captures),
         len(targets),
     )

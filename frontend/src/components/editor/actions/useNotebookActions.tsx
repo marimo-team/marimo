@@ -56,10 +56,6 @@ import { disabledCellIds } from "@/core/cells/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { Constants } from "@/core/constants";
-import {
-  updateCellOutputsWithScreenshots,
-  useEnrichCellOutputs,
-} from "@/core/export/hooks";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
@@ -78,7 +74,6 @@ import {
 } from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
-import type { ProgressState } from "@/utils/progress";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
@@ -88,6 +83,7 @@ import { commandPaletteAtom } from "../controls/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { LAYOUT_TYPES } from "../renderers/types";
+import { runServerSidePDFDownload } from "./pdf-export";
 import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
@@ -122,16 +118,13 @@ export function useNotebookActions() {
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
-  const { exportAsMarkdown, readCode, saveCellConfig, updateCellOutputs } =
-    useRequestClient();
+  const { exportAsMarkdown, readCode, saveCellConfig } = useRequestClient();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
-  const takeScreenshots = useEnrichCellOutputs();
-
   // Fallback: if sharing is undefined, both are enabled by default
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
@@ -141,12 +134,46 @@ export function useNotebookActions() {
   // Default export uses browser print, which is better in present mode
   const pdfDownloadEnabled =
     isServerSidePdfExportEnabled || viewState.mode === "present";
+  const isSlidesLayout = selectedLayout === "slides";
 
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
       {checked && <CheckIcon size={14} />}
     </div>
   );
+
+  const renderRecommendedElement = (recommended: boolean) => {
+    if (!recommended) {
+      return null;
+    }
+    return (
+      <span className="ml-3 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+        Recommended
+      </span>
+    );
+  };
+
+  const downloadServerSidePDF = async ({
+    preset,
+    title,
+  }: {
+    preset: "document" | "slides";
+    title: string;
+  }) => {
+    if (!filename) {
+      toastNotebookMustBeNamed();
+      return;
+    }
+
+    const runDownload = async () => {
+      await runServerSidePDFDownload({
+        filename,
+        preset,
+        downloadPDF: downloadAsPDF,
+      });
+    };
+    await withLoadingToast(title, runDownload);
+  };
 
   const actions: ActionButton[] = [
     {
@@ -226,45 +253,60 @@ export function useNotebookActions() {
           },
         },
         {
+          divider: true,
           icon: <FileIcon size={14} strokeWidth={1.5} />,
           label: "Download as PDF",
-          disabled: !pdfDownloadEnabled,
-          tooltip: pdfDownloadEnabled ? undefined : (
-            <span>
-              Only available in app view. <br />
-              Toggle with: {renderShortcut("global.hideCode", false)}
-            </span>
-          ),
-          handle: async () => {
-            if (isServerSidePdfExportEnabled) {
-              if (!filename) {
-                toastNotebookMustBeNamed();
-                return;
-              }
+          handle: NOOP_HANDLER,
+          disabled: !pdfDownloadEnabled && !isServerSidePdfExportEnabled,
+          dropdown: [
+            {
+              icon: <FileIcon size={14} strokeWidth={1.5} />,
+              label: "Document Layout",
+              rightElement: renderRecommendedElement(!isSlidesLayout),
+              disabled: !pdfDownloadEnabled,
+              tooltip: pdfDownloadEnabled ? undefined : (
+                <span>
+                  Only available in app view. <br />
+                  Toggle with: {renderShortcut("global.hideCode", false)}
+                </span>
+              ),
+              handle: async () => {
+                if (isServerSidePdfExportEnabled) {
+                  await downloadServerSidePDF({
+                    preset: "document",
+                    title: "Downloading Document PDF...",
+                  });
+                  return;
+                }
 
-              const downloadPDF = async (progress: ProgressState) => {
-                await updateCellOutputsWithScreenshots({
-                  takeScreenshots: () => takeScreenshots({ progress }),
-                  updateCellOutputs,
+                const beforeprint = new Event("export-beforeprint");
+                const afterprint = new Event("export-afterprint");
+                function print() {
+                  window.dispatchEvent(beforeprint);
+                  setTimeout(() => window.print(), 0);
+                  setTimeout(() => window.dispatchEvent(afterprint), 0);
+                }
+                print();
+              },
+            },
+            {
+              icon: <FileIcon size={14} strokeWidth={1.5} />,
+              label: "Slides Layout",
+              rightElement: renderRecommendedElement(isSlidesLayout),
+              disabled: !isServerSidePdfExportEnabled,
+              tooltip: isServerSidePdfExportEnabled ? undefined : (
+                <span>
+                  Requires Better PDF Export in Settings &gt; Experimental.
+                </span>
+              ),
+              handle: async () => {
+                await downloadServerSidePDF({
+                  preset: "slides",
+                  title: "Downloading Slides PDF...",
                 });
-                await downloadAsPDF({
-                  filename: filename,
-                  webpdf: false,
-                });
-              };
-              await withLoadingToast("Downloading PDF...", downloadPDF);
-              return;
-            }
-
-            const beforeprint = new Event("export-beforeprint");
-            const afterprint = new Event("export-afterprint");
-            function print() {
-              window.dispatchEvent(beforeprint);
-              setTimeout(() => window.print(), 0);
-              setTimeout(() => window.dispatchEvent(afterprint), 0);
-            }
-            print();
-          },
+              },
+            },
+          ],
         },
       ],
     },
