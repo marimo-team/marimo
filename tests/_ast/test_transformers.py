@@ -382,6 +382,86 @@ def test_func():
     )  # The value should still be there as an expression
 
 
+class TestRemoveReturnsBareName:
+    """return <Name> should become an Expr (the name is already captured)."""
+
+    def test_return_name(self) -> None:
+        tree = ast.parse("x = 1\nreturn x")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "x = 1" in code
+
+
+class TestRemoveReturnsConstant:
+    """return <constant> must be preserved in bytecode (regression #8364)."""
+
+    def test_return_int(self) -> None:
+        tree = ast.parse("return 42")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "* = 42" in code
+
+    def test_return_constant_expr(self) -> None:
+        """return 11 + 19 — no Name, so must preserve via assignment."""
+        tree = ast.parse("return 11 + 19")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "* = " in code
+        assert "11" in code
+        assert "19" in code
+
+
+class TestRemoveReturnsPureLambda:
+    """return (lambda: <const>) has no Name — must preserve via assignment."""
+
+    def test_return_pure_lambda(self) -> None:
+        tree = ast.parse("return (lambda: 1)")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "* = " in code
+        assert "lambda" in code
+
+    def test_return_lambda_with_name(self) -> None:
+        """return (lambda: x) — the lambda body references a Name."""
+        tree = ast.parse("return (lambda: x)")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "x" in code
+
+
+class TestRemoveReturnsExprWithName:
+    """return <expr containing Name> should become an Expr."""
+
+    def test_return_binop_with_name(self) -> None:
+        tree = ast.parse("return x + 1")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "x" in code
+
+    def test_return_call(self) -> None:
+        """return fn(x) — Call with Name args."""
+        tree = ast.parse("return fn(x)")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "fn" in code
+        assert "x" in code
+
+
+class TestRemoveReturnsBareReturn:
+    """A bare `return` (no value) should not crash."""
+
+    def test_bare_return(self) -> None:
+        tree = ast.parse("return")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "* = None" in code
+
+
 def test_extract_with_block_simple() -> None:
     """Test ExtractWithBlock with a simple with statement."""
     code = """

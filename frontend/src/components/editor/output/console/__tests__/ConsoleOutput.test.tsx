@@ -7,6 +7,19 @@ import type { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { ConsoleOutput } from "../ConsoleOutput";
 
+// Mock ResizeObserver for tests
+global.ResizeObserver = class ResizeObserver {
+  observe() {
+    // noop
+  }
+  unobserve() {
+    // noop
+  }
+  disconnect() {
+    // noop
+  }
+};
+
 describe("ConsoleOutput integration", () => {
   const createOutput = (data: string, channel = "stdout"): OutputMessage => ({
     channel: channel as "stdout" | "stderr",

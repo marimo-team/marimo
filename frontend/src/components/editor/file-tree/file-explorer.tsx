@@ -19,7 +19,6 @@ import {
   ListTreeIcon,
   MoreVerticalIcon,
   PlaySquareIcon,
-  PlusIcon,
   RefreshCcwIcon,
   Trash2Icon,
   UploadIcon,
@@ -33,6 +32,7 @@ import {
   type TreeApi,
 } from "react-arborist";
 import useEvent from "react-use-event-hook";
+import { MarimoIcon, MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
@@ -61,7 +61,6 @@ import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
-import marimoIcon from "../../../assets/icon-32x32.png";
 import { useTreeDndManager } from "./dnd-wrapper";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
@@ -287,20 +286,7 @@ const Toolbar = ({
           variant="text"
           size="xs"
         >
-          <div className="relative w-4 h-4 shrink-0">
-            <img
-              src={marimoIcon}
-              className="absolute top-0 left-0 w-full h-full filter grayscale"
-              alt="Marimo"
-            />
-            <PlusIcon
-              size={7}
-              strokeWidth={4}
-              className="absolute bottom-0 right-0 text-gray-800 dark:text-gray-200
-                bg-background dark:bg-(--slate-1) rounded-full"
-              style={{ transform: "translate(20%, 20%)" }}
-            />
-          </div>
+          <MarimoPlusIcon size={16} />
         </Button>
       </Tooltip>
       <Tooltip content="Add file">
@@ -579,20 +565,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         {node.data.isDirectory && (
           <>
             <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
-              <div className="relative w-[14px] h-[14px] mr-2 shrink-0">
-                <img
-                  src={marimoIcon}
-                  className="absolute top-0 left-0 w-full h-full filter grayscale"
-                  alt="Marimo"
-                />
-                <PlusIcon
-                  size={6}
-                  strokeWidth={3}
-                  className="absolute bottom-0 right-0 text-gray-800 dark:text-gray-200
-                    bg-popover rounded-full"
-                  style={{ transform: "translate(20%, 20%)" }}
-                />
-              </div>
+              <MarimoPlusIcon {...iconProps} />
               Create notebook
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleCreateFile()}>
@@ -724,11 +697,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         )}
       >
         {node.data.isMarimoFile ? (
-          <img
-            src={marimoIcon}
-            className="w-5 h-5 shrink-0 mr-2 filter grayscale"
-            alt="Marimo"
-          />
+          <MarimoIcon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
         ) : (
           <Icon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
         )}

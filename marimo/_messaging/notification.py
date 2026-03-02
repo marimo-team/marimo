@@ -616,11 +616,14 @@ class StorageEntriesNotification(Notification, tag="storage-entries"):
 class StorageDownloadReadyNotification(
     Notification, tag="storage-download-ready"
 ):
-    """Signals that a storage file download is ready as a virtual file.
+    """Signals that a storage file download is ready.
+
+    The url may be a signed cloud URL (preferred) or a virtual file URL
+    (fallback for backends that don't support signing).
 
     Attributes:
         request_id: Request ID this responds to.
-        url: Virtual file URL to download from.
+        url: Signed or virtual-file URL to download from.
         filename: Suggested filename for the download.
         error: Error message if the download failed.
     """

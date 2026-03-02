@@ -12,7 +12,9 @@ from marimo._config.config import (
     AiConfig,
     MarimoConfig,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import (
+    GITHUB_COPILOT_BASE_URL,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -145,14 +147,14 @@ class TestAnyProviderConfig:
         config: AiConfig = {
             "github": {
                 "api_key": "test-github-key",
-                "base_url": "https://api.githubcopilot.com/",
+                "base_url": "https://some-base-url",
             }
         }
 
         provider_config = AnyProviderConfig.for_github(config)
 
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://api.githubcopilot.com/"
+        assert provider_config.base_url == "https://some-base-url"
 
     def test_for_github_with_fallback_base_url(self):
         """Test GitHub configuration uses fallback base URL when not specified."""
@@ -165,7 +167,19 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_github(config)
 
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://api.githubcopilot.com/"
+        assert provider_config.base_url == "https://models.github.ai/inference"
+
+    @pytest.mark.skipif(
+        not DependencyManager.pydantic_ai.has(),
+        reason="pydantic-ai is not installed",
+    )
+    def test_github_default_base_url_matches_pydantic_ai(self):
+        """Test GitHub configuration base URL matches pydantic-ai."""
+        from pydantic_ai.providers.github import GitHubProvider
+
+        assert (
+            GitHubProvider(api_key="dummy").base_url == GITHUB_COPILOT_BASE_URL
+        )
 
     def test_for_github_default_extra_headers(self):
         """Test GitHub configuration includes default extra headers."""
@@ -237,7 +251,7 @@ class TestAnyProviderConfig:
         # Note: copilot_settings is stored in config but not used by AnyProviderConfig
         # It's used by the frontend LSP client
         assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://api.githubcopilot.com/"
+        assert provider_config.base_url == "https://models.github.ai/inference"
 
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""

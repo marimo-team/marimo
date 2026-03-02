@@ -179,6 +179,7 @@ from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
+from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
@@ -2689,6 +2690,24 @@ class ExternalStorageCallbacks:
             "storage backend (expected obstore or fsspec)"
         )
 
+    _VFILE_TTL_SECONDS = 60
+
+    def _schedule_vfile_cleanup(self, vfile: VirtualFile) -> None:
+        """Best-effort cleanup of a virtual file after a TTL."""
+        import asyncio
+
+        from marimo._runtime.context import get_context
+
+        try:
+            registry = get_context().virtual_file_registry
+            loop = asyncio.get_running_loop()
+            loop.call_later(self._VFILE_TTL_SECONDS, registry.remove, vfile)
+        except Exception:
+            LOGGER.debug(
+                "Could not schedule virtual file cleanup for %s",
+                vfile.filename,
+            )
+
     @kernel_tracer.start_as_current_span("storage_list_entries")
     async def list_entries(self, request: StorageListEntriesCommand) -> None:
         """List storage entries at a given prefix."""
@@ -2737,9 +2756,14 @@ class ExternalStorageCallbacks:
                 ),
             )
 
+    _PREVIEW_MAX_BYTES = 1_000_000  # 1 MB
+
     @kernel_tracer.start_as_current_span("storage_download")
     async def download(self, request: StorageDownloadCommand) -> None:
-        """Download a storage entry and create a virtual file."""
+        """
+        Download a storage entry, preferring a signed URL.
+        If preview is true, downloads the first 1MB of the file and returns a same-origin virtual file URL.
+        """
         backend, error = self._get_storage_backend(request.namespace)
         if error is not None or backend is None:
             broadcast_notification(
@@ -2752,21 +2776,13 @@ class ExternalStorageCallbacks:
             )
             return
 
+        filename = request.path.rsplit("/", 1)[-1] or "download"
+
         try:
-            from marimo._runtime.virtual_file.virtual_file import VirtualFile
-
-            result = await backend.download_file(request.path)
-            vfile = VirtualFile.create_and_register(
-                result.file_bytes, result.ext
-            )
-
-            broadcast_notification(
-                StorageDownloadReadyNotification(
-                    request_id=request.request_id,
-                    url=vfile.url,
-                    filename=result.filename,
-                ),
-            )
+            if request.preview:
+                await self._download_preview(backend, request, filename)
+            else:
+                await self._download_full(backend, request, filename)
         except Exception as e:
             LOGGER.exception(
                 "Failed to download %s from %s",
@@ -2781,6 +2797,58 @@ class ExternalStorageCallbacks:
                     error=f"Failed to download: {e}",
                 ),
             )
+
+    async def _download_full(
+        self,
+        backend: StorageBackend[Any],
+        request: StorageDownloadCommand,
+        filename: str,
+    ) -> None:
+        signed_url = await backend.sign_download_url(request.path)
+        if signed_url is not None:
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=signed_url,
+                    filename=filename,
+                ),
+            )
+            return
+
+        # Signing not supported; fall back to virtual file with TTL
+        result = await backend.download_file(request.path)
+        vfile = VirtualFile.create_and_register(result.file_bytes, result.ext)
+        self._schedule_vfile_cleanup(vfile)
+
+        broadcast_notification(
+            StorageDownloadReadyNotification(
+                request_id=request.request_id,
+                url=vfile.url,
+                filename=result.filename,
+            ),
+        )
+
+    async def _download_preview(
+        self,
+        backend: StorageBackend[Any],
+        request: StorageDownloadCommand,
+        filename: str,
+    ) -> None:
+        """Read partial content and serve via a virtual file with TTL. This is useful to bypass CORS."""
+        data = await backend.read_range(
+            request.path, offset=0, length=self._PREVIEW_MAX_BYTES
+        )
+        _, ext = os.path.splitext(filename)
+        vfile = VirtualFile.create_and_register(data, ext.lstrip(".") or "txt")
+        self._schedule_vfile_cleanup(vfile)
+
+        broadcast_notification(
+            StorageDownloadReadyNotification(
+                request_id=request.request_id,
+                url=vfile.url,
+                filename=filename,
+            ),
+        )
 
 
 class SqlCallbacks:

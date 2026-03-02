@@ -6,19 +6,18 @@ import json
 import os
 import subprocess
 import sys
-import threading
-from contextlib import AbstractContextManager
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 import click
 
+from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import run_app_then_export_as_html
+from marimo._server.export._html_asset_server import HtmlAssetServer
 from marimo._server.file_router import flatten_files
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.utils import asyncio_run
@@ -28,7 +27,6 @@ from marimo._utils.paths import marimo_package_path, maybe_make_dirs
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from types import TracebackType
 
     from marimo._cli.sandbox import SandboxMode
 
@@ -230,89 +228,6 @@ sys.stdout.write(result.text)
     return result.stdout
 
 
-class _ThumbnailRequestHandler(SimpleHTTPRequestHandler):
-    def do_GET(self) -> None:  # noqa: N802
-        if self.path.split("?", 1)[0] == "/__marimo_thumbnail__.html":
-            html = getattr(self.server, "thumbnail_html", "")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(html.encode("utf-8"))
-            return
-        return super().do_GET()
-
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
-        # Silence noisy server logs for CLI usage.
-        del format
-        del args
-        return
-
-
-class _ThumbnailHTTPServer(ThreadingHTTPServer):
-    # Set by _ThumbnailAssetServer to serve a fresh HTML document per notebook.
-    thumbnail_html: str
-
-
-class _ThumbnailAssetServer(AbstractContextManager["_ThumbnailAssetServer"]):
-    def __init__(self, *, directory: Path) -> None:
-        self._directory = directory
-        self._server: _ThumbnailHTTPServer | None = None
-        self._thread: threading.Thread | None = None
-
-    @property
-    def base_url(self) -> str:
-        assert self._server is not None
-        host, port = self._server.server_address[:2]
-        if isinstance(host, bytes):
-            host = host.decode("utf-8")
-        return f"http://{host}:{port}"
-
-    @property
-    def page_url(self) -> str:
-        return f"{self.base_url}/__marimo_thumbnail__.html"
-
-    def set_html(self, html: str) -> None:
-        assert self._server is not None
-        self._server.thumbnail_html = html
-
-    def __enter__(self) -> _ThumbnailAssetServer:
-        if not self._directory.is_dir():
-            raise click.ClickException(
-                f"Static assets not found at {self._directory}"
-            )
-
-        handler = partial(
-            _ThumbnailRequestHandler, directory=str(self._directory)
-        )
-        self._server = _ThumbnailHTTPServer(("127.0.0.1", 0), handler)
-        self._server.thumbnail_html = ""
-
-        self._thread = threading.Thread(
-            target=self._server.serve_forever, daemon=True
-        )
-        self._thread.start()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        del exc_type
-        del exc
-        del tb
-        if self._server is not None:
-            self._server.shutdown()
-            self._server.server_close()
-            self._server = None
-        if self._thread is not None:
-            self._thread.join(timeout=1)
-            self._thread = None
-        return None
-
-
 class _SandboxVenvPool:
     def __init__(self) -> None:
         self._envs: dict[tuple[str, ...], tuple[str, str]] = {}
@@ -369,21 +284,20 @@ async def _generate_thumbnails(
         )
     except ModuleNotFoundError as e:
         if getattr(e, "name", None) == "playwright":
-            raise click.ClickException(
-                "Playwright is required to generate thumbnails.\n\n"
-                "  Tip: Install dependencies with:\n\n"
-                "    pip install 'nbconvert[webpdf]'\n\n"
-                "  and install Chromium with:\n\n"
-                "    python -m playwright install chromium"
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required to generate thumbnails.",
+                "nbconvert[webpdf]",
+                followup_commands=get_playwright_chromium_setup_commands(),
             ) from None
         raise
 
     use_per_notebook_sandbox = sandbox_mode is SandboxMode.MULTI
 
     if use_per_notebook_sandbox and not DependencyManager.which("uv"):
-        raise click.ClickException(
-            "uv is required for --sandbox thumbnail generation.\n\n"
-            "  Tip: Install uv from https://github.com/astral-sh/uv"
+        raise MarimoCLIMissingDependencyError(
+            "uv is required for --sandbox thumbnail generation.",
+            "uv",
+            additional_tip="Install uv from https://github.com/astral-sh/uv",
         )
 
     static_dir = marimo_package_path() / "_static"
@@ -392,7 +306,9 @@ async def _generate_thumbnails(
         _SandboxVenvPool() if use_per_notebook_sandbox else None
     )
     try:
-        with _ThumbnailAssetServer(directory=static_dir) as server:
+        with HtmlAssetServer(
+            directory=static_dir, route="/__marimo_thumbnail__.html"
+        ) as server:
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.launch()
                 context = await browser.new_context(
@@ -625,12 +541,10 @@ def thumbnail(
         DependencyManager.playwright.require("for thumbnail generation")
     except ModuleNotFoundError as e:
         if getattr(e, "name", None) == "playwright":
-            raise click.ClickException(
-                "Playwright is required for thumbnail generation.\n\n"
-                "  Tip: Install with:\n\n"
-                "    python -m pip install playwright\n\n"
-                "  and install Chromium with:\n\n"
-                "    python -m playwright install chromium"
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required for thumbnail generation.",
+                "playwright",
+                followup_commands=get_playwright_chromium_setup_commands(),
             ) from None
         raise
 

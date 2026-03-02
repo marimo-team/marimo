@@ -64,6 +64,10 @@ const CellActionsDropdownInternal = (
   const buttonRef = useRef<HTMLButtonElement>(null);
   const actions = useCellActionButtons({ cell: props, closePopover });
 
+  const visibleActions = actions
+    .map((group) => group.filter((action) => !action.redundant))
+    .filter((group) => group.length > 0);
+
   // store the last focused element so we can restore it when the popover closes
   const restoreFocus = useRestoreFocus();
 
@@ -112,13 +116,10 @@ const CellActionsDropdownInternal = (
         />
         <CommandList>
           <CommandEmpty>No results</CommandEmpty>
-          {actions.map((group, i) => (
+          {visibleActions.map((group, i) => (
             <Fragment key={i}>
               <CommandGroup key={i}>
                 {group.map((action) => {
-                  if (action.redundant) {
-                    return null;
-                  }
                   let body = (
                     <div className="flex items-center flex-1">
                       {action.icon && (
@@ -162,7 +163,7 @@ const CellActionsDropdownInternal = (
                   );
                 })}
               </CommandGroup>
-              {i < actions.length - 1 && <CommandSeparator />}
+              {i < visibleActions.length - 1 && <CommandSeparator />}
             </Fragment>
           ))}
         </CommandList>

@@ -23,6 +23,10 @@ jobs:
   publish_release:
     name: 📤 Publish release
     runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         shell: bash
@@ -50,13 +54,9 @@ jobs:
         run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to PyPI
-        env:
-          HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_MARIMO_BASE_PASSWORD }}
-        run: uvx hatch publish
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: 📤 Upload to TestPyPI
-        env:
-          HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
-        run: uvx hatch publish --repo test
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

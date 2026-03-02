@@ -336,6 +336,18 @@ class WebSocketHandler(SessionConsumer):
 
             def _close() -> None:
                 if self.status != ConnectionState.OPEN:
+                    # Guard: if another consumer has taken over, the session
+                    # is alive.
+                    live = self.manager.get_session(self.params.session_id)
+                    if (
+                        live is not None
+                        and live.connection_state() == ConnectionState.OPEN
+                    ):
+                        LOGGER.debug(
+                            "Session %s has active consumer, skipping TTL close",
+                            self.params.session_id,
+                        )
+                        return
                     LOGGER.debug(
                         "Closing session %s (TTL EXPIRED)",
                         self.params.session_id,

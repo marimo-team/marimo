@@ -86,29 +86,36 @@ mo.md(content)
 
 ### Authentication Middleware Example
 
-Here's an example of how to implement authentication middleware that populates `request.user`:
+Here's an example of how to implement authentication middleware that populates `request.user`.
+
+/// admonition | Use a pure ASGI middleware
+    type: warning
+
+Use a pure ASGI middleware (not Starlette's `BaseHTTPMiddleware`) so that
+`scope["user"]` and `scope["meta"]` are set for **both** HTTP and WebSocket
+connections. marimo uses WebSocket for real-time communication, and
+`BaseHTTPMiddleware` only runs for HTTP requests.
+///
 
 ```python
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+class AuthMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Add user data to the request scope
-        # This will be accessible via mo.app_meta().request.user
-        request.scope["user"] = {
-            "is_authenticated": True,
-            "username": "example_user",
-            # Add any other user data
-        }
-
-        # Optional add metadata to the request
-        request.scope["meta"] = {
-            "some_key": "some_value",
-        }
-
-        response = await call_next(request)
-        return response
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            # Add user data to the request scope
+            # This will be accessible via mo.app_meta().request.user
+            scope["user"] = {
+                "is_authenticated": True,
+                "username": "example_user",
+                # Add any other user data
+            }
+            # Optionally add metadata to the request
+            scope["meta"] = {
+                "some_key": "some_value",
+            }
+        await self.app(scope, receive, send)
 
 # Add the middleware to your FastAPI app
 app.add_middleware(AuthMiddleware)

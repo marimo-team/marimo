@@ -111,6 +111,9 @@ export function useStorageEntries(namespace: string, prefix?: string) {
       prefix: prefix ?? ROOT_PATH,
       limit: DEFAULT_FETCH_LIMIT,
     });
+    if (result.error) {
+      throw new Error(result.error);
+    }
     setEntries({ namespace, prefix, entries: result.entries });
   }, [namespace, prefix, cached === undefined]);
 

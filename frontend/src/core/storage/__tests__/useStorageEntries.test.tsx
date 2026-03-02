@@ -139,6 +139,25 @@ describe("useStorageEntries", () => {
     expect(result.current.isPending).toBe(false);
   });
 
+  it("should surface result.error as a thrown error", async () => {
+    mockRequest.mockResolvedValue({
+      entries: [],
+      error: "access denied",
+    });
+
+    const { result } = renderHook(() => useStorageEntries("ns", "pfx/"), {
+      wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeDefined();
+    });
+
+    expect(result.current.error?.message).toBe("access denied");
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.isPending).toBe(false);
+  });
+
   it("should suppress error when entries are cached", async () => {
     const entries = [makeEntry({ path: "ok.txt" })];
     setStorageState({

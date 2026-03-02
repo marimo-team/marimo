@@ -21,10 +21,15 @@ from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup
 from marimo._cli.parse_args import parse_args
+from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
@@ -37,6 +42,7 @@ from marimo._cli.utils import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
+from marimo._mcp.setup import McpType
 from marimo._server.file_router import (
     AppFileRouter,
     LazyListOfFilesAppFileRouter,
@@ -58,17 +64,7 @@ from marimo._version import __version__
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
-    if file is None:
-        file = click.get_text_stream("stderr")
-    color = None
-    click.echo(
-        red("Error") + f": {self.format_message()}\n",
-        file=file,
-        color=color,
-    )
-    if self.ctx is not None:
-        color = self.ctx.color
-        click.echo(self.ctx.get_help(), file=file, color=color)
+    show_compact_usage_error(self, file=file)
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -262,6 +258,24 @@ edit_help_msg = "\n".join(
 )
 
 
+class _OptionalValueOption(click.Option):
+    """A click Option that supports an optional value.
+
+    Works around a regression in click 8.3.x where the documented
+    ``is_flag=False, flag_value=...`` pattern is broken.
+    See: https://github.com/pallets/click/issues/3084
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        opt_flag_value = kwargs.pop("flag_value", None)
+        kwargs.setdefault("default", None)
+        kwargs["is_flag"] = False
+        super().__init__(*args, **kwargs)
+        self._flag_needs_value = True
+        if opt_flag_value is not None:
+            self.flag_value = opt_flag_value
+
+
 @main.command(help=edit_help_msg)
 @click.option(
     "-p",
@@ -373,11 +387,20 @@ edit_help_msg = "\n".join(
 )
 @click.option(
     "--mcp",
+    cls=_OptionalValueOption,
+    flag_value="tools",
+    default=None,
+    type=click.Choice(["tools", "code-mode"]),
+    hidden=True,
+    help="Enable MCP server endpoint.",
+)
+@click.option(
+    "--mcp-allow-remote",
     is_flag=True,
     default=False,
     type=bool,
     hidden=True,
-    help="Enable MCP server endpoint at /mcp/server for LLM integration.",
+    help="Allow remote access to MCP server by disabling DNS rebinding protection.",
 )
 @click.option(
     "--server-startup-command",
@@ -430,7 +453,8 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
-    mcp: bool,
+    mcp: Optional[McpType],
+    mcp_allow_remote: bool,
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     timeout: Optional[float],
@@ -465,10 +489,6 @@ def edit(
         return
 
     GLOBAL_SETTINGS.PROFILE_DIR = profile_dir
-    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
-        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
-        # Check for version updates
-        check_for_updates(print_latest_version)
 
     if name is not None:
         # Validate name, or download from URL
@@ -521,10 +541,9 @@ def edit(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.ClickException(
-                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
+                "marimo[sandbox]",
             )
 
         # Enable script metadata management for sandboxed notebooks
@@ -537,16 +556,26 @@ def edit(
 
     shm_available, shm_error = check_shared_memory_available()
     if not shm_available:
-        _loggers.marimo_logger().error(
-            f"marimo failed to start: marimo edit requires shared memory support for multiprocessing.\n\n"
+        shm_mount_example = "--shm-size=256m or -v /dev/shm:/dev/shm"
+        docker_shm_line = " ".join(
+            [
+                "  - If running in Docker, ensure /dev/shm is mounted with sufficient size",
+                f"(e.g., {shm_mount_example})",
+            ]
+        )
+        raise MarimoCLIRuntimeError(
+            "marimo edit requires shared memory support for multiprocessing.\n\n"
             f"{shm_error}\n\n"
             "Possible solutions:\n"
-            "  - If running in Docker, ensure /dev/shm is mounted with sufficient size\n"
-            "    (e.g., --shm-size=256m or -v /dev/shm:/dev/shm)\n"
+            f"{docker_shm_line}\n"
             "  - If /dev/shm is full, clear unused shared memory segments\n"
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
-        sys.exit(1)
+
+    if not skip_update_check and os.getenv("MARIMO_SKIP_UPDATE_CHECK") != "1":
+        GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = True
+        # Check for version updates after preflight checks pass.
+        check_for_updates(print_latest_version)
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -573,6 +602,7 @@ def edit(
         ttl_seconds=session_ttl,
         remote_url=remote_url,
         mcp=mcp,
+        mcp_allow_remote=mcp_allow_remote,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
@@ -1155,10 +1185,9 @@ def run(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.ClickException(
-                "pyzmq is required when running a gallery with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running a gallery with --sandbox.",
+                "marimo[sandbox]",
             )
 
     file_router = _create_run_file_router(validated_paths, watch=watch)
@@ -1326,7 +1355,7 @@ def env() -> None:
 def shell_completion() -> None:
     shell = os.environ.get("SHELL", "")
     if not shell:
-        raise click.UsageError(
+        raise MarimoCLIRuntimeError(
             "Could not determine shell. Please set $SHELL environment variable.",
         )
 
@@ -1351,10 +1380,9 @@ def shell_completion() -> None:
 
     if shell_name not in commands:
         supported = ", ".join(commands.keys())
-        raise click.UsageError(
+        raise MarimoCLIRuntimeError(
             f"Unsupported shell: {shell_name} (from $SHELL). Supported shells: {supported}",
         )
-        return
 
     cmd, rc_file = commands[shell_name]
     click.secho("Run this command to enable completions:", fg="green")

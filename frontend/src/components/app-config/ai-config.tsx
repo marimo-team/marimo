@@ -983,7 +983,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             form={form}
             config={config}
             name="ai.github.base_url"
-            placeholder="https://api.githubcopilot.com/"
+            placeholder="https://models.github.ai/inference"
             testId="ai-github-base-url-input"
           />
         </AccordionFormItem>

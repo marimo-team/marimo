@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { DATA_TYPE_ICON, getDataTypeColor } from "../datasets/icons";
@@ -42,16 +43,19 @@ export const EmptyState: React.FC<{ content: string; className?: string }> = ({
 
 export const ErrorState: React.FC<{
   error: Error;
+  style?: CSSProperties;
   className?: string;
-}> = ({ error, className }) => {
+  showIcon?: boolean;
+}> = ({ error, style, className, showIcon = true }) => {
   return (
     <div
       className={cn(
         "text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-50 flex items-center gap-2 p-2 h-8",
         className,
       )}
+      style={style}
     >
-      <XIcon className="h-4 w-4 mt-0.5" />
+      {showIcon && <XIcon className="h-4 w-4 mt-0.5" />}
       {error.message}
     </div>
   );

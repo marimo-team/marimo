@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   MoreVerticalIcon,
   RefreshCwIcon,
+  ViewIcon,
   XIcon,
 } from "lucide-react";
 import React, { useCallback, useState } from "react";
@@ -44,8 +45,15 @@ import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
+import { ErrorState } from "../datasources/components";
 import { Button } from "../ui/button";
-import { renderFileIcon, renderProtocolIcon } from "./components";
+import { ProtocolIcon, renderFileIcon } from "./components";
+import { StorageFileViewer } from "./storage-file-viewer";
+
+interface OpenFileInfo {
+  entry: StorageEntry;
+  namespace: string;
+}
 
 // Pixels per depth level. Applied as paddingLeft on each full-width item
 // so the selection highlight still spans the entire panel.
@@ -132,6 +140,7 @@ const StorageEntryChildren: React.FC<{
   depth: number;
   locale: string;
   searchValue: string;
+  onOpenFile: (info: OpenFileInfo) => void;
 }> = ({
   namespace,
   protocol,
@@ -140,6 +149,7 @@ const StorageEntryChildren: React.FC<{
   depth,
   locale,
   searchValue,
+  onOpenFile,
 }) => {
   const { entriesByPath } = useStorage();
   const {
@@ -198,6 +208,7 @@ const StorageEntryChildren: React.FC<{
           depth={depth}
           locale={locale}
           searchValue={searchValue}
+          onOpenFile={onOpenFile}
         />
       ))}
     </>
@@ -212,7 +223,17 @@ const StorageEntryRow: React.FC<{
   depth: number;
   locale: string;
   searchValue: string;
-}> = ({ entry, namespace, protocol, rootPath, depth, locale, searchValue }) => {
+  onOpenFile: (info: OpenFileInfo) => void;
+}> = ({
+  entry,
+  namespace,
+  protocol,
+  rootPath,
+  depth,
+  locale,
+  searchValue,
+  onOpenFile,
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { entriesByPath } = useStorage();
   const isDir = entry.kind === "directory";
@@ -271,6 +292,8 @@ const StorageEntryRow: React.FC<{
         onSelect={() => {
           if (isDir) {
             setIsExpanded(!effectiveExpanded);
+          } else {
+            onOpenFile({ entry, namespace });
           }
         }}
       >
@@ -321,6 +344,14 @@ const StorageEntryRow: React.FC<{
               onClick={(e) => e.stopPropagation()}
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
+              {!isDir && (
+                <DropdownMenuItem
+                  onSelect={() => onOpenFile({ entry, namespace })}
+                >
+                  <ViewIcon className="h-3.5 w-3.5 mr-2" />
+                  View
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onSelect={async () => {
                   const url = storageUrl(protocol, rootPath, entry.path);
@@ -350,6 +381,7 @@ const StorageEntryRow: React.FC<{
           depth={depth + 1}
           locale={locale}
           searchValue={searchValue}
+          onOpenFile={onOpenFile}
         />
       )}
     </>
@@ -360,7 +392,8 @@ const StorageNamespaceSection: React.FC<{
   namespace: StorageNamespace;
   locale: string;
   searchValue: string;
-}> = ({ namespace, locale, searchValue }) => {
+  onOpenFile: (info: OpenFileInfo) => void;
+}> = ({ namespace, locale, searchValue, onOpenFile }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isSpinning, setIsSpinning] = useState(false);
   const { entriesByPath } = useStorage();
@@ -407,7 +440,7 @@ const StorageNamespaceSection: React.FC<{
             isExpanded && "rotate-90",
           )}
         />
-        {renderProtocolIcon(namespace.protocol)}
+        <ProtocolIcon protocol={namespace.protocol} />
         <span>{namespace.displayName}</span>
         {namespace.name && (
           <span className="text-xs text-muted-foreground font-normal">
@@ -445,12 +478,12 @@ const StorageNamespaceSection: React.FC<{
             </div>
           )}
           {error && entries.length === 0 && (
-            <div
-              className="py-1 text-xs text-destructive"
+            <ErrorState
+              error={error}
               style={indentStyle(1)}
-            >
-              Failed to load entries: {error.message}
-            </div>
+              className="py-1 text-xs h-auto"
+              showIcon={false}
+            />
           )}
           {!isPending && entries.length === 0 && !error && (
             <div
@@ -478,6 +511,7 @@ const StorageNamespaceSection: React.FC<{
               depth={1}
               locale={locale}
               searchValue={searchValue}
+              onOpenFile={onOpenFile}
             />
           ))}
         </>
@@ -490,6 +524,7 @@ export const StorageInspector: React.FC = () => {
   const { namespaces } = useStorage();
   const { locale } = useLocale();
   const [searchValue, setSearchValue] = useState("");
+  const [openFile, setOpenFile] = useState<OpenFileInfo | null>(null);
   const hasSearch = !!searchValue.trim();
 
   if (namespaces.length === 0) {
@@ -516,45 +551,60 @@ export const StorageInspector: React.FC = () => {
   }
 
   return (
-    <Command
-      className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-hidden scrollbar-thin"
-      shouldFilter={false}
-    >
-      <div className="flex items-center w-full border-b">
-        <CommandInput
-          placeholder="Search entries..."
-          className="h-6 m-1"
-          value={searchValue}
-          onValueChange={setSearchValue}
-          rootClassName="flex-1 border-b-0"
+    <div className="h-full flex flex-col">
+      {openFile && (
+        <StorageFileViewer
+          entry={openFile.entry}
+          namespace={openFile.namespace}
+          onBack={() => setOpenFile(null)}
         />
-        {hasSearch && (
-          <Button
-            variant="text"
-            size="xs"
-            className="float-right border-none px-2 m-0 h-full"
-            onClick={() => setSearchValue("")}
-          >
-            <XIcon className="h-4 w-4" />
-          </Button>
+      )}
+      <Command
+        className={cn(
+          "border-b bg-background rounded-none h-full pb-10 overflow-auto outline-hidden scrollbar-thin",
+          // We want to keep the command open but hidden when a file is opened to preserve state (folders opened etc.)
+          // TODO: Preserve scroll position
+          openFile && "hidden",
         )}
-        <Tooltip
-          content="Filters loaded entries only. Expand directories to include their contents in the search."
-          delayDuration={200}
-        >
-          <HelpCircleIcon className="h-3.5 w-3.5 mr-2 shrink-0 cursor-help text-muted-foreground hover:text-foreground" />
-        </Tooltip>
-      </div>
-      <CommandList className="flex flex-col">
-        {namespaces.map((ns) => (
-          <StorageNamespaceSection
-            key={ns.name ?? ns.displayName}
-            namespace={ns}
-            locale={locale}
-            searchValue={searchValue}
+        shouldFilter={false}
+      >
+        <div className="flex items-center w-full border-b">
+          <CommandInput
+            placeholder="Search entries..."
+            className="h-6 m-1"
+            value={searchValue}
+            onValueChange={setSearchValue}
+            rootClassName="flex-1 border-b-0"
           />
-        ))}
-      </CommandList>
-    </Command>
+          {hasSearch && (
+            <Button
+              variant="text"
+              size="xs"
+              className="float-right border-none px-2 m-0 h-full"
+              onClick={() => setSearchValue("")}
+            >
+              <XIcon className="h-4 w-4" />
+            </Button>
+          )}
+          <Tooltip
+            content="Filters loaded entries only. Expand directories to include their contents in the search."
+            delayDuration={200}
+          >
+            <HelpCircleIcon className="h-3.5 w-3.5 mr-2 shrink-0 cursor-help text-muted-foreground hover:text-foreground" />
+          </Tooltip>
+        </div>
+        <CommandList className="flex flex-col">
+          {namespaces.map((ns) => (
+            <StorageNamespaceSection
+              key={ns.name ?? ns.displayName}
+              namespace={ns}
+              locale={locale}
+              searchValue={searchValue}
+              onOpenFile={setOpenFile}
+            />
+          ))}
+        </CommandList>
+      </Command>
+    </div>
   );
 };

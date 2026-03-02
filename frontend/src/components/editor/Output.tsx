@@ -1,12 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, {
-  memo,
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { memo, Suspense, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -30,6 +23,7 @@ import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
+import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
@@ -427,27 +421,8 @@ const ExpandableOutput = React.memo(
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
-    const [isOverflowing, setIsOverflowing] = useState(false);
+    const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
-
-    // Create resize observer to detect overflow
-    useEffect(() => {
-      if (!containerRef.current) {
-        return;
-      }
-      const el = containerRef.current;
-
-      const detectOverflow = () => {
-        setIsOverflowing(el.scrollHeight > el.clientHeight);
-      };
-
-      const resizeObserver = new ResizeObserver(detectOverflow);
-      resizeObserver.observe(el);
-
-      return () => {
-        resizeObserver.disconnect();
-      };
-    }, [props.id]);
 
     return (
       <>

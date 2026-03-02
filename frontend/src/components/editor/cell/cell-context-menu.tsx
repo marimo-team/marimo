@@ -176,6 +176,12 @@ export const CellActionsContextMenu = ({
 
   const allActions: ActionButton[][] = [DEFAULT_CONTEXT_MENU_ITEMS, ...actions];
 
+  const visibleActions = allActions
+    .map((group) =>
+      group.filter((action) => !action.hidden && !action.redundant),
+    )
+    .filter((group) => group.length > 0);
+
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -191,13 +197,9 @@ export const CellActionsContextMenu = ({
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-[300px]" scrollable={true}>
-        {allActions.map((group, i) => (
+        {visibleActions.map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {
-              if (action.hidden || action.redundant) {
-                return null;
-              }
-
               let body = (
                 <div className="flex items-center flex-1">
                   {action.icon && (
@@ -258,7 +260,7 @@ export const CellActionsContextMenu = ({
                 </Fragment>
               );
             })}
-            {i < allActions.length - 1 && <ContextMenuSeparator />}
+            {i < visibleActions.length - 1 && <ContextMenuSeparator />}
           </Fragment>
         ))}
       </ContextMenuContent>

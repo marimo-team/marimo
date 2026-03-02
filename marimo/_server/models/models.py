@@ -153,6 +153,7 @@ class StorageDownloadRequest(StorageDownloadCommand, tag=False):
             request_id=self.request_id,
             namespace=self.namespace,
             path=self.path,
+            preview=self.preview,
         )
 
 

@@ -4074,6 +4074,22 @@ export interface components {
     };
     /** ExportAsPDFRequest */
     ExportAsPDFRequest: {
+      /** @default false */
+      includeInputs?: boolean;
+      /**
+       * @default document
+       * @enum {unknown}
+       */
+      preset?: "document" | "slides";
+      /** @default 4 */
+      rasterScale?: number;
+      /**
+       * @default static
+       * @enum {unknown}
+       */
+      rasterServer?: "live" | "static";
+      /** @default true */
+      rasterizeOutputs?: boolean;
       webpdf: boolean;
     };
     /** ExportAsScriptRequest */
@@ -5707,28 +5723,35 @@ export interface components {
      * StorageDownloadCommand
      * @description Download a storage entry.
      *
-     *         Downloads file bytes from storage and creates a virtual file
+     *         Obtains a pre-signed URL or downloads the file locally and returns a virtual file URL
      *         so the frontend can fetch the contents.
      *
      *         Attributes:
      *             request_id: Unique identifier for this request.
      *             namespace: Variable name identifying the storage backend.
      *             path: Full path of the entry to download.
+     *             preview: If true, a local preview of the file is returned.
+     *                 This is useful if you need to bypass CORS.
      */
     StorageDownloadCommand: {
       namespace: string;
       path: string;
+      /** @default false */
+      preview?: boolean;
       requestId: string;
       /** @enum {unknown} */
       type: "storage-download";
     };
     /**
      * StorageDownloadReadyNotification
-     * @description Signals that a storage file download is ready as a virtual file.
+     * @description Signals that a storage file download is ready.
+     *
+     *         The url may be a signed cloud URL (preferred) or a virtual file URL
+     *         (fallback for backends that don't support signing).
      *
      *         Attributes:
      *             request_id: Request ID this responds to.
-     *             url: Virtual file URL to download from.
+     *             url: Signed or virtual-file URL to download from.
      *             filename: Suggested filename for the download.
      *             error: Error message if the download failed.
      */
@@ -5747,6 +5770,8 @@ export interface components {
     StorageDownloadRequest: {
       namespace: string;
       path: string;
+      /** @default false */
+      preview?: boolean;
       requestId: string;
     };
     /**
@@ -5784,6 +5809,7 @@ export interface components {
      *             size: The size of the storage entry.
      *             last_modified: The last modified time of the storage entry.
      *             metadata: The metadata of the storage entry.
+     *             mime_type: The MIME type of the storage entry, or None for directories.
      */
     StorageEntry: {
       /** @enum {unknown} */
@@ -5791,6 +5817,8 @@ export interface components {
       lastModified: number | null;
       /** @default {} */
       metadata?: Record<string, any>;
+      /** @default null */
+      mimeType?: string | null;
       path: string;
       size: number;
     };

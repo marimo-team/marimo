@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import AwsIcon from "@marimo-team/llm-info/icons/aws.svg?inline";
+import AwsDarkIcon from "@marimo-team/llm-info/icons/aws-dark.svg?inline";
 import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
+import CloudflareIcon from "@marimo-team/llm-info/icons/cloudflare.svg?inline";
+import CoreweaveIcon from "@marimo-team/llm-info/icons/coreweave.svg?inline";
+import CoreweaveDarkIcon from "@marimo-team/llm-info/icons/coreweave-dark.svg?inline";
 import {
   DatabaseZapIcon,
   FileCodeIcon,
@@ -15,6 +19,7 @@ import {
 } from "lucide-react";
 import GoogleCloudIcon from "@/components/databases/icons/google-cloud-storage.svg?inline";
 import type { KnownStorageProtocol } from "@/core/storage/types";
+import { useTheme } from "@/theme/useTheme";
 
 export function renderFileIcon(name: string): React.ReactNode {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -48,26 +53,34 @@ export function renderFileIcon(name: string): React.ReactNode {
   }
 }
 
-const PROTOCOL_ICONS: Record<
-  KnownStorageProtocol,
-  string | React.ComponentType<{ className?: string }>
-> = {
-  s3: AwsIcon,
-  azure: AzureIcon,
-  gcs: GoogleCloudIcon,
+type IconEntry =
+  | { src: string; dark?: string }
+  | React.ComponentType<{ className?: string }>;
+
+const PROTOCOL_ICONS: Record<KnownStorageProtocol, IconEntry> = {
+  s3: { src: AwsIcon, dark: AwsDarkIcon },
+  coreweave: { src: CoreweaveIcon, dark: CoreweaveDarkIcon },
+  cloudflare: { src: CloudflareIcon },
+  azure: { src: AzureIcon },
+  gcs: { src: GoogleCloudIcon },
   http: GlobeIcon,
   file: HardDriveIcon,
   "in-memory": DatabaseZapIcon,
-} as const;
+};
 
-export function renderProtocolIcon(
-  protocol: KnownStorageProtocol | (string & {}),
-): React.ReactNode {
-  const Icon =
+export const ProtocolIcon: React.FC<{
+  protocol: KnownStorageProtocol | (string & {});
+}> = ({ protocol }) => {
+  const { theme } = useTheme();
+  const entry =
     PROTOCOL_ICONS[protocol.toLowerCase() as KnownStorageProtocol] ??
     HardDriveIcon;
-  if (typeof Icon === "string") {
-    return <img src={Icon} alt={protocol} className="h-3.5 w-3.5" />;
+
+  if ("src" in entry) {
+    const src = theme === "dark" && entry.dark ? entry.dark : entry.src;
+    return <img src={src} alt={protocol} className="h-3.5 w-3.5" />;
   }
+
+  const Icon = entry;
   return <Icon className="h-3.5 w-3.5" />;
-}
+};

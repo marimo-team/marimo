@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import mimetypes
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._data._external_storage.models import (
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
+    SIGNED_URL_EXPIRATION,
     StorageBackend,
     StorageEntry,
 )
@@ -84,12 +87,46 @@ class Obstore(StorageBackend["ObjectStore"]):
             last_modified=last_modified.timestamp() if last_modified else None,
             kind="object",
             metadata=entry_meta,
+            mime_type=mimetypes.guess_type(path or "")[0],
         )
 
     async def download(self, path: str) -> bytes:
         result = await self.store.get_async(path)
         bytes_data = await result.bytes_async()
         return bytes(bytes_data)
+
+    async def read_range(
+        self, path: str, *, offset: int = 0, length: int | None = None
+    ) -> bytes:
+        if length is None:
+            data = await self.download(path)
+            return data[offset:]
+        from obstore import get_range_async
+
+        return bytes(
+            await get_range_async(
+                self.store, path, start=offset, length=length
+            )
+        )
+
+    async def sign_download_url(
+        self, path: str, expiration: int = SIGNED_URL_EXPIRATION
+    ) -> str | None:
+        from obstore import sign_async
+        from obstore.store import AzureStore, GCSStore, S3Store
+
+        if not isinstance(self.store, (S3Store, GCSStore, AzureStore)):
+            return None
+        try:
+            return await sign_async(
+                self.store,
+                "GET",
+                path,
+                expires_in=timedelta(seconds=expiration),
+            )
+        except Exception:
+            LOGGER.info("Failed to sign URL for %s", path)
+            return None
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
@@ -231,12 +268,16 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         else:
             resolved_kind = self._identify_kind(entry_type)
 
+        resolved_path = name or ""
         return StorageEntry(
-            path=name or "",
+            path=resolved_path,
             size=size or 0,
             last_modified=file.get("mtime"),
             kind=resolved_kind,
             metadata=entry_meta,
+            mime_type=mimetypes.guess_type(resolved_path)[0]
+            if resolved_kind != "directory"
+            else None,
         )
 
     async def download(self, path: str) -> bytes:
@@ -248,6 +289,31 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         if isinstance(file, str):
             return file.encode("utf-8")
         return file
+
+    async def read_range(
+        self, path: str, *, offset: int = 0, length: int | None = None
+    ) -> bytes:
+        end = offset + length if length is not None else None
+        data = await asyncio.to_thread(
+            self.store.cat_file, path, start=offset, end=end
+        )
+        if isinstance(data, str):
+            return data.encode("utf-8")
+        return bytes(data)
+
+    async def sign_download_url(
+        self, path: str, expiration: int = SIGNED_URL_EXPIRATION
+    ) -> str | None:
+        try:
+            url = await asyncio.to_thread(
+                self.store.sign, path, expiration=expiration
+            )
+            return str(url)
+        except NotImplementedError:
+            return None
+        except Exception:
+            LOGGER.info("Failed to sign URL for %s", path)
+            return None
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:

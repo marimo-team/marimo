@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useCallback, useRef, useState } from "react";
+import { type JSX, useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
 import type { IPlugin, IPluginProps, Setter } from "../types";
@@ -90,7 +90,10 @@ const MatrixComponent = ({
   // Outside of a drag we always read from the prop `value` directly,
   // which avoids stale-state bugs when the matrix shape changes.
   const [draft, setDraft] = useState(value);
-  const displayValue = activeCell != null ? draft : value;
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+  const displayValue = activeCell == null ? value : draft;
 
   const formatValue = (val: number) =>
     scientific ? val.toExponential(precision) : val.toFixed(precision);

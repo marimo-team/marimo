@@ -13,6 +13,7 @@ from marimo._utils.assert_never import log_never
 KNOWN_STORAGE_TYPES = Literal[
     "s3", "gcs", "azure", "http", "file", "in-memory"
 ]
+SIGNED_URL_EXPIRATION = 60
 
 
 # Note: We may want to consolidate with FileInfo from _server/models/files.py
@@ -25,6 +26,7 @@ class StorageEntry(msgspec.Struct, rename="camel"):
         size: The size of the storage entry.
         last_modified: The last modified time of the storage entry.
         metadata: The metadata of the storage entry.
+        mime_type: The MIME type of the storage entry, or None for directories.
     """
 
     path: str
@@ -32,6 +34,7 @@ class StorageEntry(msgspec.Struct, rename="camel"):
     size: int
     last_modified: float | None
     metadata: dict[str, Any] = msgspec.field(default_factory=dict)
+    mime_type: str | None = None
 
 
 class StorageNamespace(msgspec.Struct, rename="camel"):
@@ -97,6 +100,18 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     @abc.abstractmethod
     async def download(self, path: str) -> bytes:
         """Download the file at the given path."""
+
+    @abc.abstractmethod
+    async def read_range(
+        self, path: str, *, offset: int = 0, length: int | None = None
+    ) -> bytes:
+        """Read a byte range from the file. If length is None, read the entire file."""
+
+    @abc.abstractmethod
+    async def sign_download_url(
+        self, path: str, expiration: int = SIGNED_URL_EXPIRATION
+    ) -> str | None:
+        """Return a signed URL for direct browser download, or None if unsupported."""
 
     async def download_file(self, path: str) -> DownloadResult:
         """Download the file at the given path with extracted metadata.

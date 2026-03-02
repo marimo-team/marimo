@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.chat.chat import (
 from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
+from marimo._utils.platform import is_windows
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -925,8 +926,9 @@ def test_serialize_str_subclass():
     assert type(sent_chunks[1]["delta"]) is str  # Exact type check
 
 
+# TODO(dmadisetti): Resolve weave / windows issue. Raised upstream
 @pytest.mark.skipif(
-    not DependencyManager.weave.has(),
+    not DependencyManager.weave.has() or is_windows(),
     reason="weave is not installed",
 )
 def test_serialize_weave_boxed_str():
