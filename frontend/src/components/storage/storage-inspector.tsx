@@ -140,6 +140,7 @@ const StorageEntryChildren: React.FC<{
   depth: number;
   locale: string;
   searchValue: string;
+  parentMatched: boolean;
   onOpenFile: (info: OpenFileInfo) => void;
 }> = ({
   namespace,
@@ -149,6 +150,7 @@ const StorageEntryChildren: React.FC<{
   depth,
   locale,
   searchValue,
+  parentMatched,
   onOpenFile,
 }) => {
   const { entriesByPath } = useStorage();
@@ -189,12 +191,10 @@ const StorageEntryChildren: React.FC<{
     );
   }
 
-  const filtered = filterEntries(
-    children,
-    namespace,
-    searchValue,
-    entriesByPath,
-  );
+  // When a parent directory matches the search, we don't need to filter the children.
+  const filtered = parentMatched
+    ? children
+    : filterEntries(children, namespace, searchValue, entriesByPath);
 
   return (
     <>
@@ -208,6 +208,7 @@ const StorageEntryChildren: React.FC<{
           depth={depth}
           locale={locale}
           searchValue={searchValue}
+          parentMatched={parentMatched}
           onOpenFile={onOpenFile}
         />
       ))}
@@ -223,6 +224,7 @@ const StorageEntryRow: React.FC<{
   depth: number;
   locale: string;
   searchValue: string;
+  parentMatched: boolean;
   onOpenFile: (info: OpenFileInfo) => void;
 }> = ({
   entry,
@@ -232,6 +234,7 @@ const StorageEntryRow: React.FC<{
   depth,
   locale,
   searchValue,
+  parentMatched,
   onOpenFile,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -239,6 +242,12 @@ const StorageEntryRow: React.FC<{
   const isDir = entry.kind === "directory";
   const name = displayName(entry.path);
   const hasSearch = !!searchValue.trim();
+
+  const selfMatches =
+    isDir &&
+    hasSearch &&
+    !parentMatched &&
+    name.toLowerCase().includes(searchValue.trim().toLowerCase());
 
   // During a search, auto-expand directories whose loaded descendants match
   const hasMatchingDescendants =
@@ -381,6 +390,7 @@ const StorageEntryRow: React.FC<{
           depth={depth + 1}
           locale={locale}
           searchValue={searchValue}
+          parentMatched={selfMatches || parentMatched}
           onOpenFile={onOpenFile}
         />
       )}
@@ -511,6 +521,7 @@ const StorageNamespaceSection: React.FC<{
               depth={1}
               locale={locale}
               searchValue={searchValue}
+              parentMatched={false}
               onOpenFile={onOpenFile}
             />
           ))}
