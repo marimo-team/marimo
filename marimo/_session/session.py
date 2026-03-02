@@ -228,6 +228,17 @@ class SessionImpl(Session):
                 )
                 continue
 
+    def attach_extension(self, extension: SessionExtension) -> None:
+        """Dynamically attach an extension to the session."""
+        self.extensions.append(extension)
+        extension.on_attach(self, self._event_bus)
+
+    def detach_extension(self, extension: SessionExtension) -> None:
+        """Dynamically detach an extension from the session."""
+        extension.on_detach()
+        if extension in self.extensions:
+            self.extensions.remove(extension)
+
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
         """Get the consumers in the session."""
