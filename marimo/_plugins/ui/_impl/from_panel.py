@@ -79,6 +79,7 @@ def _get_comm_class() -> type[Any]:
             metadata: Any = None,
             buffers: Any = None,  # noqa: ARG002
         ) -> None:
+            del metadata
             if self._ui_element_id is None:
                 return
             raw_buffers = buffers or []
