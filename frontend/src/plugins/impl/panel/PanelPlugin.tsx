@@ -279,7 +279,7 @@ const PanelSlot = (props: Props) => {
         // Bokeh tags server-applied patch events with sync=false via
         // model.setv({...}, {sync: false}) inside apply_json_patch.
         // Only forward user-initiated events (sync=true, the default).
-        if (isSyncEvent(event) && event.sync !== false) {
+        if (isSyncEvent(event) && event.sync) {
           eventBufferRef.current?.add(event);
         }
       });
