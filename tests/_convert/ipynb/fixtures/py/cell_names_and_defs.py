@@ -5,8 +5,21 @@ app = marimo.App()
 
 
 @app.cell
-def _():
-    x = 1
+def my_imports():
+    import os
+    import sys
+    return os, sys
+
+
+@app.cell
+def compute(os, sys):
+    result = os.getcwd() + sys.platform
+    return (result,)
+
+
+@app.cell
+def display(result):
+    print(result)
     return
 
 
