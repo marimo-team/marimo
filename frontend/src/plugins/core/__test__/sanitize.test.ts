@@ -291,7 +291,7 @@ describe("sanitizeHtml", () => {
   test("preserves use element in SVG", () => {
     const html = '<svg><use xlink:href="#icon"></use></svg>';
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
-      `"<svg><use xlink:href=\"#icon\"></use></svg>"`,
+      `"<svg><use xlink:href="#icon"></use></svg>"`,
     );
   });
 
@@ -304,7 +304,7 @@ describe("sanitizeHtml", () => {
       "</svg>",
     ].join("");
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
-      `"<svg width=\"60\" height=\"60\"><circle cx=\"30\" cy=\"30\" r=\"30\" fill=\"orange\"></circle><defs><circle id=\"myCircle\" cx=\"0\" cy=\"0\" r=\"10\" fill=\"green\"></circle></defs><use href=\"#myCircle\" x=\"20\" y=\"20\"></use></svg>"`,
+      `"<svg width="60" height="60"><circle cx="30" cy="30" r="30" fill="orange"></circle><defs><circle id="myCircle" cx="0" cy="0" r="10" fill="green"></circle></defs><use href="#myCircle" x="20" y="20"></use></svg>"`,
     );
   });
 
