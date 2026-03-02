@@ -327,7 +327,7 @@ export const PageSelector = ({
         </div>
         <DropdownMenuSeparator />
         <div
-          className="px-2 pt-1 shrink-0"
+          className="px-2 pt-0.5 shrink-0"
           onKeyDown={(e) => e.stopPropagation()}
         >
           <label
