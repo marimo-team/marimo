@@ -251,28 +251,21 @@ type VimWithGlobalState = typeof Vim & {
   getVimGlobalState_?: () => {
     macroModeState?: {
       isRecording: boolean;
+      isPlaying: boolean;
     };
   };
 };
 
-function withSuspendedMacroRecording(callback: () => void) {
+function isMacroActive() {
   const getGlobalState = (Vim as VimWithGlobalState).getVimGlobalState_;
   if (typeof getGlobalState !== "function") {
-    callback();
-    return;
+    return false;
   }
   const macroModeState = getGlobalState()?.macroModeState;
-  if (!macroModeState || !macroModeState.isRecording) {
-    callback();
-    return;
+  if (!macroModeState) {
+    return false;
   }
-  const prevRecording = macroModeState.isRecording;
-  macroModeState.isRecording = false;
-  try {
-    callback();
-  } finally {
-    macroModeState.isRecording = prevRecording;
-  }
+  return Boolean(macroModeState.isRecording || macroModeState.isPlaying);
 }
 
 class CodeMirrorVimSync {
@@ -303,10 +296,13 @@ class CodeMirrorVimSync {
         return;
       }
       invariant("mode" in e, 'Expected event to have a "mode" property');
+      const skipBroadcast = isMacroActive();
       this.isBroadcasting = true;
       // We use onIdle to keep the focused editor snappy
       onIdle(() => {
-        this.broadcastModeChange(instance, e.mode, e.subMode);
+        if (!skipBroadcast) {
+          this.broadcastModeChange(instance, e.mode, e.subMode);
+        }
         this.isBroadcasting = false;
       });
     });
@@ -358,9 +354,7 @@ class CodeMirrorVimSync {
           case "normal":
             // Only exit insert mode if we're in it
             if (vim.insertMode) {
-              withSuspendedMacroRecording(() => {
-                Vim.exitInsertMode(cm, true);
-              });
+              Vim.exitInsertMode(cm, true);
             }
             // Only exit visual mode if we're in it
             if (vim.visualMode) {
@@ -370,9 +364,7 @@ class CodeMirrorVimSync {
           case "insert":
             // only enter insert mode if we're not already in it
             if (!vim.insertMode) {
-              withSuspendedMacroRecording(() => {
-                Vim.handleKey(cm, "i", "mapping");
-              });
+              Vim.handleKey(cm, "i", "mapping");
             }
             break;
           case "visual":
