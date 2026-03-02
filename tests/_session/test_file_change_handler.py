@@ -136,7 +136,9 @@ def test_edit_mode_reload_strategy_autorun(
     mock_session.app_file_manager = app_file_manager
 
     strategy = EditModeReloadStrategy(config_manager_autorun)
-    changed_cell_ids = {CellId_t("cell1")}
+    # Get actual cell IDs from the app
+    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
+    changed_cell_ids = set(cell_ids)
 
     strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 

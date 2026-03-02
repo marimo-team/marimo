@@ -709,7 +709,7 @@ class FocusCellNotification(Notification, tag="focus-cell"):
 
 
 class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
-    """Updates cell code contents (kiosk mode).
+    """Updates cell code contents (kiosk mode and edit-mode file reload).
 
     Attributes:
         cell_ids: Cells to update.
