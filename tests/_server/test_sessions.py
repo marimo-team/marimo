@@ -782,9 +782,14 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
                 break
 
         # Check that UpdateCellCodes was sent with code_is_stale=False (autorun)
-        assert len(update_ops) == 1
-        assert "2" in update_ops[0].codes[0]
-        assert update_ops[0].code_is_stale is False
+        # Note: ReplayExtension also sends an UpdateCellCodesNotification
+        # when it intercepts the SyncGraphCommand, so we may get 2.
+        assert len(update_ops) >= 1
+        # The first notification (from file_change_handler) carries names/configs
+        named_ops = [op for op in update_ops if op.names]
+        assert len(named_ops) == 1
+        assert "2" in named_ops[0].codes[0]
+        assert named_ops[0].code_is_stale is False
 
         # Verify that cells were queued for execution
         assert session.session_view.add_control_request.called
@@ -1000,13 +1005,15 @@ def __():
                 break
 
         # Check that UpdateCellCodes was sent with the new code
+        # Note: In autorun mode, ReplayExtension also sends an
+        # UpdateCellCodesNotification when it intercepts SyncGraphCommand.
         update_ops = [
             op
             for op in operations
             if isinstance(op, UpdateCellCodesNotification)
         ]
-        assert len(update_ops) == 1
-        assert "2" == update_ops[0].codes[0]
+        assert len(update_ops) >= 1
+        assert any("2" == op.codes[0] for op in update_ops)
 
     finally:
         # Cleanup
