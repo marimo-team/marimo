@@ -303,6 +303,40 @@ async def test_cannot_connect_kiosk_with_run_session(
         assert exc_info.value.reason == "MARIMO_KIOSK_NOT_ALLOWED"
 
 
+async def test_kernel_ready_sends_names_but_not_code_when_include_code_false(
+    client: TestClient,
+) -> None:
+    """Cell names are sent in kernel-ready even when include_code=False.
+
+    This ensures data-cell-name attributes are populated in the DOM when
+    running with marimo run (without --include-code).
+
+    The 4 fields from _extract_cell_data (ws_kernel_ready.py) behave as:
+      - codes    -> blanked ("") to hide source code
+      - names    -> preserved (needed for data-cell-name DOM attribute)
+      - configs  -> preserved (needed for cell rendering)
+      - cell_ids -> preserved (needed for cell identity)
+    """
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+    session_manager.include_code = False
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(
+            data,
+            create_response(
+                {
+                    "codes": [""],  # hidden
+                    "names": ["__"],  # preserved
+                    "configs": [
+                        {"disabled": False, "hide_code": False}
+                    ],  # preserved
+                    "cell_ids": ["Hbol"],  # preserved
+                }
+            ),
+        )
+
+
 async def test_connects_to_existing_session_with_same_file(
     client: TestClient,
     temp_marimo_file: str,
