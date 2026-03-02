@@ -9,6 +9,7 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.install_hints import get_playwright_chromium_setup_commands
@@ -937,3 +938,4 @@ export.add_command(ipynb)
 export.add_command(pdf)
 export.add_command(html_wasm)
 export.add_command(thumbnail)
+export.add_command(session)
