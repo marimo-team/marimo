@@ -111,19 +111,17 @@ function generateAzureCode(
   const container = secrets.print("container", connection.container);
   const accountName = secrets.print("account_name", connection.account_name);
   const imports = new Set(["from obstore.store import AzureStore"]);
-  const params: string[] = [`    account_name=${accountName},`];
+  const params: string[] = [`account_name=${accountName},`];
 
   if (connection.account_key) {
     params.push(
-      `    account_key=${secrets.print("account_key", connection.account_key)},`,
+      `account_key=${secrets.print("account_key", connection.account_key)},`,
     );
   }
 
-  const code = dedent(`
-    store = AzureStore(${container},
-${params.join("\n")}
-    )
-  `);
+  const paramsStr = params.map((p) => `    ${p}`).join("\n");
+
+  const code = `store = AzureStore(${container},\n${paramsStr}\n)`;
   return { imports, code };
 }
 
