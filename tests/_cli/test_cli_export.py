@@ -18,6 +18,7 @@ from click.testing import CliRunner
 
 from marimo._cli.export.commands import pdf
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
 from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
@@ -49,7 +50,12 @@ def _run_export(
 ) -> subprocess.CompletedProcess[bytes]:
     """Helper to run marimo export commands."""
     cmd = ["marimo", "export", export_format, file, *extra_args]
-    return subprocess.run(cmd, capture_output=capture_output, input=input_data)
+    return subprocess.run(
+        cmd,
+        check=False,
+        capture_output=capture_output,
+        input=input_data,
+    )
 
 
 def _assert_success(p: subprocess.CompletedProcess[bytes]) -> None:
@@ -1078,6 +1084,160 @@ class TestExportThumbnail:
     def test_export_thumbnail_with_args(self, temp_marimo_file: str) -> None:
         p = _run_export("thumbnail", temp_marimo_file, "--", "--foo", "123")
         _assert_success(p)
+
+
+class TestExportSession:
+    @staticmethod
+    def test_export_session(temp_marimo_file: str) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        assert session_file.exists()
+        data = json.loads(session_file.read_text(encoding="utf-8"))
+        assert data["version"] == "1"
+        assert len(data["cells"]) > 0
+
+    @staticmethod
+    def test_export_session_with_args(temp_marimo_file: str) -> None:
+        p = _run_export("session", temp_marimo_file, "--", "--foo", "123")
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        assert session_file.exists()
+
+    @staticmethod
+    def test_export_session_no_overwrite_skips_existing(
+        temp_marimo_file: str,
+    ) -> None:
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        existing = '{"version":"existing"}\n'
+        session_file.write_text(existing, encoding="utf-8")
+
+        p = _run_export("session", temp_marimo_file, "--no-overwrite")
+        _assert_success(p)
+
+        assert session_file.read_text(encoding="utf-8") == existing
+
+    @staticmethod
+    def test_export_session_overwrite_rewrites_existing(
+        temp_marimo_file: str,
+    ) -> None:
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        session_file.write_text('{"version":"existing"}\n', encoding="utf-8")
+
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        data = json.loads(session_file.read_text(encoding="utf-8"))
+        assert data["version"] == "1"
+        assert len(data["cells"]) > 0
+
+    @staticmethod
+    def test_export_session_directory_no_overwrite_skips_existing(
+        tmp_path: Path,
+        temp_marimo_file: str,
+    ) -> None:
+        notebook_dir = tmp_path / "notebooks"
+        notebook_dir.mkdir()
+        code = Path(temp_marimo_file).read_text(encoding="utf-8")
+        first = notebook_dir / "first.py"
+        second = notebook_dir / "second.py"
+        first.write_text(code, encoding="utf-8")
+        second.write_text(code, encoding="utf-8")
+
+        first_session = get_session_cache_file(first)
+        first_session.parent.mkdir(parents=True, exist_ok=True)
+        existing = '{"version":"existing"}\n'
+        first_session.write_text(existing, encoding="utf-8")
+
+        p = _run_export("session", str(notebook_dir), "--no-overwrite")
+        _assert_success(p)
+
+        second_session = get_session_cache_file(second)
+        assert first_session.read_text(encoding="utf-8") == existing
+        assert second_session.exists()
+        data = json.loads(second_session.read_text(encoding="utf-8"))
+        assert data["version"] == "1"
+
+    @staticmethod
+    def test_export_session_ignores_second_positional_target(
+        temp_marimo_file: str,
+        temp_async_marimo_file: str,
+    ) -> None:
+        p = _run_export(
+            "session",
+            temp_marimo_file,
+            temp_async_marimo_file,
+        )
+        _assert_success(p)
+
+        first_session = get_session_cache_file(Path(temp_marimo_file))
+        second_session = get_session_cache_file(Path(temp_async_marimo_file))
+        assert first_session.exists()
+        assert not second_session.exists()
+
+    @staticmethod
+    def test_export_session_directory(
+        tmp_path: Path,
+        temp_marimo_file: str,
+    ) -> None:
+        notebook_dir = tmp_path / "notebooks"
+        notebook_dir.mkdir()
+        code = Path(temp_marimo_file).read_text(encoding="utf-8")
+        first = notebook_dir / "first.py"
+        second = notebook_dir / "second.py"
+        first.write_text(code, encoding="utf-8")
+        second.write_text(code, encoding="utf-8")
+
+        p = _run_export("session", str(notebook_dir))
+        _assert_success(p)
+
+        first_session = get_session_cache_file(first)
+        second_session = get_session_cache_file(second)
+        assert first_session.exists()
+        assert second_session.exists()
+
+    @staticmethod
+    def test_export_session_with_errors_writes_snapshot(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file_with_errors)
+        _assert_failure(p)
+
+        session_file = get_session_cache_file(
+            Path(temp_marimo_file_with_errors)
+        )
+        assert session_file.exists()
+
+    @staticmethod
+    def test_export_session_continue_on_error_default(
+        tmp_path: Path,
+        temp_marimo_file: str,
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        notebook_dir = tmp_path / "notebooks"
+        notebook_dir.mkdir()
+        good = notebook_dir / "good.py"
+        bad = notebook_dir / "bad.py"
+        good.write_text(
+            Path(temp_marimo_file).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        bad.write_text(
+            Path(temp_marimo_file_with_errors).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+        p = _run_export("session", str(notebook_dir))
+        _assert_failure(p)
+
+        good_session = get_session_cache_file(good)
+        bad_session = get_session_cache_file(bad)
+        assert good_session.exists()
+        assert bad_session.exists()
 
 
 class TestClickArgsParsing:
