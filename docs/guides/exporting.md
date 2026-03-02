@@ -122,6 +122,57 @@ their dependency graph.
 marimo export ipynb notebook.py -o notebook.ipynb
 ```
 
+## Export session snapshots
+
+Run notebooks and write their serialized session snapshots:
+
+```bash
+marimo export session notebook.py
+```
+
+By default, snapshots are written to:
+
+```text
+<notebook_dir>/__marimo__/session/<notebook_filename>.json
+```
+
+For example, exporting `notebook.py` writes:
+
+```text
+__marimo__/session/notebook.py.json
+```
+
+`marimo export session` accepts one positional target: a notebook file or a directory.
+To process multiple notebooks, pass a directory target.
+
+Export every notebook in a directory:
+
+```bash
+marimo export session folder/
+```
+
+Pass CLI args through to notebooks with `--`:
+
+```bash
+marimo export session notebook.py -- --foo 123
+```
+
+By default, marimo overwrites existing session snapshots. To keep existing
+snapshots and only process missing ones:
+
+```bash
+marimo export session folder/ --no-overwrite
+```
+
+If one notebook fails, marimo continues by default and exits non-zero after processing all targets.
+Use `--no-continue-on-error` to stop at the first failure.
+
+To execute in a sandboxed environment, pass `--sandbox`:
+
+```bash
+marimo export session notebook.py --sandbox
+```
+
 ## Exporting to PDF, slides, or rst
 
 ### Export PDF using Quarto
