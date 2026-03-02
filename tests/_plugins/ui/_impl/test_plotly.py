@@ -1122,8 +1122,7 @@ def test_scattergl_selection_datetime_x_axis() -> None:
 
 def test_scattergl_multiple_line_traces_selection() -> None:
     """Test box selection on multiple scattergl line traces."""
-    fig = go.Figure(
-    )
+    fig = go.Figure()
     fig.add_trace(
         go.Scattergl(
             x=[1, 2, 3, 4],
