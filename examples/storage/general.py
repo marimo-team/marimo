@@ -2,7 +2,6 @@
 # requires-python = ">=3.13"
 # dependencies = [
 #     "fsspec==2026.2.0",
-#     "gdrive-fsspec==0.4.0",
 #     "marimo>=0.19.9",
 #     "obstore==0.8.2",
 #     "python-dotenv==1.2.1",
@@ -13,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.19.11"
 app = marimo.App(width="medium")
 
 
@@ -32,22 +31,8 @@ def _():
 
 
 @app.cell
-def _():
-    import sqlite3
-
-    db = sqlite3.connect(":memory:")
-    return
-
-
-@app.cell
 def _(LocalFileSystem):
     local = LocalFileSystem(asynchronous=True)
-    return
-
-
-@app.cell
-def _(url):
-    url
     return
 
 
@@ -84,31 +69,6 @@ def _(os, s3fs, url):
         endpoint_url=url,
         key=os.getenv("CLOUDFLARE_ACCESS_KEY_ID"),
         secret=os.getenv("CLOUDFLARE_SECRET_ACCESS_KEY"),
-    )
-    return (s3_client,)
-
-
-@app.cell
-def _(s3_client):
-    s3_client.cat_file("s3://marimo-artifacts/shahmir/order_details.csv")
-    return
-
-
-@app.cell
-def _():
-    from gdrive_fsspec import GoogleDriveFileSystem
-
-    gdrive_fs = GoogleDriveFileSystem(token="browser")
-    return
-
-
-@app.cell
-def _():
-    from obstore.store import AzureStore
-
-    store = AzureStore("container",
-    account_name="acc-name",
-    account_key="key",
     )
     return
 
