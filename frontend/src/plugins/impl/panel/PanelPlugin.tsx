@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { useEvent } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState } from "react";
-import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import {
@@ -161,22 +161,17 @@ const PanelSlot = (props: Props) => {
       (ev) => isDocumentEvent(ev) && ev.document === doc,
     );
 
-    try {
-      const patch = doc.create_json_patch(sameDocEvents);
-      const message = window.Bokeh.protocol.Message.create(
-        "PATCH-DOC",
-        {},
-        patch,
-      );
-      const buffers: ArrayBuffer[] = [];
-      message.content = extractBuffers(message.content, buffers);
-      // CellNotInitializedError during initial render — safe to ignore.
-      functions.send_to_widget({ message, buffers }).catch((error) => {
-        Logger.warn("Failed to send Panel event to backend", error);
-      });
-    } catch (error) {
-      Logger.warn("Failed to create Panel patch", error);
-    }
+    const patch = doc.create_json_patch(sameDocEvents);
+    const message = window.Bokeh.protocol.Message.create(
+      "PATCH-DOC",
+      {},
+      patch,
+    );
+    const buffers: ArrayBuffer[] = [];
+    message.content = extractBuffers(message.content, buffers);
+    functions.send_to_widget({ message, buffers }).catch((error) => {
+      Logger.warn("Failed to send Panel event to backend", error);
+    });
   });
 
   const eventBufferRef = useRef<EventBuffer<unknown> | null>(
