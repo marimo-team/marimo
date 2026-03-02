@@ -1,7 +1,11 @@
-name: Publish dev release of marimo-base
+name: Publish dev release
 
 on:
-  workflow_call: {}
+  workflow_call:
+    outputs:
+      marimo_version:
+        description: "The dev version that was built"
+        value: ${{ jobs.publish_dev_release.outputs.marimo_version }}
 
 permissions:
   contents: read
@@ -12,13 +16,11 @@ env:
 
 jobs:
   publish_dev_release:
-    name: 📤 Publish dev release
+    name: 📤 Build dev release
     runs-on: ubuntu-latest
-    environment: testpypi
     permissions:
       contents: read
       pull-requests: write
-      id-token: write
     defaults:
       run:
         shell: bash
@@ -65,10 +67,12 @@ jobs:
       - name: 📦 Build marimo
         run: uv build
 
-      - name: 📤 Upload to TestPyPI (marimo)
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: 📦 Upload marimo dist artifact
+        uses: actions/upload-artifact@v6
         with:
-          repository-url: https://test.pypi.org/legacy/
+          name: pypi-marimo-dev
+          path: dist/
+          retention-days: 1
 
       - name: Clean output dir
         run: rm -rf dist
@@ -82,10 +86,12 @@ jobs:
       - name: 📦 Validate wheel under 2mb
         run: ./scripts/validate_base_wheel_size.sh
 
-      - name: 📤 Upload to TestPyPI (marimo-base)
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: 📦 Upload marimo-base dist artifact
+        uses: actions/upload-artifact@v6
         with:
-          repository-url: https://test.pypi.org/legacy/
+          name: pypi-marimo-base-dev
+          path: dist/
+          retention-days: 1
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
@@ -145,35 +151,3 @@ jobs:
     permissions:
       id-token: write  # Required for OIDC
       contents: read
-
-  comment_pr:
-    name: 📝 Comment PR
-    needs: [publish_dev_release, publish_wasm_dev, publish_islands_dev]
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📝 Comment PR
-        uses: actions/github-script@v7
-        continue-on-error: true
-        env:
-          MARIMO_VERSION: ${{ needs.publish_dev_release.outputs.marimo_version }}
-        with:
-          script: |
-            try {
-              const marimoVersion = process.env.MARIMO_VERSION || 'unknown';
-              const pullRequest = await github.rest.search.issuesAndPullRequests({
-                q: `sha:${context.sha} is:pr is:merged`
-              });
-
-              if (pullRequest.data.items.length > 0) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pullRequest.data.items[0].number,
-                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${encodeURIComponent(marimoVersion)}`
-                });
-              } else {
-                console.log("No merged PR found for this SHA.");
-              }
-            } catch (err) {
-              console.error(err);
-            }
