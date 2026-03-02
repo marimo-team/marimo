@@ -552,6 +552,14 @@ export const StorageInspector: React.FC = () => {
             .
           </span>
         }
+        action={
+          <AddConnectionDialog defaultTab="storage">
+            <Button variant="outline" size="sm">
+              Add remote storage
+              <PlusIcon className="h-4 w-4 ml-2" />
+            </Button>
+          </AddConnectionDialog>
+        }
         icon={<HardDriveIcon className="h-8 w-8" />}
       />
     );

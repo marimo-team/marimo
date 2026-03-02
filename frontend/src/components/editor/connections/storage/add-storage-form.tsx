@@ -83,7 +83,10 @@ const StorageProviderSelector: React.FC<{
           color={color}
           icon={
             <span className="w-8 h-8 flex items-center justify-center">
-              <ProtocolIcon protocol={protocol} className="w-7 h-7" />
+              <ProtocolIcon
+                protocol={protocol}
+                className="w-7 h-7 brightness-0 invert"
+              />
             </span>
           }
           onSelect={() => onSelect(schema)}
