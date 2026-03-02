@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { prefixSecret } from "../../secrets";
 import { type ConnectionLibrary, generateDatabaseCode } from "../as-code";
 import type { DatabaseConnection } from "../schemas";
-import { prefixSecret } from "../secrets";
 
 describe("generateDatabaseCode", () => {
   // Test fixtures

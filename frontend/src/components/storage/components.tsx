@@ -19,8 +19,10 @@ import {
   ImageIcon,
 } from "lucide-react";
 import GoogleCloudIcon from "@/components/databases/icons/google-cloud-storage.svg?inline";
+import GoogleDriveIcon from "@/components/databases/icons/google-drive.svg?inline";
 import type { KnownStorageProtocol } from "@/core/storage/types";
 import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
 
 export function renderFileIcon(name: string): React.ReactNode {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -67,12 +69,14 @@ const PROTOCOL_ICONS: Record<KnownStorageProtocol, IconEntry> = {
   http: GlobeIcon,
   file: HardDriveIcon,
   "in-memory": DatabaseZapIcon,
+  gdrive: { src: GoogleDriveIcon },
   github: GithubIcon,
 };
 
 export const ProtocolIcon: React.FC<{
   protocol: KnownStorageProtocol | (string & {});
-}> = ({ protocol }) => {
+  className?: string;
+}> = ({ protocol, className }) => {
   const { theme } = useTheme();
   const entry =
     PROTOCOL_ICONS[protocol.toLowerCase() as KnownStorageProtocol] ??
@@ -80,9 +84,11 @@ export const ProtocolIcon: React.FC<{
 
   if ("src" in entry) {
     const src = theme === "dark" && entry.dark ? entry.dark : entry.src;
-    return <img src={src} alt={protocol} className="h-3.5 w-3.5" />;
+    return (
+      <img src={src} alt={protocol} className={cn("h-3.5 w-3.5", className)} />
+    );
   }
 
   const Icon = entry;
-  return <Icon className="h-3.5 w-3.5" />;
+  return <Icon className={cn("h-3.5 w-3.5", className)} />;
 };

@@ -10,6 +10,7 @@ import {
   HelpCircleIcon,
   LoaderCircle,
   MoreVerticalIcon,
+  PlusIcon,
   RefreshCwIcon,
   ViewIcon,
   XIcon,
@@ -18,6 +19,7 @@ import React, { useCallback, useState } from "react";
 import { useLocale } from "react-aria";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
+import { AddConnectionDialog } from "@/components/editor/connections/add-connection-dialog";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import {
   DropdownMenu,
@@ -595,8 +597,17 @@ export const StorageInspector: React.FC = () => {
             content="Filters loaded entries only. Expand directories to include their contents in the search."
             delayDuration={200}
           >
-            <HelpCircleIcon className="h-3.5 w-3.5 mr-2 shrink-0 cursor-help text-muted-foreground hover:text-foreground" />
+            <HelpCircleIcon className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground hover:text-foreground mr-2" />
           </Tooltip>
+          <AddConnectionDialog defaultTab="storage">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="px-2 border-0 border-l border-muted-background rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            >
+              <PlusIcon className="h-4 w-4" />
+            </Button>
+          </AddConnectionDialog>
         </div>
         <CommandList className="flex flex-col">
           {namespaces.map((ns) => (
