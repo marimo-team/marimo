@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING
+from marimo._utils.platform import is_windows
 
 import pytest
 
@@ -925,8 +926,9 @@ def test_serialize_str_subclass():
     assert type(sent_chunks[1]["delta"]) is str  # Exact type check
 
 
+# TODO(dmadisetti): Resolve weave / windows issue. Raised upstream
 @pytest.mark.skipif(
-    not DependencyManager.weave.has(),
+    not DependencyManager.weave.has() or is_windows(),
     reason="weave is not installed",
 )
 def test_serialize_weave_boxed_str():
