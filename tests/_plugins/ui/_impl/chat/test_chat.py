@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING
-from marimo._utils.platform import is_windows
 
 import pytest
 
@@ -23,6 +22,7 @@ from marimo._plugins.ui._impl.chat.chat import (
 from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
+from marimo._utils.platform import is_windows
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
