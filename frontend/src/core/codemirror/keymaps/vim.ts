@@ -247,6 +247,34 @@ function applyVimCommands(vimCommands: VimCommand[]) {
   }
 }
 
+type VimWithGlobalState = typeof Vim & {
+  getVimGlobalState_?: () => {
+    macroModeState?: {
+      isRecording: boolean;
+    };
+  };
+};
+
+function withSuspendedMacroRecording(callback: () => void) {
+  const getGlobalState = (Vim as VimWithGlobalState).getVimGlobalState_;
+  if (typeof getGlobalState !== "function") {
+    callback();
+    return;
+  }
+  const macroModeState = getGlobalState()?.macroModeState;
+  if (!macroModeState || !macroModeState.isRecording) {
+    callback();
+    return;
+  }
+  const prevRecording = macroModeState.isRecording;
+  macroModeState.isRecording = false;
+  try {
+    callback();
+  } finally {
+    macroModeState.isRecording = prevRecording;
+  }
+}
+
 class CodeMirrorVimSync {
   private instances = new Set<EditorView>();
   private isBroadcasting = false;
@@ -330,7 +358,9 @@ class CodeMirrorVimSync {
           case "normal":
             // Only exit insert mode if we're in it
             if (vim.insertMode) {
-              Vim.exitInsertMode(cm, true);
+              withSuspendedMacroRecording(() => {
+                Vim.exitInsertMode(cm, true);
+              });
             }
             // Only exit visual mode if we're in it
             if (vim.visualMode) {
@@ -338,8 +368,12 @@ class CodeMirrorVimSync {
             }
             break;
           case "insert":
-            // Do not force other editors into insert mode. Using handleKey here
-            // replays synthetic keystrokes and breaks vim macros.
+            // only enter insert mode if we're not already in it
+            if (!vim.insertMode) {
+              withSuspendedMacroRecording(() => {
+                Vim.handleKey(cm, "i", "mapping");
+              });
+            }
             break;
           case "visual":
             // We don't switch to visual mode across instances
