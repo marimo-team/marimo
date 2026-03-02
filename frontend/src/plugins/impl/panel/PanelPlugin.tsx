@@ -1,8 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEvent } from "@dnd-kit/utilities";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import {
@@ -122,23 +121,11 @@ const PanelSlot = (props: Props) => {
   const [loaded, setLoaded] = useState<boolean>(false);
   const [rendered, setRendered] = useState<string | null>(null);
 
-  // Re-fetch the live document from the Bokeh index. DynamicMap/HoloViews
-  // may replace the document after initial embedding, so a stale ref would
-  // cause "Cannot create a patch using events from a different document".
-  const getDoc = useEvent((): BokehDocument | null => {
-    const id = rootModelIdRef.current;
-    if (!id) {
-      return null;
-    }
-    try {
-      return window.Bokeh.index.get_by_id(id).model.document;
-    } catch (error) {
-      Logger.warn("Failed to get Bokeh document", error);
-      return null;
-    }
-  });
+  // Store functions in a ref so the callback captured by EventBuffer stays current
+  const functionsRef = useRef(functions);
+  functionsRef.current = functions;
 
-  const processEvents = useEvent(() => {
+  const processEvents = useCallback(() => {
     if (!eventBufferRef.current) {
       return;
     }
@@ -169,10 +156,10 @@ const PanelSlot = (props: Props) => {
     );
     const buffers: ArrayBuffer[] = [];
     message.content = extractBuffers(message.content, buffers);
-    functions.send_to_widget({ message, buffers }).catch((error) => {
+    functionsRef.current.send_to_widget({ message, buffers }).catch((error) => {
       Logger.warn("Failed to send Panel event to backend", error);
     });
-  });
+  }, []);
 
   const eventBufferRef = useRef<EventBuffer<unknown> | null>(
     new EventBuffer(processEvents),
@@ -230,7 +217,7 @@ const PanelSlot = (props: Props) => {
         return;
       }
 
-      const doc = getDoc();
+      const doc = getDoc(rootModelIdRef.current);
       if (!doc) {
         return;
       }
@@ -312,6 +299,21 @@ const PanelSlot = (props: Props) => {
     </div>
   );
 };
+
+// Re-fetch the live document from the Bokeh index. DynamicMap/HoloViews
+// may replace the document after initial embedding, so a stale ref would
+// cause "Cannot create a patch using events from a different document".
+function getDoc(id: string | null): BokehDocument | null {
+  if (!id) {
+    return null;
+  }
+  try {
+    return window.Bokeh.index.get_by_id(id).model.document;
+  } catch (error) {
+    Logger.warn("Failed to get Bokeh document", error);
+    return null;
+  }
+}
 
 function isSyncEvent(x: unknown): x is { sync: boolean } {
   const isObject = !!x && typeof x === "object";
