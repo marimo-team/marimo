@@ -61,7 +61,11 @@ def accordion(
     return Html(
         build_stateless_plugin(
             component_name="marimo-accordion",
-            args={"labels": item_labels, "multiple": multiple, "expanded": expanded},
+            args={
+                "labels": item_labels,
+                "multiple": multiple,
+                "expanded": expanded,
+            },
             slotted_html=item_content,
         )
     )
