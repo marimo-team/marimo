@@ -8,7 +8,7 @@ interface UseInputHistoryOptions {
   setValue: (value: string) => void;
 }
 
-interface UseInputHistoryReturn {
+export interface UseInputHistoryReturn {
   /** Command history array */
   history: string[];
   /** Navigate to previous command (ArrowUp) */
