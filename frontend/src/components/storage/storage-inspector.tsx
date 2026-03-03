@@ -240,6 +240,11 @@ const StorageEntryRow: React.FC<{
   const name = displayName(entry.path);
   const hasSearch = !!searchValue.trim();
 
+  const selfMatches =
+    isDir &&
+    hasSearch &&
+    name.toLowerCase().includes(searchValue.trim().toLowerCase());
+
   // During a search, auto-expand directories whose loaded descendants match
   const hasMatchingDescendants =
     isDir &&
@@ -380,7 +385,7 @@ const StorageEntryRow: React.FC<{
           prefix={entry.path}
           depth={depth + 1}
           locale={locale}
-          searchValue={searchValue}
+          searchValue={selfMatches ? "" : searchValue} // When a parent directory matches the search, we don't need to filter the children.
           onOpenFile={onOpenFile}
         />
       )}
