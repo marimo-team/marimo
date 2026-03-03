@@ -45,6 +45,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendInterrupt: throwNotInEditMode,
     sendShutdown: throwNotInEditMode,
     sendFormat: throwNotInEditMode,
+    sendFix: throwNotInEditMode,
     sendDeleteCell: throwNotInEditMode,
     sendCodeCompletionRequest: throwNotInEditMode,
     saveUserConfig: throwNotInEditMode,

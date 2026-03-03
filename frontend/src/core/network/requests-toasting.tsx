@@ -30,6 +30,7 @@ export function createErrorToastingRequests(
     sendInterrupt: "Failed to interrupt",
     sendShutdown: "Failed to shutdown",
     sendFormat: "Failed to format",
+    sendFix: "Failed to fix",
     sendDeleteCell: "Failed to delete cell",
     sendCodeCompletionRequest: "Failed to complete code",
     saveUserConfig: "Failed to save user config",

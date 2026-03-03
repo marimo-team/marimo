@@ -97,6 +97,7 @@ export const UserConfigSchema = z
           .transform((millis) => Math.max(millis, 1000))
           .prefault(1000),
         format_on_save: z.boolean().prefault(false),
+        fix_on_save: z.boolean().prefault(false),
       })
       .prefault({}),
     formatting: z

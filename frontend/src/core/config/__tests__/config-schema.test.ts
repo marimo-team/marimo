@@ -95,6 +95,7 @@ test("default UserConfig - empty", () => {
       "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,
+        "fix_on_save": false,
         "format_on_save": false,
       },
       "server": {},
@@ -165,6 +166,7 @@ test("default UserConfig - one level", () => {
       "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,
+        "fix_on_save": false,
         "format_on_save": false,
       },
       "server": {},

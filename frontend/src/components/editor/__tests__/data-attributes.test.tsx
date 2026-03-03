@@ -86,7 +86,12 @@ describe("Cell data attributes", () => {
         browser: "default",
         follow_symlink: false,
       },
-      save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
+      save: {
+        autosave: "off",
+        autosave_delay: 1000,
+        format_on_save: false,
+        fix_on_save: false,
+      },
       ai: {},
     } as UserConfig;
 

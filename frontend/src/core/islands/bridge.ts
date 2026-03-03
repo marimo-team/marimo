@@ -155,6 +155,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendInterrupt = throwNotImplemented;
   sendShutdown = throwNotImplemented;
   sendFormat = throwNotImplemented;
+  sendFix = throwNotImplemented;
   sendDeleteCell = throwNotImplemented;
   sendInstallMissingPackages = throwNotImplemented;
   sendCodeCompletionRequest = throwNotImplemented;

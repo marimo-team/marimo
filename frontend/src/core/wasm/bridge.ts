@@ -282,6 +282,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return response as FormatResponse;
   };
+  sendFix: EditRequests["sendFix"] = async (request) => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "format",
+      payload: request,
+    });
+    return response as FormatResponse;
+  };
 
   sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
     await this.putControlRequest({

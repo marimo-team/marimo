@@ -56,6 +56,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
 
   // Throw errors for operations that are not supported offline
   sendFormat: "throwError",
+  sendFix: "throwError",
   sendRestart: "throwError",
 
   // These wait until the connection is open, but don't start a connection
