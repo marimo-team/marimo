@@ -35,6 +35,7 @@ export interface components {
     };
     NotebookSessionMetadata: {
       marimo_version: string | null;
+      script_metadata_hash: string | null;
     };
     NotebookSessionV1: {
       cells: components["schemas"]["Cell"][];

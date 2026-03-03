@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, cast
 
@@ -22,15 +21,15 @@ from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.export import run_app_until_completion
+from marimo._server.export._session_cache import (
+    is_session_snapshot_stale,
+    serialize_session_snapshot,
+    write_session_snapshot,
+)
 from marimo._server.file_router import AppFileRouter
 from marimo._server.utils import asyncio_run
-from marimo._session.state.serialize import (
-    get_session_cache_file,
-    serialize_session_view,
-)
-from marimo._utils.code import hash_code
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import maybe_make_dirs
 
 if TYPE_CHECKING:
     from marimo._cli.sandbox import SandboxMode
@@ -80,9 +79,11 @@ async def _export_session_snapshot(
             cli_args=cli_args,
             argv=list(notebook_args),
             quiet=True,
+            persist_session=False,
         )
-        session_snapshot = serialize_session_view(
+        session_snapshot = serialize_session_snapshot(
             session_view,
+            notebook_path=marimo_path.absolute_name,
             cell_ids=list(file_manager.app.cell_manager.cell_ids()),
         )
         return session_snapshot, did_error
@@ -109,7 +110,7 @@ import sys
 from marimo._cli.parse_args import parse_args
 from marimo._server.export import run_app_until_completion
 from marimo._server.file_router import AppFileRouter
-from marimo._session.state.serialize import serialize_session_view
+from marimo._server.export._session_cache import serialize_session_snapshot
 from marimo._utils.marimo_path import MarimoPath
 
 payload = json.loads(sys.argv[1])
@@ -129,10 +130,12 @@ session_view, did_error = asyncio.run(
         cli_args=cli_args,
         argv=list(args),
         quiet=True,
+        persist_session=False,
     )
 )
-session_snapshot = serialize_session_view(
+session_snapshot = serialize_session_snapshot(
     session_view,
+    notebook_path=path.absolute_name,
     cell_ids=list(file_manager.app.cell_manager.cell_ids()),
 )
 
@@ -195,8 +198,10 @@ async def _export_session_for_notebook(
         venv_python=venv_python,
     )
 
-    maybe_make_dirs(output)
-    output.write_text(json.dumps(session_snapshot, indent=2), encoding="utf-8")
+    output = write_session_snapshot(
+        notebook_path=notebook.path,
+        snapshot=session_snapshot,
+    )
 
     if did_error:
         raise click.ClickException(
@@ -206,80 +211,13 @@ async def _export_session_for_notebook(
     echo(green("ok") + f": {output}")
 
 
-def _hash_code_for_session_compare(code: str | None) -> str | None:
-    if code is None or code == "":
-        return None
-    return hash_code(code)
-
-
-def _current_notebook_code_hashes(
-    notebook: MarimoPath,
-) -> tuple[str | None, ...]:
-    file_router = AppFileRouter.from_filename(notebook)
-    file_key = file_router.get_unique_file_key()
-    if file_key is None:
-        raise RuntimeError(
-            "Expected a unique file key when checking staleness for "
-            f"{notebook.absolute_name}"
-        )
-    file_manager = file_router.get_file_manager(file_key)
-    return tuple(
-        _hash_code_for_session_compare(cell_data.code)
-        for cell_data in file_manager.app.cell_manager.cell_data()
-    )
-
-
-def _is_session_snapshot_stale(output: Path, notebook: MarimoPath) -> bool:
-    """Return True when a saved session should be regenerated.
-
-    We treat a snapshot as stale if we cannot read it, if it is malformed, or
-    if the notebook's current cell code-hash multiset does not match the snapshot.
-    Code hashes are compared order-independently because notebook and
-    session cell ordering can differ across code paths.
-    """
-    try:
-        snapshot = cast(
-            dict[str, Any], json.loads(output.read_text(encoding="utf-8"))
-        )
-    except (OSError, json.JSONDecodeError):
-        return True
-
-    metadata = snapshot.get("metadata")
-    if not isinstance(metadata, dict):
-        return True
-
-    cells = snapshot.get("cells")
-    if not isinstance(cells, list):
-        return True
-
-    try:
-        current_hashes = _current_notebook_code_hashes(notebook)
-    except (RuntimeError, ValueError, OSError, SyntaxError):
-        return True
-
-    notebook_hashes = Counter(current_hashes)
-
-    session_hashes: Counter[str | None] = Counter()
-    for cell in cells:
-        if not isinstance(cell, dict):
-            return True
-        if "code_hash" not in cell:
-            return True
-        code_hash = cell["code_hash"]
-        if code_hash is not None and not isinstance(code_hash, str):
-            return True
-        session_hashes[code_hash] += 1
-
-    return notebook_hashes != session_hashes
-
-
 def _maybe_skip_fresh_snapshot(
     notebook: MarimoPath, *, force_overwrite: bool
 ) -> bool:
     output = get_session_cache_file(notebook.path)
     if force_overwrite or not output.exists():
         return False
-    if _is_session_snapshot_stale(output, notebook):
+    if is_session_snapshot_stale(output, notebook):
         return False
 
     echo(

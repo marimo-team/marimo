@@ -25,6 +25,7 @@ from marimo._server.export import (
 from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._session.state.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import delete_lines_with_files, snapshotter
@@ -105,6 +106,40 @@ async def test_run_until_completion_with_stop() -> None:
         "run_until_completion_with_stop.txt",
         _print_messages(cell_notifications),
     )
+
+
+async def test_run_until_completion_persists_session_snapshot(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def _():
+    return
+
+if __name__ == "__main__":
+    app.run()
+""",
+        encoding="utf-8",
+    )
+    file_manager = AppFileManager(str(notebook))
+
+    _, did_error = await run_app_until_completion(
+        file_manager,
+        cli_args={},
+        argv=None,
+    )
+    assert did_error is False
+
+    session_file = get_session_cache_file(notebook)
+    assert session_file.exists()
+    data = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "script_metadata_hash" in data["metadata"]
 
 
 @pytest.mark.skipif(

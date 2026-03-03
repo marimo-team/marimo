@@ -70,7 +70,7 @@ describe("notebookStateFromSession", () => {
     cells: SessionCell[],
   ): api.Session["NotebookSessionV1"] => ({
     version: "1",
-    metadata: { marimo_version: "1" },
+    metadata: { marimo_version: "1", script_metadata_hash: null },
     cells,
   });
 
