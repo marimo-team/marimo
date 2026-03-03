@@ -29,6 +29,10 @@ class CellChannel(str, Enum):
         return self.value
 
 
+# Keep in sync with frontend constant PDB_START_MESSAGE
+PDB_START_MESSAGE = "start"
+
+
 class CellOutput(msgspec.Struct):
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel

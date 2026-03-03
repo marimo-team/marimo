@@ -44,7 +44,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
-from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.cell_output import PDB_START_MESSAGE, CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
@@ -1685,6 +1685,13 @@ class Kernel:
         ):
             return
 
+        CellNotificationUtils.broadcast_console_output(
+            channel=CellChannel.PDB,
+            mimetype="text/plain",
+            data=PDB_START_MESSAGE,
+            cell_id=cell_id,
+            status=None,
+        )
         with self._install_execution_context(cell_id):
             self.debugger.post_mortem_by_cell_id(cell_id)
 

@@ -70,6 +70,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     onSubmitDebugger,
     onClear,
     onRefactorWithAI,
+    debuggerActive,
     className,
   } = props;
 
@@ -119,10 +120,12 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   }
 
   const reversedOutputs = [...consoleOutputs].reverse();
-  const isPdb = reversedOutputs.some(
-    (output) =>
-      typeof output.data === "string" && output.data.includes("(Pdb)"),
-  );
+  const isPdb =
+    debuggerActive ||
+    reversedOutputs.some(
+      (output) =>
+        typeof output.data === "string" && output.data.includes("(Pdb)"),
+    );
 
   // Find the index of the last stdin output since we only want to show
   // the pdb prompt once

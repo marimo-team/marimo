@@ -9,6 +9,8 @@ import type { RuntimeState } from "../network/types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import type { CellRuntimeState } from "./types";
 
+const PDB_START_MESSAGE = "start";
+
 export function transitionCell(
   cell: CellRuntimeState,
   message: CellMessage,
@@ -145,7 +147,10 @@ export function transitionCell(
     (output) => output.channel === "pdb",
   );
   const hasPdbOutput = pdbOutputs.length > 0;
-  if (hasPdbOutput && pdbOutputs.some((output) => output.data === "start")) {
+  if (
+    hasPdbOutput &&
+    pdbOutputs.some((output) => output.data === PDB_START_MESSAGE)
+  ) {
     nextCell.debuggerActive = true;
   }
 
