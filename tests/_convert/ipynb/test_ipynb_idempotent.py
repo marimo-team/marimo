@@ -179,7 +179,9 @@ class TestGeneratedWithVersion:
         app = load_app(FIXTURES_PY / "simple.py")
         assert app
         internal_app = InternalApp(app)
-        ipynb_str = convert_from_ir_to_ipynb(internal_app, sort_mode="top-down")
+        ipynb_str = convert_from_ir_to_ipynb(
+            internal_app, sort_mode="top-down"
+        )
         ir = convert_from_ipynb_to_notebook_ir(ipynb_str)
         result = MarimoConvert.from_ir(ir).to_py()
         assert f'__generated_with = "{__version__}"' in result
