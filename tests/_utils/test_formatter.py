@@ -166,7 +166,12 @@ class TestRuffFormatter:
 
     @patch("marimo._utils.formatter.ruff")
     @pytest.mark.parametrize(
-        ("ignore", "args"), [(None, []), (["A", "B"], ["--ignore", "A,B"])]
+        ("ignore", "args"),
+        [
+            (None, ["--ignore", "F401,I002"]),
+            ([], []),
+            (["A", "B"], ["--ignore", "A,B"]),
+        ],
     )
     async def test_ruff_formatter_calls_ruff_function_for_fix_with_filename(
         self, mock_ruff: MagicMock, ignore: list[str] | None, args: list[str]
