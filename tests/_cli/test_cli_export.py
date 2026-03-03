@@ -1107,36 +1107,76 @@ class TestExportSession:
         assert session_file.exists()
 
     @staticmethod
-    def test_export_session_no_overwrite_skips_existing(
+    def test_export_session_default_skips_up_to_date(
         temp_marimo_file: str,
     ) -> None:
-        session_file = get_session_cache_file(Path(temp_marimo_file))
-        session_file.parent.mkdir(parents=True, exist_ok=True)
-        existing = '{"version":"existing"}\n'
-        session_file.write_text(existing, encoding="utf-8")
-
-        p = _run_export("session", temp_marimo_file, "--no-overwrite")
+        p = _run_export("session", temp_marimo_file)
         _assert_success(p)
 
-        assert session_file.read_text(encoding="utf-8") == existing
-
-    @staticmethod
-    def test_export_session_overwrite_rewrites_existing(
-        temp_marimo_file: str,
-    ) -> None:
         session_file = get_session_cache_file(Path(temp_marimo_file))
-        session_file.parent.mkdir(parents=True, exist_ok=True)
-        session_file.write_text('{"version":"existing"}\n', encoding="utf-8")
+        existing = json.loads(session_file.read_text(encoding="utf-8"))
+        existing["custom"] = "keep-me"
+        session_file.write_text(
+            json.dumps(existing, indent=2), encoding="utf-8"
+        )
 
         p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        unchanged = json.loads(session_file.read_text(encoding="utf-8"))
+        assert unchanged.get("custom") == "keep-me"
+        assert b"skip" in p.stdout
+
+    @staticmethod
+    def test_export_session_force_overwrite_rewrites_up_to_date(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        existing = json.loads(session_file.read_text(encoding="utf-8"))
+        existing["custom"] = "remove-me"
+        session_file.write_text(
+            json.dumps(existing, indent=2), encoding="utf-8"
+        )
+
+        p = _run_export("session", temp_marimo_file, "--force-overwrite")
         _assert_success(p)
 
         data = json.loads(session_file.read_text(encoding="utf-8"))
         assert data["version"] == "1"
         assert len(data["cells"]) > 0
+        assert "custom" not in data
 
     @staticmethod
-    def test_export_session_directory_no_overwrite_skips_existing(
+    def test_export_session_default_overwrites_stale(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        notebook_path = Path(temp_marimo_file)
+        session_file = get_session_cache_file(notebook_path)
+        before = json.loads(session_file.read_text(encoding="utf-8"))
+
+        notebook_path.write_text(
+            notebook_path.read_text(encoding="utf-8").replace(
+                "slider = mo.ui.slider(0, 10)",
+                "slider = mo.ui.slider(0, 11)",
+            ),
+            encoding="utf-8",
+        )
+
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        after = json.loads(session_file.read_text(encoding="utf-8"))
+        assert [c["code_hash"] for c in before["cells"]] != [
+            c["code_hash"] for c in after["cells"]
+        ]
+
+    def test_export_session_directory_default_skips_up_to_date(
         tmp_path: Path,
         temp_marimo_file: str,
     ) -> None:
@@ -1148,16 +1188,22 @@ class TestExportSession:
         first.write_text(code, encoding="utf-8")
         second.write_text(code, encoding="utf-8")
 
-        first_session = get_session_cache_file(first)
-        first_session.parent.mkdir(parents=True, exist_ok=True)
-        existing = '{"version":"existing"}\n'
-        first_session.write_text(existing, encoding="utf-8")
+        p = _run_export("session", str(first))
+        _assert_success(p)
 
-        p = _run_export("session", str(notebook_dir), "--no-overwrite")
+        first_session = get_session_cache_file(first)
+        existing = json.loads(first_session.read_text(encoding="utf-8"))
+        existing["custom"] = "keep-me"
+        first_session.write_text(
+            json.dumps(existing, indent=2), encoding="utf-8"
+        )
+
+        p = _run_export("session", str(notebook_dir))
         _assert_success(p)
 
         second_session = get_session_cache_file(second)
-        assert first_session.read_text(encoding="utf-8") == existing
+        first_data = json.loads(first_session.read_text(encoding="utf-8"))
+        assert first_data.get("custom") == "keep-me"
         assert second_session.exists()
         data = json.loads(second_session.read_text(encoding="utf-8"))
         assert data["version"] == "1"
@@ -1211,6 +1257,31 @@ class TestExportSession:
             Path(temp_marimo_file_with_errors)
         )
         assert session_file.exists()
+
+    @staticmethod
+    def test_export_session_default_skips_if_previous_snapshot_has_errors(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        session_file = get_session_cache_file(
+            Path(temp_marimo_file_with_errors)
+        )
+
+        first = _run_export("session", temp_marimo_file_with_errors)
+        _assert_failure(first)
+        assert session_file.exists()
+
+        existing = json.loads(session_file.read_text(encoding="utf-8"))
+        existing["custom"] = "should-be-overwritten"
+        session_file.write_text(
+            json.dumps(existing, indent=2),
+            encoding="utf-8",
+        )
+
+        second = _run_export("session", temp_marimo_file_with_errors)
+        _assert_success(second)
+        assert b"skip" in second.stdout
+        unchanged = json.loads(session_file.read_text(encoding="utf-8"))
+        assert unchanged.get("custom") == "should-be-overwritten"
 
     @staticmethod
     def test_export_session_continue_on_error_default(

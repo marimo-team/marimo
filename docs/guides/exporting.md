@@ -157,11 +157,13 @@ Pass CLI args through to notebooks with `--`:
 marimo export session notebook.py -- --foo 123
 ```
 
-By default, marimo overwrites existing session snapshots. To keep existing
-snapshots and only process missing ones:
+By default, marimo only rewrites session snapshots when they are stale (for example, when the notebook code has changed).
+Up-to-date snapshots are skipped.
+
+To force rewriting all snapshots, even when they are up-to-date:
 
 ```bash
-marimo export session folder/ --no-overwrite
+marimo export session folder/ --force-overwrite
 ```
 
 If one notebook fails, marimo continues by default and exits non-zero after processing all targets.

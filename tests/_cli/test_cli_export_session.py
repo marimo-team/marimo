@@ -1,13 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
+import click
+import pytest
 from click.testing import CliRunner
 
 import marimo._cli.export.session as session_module
 from marimo._cli.sandbox import SandboxMode
+from marimo._server.utils import asyncio_run
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,6 +64,39 @@ def test_session_sandbox_single_runs_in_sandbox(tmp_path: Path) -> None:
     resolve_sandbox_mode.assert_called_once()
     assert run_in_sandbox.call_args.kwargs["name"] == str(notebook)
     export_sessions.assert_not_called()
+
+
+def test_session_sandbox_single_skips_before_sandbox_when_fresh(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    _write_notebook(notebook)
+    session_file = get_session_cache_file(notebook)
+    session_file.parent.mkdir(parents=True, exist_ok=True)
+    session_file.write_text("{}", encoding="utf-8")
+    runner = CliRunner()
+
+    with (
+        patch(
+            "marimo._cli.sandbox.resolve_sandbox_mode",
+            return_value=SandboxMode.SINGLE,
+        ),
+        patch.object(
+            session_module,
+            "_is_session_snapshot_stale",
+            return_value=False,
+        ) as is_stale,
+        patch("marimo._cli.sandbox.run_in_sandbox") as run_in_sandbox,
+    ):
+        result = runner.invoke(
+            session_module.session,
+            [str(notebook), "--sandbox"],
+        )
+
+    assert result.exit_code == 0, result.output
+    is_stale.assert_called_once()
+    run_in_sandbox.assert_not_called()
+    assert "skip:" in result.output
 
 
 def test_session_sandbox_multi_uses_in_process_export(tmp_path: Path) -> None:
@@ -112,3 +151,313 @@ def test_session_no_sandbox_uses_in_process_export(tmp_path: Path) -> None:
     resolve_mode.assert_called_once()
     export_sessions.assert_called_once()
     assert export_sessions.call_args.kwargs["sandbox_mode"] is None
+
+
+def test_export_sessions_continue_on_error_processes_remaining(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.py"
+    second = tmp_path / "second.py"
+    third = tmp_path / "third.py"
+    _write_notebook(first)
+    _write_notebook(second)
+    _write_notebook(third)
+    notebooks = [
+        session_module.MarimoPath(str(p)) for p in [first, second, third]
+    ]
+
+    called: list[str] = []
+
+    async def fake_export(
+        marimo_path: session_module.MarimoPath,
+        *,
+        notebook_args: tuple[str, ...],
+        venv_python: str | None = None,
+    ) -> tuple[dict[str, str], bool]:
+        del notebook_args, venv_python
+        called.append(marimo_path.short_name)
+        if marimo_path.short_name == "second.py":
+            raise click.ClickException("boom")
+        return {"name": marimo_path.short_name}, False
+
+    with (
+        patch.object(
+            session_module,
+            "_export_session_snapshot",
+            new=AsyncMock(side_effect=fake_export),
+        ),
+        pytest.raises(
+            click.ClickException,
+            match="Failed to export sessions for 1 notebooks",
+        ),
+    ):
+        asyncio_run(
+            session_module._export_sessions(
+                notebooks=notebooks,
+                force_overwrite=True,
+                notebook_args=(),
+                continue_on_error=True,
+                sandbox_mode=None,
+            )
+        )
+
+    assert called == ["first.py", "second.py", "third.py"]
+    assert get_session_cache_file(first).exists()
+    assert not get_session_cache_file(second).exists()
+    assert get_session_cache_file(third).exists()
+
+
+def test_export_sessions_no_continue_on_error_stops_at_first_error(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.py"
+    second = tmp_path / "second.py"
+    third = tmp_path / "third.py"
+    _write_notebook(first)
+    _write_notebook(second)
+    _write_notebook(third)
+    notebooks = [
+        session_module.MarimoPath(str(p)) for p in [first, second, third]
+    ]
+
+    called: list[str] = []
+
+    async def fake_export(
+        marimo_path: session_module.MarimoPath,
+        *,
+        notebook_args: tuple[str, ...],
+        venv_python: str | None = None,
+    ) -> tuple[dict[str, str], bool]:
+        del notebook_args, venv_python
+        called.append(marimo_path.short_name)
+        if marimo_path.short_name == "first.py":
+            raise click.ClickException("first failed")
+        return {"name": marimo_path.short_name}, False
+
+    with (
+        patch.object(
+            session_module,
+            "_export_session_snapshot",
+            new=AsyncMock(side_effect=fake_export),
+        ),
+        pytest.raises(click.ClickException, match="first failed"),
+    ):
+        asyncio_run(
+            session_module._export_sessions(
+                notebooks=notebooks,
+                force_overwrite=True,
+                notebook_args=(),
+                continue_on_error=False,
+                sandbox_mode=None,
+            )
+        )
+
+    assert called == ["first.py"]
+    assert not get_session_cache_file(first).exists()
+    assert not get_session_cache_file(second).exists()
+    assert not get_session_cache_file(third).exists()
+
+
+def test_export_session_snapshot_subprocess_invalid_json() -> None:
+    with (
+        patch.object(
+            session_module, "run_python_subprocess", return_value="not json"
+        ),
+        pytest.raises(
+            click.ClickException,
+            match="Failed to parse sandbox session export output",
+        ),
+    ):
+        session_module._export_session_snapshot_in_subprocess(
+            "python",
+            {"path": "notebook.py", "args": []},
+        )
+
+
+class TestSessionSnapshotStaleness:
+    @staticmethod
+    def _write_snapshot(path: Path, payload: dict[str, object]) -> None:
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    @staticmethod
+    def _make_snapshot(
+        code_hashes: list[str | None],
+    ) -> dict[str, object]:
+        return {
+            "version": "1",
+            "metadata": {"marimo_version": __version__},
+            "cells": [
+                {"code_hash": code_hash, "outputs": []}
+                for code_hash in code_hashes
+            ],
+        }
+
+    @staticmethod
+    def test_is_session_snapshot_stale_false_when_snapshot_is_current(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(
+            ["hash-b", "hash-a", None, "hash-a"]
+        )
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=("hash-a", None, "hash-a", "hash-b"),
+        ):
+            assert (
+                session_module._is_session_snapshot_stale(output, notebook)
+                is False
+            )
+
+    @staticmethod
+    def test_is_session_snapshot_stale_false_when_version_changes_only(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
+        snapshot["metadata"] = {"marimo_version": "0.0.0"}
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=("hash-a",),
+        ):
+            assert (
+                session_module._is_session_snapshot_stale(output, notebook)
+                is False
+            )
+
+    @staticmethod
+    def test_is_session_snapshot_stale_false_when_snapshot_has_errors_only(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
+        snapshot["cells"] = [
+            {
+                "code_hash": "hash-a",
+                "outputs": [{"type": "error", "msg": "boom"}],
+            }
+        ]
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=("hash-a",),
+        ):
+            assert (
+                session_module._is_session_snapshot_stale(output, notebook)
+                is False
+            )
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("current_hashes", "snapshot_hashes"),
+        [
+            (("hash-a",), ["hash-a", "hash-b"]),
+            (("hash-a",), ["hash-b"]),
+        ],
+        ids=[
+            "cell-count-changed",
+            "cell-code-changed",
+        ],
+    )
+    def test_is_session_snapshot_stale_true_when_code_hashes_do_not_match(
+        tmp_path: Path,
+        current_hashes: tuple[str | None, ...],
+        snapshot_hashes: list[str | None],
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(snapshot_hashes)
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=current_hashes,
+        ):
+            assert session_module._is_session_snapshot_stale(output, notebook)
+
+    @staticmethod
+    def test_is_session_snapshot_stale_true_when_hash_multiplicity_differs(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=("hash-a", "hash-a"),
+        ):
+            assert session_module._is_session_snapshot_stale(output, notebook)
+
+    @staticmethod
+    def test_is_session_snapshot_stale_true_when_cell_missing_code_hash(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
+        snapshot["cells"] = [{"outputs": []}]
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=("hash-a",),
+        ):
+            assert session_module._is_session_snapshot_stale(output, notebook)
+
+    @staticmethod
+    def test_is_session_snapshot_stale_true_when_code_hash_has_wrong_type(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
+        snapshot["cells"] = [{"code_hash": 1, "outputs": []}]
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            return_value=("hash-a",),
+        ):
+            assert session_module._is_session_snapshot_stale(output, notebook)
+
+    @staticmethod
+    def test_is_session_snapshot_stale_true_when_snapshot_is_unreadable(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        output.write_text("{ not valid json", encoding="utf-8")
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+        assert session_module._is_session_snapshot_stale(output, notebook)
+
+    @staticmethod
+    def test_is_session_snapshot_stale_true_when_hash_lookup_fails(
+        tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "session.json"
+        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
+        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
+        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
+
+        with patch.object(
+            session_module,
+            "_current_notebook_code_hashes",
+            side_effect=RuntimeError("failed to inspect notebook"),
+        ):
+            assert session_module._is_session_snapshot_stale(output, notebook)

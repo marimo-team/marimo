@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -12,7 +10,12 @@ from typing import TYPE_CHECKING, Any, Optional
 import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
-from marimo._cli.export._common import SandboxVenvPool, collect_notebooks
+from marimo._cli.export._common import (
+    SandboxVenvPool,
+    collect_notebooks,
+    is_multi_target,
+    run_python_subprocess,
+)
 from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
@@ -49,10 +52,6 @@ def _split_paths_and_args(
     return paths, ()
 
 
-def _is_multi_target(paths: list[Path]) -> bool:
-    return len(paths) > 1 or any(path.is_dir() for path in paths)
-
-
 def _sandbox_mode_from_env() -> SandboxMode | None:
     from marimo._cli.sandbox import SandboxMode
 
@@ -83,7 +82,7 @@ def _resolve_thumbnail_sandbox_mode(
     if env_mode is not None:
         return env_mode
 
-    if _is_multi_target(path_targets):
+    if is_multi_target(path_targets):
         if sandbox is None:
             return None
         return SandboxMode.MULTI if sandbox else None
@@ -185,20 +184,12 @@ result = asyncio.run(
 sys.stdout.write(result.text)
 """
 
-    result = subprocess.run(
-        [venv_python, "-c", script, json.dumps(payload)],
-        check=False,
-        capture_output=True,
-        text=True,
+    return run_python_subprocess(
+        venv_python=venv_python,
+        script=script,
+        payload=payload,
+        action="render notebook",
     )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        raise click.ClickException(
-            "Failed to render notebook in sandbox.\n\n"
-            f"Command:\n\n  {venv_python} -c <script>\n\n"
-            f"Stderr:\n\n{stderr}"
-        )
-    return result.stdout
 
 
 async def _generate_thumbnails(
