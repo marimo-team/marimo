@@ -69,6 +69,11 @@ https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/
 Your notebook must be [WebAssembly compatible](wasm.md) for interactive
 previews to work.
 
+??? tip "Check WASM compatibility with AI"
+    Use marimo's built-in AI assistant to check if your notebook is
+    WebAssembly compatible. See the [skills guide](generate_with_ai/skills.md)
+    for more information.
+
 
 ### Share open-in-molab badges
 
