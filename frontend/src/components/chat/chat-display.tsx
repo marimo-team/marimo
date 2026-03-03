@@ -47,7 +47,8 @@ export const renderUIMessage = ({
 
     switch (part.type) {
       case "text":
-        // Streamdown sanitizes the HTML, so we check for marimo tags to render them with our custom renderer.
+        // Streamdown sanitizes the HTML which strips out marimo elements
+        // So instead, we render the HTML with our custom renderer.
         if (part.text.includes("<marimo-")) {
           return renderHTML({
             html: part.text,
