@@ -24,6 +24,7 @@ import {
   FolderDownIcon,
   GithubIcon,
   GlobeIcon,
+  HardDrive,
   Home,
   ImageIcon,
   KeyboardIcon,
@@ -78,9 +79,9 @@ import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
 import { PANELS } from "../chrome/types";
+import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
-import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { LAYOUT_TYPES } from "../renderers/types";
 import { runServerSidePDFDownload } from "./pdf-export";
@@ -450,7 +451,19 @@ export function useNotebookActions() {
       icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
       label: "Add database connection",
       handle: () => {
-        openModal(<AddDatabaseDialogContent onClose={closeModal} />);
+        openModal(<AddConnectionDialogContent onClose={closeModal} />);
+      },
+    },
+    {
+      icon: <HardDrive size={14} strokeWidth={1.5} />,
+      label: "Add remote storage",
+      handle: () => {
+        openModal(
+          <AddConnectionDialogContent
+            defaultTab="storage"
+            onClose={closeModal}
+          />,
+        );
       },
     },
     {
