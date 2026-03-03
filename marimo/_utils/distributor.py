@@ -135,7 +135,7 @@ class QueueDistributor(Distributor[T]):
         return Disposable(_remove)
 
     def _loop(self) -> None:
-        while not self._stop:
+        while True:
             msg = self._queue.get()
             if msg is None:
                 break
