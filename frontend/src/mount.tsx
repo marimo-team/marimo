@@ -36,7 +36,7 @@ import {
   DEFAULT_RUNTIME_CONFIG,
   runtimeConfigAtom,
 } from "./core/runtime/config";
-import { codeAtom, filenameAtom, filepathAtom } from "./core/saving/file-state";
+import { codeAtom, cwdAtom, filenameAtom } from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
 import {
@@ -147,9 +147,9 @@ const mountOptionsSchema = z.object({
       return getFilenameFromDOM();
     }),
   /**
-   * absolute filesystem path of the notebook
+   * absolute working directory of the notebook
    */
-  filepath: z.string().nullish().default(null),
+  cwd: z.string().nullish().default(null),
   /**
    * notebook code
    */
@@ -286,7 +286,7 @@ function initStore(options: unknown) {
 
   // Files
   store.set(filenameAtom, parsedOptions.data.filename);
-  store.set(filepathAtom, parsedOptions.data.filepath ?? null);
+  store.set(cwdAtom, parsedOptions.data.cwd ?? null);
   store.set(codeAtom, parsedOptions.data.code);
   store.set(initialModeAtom, mode);
 

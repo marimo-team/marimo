@@ -78,11 +78,12 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "read" in result
-        assert '"filepath": ""' in result
+        assert '"cwd": ""' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_filepath(self) -> None:
         absolute_path = str(self.filename.resolve())
+        expected_cwd = str(self.filename.resolve().parent)
         result = templates.notebook_page_template(
             html=self.html,
             base_url=self.base_url,
@@ -96,7 +97,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert self.filename.name in result
-        assert f'"filepath": "{absolute_path}"' in result
+        assert f'"cwd": "{expected_cwd}"' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_no_filename(self) -> None:
@@ -115,7 +116,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
-        assert '"filepath": ""' in result
+        assert '"cwd": ""' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_edit_mode(self) -> None:
