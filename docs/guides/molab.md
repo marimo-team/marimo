@@ -67,9 +67,12 @@ https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/
 ```
 
 Your notebook must be [WebAssembly-compatible](wasm.md) for interactive
-previews to work. If you use coding agents like Claude Code, you can use our
-[official skills](generate_with_ai/skills.md) to automatically check for
-WebAssembly compatibility of your notebooks.
+previews to work, and we also recommend creating these notebooks
+[with `--sandbox`](/docs/guides/package_management/inlining_dependencies.md)
+to make sure their dependencies get installed. If you use coding
+agents like Claude Code, you can use our [official
+skills](generate_with_ai/skills.md) to automatically check for WebAssembly
+compatibility of your notebooks.
 
 ### Share open-in-molab badges
 
@@ -91,7 +94,8 @@ links.
 
 You can embed interactive molab notebooks in your own webpages using iframes.
 Embedded notebooks run in the browser via WebAssembly, so your notebook must
-be [WebAssembly-compatible](wasm.md).
+be [WebAssembly-compatible](wasm.md). We also recommend creating these
+notebooks [with `--sandbox`](/docs/guides/package_management/inlining_dependencies.md) to make sure their dependencies get installed.
 
 ### Embed notebooks from GitHub
 
