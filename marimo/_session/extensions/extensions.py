@@ -132,6 +132,9 @@ class CachingExtension(SessionExtension, SessionEventListener):
         event_bus.subscribe(self)
         self.event_bus = event_bus
 
+        from marimo._utils.inline_script_metadata import (
+            script_metadata_hash_from_filename,
+        )
         from marimo._version import __version__
 
         LOGGER.debug("Syncing session view from cache")
@@ -148,7 +151,14 @@ class CachingExtension(SessionExtension, SessionEventListener):
         )
         cell_ids = tuple(app.cell_manager.cell_ids())
         key = SessionCacheKey(
-            codes=codes, marimo_version=__version__, cell_ids=cell_ids
+            codes=codes,
+            marimo_version=__version__,
+            cell_ids=cell_ids,
+            script_metadata_hash=script_metadata_hash_from_filename(
+                session.app_file_manager.path
+            )
+            if session.app_file_manager.path is not None
+            else None,
         )
         session.session_view = self.session_cache_manager.read_session_view(
             key

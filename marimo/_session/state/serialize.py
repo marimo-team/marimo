@@ -77,7 +77,9 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
 
 
 def serialize_session_view(
-    view: SessionView, cell_ids: Iterable[CellId_t] | None = None
+    view: SessionView,
+    cell_ids: Iterable[CellId_t] | None = None,
+    script_metadata_hash: str | None = None,
 ) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema.
 
@@ -168,7 +170,10 @@ def serialize_session_view(
 
     return NotebookSessionV1(
         version=VERSION,
-        metadata=NotebookSessionMetadata(marimo_version=__version__),
+        metadata=NotebookSessionMetadata(
+            marimo_version=__version__,
+            script_metadata_hash=script_metadata_hash,
+        ),
         cells=cells,
     )
 
@@ -364,6 +369,16 @@ def _hash_code(code: Optional[str]) -> Optional[str]:
     return hash_code(code)
 
 
+def _script_metadata_hash(path: Path | str | None) -> str | None:
+    if path is None:
+        return None
+    from marimo._utils.inline_script_metadata import (
+        script_metadata_hash_from_filename,
+    )
+
+    return script_metadata_hash_from_filename(str(path))
+
+
 class SessionCacheWriter(AsyncBackgroundTask):
     """Periodically writes a SessionView to a file."""
 
@@ -372,9 +387,11 @@ class SessionCacheWriter(AsyncBackgroundTask):
         session_view: SessionView,
         path: Path,
         interval: float,
+        notebook_path: Path | None = None,
     ) -> None:
         super().__init__()
         self.session_view = session_view
+        self.notebook_path = notebook_path
         # Windows does not support our async path implementation
         self.path: AsyncPath | Path = path
         if os.name != "nt":
@@ -398,7 +415,12 @@ class SessionCacheWriter(AsyncBackgroundTask):
                 if self.session_view.needs_export("session"):
                     self.session_view.mark_auto_export_session()
                     LOGGER.debug(f"Writing session view to cache {self.path}")
-                    data = serialize_session_view(self.session_view)
+                    data = serialize_session_view(
+                        self.session_view,
+                        script_metadata_hash=_script_metadata_hash(
+                            self.notebook_path
+                        ),
+                    )
                     if isinstance(self.path, AsyncPath):
                         await self.path.write_text(json.dumps(data, indent=2))
                     else:
@@ -417,6 +439,7 @@ class SessionCacheKey:
     codes: tuple[str | None, ...]
     marimo_version: str
     cell_ids: tuple[CellId_t, ...]
+    script_metadata_hash: str | None = None
 
 
 class SessionCacheManager:
@@ -441,12 +464,14 @@ class SessionCacheManager:
         if self.path is None:
             return
 
-        cache_file = get_session_cache_file(Path(self.path))
+        notebook_path = Path(self.path)
+        cache_file = get_session_cache_file(notebook_path)
 
         self.session_cache_writer = SessionCacheWriter(
             session_view=self.session_view,
             path=cache_file,
             interval=self.interval,
+            notebook_path=notebook_path,
         )
         self.session_cache_writer.start()
 
@@ -467,15 +492,19 @@ class SessionCacheManager:
     def is_cache_hit(
         self, notebook_session: NotebookSessionV1, key: SessionCacheKey
     ) -> bool:
+        metadata = notebook_session.get("metadata")
+        if not isinstance(metadata, dict):
+            return False
         if (len(key.codes) != len(notebook_session["cells"])) or any(
             _hash_code(code) != cell["code_hash"]
             for code, cell in zip(key.codes, notebook_session["cells"])
         ):
             return False
-        if (
-            key.marimo_version
-            != notebook_session["metadata"]["marimo_version"]
-        ):
+        if key.marimo_version != metadata.get("marimo_version"):
+            return False
+        if "script_metadata_hash" not in metadata:
+            return False
+        if metadata.get("script_metadata_hash") != key.script_metadata_hash:
             return False
         return True
 
