@@ -8,6 +8,7 @@ app = marimo.App()
 def my_imports():
     import os
     import sys
+
     return os, sys
 
 

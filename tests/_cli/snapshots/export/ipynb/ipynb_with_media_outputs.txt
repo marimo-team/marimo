@@ -27,6 +27,7 @@
    "id": "MJUe",
    "metadata": {
     "marimo": {
+     "md_prefix": "",
      "name": "pure_markdown_cell"
     }
    },

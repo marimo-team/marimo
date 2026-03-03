@@ -36,6 +36,7 @@ def imports():
     """Named cell with imports."""
     import pandas as pd
     import numpy as np
+
     return np, pd
 
 
