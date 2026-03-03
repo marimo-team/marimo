@@ -37,30 +37,54 @@ In addition to sharing notebooks created in your workspace, you can also
 preview notebooks hosted on GitHub. In some cases, these previews can be
 interactive; otherwise, they are static.
 
- >   **Example.** See our [gallery
-    repository](https://github.com/marimo-team/gallery-examples) to see how
-    to share previews of notebooks from GitHub.
+#### Static previews
+
+??? tip "Generate preview URLs automatically"
+    Visit [molab.marimo.io/github](https://molab.marimo.io/github) to generate
+    preview URLs from a GitHub link.
+
+To construct a static (read-only, not interactive) preview, replace `github.com` in your notebook's GitHub URL
+with `molab.marimo.io/github`. For example, a notebook at
+
+```
+https://github.com/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
+```
+
+becomes
+
+```
+https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
+```
 
 #### Interactive previews
 
-XXX
+Interactive previews let viewers run and interact with your notebook directly
+in the browser using WebAssembly. Append `/wasm` to the static preview URL to
+construct an interactive preview. For example:
 
-#### Static previews
+```
+https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm
+```
+
+Your notebook must be [WebAssembly compatible](wasm.md) for interactive
+previews to work.
 
 
 ### Share open-in-molab badges
 
-XXX
-
 Share links to molab notebooks using our open in molab badge:
 
-[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_TWVGCgZZK4L8zj5ziUBNVL)
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py)
 
 Use the following markdown snippet (replace the notebook URL with a link to your own notebook):
 
+```markdown
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py)
 ```
-[![Open in molab](https://marimo.io/molab-shield.svg)](https://marimo.io/notebooks/nb_UJPnqcQzB7NuTtVNhwYBBp) 
-```
+
+For noteoboks hosted on GitHub, use our [badge
+generator](https://molab.marimo.io/github) to automatically generate embeddable
+links.
 
 ## Embed in other webpages
 
