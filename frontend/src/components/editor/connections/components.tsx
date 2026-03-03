@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
-import { type FieldValues, useForm } from "react-hook-form";
+import { type DefaultValues, type FieldValues, useForm } from "react-hook-form";
 import type { z } from "zod";
 import { type FormRenderer, ZodForm } from "@/components/forms/form";
 import { getDefaults } from "@/components/forms/form-utils";
@@ -52,15 +52,7 @@ export const SelectorButton: React.FC<{
 /**
  * Footer with Back/Add buttons and a library picker.
  */
-export const ConnectionFormFooter: React.FC<{
-  onBack: () => void;
-  isValid: boolean;
-  libraries: string[];
-  preferredLibrary: string;
-  onLibraryChange: (library: string) => void;
-  displayNames: Record<string, string>;
-  libraryLabel?: string;
-}> = ({
+export const ConnectionFormFooter = <L extends string>({
   onBack,
   isValid,
   libraries,
@@ -68,6 +60,14 @@ export const ConnectionFormFooter: React.FC<{
   onLibraryChange,
   displayNames,
   libraryLabel = "Preferred library",
+}: {
+  onBack: () => void;
+  isValid: boolean;
+  libraries: L[];
+  preferredLibrary: L;
+  onLibraryChange: (library: L) => void;
+  displayNames: Record<L, string>;
+  libraryLabel?: string;
 }) => (
   <div className="flex gap-2 justify-between">
     <div className="flex gap-2">
@@ -121,7 +121,7 @@ export function useInsertCode() {
  * Generic connection form: Zod-driven form with secrets support, a library
  * picker, and Back/Add buttons. Used by both database and storage forms.
  */
-export const ConnectionForm = <T extends FieldValues>({
+export const ConnectionForm = <T extends FieldValues, L extends string>({
   schema,
   libraries,
   preferredLibrary: initialPreferred,
@@ -131,24 +131,24 @@ export const ConnectionForm = <T extends FieldValues>({
   onSubmit,
   onBack,
 }: {
-  schema: z.ZodType<T>;
-  libraries: string[];
-  preferredLibrary: string;
-  displayNames: Record<string, string>;
+  schema: z.ZodType<T, FieldValues>;
+  libraries: L[];
+  preferredLibrary: L;
+  displayNames: Record<L, string>;
   libraryLabel?: string;
-  generateCode: (values: T, library: string) => string;
+  generateCode: (values: T, library: L) => string;
   onSubmit: () => void;
   onBack: () => void;
 }) => {
+  const defaults = getDefaults(schema);
   const form = useForm<T>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion
-    defaultValues: getDefaults(schema) as any,
-    resolver: zodResolver(schema as unknown as z.ZodType<unknown, T>),
+    defaultValues: defaults as DefaultValues<T>,
+    resolver: zodResolver(schema),
     reValidateMode: "onChange",
   });
 
   const [preferredLibrary, setPreferredLibrary] =
-    React.useState(initialPreferred);
+    React.useState<L>(initialPreferred);
   const insertCode = useInsertCode();
 
   const handleSubmit = (values: T) => {

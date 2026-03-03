@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useState } from "react";
+import type { FieldValues } from "react-hook-form";
 import type { z } from "zod";
 import { DatabaseLogo, type DBLogoName } from "@/components/databases/icon";
 import { ConnectionForm, SelectorButton, SelectorGrid } from "../components";
@@ -32,7 +33,7 @@ import {
 
 interface ConnectionSchema {
   name: string;
-  schema: z.ZodType<DatabaseConnection>;
+  schema: z.ZodType<DatabaseConnection, FieldValues>;
   color: string;
   logo: DBLogoName;
   connectionLibraries: {
@@ -220,7 +221,7 @@ const DATA_CATALOGS = [
 const ALL_ENTRIES = [...DATABASES, ...DATA_CATALOGS];
 
 const DatabaseSchemaSelector: React.FC<{
-  onSelect: (schema: z.ZodType<DatabaseConnection>) => void;
+  onSelect: (schema: z.ZodType<DatabaseConnection, FieldValues>) => void;
 }> = ({ onSelect }) => {
   return (
     <>
@@ -268,8 +269,10 @@ export const AddDatabaseForm: React.FC<{
   onSubmit: () => void;
   header?: React.ReactNode;
 }> = ({ onSubmit, header }) => {
-  const [selectedSchema, setSelectedSchema] =
-    useState<z.ZodType<DatabaseConnection> | null>(null);
+  const [selectedSchema, setSelectedSchema] = useState<z.ZodType<
+    DatabaseConnection,
+    FieldValues
+  > | null>(null);
 
   if (!selectedSchema) {
     return (
@@ -286,15 +289,13 @@ export const AddDatabaseForm: React.FC<{
   const libs = entry?.connectionLibraries;
 
   return (
-    <ConnectionForm<DatabaseConnection>
+    <ConnectionForm<DatabaseConnection, ConnectionLibrary>
       schema={selectedSchema}
       libraries={libs?.libraries ?? []}
       preferredLibrary={libs?.preferred ?? "sqlalchemy"}
       displayNames={ConnectionDisplayNames}
       libraryLabel="Preferred connection library"
-      generateCode={(values, library) =>
-        generateDatabaseCode(values, library as ConnectionLibrary)
-      }
+      generateCode={(values, library) => generateDatabaseCode(values, library)}
       onSubmit={onSubmit}
       onBack={() => setSelectedSchema(null)}
     />

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useState } from "react";
+import type { FieldValues } from "react-hook-form";
 import type { z } from "zod";
 import { ProtocolIcon } from "@/components/storage/components";
 import { ConnectionForm, SelectorButton, SelectorGrid } from "../components";
@@ -19,7 +20,7 @@ import {
 
 interface StorageProviderSchema {
   name: string;
-  schema: z.ZodType<StorageConnection>;
+  schema: z.ZodType<StorageConnection, FieldValues>;
   color: string;
   protocol: string;
   storageLibraries: {
@@ -72,7 +73,7 @@ const STORAGE_PROVIDERS = [
 ] satisfies StorageProviderSchema[];
 
 const StorageProviderSelector: React.FC<{
-  onSelect: (schema: z.ZodType<StorageConnection>) => void;
+  onSelect: (schema: z.ZodType<StorageConnection, FieldValues>) => void;
 }> = ({ onSelect }) => {
   return (
     <SelectorGrid>
@@ -100,8 +101,10 @@ export const AddStorageForm: React.FC<{
   onSubmit: () => void;
   header?: React.ReactNode;
 }> = ({ onSubmit, header }) => {
-  const [selectedSchema, setSelectedSchema] =
-    useState<z.ZodType<StorageConnection> | null>(null);
+  const [selectedSchema, setSelectedSchema] = useState<z.ZodType<
+    StorageConnection,
+    FieldValues
+  > | null>(null);
 
   if (!selectedSchema) {
     return (
@@ -118,15 +121,13 @@ export const AddStorageForm: React.FC<{
   const libs = provider?.storageLibraries;
 
   return (
-    <ConnectionForm<StorageConnection>
+    <ConnectionForm<StorageConnection, StorageLibrary>
       schema={selectedSchema}
       libraries={libs?.libraries ?? []}
       preferredLibrary={libs?.preferred ?? "obstore"}
       displayNames={StorageLibraryDisplayNames}
       libraryLabel="Preferred storage library"
-      generateCode={(values, library) =>
-        generateStorageCode(values, library as StorageLibrary)
-      }
+      generateCode={(values, library) => generateStorageCode(values, library)}
       onSubmit={onSubmit}
       onBack={() => setSelectedSchema(null)}
     />
