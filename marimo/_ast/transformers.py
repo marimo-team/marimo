@@ -467,7 +467,7 @@ class DeprivateVisitor(ast.NodeTransformer):
 
 
 class RemoveReturns(ast.NodeTransformer):
-    def __init__(self):
+    def __init__(self) -> None:
         self._has_name = False
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
@@ -490,7 +490,7 @@ class RemoveReturns(ast.NodeTransformer):
         # vs
         # def f(): return foo
         if self._has_name:
-            expr = ast.Expr(value=cast(ast.expr, value))
+            expr = ast.Expr(value=value)
             expr.lineno = node.lineno
             expr.col_offset = node.col_offset
             return expr
@@ -502,7 +502,7 @@ class RemoveReturns(ast.NodeTransformer):
         target.col_offset = node.col_offset
         assign = ast.Assign(
             targets=[target],
-            value=cast(ast.expr, value),
+            value=value,
         )
         assign.lineno = node.lineno
         assign.col_offset = node.col_offset
