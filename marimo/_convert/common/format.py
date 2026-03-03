@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import Cell, CellImpl
 
 
-def markdown_to_marimo(source: str) -> str:
+def markdown_to_marimo(source: str, prefix: str = "r") -> str:
     # NB. This should be kept in sync with the logic in
     # frontend/src/core/codemirror/language/languages/markdown.ts
     # ::transformOut
@@ -19,7 +19,7 @@ def markdown_to_marimo(source: str) -> str:
     # 6 quotes in a row breaks
     if not source:
         source = " "
-    return codegen.construct_markdown_call(source, '"""', "r")
+    return codegen.construct_markdown_call(source, '"""', prefix)
 
 
 def sql_to_marimo(

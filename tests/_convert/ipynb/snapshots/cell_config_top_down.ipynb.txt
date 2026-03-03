@@ -27,7 +27,8 @@
         "marimo": {
           "config": {
             "hide_code": true
-          }
+          },
+          "md_prefix": ""
         }
       },
       "source": [

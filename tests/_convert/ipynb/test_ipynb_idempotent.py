@@ -4,6 +4,7 @@ import pathlib
 
 import pytest
 
+from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._ast.load import load_app
 from marimo._convert.converters import MarimoConvert
@@ -16,6 +17,11 @@ SELF_DIR = pathlib.Path(__file__).parent
 FIXTURES_PY = SELF_DIR / "fixtures" / "py"
 
 
+def sanitized_version(output: str) -> str:
+    """Replace the current marimo version with 0.0.0 for stable comparison."""
+    return output.replace(__version__, "0.0.0")
+
+
 def roundtrip(py_path: pathlib.Path) -> str:
     """Load a .py marimo file, export to ipynb, re-import, and return .py."""
     app = load_app(py_path)
@@ -23,7 +29,7 @@ def roundtrip(py_path: pathlib.Path) -> str:
     internal_app = InternalApp(app)
     ipynb_str = convert_from_ir_to_ipynb(internal_app, sort_mode="top-down")
     ir = convert_from_ipynb_to_notebook_ir(ipynb_str)
-    return MarimoConvert.from_ir(ir).to_py()
+    return sanitized_version(MarimoConvert.from_ir(ir).to_py())
 
 
 def assert_roundtrip(fixture_name: str) -> None:
@@ -163,14 +169,20 @@ class TestNotebookMetadata:
 
 
 class TestGeneratedWithVersion:
-    """__generated_with version should be preserved, not replaced."""
+    """__generated_with should use the converting marimo version."""
 
     def test_roundtrip(self) -> None:
         assert_roundtrip("simple.py")
 
     def test_version_string_in_output(self) -> None:
-        result = roundtrip(FIXTURES_PY / "simple.py")
-        assert '__generated_with = "0.19.2"' in result
+        """Conversion uses the current marimo version, not the original."""
+        app = load_app(FIXTURES_PY / "simple.py")
+        assert app
+        internal_app = InternalApp(app)
+        ipynb_str = convert_from_ir_to_ipynb(internal_app, sort_mode="top-down")
+        ir = convert_from_ipynb_to_notebook_ir(ipynb_str)
+        result = MarimoConvert.from_ir(ir).to_py()
+        assert f'__generated_with = "{__version__}"' in result
 
 
 class TestComplexFixtures:

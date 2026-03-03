@@ -17,7 +17,11 @@
     {
       "cell_type": "markdown",
       "id": "Hbol",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "md_prefix": ""
+        }
+      },
       "source": [
         "# Hello from setup"
       ]

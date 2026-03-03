@@ -23,7 +23,11 @@
     {
       "cell_type": "markdown",
       "id": "vblA",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "md_prefix": ""
+        }
+      },
       "source": [
         "# No prefix\n",
         "\n",
@@ -33,7 +37,11 @@
     {
       "cell_type": "markdown",
       "id": "bkHC",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "md_prefix": "r"
+        }
+      },
       "source": [
         "# R-prefix\n",
         "\n",
@@ -43,7 +51,11 @@
     {
       "cell_type": "markdown",
       "id": "lEQa",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "md_prefix": "f"
+        }
+      },
       "source": [
         "# F-prefix\n",
         "\n",
@@ -53,7 +65,11 @@
     {
       "cell_type": "markdown",
       "id": "PKri",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "md_prefix": "fr"
+        }
+      },
       "source": [
         "# FR-prefix\n",
         "\n",
