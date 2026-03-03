@@ -1177,6 +1177,7 @@ class TestExportSession:
         ]
 
     def test_export_session_directory_default_skips_up_to_date(
+        self,
         tmp_path: Path,
         temp_marimo_file: str,
     ) -> None:
