@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -13,7 +12,6 @@ import marimo._cli.export.session as session_module
 from marimo._cli.sandbox import SandboxMode
 from marimo._server.utils import asyncio_run
 from marimo._session.state.serialize import get_session_cache_file
-from marimo._version import __version__
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -83,7 +81,7 @@ def test_session_sandbox_single_skips_before_sandbox_when_fresh(
         ),
         patch.object(
             session_module,
-            "_is_session_snapshot_stale",
+            "is_session_snapshot_stale",
             return_value=False,
         ) as is_stale,
         patch("marimo._cli.sandbox.run_in_sandbox") as run_in_sandbox,
@@ -272,192 +270,3 @@ def test_export_session_snapshot_subprocess_invalid_json() -> None:
             "python",
             {"path": "notebook.py", "args": []},
         )
-
-
-class TestSessionSnapshotStaleness:
-    @staticmethod
-    def _write_snapshot(path: Path, payload: dict[str, object]) -> None:
-        path.write_text(json.dumps(payload), encoding="utf-8")
-
-    @staticmethod
-    def _make_snapshot(
-        code_hashes: list[str | None],
-    ) -> dict[str, object]:
-        return {
-            "version": "1",
-            "metadata": {"marimo_version": __version__},
-            "cells": [
-                {"code_hash": code_hash, "outputs": []}
-                for code_hash in code_hashes
-            ],
-        }
-
-    @staticmethod
-    def test_is_session_snapshot_stale_false_when_snapshot_is_current(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(
-            ["hash-b", "hash-a", None, "hash-a"]
-        )
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=("hash-a", None, "hash-a", "hash-b"),
-        ):
-            assert (
-                session_module._is_session_snapshot_stale(output, notebook)
-                is False
-            )
-
-    @staticmethod
-    def test_is_session_snapshot_stale_false_when_version_changes_only(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
-        snapshot["metadata"] = {"marimo_version": "0.0.0"}
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=("hash-a",),
-        ):
-            assert (
-                session_module._is_session_snapshot_stale(output, notebook)
-                is False
-            )
-
-    @staticmethod
-    def test_is_session_snapshot_stale_false_when_snapshot_has_errors_only(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
-        snapshot["cells"] = [
-            {
-                "code_hash": "hash-a",
-                "outputs": [{"type": "error", "msg": "boom"}],
-            }
-        ]
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=("hash-a",),
-        ):
-            assert (
-                session_module._is_session_snapshot_stale(output, notebook)
-                is False
-            )
-
-    @staticmethod
-    @pytest.mark.parametrize(
-        ("current_hashes", "snapshot_hashes"),
-        [
-            (("hash-a",), ["hash-a", "hash-b"]),
-            (("hash-a",), ["hash-b"]),
-        ],
-        ids=[
-            "cell-count-changed",
-            "cell-code-changed",
-        ],
-    )
-    def test_is_session_snapshot_stale_true_when_code_hashes_do_not_match(
-        tmp_path: Path,
-        current_hashes: tuple[str | None, ...],
-        snapshot_hashes: list[str | None],
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(snapshot_hashes)
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=current_hashes,
-        ):
-            assert session_module._is_session_snapshot_stale(output, notebook)
-
-    @staticmethod
-    def test_is_session_snapshot_stale_true_when_hash_multiplicity_differs(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=("hash-a", "hash-a"),
-        ):
-            assert session_module._is_session_snapshot_stale(output, notebook)
-
-    @staticmethod
-    def test_is_session_snapshot_stale_true_when_cell_missing_code_hash(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
-        snapshot["cells"] = [{"outputs": []}]
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=("hash-a",),
-        ):
-            assert session_module._is_session_snapshot_stale(output, notebook)
-
-    @staticmethod
-    def test_is_session_snapshot_stale_true_when_code_hash_has_wrong_type(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
-        snapshot["cells"] = [{"code_hash": 1, "outputs": []}]
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            return_value=("hash-a",),
-        ):
-            assert session_module._is_session_snapshot_stale(output, notebook)
-
-    @staticmethod
-    def test_is_session_snapshot_stale_true_when_snapshot_is_unreadable(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        output.write_text("{ not valid json", encoding="utf-8")
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-        assert session_module._is_session_snapshot_stale(output, notebook)
-
-    @staticmethod
-    def test_is_session_snapshot_stale_true_when_hash_lookup_fails(
-        tmp_path: Path,
-    ) -> None:
-        output = tmp_path / "session.json"
-        snapshot = TestSessionSnapshotStaleness._make_snapshot(["hash-a"])
-        TestSessionSnapshotStaleness._write_snapshot(output, snapshot)
-        notebook = session_module.MarimoPath(str(tmp_path / "notebook.py"))
-
-        with patch.object(
-            session_module,
-            "_current_notebook_code_hashes",
-            side_effect=RuntimeError("failed to inspect notebook"),
-        ):
-            assert session_module._is_session_snapshot_stale(output, notebook)
