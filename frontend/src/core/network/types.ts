@@ -78,7 +78,7 @@ export interface SetCellConfigRequest {
   configs: Record<CellId, Partial<CellConfig>>;
 }
 export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
-export type UpdateWidgetModelRequest = schemas["UpdateWidgetModelRequest"];
+export type ModelRequest = schemas["ModelRequest"];
 export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
 export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
@@ -100,13 +100,20 @@ export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
 export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
+export type LspHealthResponse = schemas["LspHealthResponse"];
+export type LspRestartRequest = schemas["LspRestartRequest"];
+export type LspRestartResponse = schemas["LspRestartResponse"];
+export type LspServerHealth = schemas["LspServerHealth"];
+
+export type StorageListEntriesRequest = schemas["StorageListEntriesRequest"];
+export type StorageDownloadRequest = schemas["StorageDownloadRequest"];
 
 /**
  * Requests sent to the BE during run/edit mode.
  */
 export interface RunRequests {
   sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
-  sendModelValue: (request: UpdateWidgetModelRequest) => Promise<null>;
+  sendModelValue: (request: ModelRequest) => Promise<null>;
   sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
 }
@@ -194,6 +201,9 @@ export interface EditRequests {
   // Cache requests
   clearCache: () => Promise<null>;
   getCacheInfo: () => Promise<null>;
+  // Storage requests
+  listStorageEntries: (request: StorageListEntriesRequest) => Promise<null>;
+  downloadStorage: (request: StorageDownloadRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

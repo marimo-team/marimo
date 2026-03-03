@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import marimo as mo
     import ell
     import textwrap
+
     return ell, mo
 
 
@@ -155,6 +156,7 @@ def _(ell, mo):
                 code_fence(result if result is not None else output),
             ]
             return mo.md("\n\n".join(results))
+
     return (execute_code,)
 
 
@@ -176,6 +178,7 @@ def _(client, ell, execute_code, mo, model):
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
+
     return (my_model,)
 
 

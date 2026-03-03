@@ -9,11 +9,10 @@ export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
-  performant_table_charts: boolean;
-  chat_modes: boolean;
   cache_panel: boolean;
   external_agents: boolean;
   server_side_pdf_export: boolean;
+  storage_inspector: boolean;
   // Add new feature flags here
 }
 
@@ -21,11 +20,10 @@ const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
   rtc_v2: false,
-  performant_table_charts: false,
-  chat_modes: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
-  server_side_pdf_export: false,
+  server_side_pdf_export: true,
+  storage_inspector: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

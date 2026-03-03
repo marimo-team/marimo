@@ -21,7 +21,9 @@ from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.notification import ColumnPreview
+from marimo._output.hypertext import is_non_interactive
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -64,10 +66,12 @@ from marimo._runtime.context.types import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
+from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
 )
+from marimo._utils.variable_name import infer_variable_name
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -499,6 +503,10 @@ class table(
         self._max_columns: Optional[int] = None
         max_columns_arg: Union[int, str]
 
+        # Infer the variable name before add_selection_column() mutates data,
+        # so the identity check still matches the caller's original variable.
+        download_file_name = infer_variable_name(data, "download")
+
         has_stable_row_id = False
         if selection is not None:
             data, has_stable_row_id = add_selection_column(data)
@@ -728,6 +736,7 @@ class table(
                 "max-height": int(max_height)
                 if max_height is not None
                 else None,
+                "download-file-name": download_file_name,
             },
             on_change=on_change,
             functions=(
@@ -1351,7 +1360,13 @@ class table(
 
             # Do not clamp if max_columns is None
             if max_columns is not None and len(column_names) > max_columns:
-                data = data.select_columns(column_names[:max_columns])
+                columns_to_select = column_names[:max_columns]
+                # Always include _marimo_row_id so the frontend can use
+                # stable row IDs for selection, even when columns are clamped.
+                # Without this, filtering + selecting returns wrong rows.
+                if self._has_stable_row_id:
+                    columns_to_select = [INDEX_COLUMN_NAME] + columns_to_select
+                data = data.select_columns(columns_to_select)
 
             try:
                 return data.to_json_str(self._format_mapping)
@@ -1470,20 +1485,17 @@ class table(
                 error=f"Failed to get row IDs: {str(e)}",
             )
 
-    def _repr_markdown_(self) -> str:
-        """Return a markdown representation of the table.
-
-        Generates a markdown or HTML representation of the table data,
-        useful for rendering in the GitHub viewer.
-
-        Returns:
-            str: HTML representation of the table if available,
-                otherwise string representation.
-        """
-        df = self.data
-        if hasattr(df, "_repr_html_"):
-            return df._repr_html_()  # type: ignore[attr-defined,no-any-return]
-        return str(df)
+    # Override _mime_ to return a plain HTML representation in non-interactive environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_non_interactive():
+            df = self.data
+            # Generates a plain HTML representation of the table data,
+            # useful for rendering in the GitHub viewer.
+            repr_html = getcallable(df, "_repr_html_")
+            if repr_html is not None:
+                return ("text/html", cast(str, repr_html()))
+            return ("text/html", str(df))
+        return ("text/html", self.text)
 
     @functools.cached_property
     def default_page_size(self) -> int:

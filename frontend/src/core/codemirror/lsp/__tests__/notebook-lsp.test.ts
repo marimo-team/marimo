@@ -25,6 +25,30 @@ const Cells = {
 };
 
 describe("createNotebookLens", () => {
+  it("should produce correct lens for same inputs", () => {
+    // Use unique content for this test
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "unique_memo_test_line1",
+      [Cells.cell2]: "unique_memo_test_line2",
+    };
+
+    const lens1 = createNotebookLens(cellIds, codes);
+    const lens2 = createNotebookLens(cellIds, codes);
+
+    // Same inputs should produce equivalent lens (same merged text)
+    expect(lens1.mergedText).toBe(lens2.mergedText);
+    expect(lens1.cellIds).toEqual(lens2.cellIds);
+
+    // Different content should produce a different lens
+    const differentCodes: Record<CellId, string> = {
+      [Cells.cell1]: "unique_memo_different",
+      [Cells.cell2]: "unique_memo_content",
+    };
+    const lens3 = createNotebookLens(cellIds, differentCodes);
+    expect(lens3.mergedText).not.toBe(lens1.mergedText);
+  });
+
   it("should calculate correct line offsets", () => {
     const cellIds: CellId[] = [Cells.cell1, Cells.cell2, Cells.cell3];
     const codes: Record<CellId, string> = {
@@ -111,6 +135,7 @@ describe("createNotebookLens", () => {
       ),
     ).toBe(true);
 
+    // This triggers the cross-cell diagnostic warning (start in range, end outside)
     expect(
       lens.isInRange(
         {
@@ -120,6 +145,24 @@ describe("createNotebookLens", () => {
         Cells.cell1,
       ),
     ).toBe(false);
+  });
+
+  it("should detect cross-cell diagnostics where start is in range but end is outside", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "line1\nline2",
+      [Cells.cell2]: "line3",
+    };
+    const lens = createNotebookLens(cellIds, codes);
+
+    // Range that starts in cell1 (line 1) but ends in cell2 (line 2 = first line of cell2)
+    // This should return false and log a warning
+    const crossCellRange = {
+      start: { line: 1, character: 0 }, // line 1 is in cell1
+      end: { line: 2, character: 0 }, // line 2 is in cell2
+    };
+
+    expect(lens.isInRange(crossCellRange, Cells.cell1)).toBe(false);
   });
 
   it("should join all code into merged text", () => {
@@ -286,6 +329,40 @@ describe("NotebookLanguageServerClient", () => {
       });
     });
 
+    it("should normalize math content in hover markdown", async () => {
+      const hoverParams: LSP.HoverParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 1 },
+      };
+
+      const mockHoverResponse: LSP.Hover = {
+        contents: {
+          kind: "markdown",
+          value:
+            "For t > 0:\n\n.. math::\n\n\\begin{align*}\nm_t &= \\beta_1 \\cdot g_t\n\\end{align*}",
+        },
+      };
+
+      mockClient.textDocumentHover.mockResolvedValue(mockHoverResponse);
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "value = 1",
+        },
+      });
+
+      const result = await notebookClient.textDocumentHover(hoverParams);
+      const contents = result?.contents as LSP.MarkupContent;
+
+      expect(contents.kind).toBe("markdown");
+      expect(contents.value).toContain("<marimo-tex");
+      expect(contents.value).not.toContain(".. math::");
+      expect(contents.value).toContain("\\begin{align*}");
+    });
+
     it("should return null for empty hover contents", async () => {
       const hoverParams: LSP.HoverParams = {
         textDocument: { uri: "file:///cell1.py" },
@@ -346,6 +423,168 @@ describe("NotebookLanguageServerClient", () => {
           textDocument: { uri: "file:///__marimo_notebook__.py" },
         }),
       );
+    });
+
+    it("should normalize completion item markdown documentation", async () => {
+      const completionParams: LSP.CompletionParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 4 },
+      };
+
+      const mockCompletionResponse: LSP.CompletionList = {
+        isIncomplete: false,
+        items: [
+          {
+            label: "math_completion",
+            kind: LSP.CompletionItemKind.Function,
+            documentation: {
+              kind: "markdown",
+              value: "Compute :math:`x^2`",
+            },
+          },
+        ],
+      };
+
+      mockClient.textDocumentCompletion.mockResolvedValue(
+        mockCompletionResponse,
+      );
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "math",
+        },
+      });
+
+      const result =
+        await notebookClient.textDocumentCompletion(completionParams);
+      const completion = (result as LSP.CompletionList).items[0];
+      const documentation = completion?.documentation as LSP.MarkupContent;
+
+      expect(documentation.kind).toBe("markdown");
+      expect(documentation.value).toContain("<marimo-tex");
+      expect(documentation.value).not.toContain(":math:`");
+    });
+
+    it("should normalize completion item plaintext math documentation", async () => {
+      const completionParams: LSP.CompletionParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 4 },
+      };
+
+      const mockCompletionResponse: LSP.CompletionList = {
+        isIncomplete: false,
+        items: [
+          {
+            label: "math_completion_plain",
+            kind: LSP.CompletionItemKind.Function,
+            documentation: {
+              kind: "plaintext",
+              value: "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+            },
+          },
+        ],
+      };
+
+      mockClient.textDocumentCompletion.mockResolvedValue(
+        mockCompletionResponse,
+      );
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "math",
+        },
+      });
+
+      const result =
+        await notebookClient.textDocumentCompletion(completionParams);
+      const completion = (result as LSP.CompletionList).items[0];
+      const documentation = completion?.documentation as LSP.MarkupContent;
+
+      expect(documentation.kind).toBe("markdown");
+      expect(documentation.value).toContain("<marimo-tex");
+      expect(documentation.value).not.toContain(".. math::");
+    });
+  });
+
+  describe("completionItemResolve", () => {
+    it("should normalize resolved completion markdown documentation", async () => {
+      const unresolvedItem: LSP.CompletionItem = { label: "test" };
+      const resolvedItem: LSP.CompletionItem = {
+        label: "test",
+        documentation: {
+          kind: "markdown",
+          value: "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+        },
+      };
+
+      mockClient.completionItemResolve.mockResolvedValue(resolvedItem);
+
+      const result = await notebookClient.completionItemResolve(unresolvedItem);
+      const documentation = result.documentation as LSP.MarkupContent;
+
+      expect(documentation.kind).toBe("markdown");
+      expect(documentation.value).toContain("<marimo-tex");
+      expect(documentation.value).not.toContain(".. math::");
+    });
+  });
+
+  describe("textDocumentSignatureHelp", () => {
+    it("should normalize signature and parameter markdown documentation", async () => {
+      const signatureHelpParams: LSP.SignatureHelpParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 3 },
+      };
+
+      const mockSignatureHelp: LSP.SignatureHelp = {
+        signatures: [
+          {
+            label: "foo(x)",
+            documentation: {
+              kind: "markdown",
+              value: "Compute :math:`x^2`",
+            },
+            parameters: [
+              {
+                label: "x",
+                documentation: {
+                  kind: "markdown",
+                  value:
+                    "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentSignatureHelp.mockResolvedValue(mockSignatureHelp);
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "foo(",
+        },
+      });
+
+      const result =
+        await notebookClient.textDocumentSignatureHelp(signatureHelpParams);
+      const signature = result?.signatures[0];
+      const signatureDoc = signature?.documentation as LSP.MarkupContent;
+      const parameterDoc = signature?.parameters?.[0]
+        ?.documentation as LSP.MarkupContent;
+
+      expect(signatureDoc.value).toContain("<marimo-tex");
+      expect(signatureDoc.value).not.toContain(":math:`");
+      expect(parameterDoc.value).toContain("<marimo-tex");
+      expect(parameterDoc.value).not.toContain(".. math::");
     });
   });
 
@@ -1117,6 +1356,83 @@ describe("NotebookLanguageServerClient", () => {
         import numpy
         print(math.sqrt(4))"
       `);
+    });
+  });
+
+  describe("sync returns lens to prevent race conditions", () => {
+    it("should return the lens used for synchronization", async () => {
+      mockClient.textDocumentDidChange = vi
+        .fn()
+        .mockImplementation((params) => params);
+
+      const result = await notebookClient.sync();
+
+      // sync() should return both params and the lens
+      expect(result).toHaveProperty("params");
+      expect(result).toHaveProperty("lens");
+      expect(result.lens.cellIds).toEqual([
+        Cells.cell1,
+        Cells.cell2,
+        Cells.cell3,
+      ]);
+      expect(result.lens.mergedText).toContain("# this is a comment");
+    });
+
+    it("should return consistent lens even when called multiple times rapidly", async () => {
+      mockClient.textDocumentDidChange = vi
+        .fn()
+        .mockImplementation((params) => params);
+
+      // Call sync multiple times rapidly
+      const [result1, result2, result3] = await Promise.all([
+        notebookClient.sync(),
+        notebookClient.sync(),
+        notebookClient.sync(),
+      ]);
+
+      // All should return the same lens content (memoized)
+      expect(result1.lens.mergedText).toBe(result2.lens.mergedText);
+      expect(result2.lens.mergedText).toBe(result3.lens.mergedText);
+    });
+  });
+
+  describe("SEEN_CELL_DOCUMENT_URIS memory management", () => {
+    it("should track opened cells in SEEN_CELL_DOCUMENT_URIS", async () => {
+      // Clear any existing state
+      const seenUris = (NotebookLanguageServerClient as any)
+        .SEEN_CELL_DOCUMENT_URIS;
+      seenUris.clear();
+
+      // Open some cells to add them to SEEN_CELL_DOCUMENT_URIS
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "code1",
+        },
+      });
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
+          languageId: "python",
+          version: 1,
+          text: "code2",
+        },
+      });
+
+      // Verify cells were added
+      expect(seenUris.has(CellDocumentUri.of(Cells.cell1))).toBe(true);
+      expect(seenUris.has(CellDocumentUri.of(Cells.cell2))).toBe(true);
+      expect(seenUris.size).toBe(2);
+    });
+
+    it("should have pruneSeenCellUris static method", () => {
+      // Verify the method exists and is callable
+      expect(
+        typeof (NotebookLanguageServerClient as any).pruneSeenCellUris,
+      ).toBe("function");
     });
   });
 

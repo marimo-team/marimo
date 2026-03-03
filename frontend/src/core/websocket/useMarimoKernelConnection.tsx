@@ -11,7 +11,6 @@ import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
-  isMessageWidgetState,
   MODEL_MANAGER,
 } from "@/plugins/impl/anywidget/model";
 import { logNever } from "@/utils/assertNever";
@@ -57,6 +56,11 @@ import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
+import {
+  DownloadStorage,
+  ListStorageEntries,
+} from "../storage/request-registry";
+import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
@@ -106,6 +110,10 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
+  const {
+    setNamespaces: setStorageNamespaces,
+    filterFromVariables: filterStorageFromVariables,
+  } = useStorageActions();
 
   const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -141,30 +149,21 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "send-ui-element-message": {
-        const modelId = msg.data.model_id;
         const uiElement = msg.data.ui_element;
-        const message = msg.data.message;
-        const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
-
-        if (modelId && isMessageWidgetState(message)) {
-          handleWidgetMessage({
-            modelId,
-            msg: message,
-            buffers,
-            modelManager: MODEL_MANAGER,
-          });
-        }
-
         if (uiElement) {
+          const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
           UI_ELEMENT_REGISTRY.broadcastMessage(
             uiElement as UIElementId,
             msg.data.message,
             buffers,
           );
         }
-
         return;
       }
+
+      case "model-lifecycle":
+        handleWidgetMessage(MODEL_MANAGER, msg.data);
+        return;
 
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);
@@ -204,6 +203,9 @@ export function useMarimoKernelConnection(opts: {
           msg.data.variables.map((v) => v.name as VariableName),
         );
         filterDataSourcesFromVariables(
+          msg.data.variables.map((v) => v.name as VariableName),
+        );
+        filterStorageFromVariables(
           msg.data.variables.map((v) => v.name as VariableName),
         );
         return;
@@ -293,6 +295,15 @@ export function useMarimoKernelConnection(opts: {
             name: conn.name as ConnectionName,
           })),
         });
+        return;
+      case "storage-namespaces":
+        setStorageNamespaces(msg.data);
+        return;
+      case "storage-entries":
+        ListStorageEntries.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "storage-download-ready":
+        DownloadStorage.resolve(msg.data.request_id as RequestId, msg.data);
         return;
 
       case "reconnected":

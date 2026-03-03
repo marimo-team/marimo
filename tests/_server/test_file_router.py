@@ -10,10 +10,12 @@ import pytest
 
 from marimo._server.file_router import (
     AppFileRouter,
+    FileInfo,
     LazyListOfFilesAppFileRouter,
     ListOfFilesAppFileRouter,
     NewFileAppFileRouter,
     count_files,
+    flatten_files,
 )
 from marimo._server.files.directory_scanner import is_marimo_app
 from marimo._server.files.path_validator import PathValidator
@@ -138,6 +140,61 @@ class TestAppFileRouter(unittest.TestCase):
         files = router.files
         assert len(files) == 4
 
+    def test_list_of_files_restricts_access(self):
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=self.test_file1.name,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files)
+        with pytest.raises(HTTPException) as exc:
+            router.get_file_manager(self.test_file2.name)
+        assert exc.value.status_code == HTTPStatus.NOT_FOUND
+
+    def test_list_of_files_disallows_dynamic_allowlist(self):
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=self.test_file1.name,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files, allow_dynamic=False)
+        router.register_allowed_file(self.test_file2.name)
+        with pytest.raises(HTTPException) as exc:
+            router.get_file_manager(self.test_file2.name)
+        assert exc.value.status_code == HTTPStatus.NOT_FOUND
+
+    def test_list_of_files_disallows_new_file_key(self):
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=self.test_file1.name,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files, allow_single_file_key=False)
+        with pytest.raises(HTTPException) as exc:
+            router.get_file_manager(AppFileRouter.NEW_FILE)
+        assert exc.value.status_code == HTTPStatus.NOT_FOUND
+
+    def test_list_of_files_resolve_file_path_supports_relative_key(self):
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=self.test_file1.name,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files, directory=self.test_dir)
+        relative_key = str(
+            Path(self.test_file1.name).relative_to(self.test_dir)
+        )
+        resolved = router.resolve_file_path(relative_key)
+        assert resolved == self.test_file1.name
+
     def test_lazy_list_of_get_app_file_manager(self):
         router = LazyListOfFilesAppFileRouter(
             self.test_dir, include_markdown=False
@@ -158,6 +215,92 @@ class TestAppFileRouter(unittest.TestCase):
         assert os.path.exists(file_manager.filename)
         assert file_manager.filename.startswith(self.test_dir)
         assert "nested" in file_manager.filename
+
+    def test_list_of_files_resolves_dotdot_in_path(self):
+        """Paths with '..' components should resolve correctly.
+
+        Regression test for https://github.com/marimo-team/marimo/issues/8414
+        """
+        # Build a path with '..' that resolves to test_file1
+        # e.g. /tmp/dir/nested/../file.py -> /tmp/dir/file.py
+        dotdot_path = os.path.join(
+            self.nested_dir, "..", os.path.basename(self.test_file1.name)
+        )
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=dotdot_path,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files)
+        key = router.get_unique_file_key()
+        assert key is not None
+        resolved = router.resolve_file_path(key)
+        assert resolved is not None
+        assert os.path.exists(resolved)
+
+
+def test_flatten_files() -> None:
+    root = FileInfo(
+        id="root",
+        path="root",
+        name="root",
+        is_directory=True,
+        is_marimo_file=False,
+        children=[
+            FileInfo(
+                id="file1",
+                path="root/file1.py",
+                name="file1.py",
+                is_directory=False,
+                is_marimo_file=True,
+                children=[],
+            ),
+            FileInfo(
+                id="dir1",
+                path="root/dir1",
+                name="dir1",
+                is_directory=True,
+                is_marimo_file=False,
+                children=[
+                    FileInfo(
+                        id="file2",
+                        path="root/dir1/file2.py",
+                        name="file2.py",
+                        is_directory=False,
+                        is_marimo_file=True,
+                        children=[],
+                    ),
+                    FileInfo(
+                        id="dir2",
+                        path="root/dir1/dir2",
+                        name="dir2",
+                        is_directory=True,
+                        is_marimo_file=False,
+                        children=[
+                            FileInfo(
+                                id="file3",
+                                path="root/dir1/dir2/file3.py",
+                                name="file3.py",
+                                is_directory=False,
+                                is_marimo_file=True,
+                                children=[],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    flattened = list(flatten_files([root]))
+    paths = {file.path for file in flattened}
+    assert paths == {
+        "root/file1.py",
+        "root/dir1/file2.py",
+        "root/dir1/dir2/file3.py",
+    }
 
 
 class TestValidateInsideDirectory(unittest.TestCase):

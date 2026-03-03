@@ -1030,6 +1030,146 @@ def test_line_chart_selection() -> None:
     assert result[2]["Y"] == 25
 
 
+def test_scattergl_line_selection() -> None:
+    """Test box selection on pure scattergl line chart."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 30]},
+        "points": [],  # Empty for pure lines
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return points at x=2, 3, 4
+    assert len(result) == 3
+    assert result[0]["X"] == 2
+    assert result[0]["Y"] == 20
+    assert result[1]["X"] == 3
+    assert result[1]["Y"] == 15
+    assert result[2]["X"] == 4
+    assert result[2]["Y"] == 25
+
+
+def test_scattergl_line_filters_by_x_range_only() -> None:
+    """Test scattergl line selection uses x-range only."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 50, 15, 60, 30],  # y values outside narrow selection
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 20]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should include all points with x in [2, 4], regardless of y.
+    assert len(result) == 3
+    assert result[0]["x"] == 2
+    assert result[0]["y"] == 50
+    assert result[1]["x"] == 3
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == 4
+    assert result[2]["y"] == 60
+
+
+def test_scattergl_selection_datetime_x_axis() -> None:
+    """Test scattergl line selection with datetime x-axis from frontend ISO strings."""
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Scattergl(x=dates, y=values, mode="lines"))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {
+            "x": [dates[1].isoformat(), dates[3].isoformat()],
+            "y": [0, 50],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 3
+    assert result[0]["x"] == dates[1]
+    assert result[0]["y"] == 20
+    assert result[1]["x"] == dates[2]
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == dates[3]
+    assert result[2]["y"] == 25
+
+
+def test_scattergl_multiple_line_traces_selection() -> None:
+    """Test box selection on multiple scattergl line traces."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattergl(
+            x=[1, 2, 3, 4],
+            y=[10, 20, 15, 25],
+            mode="lines",
+            name="Series A",
+        )
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=[1, 2, 3, 4],
+            y=[15, 10, 20, 18],
+            mode="lines",
+            name="Series B",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return 6 points total: 3 from each trace
+    assert len(result) == 6
+
+    # Check Series A points
+    series_a_points = [p for p in result if p.get("name") == "Series A"]
+    assert len(series_a_points) == 3
+    assert series_a_points[0]["X"] == 2
+    assert series_a_points[1]["X"] == 3
+    assert series_a_points[2]["X"] == 4
+
+    # Check Series B points
+    series_b_points = [p for p in result if p.get("name") == "Series B"]
+    assert len(series_b_points) == 3
+    assert series_b_points[0]["X"] == 2
+    assert series_b_points[1]["X"] == 3
+    assert series_b_points[2]["X"] == 4
+
+
 def test_line_markers_selection() -> None:
     """Test box selection on line chart with markers."""
     fig = go.Figure(
@@ -1310,6 +1450,34 @@ def test_scatter_points_numpy_and_fallback() -> None:
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
     # Compare each point
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+        assert np_point["x"] == fb_point["x"]
+        assert np_point["y"] == fb_point["y"]
+        assert np_point["curveNumber"] == fb_point["curveNumber"]
+
+
+def test_scattergl_points_numpy_and_fallback() -> None:
+    """Test numpy/fallback parity for scattergl extraction."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+
+    x_min, x_max = 2, 4
+    numpy_result = _extract_scatter_points_numpy(fig, x_min, x_max)
+    fallback_result = _extract_scatter_points_fallback(fig, x_min, x_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(point: dict[str, Any]) -> tuple[Any, ...]:
+        return (point["x"], point["y"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
     for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]
@@ -2083,3 +2251,162 @@ def test_heatmap_numpy_and_fallback_numeric_axes() -> None:
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
         assert np_cell["curveNumber"] == fb_cell["curveNumber"]
+
+
+def test_scattermap_basic() -> None:
+    """Test that scattermap plots can be created."""
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=[37.7749, 34.0522],
+            lon=[-122.4194, -118.2437],
+            mode="markers",
+        )
+    )
+    plot = plotly(fig)
+    assert plot.value == []
+
+
+def test_scattermap_selection_with_indices() -> None:
+    """Test scattermap selection extracts points by indices."""
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=[37.7749, 34.0522, 40.7128],
+            lon=[-122.4194, -118.2437, -74.0060],
+            mode="markers",
+            name="Cities",
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [0, 2]})
+
+    assert result == [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "pointIndex": 0,
+            "curveNumber": 0,
+            "name": "Cities",
+        },
+        {
+            "lat": 40.7128,
+            "lon": -74.0060,
+            "pointIndex": 2,
+            "curveNumber": 0,
+            "name": "Cities",
+        },
+    ]
+
+
+def test_scattermap_selection_with_customdata() -> None:
+    """Test scattermap selection includes customdata (issue #7970)."""
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "id": ["WC_0001", "WC_0002", "WC_0003"],
+            "lat": [-33.93, -33.95, -33.91],
+            "lon": [18.42, 18.46, 18.50],
+            "cluster": [0, 1, 0],
+        }
+    )
+
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=df["lat"],
+            lon=df["lon"],
+            mode="markers",
+            customdata=df[["id", "cluster"]].values,
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [0]})
+
+    assert len(result) == 1
+    assert result[0]["customdata"][0] == "WC_0001"
+    assert result[0]["customdata"][1] == 0
+
+
+@pytest.mark.filterwarnings("ignore:.*scattermapbox.*:DeprecationWarning")
+def test_scattermapbox_selection() -> None:
+    """Test scattermapbox (deprecated) selection works."""
+    fig = go.Figure(
+        data=go.Scattermapbox(
+            lat=[37.7749, 34.0522],
+            lon=[-122.4194, -118.2437],
+            mode="markers",
+            text=["SF", "LA"],
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [1]})
+
+    assert len(result) == 1
+    assert result[0]["lat"] == 34.0522
+    assert result[0]["text"] == "LA"
+
+
+def test_scattergeo_selection() -> None:
+    """Test scattergeo selection works."""
+    fig = go.Figure(
+        data=go.Scattergeo(
+            lat=[37.7749, 34.0522],
+            lon=[-122.4194, -118.2437],
+            mode="markers",
+            hovertext=["SF", "LA"],
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [0]})
+
+    assert len(result) == 1
+    assert result[0]["hovertext"] == "SF"
+
+
+def test_scattermap_preserves_frontend_points() -> None:
+    """Test that existing points with lat/lon from frontend are preserved."""
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=[37.7749],
+            lon=[-122.4194],
+            mode="markers",
+        )
+    )
+    plot = plotly(fig)
+
+    # Frontend already sent points with lat/lon
+    selection = {
+        "points": [{"lat": 37.7749, "lon": -122.4194, "pointIndex": 0}],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [{"lat": 37.7749, "lon": -122.4194, "pointIndex": 0}]
+
+
+def test_scattermap_empty_selection() -> None:
+    """Test scattermap with empty selection."""
+    fig = go.Figure(
+        data=go.Scattermap(lat=[37.7749], lon=[-122.4194], mode="markers")
+    )
+    plot = plotly(fig)
+
+    assert plot._convert_value({"points": [], "indices": []}) == []
+
+
+def test_scattermap_invalid_indices() -> None:
+    """Test scattermap ignores invalid indices."""
+    fig = go.Figure(
+        data=go.Scattermap(lat=[37.7749], lon=[-122.4194], mode="markers")
+    )
+    plot = plotly(fig)
+
+    # 100 and -1 are out of bounds
+    result = plot._convert_value({"points": [], "indices": [0, 100, -1]})
+
+    assert len(result) == 1
+    assert result[0]["pointIndex"] == 0

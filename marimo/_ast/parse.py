@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 import io
-import sys
 import token as token_types
 import warnings
 from pathlib import Path
@@ -1000,9 +999,9 @@ def is_body_cell(node: Node) -> bool:
 def _is_ellipsis(node: Optional[Node]) -> bool:
     if node is None:
         return False
-    if sys.version_info < (3, 14):
-        return isinstance(node, ast.Ellipsis)
-    return isinstance(node, ast.Constant) and node.value == ...
+    # ast.Ellipsis is deprecated in 3.12+ and removed in 3.14
+    # Use ast.Constant check which works across all Python versions
+    return isinstance(node, ast.Constant) and node.value is ...
 
 
 def _is_setup_call(node: Node) -> bool:
@@ -1158,6 +1157,21 @@ UNEXPECTED_KEYWORD_VALUE_VIOLATION = "Unexpected value for keyword argument"
 ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
 NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
 EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
+
+# Soft violations are auto-corrected on save with no data loss.
+# Any violation NOT in this set is considered "hard" (potential data loss).
+SOFT_VIOLATIONS: frozenset[str] = frozenset(
+    {
+        MARIMO_ALIAS_VIOLATION,
+        EXPECTED_GENERATED_WITH_VIOLATION,
+        EXPECTED_RUN_GUARD_VIOLATION,
+    }
+)
+
+
+def all_violations_soft(violations: list[Violation]) -> bool:
+    """Check if all violations are soft (auto-corrected on save)."""
+    return all(v.description in SOFT_VIOLATIONS for v in violations)
 
 
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:

@@ -22,6 +22,7 @@ from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
+from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -120,6 +121,33 @@ def format_tuple_elements(
         [left, indent_text(",\n".join(elems)) + suffix, right]
     )
     return maybe_indent(code.replace("(...)", multiline_tuple))
+
+
+def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
+    """Check if AST ends with a statement requiring a blank line after.
+
+    Ruff formatter adds a blank line after imports, function defs, and class defs.
+    Only adds blank line if the statement is truly the last content (no trailing
+    comments).
+    """
+    if not mod.body:
+        return False
+    last_stmt = mod.body[-1]
+    if not isinstance(
+        last_stmt,
+        (
+            ast.Import,
+            ast.ImportFrom,
+            ast.FunctionDef,
+            ast.AsyncFunctionDef,
+            ast.ClassDef,
+        ),
+    ):
+        return False
+    # Check if there's trailing content (like comments) after the last statement
+    # If so, don't add a blank line - the existing formatting should be preserved
+    code_lines = code.rstrip().count("\n") + 1
+    return last_stmt.end_lineno == code_lines
 
 
 def to_decorator(
@@ -335,6 +363,10 @@ def to_functiondef(
         # maybe consider "return Edges(...)"
         # Such that the return type can simply be 'Edges'
     )
+    # Add blank line before return for ruff compatibility when last statement
+    # is an import, function def, or class def
+    if _needs_trailing_blank_line(cell.mod, cell.code):
+        definition_body.append("")
     definition_body.append(returns)
     return "\n".join(definition_body)
 
@@ -455,13 +487,51 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 
 
 def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+    # Markdown frontmatter may contain non-config metadata (e.g., author,
+    # description). Suppress warnings for unrecognized keys from markdown.
+    silent = (
+        MarimoPath(ir.filename).is_markdown()
+        if ir.filename and ir.filename != "<marimo>"
+        else False
+    )
+    header_comments = _extract_header_comments(ir)
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=[cell.name for cell in ir.cells],
         cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
-        config=_AppConfig.from_untrusted_dict(ir.app.options),
-        header_comments=ir.header.value if ir.header else None,
+        config=_AppConfig.from_untrusted_dict(ir.app.options, silent=silent),
+        header_comments=header_comments,
     )
+
+
+def _extract_header_comments(ir: NotebookSerializationV1) -> Optional[str]:
+    """Extract script preamble from header.
+
+    For markdown notebooks, Header.value may contain YAML-encoded frontmatter
+    metadata (with a 'header' key for the script preamble, and/or a
+    'pyproject' key for inline dependencies). For Python notebooks, it's the
+    raw script preamble.
+    """
+    if not ir.header or not ir.header.value:
+        return None
+    from marimo._utils import yaml
+
+    try:
+        parsed = yaml.load(ir.header.value)
+        if isinstance(parsed, dict):
+            # YAML dict means frontmatter metadata; extract script preamble
+            header = parsed.get("header", None)
+            pyproject = parsed.get("pyproject", None)
+            if header:
+                return str(header)
+            if pyproject:
+                from marimo._utils.scripts import wrap_script_metadata
+
+                return wrap_script_metadata(pyproject)
+            return None
+    except (yaml.YAMLError, AssertionError):
+        pass
+    return ir.header.value
 
 
 def generate_filecontents(

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.18.3"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -18,8 +18,8 @@ def _():
     import jscatter
     import numpy as np
 
-    x = np.random.rand(500)
-    y = np.random.rand(500)
+    x = np.random.rand(50000)
+    y = np.random.rand(50000)
 
     scatter = jscatter.Scatter(x=x, y=y)
     w = mo.ui.anywidget(scatter.widget)

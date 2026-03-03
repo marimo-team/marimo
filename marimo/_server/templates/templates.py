@@ -11,6 +11,7 @@ from typing import Any, Literal, Optional, Union, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
+from marimo._messaging.notification import ModelLifecycleNotification
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -45,7 +46,7 @@ def json_script(data: Any) -> str:
 def _get_mount_config(
     *,
     filename: Optional[str],
-    mode: Literal["edit", "home", "read"],
+    mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
@@ -100,6 +101,7 @@ def home_page_template(
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
+    mode: SessionMode,
     asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
@@ -115,11 +117,14 @@ def home_page_template(
 
     html = _replace_asset_urls(html, asset_url)
 
+    app_mode: Literal["home", "gallery"] = (
+        "home" if mode == SessionMode.EDIT else "gallery"
+    )
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=None,
-            mode="home",
+            mode=app_mode,
             server_token=server_token,
             user_config=user_config,
             config_overrides=config_overrides,
@@ -133,6 +138,76 @@ def home_page_template(
     return html
 
 
+def opengraph_metadata_template(
+    *,
+    base_url: str,
+    mode: SessionMode,
+    app_config: _AppConfig,
+    filename: Optional[str],
+    filepath: Optional[str],
+) -> str:
+    """Return OpenGraph `<meta>` tags for a notebook, or an empty string."""
+    if not filepath:
+        return ""
+
+    try:
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            is_https_url,
+            resolve_opengraph_metadata,
+        )
+
+        file_key = (
+            filename if filename and not Path(filename).is_absolute() else None
+        )
+        opengraph = resolve_opengraph_metadata(
+            filepath,
+            app_title=app_config.app_title,
+            context=OpenGraphContext(
+                filepath=filepath,
+                file_key=file_key,
+                base_url=base_url,
+                mode=mode.value,
+            ),
+        )
+    except Exception:
+        return ""
+
+    if not opengraph.title and not opengraph.description:
+        return ""
+
+    if opengraph.image and is_https_url(opengraph.image):
+        thumbnail_url = opengraph.image
+    else:
+        # Server-resolvable thumbnail URL, falling back to a placeholder when
+        # no screenshot exists.
+        thumbnail_url = f"{base_url}/og/thumbnail"
+        if filename and not Path(filename).is_absolute():
+            thumbnail_url = (
+                f"{thumbnail_url}?file={uri_encode_component(filename)}"
+            )
+
+    meta_tags: list[str] = []
+    if opengraph.title:
+        meta_tags.append(
+            f'<meta property="og:title" content="{_html_escape(opengraph.title)}" />'
+        )
+    if opengraph.description:
+        meta_tags.append(
+            f'<meta property="og:description" content="{_html_escape(opengraph.description)}" />'
+        )
+        meta_tags.append(
+            f'<meta name="description" content="{_html_escape(opengraph.description)}" />'
+        )
+    meta_tags.append(
+        f'<meta property="og:image" content="{_html_escape(thumbnail_url)}" />'
+    )
+    meta_tags.append(
+        '<meta name="twitter:card" content="summary_large_image" />'
+    )
+    return "\n".join(meta_tags)
+
+
 def notebook_page_template(
     *,
     html: str,
@@ -142,22 +217,28 @@ def notebook_page_template(
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
+    filepath: Optional[str] = None,
     mode: SessionMode,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
     runtime_config: Optional[list[dict[str, Any]]] = None,
     asset_url: Optional[str] = None,
+    html_head: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
     # When we have a remote URL, let's pre-populate the index.html page
     # with a view of the notebook.
-    if runtime_config and filename and notebook_snapshot is None:
-        filepath = Path(filename)
-        if filepath.exists():
-            notebook_snapshot = MarimoConvert.from_py(
-                filepath.read_text(encoding="utf-8")
-            ).to_notebook_v1()
+    if runtime_config and notebook_snapshot is None:
+        # Prefer the absolute path for IO, since `filename` can be a display
+        # path (workspace-relative) in gallery mode.
+        path = filepath or filename
+        if path:
+            path_obj = Path(path)
+            if path_obj.exists():
+                notebook_snapshot = MarimoConvert.from_py(
+                    path_obj.read_text(encoding="utf-8")
+                ).to_notebook_v1()
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
@@ -194,6 +275,16 @@ def notebook_page_template(
         ),
     )
 
+    opengraph_tags = opengraph_metadata_template(
+        base_url=base_url,
+        mode=mode,
+        app_config=app_config,
+        filename=filename,
+        filepath=filepath,
+    )
+    if opengraph_tags:
+        html = html.replace("</head>", f"{opengraph_tags}\n</head>")
+
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
@@ -206,7 +297,11 @@ def notebook_page_template(
     html = _inject_custom_css_for_config(html, user_config, filename)
     html = _inject_custom_css_for_config(html, config_overrides, filename)
 
-    # Add HTML head file contents if specified
+    # Add global HTML head contents if specified (from create_asgi_app)
+    if html_head:
+        html = html.replace("</head>", f"{html_head}</head>")
+
+    # Add per-notebook HTML head file contents if specified
     if app_config.html_head_file:
         head_contents = read_html_head_file(
             app_config.html_head_file, filename=filename
@@ -230,6 +325,7 @@ def static_notebook_template(
     session_snapshot: NotebookSessionV1,
     notebook_snapshot: NotebookV1,
     files: dict[str, str],
+    model_notifications: Optional[list[ModelLifecycleNotification]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
     if asset_url is None:
@@ -272,6 +368,7 @@ def static_notebook_template(
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.files = {json_script(files)};
+        window.__MARIMO_STATIC__.modelNotifications = {json_script([n.to_json_serializable() for n in model_notifications or []])};
     </script>
     """
     )

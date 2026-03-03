@@ -260,6 +260,25 @@ def test_template_contains_html_structure() -> None:
         assert "9000" in result
 
 
+def test_template_contains_visibilitychange_refresh() -> None:
+    """Test that template includes visibilitychange listener to refresh
+    figures when the browser tab becomes visible again.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/2092:
+    plots rendered while the tab is hidden appear blank because browsers
+    throttle canvas rendering in background tabs.
+    """
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = None
+
+        result = _template("12345", 9000)
+
+        assert "visibilitychange" in result
+        assert "document.hidden" in result
+        assert 'send_message("refresh"' in result
+
+
 def test_mpl_server_manager() -> None:
     """Test MplServerManager basic functionality"""
     from marimo._plugins.stateless.mpl._mpl import MplServerManager

@@ -62,9 +62,18 @@ def convert_from_ir_to_markdown(
         }
     )
 
-    # Add header from notebook if present
+    # Recover frontmatter metadata from header
     if notebook.header and notebook.header.value:
-        metadata["header"] = notebook.header.value.strip()
+        try:
+            frontmatter = yaml.load(notebook.header.value)
+            if isinstance(frontmatter, dict):
+                # Insert metadata before config so config takes precedence
+                _recovered = dict(frontmatter)
+                _recovered.update(metadata)
+                metadata = _recovered
+        except (yaml.YAMLError, AssertionError):
+            # Not valid YAML dict — treat as script preamble
+            metadata["header"] = notebook.header.value.strip()
 
     # Add the expected qmd filter to the metadata.
     is_qmd = filename.endswith(".qmd")

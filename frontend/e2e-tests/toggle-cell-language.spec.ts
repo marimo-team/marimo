@@ -28,24 +28,17 @@ test("change the cell to a markdown cell and toggle hide code", async ({
   await page.getByText("Convert to Markdown").click();
   await expect(title).toBeVisible();
 
-  // Verify markdown content
-  const markdown = page.getByText("import marimo as mo");
-  await expect(markdown).toBeVisible();
-
-  // Hide code
-  await openCellActions(page, title);
-  await page.getByText("Hide code").click();
-  await expect(title).toBeVisible();
-
-  // Verify code editor is hidden
+  // Expect cell editor to be invisible at first (markdown initial hide code is true)
   const cellEditor = page.getByTestId("cell-editor");
   await expect(cellEditor).toBeHidden();
 
   // Unhide code
   await openCellActions(page, title);
   await page.getByText("Show code").click();
-  await expect(title).toBeVisible();
-
-  // Verify code editor is visible
   await expect(cellEditor).toBeVisible();
+
+  // Hide code
+  await openCellActions(page, title);
+  await page.getByText("Hide code").click();
+  await expect(cellEditor).toBeHidden();
 });

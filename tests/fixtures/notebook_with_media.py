@@ -68,6 +68,18 @@ def cell_matplotlib(np, plt):
 def basic_dataframe(pd):
     df = pd.DataFrame({"x": [1]})
     df
+    return (df,)
+
+
+@app.cell
+def _(df, mo):
+    mo.ui.table(df)
+    return
+
+
+@app.cell
+def _(df, mo):
+    mo.ui.dataframe(df)
     return
 
 

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -118,6 +118,7 @@ def _():
     import io
     import matplotlib.pyplot as plt
     import pandas as pd
+
     return alt, io, mo, pd
 
 

@@ -20,6 +20,21 @@ def initialize_mimetypes() -> None:
     mimetypes.add_type("text/css", ".css")
     mimetypes.add_type("image/svg+xml", ".svg")
 
+    # Office document formats
+    # Ensures these mimetypes are available across all platforms
+    mimetypes.add_type(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xlsx",
+    )
+    mimetypes.add_type(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".docx",
+    )
+    mimetypes.add_type(
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".pptx",
+    )
+
 
 def initialize_asyncio() -> None:
     """Platform-specific initialization of asyncio.

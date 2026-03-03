@@ -49,6 +49,7 @@ function createState(content: string, selection?: { anchor: number }) {
         placeholderType: "marimo-import",
       }),
       cellConfigExtension({
+        cellId: "cell1" as CellId,
         completionConfig: {
           copilot: false,
           activate_on_typing: true,

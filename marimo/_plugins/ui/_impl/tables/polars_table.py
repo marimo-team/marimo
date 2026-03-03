@@ -73,10 +73,14 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def to_csv_str(
                 self,
                 format_mapping: Optional[FormatMapping] = None,
+                separator: str | None = None,
             ) -> str:
+                resolved_separator = (
+                    separator if separator is not None else ","
+                )
                 _data = self.apply_formatting(format_mapping).collect()
                 try:
-                    return _data.write_csv()
+                    return _data.write_csv(separator=resolved_separator)
                 except pl.exceptions.ComputeError:
                     # Likely CSV format does not support nested data or objects
                     # Try to convert columns to json or strings
@@ -105,7 +109,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = self._convert_time_to_string(
                                 result, column
                             )
-                    return result.write_csv()
+                    return result.write_csv(separator=resolved_separator)
 
             def to_json_str(
                 self,
@@ -275,11 +279,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 if not expressions:
                     return self
 
-                or_expr = expressions[0]
-                for expr in expressions[1:]:
-                    or_expr = or_expr | expr
-
-                filtered = self._original_data.filter(or_expr)
+                filtered = self._original_data.filter(
+                    pl.any_horizontal(expressions)
+                )
                 return PolarsTableManager(filtered)
 
             # We override the default implementation to use polars's

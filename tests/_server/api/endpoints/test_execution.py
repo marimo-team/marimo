@@ -97,10 +97,11 @@ class TestExecutionRoutes_EditMode:
             json={
                 "modelId": "model-1",
                 "message": {
+                    "method": "update",
                     "state": {"key": "value"},
                     "bufferPaths": [["a"], ["b"]],
                 },
-                "buffers": ["buffer1", "buffer2"],
+                "buffers": ["YnVmZmVyMQ==", "YnVmZmVyMg=="],
             },
         )
         assert response.status_code == 200, response.text
@@ -296,10 +297,11 @@ class TestExecutionRoutes_RunMode:
             json={
                 "modelId": "model-1",
                 "message": {
+                    "method": "update",
                     "state": {"key": "value"},
                     "bufferPaths": [["a"], ["b"]],
                 },
-                "buffers": ["buffer1", "buffer2"],
+                "buffers": ["YnVmZmVyMQ==", "YnVmZmVyMg=="],
             },
         )
         assert response.status_code == 200, response.text

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -19,6 +19,7 @@ def _():
     import marimo as mo
     import os
     from google.cloud import storage
+
     return mo, os, storage
 
 

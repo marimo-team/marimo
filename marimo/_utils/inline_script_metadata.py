@@ -1,12 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any, cast
 
 from marimo import _loggers
-from marimo._cli.file_path import FileContentReader
+from marimo._cli.files.file_path import FileContentReader
+from marimo._utils.code import hash_code
 from marimo._utils.paths import normalize_path
 from marimo._utils.scripts import read_pyproject_from_script
 
@@ -247,3 +249,16 @@ def has_marimo_in_script_metadata(filepath: str) -> bool | None:
 
     dependencies = project.get("dependencies", [])
     return any(is_marimo_dependency(dep) for dep in dependencies)
+
+
+def script_metadata_hash_from_filename(name: str) -> str | None:
+    project = _get_pyproject_from_filename(name)
+    if project is None:
+        return None
+    serialized = json.dumps(
+        project,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hash_code(serialized)

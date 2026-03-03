@@ -43,6 +43,11 @@ class _AppConfig:
     sql_output: SqlOutputType = "auto"
 
     @staticmethod
+    def sanitize(updates: dict[str, Any]) -> dict[str, Any]:
+        """Return only recognized config keys, silently dropping others."""
+        return {k: v for k, v in updates.items() if hasattr(_AppConfig, k)}
+
+    @staticmethod
     def from_untrusted_dict(
         updates: dict[str, Any], silent: bool = False
     ) -> _AppConfig:

@@ -96,10 +96,10 @@ export const PackageAlert: React.FC = () => {
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px]">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px] pointer-events-none">
         <Banner
           kind="danger"
-          className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left overflow-auto max-h-[80vh] scrollbar-thin"
+          className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left overflow-auto max-h-[80vh] scrollbar-thin pointer-events-auto"
         >
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
@@ -207,10 +207,10 @@ export const PackageAlert: React.FC = () => {
     }
 
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px] ">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 min-w-[400px] z-200 opacity-95 max-w-[600px] pointer-events-none">
         <Banner
           kind={status === "failed" ? "danger" : "info"}
-          className="flex flex-col rounded pt-3 pb-4 px-5 overflow-auto max-h-[80vh] scrollbar-thin"
+          className="flex flex-col rounded pt-3 pb-4 px-5 overflow-auto max-h-[80vh] scrollbar-thin pointer-events-auto"
         >
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">

@@ -9,6 +9,7 @@ import {
   type ExternalAgentId,
   getAgentConnectionCommand,
   getAgentDisplayName,
+  getAgentWebSocketUrl,
   getSessionsByAgent,
   removeSession,
   type TabId,
@@ -695,6 +696,74 @@ describe("state utility functions", () => {
       expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
         "npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019"
       `);
+    });
+  });
+
+  describe("getAgentWebSocketUrl", () => {
+    const originalLocation = window.location;
+
+    afterEach(() => {
+      // Restore original window.location
+      Object.defineProperty(window, "location", {
+        value: originalLocation,
+        writable: true,
+      });
+    });
+
+    it("should return ws:// URL with localhost for http protocol", () => {
+      Object.defineProperty(window, "location", {
+        value: {
+          hostname: "localhost",
+          protocol: "http:",
+        },
+        writable: true,
+      });
+
+      expect(getAgentWebSocketUrl("claude")).toMatchInlineSnapshot(
+        `"ws://localhost:3017/message"`,
+      );
+    });
+
+    it("should return wss:// URL for https protocol", () => {
+      Object.defineProperty(window, "location", {
+        value: {
+          hostname: "example.com",
+          protocol: "https:",
+        },
+        writable: true,
+      });
+
+      expect(getAgentWebSocketUrl("claude")).toMatchInlineSnapshot(
+        `"wss://example.com:3017/message"`,
+      );
+    });
+
+    it("should work with IP addresses", () => {
+      Object.defineProperty(window, "location", {
+        value: {
+          hostname: "192.168.1.100",
+          protocol: "http:",
+        },
+        writable: true,
+      });
+
+      expect(getAgentWebSocketUrl("claude")).toMatchInlineSnapshot(
+        `"ws://192.168.1.100:3017/message"`,
+      );
+    });
+
+    it("should work with remote hostnames", () => {
+      Object.defineProperty(window, "location", {
+        value: {
+          hostname: "marimo.example.com",
+          protocol: "https:",
+        },
+        writable: true,
+      });
+
+      expect(getAgentWebSocketUrl("gemini")).toMatchInlineSnapshot(
+        `"wss://marimo.example.com:3019/message"`,
+      );
     });
   });
 });

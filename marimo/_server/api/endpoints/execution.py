@@ -25,9 +25,9 @@ from marimo._server.models.models import (
     ExecuteScratchpadRequest,
     InstantiateNotebookRequest,
     InvokeFunctionRequest,
+    ModelRequest,
     SuccessResponse,
     UpdateUIElementValuesRequest,
-    UpdateWidgetModelRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
@@ -98,7 +98,7 @@ async def set_model_values(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/UpdateWidgetModelRequest"
+                    $ref: "#/components/schemas/ModelRequest"
     responses:
         200:
             description: Set model value
@@ -107,7 +107,7 @@ async def set_model_values(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, UpdateWidgetModelRequest)
+    return await dispatch_control_request(request, ModelRequest)
 
 
 @router.post("/instantiate")

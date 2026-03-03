@@ -1,19 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { EditorView, keymap } from "@codemirror/view";
+import { keymap } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import {
   AlertTriangleIcon,
   CopyIcon,
-  DownloadIcon,
   ExternalLinkIcon,
-  RefreshCwIcon,
   SaveIcon,
 } from "lucide-react";
 import type React from "react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { disableFileDownloadsAtom, hotkeysAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
@@ -21,19 +20,15 @@ import type { FileInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob, downloadByURL } from "@/utils/download";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
-import { Button } from "../inputs/Inputs";
+import { FilePreviewHeader } from "./file-header";
 import {
-  AudioViewer,
-  CsvViewer,
-  ImageViewer,
-  PdfViewer,
-  VideoViewer,
+  FileContentRenderer,
+  isMediaMime,
+  MIME_TO_LANGUAGE,
 } from "./renderers";
 
 interface Props {
@@ -46,7 +41,6 @@ interface Props {
 const unsavedContentsForFile = new Map<string, string>();
 
 export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
-  const { theme } = useTheme();
   const { sendFileDetails, sendUpdateFile } = useRequestClient();
   const hotkeys = useAtomValue(hotkeysAtom);
   const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
@@ -105,7 +99,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const mimeType = data.mimeType || "text/plain";
-  const isEditable = mimeType in mimeToLanguage;
+  const isEditable = mimeType in MIME_TO_LANGUAGE;
   const isActiveNotebook =
     currentNotebookFilename &&
     data.file.isMarimoFile &&
@@ -127,7 +121,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const handleDownload = () => {
-    if (isMedia(mimeType)) {
+    if (isMediaMime(mimeType)) {
       const dataURL = base64ToDataURL(data.contents as Base64String, mimeType);
       downloadByURL(dataURL, data.file.name);
       return;
@@ -140,109 +134,57 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   };
 
   const header = (
-    <div className="text-xs text-muted-foreground p-1 flex justify-end gap-2 border-b">
-      <Tooltip content="Refresh">
-        <Button size="small" onClick={refetch}>
-          <RefreshCwIcon />
-        </Button>
-      </Tooltip>
-      {file.isMarimoFile && !isWasm() && (
-        <Tooltip content="Open notebook">
-          <Button size="small" onClick={(evt) => onOpenNotebook(evt)}>
-            <ExternalLinkIcon />
-          </Button>
-        </Tooltip>
-      )}
-      {!disableFileDownloads && (
-        <Tooltip content="Download">
-          <Button size="small" onClick={handleDownload}>
-            <DownloadIcon />
-          </Button>
-        </Tooltip>
-      )}
-      {!isMedia(mimeType) && (
+    <FilePreviewHeader
+      filename={data.file.name}
+      onRefresh={refetch}
+      onDownload={disableFileDownloads ? undefined : handleDownload}
+      actions={
         <>
-          <Tooltip content="Copy contents to clipboard">
-            <Button
-              size="small"
-              onClick={async () => {
-                await copyToClipboard(internalValue);
-              }}
-            >
-              <CopyIcon />
-            </Button>
-          </Tooltip>
-          <Tooltip content={renderShortcut("global.save")}>
-            <Button
-              size="small"
-              color={internalValue === data.contents ? undefined : "green"}
-              onClick={handleSaveFile}
-              disabled={internalValue === data.contents}
-            >
-              <SaveIcon />
-            </Button>
-          </Tooltip>
+          {file.isMarimoFile && !isWasm() && (
+            <Tooltip content="Open notebook">
+              <Button
+                variant="text"
+                size="xs"
+                onClick={(evt) => onOpenNotebook(evt)}
+              >
+                <ExternalLinkIcon className="h-3.5 w-3.5" />
+              </Button>
+            </Tooltip>
+          )}
+          {!isMediaMime(mimeType) && (
+            <>
+              <Tooltip content="Copy contents to clipboard">
+                <Button
+                  variant="text"
+                  size="xs"
+                  onClick={async () => {
+                    await copyToClipboard(internalValue);
+                  }}
+                >
+                  <CopyIcon className="h-3.5 w-3.5" />
+                </Button>
+              </Tooltip>
+              <Tooltip content={renderShortcut("global.save")}>
+                <Button
+                  variant={internalValue === data.contents ? "text" : "success"}
+                  size="xs"
+                  onClick={handleSaveFile}
+                  disabled={internalValue === data.contents}
+                >
+                  <SaveIcon className="h-3.5 w-3.5" />
+                </Button>
+              </Tooltip>
+            </>
+          )}
         </>
-      )}
-    </div>
+      }
+    />
   );
 
-  if (mimeType.startsWith("image/")) {
-    return (
-      <>
-        {header}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <ImageViewer base64={data.contents as Base64String} mime={mimeType} />
-        </div>
-      </>
-    );
-  }
+  const isMedia = isMediaMime(mimeType);
+  const isText = !isMedia && mimeType !== "text/csv";
 
-  if (mimeType === "text/csv" && data.contents) {
-    return (
-      <>
-        {header}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <CsvViewer contents={data.contents} />
-        </div>
-      </>
-    );
-  }
-
-  if (mimeType.startsWith("audio/")) {
-    return (
-      <>
-        {header}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <AudioViewer base64={data.contents as Base64String} mime={mimeType} />
-        </div>
-      </>
-    );
-  }
-
-  if (mimeType.startsWith("video/")) {
-    return (
-      <>
-        {header}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <VideoViewer base64={data.contents as Base64String} mime={mimeType} />
-        </div>
-      </>
-    );
-  }
-
-  if (mimeType.startsWith("application/pdf")) {
-    return (
-      <>
-        {header}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <PdfViewer base64={data.contents as Base64String} mime={mimeType} />
-        </div>
-      </>
-    );
-  }
-
-  const warningBanner = isActiveNotebook && (
+  const warningBanner = isText && isActiveNotebook && (
     <Alert variant="warning" className="rounded-none">
       <AlertTriangleIcon className="h-4 w-4" />
       <AlertDescription>
@@ -256,60 +198,39 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     <>
       {header}
       {warningBanner}
-      <div className="flex-1 overflow-auto">
-        <Suspense>
-          <LazyAnyLanguageCodeMirror
-            theme={theme === "dark" ? "dark" : "light"}
-            language={mimeToLanguage[mimeType] || mimeToLanguage.default}
-            className="border-b"
-            extensions={[
-              EditorView.lineWrapping,
-              // Command S for save
-              keymap.of([
-                {
-                  key: hotkeys.getHotkey("global.save").key,
-                  stopPropagation: true,
-                  run: () => {
-                    if (internalValue !== data.contents) {
-                      handleSaveFile();
-                      return true;
-                    }
-                    return false;
-                  },
-                },
-              ]),
-            ]}
-            value={internalValue}
-            onChange={setInternalValue}
-          />
-        </Suspense>
-      </div>
+      <FileContentRenderer
+        mimeType={mimeType}
+        contents={
+          isMedia
+            ? undefined
+            : isText
+              ? internalValue
+              : (data.contents ?? undefined)
+        }
+        mediaSource={
+          isMedia
+            ? { base64: data.contents as Base64String, mime: mimeType }
+            : undefined
+        }
+        readOnly={!isText}
+        onChange={setInternalValue}
+        extensions={[
+          // Command S for save
+          keymap.of([
+            {
+              key: hotkeys.getHotkey("global.save").key,
+              stopPropagation: true,
+              run: () => {
+                if (internalValue !== data.contents) {
+                  handleSaveFile();
+                  return true;
+                }
+                return false;
+              },
+            },
+          ]),
+        ]}
+      />
     </>
   );
-};
-
-const isMedia = (mime: string) => {
-  if (!mime) {
-    return false;
-  }
-  return (
-    mime.startsWith("image/") ||
-    mime.startsWith("audio/") ||
-    mime.startsWith("video/") ||
-    mime.startsWith("application/pdf")
-  );
-};
-
-const mimeToLanguage: Record<string, string> = {
-  "application/javascript": "javascript",
-  "text/markdown": "markdown",
-  "text/html": "html",
-  "text/css": "css",
-  "text/x-python": "python",
-  "application/json": "json",
-  "application/xml": "xml",
-  "text/x-yaml": "yaml",
-  "text/csv": "markdown",
-  "text/plain": "markdown",
-  default: "markdown",
 };

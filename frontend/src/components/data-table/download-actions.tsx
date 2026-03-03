@@ -14,6 +14,7 @@ import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { prettyError } from "@/utils/errors";
+import { Filenames } from "@/utils/filenames";
 import {
   jsonParseWithSpecialChar,
   jsonToMarkdown,
@@ -36,6 +37,7 @@ type DownloadFormat = "csv" | "json" | "parquet";
 
 export interface DownloadActionProps {
   downloadAs: (req: { format: DownloadFormat }) => Promise<string>;
+  downloadFileName?: string;
 }
 
 const options = [
@@ -87,7 +89,12 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   const { locale } = useLocale();
 
   const button = (
-    <Button data-testid="download-as-button" size="xs" variant="link">
+    <Button
+      data-testid="download-as-button"
+      size="xs"
+      variant="link"
+      className="print:hidden"
+    >
       Download <ChevronDownIcon className="w-3 h-3 ml-1" />
     </Button>
   );
@@ -146,14 +153,17 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" className="no-print">
+      <DropdownMenuContent side="bottom" className="print:hidden">
         {options.map((option) => (
           <DropdownMenuItem
             key={option.label}
             onSelect={async () => {
               const downloadUrl = await getDownloadUrl(option.format);
               const ext = option.format;
-              downloadByURL(downloadUrl, `download.${ext}`);
+              const rawName = (props.downloadFileName ?? "").trim();
+              const baseName =
+                Filenames.withoutExtension(rawName) || "download";
+              downloadByURL(downloadUrl, `${baseName}.${ext}`);
             }}
           >
             <option.icon className="mo-dropdown-icon" />

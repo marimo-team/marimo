@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -33,6 +33,7 @@ def _():
     import polars
     import pyarrow
     import altair as alt
+
     return alt, mo
 
 
@@ -58,7 +59,7 @@ def _(URL, mo):
         FROM dataset
         """
     )
-    return (dataset,)
+    return
 
 
 @app.cell

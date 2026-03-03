@@ -37,6 +37,7 @@ import {
   type PanelType,
 } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
+import { LspStatus } from "./footer-items/lsp-status";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
 import { useAiPanelTab } from "./useAiPanel";
@@ -225,9 +226,11 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const helperResizeHandle = (
     <PanelResizeHandle
+      disabled={!isSidebarOpen}
       onDragging={handleDragging}
+      hitAreaMargins={{ coarse: 15, fine: 2 }}
       className={cn(
-        "border-border no-print z-10",
+        "border-border print:hidden z-10",
         isSidebarOpen ? "resize-handle" : "resize-handle-collapsed",
         "vertical",
       )}
@@ -236,9 +239,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const panelResizeHandle = (
     <PanelResizeHandle
+      disabled={!isDeveloperPanelOpen}
       onDragging={handleDragging}
       className={cn(
-        "border-border no-print z-20",
+        "border-border print:hidden z-20",
         isDeveloperPanelOpen ? "resize-handle" : "resize-handle-collapsed",
         "horizontal",
       )}
@@ -382,7 +386,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
+        "dark:bg-(--slate-1) print:hidden hide-on-fullscreen",
         isSidebarOpen && "border-r border-l border-(--slate-7)",
       )}
       minSize={10}
@@ -427,7 +431,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
+        "dark:bg-(--slate-1) print:hidden hide-on-fullscreen",
         isDeveloperPanelOpen && "border-t",
       )}
       minSize={10}
@@ -490,6 +494,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           />
           <div className="border-l border-border h-4 mx-1" />
           <BackendConnectionStatus />
+          <LspStatus />
           <div className="flex-1" />
           <Button
             size="xs"

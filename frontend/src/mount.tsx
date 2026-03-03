@@ -39,11 +39,18 @@ import {
 import { codeAtom, filenameAtom } from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
-import { isStaticNotebook } from "./core/static/static-state";
+import {
+  getStaticModelNotifications,
+  isStaticNotebook,
+} from "./core/static/static-state";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
 import { WebSocketState } from "./core/websocket/types";
+import {
+  handleWidgetMessage,
+  MODEL_MANAGER,
+} from "./plugins/impl/anywidget/model";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
@@ -52,9 +59,9 @@ import { reportVitals } from "./utils/vitals";
 let hasMounted = false;
 
 /**
- * Main entry point for the mairmo app.
+ * Main entry point for the marimo app.
  *
- * Sets up the mairmo app with a theme provider.
+ * Sets up the marimo app with a theme provider.
  */
 export function mount(options: unknown, el: Element): Error | undefined {
   if (hasMounted) {
@@ -77,6 +84,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
       // If we're in static mode, we need to patch fetch to use the virtual file
       patchFetch();
       patchVegaLoader(vegaLoader);
+      hydrateStaticModels();
     }
 
     // Init store
@@ -153,14 +161,16 @@ const mountOptionsSchema = z.object({
     .nullish()
     .transform((val) => val ?? "unknown"),
   /**
-   * 'edit' or 'read'/'run' or 'home'
+   * 'edit' or 'read'/'run' or 'home' or 'gallery'
    */
-  mode: z.enum(["edit", "read", "home", "run"]).transform((val): AppMode => {
-    if (val === "run") {
-      return "read";
-    }
-    return val;
-  }),
+  mode: z
+    .enum(["edit", "read", "home", "run", "gallery"])
+    .transform((val): AppMode => {
+      if (val === "run") {
+        return "read";
+      }
+      return val;
+    }),
   /**
    * marimo config
    */
@@ -325,6 +335,20 @@ function initStore(options: unknown) {
   );
   if (notebook) {
     store.set(notebookAtom, notebook);
+  }
+}
+
+/**
+ * Hydrate anywidget models from embedded static state so widgets
+ * render immediately without a kernel connection.
+ */
+function hydrateStaticModels(): void {
+  const notifications = getStaticModelNotifications();
+  if (!notifications) {
+    return;
+  }
+  for (const notification of notifications) {
+    handleWidgetMessage(MODEL_MANAGER, notification);
   }
 }
 

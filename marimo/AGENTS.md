@@ -109,8 +109,10 @@ def k() -> Generator[Kernel, None, None]:
     yield mocked.k
     mocked.teardown()
 
-# Validate entire object state, not individual attributes
-assert obj == expected # instead of assert obj.attr == expected.attr
+# Prefer complete assertions over individual attribute checks
+# This catches unexpected changes and makes test failures more informative
+assert obj == expected  # GOOD: validates entire object state
+# assert obj.attr == expected.attr  # AVOID: misses other attributes that may have changed
 
 # Snapshot testing for complex outputs
 from tests.mocks import snapshotter

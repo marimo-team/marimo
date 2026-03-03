@@ -20,12 +20,18 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
+from unittest.mock import patch
 
 import pytest
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._cli.cli import _collect_marimo_files, _create_run_file_router
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.file_router import (
+    LazyListOfFilesAppFileRouter,
+    ListOfFilesAppFileRouter,
+)
 from marimo._server.templates.templates import get_version
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
@@ -34,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 HAS_UV = DependencyManager.which("uv")
+HAS_ZMQ = DependencyManager.zmq.has()
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -255,6 +262,212 @@ def test_cli_help_exit_code() -> None:
     # helpful for catching issues related to
     p = subprocess.run(["marimo", "--help"])
     assert p.returncode == 0
+
+
+def test_cli_help_colored_output() -> None:
+    """Test that help output renders correctly with colored classes."""
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["--help"])
+    assert result.exit_code == 0
+    # Verify key sections appear in output
+    assert "Usage:" in result.output or "Usage" in result.output
+    assert "Options" in result.output
+    assert "Commands" in result.output
+
+    # Test subcommand help as well
+    result = runner.invoke(main, ["export", "--help"])
+    assert result.exit_code == 0
+    assert "Usage" in result.output
+    assert "Options" in result.output
+
+    # Test with colors enabled by re-resolving _style to a color-aware
+    # implementation. _style is bound once at import time based on
+    # _USE_COLOR, so we need to swap it directly.
+    import marimo._cli.print as print_module
+
+    original_style = print_module._style
+    try:
+        print_module._style = print_module._ansi_style
+        result_color = runner.invoke(main, ["--help"], color=True)
+        assert result_color.exit_code == 0
+        # Verify ANSI escape codes are present when colors are enabled
+        # \033[ is the ANSI escape sequence prefix
+        assert "\033[" in result_color.output, (
+            "Expected ANSI color codes in help output"
+        )
+    finally:
+        print_module._style = original_style
+
+
+def test_cli_unknown_command_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["xport"])
+    assert result.exit_code == 2
+    assert "error: unrecognized command 'xport'" in result.output
+    assert "tip: a similar command exists: 'export'" in result.output
+    assert "Usage: main [OPTIONS] COMMAND [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Commands:" not in result.output
+
+
+def test_cli_nested_unknown_command_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["export", "hxml"])
+    assert result.exit_code == 2
+    assert "error: unrecognized command 'hxml'" in result.output
+    assert "tip: a similar command exists: 'html'" in result.output
+    assert "Usage: main export [OPTIONS] COMMAND [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Commands:" not in result.output
+
+
+def test_cli_long_option_typo_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["edit", "--hedlss"])
+    assert result.exit_code == 2
+    assert "error: unexpected argument '--hedlss' found" in result.output
+    assert "tip: some similar arguments exist:" in result.output
+    assert "'--headless'" in result.output
+    assert "Usage: main edit [OPTIONS] [NAME] [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Options:" not in result.output
+
+
+def test_cli_short_option_typo_suggests_case_variant() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["run", "-P", "notebook.py"])
+    assert result.exit_code == 2
+    assert "error: unexpected argument '-P' found" in result.output
+    assert "tip: a similar argument exists: '-p'" in result.output
+    assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
+
+
+def test_cli_short_option_typo_without_clear_match_has_no_tip() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["run", "-Z", "notebook.py"])
+    assert result.exit_code == 2
+    assert "error: unexpected argument '-Z' found" in result.output
+    assert "tip: a similar argument exists:" not in result.output
+    assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
+
+
+def test_cli_missing_argument_uses_compact_error() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["run"])
+    assert result.exit_code == 2
+    assert "error: missing argument 'NAME'" in result.output
+    assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
+    assert "For more information, try '--help'." in result.output
+    assert "Options:" not in result.output
+
+
+def test_cli_edit_sandbox_missing_zmq_skips_update_check() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    captured_packages: dict[str, str | list[str]] = {}
+
+    def _capture_install_commands(
+        packages: str | list[str] | tuple[str, ...],
+    ) -> list[str]:
+        captured_packages["value"] = (
+            packages if isinstance(packages, str) else list(packages)
+        )
+        return ["python -m pip install 'marimo[sandbox]'"]
+
+    with (
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch(
+            "marimo._dependencies.dependencies.DependencyManager.zmq.has",
+            return_value=False,
+        ),
+        patch(
+            "marimo._cli.errors.get_install_commands",
+            side_effect=_capture_install_commands,
+        ),
+        patch("marimo._cli.cli.check_for_updates") as mock_check_for_updates,
+    ):
+        result = runner.invoke(main, ["edit", "--sandbox"])
+
+    assert result.exit_code == 1
+    mock_check_for_updates.assert_not_called()
+    assert captured_packages["value"] == "marimo[sandbox]"
+    assert (
+        "pyzmq is required when running the marimo edit server on a directory with --sandbox."
+        in result.output
+    )
+    assert "python -m pip install 'marimo[sandbox]'" in result.output
+    assert "'marimo[sandbox]' pyzmq" not in result.output
+
+
+def test_cli_edit_checks_for_updates_after_preflight() -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    events: list[str] = []
+
+    with (
+        runner.isolated_filesystem(),
+        patch.dict(os.environ, {"MARIMO_SKIP_UPDATE_CHECK": "0"}),
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch(
+            "marimo._utils.platform.check_shared_memory_available",
+            return_value=(True, None),
+        ),
+        patch(
+            "marimo._cli.cli.check_for_updates",
+            side_effect=lambda *_args, **_kwargs: events.append("update"),
+        ),
+        patch(
+            "marimo._cli.cli.start",
+            side_effect=lambda *_args, **_kwargs: events.append("start"),
+        ),
+    ):
+        result = runner.invoke(
+            main,
+            ["edit", "notebook.py", "--headless", "--no-token"],
+        )
+
+    assert result.exit_code == 0
+    assert events == ["update", "start"]
 
 
 def test_cli_edit_none() -> None:
@@ -517,6 +730,46 @@ def test_cli_edit_new_file() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
+def test_cli_edit_markdown_no_config_warnings() -> None:
+    """Markdown frontmatter metadata should not produce config warnings.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/8259
+    """
+    d = tempfile.TemporaryDirectory()
+    path = os.path.join(d.name, "notebook.md")
+    with open(path, "w") as f:
+        f.write(
+            "---\n"
+            "title: My Notebook\n"
+            "author: Test Author\n"
+            'description: "A test notebook"\n'
+            "---\n\n"
+            "```python {.marimo}\n"
+            "x = 1\n"
+            "```\n"
+        )
+
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            path,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ],
+        stderr=subprocess.PIPE,
+    )
+    contents = _try_fetch(port)
+    assert contents is not None
+    p.kill()
+    _, stderr = p.communicate(timeout=5)
+    assert b"Unrecognized key" not in stderr
+
+
 def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
@@ -607,6 +860,244 @@ def test_cli_run(temp_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "read"', contents)
     _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
+
+
+def test_cli_run_directory_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
+def test_cli_run_directory_gallery_with_sandbox() -> None:
+    """Test that gallery mode works with --sandbox flag."""
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_cli_run_directory_gallery_rejects_check() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    result = subprocess.run(
+        ["marimo", "run", directory.name, "--check"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode != 0
+    assert (
+        "--check is only supported when running a single notebook file"
+        in output
+    )
+
+
+def test_cli_run_directory_gallery_can_open_file() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+def test_cli_run_multiple_files_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
+def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
+    """Test that individual notebooks can be opened from gallery in sandbox mode."""
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        # Open a specific notebook from gallery
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
+def test_cli_run_multiple_files_gallery_sandbox() -> None:
+    """Test gallery mode with multiple explicit files and --sandbox."""
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_collect_marimo_files_includes_markdown(
+    tmp_path: Path,
+) -> None:
+    md_file = tmp_path / "notebook.md"
+    md_file.write_text("---\nmarimo-version: 0.1.0\n---\n", encoding="utf-8")
+    collected = _collect_marimo_files([str(tmp_path)])
+    assert str(md_file) in {file.path for file in collected.files}
+
+
+def test_collect_marimo_files_excludes_marimo_generated_markdown(
+    tmp_path: Path,
+) -> None:
+    py_file = tmp_path / "notebook.py"
+    py_file.write_text("import marimo\napp = marimo.App()\n", encoding="utf-8")
+
+    md_file = tmp_path / "notes.md"
+    md_file.write_text("---\nmarimo-version: 0.1.0\n---\n", encoding="utf-8")
+
+    marimo_dir = tmp_path / "__marimo__"
+    marimo_dir.mkdir()
+    generated_md = marimo_dir / "notebook.md"
+    generated_md.write_text(
+        "---\nmarimo-version: 0.1.0\n---\n", encoding="utf-8"
+    )
+
+    collected = _collect_marimo_files([str(tmp_path)])
+    paths = {file.path for file in collected.files}
+
+    assert str(py_file) in paths
+    assert str(md_file) in paths
+    assert str(generated_md) not in paths
+
+
+def test_create_run_file_router_watch_single_directory_is_lazy(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "one.py").write_text(
+        "import marimo\napp = marimo.App()\n", encoding="utf-8"
+    )
+
+    router = _create_run_file_router([str(tmp_path)], watch=True)
+    assert isinstance(router, LazyListOfFilesAppFileRouter)
+    assert router.include_markdown is True
+
+
+def test_create_run_file_router_no_watch_single_directory_is_static(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "one.py").write_text(
+        "import marimo\napp = marimo.App()\n", encoding="utf-8"
+    )
+
+    router = _create_run_file_router([str(tmp_path)], watch=False)
+    assert isinstance(router, ListOfFilesAppFileRouter)
+
+
+def test_create_run_file_router_watch_mixed_paths_is_static(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "gallery"
+    directory.mkdir()
+    (directory / "one.py").write_text(
+        "import marimo\napp = marimo.App()\n", encoding="utf-8"
+    )
+    standalone = tmp_path / "standalone.py"
+    standalone.write_text(
+        "import marimo\napp = marimo.App()\n", encoding="utf-8"
+    )
+
+    router = _create_run_file_router(
+        [str(directory), str(standalone)], watch=True
+    )
+    assert isinstance(router, ListOfFilesAppFileRouter)
 
 
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
@@ -793,7 +1284,10 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"edit", contents)
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_edit_sandbox_multi_notebook() -> None:
     # With IPC-based kernel, sandbox now works with multi-notebook servers
     port = _get_port()
@@ -819,7 +1313,10 @@ def test_cli_edit_sandbox_multi_notebook() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_edit_directory_sandbox() -> None:
     # With IPC-based kernel, sandbox now works with directories
     port = _get_port()
@@ -1160,7 +1657,10 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
 
 
 # Test sandbox with config for vscode compatibility
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
 def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
     # Create a custom pyproject.toml with special marimo config
     pyproject_path = tmp_path / "pyproject.toml"
@@ -1247,9 +1747,9 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
                 reason="win32 only",
             ),
         ),
-        # invalid shell values, rc of 0, data only on stderr
-        ("bogus", 2, False, True),
-        ("", 2, False, True),  # usage error displayed
+        # invalid shell values, rc of 1, data only on stderr
+        ("bogus", 1, False, True),
+        ("", 1, False, True),
     ],
 )
 def test_shell_completion(
@@ -1287,9 +1787,10 @@ def test_cli_run_docker_remote_url():
     )
 
     # Should fail with missing docker
+    stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
-    assert p.stdout is not None
-    assert "Docker is not installed" in p.stdout.read().decode()
+    output = stdout.decode() + stderr.decode()
+    assert "Docker is not installed" in output
 
 
 def test_cli_edit_trusted(temp_marimo_file: str) -> None:
@@ -1328,9 +1829,10 @@ def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
     )
 
     # Should fail with missing docker
+    stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
-    assert p.stdout is not None
-    assert "Docker is not installed" in p.stdout.read().decode()
+    output = stdout.decode() + stderr.decode()
+    assert "Docker is not installed" in output
 
 
 def test_cli_run_trusted(temp_marimo_file: str) -> None:
@@ -1368,9 +1870,10 @@ def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
     )
 
     # Should fail with missing docker
+    stdout, stderr = p.communicate(timeout=5)
     assert p.returncode != 0
-    assert p.stdout is not None
-    assert "Docker is not installed" in p.stdout.read().decode()
+    output = stdout.decode() + stderr.decode()
+    assert "Docker is not installed" in output
 
 
 def test_cli_edit_with_convert(

@@ -139,6 +139,11 @@ chart
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
+
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
 
@@ -280,6 +285,11 @@ chart
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -426,6 +436,11 @@ chart
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
 
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
+
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
 
@@ -570,6 +585,11 @@ chart
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -721,6 +741,11 @@ chart
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -880,6 +905,11 @@ chart
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.
@@ -1043,6 +1073,11 @@ chart
 2. This will automatically display the result in the UI. You do not need to return the dataframe in the cell.
 3. The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.
 
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
+
 ## Rules for inserting cells:
 For markdown cells, use `mo.md(f"""{content}""")`
 For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.
@@ -1186,6 +1221,11 @@ chart
 5. Make visualizations interactive where appropriate.
 6. If an import already exists, do not import it again.
 7. If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.
+
+## Rules for markdown:
+1. Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.
+2. Example: $$E=mc^2$$
+3. Do NOT use single dollar signs or square brackets for math.
 
 ## Rules for sql:
 1. The SQL must use duckdb syntax.

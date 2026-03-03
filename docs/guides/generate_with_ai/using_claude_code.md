@@ -1,10 +1,10 @@
-Claude lets you customise the marimo editing experience with it's agent. This page lists some worthwhile utilities and we also provide compelling use-cases related to marimo notebooks.
+Claude lets you customise the marimo editing experience with its agent. This page lists some worthwhile utilities, and we also provide compelling use cases related to marimo notebooks.
 
 ### Slash commands
 
 [Slash Commands](https://code.claude.com/docs/en/slash-commands) allow you to predefine specific prompts that you can refer to during a conversation with Claude. You store these either in the `~/.claude/commands/` personal folder or in the `.claude/commands/` local folder of the project.
 
-Here's an example of a slash command that runs the [`marimo check`](../../../cli/#marimo-check) linter on a notebook of your choice. This command assumes you have `uv` installed, which you can install by following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/).
+Here's an example of a slash command that runs the [`marimo check`](../../cli.md#marimo-check) linter on a notebook of your choice. This command assumes you have `uv` installed, which you can install by following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```
 ---
@@ -24,13 +24,13 @@ $ARGUMENTS, then fix any warnings or errors shown in the output above. Do
 not make edits or read the file if there are no issues.
 ```
 
-When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`. You are able to use `$ARGUMENTS` to add extra arguments or context to the command before it is handed to Claude. Also note that commands can run bash like !`uvx marimo check --fix $ARGUMENTS || true` beforehand. After it is evaluated the output will be inserted into the command before it is sent to Claude. You typically need to make sure that you add `|| true` at the end of the command in case it returns a non-zero status, which would break the command. 
+When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`. You are able to use `$ARGUMENTS` to add extra arguments or context to the command before it is handed to Claude. Also note that commands can run bash like !`uvx marimo check --fix $ARGUMENTS || true` beforehand. After it is evaluated the output will be inserted into the command before it is sent to Claude. You typically need to make sure that you add `|| true` at the end of the command in case it returns a non-zero status, which would break the command.
 
 There are more elaborate things you might do with these slash commands, to learn more you can check [the documentation](https://code.claude.com/docs/en/slash-commands#custom-slash-commands).
 
 ### Skills
 
-[Skills](https://code.claude.com/docs/en/skills#agent-skills) are similar to commands, but you don't trigger them manually. You define them and then let Claude use them when it thinks it's relevant. You store these skills either in the `~/.claude/skills/` personal folder or in the `.claude/skills/` local folder of the project.
+[Skills](https://code.claude.com/docs/en/skills#agent-skills) are similar to commands, but you don't trigger them manually. You define them and then let Claude use them when it thinks they're relevant. You store these skills either in the `~/.claude/skills/` personal folder or in the `.claude/skills/` local folder of the project.
 
 As an example, this is what the a skill might look like:
 
@@ -87,7 +87,7 @@ You can also choose to expand these skills by referring to a script that it can 
 
 ### Hooks
 
-[Hooks](https://code.claude.com/docs/en/hooks) allow you to automatically run scripts when Claude uses a specific tool. They are useful if you want to automatically run a linter, via [`marimo check`](../../../cli/#marimo-check), every single time a marimo notebook is changed. Our default [`CLAUDE.md`](../../generate_with_ai/prompts/#agentsmd-and-claudemd) file already points out to the LLM that it should run the `marimo check` command but hooks offer the most robust mechanism to enforce this behavior.
+[Hooks](https://code.claude.com/docs/en/hooks) allow you to automatically run scripts when Claude uses a specific tool. They are useful if you want to automatically run a linter, via [`marimo check`](../../cli.md#marimo-check), every single time a marimo notebook is changed. Our default [`CLAUDE.md`](prompts.md#agentsmd-and-claudemd) file already points out to the LLM that it should run the `marimo check` command but hooks offer the most robust mechanism to enforce this behavior.
 
 To configure a hook, you can add a definition to your global Claude settings in `~/.claude/settings.json` or locally in your project `.claude/settings.json`.
 

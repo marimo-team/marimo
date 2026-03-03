@@ -11,6 +11,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
+from marimo._utils.methods import getcallable
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -137,18 +138,18 @@ class Html(MIME):
         return self._text
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        if not is_no_js():
+        if not is_non_interactive():
             return ("text/html", self.text)
 
         # Try PNG representation first (for objects with _repr_png_)
-        repr_png = getattr(self, "_repr_png_", None)
-        if repr_png is not None and callable(repr_png):
+        repr_png = getcallable(self, "_repr_png_")
+        if repr_png is not None:
             png_bytes = cast(bytes, repr_png())
             return ("image/png", png_bytes.decode())
 
         # Try markdown representation (for objects with _repr_markdown_)
-        repr_markdown = getattr(self, "_repr_markdown_", None)
-        if repr_markdown is not None and callable(repr_markdown):
+        repr_markdown = getcallable(self, "_repr_markdown_")
+        if repr_markdown is not None:
             markdown_text = cast(str, repr_markdown())
             return ("text/markdown", markdown_text)
 
@@ -310,7 +311,7 @@ def patch_html_for_non_interactive_output() -> Iterator[None]:
         os.environ[MARIMO_NO_JS_KEY] = old_no_js
 
 
-def is_no_js() -> bool:
+def is_non_interactive() -> bool:
     """Whether to render HTML objects as best as possible assuming
     that this will be rendered without javascript.
 

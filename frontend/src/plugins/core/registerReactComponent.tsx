@@ -101,10 +101,17 @@ function PluginSlotInternal<T>(
     return plugin.validator.safeParse(parseDataset(hostElement));
   });
 
+  // Incremented on each reset to invalidate memoized function references.
+  // This ensures that plugin functions (e.g., search) are re-created when
+  // the underlying UI element instance changes (new object-id), even if
+  // the element's data attributes haven't changed.
+  const [resetNonce, setResetNonce] = useState(0);
+
   useImperativeHandle(ref, () => ({
     reset: () => {
       setValue(getInitialValue());
       setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
+      setResetNonce((n) => n + 1);
     },
     setChildren: (children) => {
       setChildNodes(children);
@@ -224,7 +231,8 @@ function PluginSlotInternal<T>(
     }
 
     return methods;
-  }, [plugin.functions, hostElement]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plugin.functions, hostElement, resetNonce]);
 
   // If we failed to parse the initial value, render an error
   if (!parsedResult.success) {
@@ -308,6 +316,15 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
     }
 
     connectedCallback() {
+      // Skip mounting if this element is in the light DOM of another
+      // marimo custom element. The parent element's shadow DOM will
+      // re-create this element via getChildren() -> renderHTML(), so
+      // this light DOM copy should remain inert to avoid duplicate
+      // side-effects (e.g., mo.lazy firing load() twice).
+      if (this.isLightDOMChildOfMarimoElement()) {
+        return;
+      }
+
       if (!this.mounted) {
         // Create a React root on the shadow root
         invariant(this.shadowRoot, "Shadow root should exist");
@@ -338,6 +355,30 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       if (this.mounted) {
         this.mounted = false;
       }
+    }
+
+    /**
+     * Check if this element is in the light DOM of another marimo
+     * custom element. When a marimo element (e.g. marimo-tabs) has
+     * children that are also marimo elements (e.g. marimo-lazy), the
+     * browser upgrades both the light DOM originals AND the shadow DOM
+     * copies created by renderHTML(). The light DOM copies should not
+     * mount since they are not rendered (no <slot>) and would cause
+     * duplicate side-effects.
+     *
+     * parentElement traversal stays within the same DOM tree boundary
+     * (shadow root or document), so shadow DOM copies never find a
+     * marimo ancestor and correctly return false.
+     */
+    private isLightDOMChildOfMarimoElement(): boolean {
+      let parent = this.parentElement;
+      while (parent) {
+        if (isCustomMarimoElement(parent)) {
+          return true;
+        }
+        parent = parent.parentElement;
+      }
+      return false;
     }
 
     /**

@@ -9,19 +9,21 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _():
     import matplotlib.pyplot as plt
+
     return (plt,)
 
 
@@ -56,6 +58,31 @@ def _(mo):
 def _(plt, x):
     plt.plot(x, x**3)
     plt.show()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    Wrap an `Axes` in `mo.ui.matplotlib` to enable reactive selections.
+    Click-drag for box selection, shift-drag for lasso selection.
+    """)
+    return
+
+
+@app.cell
+def _(mo, np, plt):
+    _x = np.random.randn(200)
+    _y = np.random.randn(200)
+    plt.scatter(_x, _y)
+    scatter_fig = mo.ui.matplotlib(plt.gca())
+    scatter_fig
+    return (scatter_fig,)
+
+
+@app.cell
+def _(scatter_fig):
+    scatter_fig.value
     return
 
 

@@ -6,7 +6,7 @@ import json
 import pathlib
 import sys
 from typing import TYPE_CHECKING, Any
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -25,6 +25,7 @@ from marimo._server.export import (
 from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._session.state.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import delete_lines_with_files, snapshotter
@@ -105,6 +106,40 @@ async def test_run_until_completion_with_stop() -> None:
         "run_until_completion_with_stop.txt",
         _print_messages(cell_notifications),
     )
+
+
+async def test_run_until_completion_persists_session_snapshot(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def _():
+    return
+
+if __name__ == "__main__":
+    app.run()
+""",
+        encoding="utf-8",
+    )
+    file_manager = AppFileManager(str(notebook))
+
+    _, did_error = await run_app_until_completion(
+        file_manager,
+        cli_args={},
+        argv=None,
+    )
+    assert did_error is False
+
+    session_file = get_session_cache_file(notebook)
+    assert session_file.exists()
+    data = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "script_metadata_hash" in data["metadata"]
 
 
 @pytest.mark.skipif(
@@ -246,8 +281,8 @@ async def test_export_html_with_layout(tmp_path: Path) -> None:
         show_code=True,
     )
     assert result.did_error is False
-    assert "layout.json" not in result.contents
-    assert "data:application/json" in result.contents
+    assert "layout.json" not in result.text
+    assert "data:application/json" in result.text
 
 
 # HTML export
@@ -908,47 +943,9 @@ class TestPDFExport:
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has(),
-        reason="nbformat or nbconvert not installed",
-    )
-    def test_export_as_pdf_webpdf_requires_playwright(
-        self,
-        session_view: SessionView,
-    ) -> None:
-        """Test that webpdf mode requires playwright dependency."""
-
-        app = App()
-
-        @app.cell()
-        def test_cell():
-            return "test"
-
-        file_manager = AppFileManager.from_app(InternalApp(app))
-        exporter = Exporter()
-
-        # Simulate nbformat and nbconvert available, but playwright missing
-        def mock_has(self: Dependency, quiet: bool = False) -> bool:
-            del quiet
-            if self.pkg == "playwright":
-                return False
-            if self.pkg in ("nbformat", "nbconvert"):
-                return True
-            return False
-
-        with patch.object(Dependency, "has", mock_has):
-            with pytest.raises(ModuleNotFoundError) as excinfo:
-                exporter.export_as_pdf(
-                    app=file_manager.app,
-                    session_view=session_view,
-                    webpdf=True,
-                )
-
-            assert "playwright" in str(excinfo.value)
-
-    @pytest.mark.skipif(
-        not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has(),
-        reason="nbformat or nbconvert not installed",
+        or not DependencyManager.nbconvert.has()
+        or not DependencyManager.playwright.has(),
+        reason="nbformat or nbconvert or playwright not installed",
     )
     def test_export_as_pdf_non_webpdf_mode(
         self,
@@ -984,6 +981,7 @@ class TestPDFExport:
             assert result == b"mock_pdf_data"
             mock_pdf_exporter.assert_called_once()
             mock_exporter_instance.from_notebook_node.assert_called_once()
+            assert mock_exporter_instance.exclude_input is False
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -1029,7 +1027,54 @@ class TestPDFExport:
 
             assert result == b"mock_webpdf_data"
             mock_webpdf_exporter.assert_called_once()
+            assert mock_exporter_instance.exclude_input is False
             # Verify allow_chromium_download is set
+            assert mock_exporter_instance.allow_chromium_download is True
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_webpdf_mode_without_inputs(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test WebPDF export suppressing code inputs."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            b"mock_webpdf_data_no_inputs",
+            {},
+        )
+
+        with (
+            patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ),
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_webpdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                include_inputs=False,
+                webpdf=True,
+            )
+
+            assert result == b"mock_webpdf_data_no_inputs"
+            mock_webpdf_exporter.assert_called_once()
+            assert mock_exporter_instance.exclude_input is True
             assert mock_exporter_instance.allow_chromium_download is True
 
     @pytest.mark.skipif(
@@ -1111,6 +1156,7 @@ class TestPDFExport:
             result = exporter.export_as_pdf(
                 app=file_manager.app,
                 session_view=session_view,
+                include_inputs=False,
                 webpdf=False,  # Request standard PDF, but it should fall back
             )
 
@@ -1119,10 +1165,209 @@ class TestPDFExport:
             # PDFExporter was tried first
             mock_pdf_exporter.assert_called_once()
             mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
+            assert mock_pdf_exporter_instance.exclude_input is True
             # WebPDFExporter was used as fallback
             mock_webpdf_exporter.assert_called_once()
             mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
+            assert mock_webpdf_exporter_instance.exclude_input is True
             # Verify allow_chromium_download is set on fallback
             assert (
                 mock_webpdf_exporter_instance.allow_chromium_download is True
             )
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="nbformat not installed",
+    )
+    async def test_export_as_slides_pdf(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test slides PDF export uses SlidesExporter + async Playwright."""
+        app = App()
+
+        @app.cell()
+        def slide_1():
+            return "slide 1"
+
+        @app.cell()
+        def slide_2():
+            return "slide 2"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        mock_slides_exporter_instance = MagicMock()
+        mock_slides_exporter_instance.from_notebook_node.return_value = (
+            "<html>mock slides html</html>",
+            {},
+        )
+        mock_slides_exporter_cls = MagicMock(
+            return_value=mock_slides_exporter_instance
+        )
+
+        mock_page = AsyncMock()
+        mock_page.pdf.return_value = b"mock_slides_pdf_data"
+        mock_browser = AsyncMock()
+        mock_browser.new_page.return_value = mock_page
+        mock_playwright_instance = AsyncMock()
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_playwright_cm = AsyncMock()
+        mock_playwright_cm.__aenter__.return_value = mock_playwright_instance
+        mock_playwright_cm.__aexit__.return_value = False
+        mock_async_playwright = MagicMock(return_value=mock_playwright_cm)
+
+        mock_nbconvert = MagicMock()
+        mock_nbconvert.SlidesExporter = mock_slides_exporter_cls
+        mock_playwright_async = MagicMock()
+        mock_playwright_async.async_playwright = mock_async_playwright
+
+        orig_nbconvert = sys.modules.get("nbconvert")
+        orig_playwright = sys.modules.get("playwright.async_api")
+
+        try:
+            sys.modules["nbconvert"] = mock_nbconvert
+            sys.modules["playwright.async_api"] = mock_playwright_async
+
+            with (
+                patch.object(
+                    DependencyManager.nbconvert, "has", return_value=True
+                ),
+                patch.object(
+                    DependencyManager.playwright, "has", return_value=True
+                ),
+            ):
+                result = await exporter.export_as_slides_pdf(
+                    app=file_manager.app,
+                    session_view=session_view,
+                )
+
+            assert result == b"mock_slides_pdf_data"
+            mock_slides_exporter_cls.assert_called_once()
+            mock_slides_exporter_instance.from_notebook_node.assert_called_once()
+            notebook = (
+                mock_slides_exporter_instance.from_notebook_node.call_args[0][
+                    0
+                ]
+            )
+            slide_types = [
+                cell.metadata.get("slideshow", {}).get("slide_type")
+                for cell in notebook.cells
+            ]
+            assert slide_types
+            assert set(slide_types) == {"slide"}
+
+            mock_page.goto.assert_called_once()
+            goto_url = mock_page.goto.call_args[0][0]
+            assert goto_url.startswith("file://")
+            assert "?print-pdf" in goto_url
+            assert mock_page.evaluate.await_count >= 1
+            mock_page.wait_for_timeout.assert_called_once_with(300)
+            mock_page.add_style_tag.assert_called_once()
+            mock_page.pdf.assert_called_once_with(
+                print_background=True,
+                prefer_css_page_size=True,
+            )
+        finally:
+            if orig_nbconvert is not None:
+                sys.modules["nbconvert"] = orig_nbconvert
+            else:
+                sys.modules.pop("nbconvert", None)
+            if orig_playwright is not None:
+                sys.modules["playwright.async_api"] = orig_playwright
+            else:
+                sys.modules.pop("playwright.async_api", None)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="nbformat not installed",
+    )
+    async def test_export_as_slides_pdf_marks_all_slides_without_inputs(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        app = App()
+
+        @app.cell()
+        def slide_1():
+            value = 1
+            return value
+
+        @app.cell()
+        def slide_2():
+            value = 2
+            return value
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        mock_slides_exporter_instance = MagicMock()
+        mock_slides_exporter_instance.from_notebook_node.return_value = (
+            "<html>mock slides html</html>",
+            {},
+        )
+        mock_slides_exporter_cls = MagicMock(
+            return_value=mock_slides_exporter_instance
+        )
+
+        mock_page = AsyncMock()
+        mock_page.pdf.return_value = b"mock_slides_pdf_data"
+        mock_browser = AsyncMock()
+        mock_browser.new_page.return_value = mock_page
+        mock_playwright_instance = AsyncMock()
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_playwright_cm = AsyncMock()
+        mock_playwright_cm.__aenter__.return_value = mock_playwright_instance
+        mock_playwright_cm.__aexit__.return_value = False
+        mock_async_playwright = MagicMock(return_value=mock_playwright_cm)
+
+        mock_nbconvert = MagicMock()
+        mock_nbconvert.SlidesExporter = mock_slides_exporter_cls
+        mock_playwright_async = MagicMock()
+        mock_playwright_async.async_playwright = mock_async_playwright
+
+        orig_nbconvert = sys.modules.get("nbconvert")
+        orig_playwright = sys.modules.get("playwright.async_api")
+
+        try:
+            sys.modules["nbconvert"] = mock_nbconvert
+            sys.modules["playwright.async_api"] = mock_playwright_async
+
+            with (
+                patch.object(
+                    DependencyManager.nbconvert, "has", return_value=True
+                ),
+                patch.object(
+                    DependencyManager.playwright, "has", return_value=True
+                ),
+            ):
+                result = await exporter.export_as_slides_pdf(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    include_inputs=False,
+                )
+
+            assert result == b"mock_slides_pdf_data"
+            notebook = (
+                mock_slides_exporter_instance.from_notebook_node.call_args[0][
+                    0
+                ]
+            )
+            slide_types = [
+                cell.metadata.get("slideshow", {}).get("slide_type")
+                for cell in notebook.cells
+            ]
+            assert set(slide_types) == {"skip"}
+            mock_page.pdf.assert_called_once_with(
+                print_background=True,
+                prefer_css_page_size=True,
+            )
+        finally:
+            if orig_nbconvert is not None:
+                sys.modules["nbconvert"] = orig_nbconvert
+            else:
+                sys.modules.pop("nbconvert", None)
+            if orig_playwright is not None:
+                sys.modules["playwright.async_api"] = orig_playwright
+            else:
+                sys.modules.pop("playwright.async_api", None)

@@ -14,13 +14,14 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -30,6 +31,7 @@ def _():
     from transformers import TextStreamer
 
     import torch
+
     return FastLanguageModel, torch
 
 

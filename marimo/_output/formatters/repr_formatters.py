@@ -82,6 +82,18 @@ def maybe_get_repr_formatter(
                                 data_url = io_to_data_url(data, mime_key)
                                 if data_url:
                                     contents[mime_key] = data_url
+                            elif (
+                                mime_key.startswith(MEDIA_MIME_PREFIXES)
+                                and isinstance(data, str)
+                                and not data.startswith(
+                                    ("data:", "http:", "https:", "<", "{")
+                                )
+                            ):
+                                # Base64-encoded string (e.g. from
+                                # IPython._repr_mimebundle_)
+                                contents[mime_key] = (
+                                    f"data:{mime_key};base64,{data}"
+                                )
 
                     # Remove text/plain from the mimebundle if it's present
                     # since there are other representations available

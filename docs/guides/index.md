@@ -1,3 +1,7 @@
+---
+description: "In-depth guides on marimo's core concepts: reactivity, interactive elements, data visualization, deployment, and more."
+---
+
 # Guides
 
 These guides cover marimo's core concepts.

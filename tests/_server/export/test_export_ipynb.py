@@ -73,6 +73,6 @@ async def test_export_ipynb(app_path: Path) -> None:
         argv=None,
     )
     assert result.download_filename == f"{app_path.stem}.ipynb"
-    content = delete_lines_with_files(result.contents)
+    content = delete_lines_with_files(result.text)
     content = simplify_images(content)
     snapshot(f"ipynb/{app_path.stem}.ipynb.txt", content)

@@ -9,37 +9,39 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
-import msgspec
-import msgspec.json
 
-from marimo._cli.print import orange
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
 from marimo._runtime.commands import CommandMessage
-from marimo._session.state.serialize import (
-    serialize_notebook,
-    serialize_session_view,
-)
-from marimo._utils.code import hash_code
 
 if TYPE_CHECKING:
     import psutil
 
 
 def _generate_server_api_schema() -> dict[str, Any]:
+    import msgspec
+    import msgspec.json
     from starlette.schemas import SchemaGenerator
 
     import marimo._config.config as config
+    import marimo._data._external_storage.models as storage
     import marimo._data.models as data
     import marimo._messaging.errors as errors
-    import marimo._messaging.notification as notification
+    import marimo._messaging.notification as notifications
+    import marimo._metadata.opengraph as opengraph
     import marimo._runtime.commands as commands
     import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
     import marimo._server.models.files as files
     import marimo._server.models.home as home
+    import marimo._server.models.lsp as lsp
     import marimo._server.models.models as models
     import marimo._server.models.packages as packages
     import marimo._server.models.secrets as secrets
@@ -93,50 +95,55 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Storage
+        storage.StorageEntry,
+        storage.StorageNamespace,
         # Secrets
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
         # Operations
-        notification.CellNotification,
-        notification.HumanReadableStatus,
-        notification.FunctionCallResultNotification,
-        notification.UIElementMessageNotification,
-        notification.RemoveUIElementsNotification,
-        notification.InterruptedNotification,
-        notification.CompletedRunNotification,
-        notification.KernelReadyNotification,
-        notification.CompletionResultNotification,
-        notification.AlertNotification,
-        notification.MissingPackageAlertNotification,
-        notification.InstallingPackageAlertNotification,
-        notification.ReconnectedNotification,
-        notification.BannerNotification,
-        notification.ReloadNotification,
-        notification.VariableDeclarationNotification,
-        notification.VariableValue,
-        notification.VariablesNotification,
-        notification.VariableValuesNotification,
-        notification.DatasetsNotification,
-        notification.DataColumnPreviewNotification,
-        notification.SQLTablePreviewNotification,
-        notification.SQLTableListPreviewNotification,
-        notification.DataSourceConnectionsNotification,
-        notification.SecretKeysResultNotification,
-        notification.CacheClearedNotification,
-        notification.CacheInfoNotification,
-        notification.QueryParamsSetNotification,
-        notification.QueryParamsAppendNotification,
-        notification.QueryParamsDeleteNotification,
-        notification.QueryParamsClearNotification,
-        notification.UpdateCellCodesNotification,
-        notification.UpdateCellIdsNotification,
-        notification.FocusCellNotification,
-        notification.NotificationMessage,
+        notifications.CellNotification,
+        notifications.HumanReadableStatus,
+        notifications.FunctionCallResultNotification,
+        notifications.UIElementMessageNotification,
+        notifications.RemoveUIElementsNotification,
+        notifications.InterruptedNotification,
+        notifications.CompletedRunNotification,
+        notifications.KernelReadyNotification,
+        notifications.CompletionResultNotification,
+        notifications.AlertNotification,
+        notifications.MissingPackageAlertNotification,
+        notifications.InstallingPackageAlertNotification,
+        notifications.ReconnectedNotification,
+        notifications.BannerNotification,
+        notifications.ReloadNotification,
+        notifications.VariableDeclarationNotification,
+        notifications.VariableValue,
+        notifications.VariablesNotification,
+        notifications.VariableValuesNotification,
+        notifications.DatasetsNotification,
+        notifications.DataColumnPreviewNotification,
+        notifications.SQLTablePreviewNotification,
+        notifications.SQLTableListPreviewNotification,
+        notifications.DataSourceConnectionsNotification,
+        notifications.StorageNamespacesNotification,
+        notifications.SecretKeysResultNotification,
+        notifications.CacheClearedNotification,
+        notifications.CacheInfoNotification,
+        notifications.QueryParamsSetNotification,
+        notifications.QueryParamsAppendNotification,
+        notifications.QueryParamsDeleteNotification,
+        notifications.QueryParamsClearNotification,
+        notifications.UpdateCellCodesNotification,
+        notifications.UpdateCellIdsNotification,
+        notifications.FocusCellNotification,
+        notifications.NotificationMessage,
         # ai
         ChatMessage,
         ToolDefinition,
         # Sub components
         home.MarimoFile,
+        opengraph.OpenGraphMetadata,
         files.FileInfo,
         commands.ExecuteCellCommand,
         snippets.SnippetSection,
@@ -180,6 +187,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         packages.PackageOperationResponse,
         packages.RemovePackageRequest,
         packages.DependencyTreeResponse,
+        lsp.LspHealthResponse,
+        lsp.LspRestartRequest,
+        lsp.LspRestartResponse,
+        lsp.LspServerHealth,
         home.OpenTutorialRequest,
         home.RecentFilesResponse,
         home.RunningNotebooksResponse,
@@ -208,7 +219,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         commands.StopKernelCommand,
         commands.UpdateCellConfigCommand,
         commands.UpdateUserConfigCommand,
-        commands.UpdateWidgetModelCommand,
+        commands.ModelCommand,
         commands.ValidateSQLCommand,
         models.BaseResponse,
         models.ClearCacheRequest,
@@ -232,6 +243,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.MCPStatusResponse,
         models.PreviewDatasetColumnRequest,
         models.PreviewSQLTableRequest,
+        models.StorageListEntriesRequest,
+        models.StorageDownloadRequest,
         models.ReadCodeResponse,
         models.RenameNotebookRequest,
         models.ExecuteCellsRequest,
@@ -246,7 +259,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,
-        models.UpdateWidgetModelRequest,
+        models.ModelRequest,
         models.ValidateSQLRequest,
     ]
 
@@ -276,13 +289,15 @@ def _generate_server_api_schema() -> dict[str, Any]:
 
 
 @click.group(
-    help="""Various commands for the marimo development.""", hidden=True
+    cls=ColoredGroup,
+    help="""Various commands for the marimo development.""",
+    hidden=True,
 )
 def development() -> None:
     pass
 
 
-@click.command(help="""Print the marimo OpenAPI schema""")
+@click.command(cls=ColoredCommand, help="""Print the marimo OpenAPI schema""")
 def openapi() -> None:
     """
     Example usage:
@@ -296,7 +311,11 @@ def openapi() -> None:
     )
 
 
-@click.group(help="Various commands for the marimo processes", hidden=True)
+@click.group(
+    cls=ColoredGroup,
+    help="Various commands for the marimo processes",
+    hidden=True,
+)
 def ps() -> None:
     pass
 
@@ -341,6 +360,8 @@ def list_processes() -> None:
 
         marimo development ps list
     """
+    from marimo._cli.print import orange
+
     # pretty print processes
     result = get_marimo_processes()
     for proc in result:
@@ -368,7 +389,9 @@ def killall() -> None:
 
 
 @click.command(
-    help="Inline packages according to PEP 723", name="inline-packages"
+    cls=ColoredCommand,
+    help="Inline packages according to PEP 723",
+    name="inline-packages",
 )
 @click.argument(
     "name",
@@ -396,8 +419,12 @@ def inline_packages(name: Path) -> None:
 
     # Validate uv is installed
     if not DependencyManager.which("uv"):
-        raise click.UsageError(
-            "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
+        raise MarimoCLIMissingDependencyError(
+            "uv is not installed.",
+            "uv",
+            additional_tip=(
+                "See https://docs.astral.sh/uv/getting-started/installation/"
+            ),
         )
 
     # Validate the file exists
@@ -447,7 +474,7 @@ def inline_packages(name: Path) -> None:
     )
 
 
-@click.command(help="Print all routes")
+@click.command(cls=ColoredCommand, help="Print all routes")
 def print_routes() -> None:
     from starlette.applications import Starlette
     from starlette.routing import Mount, Route, Router
@@ -475,7 +502,7 @@ def print_routes() -> None:
     return
 
 
-@click.command(help="Preview a marimo file as static HTML")
+@click.command(cls=ColoredCommand, help="Preview a marimo file as static HTML")
 @click.argument(
     "file_path",
     required=True,
@@ -536,6 +563,11 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         from marimo._server.export import run_app_until_completion
         from marimo._server.file_router import AppFileRouter
         from marimo._server.utils import asyncio_run
+        from marimo._session.state.serialize import (
+            serialize_notebook,
+            serialize_session_view,
+        )
+        from marimo._utils.code import hash_code
         from marimo._utils.marimo_path import MarimoPath
 
         # Create file manager for the notebook
@@ -593,6 +625,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             code_hash=hash_code(code),
             notebook_snapshot=notebook_snapshot,
             files={},
+            model_notifications=session_view.get_model_notifications(),
             asset_url=asset_url,
         )
 
@@ -641,8 +674,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         uvicorn.run(app, host=host, port=port, log_level="error")
 
     except Exception as e:
-        click.echo(f"Error creating preview: {e}", err=True)
-        raise click.Abort() from e
+        raise MarimoCLIRuntimeError(f"Error creating preview: {e}") from e
 
 
 development.add_command(inline_packages)

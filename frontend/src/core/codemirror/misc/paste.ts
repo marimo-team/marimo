@@ -42,6 +42,7 @@ export function extractCells(text: string): string[] {
   let inMultilineArgs = false;
   let inMultilineReturn = false;
   let parenCount = 0;
+  let cellBaseIndent: number | null = null;
 
   // Pre-compile regex patterns
   const leadingParenRegex = /\(/g;
@@ -55,17 +56,14 @@ export function extractCells(text: string): string[] {
     );
   }
 
+  function getIndent(line: string): number {
+    const match = line.match(/^\s*/);
+    return match ? match[0].length : 0;
+  }
+
   function finalizeCellIfNeeded() {
     if (currentCell.length === 0) {
       return;
-    }
-
-    // Remove trailing returns
-    while (
-      currentCell.length > 0 &&
-      currentCell[currentCell.length - 1].trim().startsWith("return")
-    ) {
-      currentCell.pop();
     }
 
     // Only add non-empty cells
@@ -88,6 +86,7 @@ export function extractCells(text: string): string[] {
       finalizeCellIfNeeded();
       inCell = true;
       skipLines = 1; // Skip the def line
+      cellBaseIndent = null;
       continue;
     }
 
@@ -125,8 +124,13 @@ export function extractCells(text: string): string[] {
       continue;
     }
 
-    // Handle return statements
-    if (trimmed.startsWith("return")) {
+    // Detect base indentation of cell body from first content line
+    if (cellBaseIndent === null && trimmed) {
+      cellBaseIndent = getIndent(line);
+    }
+
+    // Handle return statements — only strip cell-level returns
+    if (trimmed.startsWith("return") && getIndent(line) === cellBaseIndent) {
       if (trimmed.includes("(") && !trimmed.endsWith(")")) {
         inMultilineReturn = true;
         parenCount = countParens(trimmed);

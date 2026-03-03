@@ -9,12 +9,15 @@ def convert_rst_to_html(rst_content: str) -> str:
     """Convert RST content to HTML."""
 
     from docutils.core import publish_parts  # type: ignore[import-untyped]
+    from docutils.writers.html4css1 import (
+        Writer,  # type: ignore[import-untyped]
+    )
 
     # redirect stderr and ignore it to silence error messages
     with contextlib.redirect_stderr(io.StringIO()) as _:
         parts = publish_parts(
             rst_content,
-            writer_name="html",
+            writer=Writer(),
             settings_overrides={
                 "warning_stream": None,
                 "file_insertion_enabled": False,

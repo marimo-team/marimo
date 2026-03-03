@@ -34,7 +34,7 @@ export const StatusOverlay: React.FC<{
   );
 };
 
-const topLeftStatus = "no-print pointer-events-auto hover:cursor-pointer";
+const topLeftStatus = "print:hidden pointer-events-auto hover:cursor-pointer";
 
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">

@@ -76,4 +76,26 @@ describe("parseContent", () => {
       url: "https://avatars.githubusercontent.com/u/123",
     });
   });
+
+  it("preserves newlines between URLs", () => {
+    const parts = parseContent("https://marimo.io\nhttps://github.com\n");
+    expect(parts).toEqual([
+      { type: "url", url: "https://marimo.io" },
+      { type: "text", value: "\n" },
+      { type: "url", url: "https://github.com" },
+      { type: "text", value: "\n" },
+    ]);
+  });
+
+  it("preserves whitespace in mixed content", () => {
+    const parts = parseContent(
+      "Line 1: https://marimo.io\nLine 2: https://github.com",
+    );
+    expect(parts).toEqual([
+      { type: "text", value: "Line 1: " },
+      { type: "url", url: "https://marimo.io" },
+      { type: "text", value: "\nLine 2: " },
+      { type: "url", url: "https://github.com" },
+    ]);
+  });
 });

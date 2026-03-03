@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -19,6 +19,7 @@ app = marimo.App(width="medium")
 def _():
     import anywidget
     import traitlets
+
 
     class Widget(anywidget.AnyWidget):
         _esm = """
@@ -33,6 +34,7 @@ def _():
         """
         data = traitlets.Any().tag(sync=True)
 
+
     # Should display "hello"
     Widget(data=b"hello")
     return
@@ -45,6 +47,7 @@ def _():
 
     BINS_NUM = 1000
 
+
     # Step 1: Generate random structure, returns a 2D numpy array:
     def make_random_3D_chromatin_structure(n):
         position = np.array([0.0, 0.0, 0.0])
@@ -56,6 +59,7 @@ def _():
             position += step
             positions.append(position.copy())
         return np.array(positions)
+
 
     random_structure = make_random_3D_chromatin_structure(BINS_NUM)
 

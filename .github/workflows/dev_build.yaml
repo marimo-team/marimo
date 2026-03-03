@@ -21,8 +21,8 @@ jobs:
         with:
           pixi-version: v0.62.2
           locked: false
-          frozen: true
-          cache: true
+          frozen: false
+          cache: false
       - run: pixi run make check-prereqs
       - run: pixi run make fe
       - run: pixi run make py

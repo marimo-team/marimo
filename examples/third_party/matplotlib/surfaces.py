@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -150,6 +150,7 @@ def _(plt):
         fig.set_size_inches(7, 7)
 
         return ax
+
     return (plot_3d_surface,)
 
 
@@ -246,6 +247,7 @@ def _(grid, saddle_param_a, saddle_param_b):
     def saddle():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, saddle_param_a.value*x**2 - saddle_param_b.value*y**4
+
     return (saddle,)
 
 
@@ -254,6 +256,7 @@ def _(a, b, grid):
     def paraboloid():
         x, y = grid(xlim=(-1, 1), ylim=(-1, 1))
         return x, y, a.value*x**2 / 2 + b.value*y**2/ 2
+
     return (paraboloid,)
 
 
@@ -265,6 +268,7 @@ def _(grid, np, sphere_param_r):
         y = np.sin(theta)*np.sin(phi)
         z = np.cos(phi)
         return sphere_param_r.value*x, sphere_param_r.value*y, sphere_param_r.value*z
+
     return (sphere,)
 
 
@@ -279,6 +283,7 @@ def _(grid, np, torus_param_a, torus_param_c):
         y = (center_radius + tube_radius*np.cos(theta)) * np.sin(phi)
         z = tube_radius*np.sin(theta)
         return x, y, z
+
     return (torus,)
 
 
@@ -290,6 +295,7 @@ def _(np):
         x = np.linspace(xmin, xmax, 100)
         y = np.linspace(ymin, ymax, 100)
         return np.meshgrid(x, y)
+
     return (grid,)
 
 
@@ -298,12 +304,14 @@ def _():
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     import numpy as np
+
     return np, plt
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

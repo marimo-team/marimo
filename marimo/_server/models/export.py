@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 import msgspec
 
@@ -28,8 +28,16 @@ class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
     download: bool
 
 
+ExportPDFPreset = Literal["document", "slides"]
+
+
 class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
     webpdf: bool
+    preset: ExportPDFPreset = "document"
+    include_inputs: bool = False
+    rasterize_outputs: bool = True
+    raster_scale: float = 4.0
+    raster_server: Literal["static", "live"] = "static"
 
 
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):

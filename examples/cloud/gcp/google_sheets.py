@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -22,6 +22,7 @@ def _():
     import gspread
     from oauth2client.service_account import ServiceAccountCredentials
     from oauth2client.client import GoogleCredentials
+
     return GoogleCredentials, ServiceAccountCredentials, gspread, mo, os, pd
 
 

@@ -1,21 +1,21 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Figure, PlotParams } from "react-plotly.js";
+import type * as Plotly from "plotly.js";
 import { z } from "zod";
 import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 import { Logger } from "@/utils/Logger";
+import type { Figure } from "./Plot";
 
 import "./plotly.css";
 import "./mapbox.css";
-import { usePrevious } from "@uidotdev/usehooks";
-import { isEqual, pick, set } from "lodash-es";
-import { type JSX, lazy, memo, useEffect, useMemo, useState } from "react";
+import { pick, set } from "lodash-es";
+import { type JSX, lazy, memo, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
 import { Arrays } from "@/utils/arrays";
-import { Objects } from "@/utils/objects";
 import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
+import { usePlotlyLayout } from "./usePlotlyLayout";
 
 interface Data {
   figure: Figure;
@@ -71,26 +71,9 @@ interface PlotlyPluginProps extends Data {
   host: HTMLElement;
 }
 
-// For whatever reason, the version of vite-rolldown that we are one is not exporting this default export correctly.
-export const LazyPlot = lazy(() =>
-  import("react-plotly.js").then((module) => {
-    return module.default as unknown as {
-      default: React.ComponentType<PlotParams>;
-    };
-  }),
+const LazyPlot = lazy(() =>
+  import("./Plot").then((mod) => ({ default: mod.Plot })),
 );
-
-function initialLayout(figure: Figure): Partial<Plotly.Layout> {
-  // Enable autosize if width is not specified
-  const shouldAutoSize = figure.layout.width === undefined;
-  return {
-    autosize: shouldAutoSize,
-    dragmode: "select",
-    height: 540,
-    // Prioritize user's config
-    ...figure.layout,
-  };
-}
 
 const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
   "color",
@@ -111,38 +94,20 @@ const TREE_MAP_DATA_KEYS = SUNBURST_DATA_KEYS;
 
 export const PlotlyComponent = memo(
   ({ figure: originalFigure, value, setValue, config }: PlotlyPluginProps) => {
-    const [figure, setFigure] = useState(() => {
-      // We clone the figure since Plotly mutates the figure in place
-      return structuredClone(originalFigure);
-    });
-
     // Used for rendering LaTeX. TODO: Serve this library from Marimo
     const scriptStatus = useScript(
       "https://cdn.jsdelivr.net/npm/mathjax-full@3.2.2/es5/tex-mml-svg.min.js",
     );
     const isScriptLoaded = scriptStatus === "ready";
 
-    useEffect(() => {
-      const nextFigure = structuredClone(originalFigure);
-      setFigure(nextFigure);
-      setLayout((prev) => ({
-        ...initialLayout(nextFigure),
-        ...prev,
-      }));
-    }, [originalFigure, isScriptLoaded]);
-
-    const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
-      return {
-        ...initialLayout(figure),
-        // Override with persisted values (dragmode, xaxis, yaxis)
-        ...value,
-      };
+    const { figure, layout, handleReset } = usePlotlyLayout({
+      originalFigure,
+      initialValue: value,
+      isScriptLoaded,
     });
 
-    const handleReset = useEvent(() => {
-      const nextFigure = structuredClone(originalFigure);
-      setFigure(nextFigure);
-      setLayout(initialLayout(nextFigure));
+    const handleResetWithClear = useEvent(() => {
+      handleReset();
       setValue({});
     });
 
@@ -163,37 +128,13 @@ export const PlotlyComponent = memo(
                 <path d="M3 3v5h5" />
               </svg>`,
             },
-            click: handleReset,
+            click: handleResetWithClear,
           },
         ],
         // Prioritize user's config
         ...configMemo,
       };
-    }, [handleReset, configMemo]);
-
-    const prevFigure = usePrevious(figure) ?? figure;
-
-    useEffect(() => {
-      const omitKeys = new Set<keyof Plotly.Layout>([
-        "autosize",
-        "dragmode",
-        "xaxis",
-        "yaxis",
-      ]);
-
-      // If the key was updated externally (e.g. can be specifically passed in the config)
-      // then we need to update the layout
-      for (const key of omitKeys) {
-        if (!isEqual(figure.layout[key], prevFigure.layout[key])) {
-          omitKeys.delete(key);
-        }
-      }
-
-      // Update layout when figure.layout changes
-      // Omit keys that we don't want to override
-      const layout = Objects.omit(figure.layout, omitKeys);
-      setLayout((prev) => ({ ...prev, ...layout }));
-    }, [figure.layout, prevFigure.layout]);
+    }, [handleResetWithClear, configMemo]);
 
     return (
       <LazyPlot
@@ -231,7 +172,6 @@ export const PlotlyComponent = memo(
             };
           });
         })}
-        // @ts-expect-error We patched this prop here so it doesn't exist in the types
         onTreemapClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
           if (!evt) {
             return;
@@ -253,6 +193,24 @@ export const PlotlyComponent = memo(
           }));
         })}
         config={plotlyConfig}
+        onClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
+          if (!evt) {
+            return;
+          }
+          // Only handle clicks for chart types where box/lasso selection
+          // (onSelected) doesn't work, such as heatmaps.
+          const isHeatmap = evt.points.some(
+            (point) => point.data?.type === "heatmap",
+          );
+          if (!isHeatmap) {
+            return;
+          }
+          setValue((prev) => ({
+            ...prev,
+            points: extractPoints(evt.points),
+            indices: evt.points.map((point) => point.pointIndex),
+          }));
+        })}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
             return;
@@ -270,7 +228,7 @@ export const PlotlyComponent = memo(
         className="w-full"
         useResizeHandler={true}
         frames={figure.frames ?? undefined}
-        onError={useEvent((err) => {
+        onError={useEvent((err: Error) => {
           Logger.error("PlotlyPlugin: ", err);
         })}
       />
@@ -284,6 +242,17 @@ PlotlyComponent.displayName = "PlotlyComponent";
  * instead of the ones that Plotly uses internally,
  * by using the hovertemplate.
  */
+const STANDARD_POINT_KEYS: string[] = [
+  "x",
+  "y",
+  "z",
+  "lat",
+  "lon",
+  "curveNumber",
+  "pointNumber",
+  "pointIndex",
+];
+
 function extractPoints(
   points: Plotly.PlotDatum[],
 ): Record<AxisName, AxisDatum>[] {
@@ -298,6 +267,13 @@ function extractPoints(
     const hovertemplate = Array.isArray(point.data.hovertemplate)
       ? point.data.hovertemplate[0]
       : point.data.hovertemplate;
+
+    // For chart types with standard point keys (e.g. heatmaps),
+    // or when there's no hovertemplate, pick keys directly from the point.
+    if (!hovertemplate || point.data?.type === "heatmap") {
+      return pick(point, STANDARD_POINT_KEYS);
+    }
+
     // Update or create a parser
     parser = parser
       ? parser.update(hovertemplate)

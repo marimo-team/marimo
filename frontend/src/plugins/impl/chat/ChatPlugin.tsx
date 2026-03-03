@@ -47,6 +47,7 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
       maxHeight: z.number().optional(),
       config: configSchema,
       allowAttachments: z.union([z.boolean(), z.string().array()]),
+      disabled: z.boolean().default(false),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -76,6 +77,7 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
           showConfigurationControls={props.data.showConfigurationControls}
           maxHeight={props.data.maxHeight}
           allowAttachments={props.data.allowAttachments}
+          disabled={props.data.disabled}
           config={props.data.config}
           get_chat_history={props.functions.get_chat_history}
           delete_chat_history={props.functions.delete_chat_history}

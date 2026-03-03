@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createLoader } from "@/plugins/impl/vega/vega-loader";
 import { Functions } from "@/utils/functions";
 import type { DataURLString } from "@/utils/json/base64";
-import { patchFetch, patchVegaLoader } from "../files";
+import { patchFetch, patchVegaLoader, resolveVirtualFileURL } from "../files";
 
 // Start a tiny server to serve virtual files
 const server = http.createServer((request, response) => {
@@ -350,6 +350,181 @@ describe("patchVegaLoader - loader.load", () => {
   });
 });
 
+describe("resolveVirtualFileURL", () => {
+  // Mock URL.createObjectURL for jsdom environment
+  const mockBlobURLs = new Map<string, Blob>();
+  let blobCounter = 0;
+
+  beforeAll(() => {
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      const url = `blob:test-${blobCounter++}`;
+      mockBlobURLs.set(url, blob);
+      return url;
+    });
+    URL.revokeObjectURL = vi.fn((url: string) => {
+      mockBlobURLs.delete(url);
+    });
+  });
+
+  afterAll(() => {
+    mockBlobURLs.clear();
+  });
+
+  it("should return a blob URL for virtual files", () => {
+    const virtualFiles = {
+      "/@file/widget.js":
+        "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQgeyByZW5kZXI6ICgpID0+IHt9IH0=" as DataURLString,
+    };
+
+    const result = resolveVirtualFileURL("/@file/widget.js", virtualFiles);
+
+    expect(result).toMatch(/^blob:/);
+  });
+
+  it("should return the original URL for non-virtual files", () => {
+    const virtualFiles = {};
+
+    const result = resolveVirtualFileURL(
+      "http://example.com/widget.js",
+      virtualFiles,
+    );
+
+    expect(result).toBe("http://example.com/widget.js");
+  });
+
+  it("should handle various URL formats", () => {
+    const virtualFiles = {
+      "/@file/module.js":
+        "data:text/javascript;base64,Y29uc29sZS5sb2coJ3Rlc3QnKQ==" as DataURLString,
+    };
+
+    const testUrls = [
+      "/@file/module.js",
+      "./@file/module.js",
+      "http://example.com/@file/module.js",
+    ];
+
+    for (const url of testUrls) {
+      const result = resolveVirtualFileURL(url, virtualFiles);
+      expect(result).toMatch(/^blob:/);
+    }
+  });
+
+  it("should create blob URL with correct content", async () => {
+    const jsCode = "export default { render: () => {} }";
+    const base64Code = btoa(jsCode);
+    const virtualFiles = {
+      "/@file/test-module.js":
+        `data:text/javascript;base64,${base64Code}` as DataURLString,
+    };
+
+    const blobUrl = resolveVirtualFileURL(
+      "/@file/test-module.js",
+      virtualFiles,
+    );
+
+    expect(blobUrl).toMatch(/^blob:/);
+    expect(URL.createObjectURL).toHaveBeenCalled();
+
+    // Verify blob content through the mock
+    const blob = mockBlobURLs.get(blobUrl);
+    expect(blob).toBeDefined();
+    const text = await blob!.text();
+    expect(text).toBe(jsCode);
+  });
+
+  it("should handle file:// URLs with @file/ paths", () => {
+    const virtualFiles = {
+      "/@file/local-module.js":
+        "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=" as DataURLString,
+    };
+
+    const result = resolveVirtualFileURL(
+      "file:///Users/test/@file/local-module.js",
+      virtualFiles,
+    );
+
+    expect(result).toMatch(/^blob:/);
+  });
+
+  it("should handle different MIME types", async () => {
+    const virtualFiles = {
+      "/@file/script.js":
+        "data:application/javascript;base64,Y29uc3QgeCA9IDE=" as DataURLString,
+    };
+
+    const blobUrl = resolveVirtualFileURL("/@file/script.js", virtualFiles);
+
+    // Should still be a valid blob URL
+    expect(blobUrl).toMatch(/^blob:/);
+
+    // Verify blob content through the mock
+    const blob = mockBlobURLs.get(blobUrl);
+    expect(blob).toBeDefined();
+    const text = await blob!.text();
+    expect(text).toBe("const x = 1");
+  });
+
+  it("should handle blob: base URIs correctly", () => {
+    // Mock document.baseURI to simulate blob: protocol
+    const originalBaseURI = document.baseURI;
+    Object.defineProperty(document, "baseURI", {
+      value: "blob:https://example.com/uuid",
+      configurable: true,
+    });
+
+    const virtualFiles = {
+      "/@file/blob-module.js":
+        "data:text/javascript;base64,ZXhwb3J0IGRlZmF1bHQge30=" as DataURLString,
+    };
+
+    const result = resolveVirtualFileURL("/@file/blob-module.js", virtualFiles);
+
+    expect(result).toMatch(/^blob:/);
+
+    // Restore original baseURI
+    Object.defineProperty(document, "baseURI", {
+      value: originalBaseURI,
+      configurable: true,
+    });
+  });
+
+  it("should handle data URLs with no explicit MIME type", async () => {
+    const virtualFiles = {
+      "/@file/generic.bin": "data:;base64,SGVsbG8gV29ybGQ=" as DataURLString,
+    };
+
+    const blobUrl = resolveVirtualFileURL("/@file/generic.bin", virtualFiles);
+    expect(blobUrl).toMatch(/^blob:/);
+
+    // Verify blob content through the mock
+    const blob = mockBlobURLs.get(blobUrl);
+    expect(blob).toBeDefined();
+    const text = await blob!.text();
+    expect(text).toBe("Hello World");
+  });
+
+  it("should match URLs with prefix paths before /@file/", async () => {
+    const virtualFiles = {
+      "/@file/4263-66-yUGhgQXp.js":
+        "data:application/javascript;base64,ZnVuY3Rpb24gcmVuZGVyKCkge30=" as DataURLString,
+    };
+
+    const blobUrl = resolveVirtualFileURL(
+      "https://molab.marimo.app/preview/@file/4263-66-yUGhgQXp.js",
+      virtualFiles,
+    );
+
+    expect(blobUrl).toMatch(/^blob:/);
+
+    // Verify blob content through the mock
+    const blob = mockBlobURLs.get(blobUrl);
+    expect(blob).toBeDefined();
+    const text = await blob!.text();
+    expect(text).toBe("function render() {}");
+  });
+});
+
 describe("maybeGetVirtualFile utility function", () => {
   it("should handle URLs without leading dots correctly", async () => {
     const virtualFiles = {
@@ -368,6 +543,25 @@ describe("maybeGetVirtualFile utility function", () => {
 
     expect(text1).toBe("test");
     expect(text2).toBe("test");
+  });
+
+  it("should match URLs with prefix paths before /@file/", async () => {
+    const virtualFiles = {
+      "/@file/4263-66-yUGhgQXp.js":
+        "data:application/javascript;base64,ZnVuY3Rpb24gcmVuZGVyKCkge30=" as DataURLString,
+    };
+
+    const unpatch = patchFetch(virtualFiles);
+
+    // Test URL with a prefix path before /@file/
+    const response = await window.fetch(
+      "https://molab.marimo.app/preview/@file/4263-66-yUGhgQXp.js",
+    );
+    const text = await response.text();
+
+    expect(text).toBe("function render() {}");
+
+    unpatch();
   });
 
   it("should handle complex file:// URLs with nested paths", async () => {

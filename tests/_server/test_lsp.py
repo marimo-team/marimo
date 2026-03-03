@@ -23,6 +23,7 @@ from marimo._server.lsp import (
     CompositeLspServer,
     CopilotLspServer,
     PyLspServer,
+    PyreflyServer,
     TyServer,
     any_lsp_server_running,
 )
@@ -92,7 +93,63 @@ async def test_base_lsp_server_start_stop(
     # Test stop
     server.stop()
     mock_process.terminate.assert_called_once()
+    # Verify wait was called with timeout for graceful shutdown
+    mock_process.wait.assert_called_once_with(timeout=5)
     assert server.process is None
+
+
+async def test_base_lsp_server_stop_force_kill_on_timeout(
+    mock_popen: mock.MagicMock,
+    mock_process: mock.MagicMock,
+):
+    """Test that stop() force kills the process if it doesn't respond to terminate."""
+    del mock_popen
+    import subprocess
+
+    server = MockLspServer(port=8000)
+    server.validate_requirements = mock.MagicMock(return_value=True)
+
+    # Start the server
+    await server.start()
+
+    # Make wait() raise TimeoutExpired to simulate hung process
+    mock_process.wait.side_effect = [
+        subprocess.TimeoutExpired("cmd", 5),  # First wait (terminate)
+        None,  # Second wait (after kill)
+    ]
+
+    # Test stop with force kill
+    server.stop()
+
+    mock_process.terminate.assert_called_once()
+    mock_process.kill.assert_called_once()
+    # wait should be called twice: once after terminate, once after kill
+    assert mock_process.wait.call_count == 2
+    assert server.process is None
+
+
+async def test_base_lsp_server_start_lock_prevents_concurrent_starts(
+    mock_popen: mock.MagicMock,
+    mock_process: mock.MagicMock,
+):
+    """Test that start() uses a lock to prevent race conditions."""
+    del mock_process
+    import asyncio
+
+    server = MockLspServer(port=8000)
+    server.validate_requirements = mock.MagicMock(return_value=True)
+
+    # Call start() multiple times concurrently
+    results = await asyncio.gather(
+        server.start(),
+        server.start(),
+        server.start(),
+    )
+
+    # All should succeed (return None), but Popen should only be called once
+    assert all(r is None for r in results)
+    # Only one Popen call due to the lock
+    mock_popen.assert_called_once()
 
 
 async def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
@@ -261,11 +318,12 @@ def test_composite_server():
     with mock.patch("marimo._server.lsp.DependencyManager") as mock_dm:
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
-        total_lsp_servers = 4
+        total_lsp_servers = 5
         config = LanguageServersConfig(
             {
                 "pylsp": {"enabled": True},
                 "ty": {"enabled": True},
+                "pyrefly": {"enabled": True},
                 "basedpyright": {"enabled": True},
             }
         )
@@ -285,6 +343,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pylsp") is True
         assert server._is_enabled(config, "copilot") is True
         assert server._is_enabled(config, "ty") is True
+        assert server._is_enabled(config, "pyrefly") is True
         assert server._is_enabled(config, "basedpyright") is True
 
         # Test with only pylsp
@@ -303,6 +362,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pylsp") is True
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is False
+        assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only ty enabled
         config = LanguageServersConfig(
@@ -310,6 +370,7 @@ def test_composite_server():
                 "ty": {"enabled": True},
                 "pylsp": {"enabled": False},
                 "basedpyright": {"enabled": False},
+                "pyrefly": {"enabled": False},
             }
         )
         completion_config = CompletionConfig(
@@ -327,6 +388,7 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is False
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is True
+        assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only basedpyright enabled
         config = LanguageServersConfig(
@@ -334,6 +396,7 @@ def test_composite_server():
                 "basedpyright": {"enabled": True},
                 "pylsp": {"enabled": False},
                 "ty": {"enabled": False},
+                "pyrefly": {"enabled": False},
             }
         )
         completion_config = CompletionConfig(
@@ -351,6 +414,33 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is True
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is False
+        assert server._is_enabled(config, "pyrefly") is False
+
+        # Test with only pyrefly enabled
+        config = LanguageServersConfig(
+            {
+                "pyrefly": {"enabled": True},
+                "pylsp": {"enabled": False},
+                "basedpyright": {"enabled": False},
+                "ty": {"enabled": False},
+            }
+        )
+        completion_config = CompletionConfig(
+            {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
+        )
+        config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
+        server = CompositeLspServer(config_reader, min_port=8000)
+        assert len(server.servers) == total_lsp_servers
+        assert server._is_enabled(config, "pylsp") is False
+        assert server._is_enabled(config, "basedpyright") is False
+        assert server._is_enabled(config, "copilot") is False
+        assert server._is_enabled(config, "ty") is False
+        assert server._is_enabled(config, "pyrefly") is True
 
         # Test with nothing enabled
         config = LanguageServersConfig({"pylsp": {"enabled": False}})
@@ -384,6 +474,37 @@ def test_basedpyright_server_uses_typed_format():
     assert lsp_command.startswith("basedpyright:")
     # Should NOT contain shell arguments
     assert "--stdio" not in lsp_command
+
+
+def test_pyrefly_server_uses_typed_format():
+    """Test that pyrefly server uses the new typed format."""
+    from unittest import mock
+
+    # Mock the entire pyrefly module and its find_pyrefly_bin function
+    mock_pyrefly_module = mock.MagicMock()
+    mock_pyrefly_module.get_pyrefly_bin.return_value = (
+        "/path/to/pyrefly/binary"
+    )
+
+    with mock.patch.dict(
+        "sys.modules",
+        {
+            "pyrefly": mock_pyrefly_module,
+            "pyrefly.__main__": mock_pyrefly_module,
+        },
+    ):
+        server = PyreflyServer(port=8000)
+        command = server.get_command()
+
+        # Find the --lsp argument
+        lsp_arg_index = command.index("--lsp")
+        lsp_command = command[lsp_arg_index + 1]
+
+        # Should use typed format
+        assert lsp_command == "pyrefly:/path/to/pyrefly/binary"
+        assert lsp_command.startswith("pyrefly:")
+        # Should NOT contain shell arguments
+        assert "server" not in lsp_command
 
 
 def test_ty_server_uses_typed_format():

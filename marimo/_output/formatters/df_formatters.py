@@ -13,7 +13,7 @@ from marimo._output.formatters.formatter_factory import (
     FormatterFactory,
     Unregister,
 )
-from marimo._output.hypertext import is_no_js
+from marimo._output.hypertext import is_non_interactive
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.plain_text import plain_text
@@ -30,7 +30,7 @@ def include_opinionated() -> bool:
         runtime_context_installed,
     )
 
-    if is_no_js():
+    if is_non_interactive():
         return False
 
     if runtime_context_installed():

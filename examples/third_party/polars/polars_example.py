@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -30,6 +30,7 @@ def _():
     import polars as pl
     import numpy as np
     import altair as alt
+
     return alt, mo, pl
 
 

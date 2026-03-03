@@ -238,3 +238,50 @@ async def test_thread_should_exit_on_deletion(
 
     await k.delete_cell(DeleteCellCommand(er.cell_id))
     assert thread.should_exit
+
+
+async def test_threads_share_output_list_with_parent(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that mo.Threads share the parent's output list.
+
+    Sharing ensures that accumulated_output is non-None after cell
+    execution, so the post-execution hook doesn't wipe thread output.
+    """
+
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                output_ids = []
+                def target():
+                    import marimo as mo
+                    ctx = mo._runtime.context.get_context()
+                    output_ids.append(id(ctx.execution_context.output))
+                    mo.output.append("from thread")
+                """
+            ),
+            exec_req.get(
+                """
+                mo.output.append("some output")
+                threads = [mo.Thread(target=target) for _ in range(3)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+                """
+            ),
+        ]
+    )
+
+    assert not k.errors
+    time.sleep(0.01)  # noqa: ASYNC251
+
+    output_ids = k.globals["output_ids"]
+    # All threads should share the same output list as the parent
+    assert len(output_ids) == 3
+    assert len(set(output_ids)) == 1, (
+        "All threads should share the same output list, "
+        f"but got ids: {output_ids}"
+    )

@@ -34,6 +34,8 @@ class KernelArgs(msgspec.Struct):
     log_level: int
     profile_path: typing.Union[str, None]
     connection_info: ConnectionInfo
+    # Whether to use run-mode config (autorun) vs edit-mode config (lazy)
+    is_run_mode: bool = False
     # Runtime behavior flags
     virtual_files_supported: bool = True
     redirect_console_to_browser: bool = True

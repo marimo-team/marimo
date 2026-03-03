@@ -12,10 +12,9 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { arrow } from "@/plugins/impl/vega/formats";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import {
-  byteStringToBinary,
+  base64ToUint8Array,
   extractBase64FromDataURL,
   isDataURLString,
-  typedAtob,
 } from "@/utils/json/base64";
 
 export function getLegacyNumericSpec(
@@ -281,12 +280,12 @@ export function getDataSpecAndSourceName<T>(data: string | T[]): {
     } else if (isDataURLString(data)) {
       sourceName = "data_0";
       const base64 = extractBase64FromDataURL(data);
-      const decoded = typedAtob(base64);
+      const decoded = window.atob(base64);
 
       // eslint-disable-next-line unicorn/prefer-ternary
       if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
         dataSpec = {
-          values: byteStringToBinary(decoded),
+          values: base64ToUint8Array(base64),
           // @ts-expect-error vega-typings does not include arrow format
           format: { type: "arrow" },
         };

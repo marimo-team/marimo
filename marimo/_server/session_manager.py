@@ -20,7 +20,12 @@ from marimo._runtime.commands import (
     SerializedQueryParams,
 )
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.file_router import AppFileRouter, MarimoFileKey
+from marimo._server.file_router import (
+    AppFileRouter,
+    ListOfFilesAppFileRouter,
+    MarimoFileKey,
+    flatten_files,
+)
 from marimo._server.lsp import LspServer
 from marimo._server.recents import RecentFilesManager
 from marimo._server.resume_strategies import create_resume_strategy
@@ -96,8 +101,17 @@ class SessionManager:
 
         def _get_code() -> str:
             defaults = AppDefaults.from_config_manager(config_manager)
-            app = file_router.get_single_app_file_manager(defaults).app
-            return "".join(code for code in app.cell_manager.codes())
+            if file_router.get_unique_file_key() is not None:
+                app = file_router.get_single_app_file_manager(defaults).app
+                return "".join(code for code in app.cell_manager.codes())
+
+            files = list(flatten_files(file_router.files))
+            entries = [
+                f"{file.path}:{file.last_modified or 0.0}"
+                for file in files
+                if file.is_marimo_file
+            ]
+            return "\n".join(sorted(entries))
 
         source_code = None if mode == SessionMode.EDIT else _get_code()
         self._token_manager = TokenManager(
@@ -137,6 +151,12 @@ class SessionManager:
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
         defaults = AppDefaults.from_config_manager(self._config_manager)
+        if (
+            self.mode is SessionMode.EDIT
+            and isinstance(self.file_router, ListOfFilesAppFileRouter)
+            and not key.startswith(AppFileRouter.NEW_FILE)
+        ):
+            self.file_router.register_allowed_file(key)
         return self.file_router.get_file_manager(key, defaults)
 
     def create_session(
@@ -157,6 +177,12 @@ class SessionManager:
 
         # Get app file manager
         defaults = AppDefaults.from_config_manager(self._config_manager)
+        if (
+            self.mode is SessionMode.EDIT
+            and isinstance(self.file_router, ListOfFilesAppFileRouter)
+            and not file_key.startswith(AppFileRouter.NEW_FILE)
+        ):
+            self.file_router.register_allowed_file(file_key)
         app_file_manager = self.file_router.get_file_manager(
             file_key, defaults
         )

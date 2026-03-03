@@ -110,6 +110,12 @@ class AppStateBase:
             return self.state.enable_auth
         return True
 
+    @property
+    def html_head(self) -> Optional[str]:
+        if hasattr(self.state, "html_head"):
+            return cast(Optional[str], self.state.html_head)
+        return None
+
 
 class AppState(AppStateBase):
     """The app state with a request."""

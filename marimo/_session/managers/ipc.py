@@ -80,7 +80,7 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def set_ui_element_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[commands.UpdateUIElementCommand]:
+    ) -> QueueType[commands.BatchableCommand]:
         return self._ipc.set_ui_element_queue
 
     @property
@@ -159,6 +159,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._process: subprocess.Popen[bytes] | None = None
         self.kernel_task: ProcessLike | None = None
         self._sandbox_dir: str | None = None
+        self._venv_python: str | None = None
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -171,6 +172,7 @@ class IPCKernelManagerImpl(KernelManager):
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=None,
             connection_info=self.connection_info,
+            is_run_mode=self.mode == SessionMode.RUN,
             virtual_files_supported=self.virtual_files_supported,
             redirect_console_to_browser=self.redirect_console_to_browser,
         )
@@ -259,6 +261,9 @@ class IPCKernelManagerImpl(KernelManager):
                 err=True,
             )
 
+        # Store the venv python for package manager targeting
+        self._venv_python = venv_python
+
         cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
         if writable:
             # Setting this attempts to make auto-installations work even if
@@ -320,6 +325,11 @@ class IPCKernelManagerImpl(KernelManager):
     def profile_path(self) -> str | None:
         # Profiling not currently supported with IPC kernel
         return None
+
+    @property
+    def venv_python(self) -> str | None:
+        """Python executable path for the kernel's venv."""
+        return self._venv_python
 
     def is_alive(self) -> bool:
         if self._process is None:

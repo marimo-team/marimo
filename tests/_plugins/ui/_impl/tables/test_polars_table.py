@@ -799,9 +799,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "integers": lambda x: -100 if x is None else x * 2,
             "floats": lambda x: "---" if x is None else f"{x:.1f}",
             "booleans": lambda x: "MISSING" if x is None else str(x).upper(),
-            "dates": lambda x: "No Date"
-            if x is None
-            else x.strftime("%Y-%m-%d"),
+            "dates": lambda x: (
+                "No Date" if x is None else x.strftime("%Y-%m-%d")
+            ),
             "lists": lambda x: "Empty" if x is None else f"List({len(x)})",
         }
 
@@ -851,6 +851,25 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(df)
         result = manager.search("^[ab]")
         assert result.get_num_rows() == 2
+
+    def test_search_wide_dataframe(self) -> None:
+        """Regression test: search must not crash on wide tables (GitHub #8449)."""
+        import polars as pl
+
+        num_cols = 5000
+        data = {f"col_{i}": ["a", "b", "c"] for i in range(num_cols)}
+        data["col_0"] = ["target", "b", "c"]
+        df = pl.DataFrame(data)
+        manager = self.factory.create()(df)
+
+        result = manager.search("target")
+        assert result.get_num_rows() == 1
+
+        result = manager.search("b")
+        assert result.get_num_rows() == 1
+
+        result = manager.search("nonexistent")
+        assert result.get_num_rows() == 0
 
     def test_sort_values_with_nulls(self) -> None:
         import polars as pl

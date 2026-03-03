@@ -5,6 +5,7 @@ from typing import Literal, Optional
 
 import msgspec
 
+from marimo._metadata.opengraph import OpenGraphMetadata
 from marimo._server.models.models import BaseResponse
 
 
@@ -16,6 +17,7 @@ class FileInfo(msgspec.Struct, rename="camel"):
     is_marimo_file: bool
     last_modified: Optional[float] = None
     children: list[FileInfo] = msgspec.field(default_factory=list)
+    opengraph: OpenGraphMetadata | None = None
 
 
 class FileListRequest(msgspec.Struct, rename="camel"):
@@ -43,8 +45,8 @@ class FileTreeRequest(msgspec.Struct, rename="camel"):
 class FileCreateRequest(msgspec.Struct, rename="camel"):
     # The path where to create the file or directory
     path: str
-    # 'file' or 'directory'
-    type: Literal["file", "directory"]
+    # 'file', 'directory', or 'notebook'
+    type: Literal["file", "directory", "notebook"]
     # The name of the file or directory
     name: str
     # The contents of the file, base64-encoded

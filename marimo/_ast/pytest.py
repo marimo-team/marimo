@@ -224,23 +224,43 @@ def _make_hook(
         | Awaitable[tuple[Any, Mapping[str, Any]]],
     ],
     use_wrapped: bool = False,
+    is_async: bool = False,
 ) -> Callable[..., Any]:
     """Single hook factory - handles both fixtures and tests."""
 
-    def _hook(*args: Any, **kwargs: Any) -> Any:
-        res = run()
-        if isinstance(res, Awaitable):
-            import asyncio
+    if is_async:
 
-            loop = asyncio.new_event_loop()
-            _, cell_defs = loop.run_until_complete(res)
-        else:
-            _, cell_defs = res
+        async def _async_hook(*args: Any, **kwargs: Any) -> Any:
+            res = run()
+            if isinstance(res, Awaitable):
+                _, cell_defs = await res
+            else:
+                _, cell_defs = res
 
-        target = cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
-        return target(*args, **kwargs)
+            target = (
+                cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
+            )
+            return await target(*args, **kwargs)
 
-    return _hook
+        return _async_hook
+    else:
+
+        def _hook(*args: Any, **kwargs: Any) -> Any:
+            res = run()
+            if isinstance(res, Awaitable):
+                import asyncio
+
+                loop = asyncio.new_event_loop()
+                _, cell_defs = loop.run_until_complete(res)
+            else:
+                _, cell_defs = res
+
+            target = (
+                cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
+            )
+            return target(*args, **kwargs)
+
+        return _hook
 
 
 def _build_hook(
@@ -252,7 +272,8 @@ def _build_hook(
     is_fixture: bool = False,
 ) -> Callable[..., Any]:
     """Build hook for test or fixture function."""
-    hook = _make_hook(var, run, use_wrapped=is_fixture)
+    is_async = isinstance(test, ast.AsyncFunctionDef)
+    hook = _make_hook(var, run, use_wrapped=is_fixture, is_async=is_async)
 
     stub_fn = build_stub_fn(test, file)
     functools.wraps(stub_fn)(hook)

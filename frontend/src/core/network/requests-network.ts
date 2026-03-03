@@ -488,5 +488,21 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    listStorageEntries: (request) => {
+      return getClient()
+        .POST("/api/storage/list_entries", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    downloadStorage: (request) => {
+      return getClient()
+        .POST("/api/storage/download", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
   };
 }

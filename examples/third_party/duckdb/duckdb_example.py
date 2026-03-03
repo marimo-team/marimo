@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -311,6 +311,7 @@ def _(con, mo, url):
         data = con.sql(f"SELECT * FROM '{url}' LIMIT {limit}").df()
         df_editor = mo.ui.dataframe(data)
         return df_editor
+
     return render_dataframe_editor, render_sql_editor, render_sql_results
 
 
@@ -343,6 +344,7 @@ def _(functools, json, pd, requests):
         j = r.json()
         urls = [f["url"] for f in j["parquet_files"]]
         return urls
+
     return fetch_hugging_face_datasets, load_hugging_face_dataset
 
 
@@ -354,6 +356,7 @@ def _():
     import marimo as mo
     import duckdb
     import pandas as pd
+
     return duckdb, functools, json, mo, pd, requests
 
 

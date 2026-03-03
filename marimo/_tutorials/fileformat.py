@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 with app.setup:
@@ -13,6 +13,7 @@ with app.setup:
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -393,6 +394,7 @@ def wrapped_function_example(variable):
         bottom-right corner indicates this.
         """
         return variable
+
     return
 
 

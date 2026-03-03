@@ -88,9 +88,10 @@ class NarwhalsTableManager(
     def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
+        separator: str | None = None,
     ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data)
+        return dataframe_to_csv(_data, separator=separator)
 
     def to_json_str(
         self,
@@ -329,11 +330,9 @@ class NarwhalsTableManager(
         if not expressions:
             return NarwhalsTableManager(self.data.filter(nw.lit(False)))
 
-        or_expr = expressions[0]
-        for expr in expressions[1:]:
-            or_expr = or_expr | expr
-
-        filtered = self.data.filter(or_expr)
+        filtered = self.data.filter(
+            nw.any_horizontal(expressions, ignore_nulls=False)
+        )
         return NarwhalsTableManager(filtered)
 
     def get_stats(self, column: str) -> ColumnStats:
@@ -517,8 +516,16 @@ class NarwhalsTableManager(
                     }
                 )
 
+        import warnings
+
         stats = frame.select(**exprs)
-        stats_dict = stats.collect().rows(named=True)[0]
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Mean of empty slice|Degrees of freedom",
+                category=RuntimeWarning,
+            )
+            stats_dict = stats.collect().rows(named=True)[0]
 
         # Maybe add units to the stats
         for key, value in stats_dict.items():

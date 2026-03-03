@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import {
+  downloadAsPDF,
   downloadByURL,
   downloadCellOutputAsImage,
   downloadHTMLAsImage,
@@ -10,16 +11,28 @@ import {
   withLoadingToast,
 } from "../download";
 
+const { mockExportAsPDF } = vi.hoisted(() => ({
+  mockExportAsPDF: vi.fn(),
+}));
+
 // Mock html-to-image
 vi.mock("html-to-image", () => ({
   toPng: vi.fn(),
 }));
 
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({
+    exportAsPDF: mockExportAsPDF,
+  }),
+}));
+
 // Mock the toast module
 const mockDismiss = vi.fn();
+const mockUpdate = vi.fn();
 vi.mock("@/components/ui/use-toast", () => ({
   toast: vi.fn(() => ({
     dismiss: mockDismiss,
+    update: mockUpdate,
   })),
 }));
 
@@ -39,6 +52,7 @@ vi.mock("@/utils/Logger", () => ({
 vi.mock("@/utils/filenames", () => ({
   Filenames: {
     toPNG: (name: string) => `${name}.png`,
+    toPDF: (name: string) => `${name}.pdf`,
   },
 }));
 
@@ -57,10 +71,12 @@ describe("withLoadingToast", () => {
     });
 
     expect(toast).toHaveBeenCalledTimes(1);
-    expect(toast).toHaveBeenCalledWith({
-      title: "Loading...",
-      duration: Infinity,
-    });
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Loading...",
+        duration: Infinity,
+      }),
+    );
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(result).toBe("success");
   });
@@ -111,6 +127,51 @@ describe("withLoadingToast", () => {
     );
   });
 
+  it("should update toast on finish when onFinish is provided", async () => {
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+    });
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Upload complete",
+        description: undefined,
+        duration: 1200,
+      }),
+    );
+    expect(mockDismiss).not.toHaveBeenCalled();
+  });
+
+  it("should allow onFinish to override duration", async () => {
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+      duration: 2000,
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: 2000,
+      }),
+    );
+  });
+
+  it("should not update toast when the operation fails", async () => {
+    await expect(
+      withLoadingToast(
+        "Uploading files...",
+        async () => {
+          throw new Error("Upload failed");
+        },
+        { title: "Upload complete" },
+      ),
+    ).rejects.toThrow("Upload failed");
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
   it("should wait for the async function to complete", async () => {
     const events: string[] = [];
 
@@ -122,6 +183,33 @@ describe("withLoadingToast", () => {
 
     expect(events).toEqual(["start", "end"]);
     expect(mockDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("downloadAsPDF", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should send the preset in export request payload", async () => {
+    mockExportAsPDF.mockRejectedValue(new Error("network"));
+
+    await expect(
+      downloadAsPDF({
+        filename: "path/to/notebook.py",
+        webpdf: false,
+        preset: "slides",
+      }),
+    ).rejects.toThrow("network");
+
+    expect(mockExportAsPDF).toHaveBeenCalledWith({
+      webpdf: false,
+      preset: "slides",
+      includeInputs: false,
+      rasterizeOutputs: true,
+      rasterScale: 4,
+      rasterServer: "static",
+    });
   });
 });
 
@@ -155,37 +243,72 @@ describe("getImageDataUrlForCell", () => {
     const result = await getImageDataUrlForCell("cell-1" as CellId);
 
     expect(result).toBe(mockDataUrl);
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
   });
 
-  it("should add printing classes before capture", async () => {
-    vi.mocked(toPng).mockImplementation(async () => {
-      // Check classes are applied during capture
-      expect(mockElement.classList.contains("printing-output")).toBe(true);
-      expect(document.body.classList.contains("printing")).toBe(true);
-      expect(mockElement.style.overflow).toBe("auto");
-      return mockDataUrl;
+  it("should pass style options to prevent clipping", async () => {
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await getImageDataUrlForCell("cell-1" as CellId);
+
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        style: {
+          maxHeight: "none",
+          overflow: "visible",
+        },
+      }),
+    );
+  });
+
+  it("should pass scrollHeight as height option", async () => {
+    // Set up element with scrollHeight
+    Object.defineProperty(mockElement, "scrollHeight", {
+      value: 500,
+      configurable: true,
     });
-
-    await getImageDataUrlForCell("cell-1" as CellId);
-  });
-
-  it("should remove printing classes after capture", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
     await getImageDataUrlForCell("cell-1" as CellId);
 
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
-    expect(document.body.classList.contains("printing")).toBe(false);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        height: 500,
+      }),
+    );
   });
 
-  it("should restore original overflow style after capture", async () => {
+  it("should pass scrollbar hiding styles via extraStyleContent", async () => {
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await getImageDataUrlForCell("cell-1" as CellId);
+
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        extraStyleContent: expect.stringContaining("scrollbar-width: none"),
+      }),
+    );
+  });
+
+  it("should not modify the live DOM element", async () => {
     mockElement.style.overflow = "hidden";
+    mockElement.style.maxHeight = "100px";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
     await getImageDataUrlForCell("cell-1" as CellId);
 
+    // DOM should remain unchanged
     expect(mockElement.style.overflow).toBe("hidden");
+    expect(mockElement.style.maxHeight).toBe("100px");
   });
 
   it("should throw error on failure", async () => {
@@ -196,71 +319,20 @@ describe("getImageDataUrlForCell", () => {
     );
   });
 
-  it("should cleanup even on failure", async () => {
-    mockElement.style.overflow = "scroll";
-    vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
-
-    await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow();
-
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
-    expect(document.body.classList.contains("printing")).toBe(false);
-    expect(mockElement.style.overflow).toBe("scroll");
-  });
-
-  it("should maintain body.printing during concurrent captures", async () => {
+  it("should handle concurrent captures correctly", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
     document.body.append(mockElement2);
 
-    // Track body.printing state during each capture
-    const printingStateDuringCaptures: boolean[] = [];
-    let resolveFirst: () => void;
-    let resolveSecond: () => void;
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    const firstPromise = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    const secondPromise = new Promise<void>((resolve) => {
-      resolveSecond = resolve;
-    });
-
-    vi.mocked(toPng).mockImplementation(async (element) => {
-      printingStateDuringCaptures.push(
-        document.body.classList.contains("printing"),
-      );
-
-      // Simulate async work - first capture takes longer
-      await (element.id.includes("cell-1") ? firstPromise : secondPromise);
-
-      // Check state again after waiting
-      printingStateDuringCaptures.push(
-        document.body.classList.contains("printing"),
-      );
-
-      return mockDataUrl;
-    });
-
-    // Start both captures concurrently
     const capture1 = getImageDataUrlForCell("cell-1" as CellId);
     const capture2 = getImageDataUrlForCell("cell-2" as CellId);
 
-    // Let second capture complete first
-    resolveSecond!();
-    await new Promise((r) => setTimeout(r, 0));
-
-    // body.printing should still be present because cell-1 is still capturing
-    expect(document.body.classList.contains("printing")).toBe(true);
-
-    // Now let first capture complete
-    resolveFirst!();
     await Promise.all([capture1, capture2]);
 
-    // After all captures complete, body.printing should be removed
-    expect(document.body.classList.contains("printing")).toBe(false);
-
-    // All captures should have seen body.printing = true
-    expect(printingStateDuringCaptures.every(Boolean)).toBe(true);
+    expect(toPng).toHaveBeenCalledTimes(2);
 
     mockElement2.remove();
   });
@@ -304,27 +376,16 @@ describe("downloadHTMLAsImage", () => {
 
     await downloadHTMLAsImage({ element: mockElement, filename: "test" });
 
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
     expect(mockAnchor.href).toBe(mockDataUrl);
     expect(mockAnchor.download).toBe("test.png");
     expect(mockAnchor.click).toHaveBeenCalled();
-  });
-
-  it("should add body.printing class without prepare function", async () => {
-    vi.mocked(toPng).mockImplementation(async () => {
-      expect(document.body.classList.contains("printing")).toBe(true);
-      return mockDataUrl;
-    });
-
-    await downloadHTMLAsImage({ element: mockElement, filename: "test" });
-  });
-
-  it("should remove body.printing class after download without prepare", async () => {
-    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
-
-    await downloadHTMLAsImage({ element: mockElement, filename: "test" });
-
-    expect(document.body.classList.contains("printing")).toBe(false);
   });
 
   it("should use prepare function when provided", async () => {
@@ -342,7 +403,7 @@ describe("downloadHTMLAsImage", () => {
     expect(cleanup).toHaveBeenCalled();
   });
 
-  it("should not add body.printing when prepare is provided", async () => {
+  it("should delegate body.printing management to prepare function", async () => {
     let bodyPrintingDuringCapture = false;
     vi.mocked(toPng).mockImplementation(async () => {
       // Capture the state during toPng execution
@@ -350,7 +411,14 @@ describe("downloadHTMLAsImage", () => {
       return mockDataUrl;
     });
     const cleanup = vi.fn();
-    const prepare = vi.fn().mockReturnValue(cleanup);
+    // Mock prepare that adds body.printing
+    const prepare = vi.fn().mockImplementation(() => {
+      document.body.classList.add("printing");
+      return () => {
+        document.body.classList.remove("printing");
+        cleanup();
+      };
+    });
 
     await downloadHTMLAsImage({
       element: mockElement,
@@ -358,9 +426,8 @@ describe("downloadHTMLAsImage", () => {
       prepare,
     });
 
-    // body.printing should NOT be added by downloadHTMLAsImage when prepare is provided
-    // (the prepare function is responsible for managing its own classes)
-    expect(bodyPrintingDuringCapture).toBe(false);
+    // body.printing should be added by prepare function
+    expect(bodyPrintingDuringCapture).toBe(true);
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(prepare).toHaveBeenCalledWith(mockElement);
     expect(cleanup).toHaveBeenCalled();
@@ -420,13 +487,30 @@ describe("downloadCellOutputAsImage", () => {
     vi.restoreAllMocks();
   });
 
-  it("should return early if element not found", async () => {
+  it("should show error toast if element not found", async () => {
     await downloadCellOutputAsImage("nonexistent" as CellId, "test");
 
     expect(toPng).not.toHaveBeenCalled();
     expect(Logger.error).toHaveBeenCalledWith(
       "Output element not found for cell nonexistent",
     );
+    expect(toast).toHaveBeenCalledWith({
+      title: "Failed to download PNG",
+      description: expect.any(String),
+      variant: "danger",
+    });
+  });
+
+  it("should show error toast if toPng fails", async () => {
+    vi.mocked(toPng).mockRejectedValue(new Error("Screenshot failed"));
+
+    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+
+    expect(toast).toHaveBeenCalledWith({
+      title: "Failed to download PNG",
+      description: expect.stringContaining("Screenshot failed"),
+      variant: "danger",
+    });
   });
 
   it("should download cell output as image", async () => {
@@ -434,31 +518,42 @@ describe("downloadCellOutputAsImage", () => {
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
 
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
     expect(mockAnchor.download).toBe("result.png");
   });
 
-  it("should apply cell-specific preparation", async () => {
-    vi.mocked(toPng).mockImplementation(async () => {
-      // Check that cell-specific classes are applied
-      expect(mockElement.classList.contains("printing-output")).toBe(true);
-      expect(document.body.classList.contains("printing")).toBe(true);
-      expect(mockElement.style.overflow).toBe("auto");
-      return mockDataUrl;
-    });
-
-    await downloadCellOutputAsImage("cell-1" as CellId, "result");
-  });
-
-  it("should cleanup after download", async () => {
-    mockElement.style.overflow = "visible";
+  it("should pass style options to toPng for full content capture", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
 
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
-    expect(document.body.classList.contains("printing")).toBe(false);
-    expect(mockElement.style.overflow).toBe("visible");
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        style: {
+          maxHeight: "none",
+          overflow: "visible",
+        },
+      }),
+    );
+  });
+
+  it("should not modify the live DOM element", async () => {
+    mockElement.style.overflow = "hidden";
+    mockElement.style.maxHeight = "100px";
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+
+    // DOM should remain unchanged
+    expect(mockElement.style.overflow).toBe("hidden");
+    expect(mockElement.style.maxHeight).toBe("100px");
   });
 });
 

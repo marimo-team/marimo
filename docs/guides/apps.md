@@ -1,3 +1,7 @@
+---
+description: "Deploy marimo notebooks as interactive web apps. Customize layouts with drag-and-drop, add authentication, and share with users."
+---
+
 # Run as an app
 
 The marimo CLI lets you run any notebook as an app: `marimo run` lays out
@@ -16,6 +20,19 @@ marimo run notebook.py
 ```
 
 View the [CLI documentation](../cli.md#marimo-run) for more details.
+
+### Gallery
+
+You can run multiple notebooks (or a directory of notebooks) as a gallery:
+
+```bash
+marimo run folder/
+marimo run notebook_a.py notebook_b.py folder/
+```
+
+This shows a page with one card per notebook. Cards can use notebook OpenGraph metadata for the title, description, and thumbnail image. Configure [OpenGraph previews](publishing/opengraph.md) and optionally generate images with [Thumbnails](publishing/thumbnails.md).
+
+If you run a single folder with watch mode (`marimo run folder/ --watch`), the gallery index is refreshed on subsequent workspace requests so file additions and deletions show up after refreshing the gallery page. See [Using your own editor](editor_features/watching.md) for watch behavior and security considerations.
 
 ## Layout
 
@@ -71,6 +88,7 @@ Unlike the grid layout, the slides are much less customizable:
 - The order of the slides is determined by the order of the cells in the notebook.
 - The slides do not support drag-and-drop rearrangement or resizing.
 - All outputs are shown and all code is hidden.
+- For PDF export, use `marimo export pdf notebook.py --as=slides --raster-server=live` for slide-style output with better capture compatibility.
 
 If you need more control over the layout, please file an issue on [GitHub](https://github.com/marimo-team/marimo/issues),
 so we can properly prioritize this feature.

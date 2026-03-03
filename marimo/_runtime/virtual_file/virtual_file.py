@@ -9,6 +9,9 @@ import string
 import threading
 from typing import TYPE_CHECKING, Optional, cast
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
@@ -78,6 +81,39 @@ class VirtualFile:
             buffer=b"",
             url=url,
         )
+
+    @staticmethod
+    def create_and_register(buffer: bytes, ext: str) -> VirtualFile:
+        """Create a virtual file and register it in the current context.
+
+        Falls back to a data URL if no runtime context is available,
+        virtual files aren't supported, or the buffer is empty.
+        """
+        from marimo._runtime.context import get_context
+
+        vfile_name = random_filename(ext)
+
+        def return_data_url() -> VirtualFile:
+            return VirtualFile(
+                filename=vfile_name, buffer=buffer, as_data_url=True
+            )
+
+        # Empty buffers can't be served via the file registry, so use a
+        # data URL instead to ensure the URL is always resolvable.
+        if len(buffer) == 0:
+            return return_data_url()
+
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            return return_data_url()
+
+        if not ctx.virtual_files_supported:
+            return return_data_url()
+
+        vfile = VirtualFile(filename=vfile_name, buffer=buffer)
+        ctx.virtual_file_registry.add(vfile, ctx)
+        return vfile
 
 
 EMPTY_VIRTUAL_FILE = VirtualFile(
@@ -182,7 +218,17 @@ class VirtualFileRegistry:
 
     def __post_init__(self) -> None:
         # Set singleton reference for read_virtual_file()
-        VirtualFileStorageManager().storage = self.storage
+        manager = VirtualFileStorageManager()
+        if manager.storage is None:
+            # Not set yet, _or_ was stale
+            manager.storage = self.storage
+        elif self.storage is not manager.storage:
+            # Long running asgi apps, and embedded cases trigger this.
+            LOGGER.debug(
+                "Expected shared global storage but VirtualFileRegistry was initialized "
+                "with new storage instance. Overriding with global storage.",
+            )
+            self.storage = manager.storage
 
     def __del__(self) -> None:
         self.shutdown()
@@ -243,7 +289,7 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            self.storage.shutdown()
+            self.storage.shutdown(keys=self.registry.keys())
             self.registry.clear()
         finally:
             self.shutting_down = False
@@ -256,6 +302,25 @@ def _without_leading_dot(ext: str) -> str:
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
     try:
         return VirtualFileStorageManager().read(filename, byte_length)
+    except KeyError as err:
+        raise HTTPException(
+            HTTPStatus.NOT_FOUND,
+            detail="File not found",
+        ) from err
+
+
+def read_virtual_file_chunked(
+    filename: str, byte_length: int
+) -> Iterator[bytes]:
+    """Read a virtual file in chunks for streaming responses.
+
+    Yields chunks of bytes, avoiding holding the entire file in memory
+    as a single bytes object.
+    """
+    try:
+        yield from VirtualFileStorageManager().read_chunked(
+            filename, byte_length
+        )
     except KeyError as err:
         raise HTTPException(
             HTTPStatus.NOT_FOUND,

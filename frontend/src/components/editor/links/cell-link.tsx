@@ -97,6 +97,7 @@ export function scrollAndHighlightCell(
 ): boolean {
   const cellHtmlId = HTMLCellId.create(cellId);
   const cell: HTMLElement | null = document.getElementById(cellHtmlId);
+  const isCellErrored = cell?.classList.contains("has-error");
 
   if (cell === null) {
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
@@ -106,13 +107,13 @@ export function scrollAndHighlightCell(
     cell.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  if (variant === "destructive") {
+  if (variant === "destructive" || (isCellErrored && variant === undefined)) {
     cell.classList.add("error-outline");
     setTimeout(() => {
       cell.classList.remove("error-outline");
     }, 2000);
   }
-  if (variant === "focus") {
+  if (variant === "focus" || (!isCellErrored && variant === undefined)) {
     cell.classList.add("focus-outline");
     setTimeout(() => {
       cell.classList.remove("focus-outline");

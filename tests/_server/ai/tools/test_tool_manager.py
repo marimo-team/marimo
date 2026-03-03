@@ -71,18 +71,19 @@ def test_validate_backend_tool_arguments(manager: ToolManager):
 
     # Test valid arguments
     is_valid, error = manager._validate_backend_tool_arguments(
-        "get_cell_runtime_data", {"session_id": "test", "cell_id": "cell1"}
+        "get_cell_runtime_data",
+        {"session_id": "test", "cell_ids": ["cell1"]},
     )
     assert is_valid is True
     assert error == ""
 
-    # Test missing required argument
+    # Test invalid argument (unknown key)
     is_valid, error = manager._validate_backend_tool_arguments(
         "get_cell_runtime_data",
-        {"session_id": "test"},  # missing cell_id
+        {"session_id": "test", "bad_key": "value"},
     )
     assert is_valid is False
-    assert "missing 1 required positional argument: 'cell_id'" in error
+    assert "Invalid arguments" in error
 
 
 def test_get_tool(manager: ToolManager):

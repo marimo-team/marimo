@@ -1,3 +1,7 @@
+---
+description: "Get started with marimo: install the reactive Python notebook, learn the basics, and explore key concepts."
+---
+
 # Getting Started
 
 These tutorials will help you get started with marimo

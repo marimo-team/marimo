@@ -9,13 +9,14 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -112,6 +113,7 @@ def _():
     import matplotlib.pyplot as plt
     import matplotlib.animation as animation
     from matplotlib.patches import Rectangle
+
     return Rectangle, animation, plt
 
 
@@ -203,6 +205,7 @@ def _(create_animation):
             axis, ani = None
 
         return axis, ani, collision_count
+
     return (simulate_collisions,)
 
 

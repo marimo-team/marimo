@@ -38,8 +38,10 @@ from marimo._runtime.context import teardown_context
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.runner.hooks import create_default_hooks
 from marimo._runtime.runtime import Kernel
 from marimo._save.stubs.module_stub import ModuleStub
+from marimo._server.utils import initialize_mimetypes
 from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
@@ -49,6 +51,9 @@ if TYPE_CHECKING:
 
 # register import hooks for third-party module formatters
 register_formatters()
+
+# Initialize mimetypes for consistent behavior across platforms (especially Windows)
+initialize_mimetypes()
 
 
 def pytest_collection_modifyitems(
@@ -166,7 +171,10 @@ class MockStdin(ThreadSafeStdin):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def _readline_with_prompt(self, prompt: str = "") -> str:
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
+        del password
         return prompt
 
 
@@ -205,6 +213,7 @@ class MockedKernel:
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,
             module=module,
+            hooks=create_default_hooks(),
         )
 
         initialize_kernel_context(
@@ -415,6 +424,8 @@ def app() -> Generator[App, None, None]:
 
 
 class TestableModuleStub(ModuleStub):
+    __test__ = False
+
     def __eq__(self, other: Any) -> bool:
         # Used for testing, equality otherwise not useful.
         if not isinstance(other, ModuleStub):

@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.chat.chat import (
 from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.functions import EmptyArgs
 from marimo._runtime.runtime import Kernel
+from marimo._utils.platform import is_windows
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -522,6 +523,20 @@ def test_chat_with_show_configuration_controls():
     assert chat._component_args["show-configuration-controls"] is True
 
 
+def test_chat_disabled():
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+    assert chat._component_args["disabled"] is False
+
+    chat_disabled = ui.chat(mock_model, disabled=True)
+    assert chat_disabled._component_args["disabled"] is True
+
+
 async def test_chat_clear_messages():
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
@@ -880,6 +895,65 @@ def test_serialize_only_dict_chunks():
     ]
 
 
+def test_serialize_str_subclass():
+    """Ensure str subclasses (like weave's BoxedStr) are coerced to plain str."""
+
+    class BoxedStr(str):
+        """Mock of weave's BoxedStr - a str subclass with extra attributes."""
+
+        def __new__(cls, value):
+            instance = super().__new__(cls, value)
+            instance._id = "trace_123"
+            instance.ref = "weave://entity/project/..."
+            return instance
+
+    sent_chunks: list[dict] = []
+
+    def on_send_chunk(chunk: dict):
+        sent_chunks.append(chunk)
+
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
+
+    boxed = BoxedStr("Hello from weave")
+    serializer.handle_chunk(boxed)
+
+    # Should have text-start and text-delta
+    assert len(sent_chunks) == 2
+    assert sent_chunks[0]["type"] == "text-start"
+    assert sent_chunks[1]["type"] == "text-delta"
+    # Critical: delta should be plain str, not BoxedStr
+    assert sent_chunks[1]["delta"] == "Hello from weave"
+    assert type(sent_chunks[1]["delta"]) is str  # Exact type check
+
+
+# TODO(dmadisetti): Resolve weave / windows issue. Raised upstream
+@pytest.mark.skipif(
+    not DependencyManager.weave.has() or is_windows(),
+    reason="weave is not installed",
+)
+def test_serialize_weave_boxed_str():
+    """Integration test with actual weave BoxedStr."""
+    import weave
+
+    @weave.op
+    def traced_fn() -> str:
+        return "traced response"
+
+    result = traced_fn()
+
+    sent_chunks: list[dict] = []
+
+    def on_send_chunk(chunk: dict):
+        sent_chunks.append(chunk)
+
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
+    serializer.handle_chunk(result)
+
+    assert len(sent_chunks) == 2
+    assert sent_chunks[1]["type"] == "text-delta"
+    assert type(sent_chunks[1]["delta"]) is str
+
+
 @pytest.mark.skipif(
     not DependencyManager.pydantic_ai.has(),
     reason="Pydantic AI is not installed",
@@ -895,13 +969,57 @@ def test_serialize_pydantic_chunk():
 
     serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
-    # Pydantic BaseChunk should be serialized with model_dump
     chunk = TextDeltaChunk(id="text-1", delta="Hello")
     serializer.handle_chunk(chunk)
 
     # Should be a dict with camelCase keys (by_alias=True)
     assert sent_chunks == [
         {"type": "text-delta", "id": "text-1", "delta": "Hello"}
+    ]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="Pydantic AI is not installed",
+)
+def test_serialize_pydantic_v5():
+    """Test ChunkSerializer excludes providerMetadata from tool-input-start for SDK v5.
+
+    The Vercel AI SDK v5 schema drifts from v6, so we need to use Pydantic's handling.
+
+    Since pydantic-ai uses toolCallId, providerMetadata must be excluded.
+    See: https://github.com/pydantic/pydantic-ai/pull/4166
+    """
+    from pydantic_ai.ui.vercel_ai.response_types import ToolInputStartChunk
+
+    sent_chunks: list[dict] = []
+
+    def on_send_chunk(chunk: dict):
+        sent_chunks.append(chunk)
+
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
+
+    # Create chunk with providerMetadata (like Google Gemini produces)
+    chunk = ToolInputStartChunk(
+        tool_call_id="tc_1",
+        tool_name="my_tool",
+        provider_metadata={
+            "pydantic_ai": {
+                "id": "test_id",
+                "provider_name": "google-gla",
+                "provider_details": {"thought_signature": "encrypted_data"},
+            }
+        },
+    )
+    serializer.handle_chunk(chunk)
+
+    # providerMetadata should be excluded for SDK v5 compatibility
+    assert sent_chunks == [
+        {
+            "type": "tool-input-start",
+            "toolCallId": "tc_1",
+            "toolName": "my_tool",
+        }
     ]
 
 

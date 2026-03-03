@@ -32,6 +32,7 @@ import {
   type TreeApi,
 } from "react-arborist";
 import useEvent from "react-use-event-hook";
+import { MarimoIcon, MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
@@ -60,7 +61,6 @@ import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
-import marimoIcon from "../../../assets/icon-32x32.png";
 import { useTreeDndManager } from "./dnd-wrapper";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
@@ -128,6 +128,15 @@ export const FileExplorer: React.FC<{
     });
   });
 
+  const handleCreateNotebook = useEvent(async () => {
+    openPrompt({
+      title: "Notebook name",
+      onConfirm: async (name) => {
+        tree.createFile(name, null, "notebook");
+      },
+    });
+  });
+
   const handleCollapseAll = useEvent(() => {
     treeRef.current?.closeAll();
     setOpenState({});
@@ -182,6 +191,7 @@ export const FileExplorer: React.FC<{
         onRefresh={handleRefresh}
         onHidden={handleHiddenFilesToggle}
         onCreateFile={handleCreateFile}
+        onCreateNotebook={handleCreateNotebook}
         onCreateFolder={handleCreateFolder}
         onCollapseAll={handleCollapseAll}
         tree={tree}
@@ -248,6 +258,7 @@ interface ToolbarProps {
   onRefresh: () => void;
   onHidden: () => void;
   onCreateFile: () => void;
+  onCreateNotebook: () => void;
   onCreateFolder: () => void;
   onCollapseAll: () => void;
   tree: RequestingTree;
@@ -257,6 +268,7 @@ const Toolbar = ({
   onRefresh,
   onHidden,
   onCreateFile,
+  onCreateNotebook,
   onCreateFolder,
   onCollapseAll,
 }: ToolbarProps) => {
@@ -267,6 +279,16 @@ const Toolbar = ({
 
   return (
     <div className="flex items-center justify-end px-2 shrink-0 border-b">
+      <Tooltip content="Add notebook">
+        <Button
+          data-testid="file-explorer-add-notebook-button"
+          onClick={onCreateNotebook}
+          variant="text"
+          size="xs"
+        >
+          <MarimoPlusIcon size={16} />
+        </Button>
+      </Tooltip>
       <Tooltip content="Add file">
         <Button
           data-testid="file-explorer-add-file-button"
@@ -467,6 +489,16 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     });
   });
 
+  const handleCreateNotebook = useEvent(async () => {
+    node.open();
+    openPrompt({
+      title: "Notebook name",
+      onConfirm: async (name) => {
+        tree?.createFile(name, node.id, "notebook");
+      },
+    });
+  });
+
   const handleDuplicate = useEvent(async () => {
     if (!tree || node.data.isDirectory) {
       return;
@@ -510,7 +542,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     return (
       <DropdownMenuContent
         align="end"
-        className="no-print w-[220px]"
+        className="print:hidden w-[220px]"
         onClick={(e) => e.stopPropagation()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
@@ -532,6 +564,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         )}
         {node.data.isDirectory && (
           <>
+            <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
+              <MarimoPlusIcon {...iconProps} />
+              Create notebook
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleCreateFile()}>
               <FilePlus2Icon {...iconProps} />
               Create file
@@ -661,11 +697,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         )}
       >
         {node.data.isMarimoFile ? (
-          <img
-            src={marimoIcon}
-            className="w-5 h-5 shrink-0 mr-2 filter grayscale"
-            alt="Marimo"
-          />
+          <MarimoIcon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
         ) : (
           <Icon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
         )}

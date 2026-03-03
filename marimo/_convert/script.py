@@ -17,9 +17,9 @@ def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
         if not cell:
             continue
         if cell._is_coroutine:
-            from click import UsageError
+            from click import ClickException
 
-            raise UsageError(
+            raise ClickException(
                 "Cannot export a notebook with async code to a flat script"
             )
 

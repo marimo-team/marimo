@@ -19,6 +19,7 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import {
   connectedDocAtom,
@@ -149,6 +150,17 @@ const CellEditorInternal = ({
       autoInstantiate,
       createNewCell: cellActions.createNewCell,
     });
+    // Code stays visible until the user blurs the cell
+    if (!cellConfig.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
+      void saveCellConfig({
+        configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
+      });
+      cellActions.updateCellConfig({
+        cellId,
+        config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
+      });
+      cellActions.markUntouched({ cellId });
+    }
   });
 
   const aiEnabled = isAiEnabled(userConfig);

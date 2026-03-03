@@ -14,7 +14,7 @@ from typing import (
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.hypertext import is_no_js
+from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -135,8 +135,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     Use `mo.ui.plotly` to make plotly plots reactive: select data with your
     cursor on the frontend, get them as a list of dicts in Python!
 
-    This function supports scatter plots, line charts, area charts, bar charts,
-    treemap charts, sunburst charts, and heatmaps.
+    This function supports scatter plots, scattergl plots, line charts, area
+    charts, bar charts, treemap charts, sunburst charts, and heatmaps.
 
     Examples:
         ```python
@@ -307,7 +307,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
 
     # Override _mime_ to return plotly HTML in non-JS environments
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        if is_no_js():
+        if is_non_interactive():
             return ("text/html", self._figure._repr_html_())
         return ("text/html", self.text)
 
@@ -363,8 +363,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             for trace in self._figure.data
         )
 
+        scatter_trace_types = {"scatter", "scattergl"}
         has_scatter = any(
-            getattr(trace, "type", None) == "scatter"
+            getattr(trace, "type", None) in scatter_trace_types
             for trace in self._figure.data
         )
 
@@ -389,6 +390,22 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # Plotly may not send point data for pure line charts, so we extract manually
         if has_scatter and value.get("range"):
             _append_scatter_points_to_selection(
+                self._figure, self._selection_data
+            )
+
+        # Check for map-based scatter traces (scattermap, scattermapbox, scattergeo)
+        # These use lat/lon instead of x/y
+        map_scatter_types = ("scattermap", "scattermapbox", "scattergeo")
+        has_map_scatter = any(
+            getattr(trace, "type", None) in map_scatter_types
+            for trace in self._figure.data
+        )
+
+        # For map scatter traces, extract points from the selection
+        # Unlike regular scatter, map selections don't have a "range" - they have
+        # direct point selection via lasso/box select on the map
+        if has_map_scatter:
+            _append_map_scatter_points_to_selection(
                 self._figure, self._selection_data
             )
 
@@ -535,9 +552,9 @@ def _extract_heatmap_cells_numpy(
 def _append_scatter_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:
-    """Append scatter/line points within the selection range to the selection data.
+    """Append scatter/scattergl/line points within range to selection data.
 
-    This modifies selection_data in place, appending any scatter/line points
+    This modifies selection_data in place, appending any scatter/scattergl/line points
     that fall within the x-range to the existing points and indices.
 
     For line charts, Plotly may not send point-level data in the selection event
@@ -599,7 +616,7 @@ def _append_scatter_points_to_selection(
 def _extract_scatter_points_from_range(
     figure: go.Figure, range_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points that fall within a selection range.
+    """Extract scatter/scattergl/line points in a selection range.
 
     This follows Altair's behavior: returns all points where x is within
     the x-range, regardless of y value.
@@ -622,7 +639,7 @@ def _extract_scatter_points_numpy(
     x_min: float,
     x_max: float,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points using numpy for better performance."""
+    """Extract scatter/scattergl/line points using numpy."""
     import numpy as np
 
     selected_points: list[dict[str, Any]] = []
@@ -640,8 +657,8 @@ def _extract_scatter_points_numpy(
     y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
 
     for trace_idx, trace in enumerate(figure.data):
-        # Only process scatter traces (which includes lines, markers, lines+markers)
-        if getattr(trace, "type", None) != "scatter":
+        # Process scatter-like traces (includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
             continue
 
         x_data = getattr(trace, "x", None)
@@ -711,7 +728,7 @@ def _extract_scatter_points_fallback(
     x_min: float,
     x_max: float,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points using pure Python (fallback when numpy unavailable)."""
+    """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
 
     # Get axis titles for field naming
@@ -727,8 +744,8 @@ def _extract_scatter_points_fallback(
     y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
 
     for trace_idx, trace in enumerate(figure.data):
-        # Only process scatter traces (which includes lines, markers, lines+markers)
-        if getattr(trace, "type", None) != "scatter":
+        # Process scatter-like traces (includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
             continue
 
         x_data = getattr(trace, "x", None)
@@ -1070,3 +1087,72 @@ def _extract_bars_fallback(
                     )
 
     return selected_bars
+
+
+def _append_map_scatter_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Extract points from map scatter traces (scattermap, scattermapbox, scattergeo).
+
+    These traces use lat/lon instead of x/y. If the frontend already sent
+    points with lat/lon, we preserve them. Otherwise, we extract from trace data.
+    """
+    existing_points = [p for p in selection_data.get("points", []) if p]
+    indices = selection_data.get("indices", [])
+
+    # If frontend already sent lat/lon points, nothing to do
+    if existing_points and any(
+        "lat" in p or "lon" in p for p in existing_points
+    ):
+        return
+
+    # Extract points from trace data using indices
+    if not indices or existing_points:
+        return
+
+    map_types = ("scattermap", "scattermapbox", "scattergeo")
+    extracted: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) not in map_types:
+            continue
+
+        lat_data = getattr(trace, "lat", None)
+        lon_data = getattr(trace, "lon", None)
+        if lat_data is None or lon_data is None:
+            continue
+
+        for idx in indices:
+            if not (0 <= idx < len(lat_data)):
+                continue
+
+            point: dict[str, Any] = {
+                "lat": lat_data[idx],
+                "lon": lon_data[idx],
+                "pointIndex": idx,
+                "curveNumber": trace_idx,
+            }
+
+            # Add optional fields
+            customdata = getattr(trace, "customdata", None)
+            if customdata is not None and idx < len(customdata):
+                point["customdata"] = customdata[idx]
+
+            text = getattr(trace, "text", None)
+            if text is not None:
+                point["text"] = text if isinstance(text, str) else text[idx]
+
+            hovertext = getattr(trace, "hovertext", None)
+            if hovertext is not None:
+                point["hovertext"] = (
+                    hovertext if isinstance(hovertext, str) else hovertext[idx]
+                )
+
+            name = getattr(trace, "name", None)
+            if name:
+                point["name"] = name
+
+            extracted.append(point)
+
+    if extracted:
+        selection_data["points"] = extracted

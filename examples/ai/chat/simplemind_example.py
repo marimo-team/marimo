@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -25,6 +25,7 @@ def _():
     import marimo as mo
     import os
     import simplemind as sm
+
     return mo, os, sm
 
 
@@ -73,6 +74,7 @@ def _(set_logs, sm):
 
         def post_send_hook(self, conversation, response):
             add_log(f"Received response: {response.text}")
+
     return (LoggingPlugin,)
 
 

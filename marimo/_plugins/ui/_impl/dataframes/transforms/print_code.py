@@ -222,8 +222,10 @@ def python_print_pandas(
             index_columns = _list_of_strings(
                 list(
                     filter(
-                        lambda col: col not in transform.column_ids
-                        and col not in transform.value_column_ids,
+                        lambda col: (
+                            col not in transform.column_ids
+                            and col not in transform.value_column_ids
+                        ),
                         all_columns,
                     )
                 )
@@ -235,8 +237,10 @@ def python_print_pandas(
             value_columns = _list_of_strings(
                 list(
                     filter(
-                        lambda col: col not in transform.column_ids
-                        and col not in transform.index_column_ids,
+                        lambda col: (
+                            col not in transform.column_ids
+                            and col not in transform.index_column_ids
+                        ),
                         all_columns,
                     )
                 )
@@ -440,8 +444,10 @@ def python_print_polars(
             index_column_ids = _list_of_strings(
                 list(
                     filter(
-                        lambda col: col not in transform.column_ids
-                        and col not in transform.value_column_ids,
+                        lambda col: (
+                            col not in transform.column_ids
+                            and col not in transform.value_column_ids
+                        ),
                         all_columns,
                     )
                 )
@@ -453,8 +459,10 @@ def python_print_polars(
             value_column_ids = _list_of_strings(
                 list(
                     filter(
-                        lambda col: col not in transform.column_ids
-                        and col not in transform.index_column_ids,
+                        lambda col: (
+                            col not in transform.column_ids
+                            and col not in transform.index_column_ids
+                        ),
                         all_columns,
                     )
                 )
@@ -623,8 +631,10 @@ def python_print_ibis(
             index_column_ids = _list_of_strings(
                 list(
                     filter(
-                        lambda col: col not in transform.column_ids
-                        and col not in transform.value_column_ids,
+                        lambda col: (
+                            col not in transform.column_ids
+                            and col not in transform.value_column_ids
+                        ),
                         all_columns,
                     )
                 )
@@ -636,8 +646,10 @@ def python_print_ibis(
             value_column_ids = _list_of_strings(
                 list(
                     filter(
-                        lambda col: col not in transform.column_ids
-                        and col not in transform.index_column_ids,
+                        lambda col: (
+                            col not in transform.column_ids
+                            and col not in transform.index_column_ids
+                        ),
                         all_columns,
                     )
                 )

@@ -259,6 +259,67 @@ result = {
 json.dumps(result)
 `);
 
+    // Step 6: Test mo.watch.file in Pyodide (within execution context)
+    console.log("Step 6: Testing mo.watch.file in Pyodide...");
+
+    // Use bridge.put_control_request to run code within the marimo execution context
+    // This ensures runtime_context_installed() returns True
+    await pyodide.runPythonAsync(`
+import json
+from pathlib import Path
+
+# Create a test file first
+test_file_path = Path("/home/pyodide/watch_test.txt")
+test_file_path.write_text("initial content")
+print(f"Created test file: {test_file_path}")
+
+# Run code within the marimo execution context using the bridge
+# This simulates what happens when a cell runs mo.watch.file
+code_to_run = '''
+import marimo as mo
+from pathlib import Path
+
+# This should NOT throw an error in Pyodide - it should gracefully degrade
+# by logging a warning and returning a FileState that can still read/write
+test_file_path = Path("/home/pyodide/watch_test.txt")
+file_state = mo.watch.file(test_file_path)
+
+# Verify we can read the file
+content = file_state.read_text()
+assert content == "initial content", f"Expected 'initial content', got '{content}'"
+
+# Verify we can write to the file
+file_state.write_text("new content")
+updated_content = file_state.read_text()
+assert updated_content == "new content", f"Expected 'new content', got '{updated_content}'"
+
+# Verify basic Path methods still work
+assert file_state.exists(), "File should exist"
+assert file_state.name == "watch_test.txt", f"Expected 'watch_test.txt', got '{file_state.name}'"
+
+# Return success indicator
+file_state_type = type(file_state).__name__
+'''
+
+# Use the bridge to run the code in the execution context
+# ExecuteCellsCommand expects cell_ids and codes arrays
+bridge.put_control_request(json.dumps({
+    "type": "execute-cells",
+    "cellIds": ["test_watch_cell"],
+    "codes": [code_to_run]
+}))
+
+# Wait for execution to complete
+await asyncio.sleep(1.0)
+
+# Verify the file was modified (proves write_text worked)
+final_content = test_file_path.read_text()
+assert final_content == "new content", f"Expected 'new content', got '{final_content}'"
+print(f"Final file content verified: '{final_content}' - OK")
+
+print("\\nmo.watch.file works correctly in Pyodide execution context!")
+`);
+
     console.log("");
     console.log("Verification results:", result);
     console.log("");

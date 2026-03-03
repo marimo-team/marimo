@@ -1,10 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
+#
+# NB: Do not import click top-level. This module is imported in WASM, which
+# does not have access to click.
 
 from __future__ import annotations
 
 import os
 import sys
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from marimo._config.settings import GLOBAL_SETTINGS
 
@@ -39,55 +42,116 @@ def _supports_color() -> bool:
 _USE_COLOR = _supports_color()
 
 
+_ANSI_COLORS = {
+    "black": 30,
+    "red": 31,
+    "green": 32,
+    "yellow": 33,
+    "blue": 34,
+    "magenta": 35,
+    "cyan": 36,
+    "white": 37,
+    "bright_black": 90,
+    "bright_red": 91,
+    "bright_green": 92,
+    "bright_yellow": 93,
+    "bright_blue": 94,
+    "bright_magenta": 95,
+    "bright_cyan": 96,
+    "bright_white": 97,
+}
+
+
+class _StyleFn(Protocol):
+    def __call__(
+        self,
+        text: str,
+        *,
+        fg: str | None = ...,
+        bold: bool = ...,
+        dim: bool = ...,
+    ) -> str: ...
+
+
+def _ansi_style(
+    text: str,
+    *,
+    fg: str | None = None,
+    bold: bool = False,
+    dim: bool = False,
+) -> str:
+    """Minimal ANSI fallback for environments without click (e.g. WASM)."""
+    codes: list[int] = []
+    if fg and fg in _ANSI_COLORS:
+        codes.append(_ANSI_COLORS[fg])
+    if bold:
+        codes.append(1)
+    if dim:
+        codes.append(2)
+    if not codes:
+        return text
+    return f"\033[{';'.join(str(c) for c in codes)}m{text}\033[0m"
+
+
+def _noop_style(
+    text: str,
+    *,
+    fg: str | None = None,
+    bold: bool = False,
+    dim: bool = False,
+) -> str:
+    del fg, bold, dim
+    return text
+
+
+def _resolve_style() -> _StyleFn:
+    if not _USE_COLOR:
+        return _noop_style
+    try:
+        import click
+
+        return click.style
+    except ModuleNotFoundError:
+        return _ansi_style
+
+
+_style: _StyleFn = _resolve_style()
+
+
 def bold(text: str) -> str:
-    return "\033[1m" + text + "\033[0m" if _USE_COLOR else text
+    return _style(text, bold=True)
 
 
 def green(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    prefix = "\033[32m" if not bold else "\033[1;32m"
-    return prefix + text + "\033[0m"
+    return _style(text, fg="green", bold=bold)
+
+
+def bright_green(text: str, bold: bool = False) -> str:
+    return _style(text, fg="bright_green", bold=bold)
 
 
 def yellow(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    prefix = "\033[33m" if not bold else "\033[1;33m"
-    return prefix + text + "\033[0m"
+    return _style(text, fg="yellow", bold=bold)
 
 
 def orange(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    prefix = "\033[33m" if not bold else "\033[1;33m"
-    return prefix + text + "\033[0m"
+    return _style(text, fg="yellow", bold=bold)
 
 
 def red(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    prefix = "\033[31m" if not bold else "\033[1;31m"
-    return prefix + text + "\033[0m"
+    return _style(text, fg="red", bold=bold)
 
 
 def cyan(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    prefix = "\033[94m" if not bold else "\033[1;94m"
-    return prefix + text + "\033[0m"
+    return _style(text, fg="bright_blue", bold=bold)
 
 
 def light_blue(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    prefix = "\033[96m" if not bold else "\033[1;96m"
-    return prefix + text + "\033[0m"
+    return _style(text, fg="bright_cyan", bold=bold)
 
 
 def muted(text: str) -> str:
-    # Use dark gray (37 is white, 2 is dim) which is more widely supported than 90
-    return "\033[37;2m" + text + "\033[0m" if _USE_COLOR else text
+    return _style(text, fg="white", dim=True)
 
 
 def _echo_or_print(*args: Any, **kwargs: Any) -> None:

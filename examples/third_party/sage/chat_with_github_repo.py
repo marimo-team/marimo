@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -123,6 +124,7 @@ def _(
             history_aware_retriever, question_answer_chain
         )
         return rag_chain
+
     return (build_rag_chain,)
 
 
@@ -218,6 +220,7 @@ def _(AIMessage, HumanMessage, args, build_rag_chain, logging, mo):
                         logging.info(f"Query rewrite: {query_rewrite}")
                     response += chunk
                     yield mo.md(response)
+
     return (predict,)
 
 

@@ -214,16 +214,19 @@ describe("CollapsibleTree", () => {
     `);
   });
 
-  it("fails to expand", () => {
+  it("fails to expand when node not found", () => {
     expect(() => tree.expand("five")).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node five not found in tree. Valid ids: one,two,three,four]",
     );
-    expect(() => {
-      tree.expand("one");
-      tree.expand("one");
-    }).toThrowErrorMatchingInlineSnapshot(
-      "[Error: Node one is already expanded]",
-    );
+  });
+
+  it("expand on already expanded node is a no-op", () => {
+    // Expanding an already expanded node should return the same tree (no-op)
+    const result = tree.expand("one");
+    expect(result).toBe(tree);
+    // Can call multiple times without error
+    const result2 = tree.expand("one");
+    expect(result2).toBe(tree);
   });
 
   it("moves nodes correctly", () => {
@@ -374,6 +377,18 @@ describe("CollapsibleTree", () => {
       "one
       three (collapsed)
         four
+      "
+    `);
+  });
+
+  it("can delete non-collapsed nodes without throwing", () => {
+    // Deleting a non-collapsed node should not throw
+    // (previously this would throw "Node is already expanded" internally)
+    const result = tree.deleteAtIndex(1);
+    expect(result.toString()).toMatchInlineSnapshot(`
+      "one
+      three
+      four
       "
     `);
   });

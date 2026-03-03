@@ -14,10 +14,11 @@ import markdown.preprocessors  # type: ignore
 import pymdownx.emoji  # type: ignore
 
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.hypertext import Html, is_no_js
+from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.md_extensions.breakless_lists import (
     BreaklessListsExtension,
 )
+from marimo._output.md_extensions.display_math import DisplayMathExtension
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
 from marimo._output.md_extensions.flexible_indent import (
     FlexibleIndentExtension,
@@ -175,6 +176,7 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         "tables",
         # LaTeX
         "pymdownx.arithmatex",
+        DisplayMathExtension(),
         # Subscripts and strikethrough
         "pymdownx.tilde",
         # Superscripts and insert
@@ -268,7 +270,7 @@ class _md(Html):
         return self._markdown_text
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        no_js = is_no_js()
+        no_js = is_non_interactive()
         if no_js:
             return ("text/markdown", self._markdown_text)
         # We return text/markdown instead of text/html

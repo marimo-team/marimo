@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -63,6 +63,7 @@ def _(df, mo):
             selection=None,
             show_column_summaries=False,
         )
+
     return chart_data, ell, filter_dataset
 
 

@@ -5,9 +5,10 @@
 #     "plotly==6.5.1",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -15,11 +16,12 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import plotly.graph_objects as go
+
     return go, mo
 
 
 @app.cell
-def _(go, mo):
+def _(mo):
     mo.md("""
     # Plotly Bar Chart Selection
 
@@ -50,8 +52,7 @@ def _(go, mo):
 
     # Wrap with mo.ui.plotly to make it reactive
     bar_chart = mo.ui.plotly(fig_simple)
-
-    return bar_chart, fig_simple
+    return (bar_chart,)
 
 
 @app.cell
@@ -103,12 +104,11 @@ def _(go, mo):
     )
 
     stacked_chart = mo.ui.plotly(fig_stacked)
-
-    return fig_stacked, stacked_chart
+    return (stacked_chart,)
 
 
 @app.cell
-def _(stacked_chart, mo):
+def _(mo, stacked_chart):
     mo.md(f"""
     ### Stacked Bar Chart
 
@@ -156,8 +156,7 @@ def _(go, mo):
     )
 
     grouped_chart = mo.ui.plotly(fig_grouped)
-
-    return fig_grouped, grouped_chart
+    return (grouped_chart,)
 
 
 @app.cell
@@ -199,8 +198,7 @@ def _(go, mo):
     )
 
     horizontal_chart = mo.ui.plotly(fig_horizontal)
-
-    return fig_horizontal, horizontal_chart
+    return (horizontal_chart,)
 
 
 @app.cell

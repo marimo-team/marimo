@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -119,7 +119,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mo, mytable):
     _df = mo.sql(
         f"""
         SELECT * FROM myTable

@@ -113,6 +113,8 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   previewSQLTableList: "waitForConnectionOpen",
   previewDataSourceConnection: "waitForConnectionOpen",
   validateSQL: "waitForConnectionOpen",
+  listStorageEntries: "waitForConnectionOpen",
+  downloadStorage: "waitForConnectionOpen",
 
   // Sync operations that wait for connection
   syncCellIds: "waitForConnectionOpen",

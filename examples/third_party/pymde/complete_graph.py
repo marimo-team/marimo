@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -87,18 +87,21 @@ def _(pymde):
         )
         mde.embed(verbose=True)
         return mde.plot(edges=edges)
+
     return (complete_graph,)
 
 
 @app.cell
 def _():
     import pymde
+
     return (pymde,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

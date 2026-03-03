@@ -1,12 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { toPng } from "html-to-image";
+
+import React from "react";
 import { toast } from "@/components/ui/use-toast";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
+import { toPng } from "./html-to-image";
+import { captureExternalIframes } from "./iframe";
 import { Logger } from "./Logger";
+import { ProgressState } from "./progress";
+import { ToastProgress } from "./toast-progress";
+
+const FINISH_TOAST_DURATION_MS = 1200;
+type ToastConfig = Omit<Parameters<typeof toast>[0], "id">;
 
 /**
  * Show a loading toast while an async operation is in progress.
@@ -14,15 +22,26 @@ import { Logger } from "./Logger";
  */
 export async function withLoadingToast<T>(
   title: string,
-  fn: () => Promise<T>,
+  fn: (progress: ProgressState) => Promise<T>,
+  onFinish?: ToastConfig,
 ): Promise<T> {
+  const progress = ProgressState.indeterminate();
   const loadingToast = toast({
     title,
+    description: React.createElement(ToastProgress, { progress }),
     duration: Infinity,
   });
   try {
-    const result = await fn();
-    loadingToast.dismiss();
+    const result = await fn(progress);
+    if (onFinish) {
+      loadingToast.update({
+        duration: FINISH_TOAST_DURATION_MS,
+        description: undefined,
+        ...onFinish,
+      });
+    } else {
+      loadingToast.dismiss();
+    }
     return result;
   } catch (error) {
     loadingToast.dismiss();
@@ -39,45 +58,17 @@ function findElementForCell(cellId: CellId): HTMLElement | undefined {
   return element;
 }
 
-/**
- * Reference counter for body.printing class to handle concurrent screenshot captures.
- * Only adds the class when count goes 0→1, only removes when count goes 1→0.
- */
-let bodyPrintingRefCount = 0;
-
-function acquireBodyPrinting() {
-  bodyPrintingRefCount++;
-  if (bodyPrintingRefCount === 1) {
-    document.body.classList.add("printing");
-  }
-}
-
-function releaseBodyPrinting() {
-  bodyPrintingRefCount--;
-  if (bodyPrintingRefCount === 0) {
-    document.body.classList.remove("printing");
-  }
-}
-
-/*
- * Prepare a cell element for screenshot capture.
- * Returns a cleanup function that should be called when the screenshot is complete.
- */
-function prepareCellElementForScreenshot(element: HTMLElement) {
-  element.classList.add("printing-output");
-  acquireBodyPrinting();
-  const originalOverflow = element.style.overflow;
-  element.style.overflow = "auto";
-
-  return () => {
-    element.classList.remove("printing-output");
-    releaseBodyPrinting();
-    element.style.overflow = originalOverflow;
-  };
-}
+const THRESHOLD_TIME_MS = 500;
+const HIDE_SCROLLBAR_STYLES = `
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+`;
 
 /**
  * Capture a cell output as a PNG data URL.
+ *
+ * @param cellId - The ID of the cell to capture
+ * @returns The PNG as a data URL, or undefined if the cell element wasn't found
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
@@ -86,13 +77,34 @@ export async function getImageDataUrlForCell(
   if (!element) {
     return;
   }
-  const cleanup = prepareCellElementForScreenshot(element);
 
-  try {
-    return await toPng(element);
-  } finally {
-    cleanup();
+  // TODO: This doesn't handle external iframes + normal elements together (eg. in vstack).
+  // It will return the iframe only
+  const externalIframeDataUrl = await captureExternalIframes(element);
+  if (externalIframeDataUrl) {
+    return externalIframeDataUrl;
   }
+
+  const startTime = Date.now();
+  const dataUrl = await toPng(element, {
+    extraStyleContent: HIDE_SCROLLBAR_STYLES,
+    // Add these styles so the element output is not clipped
+    // Width can be clipped since pdf has limited width
+    style: {
+      maxHeight: "none",
+      overflow: "visible",
+    },
+    height: element.scrollHeight,
+  });
+  const timeTaken = Date.now() - startTime;
+  if (timeTaken > THRESHOLD_TIME_MS) {
+    Logger.debug(
+      "toPng operation for element",
+      element,
+      `took ${timeTaken} ms (exceeds threshold)`,
+    );
+  }
+  return dataUrl;
 }
 
 /**
@@ -102,17 +114,27 @@ export async function downloadCellOutputAsImage(
   cellId: CellId,
   filename: string,
 ) {
-  const element = findElementForCell(cellId);
-  if (!element) {
-    return;
+  try {
+    const dataUrl = await getImageDataUrlForCell(cellId);
+    if (!dataUrl) {
+      throw new Error("Failed to get image data URL");
+    }
+    downloadByURL(dataUrl, Filenames.toPNG(filename));
+  } catch (error) {
+    toast({
+      title: "Failed to download PNG",
+      description: prettyError(error),
+      variant: "danger",
+    });
   }
-
-  await downloadHTMLAsImage({
-    element,
-    filename,
-    prepare: prepareCellElementForScreenshot,
-  });
 }
+
+export const ADD_PRINTING_CLASS = (): (() => void) => {
+  document.body.classList.add("printing");
+  return () => {
+    document.body.classList.remove("printing");
+  };
+};
 
 export async function downloadHTMLAsImage(opts: {
   element: HTMLElement;
@@ -127,12 +149,7 @@ export async function downloadHTMLAsImage(opts: {
 
   let cleanup: (() => void) | undefined;
   if (prepare) {
-    // Let the prepare function handle adding classes (e.g., body.printing)
     cleanup = prepare(element);
-  } else {
-    // When no prepare function is provided (e.g., downloading full notebook),
-    // add body.printing ourselves
-    document.body.classList.add("printing");
   }
 
   try {
@@ -171,6 +188,8 @@ export function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export type PDFExportPreset = "document" | "slides";
+
 /**
  * Download the current notebook as a PDF file.
  *
@@ -180,13 +199,31 @@ export function downloadBlob(blob: Blob, filename: string) {
 export async function downloadAsPDF(opts: {
   filename: string;
   webpdf: boolean;
+  preset?: PDFExportPreset;
+  includeInputs?: boolean;
+  rasterizeOutputs?: boolean;
+  rasterScale?: number;
+  rasterServer?: "static" | "live";
 }) {
   const client = getRequestClient();
-  const { filename, webpdf } = opts;
+  const {
+    filename,
+    webpdf,
+    preset = "document",
+    includeInputs = false,
+    rasterizeOutputs = true,
+    rasterScale = 4,
+    rasterServer = "static",
+  } = opts;
 
   try {
     const pdfBlob = await client.exportAsPDF({
       webpdf,
+      preset,
+      includeInputs,
+      rasterizeOutputs,
+      rasterScale,
+      rasterServer,
     });
 
     const filenameWithoutPath = Paths.basename(filename);

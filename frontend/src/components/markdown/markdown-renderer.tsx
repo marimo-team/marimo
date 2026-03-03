@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorView } from "@codemirror/view";
+import { math } from "@streamdown/math";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { memo, Suspense, useState } from "react";
@@ -23,22 +24,6 @@ interface CodeBlockProps {
   code: string;
   language: string | undefined;
 }
-
-const SUPPORTED_LANGUAGES = new Set([
-  "python",
-  "markdown",
-  "sql",
-  "json",
-  "yaml",
-  "toml",
-  "shell",
-  "javascript",
-  "typescript",
-  "jsx",
-  "tsx",
-  "css",
-  "html",
-]);
 
 function maybeTransform(
   language: string | undefined,
@@ -127,10 +112,9 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
       <Suspense>
         <LazyAnyLanguageCodeMirror
           theme={theme === "dark" ? "dark" : "light"}
-          // Only show the language if it's supported
-          language={
-            language && SUPPORTED_LANGUAGES.has(language) ? language : undefined
-          }
+          language={language}
+          // Since this may be LLM generated, we don't want show errors for unsupported languages
+          hideUnsupportedLanguageErrors={true}
           className="cm border rounded overflow-hidden"
           extensions={extensions}
           value={value}
@@ -184,7 +168,11 @@ const COMPONENTS: Components = {
 
 export const MarkdownRenderer = memo(({ content }: { content: string }) => {
   return (
-    <Streamdown components={COMPONENTS} className="mo-markdown-renderer">
+    <Streamdown
+      components={COMPONENTS}
+      plugins={{ math }}
+      className="mo-markdown-renderer"
+    >
       {content}
     </Streamdown>
   );

@@ -20,14 +20,19 @@ contribution._ Get in touch at
 or [on Discord](https://marimo.io/discord?ref=contributing).
 
 ## Setup
+_Note: We recommend that Windows developers use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and clone the marimo repository [into the WSL environment and not the Windows mount](https://learn.microsoft.com/en-us/windows/wsl/filesystems)._
 
 Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed, using `hatch` as the environment manager.
 
 > [!NOTE]
 >
-> As an alternative to installing `pixi`, you can try developing in
-> [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
+> As an alternative to installing `pixi`, you can try developing in [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
 > Note that developing in Gitpod is not officially supported by the marimo team.
+
+> [!TIP]
+> New to both `pixi` and `hatch`? Pick `pixi`. It installs and manages both the Python and Node toolchains, then drops you into a ready shell with one command. Choose `hatch` only if you already maintain Node 20+/pnpm 9+ yourself and just want a Python environment manager. Typical flows:
+> - `pixi shell` → `make fe && make py` → `make dev`
+> - `hatch shell` → `make fe && make py` → `make dev`
 
 ```bash
 pixi shell

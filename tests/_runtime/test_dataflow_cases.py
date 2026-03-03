@@ -154,6 +154,7 @@ PYTHON_CASES = [
 SQL_CASES = [
     GraphTestCase(
         name="python -> sql",
+        enabled=HAS_DUCKDB,
         code={
             "0": "df = pd.read_csv('data.csv')",
             "1": "result = mo.sql(f'FROM df WHERE name = {name}')",
@@ -165,6 +166,7 @@ SQL_CASES = [
     ),
     GraphTestCase(
         name="sql -> python via output",
+        enabled=HAS_DUCKDB,
         code={
             "0": "result = mo.sql(f'FROM my_table WHERE name = {name}')",
             "1": "df = result.head()",
@@ -176,6 +178,7 @@ SQL_CASES = [
     ),
     GraphTestCase(
         name="sql -/> python when creating a table",
+        enabled=HAS_DUCKDB,
         code={
             "0": "_ = mo.sql(f'CREATE TABLE my_table (name STRING)')",
             "1": "my_table = df.head()",
@@ -187,6 +190,7 @@ SQL_CASES = [
     ),
     GraphTestCase(
         name="sql redefinition",
+        enabled=HAS_DUCKDB,
         code={
             "0": "df = pd.read_csv('data.csv')",
             "1": "df = mo.sql(f'FROM df')",

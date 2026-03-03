@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -394,6 +394,7 @@ def _():
     import marimo as mo
     import mortgage
     import numpy as np
+
     return mo, mortgage, np
 
 

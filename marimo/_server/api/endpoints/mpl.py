@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 from marimo import _loggers
+from marimo._server.api.auth import validate_auth
 from marimo._server.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
@@ -24,6 +25,12 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 figure_endpoints: dict[int, str] = {}
+
+# Maximum size for WebSocket messages received from the matplotlib server.
+# Matplotlib's WebAgg backend sends rendered figure PNGs over WebSocket,
+# which can exceed the websockets library's default 1 MB limit at higher
+# DPI settings or larger figure sizes.
+WS_MAX_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
 def mpl_fallback_handler(
@@ -132,6 +139,14 @@ async def _mpl_handler(
     """
     from starlette.responses import Response
 
+    # Validate authentication before proxying - prevents SSRF
+    if not validate_auth(request):
+        return Response(
+            content="Unauthorized",
+            status_code=401,
+            media_type="text/plain",
+        )
+
     # Proxy to matplotlib server
     # Determine the target port
     port = figure_endpoints.get(figurenum, None)
@@ -228,8 +243,12 @@ async def mpl_handler(request: Request) -> Response:
 async def mpl_websocket(websocket: WebSocket) -> None:
     """Proxy WebSocket connections to matplotlib server."""
     global figure_endpoints
-    port = str(websocket.path_params["port"])
+    # Only authenticated users can register figure->port mappings
+    if not validate_auth(websocket):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
 
+    port = str(websocket.path_params["port"])
     await websocket.accept()
 
     # Construct target WebSocket URL with query parameters
@@ -252,7 +271,9 @@ async def mpl_websocket(websocket: WebSocket) -> None:
         pass
 
     try:
-        async with websockets.connect(target_ws_url) as mpl_ws:
+        async with websockets.connect(
+            target_ws_url, max_size=WS_MAX_SIZE
+        ) as mpl_ws:
 
             async def forward_to_mpl() -> None:
                 try:

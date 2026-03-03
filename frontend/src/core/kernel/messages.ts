@@ -13,6 +13,7 @@ export const DATA_TYPES = [
   "time",
   "unknown",
 ] as const;
+export type ModelLifecycle = NotificationMessageData<"model-lifecycle">;
 export type Banner = NotificationMessageData<"banner">;
 export type AiInlineCompletionRequest = schemas["AiInlineCompletionRequest"];
 export type DataTableColumn = schemas["DataTableColumn"];

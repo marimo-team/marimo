@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -169,6 +169,7 @@ def _(mo):
 def _(np):
     def number_of_zeros(x):
         return np.isclose(x, 0).sum()
+
     return (number_of_zeros,)
 
 
@@ -186,6 +187,7 @@ def _(np, x_min_max):
         ax.set_xlabel('$x_i$')
         ax.set_ylabel('fraction of components')
         return ax
+
     return (cdf,)
 
 
@@ -204,6 +206,7 @@ def _(cp):
             problem.solve()
             return x.value
         return solve
+
     return (sparse_solver,)
 
 
@@ -212,18 +215,21 @@ def _():
     import cvxpy as cp
     import matplotlib.pyplot as plt
     import numpy as np
+
     return cp, np, plt
 
 
 @app.cell
 def _():
     import functools
+
     return (functools,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

@@ -19,7 +19,7 @@ export function parseContent(text: string): ContentPart[] {
     return [{ type: "image", url: text }];
   }
 
-  const parts = text.split(urlRegex).filter((part) => part.trim() !== "");
+  const parts = text.split(urlRegex).filter((part) => part !== "");
   return parts.map((part) => {
     const isUrl = urlRegex.test(part);
     if (isUrl) {

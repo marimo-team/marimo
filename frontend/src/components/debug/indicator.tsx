@@ -5,7 +5,7 @@ export const TailwindIndicator = () => {
   }
 
   return (
-    <div className="fixed bottom-10 right-0 z-50 flex items-center justify-center bg-gray-800 py-[2px] px-1 font-mono text-[10px] text-white font-semibold">
+    <div className="fixed bottom-10 right-0 z-50 flex items-center justify-center bg-gray-800 py-[2px] px-1 font-mono text-[10px] text-white font-semibold print:hidden">
       <div className="block sm:hidden">xs</div>
       <div className="hidden sm:block md:hidden lg:hidden xl:hidden 2xl:hidden">
         sm

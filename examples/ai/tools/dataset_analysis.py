@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -30,6 +30,7 @@ def _():
     import pyarrow
     import polars as pl
     from vega_datasets import data
+
     return alt, data, ell, mo, pl
 
 
@@ -112,6 +113,7 @@ def _(alt, cars, client, ell, schema):
     def analyze_dataset(prompt: str) -> str:
         """You are an agent that can analayze the a dataset"""
         return f"I have a dataset with schema: {schema}. \n{prompt}"
+
     return (analyze_dataset,)
 
 

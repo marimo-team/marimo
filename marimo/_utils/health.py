@@ -63,6 +63,28 @@ def get_node_version() -> Optional[str]:
         return None
 
 
+def get_uv_version() -> Optional[str]:
+    from marimo._utils.uv import find_uv_bin
+
+    try:
+        process = subprocess.Popen(
+            [find_uv_bin(), "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = communicate_with_timeout(process)
+        if stderr:
+            return None
+        if stdout and (stripped := stdout.strip()):
+            # `uv --version` outputs "uv X.Y.Z (hash date)"
+            return stripped.removeprefix("uv ")
+        else:
+            return None
+    except FileNotFoundError:
+        return None
+
+
 def get_required_modules_list() -> dict[str, str]:
     packages = [
         "click",

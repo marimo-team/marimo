@@ -167,6 +167,22 @@ def _forward_os_stream(
         ...
 
 
+class _NoOpWatcher:
+    """A dummy watcher that does nothing, used when fd redirection is off."""
+
+    def start(self) -> None:
+        pass
+
+    def pause(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+
+_NOOP_WATCHER = _NoOpWatcher()
+
+
 class Watcher:
     """Watches and redirects a standard stream."""
 
@@ -213,10 +229,14 @@ class ThreadSafeStdout(Stdout):
     errors = sys.stdout.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream):
+    def __init__(
+        self, stream: ThreadSafeStream, forward_os_streams: bool = True
+    ):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
-        self._watcher = Watcher(self)
+        self._watcher: Watcher | _NoOpWatcher = (
+            Watcher(self) if forward_os_streams else _NOOP_WATCHER
+        )
 
     def _stop(self) -> None:
         self._watcher.stop()
@@ -279,10 +299,14 @@ class ThreadSafeStderr(Stderr):
     errors = sys.stderr.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: ThreadSafeStream):
+    def __init__(
+        self, stream: ThreadSafeStream, forward_os_streams: bool = True
+    ):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
-        self._watcher = Watcher(self)
+        self._watcher: Watcher | _NoOpWatcher = (
+            Watcher(self) if forward_os_streams else _NOOP_WATCHER
+        )
 
     def _stop(self) -> None:
         self._watcher.stop()
@@ -361,7 +385,9 @@ class ThreadSafeStdin(Stdin):
     def readable(self) -> bool:
         return True
 
-    def _readline_with_prompt(self, prompt: str = "") -> str:
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
         assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
@@ -377,6 +403,9 @@ class ThreadSafeStdin(Stdin):
                 + " ... "
             )
 
+        mimetype: ConsoleMimeType = (
+            "text/password" if password else "text/plain"
+        )
         with self._stream.console_msg_cv:
             # This sends a prompt request to the frontend.
             self._stream.console_msg_queue.append(
@@ -384,7 +413,7 @@ class ThreadSafeStdin(Stdin):
                     stream=CellChannel.STDIN,
                     cell_id=self._stream.cell_id,
                     data=prompt,
-                    mimetype="text/plain",
+                    mimetype=mimetype,
                 )
             )
             self._stream.console_msg_cv.notify()
@@ -410,13 +439,9 @@ class ThreadSafeStdin(Stdin):
 def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     """Redirect a standard stream to the frontend."""
     try:
-        if isinstance(standard_stream, ThreadSafeStdout) or isinstance(
-            standard_stream, ThreadSafeStderr
-        ):
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
             standard_stream._watcher.start()
         yield
     finally:
-        if isinstance(standard_stream, ThreadSafeStdout) or isinstance(
-            standard_stream, ThreadSafeStderr
-        ):
+        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
             standard_stream._watcher.pause()

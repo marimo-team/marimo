@@ -233,6 +233,14 @@ export default defineConfig({
         target: TARGET,
         changeOrigin: true,
       },
+      "/mpl": {
+        target: TARGET,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
       "/custom.css": {
         target: TARGET,
         changeOrigin: true,
@@ -282,6 +290,7 @@ export default defineConfig({
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
       : JSON.stringify("latest"),
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
+    "process.env.DEBUG": JSON.stringify(process.env.DEBUG ?? ""),
   },
   build: {
     minify: isDev ? false : "oxc", // default is "oxc"

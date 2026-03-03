@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.17.8"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -152,12 +152,14 @@ def _(p_e_given_h, p_e_given_not_h, p_h):
         plt.gca().add_patch(e_given_h)
         plt.legend()
         return plt.gca()
+
     return (construct_probability_plot,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

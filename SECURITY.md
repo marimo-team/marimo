@@ -43,5 +43,6 @@ We would like to acknowledge and thank the following individuals for their respo
  - @acepace
  - @devgi
  - @W-M-T (Ward Theunisse)
+ - @doredry
 
 Your contributions help keep marimo safe for the entire community. We encourage security researchers to report issues and welcome your help in making marimo more secure.

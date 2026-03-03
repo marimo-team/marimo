@@ -412,6 +412,9 @@ class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
         ? this.secrets.print("port", this.connection.port)
         : undefined,
       password: this.connection.password ? password : undefined,
+      proxy_path: this.connection.proxy_path
+        ? this.secrets.print("proxy_path", this.connection.proxy_path)
+        : undefined,
     };
 
     return dedent(`

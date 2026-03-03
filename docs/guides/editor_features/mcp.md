@@ -99,6 +99,14 @@ Create a .vscode/mcp.json file in your workspace and configure it to connect to 
 }
 ```
 
+### DNS rebinding protection
+
+marimo's MCP server enables DNS rebinding protection by default, which validates the `Host` header on incoming requests. This is common when using proxies, gateways (e.g., ECS), CDNs (Cloudflare), or custom domains, where the forwarded `Host` header won't match the expected local host, causing `421 Misdirected Request` or `Invalid Host Header` errors. Pass `--mcp-allow-remote` to disable this check:
+
+```bash
+marimo edit notebook.py --mcp --mcp-allow-remote
+```
+
 ## MCP Client
 
 marimo can connect to external MCP servers to add additional tools and context to the [chat panel](ai_completion.md#chat-panel).

@@ -5,10 +5,15 @@ import inspect
 import os
 import sys
 import tempfile
+import textwrap
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._server.file_router import AppFileRouter
+from marimo._server.models.home import MarimoFile
+from marimo._session.model import SessionMode
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_session
 
@@ -109,6 +114,234 @@ def test_cant_open_non_tutorial(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert response.json() == {"detail": "Tutorial not found"}
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_in_run_mode(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text("import marimo\napp = marimo.App()")
+
+        non_marimo_file = Path(temp_dir) / "text.txt"
+        non_marimo_file.write_text("This is not a marimo file")
+
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        assert len(files) == 1
+        assert body["root"] == temp_dir
+        assert files[0]["path"] == marimo_file.name
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_run_mode_watch_directory_refreshes_add_remove(
+    client: TestClient,
+) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+    session_manager.watch = True
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_one = Path(temp_dir) / "one.py"
+        file_one.write_text("import marimo\napp = marimo.App()")
+
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response_initial = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body_initial = response_initial.json()
+        assert response_initial.status_code == 200
+        assert body_initial["root"] == temp_dir
+        assert {file["path"] for file in body_initial["files"]} == {
+            file_one.name
+        }
+
+        file_two = Path(temp_dir) / "two.py"
+        file_two.write_text("import marimo\napp = marimo.App()")
+
+        response_after_add = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body_after_add = response_after_add.json()
+        assert response_after_add.status_code == 200
+        assert {file["path"] for file in body_after_add["files"]} == {
+            file_one.name,
+            file_two.name,
+        }
+
+        file_one.unlink()
+
+        response_after_remove = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body_after_remove = response_after_remove.json()
+        assert response_after_remove.status_code == 200
+        assert {file["path"] for file in body_after_remove["files"]} == {
+            file_two.name
+        }
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_empty_directory(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+    assert len(files) == 0
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_run_mode_allowlist(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_one = Path(temp_dir) / "one.py"
+        file_one.write_text("import marimo\napp = marimo.App()")
+        file_two = Path(temp_dir) / "two.py"
+        file_two.write_text("import marimo\napp = marimo.App()")
+
+        marimo_files = [
+            MarimoFile(
+                name=file_one.name,
+                path=str(file_one),
+                last_modified=file_one.stat().st_mtime,
+            ),
+            MarimoFile(
+                name=file_two.name,
+                path=str(file_two),
+                last_modified=file_two.stat().st_mtime,
+            ),
+        ]
+        session_manager.file_router = AppFileRouter.from_files(
+            marimo_files,
+            directory=temp_dir,
+            allow_single_file_key=False,
+        )
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        assert body["root"] == temp_dir
+        assert {file["path"] for file in files} == {
+            str(file_one),
+            str(file_two),
+        }
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_run_mode_allowlist_skips_deleted_file(
+    client: TestClient,
+) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_one = Path(temp_dir) / "one.py"
+        file_one.write_text("import marimo\napp = marimo.App()")
+        file_two = Path(temp_dir) / "two.py"
+        file_two.write_text("import marimo\napp = marimo.App()")
+
+        marimo_files = [
+            MarimoFile(
+                name=file_one.name,
+                path=str(file_one),
+                last_modified=file_one.stat().st_mtime,
+            ),
+            MarimoFile(
+                name=file_two.name,
+                path=str(file_two),
+                last_modified=file_two.stat().st_mtime,
+            ),
+        ]
+        session_manager.file_router = AppFileRouter.from_files(
+            marimo_files,
+            directory=temp_dir,
+            allow_single_file_key=False,
+        )
+
+        file_two.unlink()
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        assert response.status_code == 200
+        assert body["root"] == temp_dir
+        assert body["fileCount"] == 1
+        assert body["hasMore"] is False
+        assert [file["path"] for file in files] == [str(file_one)]
+
+
+@with_session(SESSION_ID)
+def test_thumbnail_redirects_for_https_opengraph_image(
+    client: TestClient,
+) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text(
+            textwrap.dedent(
+                """
+                # /// script
+                # [tool.marimo.opengraph]
+                # image = "https://example.com/opengraph.png"
+                # ///
+                import marimo
+                app = marimo.App()
+                """
+            ).lstrip()
+        )
+
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.get(
+            "/og/thumbnail?file=notebook.py",
+            headers=HEADERS,
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        assert (
+            response.headers["location"] == "https://example.com/opengraph.png"
+        )
 
 
 @with_session(SESSION_ID)

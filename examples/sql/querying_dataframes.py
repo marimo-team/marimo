@@ -11,13 +11,14 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -39,7 +40,7 @@ def _():
 
     df = data.iris()
     df.head()
-    return
+    return (df,)
 
 
 @app.cell(hide_code=True)
@@ -60,7 +61,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(df, mo):
     result = mo.sql(
         f"""
         SELECT species, mean(petalLength) as meanPetalLength FROM df GROUP BY species ORDER BY meanPetalLength

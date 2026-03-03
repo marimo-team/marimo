@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -170,6 +170,7 @@ def _():
         print(f"Seam carving completed in {end_time - start_time:.2f} seconds")
 
         return carved_img
+
     return (efficient_seam_carve,)
 
 

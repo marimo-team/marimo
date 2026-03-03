@@ -52,7 +52,7 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, dev=False
+        "test-package", version=None, upgrade=False, group=None
     )
 
 
@@ -79,7 +79,7 @@ def test_remove_package(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.uninstall.assert_called_once_with(
-        "test-package", dev=False
+        "test-package", group=None
     )
 
 
@@ -151,7 +151,7 @@ def test_add_package_with_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, dev=False
+        "test-package", version=None, upgrade=True, group=None
     )
 
 
@@ -167,7 +167,7 @@ def test_add_package_without_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, dev=False
+        "test-package", version=None, upgrade=False, group=None
     )
 
 
@@ -207,7 +207,7 @@ def test_remove_package_with_empty_string(
         json={"package": ""},
     )
     assert response.status_code in [200, 400, 422]
-    mock_package_manager.uninstall.assert_called_once_with("", dev=False)
+    mock_package_manager.uninstall.assert_called_once_with("", group=None)
 
 
 @pytest.fixture
@@ -583,12 +583,12 @@ def test_add_package_with_dev_dependency(
     response = client.post(
         "/api/packages/add",
         headers=HEADERS,
-        json={"package": "test-package", "upgrade": True, "dev": True},
+        json={"package": "test-package", "upgrade": True, "group": "dev"},
     )
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, dev=True
+        "test-package", version=None, upgrade=True, group="dev"
     )
 
 
@@ -600,10 +600,116 @@ def test_remove_package_with_dev_dependency(
     response = client.post(
         "/api/packages/remove",
         headers=HEADERS,
-        json={"package": "test-package", "dev": True},
+        json={"package": "test-package", "group": "dev"},
     )
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.uninstall.assert_called_once_with(
-        "test-package", dev=True
+        "test-package", group="dev"
     )
+
+
+def test_get_package_manager_uses_ipc_venv_python() -> None:
+    """Test that _get_package_manager uses venv Python from IPC kernel."""
+    from marimo._server.api.endpoints.packages import _get_package_manager
+
+    # Mock the session with an IPC kernel manager having venv_python set
+    mock_kernel_manager = MagicMock()
+    mock_kernel_manager.venv_python = "/custom/venv/python"
+
+    mock_session = MagicMock()
+    mock_session._kernel_manager = mock_kernel_manager
+
+    # Mock app state
+    mock_app_state = MagicMock()
+    mock_app_state.get_current_session.return_value = mock_session
+    mock_app_state.app_config_manager.package_manager = "pip"
+
+    mock_request = MagicMock()
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=mock_app_state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as mock_create_pm,
+        patch(
+            "marimo._server.api.endpoints.packages.isinstance",
+            side_effect=lambda obj, cls: (
+                cls.__name__ == "SessionImpl"
+                if hasattr(cls, "__name__") and cls.__name__ == "SessionImpl"
+                else (
+                    cls.__name__ == "IPCKernelManagerImpl"
+                    if hasattr(cls, "__name__")
+                    and cls.__name__ == "IPCKernelManagerImpl"
+                    else isinstance(obj, cls)
+                )
+            ),
+        ),
+    ):
+        _get_package_manager(mock_request)
+
+    # Verify create_package_manager was called with python_exe
+    mock_create_pm.assert_called_once_with(
+        "pip", python_exe="/custom/venv/python"
+    )
+
+
+def test_get_package_manager_without_ipc_session() -> None:
+    """Test that _get_package_manager works without IPC session."""
+    from marimo._server.api.endpoints.packages import _get_package_manager
+
+    # Mock non-IPC kernel manager (no venv_python attribute)
+    mock_kernel_manager = MagicMock(spec=[])  # Empty spec = no venv_python
+
+    mock_session = MagicMock()
+    mock_session._kernel_manager = mock_kernel_manager
+
+    # Mock app state
+    mock_app_state = MagicMock()
+    mock_app_state.get_current_session.return_value = mock_session
+    mock_app_state.app_config_manager.package_manager = "uv"
+
+    mock_request = MagicMock()
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=mock_app_state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as mock_create_pm,
+    ):
+        _get_package_manager(mock_request)
+
+    # Verify create_package_manager was called with python_exe=None
+    mock_create_pm.assert_called_once_with("uv", python_exe=None)
+
+
+def test_get_package_manager_no_session() -> None:
+    """Test that _get_package_manager works without any session."""
+    from marimo._server.api.endpoints.packages import _get_package_manager
+
+    # Mock app state with no session
+    mock_app_state = MagicMock()
+    mock_app_state.get_current_session.return_value = None
+    mock_app_state.config_manager.package_manager = "pip"
+
+    mock_request = MagicMock()
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=mock_app_state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as mock_create_pm,
+    ):
+        _get_package_manager(mock_request)
+
+    # Verify create_package_manager was called without python_exe
+    mock_create_pm.assert_called_once_with("pip")

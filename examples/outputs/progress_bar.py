@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -9,7 +9,7 @@ def _():
     import marimo as mo
     import asyncio
 
-    return (mo, asyncio)
+    return asyncio, mo
 
 
 @app.cell
@@ -20,7 +20,7 @@ def _(mo):
 
 
 @app.cell
-async def _(mo, asyncio, rerun):
+async def _(asyncio, mo, rerun):
     rerun
     for _ in mo.status.progress_bar(
         range(10),
@@ -41,7 +41,7 @@ def _(mo):
 
 
 @app.cell
-async def _(mo, asyncio, rerun_slow):
+async def _(asyncio, mo, rerun_slow):
     rerun_slow
     for _ in mo.status.progress_bar(
         range(2), title="Loading", subtitle="Please wait", show_eta=True, show_rate=True

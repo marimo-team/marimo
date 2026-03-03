@@ -1,0 +1,19 @@
+name: 🏷️ Enforce Pull Request Label
+
+# Enforces that at least one label is selected on pull requests
+
+on:
+  pull_request:
+    types: [labeled, unlabeled, opened, reopened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  enforce-label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: yogevbd/enforce-label-action@2.2.2
+        with:
+          REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview,dependencies,other"
+          REQUIRED_LABELS_ANY_DESCRIPTION: "🏷️ Select at least one label: ['enhancement','bug','documentation','internal','preview','dependencies','other']"

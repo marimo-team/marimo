@@ -314,6 +314,11 @@
 
   &.published {
     border: none;
+
+    &:hover {
+      border: none;
+      box-shadow: none;
+    }
   }
 }
 

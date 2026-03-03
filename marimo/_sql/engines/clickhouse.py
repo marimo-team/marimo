@@ -19,6 +19,7 @@ from marimo._sql.engines.types import (
     InferenceConfig,
     SQLConnection,
 )
+from marimo._sql.sql_quoting import quote_sql_identifier
 from marimo._sql.utils import convert_to_output, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
@@ -363,7 +364,8 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
         tables: list[DataTable] = []
         try:
-            query = f"SHOW TABLES FROM {database}"
+            quoted_db = quote_sql_identifier(database, dialect="clickhouse")
+            query = f"SHOW TABLES FROM {quoted_db}"
             table_df = self._connection.query_df(query)
         except Exception:
             LOGGER.warning(
@@ -427,8 +429,14 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             return None
 
         try:
-            query = f"SELECT * FROM system.tables WHERE name = '{table_name}' AND database = '{database_name}'"
-            table_df = self._connection.query_df(query)
+            query = "SELECT * FROM system.tables WHERE name = {table_name:String} AND database = {database_name:String}"
+            table_df = self._connection.query_df(
+                query,
+                parameters={
+                    "table_name": table_name,
+                    "database_name": database_name,
+                },
+            )
         except Exception:
             LOGGER.warning(
                 f"Failed to get table details for {table_name} in database {database_name}",
@@ -461,7 +469,13 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             pass
 
         try:
-            query = f"DESCRIBE TABLE {database_name}.{table_name}"
+            quoted_db = quote_sql_identifier(
+                database_name, dialect="clickhouse"
+            )
+            quoted_table = quote_sql_identifier(
+                table_name, dialect="clickhouse"
+            )
+            query = f"DESCRIBE TABLE {quoted_db}.{quoted_table}"
             desc_df = self._connection.query_df(query)
         except Exception:
             LOGGER.warning(

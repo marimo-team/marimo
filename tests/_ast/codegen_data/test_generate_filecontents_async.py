@@ -8,6 +8,7 @@ app = marimo.App()
 def one():
     import numpy as np
     import asyncio
+
     return (asyncio,)
 
 
@@ -23,6 +24,7 @@ async def two(asyncio):
 def three(asyncio, x):
     async def _():
         await asyncio.sleep(x)
+
     return
 
 

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -19,6 +19,7 @@ def _():
     from pathlib import Path
     import marimo as mo
     from huggingface_hub import snapshot_download
+
     return Path, generate, load, mo, snapshot_download
 
 
@@ -78,6 +79,7 @@ def _(Path, snapshot_download):
                 raise ValueError(
                     f"Error downloading model from Hugging Face: {str(e)}"
                 )
+
     return (get_model_path,)
 
 

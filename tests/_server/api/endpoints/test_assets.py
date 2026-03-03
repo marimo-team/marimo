@@ -12,6 +12,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import _inject_service_worker
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
+from marimo._session.model import SessionMode
 from tests._server.mocks import token_header, with_file_router
 
 if TYPE_CHECKING:
@@ -84,6 +85,19 @@ def test_index_with_directory(client: TestClient) -> None:
     content = response.text
     assert "<marimo-filename" in content
     assert '"mode": "home"' in content
+    assert "<title>marimo</title>" in content
+
+
+@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
+def test_index_with_directory_run_mode(client: TestClient) -> None:
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    content = response.text
+    assert "<marimo-filename" in content
+    assert '"mode": "gallery"' in content
     assert "<title>marimo</title>" in content
 
 
@@ -218,6 +232,16 @@ def test_inject_service_worker() -> None:
         "const notebookId = 'c%3A%5Cpath%5Cto%5Cnotebook.py';"
         in _inject_service_worker("<body></body>", r"c:\path\to\notebook.py")
     )
+
+
+def test_inject_service_worker_null_check() -> None:
+    result = _inject_service_worker("<body></body>", "notebook.py")
+    # The helper function should check registration.active before posting
+    assert "function sendNotebookId(registration)" in result
+    assert "if (registration.active)" in result
+    # Should handle installing/waiting workers via statechange listener
+    assert "registration.installing || registration.waiting" in result
+    assert "statechange" in result
 
 
 def test_index_with_missing_local_file_and_asset_url(

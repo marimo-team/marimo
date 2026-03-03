@@ -2,19 +2,21 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.20.1"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _():
     import time
+
     return (time,)
 
 
@@ -29,12 +31,15 @@ def _(mo, time):
         for i in range(5):
             mo.output.append(mo.md(f"Loading {i}/5"))
             time.sleep(.01)
+
     return loop_append, loop_replace
 
 
 @app.cell
 def _(mo):
-    mo.md("""### Replace""")
+    mo.md("""
+    ### Replace
+    """)
     return
 
 
@@ -54,7 +59,9 @@ def _(loop_replace, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### Append""")
+    mo.md("""
+    ### Append
+    """)
     return
 
 
@@ -74,7 +81,9 @@ def _(loop_append, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### Clear""")
+    mo.md("""
+    ### Clear
+    """)
     return
 
 
@@ -96,7 +105,9 @@ def _(loop_append, mo):
 
 @app.cell
 def _(mo):
-    mo.md("""### Sleep (stale)""")
+    mo.md("""
+    ### Sleep (stale)
+    """)
     return
 
 

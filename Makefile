@@ -54,7 +54,7 @@ marimo/_lsp: $(shell find packages/lsp)
 	./scripts/buildlsp.sh
 
 .PHONY: dev
-dev:
+dev: fe-codegen
 	@echo "Starting development servers..."
 	@# Start both processes, with marimo in background
 	@(trap 'kill %1; exit' INT; \
@@ -123,8 +123,8 @@ typos:
 .PHONY: py-test
 # 🧪 Test python
 py-test:
-	@command -v hatch >/dev/null 2>&1 || { echo "hatch is required. See https://hatch.pypa.io/dev/install/"; exit 1; }
-	hatch run typos && hatch run +py=3.12 test-optional:test $(ARGS)
+	uvx hatch run typos
+	./scripts/pytest.sh --optional $(ARGS)
 
 .PHONY: py-snapshots
 # 📸 Update snapshots

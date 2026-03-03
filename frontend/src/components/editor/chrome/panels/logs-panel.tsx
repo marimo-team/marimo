@@ -35,14 +35,12 @@ const LogsPanel: React.FC = () => {
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full overflow-auto">
       <div className="flex flex-row justify-start px-2 py-1">
         <ClearButton dataTestId="clear-logs-button" onClick={clearLogs} />
       </div>
-      <div className="overflow-auto flex-1">
-        <LogViewer logs={logs} className="min-w-[300px]" />
-      </div>
-    </>
+      <LogViewer logs={logs} className="min-w-[300px]" />
+    </div>
   );
 };
 

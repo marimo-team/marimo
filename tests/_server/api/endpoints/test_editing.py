@@ -3,7 +3,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
 from tests._server.mocks import token_header, with_session
+
+HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -45,6 +50,7 @@ def test_delete_cell(client: TestClient) -> None:
     assert "success" in response.json()
 
 
+@pytest.mark.skipif(not HAS_FORMATTER, reason="ruff or black not installed")
 @with_session(SESSION_ID)
 def test_format_cell(client: TestClient) -> None:
     response = client.post(

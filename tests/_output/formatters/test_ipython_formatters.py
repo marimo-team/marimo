@@ -61,6 +61,63 @@ def test_repr_mimebundle():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
+def test_format_image_gif_bytes():
+    from IPython.display import Image
+
+    IPythonFormatter().register()
+
+    # Minimal valid GIF
+    gif_bytes = (
+        b"GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00"
+        b"!\xf9\x04\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00"
+        b"\x01\x00\x00\x02\x02D\x01\x00;"
+    )
+    img = Image(data=gif_bytes, format="gif")
+    formatter = get_formatter(img)
+    assert formatter is not None
+    mime_type, data = formatter(img)
+    assert mime_type == "image/gif"
+    assert data.startswith("data:image/gif;base64,")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
+def test_format_image_png_bytes():
+    from IPython.display import Image
+
+    IPythonFormatter().register()
+
+    # Minimal valid PNG (1x1 white pixel)
+    import base64
+
+    png_b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4"
+        "2mP8/58BAwAI/AL+hc2rNAAAAABJRU5ErkJggg=="
+    )
+    png_bytes = base64.b64decode(png_b64)
+    img = Image(data=png_bytes, format="png")
+    formatter = get_formatter(img)
+    assert formatter is not None
+    mime_type, data = formatter(img)
+    assert mime_type == "image/png"
+    assert data.startswith("data:image/png;base64,")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
+def test_format_image_url():
+    from IPython.display import Image
+
+    IPythonFormatter().register()
+
+    img = Image(url="https://example.com/img.gif")
+    formatter = get_formatter(img)
+    assert formatter is not None
+    mime_type, data = formatter(img)
+    assert mime_type == "text/html"
+    assert "https://example.com/img.gif" in data
+    assert "<img" in data
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="IPython not installed")
 @patch("marimo._runtime.output._output.append")
 def test_display_html(mock_append: MagicMock):
     from IPython.display import display_html

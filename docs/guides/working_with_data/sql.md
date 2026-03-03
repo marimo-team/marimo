@@ -1,3 +1,7 @@
+---
+description: "Mix Python and SQL in marimo notebooks. Query dataframes, SQLite, Postgres, and other databases, and get results back as Python dataframes."
+---
+
 # Using SQL
 
 marimo lets you mix and match **Python and SQL**: Use SQL to query

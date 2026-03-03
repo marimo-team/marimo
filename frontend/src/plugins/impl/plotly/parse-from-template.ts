@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { get } from "lodash-es";
+import type * as Plotly from "plotly.js";
 
 export interface PlotlyTemplateParser {
   /**

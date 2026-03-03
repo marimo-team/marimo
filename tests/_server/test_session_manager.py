@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock
@@ -22,7 +23,24 @@ from marimo._session.notebook import AppFileManager
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
+
+
+@pytest.fixture(autouse=True)
+def _preserve_main_module() -> Iterator[None]:
+    """Restore sys.modules["__main__"] after each test.
+
+    Earlier tests (e.g. in test_asgi.py) may start kernel threads in RUN
+    mode that call patch_main_module(), permanently replacing __main__
+    with a module whose __file__ points to a now-deleted temp file.
+    On Windows the multiprocessing 'spawn' start method reads
+    __main__.__file__ to bootstrap the child process, so a stale path
+    causes FileNotFoundError and the parent hangs on listener.accept().
+    """
+    saved = sys.modules["__main__"]
+    yield
+    sys.modules["__main__"] = saved
 
 
 @pytest.fixture

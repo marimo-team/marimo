@@ -233,13 +233,17 @@ export function getAgentDisplayName(agentId: ExternalAgentId): string {
 }
 
 export function getAgentWebSocketUrl(agentId: ExternalAgentId): string {
-  return AGENT_CONFIG[agentId].webSocketUrl;
+  const port = AGENT_CONFIG[agentId].port;
+  // Use the current page's hostname so the agent is reachable when
+  // marimo is accessed remotely (e.g. via direct IP or reverse proxy).
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${hostname}:${port}/message` as const;
 }
 
 interface AgentConfig {
   port: number;
   command: string;
-  webSocketUrl: string;
   sessionSupport: SessionSupportType;
 }
 
@@ -247,25 +251,21 @@ const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
   claude: {
     port: 3017,
     command: "npx @zed-industries/claude-code-acp",
-    webSocketUrl: "ws://localhost:3017/message",
     sessionSupport: "single",
   },
   gemini: {
     port: 3019,
     command: "npx @google/gemini-cli --experimental-acp",
-    webSocketUrl: "ws://localhost:3019/message",
     sessionSupport: "single",
   },
   codex: {
     port: 3021,
     command: "npx @zed-industries/codex-acp",
-    webSocketUrl: "ws://localhost:3021/message",
     sessionSupport: "single",
   },
   opencode: {
     port: 3023,
     command: "npx opencode-ai acp",
-    webSocketUrl: "ws://localhost:3023/message",
     sessionSupport: "single",
   },
 };

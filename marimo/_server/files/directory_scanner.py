@@ -36,6 +36,10 @@ def is_marimo_app(full_path: str) -> bool:
     try:
         path = MarimoPath(full_path)
 
+        # Fast extension check to avoid I/O for unrelated files
+        if not path.is_python() and not path.is_markdown():
+            return False
+
         with open(full_path, "rb") as f:
             header = f.read(READ_LIMIT)
 

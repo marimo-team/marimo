@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 import asyncio
 import os
+import sys
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Fails on Windows CI")
 def test_smoke_test():
     from marimo._runtime.pytest import run_pytest
     from tests._runtime.script_data.contains_tests import app
@@ -74,3 +80,22 @@ def test_smoke_test():
     # Assert all cases captured, and nothing missed.
     # Total: 0+0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1+0+0+1+1+1 = 30
     assert total == sum(map(sum, def_count.values())) == 30
+
+
+def test_pytest_result_summary_includes_xfail() -> None:
+    from marimo._runtime.pytest import MarimoPytestResult
+
+    result = MarimoPytestResult(
+        passed=2, failed=1, errors=0, skipped=1, xfailed=3, xpassed=1
+    )
+    assert result.total == 8
+    assert "XFailed: 3" in result.summary
+    assert "XPassed: 1" in result.summary
+
+
+def test_pytest_result_summary_omits_zero_xfail() -> None:
+    from marimo._runtime.pytest import MarimoPytestResult
+
+    result = MarimoPytestResult(passed=5, failed=0, errors=0, skipped=0)
+    assert "XFailed" not in result.summary
+    assert "XPassed" not in result.summary

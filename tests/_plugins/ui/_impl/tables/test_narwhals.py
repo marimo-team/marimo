@@ -491,6 +491,19 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert isinstance(bool_stats.true, int)
         assert isinstance(bool_stats.false, int)
 
+    def test_summary_all_nan_column_no_warning(self) -> None:
+        import warnings
+
+        import polars as pl
+
+        data = pl.DataFrame({"A": [float("nan"), float("nan"), float("nan")]})
+        manager = NarwhalsTableManager.from_dataframe(data)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            stats = manager.get_stats("A")
+        assert stats is not None
+        assert stats.total == 3
+
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values(
             [SortArgs(by="A", descending=True)]
@@ -1375,6 +1388,29 @@ def test_search_with_regex(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.search("^[ab]")
     assert result.get_num_rows() == 2
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {f"col_{i}": ["a", "b", "c"] for i in range(1, 500)}
+        | {"col_0": ["target", "b", "c"]},
+        exclude=["ibis", "duckdb"],
+    ),
+)
+def test_search_wide_dataframe(df: Any) -> None:
+    """Regression test: search must not crash on wide tables (GitHub #8449)."""
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    result = manager.search("target")
+    assert result.get_num_rows() == 1
+
+    result = manager.search("b")
+    assert result.get_num_rows() == 1
+
+    result = manager.search("nonexistent")
+    assert result.get_num_rows() == 0
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

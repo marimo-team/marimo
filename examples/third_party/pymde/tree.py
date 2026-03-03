@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -69,6 +69,7 @@ def _(functools, pymde, torch):
                 stack.append(c2)
         tree = pymde.Graph.from_edges(torch.tensor(edges))
         return tree, pymde.preprocess.graph.shortest_paths(tree)
+
     return (make_graph,)
 
 
@@ -85,6 +86,7 @@ def _(functools, pymde):
             ),
         )
         return mde.embed(verbose=True)
+
     return (embed,)
 
 
@@ -96,6 +98,7 @@ def _():
     import torch
 
     import marimo as mo
+
     return functools, mo, pymde, torch
 
 

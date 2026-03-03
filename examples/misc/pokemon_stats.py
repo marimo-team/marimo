@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -197,6 +197,7 @@ def _(pokemon):
         ]
         ax.fill(angles, stats, alpha=0.2, label=name)
         return ax
+
     return (plot_single_pokemon,)
 
 
@@ -217,6 +218,7 @@ def _(np, plot_single_pokemon, plt):
         if names:
             plt.legend(loc="upper left")
         return ax
+
     return (plot_pokemon,)
 
 
@@ -267,6 +269,7 @@ def _():
 @app.cell
 def _():
     import plotly.express as px
+
     return
 
 

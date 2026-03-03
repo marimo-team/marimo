@@ -17,10 +17,14 @@ import { ErrorBanner } from "../common/error-banner";
 
 export const LANGUAGE_MAP: Record<string, LanguageName | undefined> = {
   python: "py",
+  python3: "py",
   javascript: "js",
   typescript: "ts",
   shell: "sh",
   bash: "sh",
+  // Other fallbacks
+  unknown: "text",
+  undefined: "text",
 };
 
 function isSupportedLanguage(
@@ -41,10 +45,17 @@ function isSupportedLanguage(
 const AnyLanguageCodeMirror: React.FC<
   ReactCodeMirrorProps & {
     language: string | undefined;
+    hideUnsupportedLanguageErrors?: boolean;
     theme: ResolvedTheme;
     showCopyButton?: boolean;
   }
-> = ({ language, showCopyButton, extensions = [], ...props }) => {
+> = ({
+  language,
+  hideUnsupportedLanguageErrors,
+  showCopyButton,
+  extensions = [],
+  ...props
+}) => {
   // Maybe normalize the language to the extension
   language = LANGUAGE_MAP[language || ""] || language;
 
@@ -62,10 +73,10 @@ const AnyLanguageCodeMirror: React.FC<
 
   return (
     <div className="relative w-full group hover-actions-parent">
-      {!isSupported && (
+      {!isSupported && !hideUnsupportedLanguageErrors && (
         <ErrorBanner
           className="mb-1 rounded-sm"
-          error={`Language ${language} not supported. \n\nSupported languages are: ${Object.keys(
+          error={`Language ${language} not supported. Supported languages are: ${Object.keys(
             langs,
           ).join(", ")}`}
         />

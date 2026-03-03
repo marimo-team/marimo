@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, test } from "vitest";
-import { getDirtyValues } from "../user-config-form";
+import type { UserConfig } from "@/core/config/config-schema";
+import { applyManualInjections, getDirtyValues } from "../user-config-form";
 
 describe("getDirtyValues", () => {
   test("extracts only dirty fields", () => {
@@ -70,5 +71,50 @@ describe("getDirtyValues", () => {
 
     expect(result).toEqual({ display: { theme: "dark" } });
     expect(result).not.toHaveProperty("runtime");
+  });
+
+  test("applyManualInjections injects touched ai model fields", () => {
+    const values = {
+      ai: {
+        models: {
+          displayed_models: ["openai/gpt-4"],
+          custom_models: ["openai/custom-model"],
+        },
+      },
+    } as UserConfig;
+    const dirtyValues: Partial<UserConfig> = {};
+    const touchedFields = {
+      ai: { models: { displayed_models: true } },
+    };
+
+    applyManualInjections({ values, dirtyValues, touchedFields });
+
+    expect(dirtyValues).toEqual({
+      ai: {
+        models: {
+          displayed_models: ["openai/gpt-4"],
+          custom_models: ["openai/custom-model"],
+        },
+      },
+    });
+  });
+
+  test("applyManualInjections skips when field not touched", () => {
+    const values = {
+      ai: {
+        models: {
+          displayed_models: ["openai/gpt-4"],
+          custom_models: ["openai/custom-model"],
+        },
+      },
+    } as UserConfig;
+    const dirtyValues: Partial<UserConfig> = {};
+    const touchedFields = {
+      ai: { models: { displayed_models: false } },
+    };
+
+    applyManualInjections({ values, dirtyValues, touchedFields });
+
+    expect(dirtyValues).toEqual({});
   });
 });

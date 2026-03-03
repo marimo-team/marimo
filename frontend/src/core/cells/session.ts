@@ -6,7 +6,7 @@ import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { parseOutline } from "../dom/outline";
 import type { NotebookState } from "./cells";
-import { CellId } from "./ids";
+import { CellId, SETUP_CELL_ID } from "./ids";
 import {
   type CellData,
   type CellRuntimeState,
@@ -19,6 +19,22 @@ const EMPTY_STRING = "";
 
 type SessionCell = api.Session["NotebookSessionV1"]["cells"][0];
 type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
+
+/**
+ * Get the cell ID from a cell object.
+ * If the cell has an ID, use it.
+ * If the cell has a name of "setup", use the special SETUP_CELL_ID.
+ * Otherwise, generate a new random ID.
+ */
+function getCellId(cell: { id?: string | null; name?: string | null }): CellId {
+  if (cell.id) {
+    return cell.id as CellId;
+  }
+  if (cell.name === SETUP_CELL_ID) {
+    return SETUP_CELL_ID;
+  }
+  return CellId.create();
+}
 
 function mergeSessionAndNotebookCells(
   session: api.Session["NotebookSessionV1"] | null | undefined,
@@ -36,9 +52,7 @@ function mergeSessionAndNotebookCells(
   }
 
   if (!session) {
-    const cellIds = (notebook?.cells.map(
-      (cell) => cell.id ?? CellId.create(),
-    ) || []) as CellId[];
+    const cellIds = notebook?.cells.map((cell) => getCellId(cell)) || [];
     return {
       cellIds,
       sessionCellData: new Map(
@@ -57,9 +71,7 @@ function mergeSessionAndNotebookCells(
   }
 
   if (!notebook) {
-    const cellIds = session.cells.map(
-      (cell) => cell.id ?? CellId.create(),
-    ) as CellId[];
+    const cellIds = session.cells.map((cell) => getCellId(cell));
     return {
       cellIds,
       sessionCellData: new Map(
@@ -105,7 +117,7 @@ function mergeSessionAndNotebookCells(
   for (let i = 0; i < notebook.cells.length; i++) {
     const notebookCell = notebook.cells[i];
     if (notebookCell) {
-      const id = (notebookCell.id ?? CellId.create()) as CellId;
+      const id = getCellId(notebookCell);
       mergedCellIdsTyped.push(id);
 
       // Should always be set, but good typing fallback too.

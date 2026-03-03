@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import inspect
+import json
 import uuid
 from dataclasses import dataclass
-from typing import Any, Callable, Final, Optional, Union, cast
+from typing import Any, Callable, Final, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -34,6 +35,8 @@ DEFAULT_CONFIG = ChatModelConfigDict(
     presence_penalty=0,
 )
 
+# The version of the Vercel AI SDK we use
+AI_SDK_VERSION: Final[Literal[5, 6]] = 5
 DONE_CHUNK: Final[str] = "[DONE]"
 
 
@@ -181,6 +184,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             attachments types, or pass a list of mime types. Defaults to False.
         max_height (int, optional): Optional maximum height for the chat element.
             Defaults to None.
+        disabled (bool, optional): Whether the chat input is disabled. When True,
+            the user cannot type or send messages. Defaults to False.
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -195,6 +200,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
         allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
+        disabled: bool = False,
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
@@ -216,6 +222,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 "config": cast(JSONType, config or {}),
                 "allow-attachments": allow_attachments,
                 "max-height": max_height,
+                "disabled": disabled,
             },
             functions=(
                 Function(
@@ -464,17 +471,22 @@ class ChunkSerializer:
             )
 
             if isinstance(chunk, BaseChunk):
-                # by_alias=True: Use camelCase keys expected by Vercel AI SDK.
-                # exclude_none=True: Remove null values which cause validation errors.
-                self.on_send_chunk(
-                    chunk.model_dump(
+                try:
+                    serialized = json.loads(
+                        chunk.encode(sdk_version=AI_SDK_VERSION)
+                    )
+                except TypeError:
+                    # Fallback for pydantic-ai < 1.52.0 which doesn't have sdk_version param
+                    serialized = chunk.model_dump(
                         mode="json", by_alias=True, exclude_none=True
                     )
-                )
+                self.on_send_chunk(serialized)
                 return
 
         # Handle plain text chunks
         if isinstance(chunk, str):
+            # Coerce str subclasses (like weave's BoxedStr) to plain str
+            chunk = str(chunk)
             if self._text_id is None:
                 self._text_id = f"text_{uuid.uuid4().hex}"
                 self.on_send_chunk({"type": "text-start", "id": self._text_id})

@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any
+from unittest.mock import patch
 
 import pytest
+from inline_snapshot import snapshot
 
 from marimo._data.get_datasets import (
     _db_type_to_data_type,
+    _quote_identifier,
+    form_databases_from_dict,
     get_databases_from_duckdb,
     get_datasets_from_variables,
     get_duckdb_databases_agg_query,
@@ -14,14 +18,11 @@ from marimo._data.get_datasets import (
     has_updates_to_datasource,
 )
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import VariableName
 from tests._data.mocks import create_dataframes
 
-HAS_DEPS = DependencyManager.duckdb.has()
 
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_has_updates_to_datasource() -> None:
     assert has_updates_to_datasource("hello") is False
     assert has_updates_to_datasource("ATTACH 'marimo.db'") is True
@@ -390,7 +391,7 @@ DROP SCHEMA s2 CASCADE;
 """
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases() -> None:
     import duckdb
 
@@ -412,7 +413,7 @@ def test_get_databases() -> None:
     duckdb.execute(cleanup_query)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_no_tables() -> None:
     import duckdb
 
@@ -442,7 +443,7 @@ def test_get_databases_with_no_tables() -> None:
     ) == [in_memory_database]
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_connection() -> None:
     import duckdb
 
@@ -540,6 +541,7 @@ def test_get_datasets_from_variables(df: Any) -> None:
     ]
 
 
+@pytest.mark.requires("duckdb")
 def test_get_table_columns() -> None:
     import duckdb
 
@@ -550,6 +552,7 @@ def test_get_table_columns() -> None:
     assert columns == all_types_tables[0].columns
 
 
+@pytest.mark.requires("duckdb")
 def test_get_databases_agg_query() -> None:
     import duckdb
 
@@ -574,7 +577,7 @@ def test_get_databases_agg_query() -> None:
     connection.execute(cleanup_query)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_closed_connection() -> None:
     """Test that closed connections are handled gracefully without errors."""
     import duckdb
@@ -593,7 +596,7 @@ def test_get_databases_with_closed_connection() -> None:
     assert result == []
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.requires("duckdb")
 def test_get_databases_with_context_manager_closed_connection() -> None:
     """Test that connections closed via context manager are handled gracefully."""
     import duckdb
@@ -679,3 +682,248 @@ def test_db_type_to_data_type_various() -> None:
     assert _db_type_to_data_type("null") == "unknown"
     assert _db_type_to_data_type("json") == "unknown"
     assert _db_type_to_data_type("row") == "unknown"
+
+
+@pytest.mark.requires("duckdb")
+def test_form_databases_from_dict_backfill() -> None:
+    """Test that backfill_empty_databases controls whether _get_duckdb_database_names is called."""
+    databases_dict: dict[str, dict[str, list[DataTable]]] = {
+        "memory": {
+            "main": [
+                DataTable(
+                    name="t",
+                    source_type="duckdb",
+                    source="memory",
+                    num_rows=None,
+                    num_columns=1,
+                    variable_name=None,
+                    columns=[],
+                )
+            ]
+        }
+    }
+
+    # With backfill_empty_databases=False, _get_duckdb_database_names should not be called
+    with patch(
+        "marimo._data.get_datasets._get_duckdb_database_names"
+    ) as mock_get_names:
+        result = form_databases_from_dict(
+            databases_dict,
+            connection=None,
+            engine_name=None,
+            backfill_empty_databases=False,
+        )
+        mock_get_names.assert_not_called()
+
+    assert len(result) == 1
+    assert result[0].name == "memory"
+
+    # With backfill_empty_databases=True (default), _get_duckdb_database_names is called
+    with patch(
+        "marimo._data.get_datasets._get_duckdb_database_names",
+        return_value=["memory", "extra_db"],
+    ) as mock_get_names:
+        result = form_databases_from_dict(
+            databases_dict,
+            connection=None,
+            engine_name=None,
+            backfill_empty_databases=True,
+        )
+        mock_get_names.assert_called_once()
+
+    # Should include the extra_db that wasn't in databases_dict
+    assert len(result) == 2
+    assert result[0].name == "memory"
+    assert result[1].name == "extra_db"
+    assert result[1].schemas == []
+
+
+@pytest.mark.requires("duckdb")
+def test_agg_query_does_not_backfill() -> None:
+    """Test that get_duckdb_databases_agg_query does not call _get_duckdb_database_names."""
+    import duckdb
+
+    connection = duckdb.connect(":memory:")
+    connection.execute(sql_query)
+
+    with patch(
+        "marimo._data.get_datasets._get_duckdb_database_names"
+    ) as mock_get_names:
+        get_duckdb_databases_agg_query(connection=connection, engine_name=None)
+        mock_get_names.assert_not_called()
+
+    connection.execute(cleanup_query)
+
+
+class TestQuoteIdentifier:
+    @pytest.mark.parametrize(
+        ("identifier", "expected"),
+        [
+            ("table", '"table"'),
+            ("nested.namespace", '"nested.namespace"'),
+            ("a.b.c.d", '"a.b.c.d"'),
+            ('my"table', '"my""table"'),
+            ("", '""'),
+            ("my table", '"my table"'),
+            ("schema-name", '"schema-name"'),
+            ("name/with/slashes", '"name/with/slashes"'),
+            ("has'single'quotes", "\"has'single'quotes\""),
+            ("mixed.dots and spaces", '"mixed.dots and spaces"'),
+            ("back`ticks", '"back`ticks"'),
+            ("paren(theses)", '"paren(theses)"'),
+            ('double""already', '"double""""already"'),
+            ("unicode_ñoño", '"unicode_ñoño"'),
+        ],
+    )
+    def test_quote_identifier(self, identifier: str, expected: str) -> None:
+        assert _quote_identifier(identifier) == expected
+
+
+@pytest.mark.requires("duckdb")
+class TestGetDatabasesNestedNamespace:
+    """Tests for DuckDB catalog tables with special characters in the schema name.
+
+    The catalog_table code path is triggered when SHOW ALL TABLES returns
+    a table with a single column named "__" (the Iceberg catalog pattern).
+    In that case, get_databases_from_duckdb falls back to DESCRIBE TABLE
+    with a quoted qualified name.
+    """
+
+    def test_dotted_schema_with_catalog_table(self) -> None:
+        """A table with a single '__' column in a dotted schema triggers
+        the catalog_table path and must quote identifiers correctly."""
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        connection.execute('CREATE SCHEMA "nested.namespace"')
+        connection.execute(
+            'CREATE TABLE "nested.namespace".my_table ("__" VARCHAR)'
+        )
+
+        result = get_databases_from_duckdb(connection=connection)
+        assert result == snapshot(
+            [
+                Database(
+                    name="memory",
+                    dialect="duckdb",
+                    schemas=[
+                        Schema(
+                            name="nested.namespace",
+                            tables=[
+                                DataTable(
+                                    name="my_table",
+                                    source_type="duckdb",
+                                    source="memory",
+                                    num_rows=None,
+                                    num_columns=1,
+                                    variable_name=None,
+                                    columns=[
+                                        DataTableColumn(
+                                            name="__",
+                                            type="string",
+                                            external_type="VARCHAR",
+                                            sample_values=[],
+                                        )
+                                    ],
+                                )
+                            ],
+                        )
+                    ],
+                    engine=None,
+                )
+            ]
+        )
+
+    def test_deeply_dotted_schema_with_catalog_table(self) -> None:
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        connection.execute('CREATE SCHEMA "a.b.c.d"')
+        connection.execute('CREATE TABLE "a.b.c.d".t ("__" INTEGER)')
+
+        result = get_databases_from_duckdb(connection=connection)
+        assert result == snapshot(
+            [
+                Database(
+                    name="memory",
+                    dialect="duckdb",
+                    schemas=[
+                        Schema(
+                            name="a.b.c.d",
+                            tables=[
+                                DataTable(
+                                    source_type="duckdb",
+                                    source="memory",
+                                    name="t",
+                                    num_rows=None,
+                                    num_columns=1,
+                                    variable_name=None,
+                                    columns=[
+                                        DataTableColumn(
+                                            name="__",
+                                            type="integer",
+                                            external_type="INTEGER",
+                                            sample_values=[],
+                                        )
+                                    ],
+                                    engine=None,
+                                    type="table",
+                                    primary_keys=None,
+                                    indexes=None,
+                                )
+                            ],
+                        )
+                    ],
+                    engine=None,
+                )
+            ]
+        )
+
+    @pytest.mark.parametrize(
+        "schema_name",
+        [
+            "has-dashes",
+            "has spaces",
+            "has.dots.and-dashes",
+            "slashes/in/name",
+        ],
+    )
+    def test_special_char_schema_with_catalog_table(
+        self, schema_name: str
+    ) -> None:
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        connection.execute(f'CREATE SCHEMA "{schema_name}"')
+        connection.execute(f'CREATE TABLE "{schema_name}".t ("__" VARCHAR)')
+
+        result = get_databases_from_duckdb(connection=connection)
+        assert result == [
+            Database(
+                name="memory",
+                dialect="duckdb",
+                schemas=[
+                    Schema(
+                        name=schema_name,
+                        tables=[
+                            DataTable(
+                                name="t",
+                                source_type="duckdb",
+                                source="memory",
+                                num_rows=None,
+                                num_columns=1,
+                                variable_name=None,
+                                columns=[
+                                    DataTableColumn(
+                                        name="__",
+                                        type="string",
+                                        external_type="VARCHAR",
+                                        sample_values=[],
+                                    )
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            ),
+        ]

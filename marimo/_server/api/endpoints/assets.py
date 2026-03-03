@@ -8,14 +8,23 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
-from starlette.responses import FileResponse, HTMLResponse, Response
+from starlette.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
-from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
+from marimo._runtime.virtual_file import (
+    EMPTY_VIRTUAL_FILE,
+    read_virtual_file_chunked,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
@@ -24,8 +33,9 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
+from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
-from marimo._utils.paths import marimo_package_path
+from marimo._utils.paths import marimo_package_path, normalize_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -36,7 +46,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 # Root directory for static assets
-root = (marimo_package_path() / "_static").resolve()
+root = normalize_path(marimo_package_path() / "_static")
 
 server_config = (
     get_default_config_manager(current_path=None)
@@ -47,9 +57,28 @@ server_config = (
 assets_dir = root / "assets"
 follow_symlinks = server_config.get("follow_symlink", False)
 
-if not follow_symlinks and assets_dir.is_symlink():
+
+def _has_symlinks(directory: Path) -> bool:
+    """Check if a directory is a symlink or contains symlinked files."""
+    if directory.is_symlink():
+        return True
+    try:
+        # Check a small sample of files for symlinks
+        for i, child in enumerate(directory.iterdir()):
+            if child.is_symlink():
+                return True
+            if i >= 1:
+                break
+    except OSError:
+        pass
+    return False
+
+
+if not follow_symlinks and _has_symlinks(assets_dir):
     LOGGER.error(
-        "Assets directory is a symlink but follow_symlink=false.\n"
+        "Assets directory contains symlinks but follow_symlink=false.\n"
+        "This commonly happens with package managers like pdm/uv "
+        "that use symlinks for installed packages.\n"
         "To fix this:\n"
         "1. Run 'marimo config show' to see your current config\n"
         "2. Add 'follow_symlink = true' under the [server] section in your config\n"
@@ -72,6 +101,89 @@ except RuntimeError:
     LOGGER.error("Static files not found, skipping mount")
 
 FILE_QUERY_PARAM_KEY = "file"
+
+
+@router.get("/og/thumbnail", include_in_schema=False)
+@requires("read")
+def og_thumbnail(*, request: Request) -> Response:
+    """Serve a notebook thumbnail for gallery/OpenGraph use."""
+    from pathlib import Path
+
+    from marimo._metadata.opengraph import (
+        DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR,
+        OpenGraphContext,
+        is_https_url,
+        resolve_opengraph_metadata,
+    )
+    from marimo._utils.http import HTTPException, HTTPStatus
+    from marimo._utils.paths import normalize_path
+
+    app_state = AppState(request)
+    file_key = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+    if not file_key:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="File not found"
+        )
+
+    notebook_path = app_state.session_manager.file_router.resolve_file_path(
+        file_key
+    )
+    if notebook_path is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="File not found"
+        )
+
+    notebook_dir = normalize_path(Path(notebook_path)).parent
+    marimo_dir = notebook_dir / "__marimo__"
+
+    # User-defined OpenGraph generators receive this context (file key, base URL, mode)
+    # so they can compute metadata dynamically for gallery cards, social previews, and other modes.
+    opengraph = resolve_opengraph_metadata(
+        notebook_path,
+        context=OpenGraphContext(
+            filepath=notebook_path,
+            file_key=file_key,
+            base_url=app_state.base_url,
+            mode=app_state.mode.value,
+        ),
+    )
+    title = opengraph.title or "marimo"
+    image = opengraph.image
+
+    validator = PathValidator()
+    if image:
+        if is_https_url(image):
+            return RedirectResponse(
+                url=image,
+                status_code=307,
+                headers={"Cache-Control": "max-age=3600"},
+            )
+
+        rel_path = Path(image)
+        if not rel_path.is_absolute():
+            file_path = normalize_path(notebook_dir / rel_path)
+            # Only allow serving from the notebook's __marimo__ directory.
+            try:
+                if file_path.is_file():
+                    validator.validate_inside_directory(marimo_dir, file_path)
+                    return FileResponse(
+                        file_path,
+                        headers={"Cache-Control": "max-age=3600"},
+                    )
+            except HTTPException:
+                # Treat invalid paths as a miss; fall back to placeholder.
+                pass
+
+    placeholder = DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR(title)
+    return Response(
+        content=placeholder.content,
+        media_type=placeholder.media_type,
+        # Avoid caching placeholders so newly-generated screenshots show up immediately on refresh.
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def _fetch_index_html_from_url(asset_url: str) -> str:
@@ -107,8 +219,9 @@ async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     index_html = root / "index.html"
 
+    file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
     file_key = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        file_key_from_query
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
@@ -136,6 +249,7 @@ async def index(request: Request) -> HTMLResponse:
             user_config=app_state.config_manager.get_user_config(),
             config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
+            mode=app_state.mode,
             asset_url=app_state.asset_url,
         )
     else:
@@ -145,12 +259,15 @@ async def index(request: Request) -> HTMLResponse:
         LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
+        absolute_filepath = app_manager.filename
 
         # Pre-compute notebook snapshot for faster initial render
-        # Only in SandboxMode.MULTI where each notebook gets its own IPC kernel
+        # Only in EDIT + SandboxMode.MULTI where each notebook gets its own IPC
+        # kernel.
         notebook_snapshot = None
         if (
             app_state.session_manager.sandbox_mode is SandboxMode.MULTI
+            and app_state.mode == SessionMode.EDIT
             and app_manager.filename
         ):
             from marimo._convert.converters import MarimoConvert
@@ -182,12 +299,14 @@ async def index(request: Request) -> HTMLResponse:
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=filename,
+            filepath=absolute_filepath,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
             else None,
             asset_url=app_state.asset_url,
+            html_head=app_state.html_head,
         )
 
         # Inject service worker registration with the notebook ID
@@ -204,18 +323,32 @@ def _inject_service_worker(html: str, file_key: str) -> str:
         f"""
             if ('serviceWorker' in navigator) {{
                 const notebookId = '{uri_encode_component(file_key)}';
-                navigator.serviceWorker.register('./public-files-sw.js?v=2')
-                    .then(registration => {{
+                function sendNotebookId(registration) {{
+                    if (registration.active) {{
                         registration.active.postMessage({{ notebookId }});
+                        return;
+                    }}
+                    const worker = registration.installing || registration.waiting;
+                    if (worker) {{
+                        worker.addEventListener('statechange', function() {{
+                            if (worker.state === 'activated') {{
+                                registration.active.postMessage({{ notebookId }});
+                            }}
+                        }});
+                    }}
+                }}
+                navigator.serviceWorker.register('./public-files-sw.js?v=2')
+                    .then(function(registration) {{
+                        sendNotebookId(registration);
                     }})
-                    .catch(error => {{
+                    .catch(function(error) {{
                         console.error('Error registering service worker:', error);
                     }});
                 navigator.serviceWorker.ready
-                    .then(registration => {{
-                        registration.update().then(() => registration.active.postMessage({{ notebookId }}));
+                    .then(function(registration) {{
+                        registration.update().then(function() {{ sendNotebookId(registration); }});
                     }})
-                    .catch(error => {{
+                    .catch(function(error) {{
                         console.error('Error updating service worker:', error);
                     }});
             }} else {{
@@ -280,12 +413,15 @@ def virtual_file(
             detail="Invalid byte length in virtual file request",
         )
 
-    buffer_contents = read_virtual_file(filename, int(byte_length))
+    chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
-    return Response(
-        content=buffer_contents,
+    return StreamingResponse(
+        content=chunks,
         media_type=mimetype,
-        headers={"Cache-Control": "max-age=86400"},
+        headers={
+            "Cache-Control": "max-age=86400",
+            "Content-Length": byte_length,
+        },
     )
 
 

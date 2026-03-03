@@ -28,7 +28,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.repr_formatters import maybe_get_repr_formatter
 from marimo._output.formatters.utils import src_or_src_doc
-from marimo._output.hypertext import Html, is_no_js
+from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
 from marimo._plugins.core.media import io_to_data_url
@@ -157,7 +157,7 @@ def get_formatter(
 
     # If not explicitly opinionated, we defer to the environment.
     if include_opinionated is None:
-        include_opinionated = not is_no_js()
+        include_opinionated = not is_non_interactive()
 
     # Plain opts out of opinionated formatters
     if isinstance(obj, Plain):

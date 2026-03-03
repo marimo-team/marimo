@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -17,6 +17,7 @@ def _():
     import pygwalker as pyg
 
     from vega_datasets import data
+
     return data, pyg
 
 

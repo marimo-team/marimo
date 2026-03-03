@@ -1,3 +1,7 @@
+---
+description: "Learn marimo's key concepts: reactive notebooks, interactive elements, Python scripts, web apps, and how they work together."
+---
+
 # Key concepts
 
 This page covers marimo's key concepts:
