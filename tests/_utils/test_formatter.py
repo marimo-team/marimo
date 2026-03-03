@@ -169,8 +169,8 @@ class TestRuffFormatter:
         ("ignore", "args"),
         [
             (None, ["--ignore", "F401,I002"]),
-            ([], []),
-            (["A", "B"], ["--ignore", "A,B"]),
+            ([], ["--ignore", "F401,I002"]),
+            (["Z", "A", "I002"], ["--ignore", "A,F401,I002,Z"]),
         ],
     )
     async def test_ruff_formatter_calls_ruff_function_for_fix_with_filename(

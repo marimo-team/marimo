@@ -136,9 +136,8 @@ class RuffFormatter(Formatter):
         # We ignore F401 (unused-import) and I002 (required-imports) because
         # marimo performs 'fix' on a per-cell basis.
         # Fixing imports per-cell leads to incorrect results.
-        # Note: Make ignored rules configurable by users, potentially integrating with
-        # custom ruff configs (see Issue #8341 for custom marimo rules).
-        self.ignore: list[str] = ["F401", "I002"] if ignore is None else ignore
+        # (See Issue #8341 and PR #8560 for configurable rules.)
+        self.ignore: list[str] = sorted({"F401", "I002", *(ignore or [])})
 
     async def format(
         self, codes: CellCodes, filename: str | None = None
