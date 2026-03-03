@@ -157,7 +157,7 @@ Pass CLI args through to notebooks with `--`:
 marimo export session notebook.py -- --foo 123
 ```
 
-By default, marimo only rewrites session snapshots when they are stale (for example, when the notebook code has changed).
+By default, marimo only rewrites session snapshots when they are stale (for example, when notebook code changes or PEP 723 script metadata changes).
 Up-to-date snapshots are skipped.
 
 To force rewriting all snapshots, even when they are up-to-date:
