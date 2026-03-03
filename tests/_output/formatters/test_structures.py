@@ -57,6 +57,76 @@ async def test_matplotlib_special_case(
         )
 
 
+async def test_matplotlib_boxplot_dict_special_case(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that boxplot dict (containing artist lists) formats as single figure."""
+    if DependencyManager.matplotlib.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    fig, ax = plt.subplots()
+                    boxplot_result = ax.boxplot([0])
+                    formatter = get_formatter(boxplot_result)
+                    """
+                )
+            ]
+        )
+
+        formatter = executing_kernel.globals["formatter"]
+        boxplot_result = executing_kernel.globals["boxplot_result"]
+        assert formatter is not None
+        mimetype, data = formatter(boxplot_result)
+        # Should be a single image, not JSON with multiple formatted artists
+        assert (
+            mimetype.startswith("image")
+            or mimetype == "application/vnd.marimo+mimebundle"
+        ), f"Expected image mimetype, got {mimetype}"
+
+
+async def test_matplotlib_violinplot_dict_special_case(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that violinplot dict (with artist values) formats as single figure."""
+    if DependencyManager.matplotlib.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    fig, ax = plt.subplots()
+                    violinplot_result = ax.violinplot([1, 2, 3])
+                    formatter = get_formatter(violinplot_result)
+                    """
+                )
+            ]
+        )
+
+        formatter = executing_kernel.globals["formatter"]
+        violinplot_result = executing_kernel.globals["violinplot_result"]
+        assert formatter is not None
+        mimetype, data = formatter(violinplot_result)
+        # Should be a single image, not JSON with multiple formatted artists
+        assert (
+            mimetype.startswith("image")
+            or mimetype == "application/vnd.marimo+mimebundle"
+        ), f"Expected image mimetype, got {mimetype}"
+
+
 def test_format_structure_types() -> None:
     formatted = cast(
         list[Any], format_structure(["hello", True, False, None, 1, 1.0])

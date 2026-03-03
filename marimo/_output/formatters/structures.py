@@ -122,10 +122,25 @@ class StructuresFormatter(FormatterFactory):
                 # line, which typically have identical figures. Without this
                 # special case, if a plot had (say) 5 lines, it would be shown
                 # 5 times.
+                #
+                # ax.boxplot()/violinplot() return dicts with artist values.
                 import matplotlib.artist  # type: ignore
 
-                if all(isinstance(i, matplotlib.artist.Artist) for i in t):
-                    figs = [getattr(i, "figure", None) for i in t]
+                # Collect all artists from list/tuple/dict structures
+                artists: list[Any] = []
+                if isinstance(t, dict):
+                    for v in t.values():
+                        if isinstance(v, (list, tuple)):
+                            artists.extend(v)
+                        elif isinstance(v, matplotlib.artist.Artist):
+                            artists.append(v)
+                else:
+                    artists = list(t)
+
+                if artists and all(
+                    isinstance(i, matplotlib.artist.Artist) for i in artists
+                ):
+                    figs = [getattr(i, "figure", None) for i in artists]
                     if all(f is not None and f == figs[0] for f in figs):
                         matplotlib_formatter = formatting.get_formatter(
                             figs[0]
