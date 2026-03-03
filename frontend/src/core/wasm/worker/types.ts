@@ -72,6 +72,7 @@ export interface RawBridge {
   read_code(): Promise<{ contents: string }>;
   read_snippets(): Promise<Snippets>;
   format(request: FormatCellsRequest): Promise<FormatResponse>;
+  fix(request: FormatCellsRequest): Promise<FormatResponse>;
   save(request: SaveNotebookRequest): Promise<string>;
   copy(request: CopyNotebookRequest): Promise<string>;
   save_app_config(request: SaveAppConfigurationRequest): Promise<string>;

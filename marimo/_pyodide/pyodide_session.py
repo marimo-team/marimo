@@ -71,7 +71,7 @@ from marimo._server.models.models import (
 from marimo._session.model import SessionMode
 from marimo._session.state.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
-from marimo._utils.formatter import DefaultFormatter
+from marimo._utils.formatter import DefaultFormatter, RuffFormatter
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -278,8 +278,15 @@ class PyodideBridge:
     async def format(self, request: str) -> str:
         parsed = self._parse(request, FormatCellsRequest)
         formatter = DefaultFormatter(line_length=parsed.line_length)
+        codes = await formatter.format(parsed.codes, parsed.filename)
+        response = FormatResponse(codes)
+        return self._dump(response)
 
-        response = FormatResponse(codes=await formatter.format(parsed.codes))
+    async def fix(self, request: str) -> str:
+        parsed = self._parse(request, FormatCellsRequest)
+        formatter = RuffFormatter(parsed.line_length)
+        codes = await formatter.fix(parsed.codes, parsed.filename)
+        response = FormatResponse(codes)
         return self._dump(response)
 
     def save(self, request: str) -> None:

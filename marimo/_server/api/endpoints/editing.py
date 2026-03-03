@@ -170,14 +170,7 @@ async def fix_cell(request: Request) -> FormatResponse:
     """
     body = await parse_request(request, cls=FormatCellsRequest)
 
-    # We ignore F401 (unused-import) and I002 (required-imports) because
-    # marimo performs 'fix' on a per-cell basis.
-    # Fixing imports per-cell leads to incorrect results.
-    # Note: Make ignored rules configurable by users, potentially integrating with
-    # custom ruff configs (see Issue #8341 for custom marimo rules).
-    ignore = ["F401", "I002"]
-
-    formatter = RuffFormatter(line_length=body.line_length, ignore=ignore)
+    formatter = RuffFormatter(line_length=body.line_length)
 
     try:
         codes = await formatter.fix(body.codes, body.filename)
