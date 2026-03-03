@@ -35,6 +35,7 @@ def test_configure_full() -> None:
                 "autosave": "after_delay",
                 "autosave_delay": 2,
                 "format_on_save": False,
+                "fix_on_save": False,
             },
             keymap={"preset": "vim", "overrides": {}},
             package_management={
