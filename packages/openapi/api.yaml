@@ -1533,6 +1533,25 @@ components:
       type: object
     ExportAsPDFRequest:
       properties:
+        includeInputs:
+          default: false
+          type: boolean
+        preset:
+          default: document
+          enum:
+          - document
+          - slides
+        rasterScale:
+          default: 4.0
+          type: number
+        rasterServer:
+          default: static
+          enum:
+          - live
+          - static
+        rasterizeOutputs:
+          default: true
+          type: boolean
         webpdf:
           type: boolean
       required:
@@ -4257,16 +4276,21 @@ components:
       title: StopKernelCommand
       type: object
     StorageDownloadCommand:
-      description: "Download a storage entry.\n\n    Downloads file bytes from storage\
-        \ and creates a virtual file\n    so the frontend can fetch the contents.\n\
-        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
-        \        namespace: Variable name identifying the storage backend.\n     \
-        \   path: Full path of the entry to download."
+      description: "Download a storage entry.\n\n    Obtains a pre-signed URL or downloads\
+        \ the file locally and returns a virtual file URL\n    so the frontend can\
+        \ fetch the contents.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request.\n        namespace: Variable name identifying the storage\
+        \ backend.\n        path: Full path of the entry to download.\n        preview:\
+        \ If true, a local preview of the file is returned.\n            This is useful\
+        \ if you need to bypass CORS."
       properties:
         namespace:
           type: string
         path:
           type: string
+        preview:
+          default: false
+          type: boolean
         requestId:
           type: string
         type:
@@ -4318,6 +4342,9 @@ components:
           type: string
         path:
           type: string
+        preview:
+          default: false
+          type: boolean
         requestId:
           type: string
       required:
@@ -4372,7 +4399,8 @@ components:
         \ systems\n\n    Attributes:\n        path: The path of the storage entry.\n\
         \        kind: The kind of the storage entry.\n        size: The size of the\
         \ storage entry.\n        last_modified: The last modified time of the storage\
-        \ entry.\n        metadata: The metadata of the storage entry."
+        \ entry.\n        metadata: The metadata of the storage entry.\n        mime_type:\
+        \ The MIME type of the storage entry, or None for directories."
       properties:
         kind:
           enum:
@@ -4386,6 +4414,11 @@ components:
         metadata:
           default: {}
           type: object
+        mimeType:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         path:
           type: string
         size:
@@ -6519,3 +6552,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

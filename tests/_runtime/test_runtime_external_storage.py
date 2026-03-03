@@ -215,6 +215,7 @@ class TestExternalStorageCallbacks:
                         size=5,
                         last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                         metadata={"e_tag": IsStr()},
+                        mime_type="text/csv",
                     ),
                     StorageEntry(
                         path="data/file2.txt",
@@ -222,6 +223,7 @@ class TestExternalStorageCallbacks:
                         size=5,
                         last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                         metadata={"e_tag": IsStr()},
+                        mime_type="text/plain",
                     ),
                 ],
                 namespace=STORAGE_VAR,
@@ -275,6 +277,7 @@ class TestExternalStorageCallbacks:
                         size=1,
                         last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                         metadata={"e_tag": IsStr()},
+                        mime_type="text/plain",
                     ),
                     StorageEntry(
                         path="b.txt",
@@ -282,6 +285,7 @@ class TestExternalStorageCallbacks:
                         size=1,
                         last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                         metadata={"e_tag": IsStr()},
+                        mime_type="text/plain",
                     ),
                 ],
                 namespace=STORAGE_VAR,
@@ -680,5 +684,232 @@ class TestExternalStorageCallbacks:
                 url=None,
                 filename=None,
                 error="Failed to download: access denied",
+            )
+        ]
+
+    async def test_download_preview(self, mocked_kernel: MockedKernel) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        await store.put_async("docs/readme.txt", b"hello world")
+
+        request = StorageDownloadCommand(
+            request_id=RequestId("req-30"),
+            namespace=STORAGE_VAR,
+            path="docs/readme.txt",
+            preview=True,
+        )
+        await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageDownloadReadyNotification)
+        ]
+        assert results == [
+            StorageDownloadReadyNotification(
+                request_id=RequestId("req-30"),
+                url=IsStr(),  # pyright: ignore[reportArgumentType]
+                filename="readme.txt",
+                error=None,
+            )
+        ]
+        notif = results[0]
+        assert notif.url is not None
+        # Preview returns a virtual file URL, not a signed URL
+        assert "@file/" in notif.url
+
+    async def test_download_preview_skips_signed_url(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Preview mode should use read_range, never sign_download_url."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        await store.put_async("file.py", b"print('hello')")
+
+        backend = Obstore(store, VariableName(STORAGE_VAR))
+        backend.sign_download_url = AsyncMock(  # type: ignore[method-assign]
+            side_effect=AssertionError("should not be called"),
+        )
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                k.external_storage_callbacks,
+                "_get_storage_backend",
+                lambda _: (backend, None),
+            )
+            request = StorageDownloadCommand(
+                request_id=RequestId("req-31"),
+                namespace=STORAGE_VAR,
+                path="file.py",
+                preview=True,
+            )
+            await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageDownloadReadyNotification)
+        ]
+        assert results == [
+            StorageDownloadReadyNotification(
+                request_id=RequestId("req-31"),
+                url=IsStr(),  # pyright: ignore[reportArgumentType]
+                filename="file.py",
+                error=None,
+            )
+        ]
+
+    async def test_download_preview_schedules_cleanup(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        import asyncio
+
+        k = mocked_kernel.k
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        await store.put_async("tmp/preview.txt", b"data")
+
+        request = StorageDownloadCommand(
+            request_id=RequestId("req-32"),
+            namespace=STORAGE_VAR,
+            path="tmp/preview.txt",
+            preview=True,
+        )
+
+        loop = asyncio.get_running_loop()
+        scheduled: list[tuple[float, object]] = []
+        original_call_later = loop.call_later
+
+        def spy_call_later(
+            delay: float, callback: object, *args: object
+        ) -> asyncio.TimerHandle:
+            scheduled.append((delay, callback))
+            return original_call_later(delay, callback, *args)  # pyright: ignore[reportArgumentType]
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(loop, "call_later", spy_call_later)
+            await k.handle_message(request)
+
+        assert len(scheduled) == 1
+        delay, _callback = scheduled[0]
+        assert delay == 60
+
+    async def test_download_preview_backend_exception(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code=(
+                        "from obstore.store import MemoryStore\n"
+                        f"{STORAGE_VAR} = MemoryStore()"
+                    ),
+                ),
+            ]
+        )
+
+        store = k.globals[VariableName(STORAGE_VAR)]
+        broken_backend = Obstore(store, VariableName(STORAGE_VAR))
+        broken_backend.read_range = AsyncMock(  # type: ignore[method-assign]
+            side_effect=OSError("read failed"),
+        )
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                k.external_storage_callbacks,
+                "_get_storage_backend",
+                lambda _: (broken_backend, None),
+            )
+            request = StorageDownloadCommand(
+                request_id=RequestId("req-33"),
+                namespace=STORAGE_VAR,
+                path="broken/file.txt",
+                preview=True,
+            )
+            await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageDownloadReadyNotification)
+        ]
+        assert results == [
+            StorageDownloadReadyNotification(
+                request_id=RequestId("req-33"),
+                url=None,
+                filename=None,
+                error="Failed to download: read failed",
+            )
+        ]
+
+    async def test_download_preview_variable_not_found(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        request = StorageDownloadCommand(
+            request_id=RequestId("req-34"),
+            namespace="nonexistent_var",
+            path="file.txt",
+            preview=True,
+        )
+        await k.handle_message(request)
+
+        results = [
+            op
+            for op in stream.operations
+            if isinstance(op, StorageDownloadReadyNotification)
+        ]
+        assert results == [
+            StorageDownloadReadyNotification(
+                request_id=RequestId("req-34"),
+                url=None,
+                filename=None,
+                error="Variable 'nonexistent_var' not found",
             )
         ]

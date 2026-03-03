@@ -127,7 +127,7 @@ def _extract_cell_data(
         codes, names, configs, cell_ids = tuple(
             zip(
                 *tuple(
-                    ("", "", cell_data.config, cell_data.cell_id)
+                    ("", cell_data.name, cell_data.config, cell_data.cell_id)
                     for cell_data in app.cell_manager.cell_data()
                 )
             )

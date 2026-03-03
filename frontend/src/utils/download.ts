@@ -188,6 +188,8 @@ export function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export type PDFExportPreset = "document" | "slides";
+
 /**
  * Download the current notebook as a PDF file.
  *
@@ -197,13 +199,31 @@ export function downloadBlob(blob: Blob, filename: string) {
 export async function downloadAsPDF(opts: {
   filename: string;
   webpdf: boolean;
+  preset?: PDFExportPreset;
+  includeInputs?: boolean;
+  rasterizeOutputs?: boolean;
+  rasterScale?: number;
+  rasterServer?: "static" | "live";
 }) {
   const client = getRequestClient();
-  const { filename, webpdf } = opts;
+  const {
+    filename,
+    webpdf,
+    preset = "document",
+    includeInputs = false,
+    rasterizeOutputs = true,
+    rasterScale = 4,
+    rasterServer = "static",
+  } = opts;
 
   try {
     const pdfBlob = await client.exportAsPDF({
       webpdf,
+      preset,
+      includeInputs,
+      rasterizeOutputs,
+      rasterScale,
+      rasterServer,
     });
 
     const filenameWithoutPath = Paths.basename(filename);

@@ -13,6 +13,7 @@ from starlette.responses import (
     HTMLResponse,
     RedirectResponse,
     Response,
+    StreamingResponse,
 )
 from starlette.staticfiles import StaticFiles
 
@@ -20,7 +21,10 @@ from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
-from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
+from marimo._runtime.virtual_file import (
+    EMPTY_VIRTUAL_FILE,
+    read_virtual_file_chunked,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
@@ -53,9 +57,28 @@ server_config = (
 assets_dir = root / "assets"
 follow_symlinks = server_config.get("follow_symlink", False)
 
-if not follow_symlinks and assets_dir.is_symlink():
+
+def _has_symlinks(directory: Path) -> bool:
+    """Check if a directory is a symlink or contains symlinked files."""
+    if directory.is_symlink():
+        return True
+    try:
+        # Check a small sample of files for symlinks
+        for i, child in enumerate(directory.iterdir()):
+            if child.is_symlink():
+                return True
+            if i >= 1:
+                break
+    except OSError:
+        pass
+    return False
+
+
+if not follow_symlinks and _has_symlinks(assets_dir):
     LOGGER.error(
-        "Assets directory is a symlink but follow_symlink=false.\n"
+        "Assets directory contains symlinks but follow_symlink=false.\n"
+        "This commonly happens with package managers like pdm/uv "
+        "that use symlinks for installed packages.\n"
         "To fix this:\n"
         "1. Run 'marimo config show' to see your current config\n"
         "2. Add 'follow_symlink = true' under the [server] section in your config\n"
@@ -390,12 +413,15 @@ def virtual_file(
             detail="Invalid byte length in virtual file request",
         )
 
-    buffer_contents = read_virtual_file(filename, int(byte_length))
+    chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
-    return Response(
-        content=buffer_contents,
+    return StreamingResponse(
+        content=chunks,
         media_type=mimetype,
-        headers={"Cache-Control": "max-age=86400"},
+        headers={
+            "Cache-Control": "max-age=86400",
+            "Content-Length": byte_length,
+        },
     )
 
 

@@ -14,6 +14,7 @@ from marimo._data._external_storage.models import DownloadResult, StorageEntry
 from marimo._data._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
+    detect_protocol_from_url,
     normalize_protocol,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -65,6 +66,7 @@ class TestObstore:
                     size=0,
                     last_modified=None,
                     metadata={},
+                    mime_type=None,
                 ),
                 StorageEntry(
                     path="file1.txt",
@@ -72,6 +74,7 @@ class TestObstore:
                     size=100,
                     last_modified=now.timestamp(),
                     metadata={"e_tag": "abc"},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="dir/file2.txt",
@@ -79,6 +82,7 @@ class TestObstore:
                     size=200,
                     last_modified=now.timestamp(),
                     metadata={"version": "v1"},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -110,10 +114,11 @@ class TestObstore:
         assert entry == snapshot(
             StorageEntry(
                 path="",
+                kind="object",
                 size=0,
                 last_modified=None,
-                kind="object",
                 metadata={},
+                mime_type=None,
             )
         )
 
@@ -134,10 +139,11 @@ class TestObstore:
         assert entry == snapshot(
             StorageEntry(
                 path="test.csv",
+                kind="object",
                 size=500,
                 last_modified=now.timestamp(),
-                kind="object",
                 metadata={"e_tag": "etag123", "version": "v2"},
+                mime_type="text/csv",
             )
         )
 
@@ -160,10 +166,11 @@ class TestObstore:
         assert result == snapshot(
             StorageEntry(
                 path="test.txt",
+                kind="object",
                 size=42,
                 last_modified=now.timestamp(),
-                kind="object",
                 metadata={"e_tag": "e1"},
+                mime_type="text/plain",
             )
         )
         mock_store.head_async.assert_called_once_with("test.txt")
@@ -276,6 +283,72 @@ class TestObstore:
             file_bytes=b"data",
             filename="download",
             ext="bin",
+        )
+
+    async def test_read_range_full_file_delegates_to_download(self) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"full content")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("file.txt")
+        assert result == b"full content"
+        mock_store.get_async.assert_called_once_with("file.txt")
+
+    async def test_read_range_offset_without_length_slices_download(
+        self,
+    ) -> None:
+        mock_store = MagicMock()
+        mock_bytes_result = MagicMock()
+        mock_bytes_result.bytes_async = MagicMock(
+            return_value=_async_return(b"hello world")
+        )
+        mock_store.get_async = MagicMock(
+            return_value=_async_return(mock_bytes_result)
+        )
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("file.txt", offset=6)
+        assert result == b"world"
+        mock_store.get_async.assert_called_once_with("file.txt")
+
+    async def test_read_range_with_offset_and_length(self) -> None:
+        mock_store = MagicMock()
+        backend = self._make_backend(mock_store)
+
+        with patch(
+            "obstore.get_range_async",
+            new_callable=AsyncMock,
+            return_value=b"partial",
+        ) as mock_get_range:
+            result = await backend.read_range(
+                "file.txt", offset=10, length=100
+            )
+
+        assert result == b"partial"
+        mock_get_range.assert_called_once_with(
+            mock_store, "file.txt", start=10, length=100
+        )
+
+    async def test_read_range_with_length_only(self) -> None:
+        mock_store = MagicMock()
+        backend = self._make_backend(mock_store)
+
+        with patch(
+            "obstore.get_range_async",
+            new_callable=AsyncMock,
+            return_value=b"first bytes",
+        ) as mock_get_range:
+            result = await backend.read_range("file.txt", length=50)
+
+        assert result == b"first bytes"
+        mock_get_range.assert_called_once_with(
+            mock_store, "file.txt", start=0, length=50
         )
 
     def test_protocol_memory(self) -> None:
@@ -441,17 +514,19 @@ class TestFsspecFilesystem:
             [
                 StorageEntry(
                     path="file1.txt",
+                    kind="file",
                     size=100,
                     last_modified=1234567890.0,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="subdir",
+                    kind="directory",
                     size=0,
                     last_modified=1234567891.0,
-                    kind="directory",
                     metadata={},
+                    mime_type=None,
                 ),
             ]
         )
@@ -485,10 +560,11 @@ class TestFsspecFilesystem:
             [
                 StorageEntry(
                     path="file0.txt",
+                    kind="file",
                     size=0,
                     last_modified=None,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="file1.txt",
@@ -496,6 +572,7 @@ class TestFsspecFilesystem:
                     size=10,
                     last_modified=None,
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="file2.txt",
@@ -503,6 +580,7 @@ class TestFsspecFilesystem:
                     size=20,
                     last_modified=None,
                     metadata={},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -530,17 +608,19 @@ class TestFsspecFilesystem:
             [
                 StorageEntry(
                     path="good.txt",
+                    kind="file",
                     size=10,
                     last_modified=None,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="also_good.txt",
+                    kind="file",
                     size=20,
                     last_modified=None,
-                    kind="file",
                     metadata={},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -579,9 +659,9 @@ class TestFsspecFilesystem:
         assert entry == snapshot(
             StorageEntry(
                 path="data.csv",
+                kind="file",
                 size=1024,
                 last_modified=1700000000.0,
-                kind="file",
                 metadata={
                     "e_tag": "abc123",
                     "is_link": False,
@@ -589,6 +669,7 @@ class TestFsspecFilesystem:
                     "n_link": 1,
                     "created": 1699000000.0,
                 },
+                mime_type="text/csv",
             )
         )
 
@@ -602,10 +683,11 @@ class TestFsspecFilesystem:
         assert entry == snapshot(
             StorageEntry(
                 path="",
+                kind="file",
                 size=0,
                 last_modified=None,
-                kind="file",
                 metadata={},
+                mime_type=None,
             )
         )
 
@@ -619,10 +701,11 @@ class TestFsspecFilesystem:
         assert entry == snapshot(
             StorageEntry(
                 path="my_dir/",
+                kind="directory",
                 size=0,
                 last_modified=None,
-                kind="directory",
                 metadata={},
+                mime_type=None,
             )
         )
 
@@ -640,10 +723,11 @@ class TestFsspecFilesystem:
         assert result == snapshot(
             StorageEntry(
                 path="test.txt",
+                kind="file",
                 size=42,
                 last_modified=1700000000.0,
-                kind="file",
                 metadata={},
+                mime_type="text/plain",
             )
         )
 
@@ -689,6 +773,47 @@ class TestFsspecFilesystem:
             file_bytes=b"csv data",
             filename="export.csv",
             ext="csv",
+        )
+
+    async def test_read_range_returns_bytes(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = b"partial content"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt", offset=0, length=15)
+        assert result == b"partial content"
+        mock_store.cat_file.assert_called_once_with(
+            "path/file.txt", start=0, end=15
+        )
+
+    async def test_read_range_encodes_string_to_bytes(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = "text content"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt", offset=0, length=50)
+        assert result == b"text content"
+
+    async def test_read_range_with_offset(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = b"middle"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt", offset=10, length=6)
+        assert result == b"middle"
+        mock_store.cat_file.assert_called_once_with(
+            "path/file.txt", start=10, end=16
+        )
+
+    async def test_read_range_full_file(self) -> None:
+        mock_store = MagicMock()
+        mock_store.cat_file.return_value = b"entire file"
+
+        backend = self._make_backend(mock_store)
+        result = await backend.read_range("path/file.txt")
+        assert result == b"entire file"
+        mock_store.cat_file.assert_called_once_with(
+            "path/file.txt", start=0, end=None
         )
 
     def test_protocol_tuple(self) -> None:
@@ -808,6 +933,7 @@ class TestFsspecFilesystemIntegration:
                     size=11,
                     last_modified=None,
                     metadata={"created": IsPositiveFloat()},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="/test/data.csv",
@@ -815,6 +941,7 @@ class TestFsspecFilesystemIntegration:
                     size=11,
                     last_modified=None,
                     metadata={"created": IsPositiveFloat()},
+                    mime_type="text/csv",
                 ),
             ]
         )
@@ -837,6 +964,7 @@ class TestFsspecFilesystemIntegration:
                 size=12,
                 last_modified=None,
                 metadata={"created": IsDatetime()},
+                mime_type="text/plain",
             )
         )
 
@@ -852,13 +980,52 @@ class TestFsspecFilesystemIntegration:
         result = await backend.sign_download_url("/test/file.txt")
         assert result is None
 
+    async def test_read_range_full_file(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt")
+        assert result == b"hello world"
+
+    async def test_read_range_partial(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt", offset=0, length=5)
+        assert result == b"hello"
+
+    async def test_read_range_with_offset(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt", offset=6, length=5)
+        assert result == b"world"
+
+    async def test_read_range_offset_without_length(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        fs.pipe("/test/data.txt", b"hello world")
+
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        result = await backend.read_range("/test/data.txt", offset=6)
+        assert result == b"world"
+
     def test_protocol_memory_filesystem(self) -> None:
         from fsspec.implementations.memory import MemoryFileSystem
 
         fs = MemoryFileSystem()
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
-        # MemoryFileSystem protocol is "memory", which doesn't match known types
-        assert backend.protocol == "memory"
+        assert backend.protocol == "in-memory"
 
 
 @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")
@@ -883,6 +1050,7 @@ class TestObstoreIntegration:
                     size=5,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                     metadata={"e_tag": "0"},
+                    mime_type="text/plain",
                 ),
                 StorageEntry(
                     path="test/file2.txt",
@@ -890,6 +1058,7 @@ class TestObstoreIntegration:
                     size=6,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                     metadata={"e_tag": "1"},
+                    mime_type="text/plain",
                 ),
             ]
         )
@@ -919,6 +1088,7 @@ class TestObstoreIntegration:
                 size=12,
                 last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
                 metadata={"e_tag": "0"},
+                mime_type="text/plain",
             )
         )
 
@@ -934,6 +1104,46 @@ class TestObstoreIntegration:
         result = await backend.sign_download_url("data.txt")
         assert result is None
 
+    async def test_read_range_full_file(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt")
+        assert result == b"hello world"
+
+    async def test_read_range_partial(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt", offset=0, length=5)
+        assert result == b"hello"
+
+    async def test_read_range_with_offset(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt", offset=6, length=5)
+        assert result == b"world"
+
+    async def test_read_range_offset_without_length(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        await store.put_async("file.txt", b"hello world")
+
+        backend = Obstore(store, VariableName("mem_store"))
+        result = await backend.read_range("file.txt", offset=6)
+        assert result == b"world"
+
 
 class TestNormalizeProtocol:
     @pytest.mark.parametrize(
@@ -942,26 +1152,49 @@ class TestNormalizeProtocol:
             ("s3", "s3"),
             ("s3a", "s3"),
             ("S3", "s3"),
+            ("gs", "gcs"),
             ("gcs", "gcs"),
-            ("GCS", "gcs"),
-            ("gs-gcs", "gcs"),
-            ("azure", "azure"),
-            ("Azure", "azure"),
-            ("abfs-azure", "azure"),
+            ("abfs", "azure"),
+            ("abfss", "azure"),
+            ("az", "azure"),
             ("http", "http"),
-            ("HTTP", "http"),
-            ("https-http", "http"),
+            ("https", "http"),
             ("file", "file"),
-            ("FILE", "file"),
-            ("local-file", "file"),
-            ("ftp", "ftp"),
-            ("custom", "custom"),
+            ("local", "file"),
+            ("memory", "in-memory"),
+            ("r2", "cloudflare"),
             ("  s3  ", "s3"),
-            ("  gcs  ", "gcs"),
+            ("unknown", None),
+            ("ftp", None),
         ],
     )
-    def test_normalize_protocol(self, protocol: str, expected: str) -> None:
+    def test_normalize_protocol(
+        self, protocol: str, expected: str | None
+    ) -> None:
         assert normalize_protocol(protocol) == expected
+
+
+class TestDetectProtocolFromUrl:
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("https://account.r2.cloudflarestorage.com", "cloudflare"),
+            ("https://s3.amazonaws.com", "s3"),
+            ("https://s3.us-east-1.amazonaws.com", "s3"),
+            ("https://storage.googleapis.com", "gcs"),
+            ("https://account.blob.core.windows.net", "azure"),
+            ("https://minio.example.com", None),
+            ("https://my-custom-endpoint.com", None),
+            (
+                "https://s3.cloudflare.com",
+                "cloudflare",
+            ),  # Although there is S3, it will match the cloudflare pattern first
+        ],
+    )
+    def test_detect_protocol_from_url(
+        self, url: str, expected: str | None
+    ) -> None:
+        assert detect_protocol_from_url(url) == expected
 
 
 # --- Helpers ---

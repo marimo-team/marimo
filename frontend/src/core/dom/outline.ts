@@ -1,12 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { sanitizeHtml } from "@/plugins/core/sanitize";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { Outline, OutlineItem } from "../cells/outline";
 import type { OutputMessage } from "../kernel/messages";
 
 // Tags that we don't want to include in the outline
-const excludedTags = ["marimo-carousel", "marimo-tabs", "marimo-accordion"];
+const excludedTags = [
+  "marimo-carousel",
+  "marimo-tabs",
+  "marimo-accordion",
+  "marimo-sidebar",
+];
 
 // We go up to h6. Previously we did h3 to match Google Docs and Notion, but users have requested more levels.
 // This could be made configurable in the future.
@@ -46,7 +52,12 @@ function getOutline(html: string): Outline | null {
     }
 
     const level = Number.parseInt(heading.tagName[1], 10);
-    items.push({ name, level, by: headingToIdentifier(heading) });
+    const innerHTML = heading.innerHTML;
+    const item: OutlineItem = { name, level, by: headingToIdentifier(heading) };
+    if (innerHTML !== name) {
+      item.html = sanitizeHtml(innerHTML);
+    }
+    items.push(item);
   }
 
   return { items };

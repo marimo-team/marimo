@@ -88,6 +88,7 @@ Unlike the grid layout, the slides are much less customizable:
 - The order of the slides is determined by the order of the cells in the notebook.
 - The slides do not support drag-and-drop rearrangement or resizing.
 - All outputs are shown and all code is hidden.
+- For PDF export, use `marimo export pdf notebook.py --as=slides --raster-server=live` for slide-style output with better capture compatibility.
 
 If you need more control over the layout, please file an issue on [GitHub](https://github.com/marimo-team/marimo/issues),
 so we can properly prioritize this feature.

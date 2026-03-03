@@ -74,6 +74,10 @@ export function sanitizeHtml(html: string) {
   const sanitizationOptions: Config = {
     // Default to permit HTML, SVG and MathML, this limits to HTML only
     USE_PROFILES: { html: true, svg: true, mathMl: true },
+    // Allow SVG <use> elements and their href attributes, which are needed
+    // for SVGs that reference <defs> (e.g., Matplotlib SVG output).
+    ADD_TAGS: ["use"],
+    ADD_ATTR: ["href", "xlink:href"],
     // glue elements like style, script or others to document.body and prevent unintuitive browser behavior in several edge-cases
     FORCE_BODY: true,
     CUSTOM_ELEMENT_HANDLING: {

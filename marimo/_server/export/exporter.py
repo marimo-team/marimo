@@ -6,7 +6,7 @@ import base64
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -42,12 +42,16 @@ from marimo._session.state.serialize import (
     serialize_session_view,
 )
 from marimo._session.state.session_view import SessionView
+from marimo._types.ids import CellId_t
 from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
 from marimo._version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 LOGGER = _loggers.marimo_logger()
 
@@ -314,6 +318,7 @@ class Exporter:
         *,
         app: InternalApp,
         session_view: SessionView | None,
+        png_fallbacks: Mapping[CellId_t, str] | None = None,
         webpdf: bool,
         include_inputs: bool = True,
     ) -> bytes | None:
@@ -322,6 +327,8 @@ class Exporter:
         Args:
             app: The app to export
             session_view: The session view to export. If None, outputs are not included.
+            png_fallbacks: Optional cell-id keyed image/png fallbacks to
+                inject into notebook outputs before nbconvert.
             include_inputs: Whether to include code cell inputs in the export.
             webpdf: If False, tries standard PDF export (pandoc + TeX) first,
                 falling back to webpdf on failure. If True, uses webpdf
@@ -348,6 +355,15 @@ class Exporter:
         import nbformat
 
         notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+        if png_fallbacks:
+            from marimo._server.export._nbformat_png_fallbacks import (
+                inject_png_fallbacks_into_notebook,
+            )
+
+            inject_png_fallbacks_into_notebook(
+                notebook,
+                png_fallbacks=png_fallbacks,
+            )
 
         # Try standard PDF export first (requires pandoc + TeX)
         # and fall back to webpdf if it fails
@@ -379,6 +395,163 @@ class Exporter:
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
+
+    async def export_as_slides_pdf(
+        self,
+        *,
+        app: InternalApp,
+        session_view: SessionView | None,
+        png_fallbacks: Mapping[CellId_t, str] | None = None,
+        include_inputs: bool = True,
+    ) -> bytes | None:
+        """Export a slides notebook as PDF using reveal.js + Playwright.
+
+        Converts to iPynb with Jupyter slideshow metadata, renders to
+        reveal.js HTML via nbconvert's SlidesExporter, then uses
+        Playwright (async API) to print to PDF via ?print-pdf mode.
+
+        Must be called from an async context since Playwright's async API
+        is required when running inside an asyncio event loop.
+
+        Args:
+            app: The app to export
+            session_view: The session view to export. If None, outputs
+                are not included.
+            png_fallbacks: Optional cell-id keyed image/png fallbacks to
+                inject into notebook outputs before conversion.
+            include_inputs: Whether to include code cell inputs.
+
+        Returns:
+            PDF data
+        """
+        DependencyManager.require_many(
+            "for PDF export",
+            DependencyManager.nbformat,
+            DependencyManager.nbconvert,
+            DependencyManager.playwright,
+        )
+
+        ipynb_json_str = self.export_as_ipynb(
+            app=app, sort_mode="top-down", session_view=session_view
+        )
+
+        import nbformat
+
+        notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+        if png_fallbacks:
+            from marimo._server.export._nbformat_png_fallbacks import (
+                inject_png_fallbacks_into_notebook,
+            )
+
+            inject_png_fallbacks_into_notebook(
+                notebook,
+                png_fallbacks=png_fallbacks,
+            )
+        return await self._export_slides_as_pdf(notebook, include_inputs)
+
+    @staticmethod
+    def _to_file_uri(path: str) -> str:
+        import os
+        from urllib.request import pathname2url
+
+        return f"file://{pathname2url(os.path.abspath(path))}"
+
+    @staticmethod
+    def _slide_type_for_cell(cell: Any, include_inputs: bool) -> str:
+        if include_inputs:
+            return "slide"
+        cell_type = str(cell.get("cell_type", ""))
+        if cell_type != "code":
+            return "slide"
+        outputs = cell.get("outputs", [])
+        if isinstance(outputs, list) and outputs:
+            return "slide"
+        return "skip"
+
+    @staticmethod
+    async def _export_slides_as_pdf(
+        notebook: Any,
+        include_inputs: bool,
+    ) -> bytes | None:
+        """Render slides notebook to PDF using Playwright async API."""
+        import os
+        import tempfile
+
+        from nbconvert import SlidesExporter  # type: ignore[import-not-found]
+
+        # Add slideshow metadata so each cell becomes a slide.
+        for cell in notebook.cells:
+            if "slideshow" not in cell.metadata:
+                cell.metadata["slideshow"] = {}
+            cell.metadata["slideshow"]["slide_type"] = (
+                Exporter._slide_type_for_cell(cell, include_inputs)
+            )
+
+        # Convert to reveal.js HTML
+        slides_exporter = SlidesExporter()
+        slides_exporter.exclude_input = not include_inputs
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)
+
+        # Write HTML to a temp file for Playwright to load
+        with tempfile.NamedTemporaryFile(
+            suffix=".html", delete=False, mode="w", encoding="utf-8"
+        ) as f:
+            f.write(html_data)
+            temp_path = f.name
+
+        try:
+            from playwright.async_api import (  # type: ignore[import-not-found]
+                async_playwright,
+            )
+
+            async with async_playwright() as playwright:
+                browser = await playwright.chromium.launch()
+                try:
+                    page = await browser.new_page()
+                    # ?print-pdf tells reveal.js to use a linear print layout
+                    temp_uri = Exporter._to_file_uri(temp_path)
+                    await page.goto(
+                        f"{temp_uri}?print-pdf",
+                        wait_until="networkidle",
+                    )
+                    await page.evaluate(
+                        """
+                        () => {
+                          const reveal = window.Reveal;
+                          if (
+                            reveal &&
+                            typeof reveal.layout === "function"
+                          ) {
+                            reveal.layout();
+                          }
+                        }
+                        """
+                    )
+                    await page.wait_for_timeout(300)
+                    await page.add_style_tag(
+                        content=(
+                            ".pdf-page:last-of-type {"
+                            " page-break-after: auto !important;"
+                            " break-after: auto !important;"
+                            "}"
+                        )
+                    )
+                    pdf_data = await page.pdf(
+                        print_background=True,
+                        prefer_css_page_size=True,
+                    )
+                finally:
+                    await browser.close()
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                LOGGER.debug("Failed to remove temp slide HTML: %s", temp_path)
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
             return None
         return pdf_data
 

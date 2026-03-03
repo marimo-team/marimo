@@ -14,8 +14,11 @@ from typing import TYPE_CHECKING, Any
 
 import click
 import pytest
+from click.testing import CliRunner
 
+from marimo._cli.export.commands import pdf
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
 from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
@@ -47,7 +50,12 @@ def _run_export(
 ) -> subprocess.CompletedProcess[bytes]:
     """Helper to run marimo export commands."""
     cmd = ["marimo", "export", export_format, file, *extra_args]
-    return subprocess.run(cmd, capture_output=capture_output, input=input_data)
+    return subprocess.run(
+        cmd,
+        check=False,
+        capture_output=capture_output,
+        input=input_data,
+    )
 
 
 def _assert_success(p: subprocess.CompletedProcess[bytes]) -> None:
@@ -843,6 +851,22 @@ class TestExportIpynb:
 
 
 class TestExportPDF:
+    @staticmethod
+    def test_export_pdf_rasterize_outputs_default_enabled() -> None:
+        rasterize_option = next(
+            param for param in pdf.params if param.name == "rasterize_outputs"
+        )
+        assert isinstance(rasterize_option, click.Option)
+        assert rasterize_option.default is True
+
+    @staticmethod
+    def test_export_pdf_raster_server_default_static() -> None:
+        raster_server_option = next(
+            param for param in pdf.params if param.name == "raster_server"
+        )
+        assert isinstance(raster_server_option, click.Option)
+        assert raster_server_option.default == "static"
+
     @pytest.mark.skipif(
         DependencyManager.nbformat.has() and DependencyManager.nbconvert.has(),
         reason="This test expects PDF export deps to be missing.",
@@ -864,6 +888,189 @@ class TestExportPDF:
         assert "nbconvert" in stderr
         assert "pip install" in stderr
 
+    @staticmethod
+    def test_export_pdf_rasterize_requires_outputs(
+        temp_marimo_file: str,
+    ) -> None:
+        output_file = temp_marimo_file.replace(".py", ".pdf")
+        p = _run_export(
+            "pdf",
+            temp_marimo_file,
+            "--output",
+            output_file,
+            "--no-include-outputs",
+            "--rasterize-outputs",
+            "--no-sandbox",
+        )
+        _assert_failure(p)
+        stderr = p.stderr.decode()
+        assert "Rasterization options require --include-outputs." in stderr
+
+    @staticmethod
+    def test_export_pdf_raster_scale_requires_outputs(
+        temp_marimo_file: str,
+    ) -> None:
+        output_file = temp_marimo_file.replace(".py", ".pdf")
+        p = _run_export(
+            "pdf",
+            temp_marimo_file,
+            "--output",
+            output_file,
+            "--no-include-outputs",
+            "--raster-scale",
+            "2",
+            "--no-sandbox",
+        )
+        _assert_failure(p)
+        stderr = p.stderr.decode()
+        assert "Rasterization options require --include-outputs." in stderr
+
+    @staticmethod
+    def test_export_pdf_raster_server_requires_outputs(
+        temp_marimo_file: str,
+    ) -> None:
+        output_file = temp_marimo_file.replace(".py", ".pdf")
+        p = _run_export(
+            "pdf",
+            temp_marimo_file,
+            "--output",
+            output_file,
+            "--no-include-outputs",
+            "--raster-server",
+            "live",
+            "--no-sandbox",
+        )
+        _assert_failure(p)
+        stderr = p.stderr.decode()
+        assert "Rasterization options require --include-outputs." in stderr
+
+    @staticmethod
+    def test_export_pdf_passes_preset_to_export_pipeline(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        output_file = tmp_path / "out.pdf"
+        runner = CliRunner()
+        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--as",
+                    "slides",
+                    "--no-sandbox",
+                    "--no-include-outputs",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert output_file.read_bytes() == b"mock_pdf"
+        assert mock_run_app.await_count == 1
+        call_kwargs = mock_run_app.await_args.kwargs
+        assert call_kwargs["export_as"] == "slides"
+
+    @staticmethod
+    def test_export_pdf_slides_shows_live_raster_recommendation(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        output_file = tmp_path / "slides-tip.pdf"
+        runner = CliRunner()
+        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.DependencyManager.playwright.require"
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--as",
+                    "slides",
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "For --as=slides, prefer --raster-server=live" in result.output
+        assert mock_run_app.await_count == 1
+        call_kwargs = mock_run_app.await_args.kwargs
+        assert call_kwargs["rasterization_options"].server_mode == "static"
+
+    @staticmethod
+    def test_export_pdf_shows_slides_hint_when_preset_missing(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        output_file = tmp_path / "hint.pdf"
+        runner = CliRunner()
+        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.notebook_uses_slides_layout",
+                return_value=True,
+            ),
+            patch(
+                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                mock_run_app,
+            ),
+        ):
+            result = runner.invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--no-sandbox",
+                    "--no-include-outputs",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "Use --as=slides for slide-style PDF export." in result.output
+        assert mock_run_app.await_count == 1
+        call_kwargs = mock_run_app.await_args.kwargs
+        assert call_kwargs["export_as"] is None
+
 
 @pytest.mark.skipif(
     not DependencyManager.playwright.has(),
@@ -877,6 +1084,232 @@ class TestExportThumbnail:
     def test_export_thumbnail_with_args(self, temp_marimo_file: str) -> None:
         p = _run_export("thumbnail", temp_marimo_file, "--", "--foo", "123")
         _assert_success(p)
+
+
+class TestExportSession:
+    @staticmethod
+    def test_export_session(temp_marimo_file: str) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        assert session_file.exists()
+        data = json.loads(session_file.read_text(encoding="utf-8"))
+        assert data["version"] == "1"
+        assert len(data["cells"]) > 0
+
+    @staticmethod
+    def test_export_session_with_args(temp_marimo_file: str) -> None:
+        p = _run_export("session", temp_marimo_file, "--", "--foo", "123")
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        assert session_file.exists()
+
+    @staticmethod
+    def test_export_session_default_skips_up_to_date(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        existing = json.loads(session_file.read_text(encoding="utf-8"))
+        existing["custom"] = "keep-me"
+        session_file.write_text(
+            json.dumps(existing, indent=2), encoding="utf-8"
+        )
+
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        unchanged = json.loads(session_file.read_text(encoding="utf-8"))
+        assert unchanged.get("custom") == "keep-me"
+        assert b"skip" in p.stdout
+
+    @staticmethod
+    def test_export_session_force_overwrite_rewrites_up_to_date(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        session_file = get_session_cache_file(Path(temp_marimo_file))
+        existing = json.loads(session_file.read_text(encoding="utf-8"))
+        existing["custom"] = "remove-me"
+        session_file.write_text(
+            json.dumps(existing, indent=2), encoding="utf-8"
+        )
+
+        p = _run_export("session", temp_marimo_file, "--force-overwrite")
+        _assert_success(p)
+
+        data = json.loads(session_file.read_text(encoding="utf-8"))
+        assert data["version"] == "1"
+        assert len(data["cells"]) > 0
+        assert "custom" not in data
+
+    @staticmethod
+    def test_export_session_default_overwrites_stale(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        notebook_path = Path(temp_marimo_file)
+        session_file = get_session_cache_file(notebook_path)
+        before = json.loads(session_file.read_text(encoding="utf-8"))
+
+        notebook_path.write_text(
+            notebook_path.read_text(encoding="utf-8").replace(
+                "slider = mo.ui.slider(0, 10)",
+                "slider = mo.ui.slider(0, 11)",
+            ),
+            encoding="utf-8",
+        )
+
+        p = _run_export("session", temp_marimo_file)
+        _assert_success(p)
+
+        after = json.loads(session_file.read_text(encoding="utf-8"))
+        assert [c["code_hash"] for c in before["cells"]] != [
+            c["code_hash"] for c in after["cells"]
+        ]
+
+    def test_export_session_directory_default_skips_up_to_date(
+        self,
+        tmp_path: Path,
+        temp_marimo_file: str,
+    ) -> None:
+        notebook_dir = tmp_path / "notebooks"
+        notebook_dir.mkdir()
+        code = Path(temp_marimo_file).read_text(encoding="utf-8")
+        first = notebook_dir / "first.py"
+        second = notebook_dir / "second.py"
+        first.write_text(code, encoding="utf-8")
+        second.write_text(code, encoding="utf-8")
+
+        p = _run_export("session", str(first))
+        _assert_success(p)
+
+        first_session = get_session_cache_file(first)
+        existing = json.loads(first_session.read_text(encoding="utf-8"))
+        existing["custom"] = "keep-me"
+        first_session.write_text(
+            json.dumps(existing, indent=2), encoding="utf-8"
+        )
+
+        p = _run_export("session", str(notebook_dir))
+        _assert_success(p)
+
+        second_session = get_session_cache_file(second)
+        first_data = json.loads(first_session.read_text(encoding="utf-8"))
+        assert first_data.get("custom") == "keep-me"
+        assert second_session.exists()
+        data = json.loads(second_session.read_text(encoding="utf-8"))
+        assert data["version"] == "1"
+
+    @staticmethod
+    def test_export_session_ignores_second_positional_target(
+        temp_marimo_file: str,
+        temp_async_marimo_file: str,
+    ) -> None:
+        p = _run_export(
+            "session",
+            temp_marimo_file,
+            temp_async_marimo_file,
+        )
+        _assert_success(p)
+
+        first_session = get_session_cache_file(Path(temp_marimo_file))
+        second_session = get_session_cache_file(Path(temp_async_marimo_file))
+        assert first_session.exists()
+        assert not second_session.exists()
+
+    @staticmethod
+    def test_export_session_directory(
+        tmp_path: Path,
+        temp_marimo_file: str,
+    ) -> None:
+        notebook_dir = tmp_path / "notebooks"
+        notebook_dir.mkdir()
+        code = Path(temp_marimo_file).read_text(encoding="utf-8")
+        first = notebook_dir / "first.py"
+        second = notebook_dir / "second.py"
+        first.write_text(code, encoding="utf-8")
+        second.write_text(code, encoding="utf-8")
+
+        p = _run_export("session", str(notebook_dir))
+        _assert_success(p)
+
+        first_session = get_session_cache_file(first)
+        second_session = get_session_cache_file(second)
+        assert first_session.exists()
+        assert second_session.exists()
+
+    @staticmethod
+    def test_export_session_with_errors_writes_snapshot(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        p = _run_export("session", temp_marimo_file_with_errors)
+        _assert_failure(p)
+
+        session_file = get_session_cache_file(
+            Path(temp_marimo_file_with_errors)
+        )
+        assert session_file.exists()
+
+    @staticmethod
+    def test_export_session_default_skips_if_previous_snapshot_has_errors(
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        session_file = get_session_cache_file(
+            Path(temp_marimo_file_with_errors)
+        )
+
+        first = _run_export("session", temp_marimo_file_with_errors)
+        _assert_failure(first)
+        assert session_file.exists()
+
+        existing = json.loads(session_file.read_text(encoding="utf-8"))
+        existing["custom"] = "should-be-overwritten"
+        session_file.write_text(
+            json.dumps(existing, indent=2),
+            encoding="utf-8",
+        )
+
+        second = _run_export("session", temp_marimo_file_with_errors)
+        _assert_success(second)
+        assert b"skip" in second.stdout
+        unchanged = json.loads(session_file.read_text(encoding="utf-8"))
+        assert unchanged.get("custom") == "should-be-overwritten"
+
+    @staticmethod
+    def test_export_session_continue_on_error_default(
+        tmp_path: Path,
+        temp_marimo_file: str,
+        temp_marimo_file_with_errors: str,
+    ) -> None:
+        notebook_dir = tmp_path / "notebooks"
+        notebook_dir.mkdir()
+        good = notebook_dir / "good.py"
+        bad = notebook_dir / "bad.py"
+        good.write_text(
+            Path(temp_marimo_file).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        bad.write_text(
+            Path(temp_marimo_file_with_errors).read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+        p = _run_export("session", str(notebook_dir))
+        _assert_failure(p)
+
+        good_session = get_session_cache_file(good)
+        bad_session = get_session_cache_file(bad)
+        assert good_session.exists()
+        assert bad_session.exists()
 
 
 class TestClickArgsParsing:

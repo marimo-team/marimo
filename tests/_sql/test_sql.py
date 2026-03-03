@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import Plain
@@ -470,6 +471,31 @@ logical_plan
 │              SELECTION                │
 └─────────────────────────────────────┘"""
         )
+
+    @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    def test_extract_explain_content_duckdb_relation(self):
+        """Test extract_explain_content with a DuckDB relation."""
+        import duckdb
+
+        conn = duckdb.connect(":memory:")
+        conn.sql("CREATE TABLE t AS SELECT * FROM range(5) tbl(id)")
+        relation = conn.sql("EXPLAIN SELECT * FROM t")
+        result = extract_explain_content(relation)
+
+        assert result == snapshot("""\
+physical_plan
+┌───────────────────────────┐
+│         SEQ_SCAN          │
+│    ────────────────────   │
+│          Table: t         │
+│   Type: Sequential Scan   │
+│      Projections: id      │
+│                           │
+│          ~5 rows          │
+└───────────────────────────┘
+""")
+
+        conn.close()
 
     def test_extract_explain_content_fallback(self):
         """Test extract_explain_content fallback for non-DataFrame objects."""

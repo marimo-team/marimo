@@ -284,29 +284,36 @@ def extract_explain_content(df: Any) -> str:
     """Extract all content from a DataFrame for EXPLAIN queries.
 
     Args:
-        df: DataFrame (pandas or polars). If not pandas / polars, return repr(df).
+        df: DataFrame (pandas or polars). If not pandas / polars / duckdb relation, return repr(df).
 
     Returns:
         String containing content of dataframe
     """
     try:
-        if DependencyManager.polars.has():
+        if DependencyManager.polars.imported():
             import polars as pl
 
             if isinstance(df, pl.LazyFrame):
                 df = df.collect()
             if isinstance(df, pl.DataFrame):
                 # Display full strings without truncation
-                with pl.Config(fmt_str_lengths=1000):
+                with pl.Config(fmt_str_lengths=10000):
                     return str(df)
 
-        if DependencyManager.pandas.has():
+        if DependencyManager.pandas.imported():
             import pandas as pd
 
             if isinstance(df, pd.DataFrame):
                 # Preserve newlines in the data
                 all_values = df.values.flatten().tolist()
                 return "\n".join(str(val) for val in all_values)
+
+        if DependencyManager.duckdb.imported():
+            import duckdb
+
+            if isinstance(df, duckdb.DuckDBPyRelation):
+                rows = df.fetchall()
+                return "\n".join(str(val) for row in rows for val in row)
 
         # Fallback to repr for other types
         return repr(df)

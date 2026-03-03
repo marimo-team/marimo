@@ -18,7 +18,10 @@ import { isInternalCellName } from "@/core/cells/names";
 import { useExpandedConsoleOutput } from "@/core/cells/outputs";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { useInputHistory } from "@/hooks/useInputHistory";
+import {
+  type UseInputHistoryReturn,
+  useInputHistory,
+} from "@/hooks/useInputHistory";
 import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
@@ -54,6 +57,11 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const { wrapText, setWrapText } = useWrapText();
   const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
+  const [stdinValue, setStdinValue] = React.useState("");
+  const inputHistory = useInputHistory({
+    value: stdinValue,
+    setValue: setStdinValue,
+  });
   const {
     consoleOutputs,
     stale,
@@ -210,6 +218,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                   isPassword={isPassword}
                   onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
                   onClear={onClear}
+                  value={stdinValue}
+                  setValue={setStdinValue}
+                  inputHistory={inputHistory}
                 />
               );
             }
@@ -249,25 +260,32 @@ const StdInput = (props: {
   onSubmit: (text: string) => void;
   onClear?: () => void;
   output: string;
-  response?: string;
   isPdb: boolean;
   isPassword?: boolean;
+  value: string;
+  setValue: (value: string) => void;
+  inputHistory: UseInputHistoryReturn;
 }) => {
-  const [value, setValue] = React.useState("");
-
-  const { navigateUp, navigateDown, addToHistory } = useInputHistory({
+  const {
     value,
     setValue,
-  });
+    inputHistory,
+    output,
+    isPassword,
+    isPdb,
+    onSubmit,
+    onClear,
+  } = props;
+  const { navigateUp, navigateDown, addToHistory } = inputHistory;
 
   return (
     <div className="flex gap-2 items-center pt-2">
-      {renderText(props.output)}
+      {renderText(output)}
       <Input
         data-testid="console-input"
         // This is used in <StdinBlockingAlert> to find the input
         data-stdin-blocking={true}
-        type={props.isPassword ? "password" : "text"}
+        type={isPassword ? "password" : "text"}
         autoComplete="off"
         autoFocus={true}
         value={value}
@@ -292,7 +310,7 @@ const StdInput = (props: {
           if (e.key === "Enter" && !e.shiftKey) {
             if (value) {
               addToHistory(value);
-              props.onSubmit(value);
+              onSubmit(value);
               setValue("");
             }
             e.preventDefault();
@@ -306,9 +324,7 @@ const StdInput = (props: {
           }
         }}
       />
-      {props.isPdb && (
-        <DebuggerControls onSubmit={props.onSubmit} onClear={props.onClear} />
-      )}
+      {isPdb && <DebuggerControls onSubmit={onSubmit} onClear={onClear} />}
     </div>
   );
 };

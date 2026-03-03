@@ -124,5 +124,8 @@ ui
 video
 vstack
 watch
+  DirectoryState
+  FileState
+  PathState
   directory
   file

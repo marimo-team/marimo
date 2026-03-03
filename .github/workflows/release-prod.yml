@@ -1,20 +1,24 @@
 name: Publish prod release
 
 on:
-  workflow_call: {}
+  workflow_call:
+    outputs:
+      marimo_version:
+        description: "The release version that was built"
+        value: ${{ jobs.publish_release.outputs.marimo_version }}
 
 permissions:
   contents: read
 
 env:
   TURBO_TEAM: marimo
-  REGISTRY: ghcr.io
-  IMAGE_NAME: marimo-team/marimo
 
 jobs:
   publish_release:
-    name: 📤 Publish release
+    name: 📤 Build release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash
@@ -38,11 +42,12 @@ jobs:
       - name: 📦 Build marimo
         run: hatch build
 
-      - name: 📤 Upload to PyPI
-        env:
-          HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_PASSWORD }}
-        run: hatch publish
+      - name: 📦 Upload marimo dist artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: pypi-marimo
+          path: dist/
+          retention-days: 1
 
       - name: 🔨 Get version
         id: get_version
