@@ -1185,6 +1185,10 @@ class TestDetectProtocolFromUrl:
             ("https://account.blob.core.windows.net", "azure"),
             ("https://minio.example.com", None),
             ("https://my-custom-endpoint.com", None),
+            (
+                "https://s3.cloudflare.com",
+                "cloudflare",
+            ),  # Although there is S3, it will match the cloudflare pattern first
         ],
     )
     def test_detect_protocol_from_url(

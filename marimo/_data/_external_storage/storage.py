@@ -377,6 +377,7 @@ _PROTOCOL_MAP: dict[str, KNOWN_STORAGE_TYPES] = {
 
 # Specific provider patterns checked before generic ones (e.g. S3),
 # since S3-compatible services may also have "s3" in their URL.
+# The order of the patterns is important, the first pattern that matches will be used.
 _URL_PATTERNS: list[tuple[str, CLOUD_STORAGE_TYPES]] = [
     ("cloudflare", "cloudflare"),
     ("r2.", "cloudflare"),
