@@ -55,7 +55,6 @@ export const renderUIMessage = ({
             <React.Fragment key={index}>
               {renderHTML({
                 html: part.text,
-                alwaysSanitizeHtml: false,
               })}
             </React.Fragment>
           );
