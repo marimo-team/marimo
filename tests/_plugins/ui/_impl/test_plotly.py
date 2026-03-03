@@ -2290,6 +2290,32 @@ def test_histogram_mixed_with_scatter_drops_bin_payload() -> None:
     ]
 
 
+def test_histogram_preserves_indices_when_empty_points_exist() -> None:
+    """Test index alignment when frontend emits empty point dicts."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0.1, 0.4], y=[10, 20], mode="markers"))
+    fig.add_trace(go.Histogram(x=[0.1, 0.2, 0.7]))
+    plot = plotly(fig)
+
+    # The first empty dict simulates frontend payload entries with dropped fields.
+    selection = {
+        "points": [
+            {},
+            {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0},
+            {"curveNumber": 1, "pointNumbers": [1]},
+        ],
+        "indices": [999, 0, 0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [
+        {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0},
+        {"x": 0.2, "pointIndex": 1, "curveNumber": 1},
+    ]
+    assert plot.indices == [0, 1]
+
+
 # Test numpy vs fallback implementations
 
 

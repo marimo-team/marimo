@@ -886,8 +886,10 @@ def _append_histogram_points_to_selection(
     converts selected bins/ranges to underlying sample rows so .value behaves
     like row-level selections from scatter plots.
     """
-    existing_points = [p for p in selection_data.get("points", []) if p]
-    existing_indices = selection_data.get("indices", [])
+    all_points = cast(
+        list[dict[str, Any]], selection_data.get("points", [])
+    )
+    all_indices = cast(list[Any], selection_data.get("indices", []))
     range_value = selection_data.get("range")
 
     histogram_points: list[dict[str, Any]] = []
@@ -918,14 +920,19 @@ def _append_histogram_points_to_selection(
     filtered_indices: list[int] = []
     seen = set()
 
-    for point_idx, point in enumerate(existing_points):
+    for point_idx, point in enumerate(all_points):
+        if not point:
+            continue
+
         curve_number = point.get("curveNumber")
         if curve_number in histogram_curve_numbers:
             continue
 
         filtered_points.append(point)
-        if point_idx < len(existing_indices):
-            filtered_indices.append(existing_indices[point_idx])
+        if point_idx < len(all_indices) and isinstance(all_indices[point_idx], int):
+            filtered_indices.append(all_indices[point_idx])
+        elif isinstance(point.get("pointIndex"), int):
+            filtered_indices.append(point["pointIndex"])
 
         key = (point.get("pointIndex"), point.get("curveNumber"))
         if key != (None, None):
