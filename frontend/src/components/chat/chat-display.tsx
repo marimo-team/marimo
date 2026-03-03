@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { DataUIPart, ToolUIPart, UIMessage } from "ai";
+import { renderHTML } from "@/plugins/core/RenderHTML";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { MarkdownRenderer } from "../markdown/markdown-renderer";
@@ -46,6 +47,13 @@ export const renderUIMessage = ({
 
     switch (part.type) {
       case "text":
+        // Streamdown sanitizes the HTML, so we check for marimo tags to render them with our custom renderer.
+        if (part.text.includes("<marimo-")) {
+          return renderHTML({
+            html: part.text,
+            alwaysSanitizeHtml: false,
+          });
+        }
         return <MarkdownRenderer key={index} content={part.text} />;
       case "reasoning":
         return (

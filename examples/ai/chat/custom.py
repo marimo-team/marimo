@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
@@ -41,10 +41,11 @@ def _(mo):
         #   message.content: the content of the message
         return f"You said: {messages[-1].content}!"
 
+
     chatbot = mo.ui.chat(
         simple_echo_model,
         prompts=["Hello", "How are you?"],
-        show_configuration_controls=False
+        show_configuration_controls=False,
     )
     chatbot
     return (chatbot,)
@@ -62,6 +63,24 @@ def _(mo):
 def _(chatbot):
     # chatbot.value is the list of chat messages
     chatbot.value
+    return
+
+
+@app.cell
+def _(mo):
+    def marimo_chatbot(messages, config):
+        """Returns marimo elements"""
+        message = messages[-1]
+        return mo.vstack(
+            [
+                mo.md("## Response"),
+                mo.ui.table([1, 2, 3]),
+                mo.ui.slider(1, 10, label="slider"),
+            ]
+        )
+
+
+    mo.ui.chat(marimo_chatbot)
     return
 
 
