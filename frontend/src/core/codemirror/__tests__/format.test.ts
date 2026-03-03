@@ -94,7 +94,6 @@ afterEach(() => {
   for (const view of createdViews) {
     view.destroy();
   }
-  createdViews.length = 0;
 });
 
 describe("format", () => {
