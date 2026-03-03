@@ -322,6 +322,22 @@ describe("sanitizeHtml", () => {
     );
   });
 
+  test("preserves external href on SVG use element", () => {
+    const html =
+      '<svg><use href="https://example.com/sprite.svg#icon"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use href="https://example.com/sprite.svg#icon"></use></svg>"`,
+    );
+  });
+
+  test("preserves external xlink:href on SVG use element", () => {
+    const html =
+      '<svg><use xlink:href="https://example.com/sprite.svg#icon"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use xlink:href="https://example.com/sprite.svg#icon"></use></svg>"`,
+    );
+  });
+
   test("removes javascript in SVG href", () => {
     const html =
       '<svg><a href="javascript:alert(1)"><text>Click</text></a></svg>';
