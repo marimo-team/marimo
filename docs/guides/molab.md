@@ -41,7 +41,7 @@ interactive, but they are static by default.
 #### Static previews
 
 
->Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically generate preview URLs from GitHub links.
+> Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically generate preview URLs from GitHub links.
 
 To construct a static (read-only, not interactive) preview, replace `github.com` in your notebook's GitHub URL
 with `molab.marimo.io/github`. For example, a notebook at
@@ -248,11 +248,11 @@ Use this recipe to embed an empty editable notebook:
 Each notebook runs in an environment with several popular packages
 pre-installed, including torch, numpy, polars, and more. marimo’s built-in
 package manager will install additional packages as you import them (use the
-package manage panel to install specific package versions).
+package manager panel to install specific package versions).
 
 ### Storage
 
-Notebooks get a limited amount persistent storage; view the file tree by
+Notebooks get a limited amount of persistent storage; view the file tree by
 clicking the file icon in the sidebar. From here you can upload additional data
 files.
 
@@ -266,12 +266,16 @@ example:
 marimo edit https://molab.marimo.io/notebooks/nb_TWVGCgZZK4L8zj5ziUBNVL
 ```
 
-Today, this brings just the notebook file down, and does not include your attached storage.
+Currently, this brings just the notebook file down, and does not include your attached storage.
 
 ## FAQ
 
-**What’s the difference between molab and Google Colab?** Google Colab is a hosted Jupyter notebook service provider. molab is a hosted [marimo notebook](https://github.com/marimo-team/marimo) service with similar compute and sharing capabilities, but powered by marimo notebooks instead of Jupyter. Unlike Colab, molab also supports embedding interactive notebooks in your own webpages,
-no login required.
+**What’s the difference between molab and Google Colab?** Google Colab is a
+hosted Jupyter notebook service provider. molab is a hosted [marimo
+notebook](https://github.com/marimo-team/marimo) service with similar compute
+and sharing capabilities, but powered by marimo notebooks instead of Jupyter.
+Unlike Colab, molab also supports embedding interactive notebooks in your own
+webpages, no login required.
 
 **Is molab free?** Yes.
 
