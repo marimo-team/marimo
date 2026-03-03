@@ -1,12 +1,17 @@
 # Run in the cloud with molab
 
+!!! tip "Contribute to our community gallery!"
+    We welcome submissions to our curated [community gallery](https://marimo.io/gallery?tag=community).
+    To propose an example, [reach out to us on Discord](https://marimo.io/discord).
+
 [molab](https://molab.marimo.io/notebooks) is a free cloud-hosted marimo notebook
 environment: run notebooks on cloud machines from your browser, zero setup required.
 molab also integrates with GitHub, and supports embedding notebooks in other
 webpages, making it easy to share your work.
 
-!!! tip "Creating new notebooks"
-    Go to [https://molab.new](https://molab.new) to instantly create a new notebook.
+> Visit [https://molab.new](https://molab.new) to instantly create a new notebook.
+
+molab notebooks are public but undiscoverable by default.
 
 **Highlights**.
 
@@ -22,28 +27,19 @@ webpages, making it easy to share your work.
 
 ## Sharing
 
-!!! tip "Contribute to our community gallery"
-    We welcome submissions to our [community gallery](https://marimo.io/gallery?tag=community).
-    To propose an example, [reach out to us on Discord](https://marimo.io/discord).
-
-molab notebooks are public but undiscoverable by default. For notebooks created
-in molab, sharing is as easy as sending out the notebook's URL. Viewers will
-see a static preview of your notebook and the option to fork it into their own
-workspace.
+To share notebooks created in molab, just share the notebook's URL. Viewers
+will see a static preview of your notebook and the option to fork it into their
+own workspace.
 
 ### Preview notebooks from GitHub
 
-molab makes it possible to to preview notebooks hosted on GitHub.
+In addition to sharing notebooks created in your workspace, you can also
+preview notebooks hosted on GitHub. In some cases, these previews can be
+interactive; otherwise, they are static.
 
-!!! tip "Example"
-    See our [gallery
-    repository](https://github.com/marimo-team/gallery-examples) for a canonical
-    example of how to share previews of notebooks hosted on GitHub; every notebook
-    in the [marimo gallery](https://marimo.io/gallery) is either an interactive
-    or static preview of a notebook hosted on GitHub.
-
-
-XXX
+ >   **Example.** See our [gallery
+    repository](https://github.com/marimo-team/gallery-examples) to see how
+    to share previews of notebooks from GitHub.
 
 #### Interactive previews
 
