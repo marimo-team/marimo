@@ -288,9 +288,54 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"<div>Text</div>"`);
   });
 
-  test("removes use element from SVG", () => {
+  test("preserves use element in SVG", () => {
     const html = '<svg><use xlink:href="#icon"></use></svg>';
-    expect(sanitizeHtml(html)).toMatchInlineSnapshot(`"<svg></svg>"`);
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use xlink:href="#icon"></use></svg>"`,
+    );
+  });
+
+  test("preserves SVG defs and use pattern", () => {
+    const html = [
+      '<svg width="60" height="60">',
+      '<circle cx="30" cy="30" r="30" fill="orange"></circle>',
+      '<defs><circle id="myCircle" cx="0" cy="0" r="10" fill="green"></circle></defs>',
+      '<use href="#myCircle" x="20" y="20"></use>',
+      "</svg>",
+    ].join("");
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg width="60" height="60"><circle cx="30" cy="30" r="30" fill="orange"></circle><defs><circle id="myCircle" cx="0" cy="0" r="10" fill="green"></circle></defs><use href="#myCircle" x="20" y="20"></use></svg>"`,
+    );
+  });
+
+  test("strips javascript: href from SVG use element", () => {
+    const html = '<svg><use href="javascript:alert(1)"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use></use></svg>"`,
+    );
+  });
+
+  test("strips javascript: xlink:href from SVG use element", () => {
+    const html = '<svg><use xlink:href="javascript:alert(1)"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use></use></svg>"`,
+    );
+  });
+
+  test("preserves external href on SVG use element", () => {
+    const html =
+      '<svg><use href="https://example.com/sprite.svg#icon"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use href="https://example.com/sprite.svg#icon"></use></svg>"`,
+    );
+  });
+
+  test("preserves external xlink:href on SVG use element", () => {
+    const html =
+      '<svg><use xlink:href="https://example.com/sprite.svg#icon"></use></svg>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<svg><use xlink:href="https://example.com/sprite.svg#icon"></use></svg>"`,
+    );
   });
 
   test("removes javascript in SVG href", () => {
