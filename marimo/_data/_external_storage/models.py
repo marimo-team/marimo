@@ -3,16 +3,15 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar, get_args
+from typing import Any, Generic, Literal, TypeVar, cast, get_args
 
 import msgspec
 
 from marimo._types.ids import VariableName
 from marimo._utils.assert_never import log_never
 
-KNOWN_STORAGE_TYPES = Literal[
-    "s3", "gcs", "azure", "http", "file", "in-memory"
-]
+CLOUD_STORAGE_TYPES = Literal["s3", "gcs", "azure", "cloudflare", "coreweave"]
+KNOWN_STORAGE_TYPES = Literal[CLOUD_STORAGE_TYPES, "http", "file", "in-memory"]
 SIGNED_URL_EXPIRATION = 60
 
 
@@ -140,21 +139,26 @@ class StorageBackend(abc.ABC, Generic[Backend]):
         protocol = self.protocol
         if protocol not in get_args(KNOWN_STORAGE_TYPES):
             return protocol.capitalize()
-        if protocol == "s3":
+        known = cast(KNOWN_STORAGE_TYPES, protocol)
+        if known == "s3":
             return "Amazon S3"
-        elif protocol == "gcs":
+        elif known == "gcs":
             return "Google Cloud Storage"
-        elif protocol == "azure":
+        elif known == "azure":
             return "Azure Blob Storage"
-        elif protocol == "http":
+        elif known == "cloudflare":
+            return "Cloudflare R2"
+        elif known == "http":
             return "HTTP"
-        elif protocol == "file":
+        elif known == "file":
             return "File"
-        elif protocol == "in-memory":
+        elif known == "in-memory":
             return "In-memory"
+        elif known == "coreweave":
+            return "Coreweave"
         else:
-            log_never(protocol)  # type: ignore[arg-type]
-            return protocol
+            log_never(known)
+            return known
 
     @property
     @abc.abstractmethod

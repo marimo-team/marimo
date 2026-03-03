@@ -13,6 +13,7 @@ import {
   FileSpreadsheetIcon,
   FileTextIcon,
   FileVideoIcon,
+  GithubIcon,
   GlobeIcon,
   HardDriveIcon,
   ImageIcon,
@@ -66,6 +67,7 @@ const PROTOCOL_ICONS: Record<KnownStorageProtocol, IconEntry> = {
   http: GlobeIcon,
   file: HardDriveIcon,
   "in-memory": DatabaseZapIcon,
+  github: GithubIcon,
 };
 
 export const ProtocolIcon: React.FC<{

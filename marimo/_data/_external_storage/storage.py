@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._data._external_storage.models import (
+    CLOUD_STORAGE_TYPES,
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
     SIGNED_URL_EXPIRATION,
@@ -138,6 +139,14 @@ class Obstore(StorageBackend["ObjectStore"]):
             MemoryStore,
             S3Store,
         )
+
+        # Try the endpoint URL which can give a more accurate protocol
+        if not isinstance(self.store, (MemoryStore, HTTPStore, LocalStore)):
+            endpoint = self.store.config.get("endpoint")
+            if isinstance(endpoint, str) and (
+                protocol := detect_protocol_from_url(endpoint)
+            ):
+                return protocol
 
         if isinstance(self.store, MemoryStore):
             return "in-memory"
@@ -317,9 +326,23 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
-        if isinstance(self.store.protocol, tuple):
-            return normalize_protocol("-".join(self.store.protocol))
-        return normalize_protocol(self.store.protocol)
+        store_protocol = self.store.protocol
+        storage_options = self.store.storage_options
+
+        # Try the endpoint URL which can give a more accurate protocol
+        endpoint_url = storage_options.get("endpoint_url")
+        if isinstance(endpoint_url, str) and (
+            protocol := detect_protocol_from_url(endpoint_url)
+        ):
+            return protocol
+
+        if isinstance(store_protocol, tuple):
+            for store_protocol_item in store_protocol:
+                if normalized := normalize_protocol(store_protocol_item):
+                    return normalized
+            return "-".join(store_protocol)
+
+        return normalize_protocol(store_protocol) or store_protocol
 
     @property
     def root_path(self) -> str | None:
@@ -335,18 +358,50 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         return isinstance(var, AbstractFileSystem)
 
 
-def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | str:
-    """Normalize the protocol to a known storage type."""
-    protocol = protocol.strip().lower()
-    if "s3" in protocol:
-        return "s3"
-    elif "gcs" in protocol or "gs" in protocol:
-        return "gcs"
-    elif "azure" in protocol:
-        return "azure"
-    elif "http" in protocol:
-        return "http"
-    elif "file" in protocol:
-        return "file"
-    else:
-        return protocol
+_PROTOCOL_MAP: dict[str, KNOWN_STORAGE_TYPES] = {
+    "s3": "s3",
+    "s3a": "s3",
+    "gs": "gcs",
+    "gcs": "gcs",
+    "abfs": "azure",
+    "abfss": "azure",
+    "az": "azure",
+    "adl": "azure",
+    "http": "http",
+    "https": "http",
+    "file": "file",
+    "local": "file",
+    "memory": "in-memory",
+    "r2": "cloudflare",
+}
+
+# Specific provider patterns checked before generic ones (e.g. S3),
+# since S3-compatible services may also have "s3" in their URL.
+# The order of the patterns is important, the first pattern that matches will be used.
+_URL_PATTERNS: list[tuple[str, CLOUD_STORAGE_TYPES]] = [
+    ("cloudflare", "cloudflare"),
+    ("r2.", "cloudflare"),
+    ("cwobject", "coreweave"),
+    ("cwlota", "coreweave"),
+    ("coreweave", "coreweave"),
+    ("blob.core.windows", "azure"),
+    ("azure", "azure"),
+    ("googleapis", "gcs"),
+    ("storage.google", "gcs"),
+    ("s3", "s3"),
+    ("amazonaws", "s3"),
+]
+
+
+def detect_protocol_from_url(url: str) -> CLOUD_STORAGE_TYPES | None:
+    """Detect the storage provider from an endpoint URL."""
+    url = url.strip().lower()
+    for pattern, protocol in _URL_PATTERNS:
+        if pattern in url:
+            return protocol
+    return None
+
+
+def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | None:
+    """Normalize a protocol string (e.g. 's3a', 'gs', 'abfs') to a known storage type."""
+    return _PROTOCOL_MAP.get(protocol.strip().lower())
