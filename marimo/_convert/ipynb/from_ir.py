@@ -6,7 +6,6 @@ from __future__ import annotations
 import io
 import json
 import re
-from collections.abc import Sequence
 from html.parser import HTMLParser
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 

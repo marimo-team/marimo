@@ -4,6 +4,8 @@ import pathlib
 
 import pytest
 
+pytest.importorskip("nbformat")
+
 from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._ast.load import load_app
@@ -99,7 +101,7 @@ class TestSetupCell:
         lines = result.split("\n")
         for i, line in enumerate(lines):
             if "import marimo as mo" in line and i > 0:
-                prev_lines = [l for l in lines[:i] if l.strip()]
+                prev_lines = [line for line in lines[:i] if line.strip()]
                 assert prev_lines[-1].strip() == "with app.setup:"
                 break
 
