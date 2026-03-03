@@ -97,7 +97,8 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert self.filename.name in result
-        assert f'"cwd": "{expected_cwd}"' in result
+        # json.dumps to match JSON-escaped backslashes on Windows paths
+        assert f'"cwd": {json.dumps(expected_cwd)}' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_no_filename(self) -> None:
