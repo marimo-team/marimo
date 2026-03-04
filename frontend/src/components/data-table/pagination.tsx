@@ -272,6 +272,8 @@ export const PageSelector = ({
     [currentPage, totalPages],
   );
 
+  const hasEllipsis = pageRanges.some((item) => item.type === "ellipsis");
+
   const handleJump = () => {
     const page = Number.parseInt(jumpValue, 10);
     if (page >= 1 && page <= totalPages) {
@@ -325,35 +327,39 @@ export const PageSelector = ({
             ),
           )}
         </div>
-        <DropdownMenuSeparator />
-        <div
-          className="px-2 pt-0.5 shrink-0"
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <label
-            htmlFor={jumpInputId}
-            className="text-xs text-muted-foreground block mb-1"
-          >
-            Jump to page
-          </label>
-          <Input
-            id={jumpInputId}
-            type="number"
-            min={1}
-            max={totalPages}
-            placeholder={`1-${totalPages}`}
-            value={jumpValue}
-            onChange={(e) => setJumpValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleJump();
-              }
-              e.stopPropagation();
-            }}
-            className="h-6 text-xs"
-            data-testid="page-jump-input"
-          />
-        </div>
+        {hasEllipsis && (
+          <>
+            <DropdownMenuSeparator />
+            <div
+              className="px-2 pt-0.5 shrink-0"
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <label
+                htmlFor={jumpInputId}
+                className="text-xs text-muted-foreground block mb-1"
+              >
+                Jump to page
+              </label>
+              <Input
+                id={jumpInputId}
+                type="number"
+                min={1}
+                max={totalPages}
+                placeholder={`1-${totalPages}`}
+                value={jumpValue}
+                onChange={(e) => setJumpValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleJump();
+                  }
+                  e.stopPropagation();
+                }}
+                className="h-6 text-xs"
+                data-testid="page-jump-input"
+              />
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
