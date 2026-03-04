@@ -969,7 +969,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         >
           <Alert variant="warning" className="py-1.5 px-3 text-xs">
             <AlertDescription>
-              Free tier models have low token limits which cause errors with
+              Free tier models have low token limits which can cause errors with
               larger prompts.{" "}
               <ExternalLink href="https://docs.github.com/en/github-models/prototyping-with-ai-models#rate-limits">
                 Learn more
