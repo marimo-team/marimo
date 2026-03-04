@@ -80,7 +80,9 @@ class TestPep723LintConfig:
         script_mgr = ScriptConfigManager(self.FILE)
         config = script_mgr.get_config(hide_secrets=False)
         lint_config = config.get("lint")
-        assert lint_config is not None, "Expected [tool.marimo.lint] in metadata"
+        assert lint_config is not None, (
+            "Expected [tool.marimo.lint] in metadata"
+        )
         assert "MF004" in lint_config.get("ignore", [])
 
         from tests._lint.utils import lint_notebook
