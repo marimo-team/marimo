@@ -94,13 +94,13 @@ codex
 
 [OpenCode](https://opencode.ai/) is an open source AI coding agent built for the terminal, but also supports ACP.
 
-**Installation and login:**
+**Installation:**
 
 ```bash
 # Install
 npm install -g opencode-ai@latest
 
-# Login
+# You can now use and configure opencode from the commandline
 opencode
 ```
 
