@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FieldValues } from "react-hook-form";
 import type { z } from "zod";
 import { ProtocolIcon } from "@/components/storage/components";
+import type { KnownStorageProtocol } from "@/core/storage/types";
 import { ConnectionForm, SelectorButton, SelectorGrid } from "../components";
 import {
   generateStorageCode,
@@ -12,6 +13,7 @@ import {
 } from "./as-code";
 import {
   AzureStorageSchema,
+  CoreWeaveStorageSchema,
   GCSStorageSchema,
   GoogleDriveStorageSchema,
   S3StorageSchema,
@@ -21,7 +23,6 @@ import {
 interface StorageProviderSchema {
   name: string;
   schema: z.ZodType<StorageConnection, FieldValues>;
-  color: string;
   protocol: string;
   storageLibraries: {
     libraries: StorageLibrary[];
@@ -29,11 +30,12 @@ interface StorageProviderSchema {
   };
 }
 
+const BACKGROUND_COLOR = "#232F3E";
+
 const STORAGE_PROVIDERS = [
   {
     name: "Amazon S3",
     schema: S3StorageSchema,
-    color: "#232F3E",
     protocol: "s3",
     storageLibraries: {
       libraries: ["obstore"],
@@ -43,7 +45,6 @@ const STORAGE_PROVIDERS = [
   {
     name: "Google Cloud Storage",
     schema: GCSStorageSchema,
-    color: "#4285F4",
     protocol: "gcs",
     storageLibraries: {
       libraries: ["obstore"],
@@ -53,8 +54,16 @@ const STORAGE_PROVIDERS = [
   {
     name: "Azure Blob Storage",
     schema: AzureStorageSchema,
-    color: "#0062AD",
     protocol: "azure",
+    storageLibraries: {
+      libraries: ["obstore"],
+      preferred: "obstore",
+    },
+  },
+  {
+    name: "CoreWeave",
+    schema: CoreWeaveStorageSchema,
+    protocol: "coreweave",
     storageLibraries: {
       libraries: ["obstore"],
       preferred: "obstore",
@@ -63,7 +72,6 @@ const STORAGE_PROVIDERS = [
   {
     name: "Google Drive",
     schema: GoogleDriveStorageSchema,
-    color: "#177834",
     protocol: "gdrive",
     storageLibraries: {
       libraries: ["fsspec"],
@@ -77,18 +85,17 @@ const StorageProviderSelector: React.FC<{
 }> = ({ onSelect }) => {
   return (
     <SelectorGrid>
-      {STORAGE_PROVIDERS.map(({ name, schema, color, protocol }) => (
+      {STORAGE_PROVIDERS.map(({ name, schema, protocol }) => (
         <SelectorButton
           key={name}
           name={name}
-          color={color}
+          color={BACKGROUND_COLOR}
           icon={
-            <span className="w-8 h-8 flex items-center justify-center">
-              <ProtocolIcon
-                protocol={protocol}
-                className="w-7 h-7 brightness-0 invert"
-              />
-            </span>
+            <ProtocolIcon
+              protocol={protocol as KnownStorageProtocol}
+              forceDark={true}
+              className="w-7.5 h-7.5"
+            />
           }
           onSelect={() => onSelect(schema)}
         />

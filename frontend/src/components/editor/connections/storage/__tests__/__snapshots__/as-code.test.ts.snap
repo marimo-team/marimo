@@ -29,6 +29,43 @@ store = AzureStore("my-container",
 )"
 `;
 
+exports[`generateStorageCode > CoreWeave > basic connection with all fields 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    access_key_id="AKIAIOSFODNN7EXAMPLE",
+    secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
+exports[`generateStorageCode > CoreWeave > minimal connection (bucket and region only) 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
+exports[`generateStorageCode > CoreWeave > with secrets 1`] = `
+"from obstore.store import S3Store
+import os
+
+_access_key_id = os.environ.get("COREWEAVE_OBJECT_STORAGE_KEY")
+_secret_access_key = os.environ.get("COREWEAVE_OBJECT_STORAGE_SECRET")
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    access_key_id=_access_key_id,
+    secret_access_key=_secret_access_key,
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
 exports[`generateStorageCode > GCS > with service account key 1`] = `
 "from obstore.store import GCSStore
 import json

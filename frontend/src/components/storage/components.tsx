@@ -75,15 +75,19 @@ const PROTOCOL_ICONS: Record<KnownStorageProtocol, IconEntry> = {
 
 export const ProtocolIcon: React.FC<{
   protocol: KnownStorageProtocol | (string & {});
+  forceDark?: boolean;
   className?: string;
-}> = ({ protocol, className }) => {
+}> = ({ protocol, forceDark, className }) => {
   const { theme } = useTheme();
   const entry =
     PROTOCOL_ICONS[protocol.toLowerCase() as KnownStorageProtocol] ??
     HardDriveIcon;
 
   if ("src" in entry) {
-    const src = theme === "dark" && entry.dark ? entry.dark : entry.src;
+    let src = entry.src;
+    if (entry.dark && (forceDark || theme === "dark")) {
+      src = entry.dark;
+    }
     return (
       <img src={src} alt={protocol} className={cn("h-3.5 w-3.5", className)} />
     );

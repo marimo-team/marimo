@@ -125,6 +125,40 @@ function generateAzureCode(
   return { imports, code };
 }
 
+function generateCoreWeaveCode(
+  connection: Extract<StorageConnection, { type: "coreweave" }>,
+  secrets: SecretContainer,
+): { imports: Set<string>; code: string } {
+  const bucket = secrets.print("bucket", connection.bucket);
+  const imports = new Set(["from obstore.store import S3Store"]);
+  const params: string[] = [
+    `    region=${secrets.print("region", connection.region)},`,
+  ];
+
+  if (connection.access_key_id) {
+    params.push(
+      `    access_key_id=${secrets.print("access_key_id", connection.access_key_id)},`,
+    );
+  }
+  if (connection.secret_access_key) {
+    params.push(
+      `    secret_access_key=${secrets.print("secret_access_key", connection.secret_access_key)},`,
+    );
+  }
+
+  params.push(
+    `    endpoint="https://${connection.bucket}.cwobject.com",`,
+    "    virtual_hosted_style_request=True,",
+  );
+
+  const paramsStr = `\n${params.join("\n")}\n`;
+
+  const code = dedent(`
+    store = S3Store(${bucket},${paramsStr})
+  `);
+  return { imports, code };
+}
+
 function generateGDriveCode(
   connection: Extract<StorageConnection, { type: "gdrive" }>,
   secrets: SecretContainer,
@@ -168,6 +202,9 @@ export function generateStorageCode(
       break;
     case "azure":
       result = generateAzureCode(connection, secrets);
+      break;
+    case "coreweave":
+      result = generateCoreWeaveCode(connection, secrets);
       break;
     case "gdrive":
       result = generateGDriveCode(connection, secrets);
