@@ -55,8 +55,11 @@ import {
 } from "@/core/cells/cells";
 import { disabledCellIds } from "@/core/cells/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { Constants } from "@/core/constants";
+import {
+  updateCellOutputsWithScreenshots,
+  useEnrichCellOutputs,
+} from "@/core/export/hooks";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
@@ -75,6 +78,7 @@ import {
 } from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
+import type { ProgressState } from "@/utils/progress";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
@@ -119,7 +123,9 @@ export function useNotebookActions() {
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
-  const { exportAsMarkdown, readCode, saveCellConfig } = useRequestClient();
+  const { exportAsMarkdown, readCode, saveCellConfig, updateCellOutputs } =
+    useRequestClient();
+  const takeScreenshots = useEnrichCellOutputs();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
@@ -130,11 +136,9 @@ export function useNotebookActions() {
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
 
-  const isServerSidePdfExportEnabled = getFeatureFlag("server_side_pdf_export");
-  // With server side pdf export, it doesn't matter what mode we are in,
-  // Default export uses browser print, which is better in present mode
-  const pdfDownloadEnabled =
-    isServerSidePdfExportEnabled || viewState.mode === "present";
+  // Server-side PDF export is always available outside WASM.
+  // Browser print fallback is used in WASM.
+  const serverSidePdfEnabled = !isWasm();
   const isSlidesLayout = selectedLayout === "slides";
 
   const renderCheckboxElement = (checked: boolean) => (
@@ -166,7 +170,11 @@ export function useNotebookActions() {
       return;
     }
 
-    const runDownload = async () => {
+    const runDownload = async (progress: ProgressState) => {
+      await updateCellOutputsWithScreenshots({
+        takeScreenshots: () => takeScreenshots({ progress }),
+        updateCellOutputs,
+      });
       await runServerSidePDFDownload({
         filename,
         preset,
@@ -258,21 +266,13 @@ export function useNotebookActions() {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
           label: "Download as PDF",
           handle: NOOP_HANDLER,
-          disabled: !pdfDownloadEnabled && !isServerSidePdfExportEnabled,
           dropdown: [
             {
               icon: <FileIcon size={14} strokeWidth={1.5} />,
               label: "Document Layout",
               rightElement: renderRecommendedElement(!isSlidesLayout),
-              disabled: !pdfDownloadEnabled,
-              tooltip: pdfDownloadEnabled ? undefined : (
-                <span>
-                  Only available in app view. <br />
-                  Toggle with: {renderShortcut("global.hideCode", false)}
-                </span>
-              ),
               handle: async () => {
-                if (isServerSidePdfExportEnabled) {
+                if (serverSidePdfEnabled) {
                   await downloadServerSidePDF({
                     preset: "document",
                     title: "Downloading Document PDF...",
@@ -294,12 +294,7 @@ export function useNotebookActions() {
               icon: <FileIcon size={14} strokeWidth={1.5} />,
               label: "Slides Layout",
               rightElement: renderRecommendedElement(isSlidesLayout),
-              disabled: !isServerSidePdfExportEnabled,
-              tooltip: isServerSidePdfExportEnabled ? undefined : (
-                <span>
-                  Requires Better PDF Export in Settings &gt; Experimental.
-                </span>
-              ),
+              hidden: !serverSidePdfEnabled,
               handle: async () => {
                 await downloadServerSidePDF({
                   preset: "slides",

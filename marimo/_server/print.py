@@ -152,6 +152,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "sql_mode",
         "performant_table_charts",
         "chat_modes",
+        "server_side_pdf_export",
     }
     keys = keys - finished_experiments
 

@@ -18,9 +18,9 @@ export async function runServerSidePDFDownload(opts: {
 
   await downloadPDF({
     filename,
-    webpdf: true,
+    webpdf: false,
     preset,
-    includeInputs: false,
-    rasterServer: "live",
+    includeInputs: true,
+    rasterServer: "static",
   });
 }
