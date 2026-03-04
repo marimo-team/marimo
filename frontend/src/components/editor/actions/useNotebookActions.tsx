@@ -184,6 +184,25 @@ export function useNotebookActions() {
     await withLoadingToast(title, runDownload);
   };
 
+  const handleDocumentPDF = async () => {
+    if (!filename) {
+      toastNotebookMustBeNamed();
+      return;
+    }
+    if (serverSidePdfEnabled) {
+      await downloadServerSidePDF({
+        preset: "document",
+        title: "Downloading Document PDF...",
+      });
+      return;
+    }
+    const beforeprint = new Event("export-beforeprint");
+    const afterprint = new Event("export-afterprint");
+    window.dispatchEvent(beforeprint);
+    setTimeout(() => window.print(), 0);
+    setTimeout(() => window.dispatchEvent(afterprint), 0);
+  };
+
   const actions: ActionButton[] = [
     {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
@@ -261,49 +280,38 @@ export function useNotebookActions() {
             });
           },
         },
-        {
-          divider: true,
-          icon: <FileIcon size={14} strokeWidth={1.5} />,
-          label: "Download as PDF",
-          handle: NOOP_HANDLER,
-          dropdown: [
-            {
+        isSlidesLayout
+          ? {
+              divider: true,
               icon: <FileIcon size={14} strokeWidth={1.5} />,
-              label: "Document Layout",
-              rightElement: renderRecommendedElement(!isSlidesLayout),
-              handle: async () => {
-                if (serverSidePdfEnabled) {
-                  await downloadServerSidePDF({
-                    preset: "document",
-                    title: "Downloading Document PDF...",
-                  });
-                  return;
-                }
-
-                const beforeprint = new Event("export-beforeprint");
-                const afterprint = new Event("export-afterprint");
-                function print() {
-                  window.dispatchEvent(beforeprint);
-                  setTimeout(() => window.print(), 0);
-                  setTimeout(() => window.dispatchEvent(afterprint), 0);
-                }
-                print();
-              },
-            },
-            {
+              label: "Download as PDF",
+              handle: NOOP_HANDLER,
+              dropdown: [
+                {
+                  icon: <FileIcon size={14} strokeWidth={1.5} />,
+                  label: "Document Layout",
+                  handle: handleDocumentPDF,
+                },
+                {
+                  icon: <FileIcon size={14} strokeWidth={1.5} />,
+                  label: "Slides Layout",
+                  rightElement: renderRecommendedElement(true),
+                  hidden: !serverSidePdfEnabled,
+                  handle: async () => {
+                    await downloadServerSidePDF({
+                      preset: "slides",
+                      title: "Downloading Slides PDF...",
+                    });
+                  },
+                },
+              ],
+            }
+          : {
+              divider: true,
               icon: <FileIcon size={14} strokeWidth={1.5} />,
-              label: "Slides Layout",
-              rightElement: renderRecommendedElement(isSlidesLayout),
-              hidden: !serverSidePdfEnabled,
-              handle: async () => {
-                await downloadServerSidePDF({
-                  preset: "slides",
-                  title: "Downloading Slides PDF...",
-                });
-              },
+              label: "Download as PDF",
+              handle: handleDocumentPDF,
             },
-          ],
-        },
       ],
     },
 
