@@ -347,17 +347,20 @@ export function useNotebookActions() {
       label: "Helper panel",
       redundant: true,
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ type: id, Icon, hidden }) => {
-        if (hidden) {
-          return [];
-        }
-        return {
-          label: startCase(id),
-          rightElement: renderCheckboxElement(selectedPanel === id),
-          icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => toggleApplication(id),
-        };
-      }),
+      dropdown: PANELS.flatMap(
+        ({ type: id, Icon, hidden, additionalKeywords }) => {
+          if (hidden) {
+            return [];
+          }
+          return {
+            label: startCase(id),
+            rightElement: renderCheckboxElement(selectedPanel === id),
+            icon: <Icon size={14} strokeWidth={1.5} />,
+            handle: () => toggleApplication(id),
+            additionalKeywords,
+          };
+        },
+      ),
     },
 
     {
@@ -478,6 +481,7 @@ export function useNotebookActions() {
       label: "Restart kernel",
       variant: "danger",
       handle: restartKernel,
+      additionalKeywords: ["reset", "reload"],
     },
     {
       icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
@@ -535,6 +539,7 @@ export function useNotebookActions() {
       label: "User settings",
       handle: () => setSettingsDialogOpen((open) => !open),
       redundant: true,
+      additionalKeywords: ["preferences", "options", "configuration"],
     },
     {
       icon: <ExternalLinkIcon size={14} strokeWidth={1.5} />,

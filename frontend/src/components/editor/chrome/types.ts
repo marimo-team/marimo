@@ -59,6 +59,8 @@ export interface PanelDescriptor {
   defaultSection: PanelSection;
   /** Capability required for this panel to be visible. If the capability is false, the panel is hidden. */
   requiredCapability?: keyof Capabilities;
+  /** Additional search keywords for the command palette */
+  additionalKeywords?: string[];
 }
 
 /**
@@ -73,6 +75,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Files",
     tooltip: "View files",
     defaultSection: "sidebar",
+    additionalKeywords: ["explorer", "browser", "directory"],
   },
   {
     type: "variables",
@@ -80,6 +83,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Variables",
     tooltip: "Explore variables and data sources",
     defaultSection: "sidebar",
+    additionalKeywords: ["state", "data", "inspector"],
   },
   {
     type: "packages",
@@ -87,6 +91,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Packages",
     tooltip: "Manage packages",
     defaultSection: "sidebar",
+    additionalKeywords: ["dependencies", "pip", "install"],
   },
   {
     type: "ai",
@@ -94,6 +99,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "AI",
     tooltip: "Chat & Agents",
     defaultSection: "sidebar",
+    additionalKeywords: ["chat", "copilot", "assistant"],
   },
   {
     type: "outline",
@@ -101,6 +107,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Outline",
     tooltip: "View outline",
     defaultSection: "sidebar",
+    additionalKeywords: ["toc", "structure", "headings"],
   },
   {
     type: "documentation",
@@ -108,6 +115,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Docs",
     tooltip: "View live docs",
     defaultSection: "sidebar",
+    additionalKeywords: ["help", "reference", "api"],
   },
   {
     type: "dependencies",
@@ -115,6 +123,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Dependencies",
     tooltip: "Explore dependencies",
     defaultSection: "sidebar",
+    additionalKeywords: ["graph", "imports"],
   },
   // Developer panel defaults
   {
@@ -123,6 +132,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Errors",
     tooltip: "View errors",
     defaultSection: "developer-panel",
+    additionalKeywords: ["exceptions", "problems", "diagnostics"],
   },
   {
     type: "scratchpad",
@@ -130,6 +140,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Scratchpad",
     tooltip: "Scratchpad",
     defaultSection: "developer-panel",
+    additionalKeywords: ["scratch", "draft", "playground"],
   },
   {
     type: "tracing",
@@ -137,6 +148,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Tracing",
     tooltip: "View tracing",
     defaultSection: "developer-panel",
+    additionalKeywords: ["profiling", "performance"],
   },
   {
     type: "secrets",
@@ -145,6 +157,7 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Manage secrets",
     defaultSection: "developer-panel",
     hidden: isWasm(),
+    additionalKeywords: ["env", "environment", "keys", "credentials"],
   },
   {
     type: "logs",
@@ -152,6 +165,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Logs",
     tooltip: "View logs",
     defaultSection: "developer-panel",
+    additionalKeywords: ["console", "output", "stdout"],
   },
   {
     type: "terminal",
@@ -161,6 +175,7 @@ export const PANELS: PanelDescriptor[] = [
     hidden: isWasm(),
     defaultSection: "developer-panel",
     requiredCapability: "terminal",
+    additionalKeywords: ["shell", "console", "bash", "command"],
   },
   {
     type: "snippets",
@@ -168,6 +183,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Snippets",
     tooltip: "Snippets",
     defaultSection: "developer-panel",
+    additionalKeywords: ["templates", "examples"],
   },
   {
     type: "cache",
@@ -176,6 +192,7 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "View cache",
     defaultSection: "developer-panel",
     hidden: !getFeatureFlag("cache_panel"),
+    additionalKeywords: ["storage", "memoize"],
   },
 ];
 
