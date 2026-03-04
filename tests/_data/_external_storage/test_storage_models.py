@@ -87,6 +87,43 @@ class TestObstore:
             ]
         )
 
+    def test_list_entries_skips_zero_byte_folder_marker(self) -> None:
+        now = datetime.now(tz=timezone.utc)
+        mock_store = MagicMock()
+        mock_store.list_with_delimiter.return_value = {
+            "common_prefixes": [],
+            "objects": [
+                {
+                    "path": "folder",
+                    "size": 0,
+                    "last_modified": now,
+                    "e_tag": "abcde",
+                    "version": None,
+                },
+                {
+                    "path": "folder/order_details.csv",
+                    "size": 5426089,
+                    "last_modified": now,
+                    "e_tag": "fghij",
+                    "version": None,
+                },
+            ],
+        }
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix="folder")
+
+        assert result == [
+            StorageEntry(
+                path="folder/order_details.csv",
+                kind="object",
+                size=5426089,
+                last_modified=now.timestamp(),
+                metadata={"e_tag": "fghij"},
+                mime_type="text/csv",
+            ),
+        ]
+
     def test_list_entries_empty(self) -> None:
         mock_store = MagicMock()
         mock_store.list_with_delimiter.return_value = {
