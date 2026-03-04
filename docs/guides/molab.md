@@ -5,13 +5,8 @@
     To propose an example, [reach out to us on Discord](https://marimo.io/discord).
 
 [molab](https://molab.marimo.io/notebooks) is a free cloud-hosted marimo notebook
-environment: run notebooks on cloud machines from your browser, zero setup required.
-molab also integrates with GitHub, and supports embedding notebooks in other
-webpages, making it easy to share your work.
-
-> Visit [https://molab.new](https://molab.new) to instantly create a new notebook.
-
-molab notebooks are public but undiscoverable by default.
+environment. molab is designed for sharing, and is integrated with GitHub;
+notebooks are public but undiscoverable by default.
 
 **Highlights**.
 
@@ -19,8 +14,9 @@ molab notebooks are public but undiscoverable by default.
 - 🤖 Generate code with AI
 - 📦 Install packages with a built-in package manager
 - 🛢️ Use a limited amount of persistent storage per notebook
-- 🔗 Share links and open-in-molab badges
-- 🌐 Embed interactive notebooks in your own webpages
+- 🔗 Share links and [open-in-molab badges](#share-open-in-molab-badges)
+- 👀 [Preview notebooks hosted on GitHub](#preview-notebooks-from-github), with interactivity
+- 🌐 [Embed interactive notebooks](#embed-in-other-webpages) in your own webpages
 - 📥 Download notebooks to your machine, reuse them as Python scripts or apps
 - 📤 Upload local notebooks to the cloud from our CLI (coming soon)
 - 🕹️ Real-time collaboration (coming soon)
@@ -34,14 +30,13 @@ own workspace.
 
 ### Preview notebooks from GitHub
 
+> See our [gallery examples](https://github.com/marimo-team/gallery-examples) repository for best practices on previewing notebooks from GitHub.
+
 In addition to sharing notebooks created in your workspace, you can also
 preview notebooks hosted on GitHub. In some cases, these previews can be
 interactive, but they are static by default.
 
 #### Static previews
-
-
-> Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically generate preview URLs from GitHub links.
 
 To construct a static (read-only, not interactive) preview, replace `github.com` in your notebook's GitHub URL
 with `molab.marimo.io/github`. For example, a notebook at
@@ -56,6 +51,14 @@ becomes
 https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
 ```
 
+(Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically generate preview URLs from GitHub links.)
+
+**Rendering outputs.** In order for your static preview to include outputs, you must
+commit the notebook's corresponding session JSON file, in the `__marimo__/session/`
+directory that exists alongside the notebook. The session is automatically generated when
+you run the notebook from the marimo editor; you can also generate the session
+from the command-line with `marimo export session notebook.py`
+
 #### Interactive previews
 
 Interactive previews let viewers run and interact with your notebook before
@@ -67,12 +70,12 @@ https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/
 ```
 
 Your notebook must be [WebAssembly-compatible](wasm.md) for interactive
-previews to work, and we also recommend creating these notebooks
+previews to work. We also recommend creating these notebooks
 [with `--sandbox`](package_management/inlining_dependencies.md)
 to make sure their dependencies get installed. If you use coding
-agents like Claude Code, you can use our [official
+agents like Claude Code, use our [official
 skills](generate_with_ai/skills.md) to automatically check for WebAssembly
-compatibility of your notebooks.
+compatibility.
 
 ### Share open-in-molab badges
 
