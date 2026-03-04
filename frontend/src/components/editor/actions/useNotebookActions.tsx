@@ -185,10 +185,6 @@ export function useNotebookActions() {
   };
 
   const handleDocumentPDF = async () => {
-    if (!filename) {
-      toastNotebookMustBeNamed();
-      return;
-    }
     if (serverSidePdfEnabled) {
       await downloadServerSidePDF({
         preset: "document",
