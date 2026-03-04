@@ -37,6 +37,8 @@ import {
 } from "../ui/select";
 import type { DataTableSelection, PageRange } from "./types";
 
+const MAX_PAGES_BEFORE_CLAMPING = 100;
+
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   selection?: DataTableSelection;
@@ -325,7 +327,7 @@ export const PageSelector = ({
             ),
           )}
         </div>
-        {totalPages > 50 && (
+        {totalPages > MAX_PAGES_BEFORE_CLAMPING && (
           <>
             <DropdownMenuSeparator />
             <div
@@ -367,7 +369,7 @@ export function getPageRanges(
   currentPage: number,
   totalPages: number,
 ): PageRange[] {
-  if (totalPages <= 100) {
+  if (totalPages <= MAX_PAGES_BEFORE_CLAMPING) {
     return range(totalPages).map((i) => ({ type: "page", page: i + 1 }));
   }
 
