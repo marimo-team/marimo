@@ -58,3 +58,45 @@ class TestLinterConfig:
         from marimo._lint.rules import RULE_CODES
 
         assert len(linter.rule_engine.rules) == len(RULE_CODES)
+
+
+class TestPep723LintConfig:
+    """Test that PEP 723 inline script metadata can configure lint rules."""
+
+    FILE = "tests/_lint/test_files/empty_cell_with_lint_config.py"
+
+    def _read_and_parse(self):
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.FILE) as f:
+            code = f.read()
+        return parse_notebook(code, filepath=self.FILE), code
+
+    def test_empty_cell_ignored_via_pep723_lint_config(self):
+        """MF004 is suppressed when the notebook's PEP 723 metadata ignores it."""
+        from marimo._config.manager import ScriptConfigManager
+
+        notebook, _ = self._read_and_parse()
+
+        # Read lint config from the notebook's PEP 723 metadata
+        script_mgr = ScriptConfigManager(self.FILE)
+        config = script_mgr.get_config(hide_secrets=False)
+        lint_config = config.get("lint")
+        assert lint_config is not None, "Expected [tool.marimo.lint] in metadata"
+        assert "MF004" in lint_config.get("ignore", [])
+
+        from tests._lint.utils import lint_notebook
+
+        diagnostics = lint_notebook(notebook, lint_config=lint_config)
+        codes = [d.code for d in diagnostics]
+        assert "MF004" not in codes
+
+    def test_empty_cell_detected_without_config(self):
+        """Without lint config, the empty cell IS detected as MF004."""
+        notebook, _ = self._read_and_parse()
+
+        from tests._lint.utils import lint_notebook
+
+        diagnostics = lint_notebook(notebook)
+        codes = [d.code for d in diagnostics]
+        assert "MF004" in codes

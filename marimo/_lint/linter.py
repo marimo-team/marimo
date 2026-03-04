@@ -103,6 +103,9 @@ class Linter:
         self.ignore_scripts = ignore_scripts
         self.formatter = formatter
         self.files: list[FileStatus] = []
+        self._lint_config = lint_config
+        self._early_stopping = early_stopping
+        self._explicit_rules = rules is not None
 
         # Create rule lookup for unsafe fixes
         self.rule_lookup = {rule.code: rule for rule in self.rule_engine.rules}
@@ -113,6 +116,42 @@ class Linter:
         # Counters for summary
         self.fixed_count: int = 0
         self.issues_count: int = 0
+
+    def _rule_engine_for_file(self, file_path: str) -> RuleEngine:
+        """Return a RuleEngine for the given file.
+
+        If the file contains PEP 723 ``[tool.marimo.lint]`` metadata and no
+        explicit rules were provided, create a per-file engine that merges
+        the file-level config with the global lint config.
+        """
+        if self._explicit_rules:
+            return self.rule_engine
+
+        from marimo._config.manager import ScriptConfigManager
+
+        try:
+            file_config = ScriptConfigManager(file_path).get_config(
+                hide_secrets=False
+            )
+        except Exception:
+            return self.rule_engine
+
+        file_lint = file_config.get("lint")
+        if not file_lint:
+            return self.rule_engine
+
+        # Merge: file-level config is additive to the global config
+        merged: dict[str, list[str]] = dict(self._lint_config or {})
+        if "select" in file_lint:
+            existing = list(merged.get("select", []))
+            merged["select"] = existing + file_lint["select"]
+        if "ignore" in file_lint:
+            existing = list(merged.get("ignore", []))
+            merged["ignore"] = existing + file_lint["ignore"]
+
+        return RuleEngine.create_default(
+            self._early_stopping, lint_config=merged  # type: ignore[arg-type]
+        )
 
     async def _process_single_file(self, file: Path) -> FileStatus:
         """Process a single file and return its status."""
@@ -183,9 +222,10 @@ class Linter:
                 )
         elif load_result.notebook is not None:
             try:
+                rule_engine = self._rule_engine_for_file(file_path)
                 # Check notebook with all rules including parsing
                 file_status.diagnostics = (
-                    await self.rule_engine.check_notebook(
+                    await rule_engine.check_notebook(
                         load_result.notebook,
                         load_result.contents or "",
                         # Add parsing rule if there's captured output
