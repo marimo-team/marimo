@@ -272,8 +272,6 @@ export const PageSelector = ({
     [currentPage, totalPages],
   );
 
-  const hasEllipsis = pageRanges.some((item) => item.type === "ellipsis");
-
   const handleJump = () => {
     const page = Number.parseInt(jumpValue, 10);
     if (page >= 1 && page <= totalPages) {
@@ -327,7 +325,7 @@ export const PageSelector = ({
             ),
           )}
         </div>
-        {hasEllipsis && (
+        {totalPages > 50 && (
           <>
             <DropdownMenuSeparator />
             <div
