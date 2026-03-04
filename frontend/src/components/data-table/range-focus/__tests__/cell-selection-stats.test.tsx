@@ -107,7 +107,7 @@ describe("CellSelectionStats", () => {
     expect(screen.queryByText(/Average:/)).not.toBeInTheDocument();
   });
 
-  it("should round sum and average to 8 decimal places", () => {
+  it("should round sum and average to 3 decimal places", () => {
     const row = createMockRow("0", [
       createMockCell("0_0", 0.112_233_441_1),
       createMockCell("0_1", 0.112_233_441_1),
@@ -120,14 +120,14 @@ describe("CellSelectionStats", () => {
       </CellSelectionProvider>,
     );
 
-    expect(screen.getByText("Sum: 0.22446688")).toBeInTheDocument(); // Round 0.2244668866 to 8 decimal places
-    expect(screen.getByText("Average: 0.11223344")).toBeInTheDocument(); // Round 0.1122334411 to 8 decimal places
+    expect(screen.getByText("Sum: 0.224")).toBeInTheDocument();
+    expect(screen.getByText("Average: 0.112")).toBeInTheDocument();
   });
 
-  it("should correctly round sum and average to 8 decimal places", () => {
+  it("should correctly round sum and average to 3 decimal places", () => {
     const row = createMockRow("0", [
-      createMockCell("0_0", 0.112_233_443_3),
-      createMockCell("0_1", 0.112_233_443_3),
+      createMockCell("0_0", 0.112_833_443_3),
+      createMockCell("0_1", 0.112_833_443_3),
     ]);
     const table = createMockTable([row], []);
 
@@ -137,8 +137,8 @@ describe("CellSelectionStats", () => {
       </CellSelectionProvider>,
     );
 
-    expect(screen.getByText("Sum: 0.22446689")).toBeInTheDocument(); // Round 0.2244668866 to 8 decimal places
-    expect(screen.getByText("Average: 0.11223344")).toBeInTheDocument(); // Round 0.1122334433 to 8 decimal places
+    expect(screen.getByText("Sum: 0.226")).toBeInTheDocument();
+    expect(screen.getByText("Average: 0.113")).toBeInTheDocument();
   });
 
   it("should not add extra decimal places to sum and average", () => {
