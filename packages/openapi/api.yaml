@@ -1818,6 +1818,14 @@ components:
       - cell_id
       title: FocusCellNotification
       type: object
+    FocusCellRequest:
+      properties:
+        cellId:
+          type: string
+      required:
+      - cellId
+      title: FocusCellRequest
+      type: object
     FormatCellsRequest:
       properties:
         codes:
@@ -5779,6 +5787,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Delete a cell
+  /api/kernel/focus_cell:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FocusCellRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Focus a cell in kiosk-mode consumers
   /api/kernel/format:
     post:
       requestBody:
@@ -6519,3 +6547,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
