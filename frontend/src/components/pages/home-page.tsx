@@ -27,6 +27,11 @@ import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  FILE_ICON as FILE_TYPE_ICONS,
+  type FileIconType as FileType,
+  guessFileIconType as guessFileType,
+} from "@/components/ui/file-icons";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
@@ -47,11 +52,6 @@ import { newNotebookURL } from "@/utils/urls";
 import { ConfigButton } from "../app-config/app-config-button";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
-import {
-  FILE_TYPE_ICONS,
-  type FileType,
-  guessFileType,
-} from "../editor/file-tree/types";
 import {
   Header,
   OpenTutorialDropDown,

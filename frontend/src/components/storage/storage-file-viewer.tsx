@@ -9,6 +9,7 @@ import {
   FileContentRenderer,
   isMediaMime,
 } from "@/components/editor/file-tree/renderers";
+import { renderFileIcon } from "@/components/ui/file-icons";
 import { toast } from "@/components/ui/use-toast";
 import { DownloadStorage } from "@/core/storage/request-registry";
 import type { StorageEntry } from "@/core/storage/types";
@@ -18,7 +19,6 @@ import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
-import { renderFileIcon } from "./components";
 
 const MAX_MEDIA_PREVIEW_SIZE = 100 * 1024 * 1024; // 100 MB
 
