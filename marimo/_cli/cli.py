@@ -142,6 +142,11 @@ token_password_message = (
     "A random token will be generated if not set. "
 )
 
+hide_token_message = (
+    "Hide the authentication token from the printed URL. "
+    "The token will still be required for authentication."
+)
+
 sandbox_message = (
     "Run the notebook in an isolated environment, with dependencies tracked "
     "via PEP 723 inline metadata. If already declared, dependencies will "
@@ -304,6 +309,12 @@ edit_help_msg = "\n".join(
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
+    "--hide-token",
+    is_flag=True,
+    default=False,
+    help=hide_token_message,
+)
+@click.option(
     "--base-url",
     default="",
     type=str,
@@ -416,6 +427,7 @@ def edit(
     token: bool,
     token_password: Optional[str],
     token_password_file: Optional[str],
+    hide_token: bool,
     base_url: str,
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
@@ -552,6 +564,7 @@ def edit(
         port=port,
         proxy=proxy,
         headless=headless,
+        hide_token=hide_token,
         mode=SessionMode.EDIT,
         include_code=True,
         watch=watch,
@@ -649,6 +662,12 @@ new_help_msg = "\n".join(
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
+    "--hide-token",
+    is_flag=True,
+    default=False,
+    help=hide_token_message,
+)
+@click.option(
     "--base-url",
     default="",
     type=str,
@@ -683,6 +702,7 @@ def new(
     proxy: Optional[str],
     headless: bool,
     token: bool,
+    hide_token: bool,
     token_password: Optional[str],
     token_password_file: Optional[str],
     base_url: str,
@@ -756,6 +776,7 @@ def new(
         host=host,
         port=port,
         proxy=proxy,
+        hide_token=hide_token,
         headless=headless,
         mode=SessionMode.EDIT,
         include_code=True,
@@ -919,6 +940,12 @@ Example:
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
+    "--hide-token",
+    is_flag=True,
+    default=False,
+    help=hide_token_message,
+)
+@click.option(
     "--include-code",
     is_flag=True,
     default=False,
@@ -1020,6 +1047,7 @@ def run(
     token: bool,
     token_password: Optional[str],
     token_password_file: Optional[str],
+    hide_token: bool,
     include_code: bool,
     session_ttl: int,
     watch: bool,
@@ -1147,6 +1175,7 @@ def run(
         proxy=proxy,
         headless=headless,
         mode=SessionMode.RUN,
+        hide_token=hide_token,
         include_code=include_code,
         ttl_seconds=session_ttl,
         watch=watch,
@@ -1240,6 +1269,12 @@ Recommended sequence:
     help="Path to file containing token password, or '-' for stdin. Mutually exclusive with --token-password.",
 )
 @click.option(
+    "--hide-token",
+    is_flag=True,
+    default=False,
+    help=hide_token_message,
+)
+@click.option(
     "--skew-protection/--no-skew-protection",
     is_flag=True,
     default=True,
@@ -1256,6 +1291,7 @@ def tutorial(
     host: str,
     proxy: Optional[str],
     headless: bool,
+    hide_token: bool,
     token: bool,
     token_password: Optional[str],
     token_password_file: Optional[str],
@@ -1279,6 +1315,7 @@ def tutorial(
         skew_protection=skew_protection,
         cli_args={},
         argv=[],
+        hide_token=hide_token,
         auth_token=resolve_token(
             token,
             token_password=token_password,

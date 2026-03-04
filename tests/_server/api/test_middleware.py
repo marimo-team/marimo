@@ -56,6 +56,7 @@ def init_state(
         base_url=base_url,
         asset_url=None,
         headless=False,
+        hide_token=False,
         quiet=False,
         session_manager=session_manager,
         config_manager=MarimoConfigManager(UserConfigManager()),

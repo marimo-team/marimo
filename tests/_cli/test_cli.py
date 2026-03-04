@@ -510,6 +510,82 @@ def test_cli_edit_token_password_file_empty() -> None:
         os.unlink(password_file_path)
 
 
+def test_cli_edit_hide_token(tmp_path: Path) -> None:
+    port = _get_port()
+    log_path = tmp_path / "output.log"
+
+    with open(log_path, "w") as log_file:
+        log_path = log_file.name
+
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "edit",
+                "-p",
+                str(port),
+                "--headless",
+                "--hide-token",
+                "--token-password",
+                "access_token",
+                "--skip-update-check",
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+    try:
+        # Wait for server to start then reopen the log file
+        time.sleep(3)
+        with open(log_path) as f:
+            output = f.read()
+        assert "access_token" not in output.lower()
+        assert (
+            f"localhost:{port}" in output.lower()
+            or f"127.0.0.1:{port}" in output.lower()
+        )
+        # Ensure we still need to provide the access token
+        contents = _try_fetch(port, "localhost", "access_token")
+        _check_contents(p, b'"mode": "home"', contents)
+    finally:
+        p.kill()
+
+
+def test_cli_edit_show_token(tmp_path: Path) -> None:
+    port = _get_port()
+    log_path = tmp_path / "output.log"
+
+    with open(log_path, "w") as log_file:
+        log_path = log_file.name
+
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "edit",
+                "-p",
+                str(port),
+                "--headless",
+                "--token-password",
+                "access_token",
+                "--skip-update-check",
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+    try:
+        # Wait for server to start then reopen the log file
+        time.sleep(3)
+        with open(log_path) as f:
+            output = f.read()
+        assert (
+            f"localhost:{port}?access_token" in output.lower()
+            or f"127.0.0.1:{port}?access_token" in output.lower()
+        )
+        # Ensure we still need to provide the access token
+        contents = _try_fetch(port, "localhost", "access_token")
+        _check_contents(p, b'"mode": "home"', contents)
+    finally:
+        p.kill()
+
+
 def test_cli_edit_directory() -> None:
     d = tempfile.TemporaryDirectory()
     port = _get_port()
@@ -843,6 +919,90 @@ def test_cli_run_multiple_files_gallery_sandbox() -> None:
     _check_contents(p, b'"mode": "gallery"', contents)
 
 
+def test_cli_run_hide_token(tmp_path: Path) -> None:
+    port = _get_port()
+    directory = tempfile.TemporaryDirectory()
+    run_file = _temp_run_file(directory)
+    log_path = tmp_path / "output.log"
+
+    with open(log_path, "w") as log_file:
+        log_path = log_file.name
+
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "run",
+                run_file,
+                "-p",
+                str(port),
+                "--headless",
+                "--hide-token",
+                "--token",
+                "--token-password",
+                "access_token",
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+    try:
+        # Wait for server to start then reopen the log file
+        time.sleep(3)
+        with open(log_path) as f:
+            output = f.read()
+        assert "access_token" not in output.lower()
+        assert (
+            f"localhost:{port}" in output.lower()
+            or f"127.0.0.1:{port}" in output.lower()
+        )
+        # Ensure we still need to provide the access token
+        contents = _try_fetch(port, "localhost", "access_token")
+        _check_contents(p, b'"mode": "read"', contents)
+    finally:
+        p.kill()
+        os.unlink(run_file)
+
+
+def test_cli_run_show_token(tmp_path: Path) -> None:
+    port = _get_port()
+    log_path = tmp_path / "output.log"
+    directory = tempfile.TemporaryDirectory()
+    run_file = _temp_run_file(directory)
+
+    with open(log_path, "w") as log_file:
+        log_path = log_file.name
+
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "run",
+                run_file,
+                "-p",
+                str(port),
+                "--headless",
+                "--token",
+                "--token-password",
+                "access_token",
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+    try:
+        # Wait for server to start then reopen the log file
+        time.sleep(3)
+        with open(log_path) as f:
+            output = f.read()
+        assert (
+            f"localhost:{port}?access_token" in output.lower()
+            or f"127.0.0.1:{port}?access_token" in output.lower()
+        )
+        # Ensure we still need to provide the access token
+        contents = _try_fetch(port, "localhost", "access_token")
+        _check_contents(p, b'"mode": "read"', contents)
+    finally:
+        p.kill()
+        os.unlink(run_file)
+
+
 def test_collect_marimo_files_includes_markdown(
     tmp_path: Path,
 ) -> None:
@@ -950,6 +1110,82 @@ def test_cli_md_tutorial() -> None:
     _check_contents(p, b'"mode": "edit"', contents)
     _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
     _check_contents(p, b"markdown-format.md", contents)
+
+
+def test_cli_tutorial_hide_token(tmp_path: Path) -> None:
+    port = _get_port()
+    log_path = tmp_path / "output.log"
+
+    with open(log_path, "w") as log_file:
+        log_path = log_file.name
+
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "tutorial",
+                "intro",
+                "-p",
+                str(port),
+                "--headless",
+                "--hide-token",
+                "--token-password",
+                "access_token",
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+    try:
+        # Wait for server to start then reopen the log file
+        time.sleep(3)
+        with open(log_path) as f:
+            output = f.read()
+        assert "access_token" not in output.lower()
+        assert (
+            f"localhost:{port}" in output.lower()
+            or f"127.0.0.1:{port}" in output.lower()
+        )
+        # Ensure we still need to provide the access token
+        contents = _try_fetch(port, "localhost", "access_token")
+        _check_contents(p, b'"mode": "edit"', contents)
+    finally:
+        p.kill()
+
+
+def test_cli_tutorial_show_token(tmp_path: Path) -> None:
+    port = _get_port()
+    log_path = tmp_path / "output.log"
+
+    with open(log_path, "w") as log_file:
+        log_path = log_file.name
+
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "tutorial",
+                "intro",
+                "-p",
+                str(port),
+                "--headless",
+                "--token-password",
+                "access_token",
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+    try:
+        # Wait for server to start then reopen the log file
+        time.sleep(3)
+        with open(log_path) as f:
+            output = f.read()
+        assert (
+            f"localhost:{port}?access_token" in output.lower()
+            or f"127.0.0.1:{port}?access_token" in output.lower()
+        )
+        # Ensure we still need to provide the access token
+        contents = _try_fetch(port, "localhost", "access_token")
+        _check_contents(p, b'"mode": "edit"', contents)
+    finally:
+        p.kill()
 
 
 def test_cli_md_run(temp_md_marimo_file: str) -> None:

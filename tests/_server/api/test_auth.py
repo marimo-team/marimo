@@ -62,6 +62,7 @@ def app() -> Starlette:
         base_url="",
         asset_url=None,
         headless=False,
+        hide_token=False,
         quiet=False,
         session_manager=get_mock_session_manager(),
         config_manager=MarimoConfigManager(UserConfigManager()),

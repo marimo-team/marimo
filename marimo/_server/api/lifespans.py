@@ -237,7 +237,7 @@ def _startup_url(state: AppStateBase) -> str:
     elif port == 443:
         url = f"https://{host}{state.base_url}"
 
-    if AuthToken.is_empty(state.session_manager.auth_token):
+    if state.hide_token or AuthToken.is_empty(state.session_manager.auth_token):
         return url
     return f"{url}?access_token={str(state.session_manager.auth_token)}"
 

@@ -38,6 +38,7 @@ def get_starlette_server_state_init(
         asset_url=None,
         headless=False,
         quiet=False,
+        hide_token=False,
         session_manager=session_manager or get_mock_session_manager(),
         config_manager=MarimoConfigManager(UserConfigManager()),
         remote_url=None,

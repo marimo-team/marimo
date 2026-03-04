@@ -49,6 +49,10 @@ class AppStateBase:
         return self.session_manager.mode
 
     @property
+    def hide_token(self) -> bool:
+        return self.state.hide_token
+
+    @property
     def quiet(self) -> bool:
         return self.state.quiet
 

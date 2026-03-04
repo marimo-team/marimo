@@ -25,6 +25,7 @@ class StarletteServerStateInit:
     asset_url: str | None
     headless: bool
     quiet: bool
+    hide_token: bool
     session_manager: SessionManager
     config_manager: MarimoConfigManager
     remote_url: str | None
