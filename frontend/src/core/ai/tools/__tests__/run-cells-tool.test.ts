@@ -488,7 +488,6 @@ describe("RunStaleCellsTool", () => {
       // Output should be capped (2000 chars content + "Output:\n" prefix + truncation message)
       expect(output.length).toBeLessThan(2200);
     });
-
   });
 
   describe("cell execution completion", () => {
