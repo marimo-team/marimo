@@ -105,7 +105,9 @@ export const FileExplorer: React.FC<{
   const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
-    tree.refreshAll(Object.keys(openState).filter((id) => openState[id]));
+    return tree.refreshAll(
+      Object.keys(openState).filter((id) => openState[id]),
+    );
   });
 
   const handleHiddenFilesToggle = useEvent(() => {
