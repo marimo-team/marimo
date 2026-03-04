@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { FileIconType } from "@/components/ui/file-icons";
+import type { FileIconType } from "@/components/editor/file-tree/file-icons";
 
 const TAB = "    ";
 

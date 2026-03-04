@@ -3,14 +3,14 @@
 import { CornerLeftUp } from "lucide-react";
 import { type JSX, useEffect, useState } from "react";
 import { z } from "zod";
-import { Spinner } from "@/components/icons/spinner";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
   type FileIconType as FileType,
   guessFileIconType as guessFileType,
-} from "@/components/ui/file-icons";
+} from "@/components/editor/file-tree/file-icons";
+import { Spinner } from "@/components/icons/spinner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";

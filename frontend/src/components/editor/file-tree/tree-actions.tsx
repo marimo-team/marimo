@@ -6,9 +6,9 @@ import {
   RefreshCwIcon,
 } from "lucide-react";
 import React, { useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
-import { Button } from "./button";
-import { Tooltip } from "./tooltip";
 
 /**
  * Animated chevron for tree expand/collapse.
@@ -29,9 +29,10 @@ export const TreeChevron: React.FC<{
 
 /**
  * Refresh button that briefly spins its icon when clicked.
+ * Keeps spinning for at least 500ms, or until the onClick Promise resolves.
  */
 export const RefreshIconButton: React.FC<{
-  onClick: (e: React.MouseEvent) => void;
+  onClick: (e: React.MouseEvent) => void | Promise<void>;
   tooltip?: string;
   className?: string;
   iconClassName?: string;
@@ -39,11 +40,15 @@ export const RefreshIconButton: React.FC<{
   const [isSpinning, setIsSpinning] = useState(false);
 
   const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       setIsSpinning(true);
-      onClick(e);
       // Artificially spin for 500ms to show the user that the button is working.
-      setTimeout(() => setIsSpinning(false), 500);
+      const minDelay = new Promise<void>((r) => setTimeout(r, 500));
+      try {
+        await Promise.all([onClick(e), minDelay]);
+      } finally {
+        setIsSpinning(false);
+      }
     },
     [onClick],
   );

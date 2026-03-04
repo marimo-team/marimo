@@ -5,11 +5,11 @@ import type React from "react";
 import { useCallback } from "react";
 import { useLocale } from "react-aria";
 import { FilePreviewHeader } from "@/components/editor/file-tree/file-header";
+import { renderFileIcon } from "@/components/editor/file-tree/file-icons";
 import {
   FileContentRenderer,
   isMediaMime,
 } from "@/components/editor/file-tree/renderers";
-import { renderFileIcon } from "@/components/ui/file-icons";
 import { toast } from "@/components/ui/use-toast";
 import { DownloadStorage } from "@/core/storage/request-registry";
 import type { StorageEntry } from "@/core/storage/types";

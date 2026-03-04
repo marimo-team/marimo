@@ -28,6 +28,18 @@ import {
   type TreeApi,
 } from "react-arborist";
 import useEvent from "react-use-event-hook";
+import {
+  FILE_ICON,
+  FILE_ICON_COLOR,
+  type FileIconType,
+  guessFileIconType,
+} from "@/components/editor/file-tree/file-icons";
+import {
+  MENU_ITEM_ICON_CLASS,
+  MoreActionsButton,
+  RefreshIconButton,
+  TreeChevron,
+} from "@/components/editor/file-tree/tree-actions";
 import { MarimoIcon, MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -40,19 +52,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  FILE_ICON,
-  FILE_ICON_COLOR,
-  type FileIconType,
-  guessFileIconType,
-} from "@/components/ui/file-icons";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  MENU_ITEM_ICON_CLASS,
-  MoreActionsButton,
-  RefreshIconButton,
-  TreeChevron,
-} from "@/components/ui/tree-actions";
 import { toast } from "@/components/ui/use-toast";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";

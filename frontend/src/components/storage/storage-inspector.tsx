@@ -17,6 +17,16 @@ import { useLocale } from "react-aria";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { AddConnectionDialog } from "@/components/editor/connections/add-connection-dialog";
+import {
+  FILE_ICON_COLOR,
+  renderFileIcon,
+} from "@/components/editor/file-tree/file-icons";
+import {
+  MENU_ITEM_ICON_CLASS,
+  MoreActionsButton,
+  RefreshIconButton,
+  TreeChevron,
+} from "@/components/editor/file-tree/tree-actions";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import {
   DropdownMenu,
@@ -24,14 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FILE_ICON_COLOR, renderFileIcon } from "@/components/ui/file-icons";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  MENU_ITEM_ICON_CLASS,
-  MoreActionsButton,
-  RefreshIconButton,
-  TreeChevron,
-} from "@/components/ui/tree-actions";
 import { toast } from "@/components/ui/use-toast";
 import { DownloadStorage } from "@/core/storage/request-registry";
 import {

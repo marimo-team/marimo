@@ -2,7 +2,7 @@
 
 import { LoaderCircle, XIcon } from "lucide-react";
 import type { CSSProperties } from "react";
-import { TreeChevron } from "@/components/ui/tree-actions";
+import { TreeChevron } from "@/components/editor/file-tree/tree-actions";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { DATA_TYPE_ICON, getDataTypeColor } from "../datasets/icons";

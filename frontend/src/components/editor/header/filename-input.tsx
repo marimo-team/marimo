@@ -6,7 +6,7 @@ import { type JSX, useEffect, useRef, useState } from "react";
 import {
   FILE_ICON as FILE_TYPE_ICONS,
   guessFileIconType as guessFileType,
-} from "@/components/ui/file-icons";
+} from "@/components/editor/file-tree/file-icons";
 import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Paths } from "@/utils/paths";
