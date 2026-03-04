@@ -411,6 +411,86 @@ describe("RunStaleCellsTool", () => {
     });
   });
 
+  describe("output truncation", () => {
+    it("should summarize text/html output instead of dumping raw content", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "fig.show()", edited: true },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      vi.mocked(runCells).mockImplementation(async () => {
+        const updatedNotebook = store.get(notebookAtom);
+        updatedNotebook.cellRuntime[cellId1] = {
+          ...updatedNotebook.cellRuntime[cellId1],
+          status: "idle",
+        };
+        store.set(notebookAtom, updatedNotebook);
+      });
+
+      const largeHtml = `<div>${"x".repeat(2_000_000)}</div>`;
+      vi.mocked(getCellContextData).mockReturnValue({
+        cellOutput: {
+          outputType: "text",
+          processedContent: null,
+          imageUrl: null,
+          output: { mimetype: "text/html", data: largeHtml },
+        },
+        consoleOutputs: null,
+        cellName: "cell1",
+      } as never);
+
+      const result = await tool.handler({}, toolContext as never);
+
+      expect(result.status).toBe("success");
+      const output = result.cellsToOutput?.[cellId1]?.cellOutput ?? "";
+      expect(output).toContain("HTML Output:");
+      expect(output).toContain("text/html");
+      expect(output.length).toBeLessThan(200);
+      expect(output).not.toContain(largeHtml);
+    });
+
+    it("should truncate large text output to MAX_TEXT_OUTPUT_CHARS", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "print(big_string)", edited: true },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      vi.mocked(runCells).mockImplementation(async () => {
+        const updatedNotebook = store.get(notebookAtom);
+        updatedNotebook.cellRuntime[cellId1] = {
+          ...updatedNotebook.cellRuntime[cellId1],
+          status: "idle",
+        };
+        store.set(notebookAtom, updatedNotebook);
+      });
+
+      const largeText = "a".repeat(10_000);
+      vi.mocked(getCellContextData).mockReturnValue({
+        cellOutput: {
+          outputType: "text",
+          processedContent: largeText,
+          imageUrl: null,
+          output: { mimetype: "text/plain", data: largeText },
+        },
+        consoleOutputs: null,
+        cellName: "cell1",
+      } as never);
+
+      const result = await tool.handler({}, toolContext as never);
+
+      const output = result.cellsToOutput?.[cellId1]?.cellOutput ?? "";
+      expect(output).toContain("[TRUNCATED:");
+      expect(output).toContain("Full output visible in the notebook UI.");
+      // Output should be capped (2000 chars content + "Output:\n" prefix + truncation message)
+      expect(output.length).toBeLessThan(2200);
+    });
+
+  });
+
   describe("cell execution completion", () => {
     it("should complete immediately if cells are already idle", async () => {
       const notebook = MockNotebook.notebookState({
