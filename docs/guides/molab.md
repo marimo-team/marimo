@@ -34,6 +34,8 @@ own workspace.
 
 ### Preview notebooks from GitHub
 
+> See our [gallery examples](https://github.com/marimo-team/gallery-examples) repository for best practices on previewing notebooks from GitHub.
+
 In addition to sharing notebooks created in your workspace, you can also
 preview notebooks hosted on GitHub. In some cases, these previews can be
 interactive, but they are static by default.
@@ -55,6 +57,12 @@ becomes
 ```
 https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
 ```
+
+**Rendering outputs.** In order for your static preview to include outputs, you must
+commit the notebooks corresponding session JSON file, in the `__marimo__/session/`
+directory alongside the notebook. The session is automatically generated when
+you run the notebook from the marimo editor; you can also regenerate the session
+from the command-line with `marimo export session /path/to/notebook.py`
 
 #### Interactive previews
 
