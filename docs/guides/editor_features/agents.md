@@ -119,7 +119,7 @@ opencode
     ```
 
 
-Opencode supports many models, including local ones through Ollama, and can be configured via a configuration file.
+Opencode supports many models, including local ones through Ollama, and can be configured via a [configuration file](https://opencode.ai/docs/config/).
 
 ```json
 {
