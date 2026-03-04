@@ -594,6 +594,33 @@ async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
     assert "cell-1" in response["codes"]
 
 
+@pytest.mark.skipif(
+    not DependencyManager.ruff.has(), reason="ruff not installed"
+)
+async def test_pyodide_bridge_fix(
+    pyodide_bridge: PyodideBridge, tmp_path: Path
+) -> None:
+    """Test fixing code through the bridge."""
+    filename = tmp_path / "test.py"
+    tmp_path.joinpath("ruff.toml").write_text('[lint]\nselect=["ALL"]')
+
+    request_json = json.dumps(
+        {
+            "codes": {"cell-1": "import sys\nimport os\nx={1,2,1}\ny=f'z'"},
+            "lineLength": 79,
+            "filename": str(filename),
+        }
+    )
+
+    result = await pyodide_bridge.fix(request_json)
+    response = json.loads(result)
+
+    assert "codes" in response
+    assert "cell-1" in response["codes"]
+    expected = 'import os\nimport sys\n\nx={1,2}\ny="z"'
+    assert response["codes"]["cell-1"] == expected
+
+
 def test_pyodide_bridge_save(
     pyodide_bridge: PyodideBridge,
     pyodide_app_file: Path,
