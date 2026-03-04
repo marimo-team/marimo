@@ -318,7 +318,7 @@ const StorageEntryRow: React.FC<{
         )}
         {isDir ? (
           <FolderIcon
-            className={`h-3.5 w-3.5 shrink-0 ${FILE_ICON_COLOR.directory}`}
+            className={cn("h-3.5 w-3.5 shrink-0", FILE_ICON_COLOR.directory)}
           />
         ) : (
           renderFileIcon(name)
