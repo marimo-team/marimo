@@ -47,9 +47,7 @@ class TestLinterConfig:
         from marimo._lint.rules.breaking import UnparsableRule
 
         explicit = [UnparsableRule()]
-        linter = Linter(
-            rules=explicit, lint_config={"select": ["MF"]}
-        )
+        linter = Linter(rules=explicit, lint_config={"select": ["MF"]})
         assert len(linter.rule_engine.rules) == 1
         assert linter.rule_engine.rules[0].code == "MB001"
 
