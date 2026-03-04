@@ -54,6 +54,12 @@ class Obstore(StorageBackend["ObjectStore"]):
 
         # Objects are actual files/objects at this level
         for entry in result["objects"]:
+            # Skip zero-byte folder marker objects that some S3 clients
+            # create as directory placeholders (e.g., "folder" with size 0)
+            path = entry.get("path", "")
+            size = entry.get("size", 0)
+            if size == 0 and prefix and path == prefix.rstrip("/"):
+                continue
             storage_entries.append(self._create_storage_entry(entry))
 
         if len(storage_entries) > limit:
