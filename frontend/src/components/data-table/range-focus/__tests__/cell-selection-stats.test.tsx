@@ -3,6 +3,7 @@
 import type { Table } from "@tanstack/react-table";
 import { render, screen } from "@testing-library/react";
 import { useEffect } from "react";
+import { I18nProvider } from "react-aria";
 import { describe, expect, it } from "vitest";
 import { SELECT_COLUMN_ID } from "../../types";
 import { useCellSelectionReducerActions } from "../atoms";
@@ -21,7 +22,11 @@ const TestHarness = ({
   useEffect(() => {
     actions.setSelectedCells(selectedCellIds);
   }, [actions, selectedCellIds]);
-  return <CellSelectionStats table={table} />;
+  return (
+    <I18nProvider locale="en-US">
+      <CellSelectionStats table={table} />
+    </I18nProvider>
+  );
 };
 
 describe("CellSelectionStats", () => {
