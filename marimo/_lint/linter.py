@@ -150,7 +150,8 @@ class Linter:
             merged["ignore"] = existing + file_lint["ignore"]
 
         return RuleEngine.create_default(
-            self._early_stopping, lint_config=merged  # type: ignore[arg-type]
+            self._early_stopping,
+            lint_config=merged,  # type: ignore[arg-type]
         )
 
     async def _process_single_file(self, file: Path) -> FileStatus:
@@ -224,15 +225,13 @@ class Linter:
             try:
                 rule_engine = self._rule_engine_for_file(file_path)
                 # Check notebook with all rules including parsing
-                file_status.diagnostics = (
-                    await rule_engine.check_notebook(
-                        load_result.notebook,
-                        load_result.contents or "",
-                        # Add parsing rule if there's captured output
-                        stdout=stdout.getvalue().strip(),
-                        stderr=stderr.getvalue().strip(),
-                        logs=logs,
-                    )
+                file_status.diagnostics = await rule_engine.check_notebook(
+                    load_result.notebook,
+                    load_result.contents or "",
+                    # Add parsing rule if there's captured output
+                    stdout=stdout.getvalue().strip(),
+                    stderr=stderr.getvalue().strip(),
+                    logs=logs,
                 )
             except Exception as e:
                 # Handle other parsing errors
