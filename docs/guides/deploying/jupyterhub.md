@@ -9,8 +9,8 @@ marimo notebooks directly from JupyterLab's launcher, manage running sessions,
 and convert Jupyter notebooks to marimo format.
 
 <figure>
-  <img src="../../_static/docs-jupyterhub.png" alt="marimo JupyterLab extension showing sidebar and editor" />
-  <figcaption>The marimo JupyterLab extension with sidebar panel and notebook editor.</figcaption>
+  <img src="/_static/docs-jupyterhub.png" alt="marimo JupyterLab extension showing sidebar and editor" />
+  <figcaption>marimo running in a JupyterHub deployment, in JupyterLab.</figcaption>
 </figure>
 
 ## Features
@@ -18,7 +18,7 @@ and convert Jupyter notebooks to marimo format.
 - **Launcher integration**: marimo appears in the JupyterLab launcher with its own icon
 - **First-class notebook support**: double-click `_mo.py` files to open directly in marimo
 - **Sidebar panel**: monitor server status, view running sessions with kill buttons, and access quick actions
-- **Environment selection**: choose from available Python environments when creating notebooks; the extension discovers Jupyter kernel specs and embeds the venv path using PEP 723 script metadata
+- **Environment selection**: choose from available Python environments when creating notebooks; the extension discovers Jupyter kernel specs, letting you use your own venvs or conda environments.
 - **Context menus**: right-click `.py` files to edit with marimo, or `.ipynb` files to convert to marimo format
 - **Sandbox mode**: run marimo in isolated environments with `uvx`
 
@@ -59,16 +59,6 @@ c.MarimoProxyConfig.uvx_path = "/usr/local/bin/uvx"
 # Startup timeout (default: 60s)
 c.MarimoProxyConfig.timeout = 120
 ```
-
-## Migrating from jupyter-marimo-proxy
-
-```bash
-pip uninstall jupyter-marimo-proxy
-pip install marimo-jupyter-extension
-```
-
-Configuration via `c.MarimoProxyConfig` in `jupyterhub_config.py` remains the
-same. This package is a drop-in replacement with additional features.
 
 ## Troubleshooting
 
