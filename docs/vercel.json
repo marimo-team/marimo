@@ -636,11 +636,6 @@
       "permanent": true
     },
     {
-      "source": "/guides/exporting/",
-      "destination": "/guides/exporting/index/",
-      "permanent": true
-    },
-    {
       "source": "/guides/publishing/from_code_snippets/",
       "destination": "/guides/publishing/embedding/",
       "permanent": true
