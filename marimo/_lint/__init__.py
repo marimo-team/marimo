@@ -34,7 +34,11 @@ def resolve_lint_config(
 
     config_mgr = get_default_config_manager(current_path=os.getcwd())
     full_config = config_mgr.get_config(hide_secrets=False)
-    lint_config = dict(full_config.get("lint", {}))
+    lint_config: LintConfig = {
+        k: v
+        for k, v in full_config.get("lint", {}).items()
+        if k in ("select", "ignore")
+    }  # type: ignore[misc]
 
     # CLI --select replaces config select entirely
     if select_rules is not None:
@@ -45,7 +49,7 @@ def resolve_lint_config(
     # CLI --ignore appends to config ignore
     if ignore_rules is not None:
         parsed = [s.strip() for s in ignore_rules.split(",") if s.strip()]
-        existing = list(lint_config.get("ignore", []))
+        existing = list(lint_config.get("ignore") or [])
         lint_config["ignore"] = existing + parsed
 
     return lint_config if lint_config else None

@@ -141,17 +141,16 @@ class Linter:
             return self.rule_engine
 
         # Merge: file-level config is additive to the global config
-        merged: dict[str, list[str]] = dict(self._lint_config or {})
+        merged: LintConfig = {**self._lint_config} if self._lint_config else {}
         if "select" in file_lint:
-            existing = list(merged.get("select", []))
+            existing = list(merged.get("select") or [])
             merged["select"] = existing + file_lint["select"]
         if "ignore" in file_lint:
-            existing = list(merged.get("ignore", []))
+            existing = list(merged.get("ignore") or [])
             merged["ignore"] = existing + file_lint["ignore"]
 
         return RuleEngine.create_default(
-            self._early_stopping,
-            lint_config=merged,  # type: ignore[arg-type]
+            self._early_stopping, lint_config=merged
         )
 
     async def _process_single_file(self, file: Path) -> FileStatus:
