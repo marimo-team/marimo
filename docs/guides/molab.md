@@ -2,7 +2,7 @@
 
 !!! tip "Contribute to our community gallery!"
     We welcome submissions to our curated [community gallery](https://marimo.io/gallery?tag=community).
-    To propose an example, [reach out to us on Discord](https://marimo.io/discord).
+    To propose an example, share your notebook on socials and [tag us](publishing/public_gallery.md).
 
 [molab](https://molab.marimo.io/notebooks) is a free cloud-hosted marimo notebook
 environment. molab is designed for sharing, and is integrated with GitHub;
