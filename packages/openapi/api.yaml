@@ -5139,7 +5139,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.20.2
+  version: 0.20.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5487,6 +5487,28 @@ paths:
               schema:
                 type: string
           description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/ipynb:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Export the notebook as IPYNB
         400:
           description: File must be saved before downloading
   /api/export/markdown:
