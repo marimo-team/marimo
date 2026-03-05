@@ -20,6 +20,8 @@ def prompt_to_overwrite(path: Path) -> bool:
     if GLOBAL_SETTINGS.YES:
         return True
 
+    # Check if not in an interactive terminal
+    # default to False
     if not stdout.isatty():
         return True
 
