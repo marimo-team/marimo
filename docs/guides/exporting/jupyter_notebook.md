@@ -11,7 +11,7 @@ save as ipynb through the notebook menu. These automatic snapshots are
 saved to a folder called `__marimo__` in the notebook directory.
 
 <div align="center">
-<figurehtml>
+<figure>
 <img src="/_static/docs-jupyter-autoexport.png" width="75%"/>
 <figcaption>Download as static HTML.</figcaption>
 </figure>

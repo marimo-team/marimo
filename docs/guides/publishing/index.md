@@ -26,5 +26,5 @@ If you need to self-host, the following guides cover publishing with
 | [GitHub](github.md)                                   | Share from GitHub, view outputs, publish to GitHub Pages      |
 | [Embed in other webpages](embedding.md)              | Embed notebooks in other sites via iframes or islands         |
 | [Cloudflare](cloudflare.md)                           | Publish interactive notebooks on Cloudflare                  |
-| [Quarto](quarto.md)                                   | Publish reactive websites with Quarto from markdown          |
+| [Quarto](../exporting/quarto.md)                      | Publish reactive websites with Quarto from markdown          |
 | [Self-host WebAssembly notebooks](self_host_wasm.md)  | Self-hosting interactive WebAssembly (HTML export) notebooks |

@@ -76,7 +76,7 @@ unlike molab, notebooks created at the playground are not saved.
     notebooks, create them with `marimo edit --sandbox notebook.py`. This
     inlines your package dependencies into the notebook file, ensuring they
     are seamlessly installed in our WebAssembly environment. See
-    [package management](../guides/package_management.md) for more details.
+    [package management](editor_features/package_management.md) for more details.
 
 !!! tip "Rendering performance"
 

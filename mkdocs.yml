@@ -153,6 +153,7 @@ nav:
           - Self-host WebAssembly notebooks: guides/publishing/self_host_wasm.md
           - OpenGraph previews: guides/publishing/opengraph.md
           - Thumbnails: guides/publishing/thumbnails.md
+      - WebAssembly notebooks: guides/wasm.md
       - Deploy notebook servers or apps:
           - Deploy notebooks: guides/deploying/index.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
@@ -161,7 +162,6 @@ nav:
             - Kubernetes: guides/deploying/deploying_kubernetes.md
             - SkyPilot: guides/deploying/deploying_skypilot.md
             - Slurm: guides/deploying/deploying_slurm.md
-            - Scheduled jobs: guides/deploying/scheduled.md
           - Apps:
             - FastAPI: guides/deploying/programmatically.md
             - Authentication: guides/deploying/authentication.md
@@ -169,7 +169,6 @@ nav:
             - HuggingFace: guides/deploying/deploying_hugging_face.md
             - Railway: guides/deploying/deploying_railway.md
             - nginx: guides/deploying/deploying_nginx.md
-      - WebAssembly notebooks: guides/wasm.md
       - Configuration:
           - Configuration: guides/configuration/index.md
           - Runtime configuration: guides/configuration/runtime_configuration.md

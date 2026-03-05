@@ -676,6 +676,11 @@
       "permanent": true
     },
     {
+      "source": "/guides/deploying/scheduled/",
+      "destination": "/guides/scripts/",
+      "permanent": true
+    },
+    {
       "source": "/:path*.html",
       "destination": "/:path*/",
       "permanent": true
