@@ -885,11 +885,17 @@ def html_wasm(
 
     out_dir = output
     filename = "index.html"
-    ignore_index_html = False
     # If ends with .html, get the directory
     if output.suffix == ".html":
         out_dir = output.parent
         filename = output.name
+
+    # If the output is a directory we don't want to
+    # write index.html since it will contain the template.
+    # Similarly if the output is already an html file
+    # we don't need index.html.
+    ignore_index_html = False
+    if output.is_dir or output.suffix == ".html":
         ignore_index_html = True
 
     marimo_file = MarimoPath(name)
