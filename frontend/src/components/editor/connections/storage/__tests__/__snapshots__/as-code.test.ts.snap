@@ -1,0 +1,137 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateStorageCode > Azure > basic connection with account key 1`] = `
+"from obstore.store import AzureStore
+
+store = AzureStore("my-container",
+    account_name="storageaccount",
+    account_key="base64accountkey==",
+)"
+`;
+
+exports[`generateStorageCode > Azure > with secrets 1`] = `
+"from obstore.store import AzureStore
+import os
+
+_account_name = os.environ.get("AZURE_ACCOUNT")
+_account_key = os.environ.get("AZURE_KEY")
+store = AzureStore("my-container",
+    account_name=_account_name,
+    account_key=_account_key,
+)"
+`;
+
+exports[`generateStorageCode > Azure > without account key 1`] = `
+"from obstore.store import AzureStore
+
+store = AzureStore("my-container",
+    account_name="storageaccount",
+)"
+`;
+
+exports[`generateStorageCode > CoreWeave > basic connection with all fields 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    access_key_id="AKIAIOSFODNN7EXAMPLE",
+    secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
+exports[`generateStorageCode > CoreWeave > minimal connection (bucket and region only) 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
+exports[`generateStorageCode > CoreWeave > with secrets 1`] = `
+"from obstore.store import S3Store
+import os
+
+_access_key_id = os.environ.get("COREWEAVE_OBJECT_STORAGE_KEY")
+_secret_access_key = os.environ.get("COREWEAVE_OBJECT_STORAGE_SECRET")
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    access_key_id=_access_key_id,
+    secret_access_key=_secret_access_key,
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
+exports[`generateStorageCode > GCS > with service account key 1`] = `
+"from obstore.store import GCSStore
+import json
+
+_credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+store = GCSStore("my-bucket",
+    service_account_key=_credentials,
+)"
+`;
+
+exports[`generateStorageCode > GCS > without service account key (default credentials) 1`] = `
+"from obstore.store import GCSStore
+
+store = GCSStore("my-bucket")"
+`;
+
+exports[`generateStorageCode > Google Drive > with browser auth (no credentials) 1`] = `
+"from gdrive_fsspec import GoogleDriveFileSystem
+
+fs = GoogleDriveFileSystem(token="browser")"
+`;
+
+exports[`generateStorageCode > Google Drive > with service account credentials 1`] = `
+"from gdrive_fsspec import GoogleDriveFileSystem
+import json
+
+_creds = json.loads("""{"type": "service_account", "client_email": "test@test.iam.gserviceaccount.com"}""")
+fs = GoogleDriveFileSystem(creds=_creds, token="service_account")"
+`;
+
+exports[`generateStorageCode > S3 > basic connection with all fields 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("my-bucket",
+    region="us-east-1",
+    access_key_id="AKIAIOSFODNN7EXAMPLE",
+    secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+)"
+`;
+
+exports[`generateStorageCode > S3 > minimal connection (bucket only) 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("my-bucket",)"
+`;
+
+exports[`generateStorageCode > S3 > with custom endpoint 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("my-bucket",
+    region="us-east-1",
+    access_key_id="AKIAIOSFODNN7EXAMPLE",
+    secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    endpoint_url="https://minio.example.com:9000",
+)"
+`;
+
+exports[`generateStorageCode > S3 > with secrets 1`] = `
+"from obstore.store import S3Store
+import os
+
+_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
+_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+store = S3Store("my-bucket",
+    region="us-east-1",
+    access_key_id=_access_key_id,
+    secret_access_key=_secret_access_key,
+)"
+`;

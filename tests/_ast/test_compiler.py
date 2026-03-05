@@ -444,6 +444,57 @@ class TestSemicolon:
         assert eval(cell._cell.last_expr) is None
 
 
+class TestEndsWithSemicolon:
+    @staticmethod
+    def test_simple_semicolon() -> None:
+        assert compiler.ends_with_semicolon("x = 1;") is True
+
+    @staticmethod
+    def test_no_semicolon() -> None:
+        assert compiler.ends_with_semicolon("x = 1") is False
+
+    @staticmethod
+    def test_semicolon_with_trailing_whitespace() -> None:
+        assert compiler.ends_with_semicolon("x = 1;  ") is True
+
+    @staticmethod
+    def test_semicolon_before_comment() -> None:
+        assert compiler.ends_with_semicolon("x = 1; # comment") is True
+
+    @staticmethod
+    def test_no_semicolon_with_comment() -> None:
+        assert compiler.ends_with_semicolon("x = 1  # comment") is False
+
+    @staticmethod
+    def test_semicolon_in_string_not_counted() -> None:
+        assert compiler.ends_with_semicolon('"hello;"') is False
+
+    @staticmethod
+    def test_empty_code() -> None:
+        assert compiler.ends_with_semicolon("") is False
+
+    @staticmethod
+    def test_whitespace_only() -> None:
+        assert compiler.ends_with_semicolon("   ") is False
+
+    @staticmethod
+    def test_token_error_unterminated_string() -> None:
+        # Unterminated string causes TokenError; fallback should handle it
+        assert compiler.ends_with_semicolon('x = "unterminated') is False
+
+    @staticmethod
+    def test_token_error_unterminated_string_with_semicolon() -> None:
+        assert compiler.ends_with_semicolon('x = "unterminated;') is True
+
+    @staticmethod
+    def test_token_error_unterminated_triple_quote() -> None:
+        assert compiler.ends_with_semicolon('x = """unterminated') is False
+
+    @staticmethod
+    def test_token_error_unterminated_triple_quote_with_semicolon() -> None:
+        assert compiler.ends_with_semicolon('x = """unterminated;') is True
+
+
 class TestCompileCellFilename:
     """Test compile_cell function with filename parameter."""
 

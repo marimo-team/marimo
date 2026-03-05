@@ -193,6 +193,12 @@ def setup_code_mcp_server(
 
                 # Wait for the scratch cell to become idle
                 await asyncio.wait_for(done.wait(), timeout=_EXECUTION_TIMEOUT)
+
+                # FIXME: stdout/stderr are flushed every 10ms by the buffered
+                # writer thread. Wait 50ms so trailing console output arrives
+                # before we read cell_notifications.
+                # See: marimo-team/marimo-lsp ExecutionRegistry.ts
+                await asyncio.sleep(0.05)
             except asyncio.TimeoutError:
                 return CodeExecutionResult(
                     success=False,

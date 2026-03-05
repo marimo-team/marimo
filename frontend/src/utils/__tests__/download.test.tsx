@@ -205,7 +205,7 @@ describe("downloadAsPDF", () => {
     expect(mockExportAsPDF).toHaveBeenCalledWith({
       webpdf: false,
       preset: "slides",
-      includeInputs: false,
+      includeInputs: true,
       rasterizeOutputs: true,
       rasterScale: 4,
       rasterServer: "static",

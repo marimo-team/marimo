@@ -9,6 +9,11 @@ without a backend executing Python. marimo notebooks that
 run entirely in the browser are called WebAssembly notebooks, or WASM notebooks
 for short.
 
+!!! tip "Check for WebAssembly compatibility"
+    Not all notebooks are compatible with WebAssembly. If you use coding agents
+    like Claude Code, you can use our [official skills](generate_with_ai/skills.md)
+    to automatically check for WebAssembly compatibility of your notebooks.
+
 !!! tip "Try our online playground"
 
     To create your first WASM notebook, try our online playground

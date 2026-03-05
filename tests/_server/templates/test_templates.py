@@ -78,6 +78,27 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "read" in result
+        assert '"cwd": ""' in result
+        _assert_no_leftover_replacements(result)
+
+    def test_notebook_page_template_with_filepath(self) -> None:
+        absolute_path = str(self.filename.resolve())
+        expected_cwd = str(self.filename.resolve().parent)
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=self.filename.name,
+            filepath=absolute_path,
+            mode=self.mode,
+        )
+
+        assert self.filename.name in result
+        # json.dumps to match JSON-escaped backslashes on Windows paths
+        assert f'"cwd": {json.dumps(expected_cwd)}' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_no_filename(self) -> None:
@@ -96,6 +117,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
+        assert '"cwd": ""' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_edit_mode(self) -> None:

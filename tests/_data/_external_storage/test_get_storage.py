@@ -152,8 +152,8 @@ class TestStorageBackendToStorageNamespace:
         assert result == snapshot(
             StorageNamespace(
                 name=VariableName("mem_fs"),
-                display_name="Memory",
-                protocol="memory",
+                display_name="In-memory",
+                protocol="in-memory",
                 root_path="/",
                 storage_entries=[],
             )

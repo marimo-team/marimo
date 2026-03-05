@@ -414,6 +414,7 @@ async def run_app_until_completion(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
     quiet: bool = False,
+    persist_session: bool = True,
 ) -> tuple[SessionView, bool]:
     from marimo._session.consumer import SessionConsumer
     from marimo._session.events import SessionEventBus
@@ -535,6 +536,25 @@ async def run_app_until_completion(
     # Hack: yield to give the session view a chance to process the incoming
     # console operations.
     await asyncio.sleep(0.1)
+
+    if persist_session:
+        from marimo._server.export._session_cache import (
+            persist_session_view_to_cache,
+        )
+
+        try:
+            persist_session_view_to_cache(
+                view=session.session_view,
+                notebook_path=file_manager.path,
+                cell_ids=file_manager.app.cell_manager.cell_ids(),
+            )
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to persist session snapshot for %s: %s",
+                file_manager.path,
+                e,
+            )
+
     # Stop distributor, terminate kernel process, etc -- all information is
     # captured by the session view.
     session.close()

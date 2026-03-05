@@ -14,6 +14,7 @@ from marimo._data._external_storage.models import DownloadResult, StorageEntry
 from marimo._data._external_storage.storage import (
     FsspecFilesystem,
     Obstore,
+    detect_protocol_from_url,
     normalize_protocol,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -85,6 +86,43 @@ class TestObstore:
                 ),
             ]
         )
+
+    def test_list_entries_skips_zero_byte_folder_marker(self) -> None:
+        now = datetime.now(tz=timezone.utc)
+        mock_store = MagicMock()
+        mock_store.list_with_delimiter.return_value = {
+            "common_prefixes": [],
+            "objects": [
+                {
+                    "path": "folder",
+                    "size": 0,
+                    "last_modified": now,
+                    "e_tag": "abcde",
+                    "version": None,
+                },
+                {
+                    "path": "folder/order_details.csv",
+                    "size": 5426089,
+                    "last_modified": now,
+                    "e_tag": "fghij",
+                    "version": None,
+                },
+            ],
+        }
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix="folder")
+
+        assert result == [
+            StorageEntry(
+                path="folder/order_details.csv",
+                kind="object",
+                size=5426089,
+                last_modified=now.timestamp(),
+                metadata={"e_tag": "fghij"},
+                mime_type="text/csv",
+            ),
+        ]
 
     def test_list_entries_empty(self) -> None:
         mock_store = MagicMock()
@@ -1024,8 +1062,7 @@ class TestFsspecFilesystemIntegration:
 
         fs = MemoryFileSystem()
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
-        # MemoryFileSystem protocol is "memory", which doesn't match known types
-        assert backend.protocol == "memory"
+        assert backend.protocol == "in-memory"
 
 
 @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")
@@ -1152,26 +1189,49 @@ class TestNormalizeProtocol:
             ("s3", "s3"),
             ("s3a", "s3"),
             ("S3", "s3"),
+            ("gs", "gcs"),
             ("gcs", "gcs"),
-            ("GCS", "gcs"),
-            ("gs-gcs", "gcs"),
-            ("azure", "azure"),
-            ("Azure", "azure"),
-            ("abfs-azure", "azure"),
+            ("abfs", "azure"),
+            ("abfss", "azure"),
+            ("az", "azure"),
             ("http", "http"),
-            ("HTTP", "http"),
-            ("https-http", "http"),
+            ("https", "http"),
             ("file", "file"),
-            ("FILE", "file"),
-            ("local-file", "file"),
-            ("ftp", "ftp"),
-            ("custom", "custom"),
+            ("local", "file"),
+            ("memory", "in-memory"),
+            ("r2", "cloudflare"),
             ("  s3  ", "s3"),
-            ("  gcs  ", "gcs"),
+            ("unknown", None),
+            ("ftp", None),
         ],
     )
-    def test_normalize_protocol(self, protocol: str, expected: str) -> None:
+    def test_normalize_protocol(
+        self, protocol: str, expected: str | None
+    ) -> None:
         assert normalize_protocol(protocol) == expected
+
+
+class TestDetectProtocolFromUrl:
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("https://account.r2.cloudflarestorage.com", "cloudflare"),
+            ("https://s3.amazonaws.com", "s3"),
+            ("https://s3.us-east-1.amazonaws.com", "s3"),
+            ("https://storage.googleapis.com", "gcs"),
+            ("https://account.blob.core.windows.net", "azure"),
+            ("https://minio.example.com", None),
+            ("https://my-custom-endpoint.com", None),
+            (
+                "https://s3.cloudflare.com",
+                "cloudflare",
+            ),  # Although there is S3, it will match the cloudflare pattern first
+        ],
+    )
+    def test_detect_protocol_from_url(
+        self, url: str, expected: str | None
+    ) -> None:
+        assert detect_protocol_from_url(url) == expected
 
 
 # --- Helpers ---
