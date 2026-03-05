@@ -127,9 +127,25 @@ export const CellActionsContextMenu = ({
       icon: <ClipboardCopyIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
         if (imageRightClicked) {
-          const response = await fetch(imageRightClicked.src);
-          const blob = await response.blob();
-          const item = new ClipboardItem({ [blob.type]: blob });
+          const isSafari = /^((?!chrome|android).)*safari/i.test(
+            navigator.userAgent,
+          );
+
+          let item: ClipboardItem;
+          if (isSafari) {
+            // Awaiting the blob loses the user-activation context in Safari, causing the clipboard write to fail.
+            // As a fix, we special-case Safari by creating a ClipboardItem synchronously.
+            item = new ClipboardItem({
+              "image/png": fetch(imageRightClicked.src).then((response) =>
+                response.blob(),
+              ),
+            } as any);
+          } else {
+            const response = await fetch(imageRightClicked.src);
+            const blob = await response.blob();
+            item = new ClipboardItem({ [blob.type]: blob });
+          }
+
           await navigator.clipboard
             .write([item])
             .then(() => {
