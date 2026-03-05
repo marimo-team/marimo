@@ -92,6 +92,28 @@ async def status(request: Request) -> JSONResponse:
     )
 
 
+@router.get("/api/sessions")
+@requires("edit")
+async def list_sessions(request: Request) -> JSONResponse:
+    """
+    responses:
+        200:
+            description: List active session IDs and their notebook paths
+            content:
+                application/json:
+                    schema:
+                        type: object
+    """
+    app_state = AppState(request)
+    sessions: dict[str, Any] = {}
+    for session_id, session in app_state.session_manager.sessions.items():
+        sessions[session_id] = {
+            "filename": session.app_file_manager.filename,
+            "path": session.app_file_manager.path,
+        }
+    return JSONResponse(sessions)
+
+
 @router.get("/api/version")
 async def version(request: Request) -> PlainTextResponse:
     """

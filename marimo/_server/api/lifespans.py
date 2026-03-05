@@ -208,6 +208,38 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def session_registry(app: Starlette) -> AsyncIterator[None]:
+    from marimo._server.session_registry import (
+        SessionRegistryWriter,
+        create_registry_entry,
+    )
+
+    state = AppState.from_app(app)
+    manager = state.session_manager
+    file_router = manager.file_router
+    file = file_router.maybe_get_single_file()
+
+    entry = create_registry_entry(
+        host=state.host,
+        port=state.port,
+        base_url=state.base_url,
+        auth_token=str(manager.auth_token),
+        mode=manager.mode.value,
+        notebook_path=file.name if file else None,
+        mcp_enabled=state.mcp_server_enabled,
+    )
+    writer = SessionRegistryWriter(entry)
+    try:
+        writer.register()
+    except Exception as e:
+        LOGGER.warning("Failed to register session: %s", e)
+
+    yield
+
+    writer.deregister()
+
+
+@contextlib.asynccontextmanager
 async def etc(app: Starlette) -> AsyncIterator[None]:
     del app
     # Mimetypes
