@@ -16,7 +16,7 @@ for short.
 
 !!! tip "Try our online playground"
 
-    To create your first WASM notebook, try our online playground
+    To create your first WASM notebook, try our ephemeral online playground
     at [marimo.new](https://marimo.new). Read the [molab
     docs](molab.md) to learn how to share WebAssembly previews
     of notebooks hosted on GitHub, and how to embed WebAssembly
