@@ -890,21 +890,13 @@ def html_wasm(
         out_dir = output.parent
         filename = output.name
 
-    # If the output is a directory we don't want to
-    # write index.html since it will contain the template.
-    # Similarly if the output is already an html file
-    # we don't need index.html.
-    ignore_index_html = False
-    if output.is_dir or output.suffix == ".html":
-        ignore_index_html = True
-
     marimo_file = MarimoPath(name)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Export assets first
-    Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
+    Exporter().export_assets(out_dir)
 
     # Create .nojekyll file to prevent GitHub Pages from interfering with asset
     # resolution

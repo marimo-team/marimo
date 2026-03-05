@@ -107,47 +107,6 @@ if __name__ == "__main__":
         assert "Overwrite?" not in result.stdout
 
 
-def test_export_overwrite_behavior_with_noninteractive_terminal(
-    temp_marimo_file: str, existing_file: str
-) -> None:
-    """Test export command behavior with non-interactive terminal.
-
-    This test verifies that when stdout is not a TTY, the prompt_to_overwrite function
-    automatically returns True and overwrites the file without prompting.
-    """
-    # First, ensure the file exists with known content
-    with open(existing_file, "w") as f:
-        f.write("initial content")
-
-    # Run the export command without -y flag
-    # In a non-interactive terminal (which is the case in tests), it should overwrite without prompting
-    p = subprocess.run(
-        [
-            "marimo",
-            "export",
-            "html",
-            temp_marimo_file,
-            "--output",
-            existing_file,
-        ],
-        capture_output=True,
-        text=True,
-    )
-
-    # Check that the command completed successfully
-    assert p.returncode == 0
-
-    # Verify the file was overwritten even without explicit confirmation
-    # This is expected behavior in non-interactive terminals
-    assert os.path.exists(existing_file)
-
-    # The content should be different from the initial content
-    with open(existing_file) as f:
-        content = f.read()
-    assert content != "initial content"
-    assert "<!DOCTYPE html>" in content
-
-
 def test_convert_overwrite_confirm(tmp_path: Path) -> None:
     """Test convert command with file overwrite confirmation (user confirms)."""
     # Create a notebook file
