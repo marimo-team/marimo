@@ -239,6 +239,68 @@ async def run_cell(
     return SuccessResponse()
 
 
+@router.post("/scratchpad/execute")
+@requires("edit")
+async def execute_scratchpad(
+    *,
+    request: Request,
+) -> JSONResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExecuteScratchpadRequest"
+    responses:
+        200:
+            description: Synchronously execute code in the scratchpad and return the result.
+            content:
+                application/json:
+                    schema:
+                        type: object
+    """  # noqa: E501
+    from dataclasses import asdict
+
+    from marimo._runtime.commands import ExecuteScratchpadCommand
+    from marimo._server.scratchpad import (
+        EXECUTION_TIMEOUT,
+        ScratchCellListener,
+        extract_result,
+    )
+
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ExecuteScratchpadRequest)
+    session = app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
+
+    listener = ScratchCellListener()
+    session.attach_extension(listener)
+
+    try:
+        done = listener.wait_for(session_id)
+        session.put_control_request(
+            ExecuteScratchpadCommand(code=body.code),
+            from_consumer_id=None,
+        )
+        await asyncio.wait_for(done.wait(), timeout=EXECUTION_TIMEOUT)
+        # FIXME: stdout/stderr are flushed every 10ms by the buffered
+        # writer thread. Wait 50ms so trailing console output arrives
+        # before we read cell_notifications.
+        await asyncio.sleep(0.05)
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            content={
+                "success": False,
+                "error": f"Execution timed out after {EXECUTION_TIMEOUT}s",
+            }
+        )
+    finally:
+        session.detach_extension(listener)
+
+    result = extract_result(session)
+    return JSONResponse(content=asdict(result))
+
+
 @router.post("/scratchpad/run")
 @requires("edit")
 async def run_scratchpad(

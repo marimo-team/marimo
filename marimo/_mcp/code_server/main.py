@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from marimo._ai._tools.types import (
     CodeExecutionResult,
@@ -19,11 +19,11 @@ from marimo._ai._tools.types import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
-from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification import CellNotification
-from marimo._messaging.serde import deserialize_kernel_message
-from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._session.events import SessionEventBus, SessionEventListener
+from marimo._server.scratchpad import (
+    EXECUTION_TIMEOUT,
+    ScratchCellListener,
+    extract_result,
+)
 from marimo._types.ids import SessionId
 
 LOGGER = marimo_logger()
@@ -31,52 +31,6 @@ LOGGER = marimo_logger()
 if TYPE_CHECKING:
     from starlette.applications import Starlette
     from starlette.types import Receive, Scope, Send
-
-    from marimo._messaging.types import KernelMessage
-    from marimo._session.session import Session
-
-_EXECUTION_TIMEOUT = 30.0  # seconds
-
-
-class _ScratchCellListener(SessionEventListener):
-    """Listens for scratch cell idle notifications and signals waiters.
-
-    Implements SessionExtension so it can be dynamically attached to a
-    session via session.attach_extension / session.detach_extension.
-    """
-
-    def __init__(self) -> None:
-        self._waiters: dict[str, asyncio.Event] = {}
-
-    def wait_for(self, session_id: str) -> asyncio.Event:
-        event = asyncio.Event()
-        self._waiters[session_id] = event
-        return event
-
-    # SessionExtension protocol
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
-        event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        pass
-
-    def on_notification_sent(
-        self, session: Session, notification: KernelMessage
-    ) -> None:
-        del session
-        msg = deserialize_kernel_message(notification)
-        if not isinstance(msg, CellNotification):
-            return
-        if msg.cell_id != SCRATCH_CELL_ID:
-            return
-        if msg.status != "idle":
-            return
-        # Signal any waiter for this session
-        for sid, event in list(self._waiters.items()):
-            if not event.is_set():
-                event.set()
-            del self._waiters[sid]
 
 
 def setup_code_mcp_server(
@@ -124,7 +78,7 @@ def setup_code_mcp_server(
 
     # Per-session locks to prevent overlapping scratchpad executions
     session_locks: dict[str, asyncio.Lock] = {}
-    listener = _ScratchCellListener()
+    listener = ScratchCellListener()
 
     @mcp.tool()
     async def list_sessions() -> ListSessionsResult:
@@ -192,7 +146,7 @@ def setup_code_mcp_server(
                 )
 
                 # Wait for the scratch cell to become idle
-                await asyncio.wait_for(done.wait(), timeout=_EXECUTION_TIMEOUT)
+                await asyncio.wait_for(done.wait(), timeout=EXECUTION_TIMEOUT)
 
                 # FIXME: stdout/stderr are flushed every 10ms by the buffered
                 # writer thread. Wait 50ms so trailing console output arrives
@@ -202,12 +156,12 @@ def setup_code_mcp_server(
             except asyncio.TimeoutError:
                 return CodeExecutionResult(
                     success=False,
-                    error=f"Execution timed out after {_EXECUTION_TIMEOUT}s",
+                    error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
                 )
             finally:
                 session.detach_extension(listener)
 
-            return _extract_result(session)
+            return extract_result(session)
 
     # Build the streamable HTTP app
     mcp_app = mcp.streamable_http_app()
@@ -228,51 +182,3 @@ def setup_code_mcp_server(
 
     app.routes.insert(0, Mount("/mcp", mcp_app))
     app.state.code_mcp = mcp
-
-
-def _extract_result(session: Any) -> CodeExecutionResult:
-    """Read the scratch cell's final state from the session view."""
-    cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
-    if cell_notif is None:
-        return CodeExecutionResult(success=True)
-
-    # Output
-    output_data = None
-    if cell_notif.output is not None:
-        data = cell_notif.output.data
-        if isinstance(data, str):
-            output_data = data
-        elif isinstance(data, dict):
-            output_data = data.get(
-                "text/plain", data.get("text/html", str(data))
-            )
-        # list → errors, handled below
-
-    # Console
-    stdout: list[str] = []
-    stderr: list[str] = []
-    for out in (
-        cell_notif.console if isinstance(cell_notif.console, list) else []
-    ):
-        if out is None:
-            continue
-        if out.channel == CellChannel.STDOUT:
-            stdout.append(str(out.data))
-        elif out.channel == CellChannel.STDERR:
-            stderr.append(str(out.data))
-
-    # Errors
-    errors: list[str] = []
-    if cell_notif.output is not None and isinstance(
-        cell_notif.output.data, list
-    ):
-        for err in cell_notif.output.data:
-            errors.append(str(getattr(err, "msg", None) or err))
-
-    return CodeExecutionResult(
-        success=len(errors) == 0,
-        output=output_data,
-        stdout=stdout,
-        stderr=stderr,
-        errors=errors,
-    )
