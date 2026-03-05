@@ -21,7 +21,7 @@ Tensor = Any
 ImageLike = Union[Image, Tensor]
 
 
-def _normalize_image(src: ImageLike) -> Image:
+def _normalize_image(src: ImageLike, normalize: bool = True) -> Image:
     """Normalize an image-like object to a standard format.
 
     This function handles a variety of input types, including lists, arrays,
@@ -39,6 +39,9 @@ def _normalize_image(src: ImageLike) -> Image:
     Args:
         src: An image-like object. This can be a list, array, tensor, or a
             file-like object.
+        normalize: If True, rescale pixel intensities from [min, max] to
+            [0, 255]. If False, pixel values are clipped to [0, 255] without
+            rescaling.
 
     Returns:
         A BytesIO object or other Image type.
@@ -68,7 +71,21 @@ def _normalize_image(src: ImageLike) -> Image:
             if hasattr(src, "toarray"):
                 src = src.toarray()
             src = numpy.array(src)
-        src = (src - src.min()) / (src.max() - src.min()) * 255.0
+        if normalize:
+            src_min = src.min()
+            src_max = src.max()
+            if src_min != src_max:
+                src = (src - src_min) / (src_max - src_min) * 255.0
+            else:
+                # Avoid division by zero for constant images
+                import numpy
+
+                src = numpy.full_like(src, fill_value=src_min, dtype=float)
+                src = numpy.clip(src, 0, 255)
+        else:
+            import numpy
+
+            src = numpy.clip(src, 0, 255).astype(float)
         img = _Image.fromarray(src.astype("uint8"))
         # io.BytesIO is one of the Image types.
         normalized_src: Image = io.BytesIO()
@@ -102,6 +119,7 @@ def image(
     rounded: bool = False,
     style: Optional[dict[str, Any]] = None,
     caption: Optional[str] = None,
+    normalize: bool = True,
 ) -> Html:
     """Render an image as HTML.
 
@@ -123,6 +141,11 @@ def image(
         )
         ```
 
+        ```python3
+        # Render an array image without normalization
+        mo.image(src=my_array, normalize=False)
+        ```
+
     Args:
         src: a path or URL to an image, a file-like object
             (opened in binary mode), or array-like object.
@@ -132,13 +155,17 @@ def image(
         rounded: whether to round the corners of the image
         style: a dictionary of CSS styles to apply to the image
         caption: the caption of the image
+        normalize: if True (default), rescale array pixel intensities
+            from [min, max] to [0, 255]. Set to False to disable
+            rescaling, which preserves relative intensity differences
+            across images. Only affects array-like inputs.
 
     Returns:
         `Html` object
     """
     # Convert to virtual file
     resolved_src: Optional[str]
-    src = _normalize_image(src)
+    src = _normalize_image(src, normalize=normalize)
     # TODO: Consider downsampling here. This is something matplotlib does
     # implicitly, and can potentially remove the bottle-neck of very large
     # images.

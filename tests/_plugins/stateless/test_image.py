@@ -209,3 +209,57 @@ def test_image_constructor_pil():
         Image.new("RGB", (100, 100), color="red"),
     )
     assert result.text.startswith("<img src='data:image/png;base64,")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_image_normalize_flag():
+    """Test that normalize=False preserves original pixel values."""
+    import numpy as np
+    from PIL import Image as PILImage
+
+    dark = np.full((10, 10), 50, dtype=np.uint8)
+    light = np.full((10, 10), 200, dtype=np.uint8)
+
+    # With normalize=True (default), both images are rescaled to 0-255 range.
+    # Since each is a constant image, there is no min/max spread to rescale,
+    # but the important test is that normalize=False gives different results.
+    result_dark_norm = image(dark, normalize=True)
+    result_light_norm = image(light, normalize=True)
+
+    # With normalize=False, pixel values are preserved as-is.
+    result_dark_raw = image(dark, normalize=False)
+    result_light_raw = image(light, normalize=False)
+
+    # Decode the images and verify pixel values are preserved
+    # when normalize=False.
+    import base64
+    import re
+
+    def _decode_image(html_text: str) -> np.ndarray:
+        match = re.search(r"base64,([^']+)", html_text)
+        assert match, f"No base64 data found in {html_text[:100]}"
+        data = base64.b64decode(match.group(1))
+        img = PILImage.open(io.BytesIO(data))
+        return np.array(img)
+
+    dark_pixels = _decode_image(result_dark_raw.text)
+    light_pixels = _decode_image(result_light_raw.text)
+
+    # Without normalization, pixel values should be preserved.
+    assert np.all(dark_pixels == 50), (
+        f"Expected all pixels == 50, got unique values: {np.unique(dark_pixels)}"
+    )
+    assert np.all(light_pixels == 200), (
+        f"Expected all pixels == 200, got unique values: {np.unique(light_pixels)}"
+    )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_image_normalize_constant_image():
+    """Test that normalize=True handles constant images without errors."""
+    import numpy as np
+
+    # A constant image should not cause division by zero
+    constant = np.full((10, 10), 128, dtype=np.uint8)
+    result = image(constant, normalize=True)
+    assert result.text.startswith("<img src='data:image/png;base64,")
