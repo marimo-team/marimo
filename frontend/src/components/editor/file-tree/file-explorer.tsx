@@ -105,6 +105,7 @@ export const FileExplorer: React.FC<{
   const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
+    // Return the promise so callers can await refresh completion
     return tree.refreshAll(
       Object.keys(openState).filter((id) => openState[id]),
     );
