@@ -16,20 +16,24 @@ class SagemathFormatter(FormatterFactory):
         return "sage"
 
     def register(self) -> None:
-        from sage.structure.sage_object import SageObject  # type: ignore
         from sage.repl.rich_output import get_display_manager  # type: ignore
-        from sage.repl.rich_output.backend_base import BackendBase  # type: ignore
-        from sage.repl.rich_output.output_basic import OutputBase  # type: ignore
+        from sage.repl.rich_output.backend_base import (
+            BackendBase,  # type: ignore
+        )
+        from sage.repl.rich_output.output_basic import (
+            OutputBase,  # type: ignore
+        )
         from sage.repl.rich_output.output_catalog import (  # type: ignore
-            OutputPlainText,
             OutputAsciiArt,
-            OutputLatex,
-            OutputUnicodeArt,
             OutputHtml,
             OutputImagePng,
             OutputImageSvg,
+            OutputLatex,
+            OutputPlainText,
             OutputSceneThreejs,
+            OutputUnicodeArt,
         )
+        from sage.structure.sage_object import SageObject  # type: ignore
 
         def _render_rich_output(
             rich_output: Any, fallback_obj: Any = None
@@ -52,7 +56,10 @@ class SagemathFormatter(FormatterFactory):
 
             elif isinstance(rich_output, OutputImagePng):
                 b64 = base64.b64encode(rich_output.png.get()).decode("ascii")
-                return ("text/html", f'<img src="data:image/png;base64,{b64}" />')
+                return (
+                    "text/html",
+                    f'<img src="data:image/png;base64,{b64}" />',
+                )
 
             elif isinstance(rich_output, OutputImageSvg):
                 return ("text/html", rich_output.svg.get_str())
@@ -61,7 +68,9 @@ class SagemathFormatter(FormatterFactory):
                 html_str = rich_output.html.get_str()
                 # the default sage latex formatter outputs latex with <html> tags
                 # we strip them if present
-                if html_str.startswith("<html>") and html_str.endswith("</html>"):
+                if html_str.startswith("<html>") and html_str.endswith(
+                    "</html>"
+                ):
                     html_str = html_str[len("<html>") : -len("</html>")]
                 return (
                     "text/html",
@@ -94,7 +103,10 @@ class SagemathFormatter(FormatterFactory):
             # Fallback
             if fallback_obj is not None:
                 try:
-                    return ("text/html", md(f"""\\[{fallback_obj._latex_()}\\]""").text)
+                    return (
+                        "text/html",
+                        md(f"""\\[{fallback_obj._latex_()}\\]""").text,
+                    )
                 except (AttributeError, TypeError):
                     return ("text/plain", repr(fallback_obj))
 
@@ -119,7 +131,9 @@ class SagemathFormatter(FormatterFactory):
             def threejs_offline_scripts(self) -> str:
                 return get_display_manager().threejs_scripts(online=True)
 
-            def display_immediately(self, plain_text: Any, rich_output: Any) -> None:
+            def display_immediately(
+                self, plain_text: Any, rich_output: Any
+            ) -> None:
                 mo.output.append(rich_output)
 
         # add our marimo backend to sage's display manager
