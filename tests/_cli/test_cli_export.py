@@ -107,6 +107,7 @@ class TestExportHTML:
         )
         _assert_success(p)
         html = Path(out_dir / "index.html").read_text()
+        assert "{ filename }" not in html
         assert '"mode": "edit"' in html
         assert '<marimo-code hidden=""></marimo-code>' not in html
         assert "<marimo-wasm" in html
