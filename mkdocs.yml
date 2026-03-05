@@ -138,12 +138,11 @@ nav:
           - Static HTML: guides/exporting/static_html.md
           - PDF: guides/exporting/pdf.md
           - Jupyter notebook: guides/exporting/jupyter_notebook.md
+          - Quarto: guides/exporting/quarto.md
           - Python script: guides/exporting/python_script.md
           - Markdown: guides/exporting/markdown.md
           - WebAssembly HTML: guides/exporting/webassembly_html.md
           - Session snapshots: guides/exporting/sessions.md
-          - OpenGraph previews: guides/exporting/opengraph.md
-          - Thumbnails: guides/exporting/thumbnails.md
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - molab (recommended): guides/molab.md
@@ -151,8 +150,9 @@ nav:
           - GitHub: guides/publishing/github.md
           - Embed in other webpages: guides/publishing/embedding.md
           - Cloudflare: guides/publishing/cloudflare.md
-          - Quarto: guides/publishing/quarto.md
           - Self-host WebAssembly notebooks: guides/publishing/self_host_wasm.md
+          - OpenGraph previews: guides/publishing/opengraph.md
+          - Thumbnails: guides/publishing/thumbnails.md
       - Deploy notebook servers or apps:
           - Deploy notebooks: guides/deploying/index.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md

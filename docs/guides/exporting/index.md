@@ -1,13 +1,14 @@
 # Export to other formats
 
-Export marimo notebooks to other file formats at the command line using
+Export marimo notebooks to other file formats from the browser editor. Notebooks can
+also be exported to other formats at the command-line with:
 
 ```bash
 marimo export
 ```
 
 /// tip | Looking to share notebooks online?
-For sharing interactive notebooks on the web, consider using [molab](../molab.md) — the easiest way to share marimo notebooks. For other publishing options, see [Publish to the web](../publishing/index.md).
+For sharing interactive notebooks on the public web, consider using [molab](../molab.md), our free cloud-hosted notebook platform.
 ///
 
 ## Available formats
@@ -21,8 +22,3 @@ For sharing interactive notebooks on the web, consider using [molab](../molab.md
 | [Markdown](markdown.md) | `marimo export md` | Markdown with code blocks |
 | [WebAssembly HTML](webassembly_html.md) | `marimo export html-wasm` | Self-contained, interactive HTML powered by WebAssembly |
 | [Session snapshot](sessions.md) | `marimo export session` | Serialized session snapshot (JSON) |
-
-!!! note "Note"
-
-    If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
-    Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.

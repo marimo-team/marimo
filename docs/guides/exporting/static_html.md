@@ -2,18 +2,14 @@
 
 Export your notebook to a static, non-interactive HTML file.
 
-/// tip | Want interactive HTML instead?
-For interactive notebooks that run in the browser, see [WebAssembly HTML](webassembly_html.md). For sharing interactive notebooks online, the easiest option is [molab](../molab.md).
-///
-
-## Export from a running notebook
+## Export from the marimo editor
 
 Export the current view of your notebook to static HTML via the notebook
 menu:
 
 <div align="center">
 <figure>
-<img src="/_static/docs-html-export.png"/>
+<img src="/_static/docs-html-export.png" width="65%"/>
 <figcaption>Download as static HTML.</figcaption>
 </figure>
 </div>
@@ -21,6 +17,14 @@ menu:
 Additionally, you can configure individual notebooks to automatically
 save as HTML through the notebook menu. These automatic snapshots are
 saved to a folder called `__marimo__` in the notebook directory.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-html-autoexport.png" width="75%"/>
+<figcaption>Download as static HTML.</figcaption>
+</figure>
+</div>
+
 
 ## Export from the command line
 
@@ -30,14 +34,25 @@ Export to HTML at the command line:
 marimo export html notebook.py -o notebook.html
 ```
 
-or watch the notebook for changes and automatically export to HTML:
+Exclude code from the export:
+
+```bash
+marimo export html --no-include-code notebook.py -o notebook.html --watch
+```
+
+Export the notebook whenever it changes on disk:
 
 ```bash
 marimo export html notebook.py -o notebook.html --watch
 ```
 
-When you export from the command line, marimo runs your notebook to produce
+**Exporting runs your notebook.** When you export from the command line, marimo runs your notebook to produce
 its visual outputs before saving as HTML.
+
+**Errors.** If any cells error during the export process, the status code will
+be non-zero. However, the export result may still be generated, with the error
+included in the output. Errors can be ignored by appending `|| true` to the
+command, e.g. `marimo export html notebook.py || true`.
 
 ## Pre-render HTML exports
 

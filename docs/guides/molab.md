@@ -17,6 +17,7 @@ notebooks are public but undiscoverable by default.
 - 🔗 Share links and [open-in-molab badges](#share-open-in-molab-badges)
 - 👀 [Preview notebooks hosted on GitHub](#preview-notebooks-from-github), with interactivity
 - 🌐 [Embed interactive notebooks](#embed-in-other-webpages) in your own webpages
+- 📄 Export to PDF
 - 📥 Download notebooks to your machine, reuse them as Python scripts or apps
 - 📤 Upload local notebooks to the cloud from our CLI (coming soon)
 - 🕹️ Real-time collaboration (coming soon)

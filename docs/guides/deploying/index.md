@@ -40,7 +40,7 @@ These guides help you deploy marimo notebooks as read-only apps.
 | [deploying_docker](./deploying_docker.md) | Deploy with Docker                                       |
 | [deploying_slurm](./deploying_slurm.md) | Run on HPCs/SUNK with slurm                  |
 | [authentication](./authentication.md) | Authentication and security                              |
-| [deploying_public_gallery](./deploying_public_gallery.md) | Deploy to our public gallery                             |
+| [public_gallery](../publishing/public_gallery.md) | Deploy to our public gallery                             |
 | [deploying_hugging_face](./deploying_hugging_face.md) | Deploy to Hugging Face                                   |
 
 ### Health and status endpoints

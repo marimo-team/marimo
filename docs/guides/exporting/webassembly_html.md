@@ -3,7 +3,7 @@
 Export your notebook to a self-contained HTML file that runs using [WebAssembly](../wasm.md).
 
 /// tip | Easiest way to share interactive notebooks
-For the simplest way to share interactive notebooks online, use [molab](../molab.md) — no export or hosting setup required.
+For the simplest way to share interactive notebooks online, including WebAssembly notebooks, use [molab](../molab.md).
 ///
 
 ```bash

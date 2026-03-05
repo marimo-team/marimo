@@ -2,33 +2,49 @@
 
 Export marimo notebooks to PDF documents or slide decks.
 
-## Export PDF using Quarto
+> PDF export works out-of-the-box on on [molab](https://molab.marimo.io/notebooks).
 
-The marimo [Quarto](https://www.github.com/marimo-team/quarto-marimo) plugin
-enables exporting to PDF and other formats with Pandoc. See [Publishing with Quarto](../publishing/quarto.md) for more details.
+## Export to PDF from the marimo editor
 
-## Export PDF from the command line
+Export to PDF from the notebooks action menu. This requires a few dependencies, which you will be
+prompted to install. It also requires LaTeX to install.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-pdf-export.png" width="65%"/>
+<figcaption>Download as PDF.</figcaption>
+</figure>
+</div>
+
+You can also export to PDF from the command palette (Ctrl/Cmd+K).
+
+## Export to PDF from the command line
 
 You can export directly with marimo:
 
 ```bash
-# Hide code cells in the exported PDF
-marimo export pdf notebook.py -o notebook.pdf --no-include-inputs
-
-# Disable rasterized output capture
-marimo export pdf notebook.py -o notebook.pdf --no-include-inputs --no-rasterize-outputs
-
-# Use a live server for raster capture
-marimo export pdf notebook.py -o notebook.pdf --no-include-inputs --raster-server=live
+marimo export pdf notebook.py -o notebook.pdf
 ```
 
-The `--no-include-inputs` flag hides Python code cells while keeping markdown and cell outputs in the generated PDF.
+To exclude code cells:
+
+```bash
+marimo export pdf --no-include-inputs notebook.py -o notebook.pdf
+```
+
+To see all options, use
+
+```bash
+marimo export pdf --help
+```
 
 ### Rasterized output capture
 
-Rasterized PNG fallback capture for marimo widget HTML (including anywidgets) and Vega outputs is enabled by default before `nbconvert` PDF conversion. Use `--no-rasterize-outputs` to disable it. Rasterization works with both `--webpdf` and `--no-webpdf`.
+Rasterized PNG fallback capture for marimo widget HTML (including anywidgets)
+and Vega outputs is enabled by default. Use `--no-rasterize-outputs` to disable
+it.
 
-Rasterization runs only when outputs are included (the default `--include-outputs` mode). Use `--raster-scale` (range `1.0` to `4.0`, default `4.0`) to trade export speed/file size for sharper captured output. Use `--raster-server=static` (default) for a static capture page, or `--raster-server=live` to capture through a live notebook server.
+Use `--raster-scale` (range `1.0` to `4.0`, default `4.0`) to trade export speed/file size for sharper captured output. Use `--raster-server=static` (default) for a static capture page, or `--raster-server=live` to capture through a live notebook server.
 
 !!! warning "Choose the raster server mode carefully"
 
@@ -68,9 +84,9 @@ marimo export pdf examples/outputs/live_raster.py \
     playwright install chromium
     ```
 
-### Slide deck PDF
+### Slides
 
-To export as a slide deck PDF, use the slides preset:
+To export as a slides PDF, use the slides preset:
 
 ```bash
 marimo export pdf notebook.py -o notebook.pdf --as=slides --raster-server=live
@@ -84,8 +100,11 @@ Available presets:
 - `--as=document`: Standard document PDF (default)
 - `--as=slides`: Slide-style PDF using reveal.js print layout
 
-If a notebook uses slides layout and `--as` is omitted, marimo keeps
-document export as the default and prints a CLI hint for `--as=slides`.
+## Export to PDF using Quarto
+
+The marimo [Quarto](https://www.github.com/marimo-team/quarto-marimo) plugin
+enables exporting to PDF and other formats with Pandoc. See [Publishing with
+Quarto](quarto.md) for more details.
 
 ### Export via Jupyter notebook
 
@@ -128,25 +147,4 @@ You can also use other tools that work with Jupyter notebooks:
 - [Quarto](https://quarto.org) - Create beautiful documents, websites, presentations
 - [nbgrader](https://nbgrader.readthedocs.io/) - Grade notebook assignments
 
-## Export PDF from the command palette
 
-!!! note "Experimental feature"
-
-    This feature is experimental. Enable it in **Settings > Experimental > Better PDF Export**.
-
-You can export your notebook to PDF directly from the command palette (Ctrl+K) by clicking
-**Download as PDF** or **Download as Slide PDF**. This uses `nbconvert` under the hood and will attempt the
-following:
-
-1. **Standard PDF export** (requires [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [TeX](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex)) — produces higher quality PDFs
-2. **WebPDF fallback** (requires Chromium via [Playwright](https://playwright.dev/python/)) — automatically used if Pandoc/TeX are not installed
-
-To install the required dependencies:
-
-```bash
-# For standard PDF export (higher quality)
-uv pip install nbconvert
-
-# For WebPDF fallback (easier setup)
-uv pip install "nbconvert[webpdf]"
-```

@@ -304,7 +304,7 @@ python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.docs]
 dependencies = [
-    "marimo_docs",
+    "marimo_docs @ file://docs",
     "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
     "mkdocs>=1.6.1",
     # Live reloading broken in >= 9.6.21: https://github.com/squidfunk/mkdocs-material/issues/8478

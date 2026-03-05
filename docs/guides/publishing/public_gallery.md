@@ -1,9 +1,20 @@
-# Deploy to our public gallery
+# Publish notebooks to the marimo gallery
 
-If you would like to deploy your application to our [public
-gallery](https://marimo.io/gallery), please reach out on
-[Discord](https://marimo.io/discord?ref=docs).
+The [marimo gallery](https://marimo.io/gallery) is a curated
+gallery of the very best notebooks authored by both marimo team
+and our community. It's also the most viewed page on our website!
 
-You can also easily share your notebooks on the public web using [WASM
-notebooks](../../guides/wasm.md), which run entirely in the browser, no backend
-required.
+<figure>
+  <img src="../../_static/docs-gallery.png" alt="The marimo gallery" />
+  <figcaption>The marimo gallery showcases the best notebooks from our team and community.</figcaption>
+</figure>
+
+If you'd like a notebook to be considered for inclusion in our gallery,
+share it on social media and tag one of our accounts:
+
+- [Twitter / X](https://twitter.com/marimo_io)
+- [LinkedIn](https://www.linkedin.com/company/marimo-io)
+- [Reddit](https://reddit.com/r/marimo_notebook)
+
+Community authors are credited in their gallery card, with a link back
+to their website.

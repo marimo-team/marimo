@@ -661,18 +661,13 @@
       "permanent": true
     },
     {
-      "source": "/guides/publishing/opengraph/",
-      "destination": "/guides/exporting/opengraph/",
-      "permanent": true
-    },
-    {
-      "source": "/guides/publishing/thumbnails/",
-      "destination": "/guides/exporting/thumbnails/",
-      "permanent": true
-    },
-    {
       "source": "/guides/deploying/deploying_public_gallery/",
       "destination": "/guides/publishing/public_gallery/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/quarto/",
+      "destination": "/guides/exporting/quarto/",
       "permanent": true
     },
     {
