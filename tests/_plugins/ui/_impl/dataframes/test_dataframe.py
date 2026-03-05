@@ -75,23 +75,16 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         assert is_not_narwhals_dataframe(subject.value)
-        assert (
-            subject._component_args["columns"]
-            == [
-                ["A", "integer", "i64"],
-                ["B", "string", "str"],
-            ]
-            or subject._component_args["columns"]
-            == [
-                ["A", "integer", "int64"],
-                ["B", "string", "object"],
-            ]
-            or subject._component_args["columns"]
-            == [
-                ["A", "integer", "int64"],
-                ["B", "string", "string"],
-            ]
-        )
+        assert subject._component_args["columns"] in [
+            # polars
+            [["A", "integer", "i64"], ["B", "string", "str"]],
+            # pandas 2.x
+            [["A", "integer", "int64"], ["B", "string", "object"]],
+            # pandas 2.x with future.infer_string
+            [["A", "integer", "int64"], ["B", "string", "string"]],
+            # pandas 3.x
+            [["A", "integer", "int64"], ["B", "string", "str"]],
+        ]
         assert subject._get_column_values(
             GetColumnValuesArgs(column="A")
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)

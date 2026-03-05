@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import decimal
 import json
+import re
 import unittest
 import warnings
 from math import isnan, nan
@@ -26,6 +27,17 @@ from tests.mocks import snapshotter
 HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.numpy.has()
 
 snapshot = snapshotter(__file__)
+
+
+def _normalize_pandas_dtypes(text: str) -> str:
+    """Normalize pandas datetime/timedelta resolution strings for cross-version compatibility.
+
+    Pandas 3.x changed default resolutions (datetime64[ns] -> [s], timedelta64[ns] -> [us]).
+    Normalize all to [ns] so snapshots work across versions.
+    """
+    text = re.sub(r"datetime64\[\w+\]", "datetime64[ns]", text)
+    text = re.sub(r"timedelta64\[\w+\]", "timedelta64[ns]", text)
+    return text
 
 
 def assert_frame_equal(a: Any, b: Any) -> None:
@@ -274,7 +286,7 @@ class TestPandasTableManager(unittest.TestCase):
         complex_data = self.get_complex_data()
         data = complex_data.to_csv()
         assert isinstance(data, bytes)
-        snapshot("pandas.csv", data.decode("utf-8"))
+        snapshot("pandas.csv", _normalize_pandas_dtypes(data.decode("utf-8")))
 
     def factory_create_json_from_df(self, df: Any) -> Any:
         if isinstance(df, pd.DataFrame):
@@ -336,7 +348,7 @@ class TestPandasTableManager(unittest.TestCase):
         complex_data = self.get_complex_data()
         data = complex_data.to_json()
         assert isinstance(data, bytes)
-        snapshot("pandas.json", data.decode("utf-8"))
+        snapshot("pandas.json", _normalize_pandas_dtypes(data.decode("utf-8")))
 
     def test_to_json_index(self) -> None:
         data = pd.DataFrame({"a": [1, 2, 3]}, index=["c", "d", "e"])
@@ -529,7 +541,10 @@ class TestPandasTableManager(unittest.TestCase):
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
         field_types = complex_data.get_field_types()
-        snapshot("pandas.field_types.json", json.dumps(field_types))
+        snapshot(
+            "pandas.field_types.json",
+            _normalize_pandas_dtypes(json.dumps(field_types)),
+        )
 
     def test_select_rows(self) -> None:
         indices = [0, 2]
@@ -968,7 +983,11 @@ class TestPandasTableManager(unittest.TestCase):
         # Search without raising errors
         assert manager.search("alice").get_num_rows() == 1
         assert manager.search("bob").get_num_rows() == 0
-        assert manager.search("nan").get_num_rows() == 4
+        # In pandas 2.x (object dtype), NaN values cast to the string "nan"
+        # and are matched. In pandas 3.x (StringDtype), NaN becomes pd.NA
+        # which stays null after cast and doesn't match "nan".
+        nan_count = manager.search("nan").get_num_rows()
+        assert nan_count in (0, 4)
 
     def test_search_with_index_columns(self) -> None:
         """
