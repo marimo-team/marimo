@@ -1,7 +1,8 @@
 import textwrap
 import xml.etree.ElementTree as etree
 from typing import Any, Dict, List, Union, cast
-import urllib.parse
+
+import lzstring
 
 from pymdownx.blocks import BlocksExtension  # type: ignore
 from pymdownx.blocks.block import (
@@ -130,8 +131,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             code_block.text = code
 
 
-def uri_encode_component(code: str) -> str:
-    return urllib.parse.quote(code, safe="~()*!.'")
+_lz = lzstring.LZString()
 
 
 def create_marimo_app_code(
@@ -165,8 +165,8 @@ def create_marimo_app_code(
 def create_marimo_app_url(
     code: str, mode: str = "edit", show_chrome: bool = False
 ) -> str:
-    encoded_code = uri_encode_component(code)
-    return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}&show-chrome={'true' if show_chrome else 'false'}"
+    compressed = _lz.compressToEncodedURIComponent(code)
+    return f"https://molab.marimo.io/new/wasm/?embed=true&mode={mode}&show-chrome={'true' if show_chrome else 'false'}#code/{compressed}"
 
 
 class MarimoBlocksExtension(BlocksExtension):

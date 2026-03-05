@@ -6,8 +6,8 @@ as web documentation, educational platforms, or static sites in general.
 ## molab (recommended)
 
 The easiest way to embed interactive notebooks is with [molab](../molab.md).
-Push your notebook to GitHub, get a molab link, and embed it in an iframe; no
-export step and no hosting setup.
+Either push your code to GitHub or construct a URL directly from the notebook source,
+then embed in an iframe; this is what we do throughout this documentation website.
 
 /// tab | Code
 
