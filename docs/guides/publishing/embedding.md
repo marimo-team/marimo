@@ -101,3 +101,19 @@ For the best user experience, include these additional attributes:
 
 !!! tip "Security Considerations"
     Only use `allow-same-origin` with trusted content or the iframe URL is hosted on a different domain. Combining `allow-scripts` and `allow-same-origin` allows the iframe to remove the sandbox attribute entirely, making the iframe as powerful as if it weren't sandboxed at all.
+
+### Full example
+
+A complete, copy-pasteable example with all recommended settings:
+
+```html
+<iframe
+  src="https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true&mode=read"
+  sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-downloads-without-user-activation"
+  allow="microphone"
+  allowfullscreen
+  width="100%"
+  height="600"
+  style="border: 1px solid #ddd; border-radius: 8px;"
+></iframe>
+```
