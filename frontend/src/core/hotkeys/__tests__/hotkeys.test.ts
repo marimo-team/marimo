@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { type Hotkey, type HotkeyAction, HotkeyProvider } from "../hotkeys";
+import {
+  type Hotkey,
+  type HotkeyAction,
+  HotkeyProvider,
+  normalizeKeyString,
+  OverridingHotkeyProvider,
+} from "../hotkeys";
 
 /**
  * Just a helper.
@@ -70,5 +76,62 @@ describe("HotkeyProvider platform separation", () => {
     expect(mac.getHotkey("cell.format").key).toBe("Cmd-Option-F");
     expect(windows.getHotkey("cell.format").key).toBe("Ctrl-Alt-F");
     expect(linux.getHotkey("cell.format").key).toBe("Ctrl-Shift-L");
+  });
+});
+
+describe("normalizeKeyString", () => {
+  it("should capitalize multi-character base key names", () => {
+    expect(normalizeKeyString("Shift-enter")).toBe("Shift-Enter");
+    expect(normalizeKeyString("Cmd-enter")).toBe("Cmd-Enter");
+    expect(normalizeKeyString("Ctrl-backspace")).toBe("Ctrl-Backspace");
+    expect(normalizeKeyString("Alt-tab")).toBe("Alt-Tab");
+    expect(normalizeKeyString("Cmd-Shift-arrowUp")).toBe("Cmd-Shift-ArrowUp");
+  });
+
+  it("should leave already-correct key names unchanged", () => {
+    expect(normalizeKeyString("Shift-Enter")).toBe("Shift-Enter");
+    expect(normalizeKeyString("Cmd-Enter")).toBe("Cmd-Enter");
+    expect(normalizeKeyString("Mod-Shift-Enter")).toBe("Mod-Shift-Enter");
+  });
+
+  it("should leave single-character keys unchanged", () => {
+    expect(normalizeKeyString("Cmd-a")).toBe("Cmd-a");
+    expect(normalizeKeyString("Ctrl-Shift-z")).toBe("Ctrl-Shift-z");
+    expect(normalizeKeyString("a")).toBe("a");
+  });
+
+  it("should handle keys without modifiers", () => {
+    expect(normalizeKeyString("enter")).toBe("Enter");
+    expect(normalizeKeyString("Escape")).toBe("Escape");
+    expect(normalizeKeyString("F12")).toBe("F12");
+  });
+});
+
+describe("OverridingHotkeyProvider", () => {
+  it("should normalize lowercase key overrides", () => {
+    const provider = new OverridingHotkeyProvider(
+      {
+        "cell.run": "Shift-enter",
+        "cell.runAndNewBelow": "Cmd-enter",
+      },
+      { platform: "mac" },
+    );
+
+    expect(provider.getHotkey("cell.run").key).toBe("Shift-Enter");
+    expect(provider.getHotkey("cell.runAndNewBelow").key).toBe("Cmd-Enter");
+  });
+
+  it("should return defaults when no override is set", () => {
+    const provider = new OverridingHotkeyProvider({}, { platform: "mac" });
+    expect(provider.getHotkey("cell.run").key).toBe("Cmd-Enter");
+    expect(provider.getHotkey("cell.runAndNewBelow").key).toBe("Shift-Enter");
+  });
+
+  it("should pass through correctly-cased overrides unchanged", () => {
+    const provider = new OverridingHotkeyProvider(
+      { "cell.run": "Shift-Enter" },
+      { platform: "mac" },
+    );
+    expect(provider.getHotkey("cell.run").key).toBe("Shift-Enter");
   });
 });
