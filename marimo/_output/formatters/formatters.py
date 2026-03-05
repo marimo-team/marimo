@@ -196,7 +196,6 @@ def register_formatters(theme: Theme = "light") -> None:
     # already imported. This is relevant when executing as a script.
     pre_registered: set[str] = set()
     for package, factory in THIRD_PARTY_FACTORIES.items():
-        print(f"Checking if {package} is already imported...")
         if package in sys.modules:
             factory.register()
             factory.apply_theme_safe(theme)
