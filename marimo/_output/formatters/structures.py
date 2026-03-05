@@ -126,21 +126,41 @@ class StructuresFormatter(FormatterFactory):
                 # ax.boxplot()/violinplot() return dicts with artist values.
                 import matplotlib.artist  # type: ignore
 
-                # Collect all artists from list/tuple/dict structures
-                artists: list[Any] = []
                 if isinstance(t, dict):
+                    # For dicts (like boxplot/violinplot returns), collect
+                    # artists from values.
+                    artists: list[Any] | None = []
+
                     for v in t.values():
                         if isinstance(v, (list, tuple)):
+                            for item in v:
+                                if not isinstance(
+                                    item, matplotlib.artist.Artist
+                                ):
+                                    artists = None
+                                    break
+                            if artists is None:
+                                break
                             artists.extend(v)
                         elif isinstance(v, matplotlib.artist.Artist):
                             artists.append(v)
-                else:
-                    artists = list(t)
+                        else:
+                            # Value is not a list/tuple/Artist
+                            artists = None
+                            break
 
-                if artists and all(
-                    isinstance(i, matplotlib.artist.Artist) for i in artists
-                ):
-                    figs = [getattr(i, "figure", None) for i in artists]
+                    if artists:
+                        figs = [getattr(i, "figure", None) for i in artists]
+                        if all(f is not None and f == figs[0] for f in figs):
+                            matplotlib_formatter = formatting.get_formatter(
+                                figs[0]
+                            )
+                            if matplotlib_formatter is not None:
+                                return matplotlib_formatter(figs[0])
+                # For lists/tuples, check directly (short-circuits on first
+                # non-Artist)
+                elif all(isinstance(i, matplotlib.artist.Artist) for i in t):
+                    figs = [getattr(i, "figure", None) for i in t]
                     if all(f is not None and f == figs[0] for f in figs):
                         matplotlib_formatter = formatting.get_formatter(
                             figs[0]
