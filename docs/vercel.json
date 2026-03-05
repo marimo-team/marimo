@@ -636,6 +636,36 @@
       "permanent": true
     },
     {
+      "source": "/guides/exporting/",
+      "destination": "/guides/exporting/index/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/from_code_snippets/",
+      "destination": "/guides/publishing/embedding/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/from_github/",
+      "destination": "/guides/publishing/github/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/view_outputs_on_github/",
+      "destination": "/guides/publishing/github/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/github_pages/",
+      "destination": "/guides/publishing/github/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/deploy/",
+      "destination": "/guides/deploying/",
+      "permanent": true
+    },
+    {
       "source": "/:path*.html",
       "destination": "/:path*/",
       "permanent": true

@@ -1,31 +1,30 @@
-# Publishing notebooks to the web
+# Publish to the web
 
 You can publish marimo notebooks to the web as interactive editable notebooks,
-readonly web apps, or [static documents](../exporting.md). Thanks to
-[WebAssembly](../wasm.md), you can even share executable notebooks on GitHub
-Pages or other static sites without paying for backend infrastrcture. This
-makes it easy to share your work with colleagues, embed executable notebooks in
-web documentation or educational websites, and more.
+readonly web apps, or [static documents](../exporting/index.md).
 
-This guide provides an overview of the various ways to publish marimo notebooks.
+## molab (recommended)
 
-!!! tip "Share cloud-hosted notebooks with molab"
+The easiest way to publish and share interactive notebooks is with
+[molab](../molab.md), our free cloud-hosted notebook environment.
+With molab, you can:
 
-    For a turn-key sharing experience, use [molab](https://molab.marimo.io/notebooks),
-    our free cloud-hosted marimo notebook
+- Share notebooks with a link — no export or hosting setup required
+- [Preview notebooks from GitHub](../molab.md#preview-notebooks-from-github) with full interactivity
+- [Embed interactive notebooks](../molab.md#embed-in-other-webpages) in your own webpages
+- Share [open-in-molab badges](../molab.md#share-open-in-molab-badges) in READMEs and docs
 
+**[Get started with molab →](../molab.md)**
+
+## Self-hosted options
+
+If you need to self-host, the following guides cover publishing with
+[WebAssembly](../wasm.md) — no backend infrastructure required.
 
 | Guide                                                 | Description                                                  |
 | ----------------------------------------------------- | ------------------------------------------------------------ |
-| [Embedding](embedding.md)                             | An overview of embedding notebooks in other sites            |
-| [From GitHub](from_github.md)                         | Share links to executable notebooks hosted on GitHub         |
-| [From code snippets](from_code_snippets.md)           | Convert code snippets in Markdown or HTML to interactive notebooks |
-| [GitHub Pages](github_pages.md)                       | Publish interactive notebooks on GitHub Pages                |
+| [GitHub](github.md)                                   | Share from GitHub, view outputs, publish to GitHub Pages      |
+| [Embed in other web pages](embedding.md)              | Embed notebooks in other sites via iframes or islands         |
 | [Cloudflare](cloudflare.md)                           | Publish interactive notebooks on Cloudflare                  |
+| [Quarto](quarto.md)                                   | Publish reactive websites with Quarto from markdown          |
 | [Self-host WebAssembly notebooks](self_host_wasm.md)  | Self-hosting interactive WebAssembly (HTML export) notebooks |
-| [Online playground](playground.md)                    | Share links to notebooks using our online playground         |
-| [View notebooks on GitHub](view_outputs_on_github.md) | Viewing notebook outputs on GitHub                           |
-| [OpenGraph previews](opengraph.md)                    | Configure titles, descriptions, and thumbnails for link previews |
-| [Thumbnails](thumbnails.md)                           | Generate thumbnail images for OpenGraph previews and galleries |
-| [Deploy on a backend](deploy.md)                      | Deploying notebooks on backends                              |
-| [With Quarto](quarto.md)                              | Publish reactive websites with Quarto from markdown          |
