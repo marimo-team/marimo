@@ -85,11 +85,11 @@ can run marimo notebooks. This includes
 [cron](https://en.wikipedia.org/wiki/Cron),
 [Airflow](https://airflow.apache.org/), [Prefect](https://www.prefect.io/),
 and other tools. You can pass variables from the command line and [reuse
-functions](../reusing_functions.md) from notebooks in other jobs as well.
+functions](reusing_functions.md) from notebooks in other jobs as well.
 
 ### GitHub Action
 
-Run notebooks on a schedule with [GitHub Actions](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#schedule). This example assumes [inline dependencies](../package_management/inlining_dependencies.md):
+Run notebooks on a schedule with [GitHub Actions](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#schedule). This example assumes [inline dependencies](package_management/inlining_dependencies.md):
 
 ```yaml
 name: Run marimo notebook daily
