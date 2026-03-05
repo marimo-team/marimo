@@ -32,7 +32,7 @@ traditional client-server model. WASM notebooks:
     with code and models, doing lightweight data exploration, authoring blog
     posts, tutorials, and educational materials, and even building tools. For
     notebooks that do heavy computation, [use marimo
-    locally](../getting_started/index.md) or on a backend.
+    ](../getting_started/index.md) on your own machine/server or on [molab](https://molab.marimo.io/notebooks).
 
 **Try it!** Try editing the below notebook (your browser, not a backend server, is executing it!)
 
