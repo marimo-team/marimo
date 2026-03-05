@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from sys import stdout
 from typing import Optional
 
 import click
@@ -17,6 +18,9 @@ from marimo._server.tokens import AuthToken
 
 def prompt_to_overwrite(path: Path) -> bool:
     if GLOBAL_SETTINGS.YES:
+        return True
+
+    if not stdout.isatty():
         return True
 
     if path.exists():

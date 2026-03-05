@@ -115,48 +115,6 @@ class TestExportHTML:
         assert Path(out_dir / ".nojekyll").exists()
 
     @staticmethod
-    def test_cli_export_html_wasm_does_not_overwrite_on_no(
-        temp_marimo_file: str,
-    ) -> None:
-        out_dir = Path(temp_marimo_file).parent / "out"
-
-        # Create index (from a previous run).
-        out_dir.mkdir()
-        Path(out_dir / "index.html").touch()
-        p = _run_export(
-            "html-wasm",
-            temp_marimo_file,
-            "--mode",
-            "edit",
-            "--output",
-            str(out_dir),
-            input_data=b"n\n",
-        )
-        _assert_success(p)
-        html = Path(out_dir / "index.html").read_text()
-        assert "" == html
-
-    @staticmethod
-    def test_cli_export_html_wasm_overwrites_on_yes(
-        temp_marimo_file: str,
-    ) -> None:
-        out_dir = Path(temp_marimo_file).parent / "out"
-
-        Path(out_dir / "index.html").touch()
-        p = _run_export(
-            "html-wasm",
-            temp_marimo_file,
-            "--mode",
-            "edit",
-            "--output",
-            str(out_dir),
-            input_data=b"n\n",
-        )
-        _assert_success(p)
-        html = Path(out_dir / "index.html").read_text()
-        assert "" == html
-
-    @staticmethod
     def test_cli_export_html_wasm_public_folder(temp_marimo_file: str) -> None:
         # Create public folder next to temp file with some content
         public_dir = Path(temp_marimo_file).parent / "public"
