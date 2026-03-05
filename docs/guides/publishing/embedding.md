@@ -1,6 +1,6 @@
-# Embed in other web pages
+# Embed in other webpages
 
-There are various ways to embed marimo notebooks in other web pages, such
+There are various ways to embed marimo notebooks in other webpages, such
 as web documentation, educational platforms, or static sites in general.
 
 ## molab (recommended)

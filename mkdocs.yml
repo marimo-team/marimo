@@ -142,11 +142,14 @@ nav:
           - Markdown: guides/exporting/markdown.md
           - WebAssembly HTML: guides/exporting/webassembly_html.md
           - Session snapshots: guides/exporting/sessions.md
+          - OpenGraph previews: guides/exporting/opengraph.md
+          - Thumbnails: guides/exporting/thumbnails.md
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - molab (recommended): guides/molab.md
+          - Public gallery: guides/publishing/public_gallery.md
           - GitHub: guides/publishing/github.md
-          - Embed in other web pages: guides/publishing/embedding.md
+          - Embed in other webpages: guides/publishing/embedding.md
           - Cloudflare: guides/publishing/cloudflare.md
           - Quarto: guides/publishing/quarto.md
           - Self-host WebAssembly notebooks: guides/publishing/self_host_wasm.md
@@ -161,9 +164,6 @@ nav:
             - Scheduled jobs: guides/deploying/scheduled.md
           - Apps:
             - FastAPI: guides/deploying/programmatically.md
-            - Public gallery: guides/deploying/deploying_public_gallery.md
-            - OpenGraph previews: guides/publishing/opengraph.md
-            - Thumbnails: guides/publishing/thumbnails.md
             - Authentication: guides/deploying/authentication.md
             - Docker: guides/deploying/deploying_docker.md
             - HuggingFace: guides/deploying/deploying_hugging_face.md
