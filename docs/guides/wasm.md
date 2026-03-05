@@ -14,13 +14,10 @@ for short.
     like Claude Code, you can use our [official skills](generate_with_ai/skills.md)
     to automatically check for WebAssembly compatibility of your notebooks.
 
-!!! tip "Try our online playground"
-
-    To create your first WASM notebook, try our ephemeral online playground
-    at [marimo.new](https://marimo.new). Read the [molab
-    docs](molab.md) to learn how to share WebAssembly previews
-    of notebooks hosted on GitHub, and how to embed WebAssembly
-    notebooks in other webpages such as documentation.
+!!! tip "Sharing interactive previews of GitHub notebooks"
+    Read the [molab docs](molab.md) to learn how to share WebAssembly previews
+    of notebooks hosted on GitHub, and how to embed WebAssembly notebooks in other
+    webpages such as documentation.
 
 WASM notebooks have three benefits compared to notebooks hosted using a
 traditional client-server model. WASM notebooks:
