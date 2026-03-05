@@ -74,8 +74,8 @@ class MarimoEmbedBlock(BaseMarimoBlock):
         app_width: str = cast(str, self.options["app_width"])
         mode: str = cast(str, self.options["mode"])
         show_chrome: bool = cast(bool, self.options["show-chrome"])
-        url = create_marimo_app_url(
-            code=create_marimo_app_code(code=code, app_width=app_width),
+        url = create_molab_wasm_url(
+            code=create_molab_wasm_code(code=code, app_width=app_width),
             mode=mode,
             show_chrome=show_chrome,
         )
@@ -104,7 +104,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
 
         mode: str = cast(str, self.options["mode"])
         show_chrome: bool = cast(bool, self.options["show-chrome"])
-        url = create_marimo_app_url(
+        url = create_molab_wasm_url(
             code=code, mode=mode, show_chrome=show_chrome
         )
         self._create_iframe(block, url)
@@ -134,7 +134,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
 _lz = lzstring.LZString()
 
 
-def create_marimo_app_code(
+def create_molab_wasm_code(
     *,
     code: str,
     app_width: str = "medium",
@@ -162,7 +162,7 @@ def create_marimo_app_code(
     return header + mo_cell + code
 
 
-def create_marimo_app_url(
+def create_molab_wasm_url(
     code: str, mode: str = "edit", show_chrome: bool = False
 ) -> str:
     compressed = _lz.compressToEncodedURIComponent(code)
