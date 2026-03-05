@@ -77,6 +77,20 @@
 
 # OpenAI
 
+- name: GPT-5.4
+  model: gpt-5.4
+  description: The latest frontier-grade model, unifying the Codex and GPT lines into a single system
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-5.4 Pro
+  model: gpt-5.4-pro
+  description: The most advanced model, building on GPT-5.4's unified architecture
+  providers: [openai]
+  roles: [chat, edit]
+  thinking: true
+
 - name: GPT-5.3 Chat
   model: gpt-5.3-chat
   description: Most-used model that makes everyday conversations smoother and more useful
@@ -87,20 +101,6 @@
 - name: GPT-5.3-Codex
   model: gpt-5.3-codex
   description: Most advanced agentic coding model combining frontier software engineering with broad reasoning
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5.2
-  model: gpt-5.2
-  description: Latest frontier-grade model with strong agentic and long context performance
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5.2 Pro
-  model: gpt-5.2-pro
-  description: Powerful model for complex coding tasks, long-form writing, and advanced reasoning
   providers: [openai]
   roles: [chat, edit]
   thinking: false
