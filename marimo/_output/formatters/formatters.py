@@ -35,6 +35,7 @@ from marimo._output.formatters.plotly_formatters import PlotlyFormatter
 from marimo._output.formatters.pyecharts_formatters import PyechartsFormatter
 from marimo._output.formatters.pygwalker_formatters import PygWalkerFormatter
 from marimo._output.formatters.pytorch_formatters import PyTorchFormatter
+from marimo._output.formatters.sage_formatters import SagemathFormatter
 from marimo._output.formatters.seaborn_formatters import SeabornFormatter
 from marimo._output.formatters.structures import StructuresFormatter
 from marimo._output.formatters.sympy_formatters import SympyFormatter
@@ -76,6 +77,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     OpenAIFormatter.package_name(): OpenAIFormatter(),
     TransformersFormatter.package_name(): TransformersFormatter(),
     PyTorchFormatter.package_name(): PyTorchFormatter(),
+    SagemathFormatter.package_name(): SagemathFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
@@ -194,6 +196,7 @@ def register_formatters(theme: Theme = "light") -> None:
     # already imported. This is relevant when executing as a script.
     pre_registered: set[str] = set()
     for package, factory in THIRD_PARTY_FACTORIES.items():
+        print(f"Checking if {package} is already imported...")
         if package in sys.modules:
             factory.register()
             factory.apply_theme_safe(theme)
