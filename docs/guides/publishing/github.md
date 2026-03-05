@@ -1,20 +1,12 @@
 # GitHub
 
 marimo makes it very easy to share links to executable notebooks from notebooks
-hosted on GitHub. Unlike Google Colab, marimo also automatically synchronizes
-data stored in your GitHub repo to the notebook's filesystem, making it
-easy to bundle data with your notebooks.
+hosted on GitHub. 
 
-/// tip | Recommended: share with molab
-The easiest way to share notebooks from GitHub is with [molab](../molab.md). Just push your notebook to GitHub and [share a molab link](https://molab.marimo.io/github) — viewers can interact with and fork your notebook instantly.
-///
-
-- [Share molab links](https://molab.marimo.io/github) to notebooks hosted on GitHub
+- [Share molab links](../molab.md#preview-notebooks-from-github) to obtain interactive previews of notebooks hosted on GitHub, no login required
 - Publish notebooks to [GitHub Pages](#publish-to-github-pages)
-- Edit notebooks on the [marimo playground](https://marimo.app), with public link-based sharing
-  (no login required!)
 
-## View outputs on GitHub
+## Export to ipynb to view on GitHub
 
 marimo notebooks are stored as pure Python files, which works well with Git
 versioning and the broader Python ecosystem. However, this means you cannot
@@ -37,6 +29,8 @@ right corner:
 This feature requires `nbformat`. marimo will prompt to install it if missing, or you can add it to your environment with `pip install nbformat`.
 
 ## Publish to GitHub Pages
+
+> For a simpler solution, use [molab's built in GitHub previewer](../molab.md#preview-notebooks-from-github)
 
 You can publish executable notebooks to [GitHub Pages](https://pages.github.com/)
 for free, after exporting your notebook to a WebAssembly notebook.
