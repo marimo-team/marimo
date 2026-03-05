@@ -2,16 +2,13 @@
 
 import { CommandList } from "cmdk";
 import {
-  ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
   FolderIcon,
   HardDriveIcon,
   HelpCircleIcon,
   LoaderCircle,
-  MoreVerticalIcon,
   PlusIcon,
-  RefreshCwIcon,
   ViewIcon,
   XIcon,
 } from "lucide-react";
@@ -20,6 +17,16 @@ import { useLocale } from "react-aria";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { AddConnectionDialog } from "@/components/editor/connections/add-connection-dialog";
+import {
+  FILE_ICON_COLOR,
+  renderFileIcon,
+} from "@/components/editor/file-tree/file-icons";
+import {
+  MENU_ITEM_ICON_CLASS,
+  MoreActionsButton,
+  RefreshIconButton,
+  TreeChevron,
+} from "@/components/editor/file-tree/tree-actions";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import {
   DropdownMenu,
@@ -49,7 +56,7 @@ import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
 import { ErrorState } from "../datasources/components";
 import { Button } from "../ui/button";
-import { ProtocolIcon, renderFileIcon } from "./components";
+import { ProtocolIcon } from "./components";
 import { StorageFileViewer } from "./storage-file-viewer";
 
 interface OpenFileInfo {
@@ -305,17 +312,14 @@ const StorageEntryRow: React.FC<{
         }}
       >
         {isDir ? (
-          <ChevronRightIcon
-            className={cn(
-              "h-3 w-3 shrink-0 transition-transform",
-              effectiveExpanded && "rotate-90",
-            )}
-          />
+          <TreeChevron isExpanded={effectiveExpanded} className="h-3 w-3" />
         ) : (
           <span className="w-3 shrink-0" />
         )}
         {isDir ? (
-          <FolderIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <FolderIcon
+            className={cn("h-3.5 w-3.5 shrink-0", FILE_ICON_COLOR.directory)}
+          />
         ) : (
           renderFileIcon(name)
         )}
@@ -337,14 +341,10 @@ const StorageEntryRow: React.FC<{
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>
-              <Button
-                variant="text"
-                size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity hover:shadow-none hover:text-link text-muted-foreground"
+              <MoreActionsButton
+                iconClassName="h-3 w-3"
                 onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVerticalIcon className="h-3 w-3" />
-              </Button>
+              />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
@@ -355,7 +355,7 @@ const StorageEntryRow: React.FC<{
                 <DropdownMenuItem
                   onSelect={() => onOpenFile({ entry, namespace })}
                 >
-                  <ViewIcon className="h-3.5 w-3.5 mr-2" />
+                  <ViewIcon className={MENU_ITEM_ICON_CLASS} />
                   View
                 </DropdownMenuItem>
               )}
@@ -366,12 +366,12 @@ const StorageEntryRow: React.FC<{
                   toast({ title: "Copied to clipboard" });
                 }}
               >
-                <CopyIcon className="h-3.5 w-3.5 mr-2" />
+                <CopyIcon className={MENU_ITEM_ICON_CLASS} />
                 Copy URL
               </DropdownMenuItem>
               {!isDir && (
                 <DropdownMenuItem onSelect={() => handleDownload()}>
-                  <DownloadIcon className="h-3.5 w-3.5 mr-2" />
+                  <DownloadIcon className={MENU_ITEM_ICON_CLASS} />
                   Download
                 </DropdownMenuItem>
               )}
@@ -402,7 +402,6 @@ const StorageNamespaceSection: React.FC<{
   onOpenFile: (info: OpenFileInfo) => void;
 }> = ({ namespace, locale, searchValue, onOpenFile }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [isSpinning, setIsSpinning] = useState(false);
   const { entriesByPath } = useStorage();
   const { clearNamespaceCache } = useStorageActions();
   const namespaceName = namespace.name ?? namespace.displayName;
@@ -417,10 +416,8 @@ const StorageNamespaceSection: React.FC<{
   const handleRefresh = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      setIsSpinning(true);
       clearNamespaceCache(namespaceName);
       refetch();
-      setTimeout(() => setIsSpinning(false), 500);
     },
     [namespaceName, clearNamespaceCache, refetch],
   );
@@ -441,12 +438,7 @@ const StorageNamespaceSection: React.FC<{
         onSelect={() => setIsExpanded(!isExpanded)}
         className="flex flex-row font-semibold h-7 text-xs gap-1.5 bg-(--slate-2) text-muted-foreground rounded-none"
       >
-        <ChevronRightIcon
-          className={cn(
-            "h-3 w-3 shrink-0 transition-transform",
-            isExpanded && "rotate-90",
-          )}
-        />
+        <TreeChevron isExpanded={isExpanded} className="h-3 w-3" />
         <ProtocolIcon protocol={namespace.protocol} />
         <span>{namespace.displayName}</span>
         {namespace.name && (
@@ -454,21 +446,12 @@ const StorageNamespaceSection: React.FC<{
             (<EngineVariable variableName={namespace.name as VariableName} />)
           </span>
         )}
-        <Tooltip content="Refresh storage connection">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-transparent hover:shadow-none"
-            onClick={handleRefresh}
-          >
-            <RefreshCwIcon
-              className={cn(
-                "h-3 w-3 text-muted-foreground hover:text-foreground",
-                isSpinning && "animate-[spin_0.5s]",
-              )}
-            />
-          </Button>
-        </Tooltip>
+        <RefreshIconButton
+          onClick={handleRefresh}
+          tooltip="Refresh storage connection"
+          className="p-0"
+          iconClassName="h-3 w-3"
+        />
         <span className="text-[10px] text-muted-foreground font-normal tabular-nums ml-auto">
           {namespace.rootPath || "(root)"}
         </span>

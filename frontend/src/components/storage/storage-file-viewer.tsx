@@ -5,6 +5,7 @@ import type React from "react";
 import { useCallback } from "react";
 import { useLocale } from "react-aria";
 import { FilePreviewHeader } from "@/components/editor/file-tree/file-header";
+import { renderFileIcon } from "@/components/editor/file-tree/file-icons";
 import {
   FileContentRenderer,
   isMediaMime,
@@ -18,7 +19,6 @@ import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
-import { renderFileIcon } from "./components";
 
 const MAX_MEDIA_PREVIEW_SIZE = 100 * 1024 * 1024; // 100 MB
 
