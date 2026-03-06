@@ -21,6 +21,8 @@ from typing import (
     Any,
     Callable,
     Optional,
+    ParamSpec,
+    TypeVar,
     Union,
     cast,
     overload,
@@ -66,8 +68,13 @@ from marimo._utils.with_skip import SkipContext
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
+    from typing_extensions import TypeGuard, TypeIs
+
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.stores import Store
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class _cache_call(CacheContext):
@@ -888,10 +895,34 @@ def _invoke_context(
 
 @overload
 def cache(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Callable[P, TypeIs[R]],
     pin_modules: bool = False,
     loader: LoaderPartial | LoaderType = MemoryLoader,
-) -> _cache_call: ...
+) -> Callable[P, TypeIs[R]]: ...
+
+
+@overload
+def cache(
+    fn: Callable[P, TypeGuard[R]],
+    pin_modules: bool = False,
+    loader: LoaderPartial | LoaderType = MemoryLoader,
+) -> Callable[P, TypeGuard[R]]: ...
+
+
+@overload
+def cache(
+    fn: Callable[P, R],
+    pin_modules: bool = False,
+    loader: LoaderPartial | LoaderType = MemoryLoader,
+) -> Callable[P, R]: ...
+
+
+@overload
+def cache(
+    fn: None = None,
+    pin_modules: bool = False,
+    loader: LoaderPartial | LoaderType = MemoryLoader,
+) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
 
 @overload
@@ -997,10 +1028,34 @@ def cache(  # type: ignore[misc]
 
 @overload
 def lru_cache(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Callable[P, TypeIs[R]],
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_call: ...
+) -> Callable[P, TypeIs[R]]: ...
+
+
+@overload
+def lru_cache(
+    fn: Callable[P, TypeGuard[R]],
+    maxsize: int = 128,
+    pin_modules: bool = False,
+) -> Callable[P, TypeGuard[R]]: ...
+
+
+@overload
+def lru_cache(
+    fn: Callable[P, R],
+    maxsize: int = 128,
+    pin_modules: bool = False,
+) -> Callable[P, R]: ...
+
+
+@overload
+def lru_cache(
+    fn: None = None,
+    maxsize: int = 128,
+    pin_modules: bool = False,
+) -> Callable[[Callable[P, R]], Callable[P, R]]: ...
 
 
 @overload
