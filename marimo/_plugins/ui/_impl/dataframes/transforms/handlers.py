@@ -148,20 +148,35 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             column = col(condition.column_id)
             column_name = str(condition.column_id)
             value = condition.value
-
-            native_df = df.to_native()
             dtype = df.collect_schema().get(column_name)
 
-            # For polars, we need to convert the values based on dtype
-            if _is_polars_dataframe_or_lazyframe(native_df):
-                if dtype == nw.Datetime:
-                    value = convert_value(
-                        value, datetime.datetime.fromisoformat
-                    )
-                elif dtype == nw.Date:
-                    value = convert_value(value, datetime.date.fromisoformat)
-                elif dtype == nw.Time:
-                    value = convert_value(value, datetime.time.fromisoformat)
+            # Convert string values to the appropriate type based on dtype
+            if dtype == nw.Datetime:
+                value = convert_value(value, datetime.datetime.fromisoformat)
+            elif dtype == nw.Date:
+                value = convert_value(value, datetime.date.fromisoformat)
+            elif dtype == nw.Time:
+                value = convert_value(value, datetime.time.fromisoformat)
+            elif dtype == nw.Object:
+                # Object dtype may contain date/datetime values
+                # (e.g., pandas with Python date objects)
+                try:
+                    sample = df[column_name].drop_nulls().head(1).to_list()
+                    if sample:
+                        if isinstance(sample[0], datetime.datetime):
+                            value = convert_value(
+                                value, datetime.datetime.fromisoformat
+                            )
+                        elif isinstance(sample[0], datetime.date):
+                            value = convert_value(
+                                value, datetime.date.fromisoformat
+                            )
+                        elif isinstance(sample[0], datetime.time):
+                            value = convert_value(
+                                value, datetime.time.fromisoformat
+                            )
+                except Exception:
+                    pass
 
             # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
             if (
