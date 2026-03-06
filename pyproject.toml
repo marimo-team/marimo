@@ -323,6 +323,7 @@ dependencies = [
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
+    "lzstring>=1.0.4",
 ]
 
 [tool.uv.sources]

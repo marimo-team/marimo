@@ -94,7 +94,7 @@ Use
 marimo export
 ```
 
-to [export marimo notebooks](../guides/exporting.md) to other file formats,
+to [export marimo notebooks](../guides/exporting/index.md) to other file formats,
 including HTML, IPYNB, and markdown.
 
 ## Install optional dependencies for more features

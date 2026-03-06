@@ -1,9 +1,41 @@
-# Publish to GitHub Pages
+# GitHub
+
+marimo makes it very easy to share links to executable notebooks from notebooks
+hosted on GitHub. 
+
+- [Share molab links](../molab.md#preview-notebooks-from-github) to obtain interactive previews of notebooks hosted on GitHub, no login required
+- Publish notebooks to [GitHub Pages](#publish-to-github-pages)
+
+## Export to ipynb to view on GitHub
+
+marimo notebooks are stored as pure Python files, which works well with Git
+versioning and the broader Python ecosystem. However, this means you cannot
+preview outputs directly on GitHub like you can with Jupyter notebooks.
+
+To make outputs viewable on GitHub, you can configure marimo to automatically
+snapshot outputs to an `ipynb` file. We treat the ipynb as an artifact that
+combines your source code with rendered outputs. The snapshot is saved to a
+`__marimo__` directory alongside your notebook, which you can commit and push
+to GitHub.
+
+Enable snapshotting in the notebook settings menu via the gear icon in the top
+right corner:
+
+<picture>
+  <source srcset="/_static/docs-notebook-settings-snapshotting.webp" type="image/webp">
+  <img src="/_static/docs-notebook-settings-snapshotting.jpg" alt="Notebook settings dialog showing the Exporting outputs section with HTML and ipynb checkboxes" style="max-width: 700px; width: 100%;" />
+</picture>
+
+This feature requires `nbformat`. marimo will prompt to install it if missing, or you can add it to your environment with `pip install nbformat`.
+
+## Publish to GitHub Pages
+
+> For a simpler solution, use [molab's built in GitHub previewer](../molab.md#preview-notebooks-from-github)
 
 You can publish executable notebooks to [GitHub Pages](https://pages.github.com/)
 for free, after exporting your notebook to a WebAssembly notebook.
 
-## Export to WASM-powered HTML
+### Export to WASM-powered HTML
 
 Export your notebook to a self-contained HTML file that runs using [WebAssembly](../wasm.md):
 
@@ -23,10 +55,10 @@ marimo export html-wasm notebook.py -o output_dir --mode edit
 
 ///
 
-See our [exporting guide](../exporting.md#export-to-wasm-powered-html) for
+See our [exporting guide](../exporting/webassembly_html.md) for
 the full documentation.
 
-## Publish using GitHub Actions
+### Publish using GitHub Actions
 
 /// tip | Template repository
 
@@ -73,7 +105,7 @@ jobs:
                   artifact_name: github-pages
 ```
 
-## Publish manually
+### Publish manually
 
 You can also publish an exported notebook manually through your repository
 settings. Read [GitHub's documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) to learn more.
