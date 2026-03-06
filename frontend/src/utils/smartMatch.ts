@@ -53,12 +53,18 @@ export function smartMatch(
 
 /**
  * cmdk-compatible filter function.
- * Returns 1 for match, 0 for no match.
+ * Returns 1 for a value match, 0.8 for a keyword-only match, 0 for no match.
  */
 export function smartMatchFilter(
   value: string,
   search: string,
   keywords?: string[],
 ): number {
-  return smartMatch(search, [value, ...(keywords || [])]) ? 1 : 0;
+  if (smartMatch(search, value)) {
+    return 1;
+  }
+  if (keywords && smartMatch(search, keywords)) {
+    return 0.8;
+  }
+  return 0;
 }

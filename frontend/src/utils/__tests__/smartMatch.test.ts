@@ -39,7 +39,7 @@ describe("smartMatch", () => {
 });
 
 describe("smartMatchFilter", () => {
-  it("returns 1 for match", () => {
+  it("returns 1 for value match", () => {
     expect(smartMatchFilter("Run cell", "run")).toBe(1);
   });
 
@@ -47,8 +47,12 @@ describe("smartMatchFilter", () => {
     expect(smartMatchFilter("Run cell", "xyz")).toBe(0);
   });
 
-  it("matches against keywords", () => {
-    expect(smartMatchFilter("Run", "execute", ["execute", "start"])).toBe(1);
+  it("returns 0.8 for keyword-only match", () => {
+    expect(smartMatchFilter("Run", "execute", ["execute", "start"])).toBe(0.8);
+  });
+
+  it("returns 1 when value matches even if keywords also match", () => {
+    expect(smartMatchFilter("Run", "run", ["execute", "start"])).toBe(1);
   });
 
   it("does not match without relevant keywords", () => {

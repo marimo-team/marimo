@@ -112,7 +112,7 @@ const DEFAULT_HOT_KEY = {
     name: "Run",
     group: "Running Cells",
     key: "Mod-Enter",
-    additionalKeywords: ["execute", "start"],
+    additionalKeywords: ["execute", "submit"],
   },
   "cell.runAndNewBelow": {
     name: "Run and new below",

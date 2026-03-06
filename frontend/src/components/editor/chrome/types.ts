@@ -83,7 +83,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Variables",
     tooltip: "Explore variables and data sources",
     defaultSection: "sidebar",
-    additionalKeywords: ["state", "data", "inspector"],
+    additionalKeywords: ["state", "scope", "inspector"],
   },
   {
     type: "packages",
@@ -115,7 +115,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Docs",
     tooltip: "View live docs",
     defaultSection: "sidebar",
-    additionalKeywords: ["help", "reference", "api"],
+    additionalKeywords: ["reference", "api"],
   },
   {
     type: "dependencies",
@@ -165,7 +165,7 @@ export const PANELS: PanelDescriptor[] = [
     label: "Logs",
     tooltip: "View logs",
     defaultSection: "developer-panel",
-    additionalKeywords: ["console", "output", "stdout"],
+    additionalKeywords: ["console", "stdout"],
   },
   {
     type: "terminal",
@@ -192,7 +192,7 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "View cache",
     defaultSection: "developer-panel",
     hidden: !getFeatureFlag("cache_panel"),
-    additionalKeywords: ["storage", "memoize"],
+    additionalKeywords: ["memory", "memoize"],
   },
 ];
 

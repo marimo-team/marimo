@@ -481,7 +481,7 @@ export function useNotebookActions() {
       label: "Restart kernel",
       variant: "danger",
       handle: restartKernel,
-      additionalKeywords: ["reset", "reload"],
+      additionalKeywords: ["reset", "reload", "restart"],
     },
     {
       icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
