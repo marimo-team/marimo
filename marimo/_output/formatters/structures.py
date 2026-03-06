@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
-from typing import Any, Union
+from typing import Any, Sequence, Union
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
@@ -71,6 +71,40 @@ def format_structure(
     return repacker([_leaf_formatter(v) for v in flattened])
 
 
+def _collect_dict_artists(
+    t: dict[str, Any],
+    artist_type: type,
+) -> list[Any]:
+    """Collect matplotlib Artists from dict values (e.g. boxplot/violinplot).
+
+    Returns a flat list of artists, or an empty list if any value is not
+    an Artist or collection of Artists.
+    """
+    artists: list[Any] = []
+    for v in t.values():
+        if isinstance(v, (list, tuple)):
+            if not all(isinstance(item, artist_type) for item in v):
+                return []
+            artists.extend(v)
+        elif isinstance(v, artist_type):
+            artists.append(v)
+        else:
+            return []
+    return artists
+
+
+def _format_single_figure(
+    artists: Sequence[Any],
+) -> tuple[KnownMimeType, str] | None:
+    """If all artists share the same figure, format that figure."""
+    figs = [getattr(a, "figure", None) for a in artists]
+    if all(f is not None and f == figs[0] for f in figs):
+        fig_formatter = formatting.get_formatter(figs[0])
+        if fig_formatter is not None:
+            return fig_formatter(figs[0])
+    return None
+
+
 class StructuresFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> None:
@@ -124,49 +158,24 @@ class StructuresFormatter(FormatterFactory):
                 # 5 times.
                 #
                 # ax.boxplot()/violinplot() return dicts with artist values.
+                #
+                # These special cases won't work if a plot is in a nested
+                # structure. We could be more opinionated and recurse, but
+                # in most cases the recursion will be a performance hit with no
+                # benefit, so this is probably fine as is.
                 import matplotlib.artist  # type: ignore
 
+                artist_type = matplotlib.artist.Artist
+                result = None
                 if isinstance(t, dict):
-                    # For dicts (like boxplot/violinplot returns), collect
-                    # artists from values.
-                    artists: list[Any] | None = []
-
-                    for v in t.values():
-                        if isinstance(v, (list, tuple)):
-                            for item in v:
-                                if not isinstance(
-                                    item, matplotlib.artist.Artist
-                                ):
-                                    artists = None
-                                    break
-                            if artists is None:
-                                break
-                            artists.extend(v)
-                        elif isinstance(v, matplotlib.artist.Artist):
-                            artists.append(v)
-                        else:
-                            # Value is not a list/tuple/Artist
-                            artists = None
-                            break
-
+                    artists = _collect_dict_artists(t, artist_type)
                     if artists:
-                        figs = [getattr(i, "figure", None) for i in artists]
-                        if all(f is not None and f == figs[0] for f in figs):
-                            matplotlib_formatter = formatting.get_formatter(
-                                figs[0]
-                            )
-                            if matplotlib_formatter is not None:
-                                return matplotlib_formatter(figs[0])
-                # For lists/tuples, check directly (short-circuits on first
-                # non-Artist)
-                elif all(isinstance(i, matplotlib.artist.Artist) for i in t):
-                    figs = [getattr(i, "figure", None) for i in t]
-                    if all(f is not None and f == figs[0] for f in figs):
-                        matplotlib_formatter = formatting.get_formatter(
-                            figs[0]
-                        )
-                        if matplotlib_formatter is not None:
-                            return matplotlib_formatter(figs[0])
+                        result = _format_single_figure(artists)
+                elif all(isinstance(i, artist_type) for i in t):
+                    result = _format_single_figure(t)
+
+                if result is not None:
+                    return result
             try:
                 formatted_structure = format_structure(t)
             except CyclicStructureError:
