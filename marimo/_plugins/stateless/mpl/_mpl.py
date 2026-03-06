@@ -14,6 +14,7 @@ import mimetypes
 import os
 import threading
 import time
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -211,10 +212,21 @@ def _convert_scheme_to_ws(url: str) -> str:
 
 
 def _template(fig_id: str, port: int) -> str:
-    base_url = _get_remote_url() or f"http://localhost:{port}/"
-    base_url_and_path = f"{base_url}/mpl/{fig_id}"
-    base_url_and_path_ws = f"{base_url}/mpl/{port}"
-    ws_base_url = _convert_scheme_to_ws(base_url_and_path_ws)
+    remote_url = _get_remote_url()
+    if remote_url:
+        # Route through the marimo server proxy, which expects
+        # /mpl/{fig_id}/... for static assets and /mpl/{port}/ws for
+        # the WebSocket connection.
+        base_url_and_path = f"{remote_url}/mpl/{fig_id}"
+        ws_base = f"{remote_url}/mpl/{port}"
+    else:
+        # Direct access to the embedded matplotlib server.  The server
+        # only has top-level routes (/_static, /ws, /mpl.js, …), so we
+        # must NOT add the /mpl/{fig_id} prefix that the proxy expects.
+        base_url_and_path = f"http://localhost:{port}"
+        ws_base = f"http://localhost:{port}"
+
+    ws_base_url = _convert_scheme_to_ws(ws_base)
 
     return html_content % {
         "ws_uri": f"{ws_base_url}/ws?figure={fig_id}",
@@ -531,7 +543,17 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
         return NonInteractiveMplHtml(figure)
 
     # Figure Manager, Any type because matplotlib doesn't have typings
-    figure_manager = new_figure_manager_given_figure(id(figure), figure)
+    # Suppress the "Starting a Matplotlib GUI outside of the main thread"
+    # warning.  In run mode the kernel executes on a worker thread, but
+    # our WebAgg canvas only renders to an Agg buffer and serves it over
+    # WebSocket — no actual GUI toolkit is involved.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Starting a Matplotlib GUI outside of the main thread",
+            category=UserWarning,
+        )
+        figure_manager = new_figure_manager_given_figure(id(figure), figure)
 
     # TODO(akshayka): Proxy this server through the marimo server to help with
     # deployment.

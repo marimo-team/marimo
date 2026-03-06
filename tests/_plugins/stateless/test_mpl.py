@@ -232,15 +232,26 @@ def test_template_with_remote_url() -> None:
 
 
 def test_template_without_remote_url() -> None:
-    """Test _template function without remote URL"""
+    """Test _template function without remote URL.
+
+    When there is no remote URL (e.g. run-mode auto-instantiation via
+    WebSocket which lacks x-runtime-url), the template should generate
+    direct URLs to the embedded mpl server WITHOUT the /mpl/{fig_id}
+    proxy prefix — the embedded server only has top-level routes like
+    /ws, /_static, /mpl.js.
+    """
 
     with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
         mock_app_meta.return_value.request = None
 
         result = _template("test_fig", 8080)
 
-        assert "/mpl/8080/ws?figure=test_fig" in result
-        assert "/mpl/test_fig" in result
+        # WebSocket should connect directly to the embedded server
+        assert "ws://localhost:8080/ws?figure=test_fig" in result
+        # Base URL should be the embedded server root (no /mpl/ prefix)
+        assert "http://localhost:8080" in result
+        # Should NOT contain the proxy-style /mpl/{fig_id} prefix
+        assert "/mpl/test_fig" not in result
 
 
 def test_template_contains_html_structure() -> None:
@@ -257,7 +268,8 @@ def test_template_contains_html_structure() -> None:
         assert "<body>" in result
         assert '<div id="figure"></div>' in result
         assert "12345" in result
-        assert "9000" in result
+        # Port should appear in the WebSocket URL
+        assert "ws://localhost:9000/ws?figure=12345" in result
 
 
 def test_template_contains_visibilitychange_refresh() -> None:
@@ -277,6 +289,48 @@ def test_template_contains_visibilitychange_refresh() -> None:
         assert "visibilitychange" in result
         assert "document.hidden" in result
         assert 'send_message("refresh"' in result
+
+
+def test_template_static_asset_paths_direct() -> None:
+    """Regression test for https://github.com/marimo-team/marimo/issues/8452.
+
+    Without a remote URL the template must use paths that the embedded
+    matplotlib server actually serves (e.g. /_static/…, /mpl.js).
+    The proxy-style /mpl/{fig_id}/… prefix must NOT appear.
+    """
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = None
+
+        result = _template("99999", 11000)
+
+        # base href should be the server root so relative paths resolve
+        # to top-level routes that the embedded server exposes.
+        assert "http://localhost:11000" in result
+        # Static CSS is referenced as %(base_url)s/_static/css/page.css
+        # so the resolved URL must be http://localhost:11000/_static/…
+        assert "http://localhost:11000/_static/css/page.css" in result
+        assert "http://localhost:11000/mpl.js" in result
+        assert "http://localhost:11000/custom.css" in result
+
+
+def test_template_static_asset_paths_proxy() -> None:
+    """With a remote URL the template routes through the marimo server
+    proxy which expects the /mpl/{fig_id}/… prefix."""
+
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = "http://localhost:2718"
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = mock_request
+
+        result = _template("99999", 11000)
+
+        # Proxy-style paths
+        assert "http://localhost:2718/mpl/99999/_static/css/page.css" in result
+        assert "http://localhost:2718/mpl/99999/mpl.js" in result
+        assert "wss://localhost:2718/mpl/11000/ws?figure=99999" not in result
+        assert "ws://localhost:2718/mpl/11000/ws?figure=99999" in result
 
 
 def test_mpl_server_manager() -> None:
