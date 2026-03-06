@@ -62,10 +62,12 @@ class SessionRegistryWriter:
         # Atomic write: write to temp file then rename
         fd, tmp_path = tempfile.mkstemp(dir=str(sessions_dir), suffix=".tmp")
         try:
-            os.write(fd, data.encode("utf-8"))
-            os.close(fd)
+            try:
+                os.write(fd, data.encode("utf-8"))
+            finally:
+                os.close(fd)
             os.chmod(tmp_path, 0o600)
-            os.rename(tmp_path, str(self._path))
+            os.replace(tmp_path, str(self._path))
         except Exception:
             # Clean up temp file on failure
             try:

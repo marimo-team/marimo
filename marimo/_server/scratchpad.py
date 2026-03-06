@@ -33,10 +33,13 @@ class ScratchCellListener(SessionEventListener):
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
+        self._event_bus = event_bus
         event_bus.subscribe(self)
 
     def on_detach(self) -> None:
-        pass
+        if hasattr(self, "_event_bus"):
+            self._event_bus.unsubscribe(self)
+            del self._event_bus
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
