@@ -12,6 +12,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
 if TYPE_CHECKING:
+    import asyncio
     import threading
     from collections.abc import Mapping
 
@@ -109,6 +110,7 @@ class Session(Protocol):
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
+    scratchpad_lock: asyncio.Lock
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
