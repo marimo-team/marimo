@@ -7,6 +7,7 @@ and websocket for bidirectional communication.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -201,6 +202,7 @@ class SessionImpl(Session):
         self.session_view = SessionView()
         self.config_manager = config_manager
         self.extensions = extensions
+        self.scratchpad_lock = asyncio.Lock()
 
         self._kernel_manager.start_kernel()
         self._event_bus = SessionEventBus()

@@ -76,9 +76,6 @@ def setup_code_mcp_server(
         transport_security=transport_security,
     )
 
-    # Per-session locks to prevent overlapping scratchpad executions
-    session_locks: dict[str, asyncio.Lock] = {}
-
     @mcp.tool()
     async def list_sessions() -> ListSessionsResult:
         """List active marimo sessions.
@@ -133,8 +130,7 @@ def setup_code_mcp_server(
         listener = ScratchCellListener()
         session.attach_extension(listener)
 
-        lock = session_locks.setdefault(session_id, asyncio.Lock())
-        async with lock:
+        async with session.scratchpad_lock:
             try:
                 # Set up event before sending command
                 done = listener.wait_for(session_id)
