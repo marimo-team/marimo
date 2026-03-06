@@ -894,7 +894,7 @@ def _invoke_context(
 
 
 @overload
-def cache(
+def cache(  # type: ignore[overload-overlap]
     fn: Callable[P, TypeIs[R]],
     pin_modules: bool = False,
     loader: LoaderPartial | LoaderType = MemoryLoader,
@@ -1027,7 +1027,7 @@ def cache(  # type: ignore[misc]
 
 
 @overload
-def lru_cache(
+def lru_cache(  # type: ignore[overload-overlap]
     fn: Callable[P, TypeIs[R]],
     maxsize: int = 128,
     pin_modules: bool = False,

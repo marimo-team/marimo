@@ -30,8 +30,7 @@ def _check_pyright(code: str) -> None:
 
 
 _PREAMBLE = """
-    from typing import assert_type
-    from typing_extensions import TypeGuard, TypeIs
+    from typing_extensions import TypeGuard, TypeIs, assert_type
     import marimo as mo
 
     def _int_or_str() -> int | str:
@@ -42,8 +41,7 @@ _PREAMBLE = """
 class TestAppFunctionTyping:
     def test_typeis_narrowing(self) -> None:
         _check_pyright("""
-            from typing_extensions import TypeIs
-            from typing import assert_type
+            from typing_extensions import TypeIs, assert_type
             import marimo
 
             app = marimo.App()
@@ -62,8 +60,7 @@ class TestAppFunctionTyping:
 
     def test_typeguard_narrowing(self) -> None:
         _check_pyright("""
-            from typing_extensions import TypeGuard
-            from typing import assert_type
+            from typing_extensions import TypeGuard, assert_type
             import marimo
 
             app = marimo.App()
@@ -82,7 +79,7 @@ class TestAppFunctionTyping:
 
     def test_regular_function_signature(self) -> None:
         _check_pyright("""
-            from typing import assert_type
+            from typing_extensions import assert_type
             import marimo
 
             app = marimo.App()

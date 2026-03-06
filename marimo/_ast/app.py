@@ -390,7 +390,7 @@ class App:
         )
 
     @overload
-    def function(
+    def function(  # type: ignore[overload-overlap]
         self, func: Callable[P, TypeIs[R]]
     ) -> Callable[P, TypeIs[R]]: ...
 
