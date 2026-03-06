@@ -544,11 +544,27 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
 
   override getHotkey(action: HotkeyAction): ResolvedHotkey {
     const base = super.getHotkey(action);
-    const key = this.overrides[action] || base.key;
+    const override = this.overrides[action];
     return {
       name: base.name,
-      key,
+      key: override ? normalizeKeyString(override) : base.key,
       additionalKeywords: base.additionalKeywords,
     };
   }
+}
+
+const MODIFIER_RE = /^(cmd|ctrl|alt|shift|meta|mod)$/i;
+
+/**
+ * Capitalize multi-character base key names so they match the
+ * casing that KeyboardEvent.key (and therefore CodeMirror) uses.
+ * e.g. "Shift-enter" → "Shift-Enter", "Cmd-backspace" → "Cmd-Backspace"
+ */
+export function normalizeKeyString(key: string): string {
+  const parts = key.split("-");
+  const last = parts[parts.length - 1];
+  if (last.length > 1 && !MODIFIER_RE.test(last)) {
+    parts[parts.length - 1] = last.charAt(0).toUpperCase() + last.slice(1);
+  }
+  return parts.join("-");
 }

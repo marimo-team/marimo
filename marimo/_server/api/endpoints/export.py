@@ -27,6 +27,7 @@ from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
+    ExportAsIPYNBRequest,
     ExportAsMarkdownRequest,
     ExportAsPDFRequest,
     ExportAsScriptRequest,
@@ -286,6 +287,65 @@ async def export_as_markdown(
     # Download the Markdown
     return PlainTextResponse(
         content=markdown,
+        headers=headers,
+    )
+
+
+@router.post("/ipynb")
+@requires("edit")
+async def export_as_ipynb(
+    *,
+    request: Request,
+) -> PlainTextResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsIPYNBRequest"
+    responses:
+        200:
+            description: Export the notebook as IPYNB
+            content:
+                text/plain:
+                    schema:
+                        type: string
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ExportAsIPYNBRequest)
+    session = app_state.require_current_session()
+
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
+    ipynb = Exporter().export_as_ipynb(
+        app=session.app_file_manager.app,
+        sort_mode="top-down",
+        session_view=session.session_view,
+    )
+
+    if body.download:
+        filename = get_download_filename(
+            session.app_file_manager.filename, "ipynb"
+        )
+        headers = make_download_headers(filename)
+    else:
+        headers = {}
+
+    # Download the IPYNB
+    return PlainTextResponse(
+        content=ipynb,
         headers=headers,
     )
 

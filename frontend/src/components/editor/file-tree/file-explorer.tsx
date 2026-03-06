@@ -6,8 +6,6 @@ import {
   ArrowLeftIcon,
   BetweenHorizontalStartIcon,
   BracesIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   CopyIcon,
   CopyMinusIcon,
   DownloadIcon,
@@ -17,9 +15,7 @@ import {
   FilePlus2Icon,
   FolderPlusIcon,
   ListTreeIcon,
-  MoreVerticalIcon,
   PlaySquareIcon,
-  RefreshCcwIcon,
   Trash2Icon,
   UploadIcon,
   ViewIcon,
@@ -32,6 +28,18 @@ import {
   type TreeApi,
 } from "react-arborist";
 import useEvent from "react-use-event-hook";
+import {
+  FILE_ICON,
+  FILE_ICON_COLOR,
+  type FileIconType,
+  guessFileIconType,
+} from "@/components/editor/file-tree/file-icons";
+import {
+  MENU_ITEM_ICON_CLASS,
+  MoreActionsButton,
+  RefreshIconButton,
+  TreeChevron,
+} from "@/components/editor/file-tree/tree-actions";
 import { MarimoIcon, MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -65,12 +73,7 @@ import { useTreeDndManager } from "./dnd-wrapper";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
-import {
-  FILE_TYPE_ICONS,
-  type FileType,
-  guessFileType,
-  PYTHON_CODE_FOR_FILE_TYPE,
-} from "./types";
+import { PYTHON_CODE_FOR_FILE_TYPE } from "./types";
 import { useFileExplorerUpload } from "./upload";
 
 const hiddenFilesState = atomWithStorage(
@@ -102,7 +105,10 @@ export const FileExplorer: React.FC<{
   const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
-    tree.refreshAll(Object.keys(openState).filter((id) => openState[id]));
+    // Return the promise so callers can await refresh completion
+    return tree.refreshAll(
+      Object.keys(openState).filter((id) => openState[id]),
+    );
   });
 
   const handleHiddenFilesToggle = useEvent(() => {
@@ -322,16 +328,10 @@ const Toolbar = ({
         </button>
       </Tooltip>
       <input {...getInputProps({})} type="file" />
-      <Tooltip content="Refresh">
-        <Button
-          data-testid="file-explorer-refresh-button"
-          onClick={onRefresh}
-          variant="text"
-          size="xs"
-        >
-          <RefreshCcwIcon size={16} />
-        </Button>
-      </Tooltip>
+      <RefreshIconButton
+        data-testid="file-explorer-refresh-button"
+        onClick={onRefresh}
+      />
       <Tooltip content="Toggle hidden files">
         <Button
           data-testid="file-explorer-hidden-files-button"
@@ -421,11 +421,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     useRequestClient();
   const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
 
-  const fileType: FileType = node.data.isDirectory
+  const fileType: FileIconType = node.data.isDirectory
     ? "directory"
-    : guessFileType(node.data.name);
+    : guessFileIconType(node.data.name);
 
-  const Icon = FILE_TYPE_ICONS[fileType];
+  const Icon = FILE_ICON[fileType];
   const { openConfirm, openPrompt } = useImperativeModal();
   const { createNewCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
@@ -534,11 +534,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   });
 
   const renderActions = () => {
-    const iconProps = {
-      size: 14,
-      strokeWidth: 1.5,
-      className: "mr-2",
-    };
+    const ic = MENU_ITEM_ICON_CLASS;
     return (
       <DropdownMenuContent
         align="end"
@@ -548,7 +544,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       >
         {!node.data.isDirectory && (
           <DropdownMenuItem onSelect={() => node.select()}>
-            <ViewIcon {...iconProps} />
+            <ViewIcon className={ic} />
             Open file
           </DropdownMenuItem>
         )}
@@ -558,34 +554,34 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               openFile({ path: node.data.path });
             }}
           >
-            <ExternalLinkIcon {...iconProps} />
+            <ExternalLinkIcon className={ic} />
             Open file in external editor
           </DropdownMenuItem>
         )}
         {node.data.isDirectory && (
           <>
             <DropdownMenuItem onSelect={() => handleCreateNotebook()}>
-              <MarimoPlusIcon {...iconProps} />
+              <MarimoPlusIcon className={ic} />
               Create notebook
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleCreateFile()}>
-              <FilePlus2Icon {...iconProps} />
+              <FilePlus2Icon className={ic} />
               Create file
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => handleCreateFolder()}>
-              <FolderPlusIcon {...iconProps} />
+              <FolderPlusIcon className={ic} />
               Create folder
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
         )}
         <DropdownMenuItem onSelect={() => node.edit()}>
-          <Edit3Icon {...iconProps} />
+          <Edit3Icon className={ic} />
           Rename
         </DropdownMenuItem>
         {!node.data.isDirectory && (
           <DropdownMenuItem onSelect={handleDuplicate}>
-            <CopyIcon {...iconProps} />
+            <CopyIcon className={ic} />
             Duplicate
           </DropdownMenuItem>
         )}
@@ -595,7 +591,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             toast({ title: "Copied to clipboard" });
           }}
         >
-          <ListTreeIcon {...iconProps} />
+          <ListTreeIcon className={ic} />
           Copy path
         </DropdownMenuItem>
         {tree && (
@@ -607,7 +603,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               toast({ title: "Copied to clipboard" });
             }}
           >
-            <ListTreeIcon {...iconProps} />
+            <ListTreeIcon className={ic} />
             Copy relative path
           </DropdownMenuItem>
         )}
@@ -620,7 +616,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             handleInsertCode(pythonCode);
           }}
         >
-          <BetweenHorizontalStartIcon {...iconProps} />
+          <BetweenHorizontalStartIcon className={ic} />
           Insert snippet for reading file
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -635,7 +631,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             await copyToClipboard(pythonCode);
           }}
         >
-          <BracesIcon {...iconProps} />
+          <BracesIcon className={ic} />
           Copy snippet for reading file
         </DropdownMenuItem>
         {/* Not shown in WASM */}
@@ -643,7 +639,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={handleOpenMarimoFile}>
-              <PlaySquareIcon {...iconProps} />
+              <PlaySquareIcon className={ic} />
               Open notebook
             </DropdownMenuItem>
           </>
@@ -658,14 +654,14 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
                 downloadBlob(new Blob([contents]), node.data.name);
               }}
             >
-              <DownloadIcon {...iconProps} />
+              <DownloadIcon className={ic} />
               Download
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
         )}
         <DropdownMenuItem onSelect={handleDeleteFile} variant="danger">
-          <Trash2Icon {...iconProps} />
+          <Trash2Icon className={ic} />
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -699,7 +695,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         {node.data.isMarimoFile ? (
           <MarimoIcon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
         ) : (
-          <Icon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
+          <Icon
+            className={cn("w-5 h-5 shrink-0 mr-2", FILE_ICON_COLOR[fileType])}
+            strokeWidth={1.5}
+          />
         )}
         {node.isEditing ? (
           <Edit node={node} />
@@ -712,19 +711,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
-            <Button
+            <MoreActionsButton
               data-testid="file-explorer-more-button"
-              variant="text"
-              tabIndex={-1}
-              size="xs"
-              className="mb-0"
-              aria-label="More options"
-            >
-              <MoreVerticalIcon
-                strokeWidth={2}
-                className="w-5 h-5 hidden group-hover:block"
-              />
-            </Button>
+              iconClassName="w-5 h-5"
+            />
           </DropdownMenuTrigger>
           {renderActions()}
         </DropdownMenu>
@@ -735,14 +725,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
 
 const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
   if (!node.data.isDirectory) {
-    return <span className="w-5 h-5 shrink-0" />;
+    return <span className="w-4 h-4 shrink-0" />;
   }
 
-  return node.isOpen ? (
-    <ChevronDownIcon className="w-5 h-5 shrink-0" />
-  ) : (
-    <ChevronRightIcon className="w-5 h-5 shrink-0" />
-  );
+  return <TreeChevron isExpanded={node.isOpen} className="w-4 h-4" />;
 };
 
 function openMarimoNotebook(

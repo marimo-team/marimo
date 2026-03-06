@@ -180,6 +180,7 @@ export interface EditRequests {
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
+  exportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<string>;
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
   exportAsPDF: (request: ExportAsPDFRequest) => Promise<Blob>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;

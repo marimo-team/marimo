@@ -60,6 +60,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
+import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
@@ -966,6 +967,15 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           provider="github"
           isConfigured={hasValue("ai.github.api_key")}
         >
+          <Alert variant="warning" className="py-1.5 px-3 text-xs">
+            <AlertDescription>
+              Free tier models have low token limits which can cause errors with
+              larger prompts.{" "}
+              <ExternalLink href="https://docs.github.com/en/github-models/prototyping-with-ai-models#rate-limits">
+                Learn more
+              </ExternalLink>
+            </AlertDescription>
+          </Alert>
           <ApiKey
             form={form}
             config={config}
