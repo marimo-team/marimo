@@ -78,7 +78,6 @@ def setup_code_mcp_server(
 
     # Per-session locks to prevent overlapping scratchpad executions
     session_locks: dict[str, asyncio.Lock] = {}
-    listener = ScratchCellListener()
 
     @mcp.tool()
     async def list_sessions() -> ListSessionsResult:
@@ -130,7 +129,8 @@ def setup_code_mcp_server(
                 "Use list_sessions to find valid session IDs.",
             )
 
-        # Attach listener as a session extension
+        # Create a fresh listener per execution to avoid cross-session signaling
+        listener = ScratchCellListener()
         session.attach_extension(listener)
 
         lock = session_locks.setdefault(session_id, asyncio.Lock())

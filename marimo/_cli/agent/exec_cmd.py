@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import sys
 
 import click
@@ -66,7 +67,14 @@ def exec_cmd(
             timeout=60,
         )
         resp.raise_for_status()
-        result = resp.json()
+        try:
+            result = resp.json()
+        except json.JSONDecodeError:
+            click.echo(
+                f"Server returned invalid JSON (status {resp.status_code})",
+                err=True,
+            )
+            sys.exit(1)
     except RequestError as e:
         click.echo(str(e), err=True)
         sys.exit(1)
@@ -155,7 +163,10 @@ def _discover_session_id(entry: object) -> str | None:
     try:
         resp = get(url, params=params, timeout=10)
         resp.raise_for_status()
-        data = resp.json()
+        try:
+            data = resp.json()
+        except json.JSONDecodeError:
+            return None
         if isinstance(data, dict) and data:
             session_ids = list(data.keys())
             if len(session_ids) > 1:

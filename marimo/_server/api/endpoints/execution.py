@@ -289,10 +289,11 @@ async def execute_scratchpad(
         await asyncio.sleep(0.05)
     except asyncio.TimeoutError:
         return JSONResponse(
+            status_code=504,
             content={
                 "success": False,
                 "error": f"Execution timed out after {EXECUTION_TIMEOUT}s",
-            }
+            },
         )
     finally:
         session.detach_extension(listener)
