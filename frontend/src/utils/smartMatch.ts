@@ -4,14 +4,7 @@
  * Split a string into lowercase words (letters/digits only).
  */
 function words(s: string): string[] {
-  return s.toLowerCase().match(/[a-z\d]+/g) || [];
-}
-
-/**
- * Escape special regex characters.
- */
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return s.toLowerCase().match(/[\da-z]+/g) || [];
 }
 
 /**
@@ -25,7 +18,7 @@ function escapeRegExp(str: string): string {
  */
 export function smartMatch(
   needle: string,
-  haystackOrHaystacks: string | Array<string | null | undefined>,
+  haystackOrHaystacks: string | (string | null | undefined)[],
 ): boolean {
   const needleWords = words(needle);
   if (needleWords.length === 0) {
