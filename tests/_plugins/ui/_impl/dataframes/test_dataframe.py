@@ -112,9 +112,11 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         assert is_not_narwhals_dataframe(subject.value)
-        assert subject._component_args["columns"] == [
-            ["1", "integer", "int64"],
-            ["2", "string", "object"],
+        assert subject._component_args["columns"] in [
+            # pandas 2.x
+            [["1", "integer", "int64"], ["2", "string", "object"]],
+            # pandas 3.x
+            [["1", "integer", "int64"], ["2", "string", "str"]],
         ]
 
         assert subject._get_column_values(
