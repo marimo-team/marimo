@@ -1,20 +1,14 @@
 # Publish notebooks to the marimo gallery
 
-The [marimo gallery](https://marimo.io/gallery) is a curated
-gallery of the very best notebooks authored by both marimo team
-and our community. It's also the most viewed page on our website!
+The [marimo gallery](https://marimo.io/gallery) showcases the best notebooks
+from our team and community. To be considered for inclusion, share your
+[molab](../molab.md) notebook and tag us on
+[Twitter / X](https://twitter.com/marimo_io),
+[Bluesky](https://bsky.app/profile/marimo.io),
+[LinkedIn](https://www.linkedin.com/company/marimo-io), or
+[Reddit](https://reddit.com/r/marimo_notebook).
+Community authors are credited with a link back to their website.
 
 <figure>
-  <img src="../../_static/docs-gallery.png" alt="The marimo gallery" />
-  <figcaption>The marimo gallery showcases the best notebooks from our team and community.</figcaption>
+  <img src="/_static/docs-gallery.png" alt="The marimo gallery" />
 </figure>
-
-If you'd like a notebook to be considered for inclusion in our gallery,
-share it on social media and tag one of our accounts:
-
-- [Twitter / X](https://twitter.com/marimo_io)
-- [LinkedIn](https://www.linkedin.com/company/marimo-io)
-- [Reddit](https://reddit.com/r/marimo_notebook)
-
-Community authors are credited in their gallery card, with a link back
-to their website.

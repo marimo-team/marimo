@@ -133,6 +133,7 @@ nav:
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
       - Reuse functions and classes: guides/reusing_functions.md
+      - Run in the cloud with molab: guides/molab.md
       - Export to other formats:
           - Export to other formats: guides/exporting/index.md
           - Static HTML: guides/exporting/static_html.md

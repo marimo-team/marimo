@@ -6,14 +6,20 @@ as web documentation, educational platforms, or static sites in general.
 ## molab (recommended)
 
 The easiest way to embed interactive notebooks is with [molab](../molab.md).
-Either push your code to GitHub or construct a URL directly from the notebook source,
-then embed in an iframe; this is what we do throughout this documentation website.
+Click the "Share" button on molab WebAssembly previews of [notebooks from
+GitHub](../molab.md/#preview-notebooks-from-github) to get an iframe snippet
+you can copy into your own webpages; or, construct embeddable URLs
+[from notebook source code](../molab.md#embed-from-source-code). This is what
+we do throughout this documentation website.
+
+See the [molab embedding docs](../molab.md#embed-in-other-webpages) for a
+complete walkthrough, and the below for a a simple example.
 
 /// tab | Code
 
 ```html
 <iframe
-    src="https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true"
+    src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true"
     sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
     allow="microphone"
     allowfullscreen
@@ -28,7 +34,7 @@ then embed in an iframe; this is what we do throughout this documentation websit
 
 <div class="demo-container">
     <iframe
-        src="https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true"
+        src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true"
         class="demo large"
         sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
         allow="microphone"
@@ -40,8 +46,6 @@ then embed in an iframe; this is what we do throughout this documentation websit
 
 ///
 
-See the [molab embedding docs](../molab.md#embed-in-other-webpages) for details
-on URL parameters and configuration.
 
 ## Self-hosted options
 
@@ -61,7 +65,7 @@ For marimo to function properly in an iframe, you need this **minimum** sandbox 
 
 ```html
 <iframe
-  src="https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm"
+  src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm"
   sandbox="allow-scripts"
   width="100%"
   height="600"
@@ -79,7 +83,7 @@ For the best user experience, include these additional attributes:
 
 ```html
 <iframe
-  src="https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm"
+  src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm"
   sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
   allow="microphone"
   allowfullscreen
@@ -108,7 +112,7 @@ A complete, copy-pasteable example with all recommended settings:
 
 ```html
 <iframe
-  src="https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true&mode=read"
+  src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true&mode=read"
   sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-downloads-without-user-activation"
   allow="microphone"
   allowfullscreen
