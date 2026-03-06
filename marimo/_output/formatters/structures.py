@@ -4,7 +4,8 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
-from typing import Any, Sequence, Union
+from collections.abc import Sequence
+from typing import Any, Union
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
