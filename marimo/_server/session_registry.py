@@ -43,6 +43,7 @@ class SessionRegistryEntry:
     notebook_path: Optional[str]
     mcp_enabled: bool
     version: str
+    python_exe: Optional[str] = None
 
 
 class SessionRegistryWriter:
@@ -169,6 +170,8 @@ def create_registry_entry(
     notebook_path: Optional[str],
     mcp_enabled: bool,
 ) -> SessionRegistryEntry:
+    import sys
+
     from marimo._version import __version__
 
     server_id = f"{host}:{port}"
@@ -184,4 +187,5 @@ def create_registry_entry(
         notebook_path=notebook_path,
         mcp_enabled=mcp_enabled,
         version=__version__,
+        python_exe=sys.executable,
     )
