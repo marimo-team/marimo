@@ -46,8 +46,7 @@ export function smartMatch(
 
   // Every needle word must be a prefix of at least one haystack word
   return needleWords.every((nw) => {
-    const pattern = new RegExp(`^${escapeRegExp(nw)}`);
-    return haystackWords.some((hw) => pattern.test(hw));
+    return haystackWords.some((hw) => hw.startsWith(nw));
   });
 }
 
