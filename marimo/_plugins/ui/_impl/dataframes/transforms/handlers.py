@@ -161,7 +161,13 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 # Object dtype may contain date/datetime values
                 # (e.g., pandas with Python date objects)
                 try:
-                    sample = df[column_name].drop_nulls().head(1).to_list()
+                    sample = (
+                        df.select(col(column_name).drop_nulls())
+                        .head(1)
+                        .collect()
+                        .get_column(column_name)
+                        .to_list()
+                    )
                     if sample:
                         if isinstance(sample[0], datetime.datetime):
                             value = convert_value(
