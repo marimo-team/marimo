@@ -462,7 +462,7 @@
     },
     {
       "source": "/guides/deploying/deploying_public_gallery.html",
-      "destination": "/guides/deploying/deploying_public_gallery/",
+      "destination": "/guides/publishing/public_gallery/",
       "permanent": true
     },
     {
@@ -673,6 +673,11 @@
     {
       "source": "/guides/deploying/scheduled/",
       "destination": "/guides/scripts/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/playground/",
+      "destination": "/guides/wasm/",
       "permanent": true
     },
     {
