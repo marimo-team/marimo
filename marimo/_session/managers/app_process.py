@@ -172,6 +172,11 @@ class AppProcess:
                     q = self._stream_receivers.get(session_id)
                 if q is not None:
                     q.put(payload)
+                else:
+                    LOGGER.debug(
+                        "Dropping stream message for unknown session %s",
+                        session_id,
+                    )
             except zmq.ZMQError:
                 break
             except Exception:
@@ -307,6 +312,7 @@ class AppProcessPool:
                 LOGGER.warning(
                     "App process for %s was dead, respawning", abs_path
                 )
+                worker.shutdown()
 
             worker = AppProcess(abs_path)
             worker.start()
@@ -373,6 +379,7 @@ class AppProcessQueueManager(QueueManagerProto):
         self._app_process = app_process
         self._session_id = session_id
 
+        # Channel names must match _CHANNEL_* constants in app_process_entry.py
         self.control_queue: QueueType[commands.CommandMessage] = (
             _AppProcessPushQueue(app_process, session_id, "control")
         )
@@ -486,8 +493,6 @@ class AppKernelManager(KernelManager):
 
     @property
     def pid(self) -> int | None:
-        if self._app_process is None:
-            return None
         return self._app_process.pid
 
     @property
@@ -495,7 +500,7 @@ class AppKernelManager(KernelManager):
         return None
 
     def is_alive(self) -> bool:
-        return self._app_process is not None and self._app_process.is_alive()
+        return self._app_process.is_alive()
 
     def interrupt_kernel(self) -> None:
         # Run-mode threads can't be interrupted

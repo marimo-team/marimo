@@ -247,10 +247,6 @@ def _handle_create_kernel(
         # Stream output tagged with session_id, routed through shared outbox
         stream_queue = _TaggedStreamQueue(cmd.session_id, stream_outbox)
 
-        # Install thread-local proxies for console redirection
-        if cmd.redirect_console_to_browser:
-            install_thread_local_proxies()
-
         def launch_kernel_with_cleanup() -> None:
             try:
                 runtime.launch_kernel(
@@ -329,6 +325,10 @@ def app_process_main(args: AppProcessArgs) -> None:
 
     # Register formatters once, shared by all kernel threads in this app process.
     register_formatters()
+
+    # Install thread-local stream proxies once at process startup,
+    # shared by all kernel threads (not per-kernel).
+    install_thread_local_proxies()
 
     context = zmq.Context()
 
