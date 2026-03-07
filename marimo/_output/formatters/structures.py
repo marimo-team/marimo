@@ -4,8 +4,7 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
-from collections.abc import Sequence
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
@@ -15,6 +14,9 @@ from marimo._output.formatters.repr_formatters import maybe_get_repr_formatter
 from marimo._plugins.stateless.inspect import inspect
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._utils.flatten import CyclicStructureError, flatten
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def is_structures_formatter(
