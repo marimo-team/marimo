@@ -42,7 +42,6 @@ from marimo._session.file_change_handler import (
 from marimo._session.file_watcher_integration import (
     SessionFileWatcherExtension,
 )
-from marimo._session.managers.app_process import AppProcessPool
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
@@ -53,6 +52,7 @@ from marimo._utils.file_watcher import FileWatcherManager
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Coroutine, Mapping
 
+    from marimo._session.managers.app_process import AppProcessPool
     from marimo._session.notebook import AppFileManager
 
 LOGGER = _loggers.marimo_logger()
@@ -104,6 +104,8 @@ class SessionManager:
         # structures.
         self._app_process_pool: AppProcessPool | None = None
         if process_isolation and mode == SessionMode.RUN:
+            from marimo._session.managers.app_process import AppProcessPool
+
             self._app_process_pool = AppProcessPool()
 
         self._repository = SessionRepository()

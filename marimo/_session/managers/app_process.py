@@ -14,8 +14,6 @@ import sys
 import threading
 from typing import TYPE_CHECKING, Optional, Union
 
-import zmq
-
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
@@ -35,6 +33,8 @@ from marimo._session.types import KernelManager
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
+    import zmq
+
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
     from marimo._ipc.types import ConnectionInfo
@@ -61,6 +61,8 @@ class AppProcess:
         self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
 
     def start(self) -> None:
+        import zmq
+
         context = zmq.Context()
         self._zmq_context = context
 
@@ -172,6 +174,8 @@ class AppProcess:
         return self._process.pid if self._process else None
 
     def shutdown(self) -> None:
+        import zmq
+
         if self._mgmt_socket is not None:
             try:
                 self._mgmt_socket.send(encode_command(ShutdownAppProcessCmd()))

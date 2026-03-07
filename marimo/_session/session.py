@@ -39,7 +39,6 @@ from marimo._session.extensions.extensions import (
 )
 from marimo._session.extensions.types import SessionExtension
 from marimo._session.managers import (
-    AppProcessPool,
     KernelManagerImpl,
     QueueManagerImpl,
 )
@@ -60,6 +59,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._server.models.models import InstantiateNotebookRequest
+    from marimo._session.managers.app_process import AppProcessPool
 
 LOGGER = _loggers.marimo_logger()
 
@@ -129,10 +129,8 @@ class SessionImpl(Session):
             )
         elif app_process_pool is not None and mode == SessionMode.RUN:
             from marimo._ipc import QueueManager as IPCQueueManager
-            from marimo._session.managers import (
-                AppKernelManager,
-                IPCQueueManagerImpl,
-            )
+            from marimo._session.managers import IPCQueueManagerImpl
+            from marimo._session.managers.app_process import AppKernelManager
 
             ipc_queue_manager, connection_info = IPCQueueManager.create()
             queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
