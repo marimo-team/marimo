@@ -42,6 +42,7 @@ from marimo._session.file_change_handler import (
 from marimo._session.file_watcher_integration import (
     SessionFileWatcherExtension,
 )
+from marimo._session.managers.app_process import AppProcessPool
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
@@ -97,9 +98,6 @@ class SessionManager:
         self.redirect_console_to_browser = redirect_console_to_browser
         self._config_manager = config_manager
         self.sandbox_mode = sandbox_mode
-
-        # Create app process pool for multi-app process isolation
-        from marimo._session.managers.app_process import AppProcessPool
 
         # When running multiple apps, each app runs in an isolated process,
         # to avoid collisions in sys.modules and other Python global
