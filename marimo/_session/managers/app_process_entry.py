@@ -9,12 +9,19 @@ Reads startup args (management channel ports, file path, log level) from
 stdin as JSON, then enters a loop processing management commands over ZeroMQ.
 Each app process manages kernel threads for a single notebook file, providing
 OS-level isolation of sys.modules between different apps.
+
+Communication uses multiplexed ZeroMQ channels:
+- mgmt channel: management commands (create/stop kernel, shutdown)
+- cmd channel: kernel commands (control, UI element, completion, input)
+- stream channel: kernel output (stream messages back to main process)
 """
 
 from __future__ import annotations
 
 import dataclasses
 import os
+import pickle
+import queue
 import signal
 import sys
 import threading
@@ -24,7 +31,6 @@ import msgspec
 import msgspec.json
 
 from marimo import _loggers
-from marimo._ipc.queue_manager import QueueManager
 from marimo._messaging.thread_local_streams import install_thread_local_proxies
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
@@ -45,8 +51,10 @@ LOGGER = _loggers.marimo_logger()
 class AppProcessArgs(msgspec.Struct):
     """Startup args sent from main process via stdin."""
 
-    mgmt_port: int  # ZMQ PULL port for receiving commands
-    response_port: int  # ZMQ PUSH port for sending responses
+    mgmt_addr: str  # ZMQ PULL address for receiving management commands
+    response_addr: str  # ZMQ PUSH address for sending management responses
+    cmd_addr: str  # ZMQ PULL address for receiving kernel commands
+    stream_addr: str  # ZMQ PUSH address for sending kernel output
     file_path: str
     log_level: int
 
@@ -59,31 +67,161 @@ class AppProcessArgs(msgspec.Struct):
 
 
 @dataclasses.dataclass
+class _KernelQueues:
+    """Per-kernel threading queues."""
+
+    control: queue.Queue[typing.Any]
+    ui_element: queue.Queue[typing.Any]
+    completion: queue.Queue[typing.Any]
+    input: queue.Queue[typing.Any]
+
+
+@dataclasses.dataclass
 class _KernelInfo:
     thread: threading.Thread
-    queue_manager: QueueManager
+    queues: _KernelQueues
     session_id: str
 
 
-def _shutdown_all_kernels(kernels: dict[str, _KernelInfo]) -> None:
-    for info in kernels.values():
+class _TaggedStreamQueue:
+    """Queue that tags messages with session_id and puts in shared outbox.
+
+    Passed to launch_kernel as stream_queue. The kernel calls put() to send
+    output; messages are tagged with session_id and forwarded to the shared
+    outbox queue, which a collector thread reads and sends over ZMQ.
+    """
+
+    def __init__(
+        self, session_id: str, outbox: queue.Queue[typing.Any]
+    ) -> None:
+        self._session_id = session_id
+        self._outbox = outbox
+
+    def put(
+        self,
+        item: object,
+        /,
+        block: bool = True,
+        timeout: float | None = None,
+    ) -> None:
+        self._outbox.put(
+            (self._session_id, item), block=block, timeout=timeout
+        )
+
+    def put_nowait(self, item: object, /) -> None:
+        self._outbox.put_nowait((self._session_id, item))
+
+    def get(
+        self, block: bool = True, timeout: float | None = None
+    ) -> typing.Any:
+        raise NotImplementedError("TaggedStreamQueue is write-only")
+
+    def get_nowait(self) -> typing.Any:
+        raise NotImplementedError("TaggedStreamQueue is write-only")
+
+    def empty(self) -> bool:
+        return True
+
+
+_CHANNEL_CONTROL = b"control"
+_CHANNEL_UI_ELEMENT = b"ui_element"
+_CHANNEL_COMPLETION = b"completion"
+_CHANNEL_INPUT = b"input"
+
+
+def _cmd_dispatcher_loop(
+    cmd_socket: typing.Any,
+    kernels: dict[str, _KernelInfo],
+    kernel_lock: threading.Lock,
+) -> None:
+    """Read multiplexed commands from ZMQ and route to kernel queues."""
+    import zmq
+
+    poller = zmq.Poller()
+    poller.register(cmd_socket, zmq.POLLIN)
+
+    while True:
         try:
-            info.queue_manager.control_queue.put(StopKernelCommand())
+            events = dict(poller.poll(timeout=1000))
+            if cmd_socket not in events:
+                continue
+
+            frames = cmd_socket.recv_multipart()
+            session_id = frames[0].decode()
+            channel = frames[1]
+            payload = pickle.loads(frames[2])
+
+            with kernel_lock:
+                info = kernels.get(session_id)
+
+            if info is None:
+                LOGGER.debug(
+                    "Dropping command for unknown session %s", session_id
+                )
+                continue
+
+            if channel == _CHANNEL_CONTROL:
+                info.queues.control.put(payload)
+            elif channel == _CHANNEL_UI_ELEMENT:
+                info.queues.ui_element.put(payload)
+            elif channel == _CHANNEL_COMPLETION:
+                info.queues.completion.put(payload)
+            elif channel == _CHANNEL_INPUT:
+                info.queues.input.put(payload)
+            else:
+                LOGGER.warning("Unknown channel: %s", channel)
+
+        except zmq.ZMQError:
+            break
+        except Exception:
+            LOGGER.exception("Error in cmd dispatcher")
+
+
+def _stream_collector_loop(
+    stream_outbox: queue.Queue[typing.Any],
+    stream_socket: typing.Any,
+) -> None:
+    """Read tagged stream messages from outbox and send over ZMQ."""
+    while True:
+        item = stream_outbox.get()
+        if item is None:
+            break
+        session_id, msg = item
+        try:
+            stream_socket.send_multipart(
+                [session_id.encode(), pickle.dumps(msg)]
+            )
         except Exception:
             LOGGER.exception(
-                "Error stopping kernel for session %s", info.session_id
+                "Error sending stream message for session %s", session_id
             )
-    kernels.clear()
+
+
+def _shutdown_all_kernels(
+    kernels: dict[str, _KernelInfo],
+    kernel_lock: threading.Lock,
+) -> None:
+    with kernel_lock:
+        for info in kernels.values():
+            try:
+                info.queues.control.put(StopKernelCommand())
+            except Exception:
+                LOGGER.exception(
+                    "Error stopping kernel for session %s", info.session_id
+                )
+        kernels.clear()
 
 
 def _handle_stop_kernel(
     cmd: StopKernelCmd,
     kernels: dict[str, _KernelInfo],
+    kernel_lock: threading.Lock,
     response_socket: typing.Any,
 ) -> None:
-    info = kernels.pop(cmd.session_id, None)
+    with kernel_lock:
+        info = kernels.pop(cmd.session_id, None)
     if info is not None:
-        info.queue_manager.control_queue.put(StopKernelCommand())
+        info.queues.control.put(StopKernelCommand())
         LOGGER.debug("Kernel stopped for session %s", cmd.session_id)
     response_socket.send(
         encode_response(KernelStoppedResponse(session_id=cmd.session_id))
@@ -93,11 +231,21 @@ def _handle_stop_kernel(
 def _handle_create_kernel(
     cmd: CreateKernelCmd,
     kernels: dict[str, _KernelInfo],
+    kernel_lock: threading.Lock,
+    stream_outbox: queue.Queue[typing.Any],
     response_socket: typing.Any,
 ) -> None:
     try:
-        # Connect to the ZeroMQ channels created by the main process
-        qm = QueueManager.connect(cmd.connection_info)
+        # Create per-kernel threading queues
+        queues = _KernelQueues(
+            control=queue.Queue(),
+            ui_element=queue.Queue(),
+            completion=queue.Queue(),
+            input=queue.Queue(maxsize=1),
+        )
+
+        # Stream output tagged with session_id, routed through shared outbox
+        stream_queue = _TaggedStreamQueue(cmd.session_id, stream_outbox)
 
         # Install thread-local proxies for console redirection
         if cmd.redirect_console_to_browser:
@@ -106,11 +254,11 @@ def _handle_create_kernel(
         def launch_kernel_with_cleanup() -> None:
             try:
                 runtime.launch_kernel(
-                    control_queue=qm.control_queue,
-                    set_ui_element_queue=qm.set_ui_element_queue,
-                    completion_queue=qm.completion_queue,
-                    input_queue=qm.input_queue,
-                    stream_queue=qm.stream_queue,
+                    control_queue=queues.control,
+                    set_ui_element_queue=queues.ui_element,
+                    completion_queue=queues.completion,
+                    input_queue=queues.input,
+                    stream_queue=stream_queue,
                     socket_addr=None,
                     is_edit_mode=False,
                     configs=cmd.configs,
@@ -118,9 +266,8 @@ def _handle_create_kernel(
                     user_config=cmd.user_config,
                     virtual_files_supported=cmd.virtual_files_supported,
                     redirect_console_to_browser=cmd.redirect_console_to_browser,
-                    interrupt_queue=qm.win32_interrupt_queue,
+                    interrupt_queue=None,
                     log_level=cmd.log_level,
-                    # Not IPC — this is a thread within an app process
                     is_ipc=False,
                 )
             except Exception:
@@ -134,11 +281,12 @@ def _handle_create_kernel(
         )
         thread.start()
 
-        kernels[cmd.session_id] = _KernelInfo(
-            thread=thread,
-            queue_manager=qm,
-            session_id=cmd.session_id,
-        )
+        with kernel_lock:
+            kernels[cmd.session_id] = _KernelInfo(
+                thread=thread,
+                queues=queues,
+                session_id=cmd.session_id,
+            )
 
         response_socket.send(
             encode_response(
@@ -163,8 +311,10 @@ def _handle_create_kernel(
 def app_process_main(args: AppProcessArgs) -> None:
     """App process main loop.
 
-    Connects to the management ZMQ sockets and processes commands
-    to create/stop kernel threads.
+    Connects to the management ZMQ sockets and data channels, then processes
+    management commands to create/stop kernel threads. Kernel commands and
+    stream output flow through multiplexed data channels, not per-kernel
+    ZMQ connections.
     """
     import zmq
 
@@ -181,13 +331,41 @@ def app_process_main(args: AppProcessArgs) -> None:
     register_formatters()
 
     context = zmq.Context()
+
+    # Management channel (commands from main process)
     mgmt_socket = context.socket(zmq.PULL)
-    mgmt_socket.connect(f"tcp://127.0.0.1:{args.mgmt_port}")
+    mgmt_socket.connect(args.mgmt_addr)
 
     response_socket = context.socket(zmq.PUSH)
-    response_socket.connect(f"tcp://127.0.0.1:{args.response_port}")
+    response_socket.connect(args.response_addr)
+
+    # Multiplexed data channels
+    cmd_socket = context.socket(zmq.PULL)
+    cmd_socket.connect(args.cmd_addr)
+
+    stream_socket = context.socket(zmq.PUSH)
+    stream_socket.connect(args.stream_addr)
 
     kernels: dict[str, _KernelInfo] = {}
+    kernel_lock = threading.Lock()
+    stream_outbox: queue.Queue[typing.Any] = queue.Queue()
+
+    # Start multiplexed data channel threads
+    dispatcher_thread = threading.Thread(
+        target=_cmd_dispatcher_loop,
+        args=(cmd_socket, kernels, kernel_lock),
+        daemon=True,
+    )
+    dispatcher_thread.start()
+
+    collector_thread = threading.Thread(
+        target=_stream_collector_loop,
+        args=(stream_outbox, stream_socket),
+        daemon=True,
+    )
+    collector_thread.start()
+
+    # Management command loop
     poller = zmq.Poller()
     poller.register(mgmt_socket, zmq.POLLIN)
 
@@ -200,12 +378,15 @@ def app_process_main(args: AppProcessArgs) -> None:
         cmd = decode_command(data)
 
         if isinstance(cmd, CreateKernelCmd):
-            _handle_create_kernel(cmd, kernels, response_socket)
+            _handle_create_kernel(
+                cmd, kernels, kernel_lock, stream_outbox, response_socket
+            )
         elif isinstance(cmd, StopKernelCmd):
-            _handle_stop_kernel(cmd, kernels, response_socket)
+            _handle_stop_kernel(cmd, kernels, kernel_lock, response_socket)
         elif isinstance(cmd, ShutdownAppProcessCmd):
             LOGGER.debug("App process shutting down for %s", args.file_path)
-            _shutdown_all_kernels(kernels)
+            _shutdown_all_kernels(kernels, kernel_lock)
+            stream_outbox.put(None)  # Stop collector thread
             break
         else:
             LOGGER.warning(
@@ -214,6 +395,8 @@ def app_process_main(args: AppProcessArgs) -> None:
 
     mgmt_socket.close(linger=0)
     response_socket.close(linger=0)
+    cmd_socket.close(linger=0)
+    stream_socket.close(linger=0)
     context.destroy(linger=0)
 
 

@@ -128,22 +128,21 @@ class SessionImpl(Session):
                 redirect_console_to_browser=redirect_console_to_browser,
             )
         elif app_process_pool is not None and mode == SessionMode.RUN:
-            from marimo._ipc import QueueManager as IPCQueueManager
-            from marimo._session.managers import IPCQueueManagerImpl
-            from marimo._session.managers.app_process import AppKernelManager
+            from marimo._session.managers.app_process import (
+                AppKernelManager,
+                MuxQueueManager,
+            )
 
-            ipc_queue_manager, connection_info = IPCQueueManager.create()
-            queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
             file_path = app_file_manager.path
             if file_path is None:
                 raise ValueError(
                     "App process isolation requires a file-backed notebook"
                 )
+            app_process = app_process_pool.get_or_create(file_path)
+            queue_manager = MuxQueueManager(app_process, initialization_id)
             kernel_manager = AppKernelManager(
-                app_process_pool=app_process_pool,
-                file_path=file_path,
+                app_process=app_process,
                 session_id=initialization_id,
-                connection_info=connection_info,
                 queue_manager=queue_manager,
                 mode=mode,
                 configs=configs,

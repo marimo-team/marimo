@@ -3,20 +3,24 @@
 
 AppProcess: wraps a subprocess.Popen for one notebook.
 AppProcessPool: manages app processes keyed by absolute file path.
+MuxQueueManager: multiplexed queue manager for app process kernels.
 AppKernelManager: implements KernelManager protocol for app-process-backed kernels.
 """
 
 from __future__ import annotations
 
 import os
+import pickle
+import queue
 import subprocess
 import sys
 import threading
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, TypeVar, Union
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
+from marimo._runtime import commands
 from marimo._runtime.commands import StopKernelCommand
 from marimo._session.managers.app_process_commands import (
     CreateKernelCmd,
@@ -28,37 +32,51 @@ from marimo._session.managers.app_process_commands import (
 )
 from marimo._session.managers.app_process_entry import AppProcessArgs
 from marimo._session.model import SessionMode
-from marimo._session.queue import ProcessLike
-from marimo._session.types import KernelManager
-from marimo._utils.typed_connection import TypedConnection
+from marimo._session.queue import ProcessLike, QueueType
+from marimo._session.types import (
+    KernelManager,
+    QueueManager as QueueManagerProto,
+)
 
 if TYPE_CHECKING:
     import zmq
 
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
-    from marimo._ipc.types import ConnectionInfo
     from marimo._runtime.commands import AppMetadata
-    from marimo._session.managers.ipc import IPCQueueManagerImpl
     from marimo._types.ids import CellId_t
+    from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
 _RESPONSE_TIMEOUT = 30_000  # milliseconds
-_READY_TIMEOUT = 30  # seconds
-_ADDR = "tcp://127.0.0.1"
+_BIND_ADDR = "tcp://127.0.0.1"
 
 
 class AppProcess:
-    """Wraps a subprocess.Popen for a single notebook file."""
+    """Wraps a subprocess.Popen for a single notebook file.
+
+    Manages four ZeroMQ channels to the subprocess:
+    - mgmt (PUSH): management commands (create/stop kernel, shutdown)
+    - response (PULL): management responses
+    - cmd (PUSH): multiplexed kernel commands (control, UI, completion, input)
+    - stream (PULL): multiplexed kernel output
+    """
 
     def __init__(self, file_path: str, python: str | None = None) -> None:
         self._file_path = file_path
         self._python = python or sys.executable
         self._process: subprocess.Popen[bytes] | None = None
+        self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
+        # Management channel
         self._mgmt_socket: zmq.Socket[bytes] | None = None
         self._response_socket: zmq.Socket[bytes] | None = None
-        self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
+        # Multiplexed data channels
+        self._cmd_socket: zmq.Socket[bytes] | None = None
+        self._stream_socket: zmq.Socket[bytes] | None = None
+        # Stream demux: session_id -> stream_queue
+        self._stream_receivers: dict[str, queue.Queue[KernelMessage]] = {}
+        self._stream_lock = threading.Lock()
 
     def start(self) -> None:
         import zmq
@@ -66,18 +84,29 @@ class AppProcess:
         context = zmq.Context()
         self._zmq_context = context
 
-        # Bind management sockets (main process side)
+        # Management sockets
         mgmt_socket = context.socket(zmq.PUSH)
-        mgmt_port = mgmt_socket.bind_to_random_port(_ADDR)
+        mgmt_port = mgmt_socket.bind_to_random_port(_BIND_ADDR)
         self._mgmt_socket = mgmt_socket
 
         response_socket = context.socket(zmq.PULL)
-        response_port = response_socket.bind_to_random_port(_ADDR)
+        response_port = response_socket.bind_to_random_port(_BIND_ADDR)
         self._response_socket = response_socket
 
+        # Multiplexed data sockets
+        cmd_socket = context.socket(zmq.PUSH)
+        cmd_port = cmd_socket.bind_to_random_port(_BIND_ADDR)
+        self._cmd_socket = cmd_socket
+
+        stream_socket = context.socket(zmq.PULL)
+        stream_port = stream_socket.bind_to_random_port(_BIND_ADDR)
+        self._stream_socket = stream_socket
+
         args = AppProcessArgs(
-            mgmt_port=mgmt_port,
-            response_port=response_port,
+            mgmt_addr=f"{_BIND_ADDR}:{mgmt_port}",
+            response_addr=f"{_BIND_ADDR}:{response_port}",
+            cmd_addr=f"{_BIND_ADDR}:{cmd_port}",
+            stream_addr=f"{_BIND_ADDR}:{stream_port}",
             file_path=self._file_path,
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
         )
@@ -116,16 +145,66 @@ class AppProcess:
                 f"Stderr:\n{stderr}"
             )
 
+        # Start stream receiver thread
+        stream_thread = threading.Thread(
+            target=self._stream_receiver_loop, daemon=True
+        )
+        stream_thread.start()
+
         LOGGER.debug(
             "App process started for %s (pid=%s)",
             self._file_path,
             self._process.pid,
         )
 
+    def _stream_receiver_loop(self) -> None:
+        """Read stream messages from app process and route to sessions."""
+        import zmq
+
+        while True:
+            try:
+                if self._stream_socket is None:
+                    break
+                frames = self._stream_socket.recv_multipart()
+                session_id = frames[0].decode()
+                payload = pickle.loads(frames[1])
+                with self._stream_lock:
+                    q = self._stream_receivers.get(session_id)
+                if q is not None:
+                    q.put(payload)
+            except zmq.ZMQError:
+                break
+            except Exception:
+                LOGGER.exception("Error in stream receiver")
+
+    def send_command(
+        self, session_id: str, channel: str, payload: object
+    ) -> None:
+        """Send a command to a kernel in the app process."""
+        if self._cmd_socket is not None:
+            self._cmd_socket.send_multipart(
+                [
+                    session_id.encode(),
+                    channel.encode(),
+                    pickle.dumps(payload),
+                ]
+            )
+
+    def register_stream(
+        self, session_id: str, q: queue.Queue[KernelMessage]
+    ) -> None:
+        """Register a stream queue to receive output for a session."""
+        with self._stream_lock:
+            self._stream_receivers[session_id] = q
+
+    def unregister_stream(self, session_id: str) -> None:
+        """Unregister a session's stream queue."""
+        with self._stream_lock:
+            self._stream_receivers.pop(session_id, None)
+
     def create_kernel(
         self,
         session_id: str,
-        connection_info: ConnectionInfo,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config: object,
@@ -138,7 +217,6 @@ class AppProcess:
 
         cmd = CreateKernelCmd(
             session_id=session_id,
-            connection_info=connection_info,
             configs=configs,
             app_metadata=app_metadata,
             user_config=user_config,  # type: ignore[arg-type]
@@ -196,6 +274,10 @@ class AppProcess:
             self._mgmt_socket.close(linger=0)
         if self._response_socket is not None:
             self._response_socket.close(linger=0)
+        if self._cmd_socket is not None:
+            self._cmd_socket.close(linger=0)
+        if self._stream_socket is not None:
+            self._stream_socket.close(linger=0)
         if self._zmq_context is not None:
             self._zmq_context.destroy(linger=0)
 
@@ -238,6 +320,101 @@ class AppProcessPool:
             self._workers.clear()
 
 
+_T = TypeVar("_T")
+
+
+class _MuxPushQueue(QueueType[_T]):
+    """Queue that sends commands over the multiplexed ZMQ channel.
+
+    Satisfies QueueType protocol for the main-process side. Only put()
+    is meaningful; get() raises NotImplementedError since this queue
+    is write-only from the main process perspective.
+    """
+
+    def __init__(
+        self, app_process: AppProcess, session_id: str, channel: str
+    ) -> None:
+        self._app_process = app_process
+        self._session_id = session_id
+        self._channel = channel
+
+    def put(
+        self,
+        item: _T,
+        /,
+        block: bool = True,
+        timeout: float | None = None,
+    ) -> None:
+        del block, timeout
+        self._app_process.send_command(self._session_id, self._channel, item)
+
+    def put_nowait(self, item: _T, /) -> None:
+        self.put(item)
+
+    def get(self, block: bool = True, timeout: float | None = None) -> _T:
+        raise NotImplementedError("MuxPushQueue is write-only")
+
+    def get_nowait(self) -> _T:
+        raise NotImplementedError("MuxPushQueue is write-only")
+
+    def empty(self) -> bool:
+        return True
+
+
+class MuxQueueManager(QueueManagerProto):
+    """QueueManager for multiplexed app process communication.
+
+    Commands are sent over a shared ZMQ channel (tagged with session_id
+    and channel type). Stream output arrives via a per-session queue
+    filled by the AppProcess stream receiver thread.
+    """
+
+    def __init__(self, app_process: AppProcess, session_id: str) -> None:
+        self._app_process = app_process
+        self._session_id = session_id
+
+        self.control_queue: QueueType[commands.CommandMessage] = _MuxPushQueue(
+            app_process, session_id, "control"
+        )
+        self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
+            _MuxPushQueue(app_process, session_id, "ui_element")
+        )
+        self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
+            _MuxPushQueue(app_process, session_id, "completion")
+        )
+        self.input_queue: QueueType[str] = _MuxPushQueue(
+            app_process, session_id, "input"
+        )
+        self.win32_interrupt_queue: None = None
+
+        self.stream_queue: queue.Queue[Union[KernelMessage, None]] = (
+            queue.Queue()
+        )
+        app_process.register_stream(session_id, self.stream_queue)  # type: ignore[arg-type]
+
+    def put_control_request(self, request: commands.CommandMessage) -> None:
+        # Completions are on their own queue
+        if isinstance(request, commands.CodeCompletionCommand):
+            self.completion_queue.put(request)
+            return
+
+        self.control_queue.put(request)
+        # UI element updates and model commands are on both queues
+        # so they can be batched
+        if isinstance(
+            request,
+            (commands.UpdateUIElementCommand, commands.ModelCommand),
+        ):
+            self.set_ui_element_queue.put(request)
+
+    def put_input(self, text: str) -> None:
+        self.input_queue.put(text)
+
+    def close_queues(self) -> None:
+        self._app_process.unregister_stream(self._session_id)
+        self.stream_queue.put(None)  # Signal QueueDistributor to stop
+
+
 class _AppProcessLike(ProcessLike):
     """Makes AppProcess satisfy ProcessLike for kernel_task."""
 
@@ -262,27 +439,24 @@ class AppKernelManager(KernelManager):
     """KernelManager backed by an app subprocess.
 
     The kernel runs as a thread inside the app process.
-    Communication happens via ZeroMQ channels.
+    Commands are sent over multiplexed ZMQ channels; no per-kernel
+    ZMQ connections are created.
     """
 
     def __init__(
         self,
         *,
-        app_process_pool: AppProcessPool,
-        file_path: str,
+        app_process: AppProcess,
         session_id: str,
-        connection_info: ConnectionInfo,
-        queue_manager: IPCQueueManagerImpl,
+        queue_manager: QueueManagerProto,
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         config_manager: MarimoConfigReader,
         redirect_console_to_browser: bool,
     ) -> None:
-        self._app_process_pool = app_process_pool
-        self._file_path = file_path
+        self._app_process = app_process
         self._session_id = session_id
-        self._connection_info = connection_info
         self.queue_manager = queue_manager
         self.mode = mode
         self._configs = configs
@@ -290,17 +464,11 @@ class AppKernelManager(KernelManager):
         self._config_manager = config_manager
         self._redirect_console_to_browser = redirect_console_to_browser
 
-        self._app_process: AppProcess | None = None
         self.kernel_task: Optional[Union[ProcessLike, threading.Thread]] = None
 
     def start_kernel(self) -> None:
-        self._app_process = self._app_process_pool.get_or_create(
-            self._file_path
-        )
-
         response = self._app_process.create_kernel(
             session_id=self._session_id,
-            connection_info=self._connection_info,
             configs=self._configs,
             app_metadata=self._app_metadata,
             user_config=self._config_manager.get_config(hide_secrets=False),
@@ -336,8 +504,7 @@ class AppKernelManager(KernelManager):
     def close_kernel(self) -> None:
         self.queue_manager.put_control_request(StopKernelCommand())
         self.queue_manager.close_queues()
-        if self._app_process is not None:
-            self._app_process.stop_kernel(self._session_id)
+        self._app_process.stop_kernel(self._session_id)
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

@@ -9,7 +9,6 @@ class TestAppProcessCommands:
     def test_commands_roundtrip_json(self) -> None:
         """All commands must survive JSON encode/decode."""
         from marimo._config.config import DEFAULT_CONFIG
-        from marimo._ipc.types import ConnectionInfo
         from marimo._runtime.commands import AppMetadata
         from marimo._session.managers.app_process_commands import (
             CreateKernelCmd,
@@ -23,14 +22,6 @@ class TestAppProcessCommands:
             encode_response,
         )
 
-        conn_info = ConnectionInfo(
-            control=1,
-            ui_element=2,
-            completion=3,
-            win32_interrupt=None,
-            input=5,
-            stream=6,
-        )
         app_metadata = AppMetadata(
             query_params={},
             cli_args={},
@@ -42,7 +33,6 @@ class TestAppProcessCommands:
         commands = [
             CreateKernelCmd(
                 session_id="s1",
-                connection_info=conn_info,
                 configs={},
                 app_metadata=app_metadata,
                 user_config=user_config,
@@ -133,6 +123,31 @@ class TestAppProcess:
 
 
 @pytest.mark.requires("zmq")
+class TestMuxQueueManager:
+    def test_stream_queue_is_regular_queue(self) -> None:
+        """MuxQueueManager's stream_queue is a regular queue.Queue."""
+        import queue
+
+        from marimo._session.managers.app_process import (
+            AppProcessPool,
+            MuxQueueManager,
+        )
+
+        pool = AppProcessPool()
+        try:
+            app_proc = pool.get_or_create("/tmp/test_app.py")
+            qm = MuxQueueManager(app_proc, "s1")
+            assert isinstance(qm.stream_queue, queue.Queue)
+            assert qm.win32_interrupt_queue is None
+
+            # close_queues puts None sentinel for QueueDistributor
+            qm.close_queues()
+            assert qm.stream_queue.get_nowait() is None
+        finally:
+            pool.shutdown()
+
+
+@pytest.mark.requires("zmq")
 class TestAppKernelManager:
     def test_satisfies_kernel_manager_protocol(self) -> None:
         """AppKernelManager has all required KernelManager attributes."""
@@ -141,17 +156,18 @@ class TestAppKernelManager:
         from marimo._session.managers.app_process import (
             AppKernelManager,
             AppProcessPool,
+            MuxQueueManager,
         )
         from marimo._session.model import SessionMode
 
         pool = AppProcessPool()
         try:
+            app_proc = pool.get_or_create("/tmp/test.py")
+            qm = MuxQueueManager(app_proc, "s1")
             mgr = AppKernelManager(
-                app_process_pool=pool,
-                file_path="/tmp/test.py",
+                app_process=app_proc,
                 session_id="s1",
-                connection_info=MagicMock(),
-                queue_manager=MagicMock(),
+                queue_manager=qm,
                 mode=SessionMode.RUN,
                 configs={},
                 app_metadata=MagicMock(),
@@ -162,9 +178,9 @@ class TestAppKernelManager:
             # Check protocol attributes exist
             assert mgr.kernel_task is None
             assert mgr.mode == SessionMode.RUN
-            assert mgr.pid is None
+            assert mgr.pid is not None  # app process is running
             assert mgr.profile_path is None
-            assert not mgr.is_alive()
+            assert mgr.is_alive()  # app process is alive
 
             # interrupt_kernel is a no-op
             mgr.interrupt_kernel()
