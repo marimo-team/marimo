@@ -6,6 +6,48 @@ hosted on GitHub.
 - [Share molab links](../molab.md#preview-notebooks-from-github) to obtain interactive previews of notebooks hosted on GitHub, no login required
 - Publish notebooks to [GitHub Pages](#publish-to-github-pages)
 
+## Share previews of notebooks hosted on GitHub
+
+You can share previews of any marimo notebook hosted on GitHub using
+[molab](../molab.md); these previews are publicly viewable, no login required.
+Simply replace `github.com` in your notebook's GitHub URL with
+`molab.marimo.io/github` to create a shareable preview link. For example:
+
+```
+https://github.com/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
+```
+
+becomes
+
+```
+https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py
+```
+
+Previews are **static** by default. To make them **interactive**, append
+`/wasm` to the URL (the notebook must be [WebAssembly-compatible](../wasm.md)).
+
+To include outputs in static previews, commit the notebook's session JSON file (in the `__marimo__/session/` directory alongside the notebook). Generate it with:
+
+```bash
+marimo export session notebook.py
+```
+
+You can also share links using our open-in-molab badge. For example:
+
+```markdown
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm)
+```
+
+becomes
+
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm)
+
+
+Visit [molab.marimo.io/github](https://molab.marimo.io/github) to automatically
+generate preview URLs and badges from GitHub links.
+
+For full details on previewing, embedding, and sharing, see the [molab guide](../molab.md#preview-notebooks-from-github).
+
 ## Export to ipynb to view on GitHub
 
 marimo notebooks are stored as pure Python files, which works well with Git
@@ -25,8 +67,6 @@ right corner:
   <source srcset="/_static/docs-notebook-settings-snapshotting.webp" type="image/webp">
   <img src="/_static/docs-notebook-settings-snapshotting.jpg" alt="Notebook settings dialog showing the Exporting outputs section with HTML and ipynb checkboxes" style="max-width: 700px; width: 100%;" />
 </picture>
-
-This feature requires `nbformat`. marimo will prompt to install it if missing, or you can add it to your environment with `pip install nbformat`.
 
 ## Publish to GitHub Pages
 
