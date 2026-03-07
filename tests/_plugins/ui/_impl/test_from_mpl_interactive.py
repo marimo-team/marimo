@@ -1,0 +1,334 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+
+@pytest.mark.requires("matplotlib")
+class TestSyncWebSocket:
+    """Test the _SyncWebSocket adapter that bridges FigureManager to MarimoComm."""
+
+    def _make_ws(self) -> tuple[Any, MagicMock]:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _SyncWebSocket,
+        )
+
+        mock_comm = MagicMock()
+        ws = _SyncWebSocket(mock_comm)
+        return ws, mock_comm
+
+    def test_send_json(self) -> None:
+        ws, mock_comm = self._make_ws()
+        ws.send_json({"type": "figure_size", "width": 640})
+        mock_comm.send.assert_called_once_with(
+            data={
+                "method": "custom",
+                "content": {
+                    "type": "json",
+                    "data": {"type": "figure_size", "width": 640},
+                },
+            },
+        )
+
+    def test_send_binary(self) -> None:
+        ws, mock_comm = self._make_ws()
+        blob = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+        ws.send_binary(blob)
+        mock_comm.send.assert_called_once_with(
+            data={
+                "method": "custom",
+                "content": {"type": "binary"},
+            },
+            buffers=[blob],
+        )
+
+
+@pytest.mark.requires("matplotlib")
+class TestHandleCommMsg:
+    """Test message parsing in mpl_interactive._handle_comm_msg.
+
+    The comm payload from ModelCommand.into_comm_payload() is nested:
+      {"content": {"data": {"method": "custom", "content": <mpl_event>}}}
+    """
+
+    def _make_element(self) -> Any:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+        return element, fig
+
+    def _wrap_event(self, event: dict[str, Any]) -> dict[str, Any]:
+        """Wrap an mpl event in the ModelCommand payload structure."""
+        return {
+            "content": {
+                "data": {
+                    "method": "custom",
+                    "content": event,
+                },
+            },
+        }
+
+    def test_supports_binary_ignored(self) -> None:
+        element, fig = self._make_element()
+        # Should not raise
+        element._handle_comm_msg(
+            self._wrap_event({"type": "supports_binary", "value": True})
+        )
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_mouse_event_forwarded(self) -> None:
+        element, fig = self._make_element()
+        event = {
+            "type": "motion_notify",
+            "x": 100,
+            "y": 200,
+            "figure_id": str(id(fig)),
+        }
+        with patch.object(
+            element._figure_manager, "handle_json"
+        ) as mock_handle:
+            element._handle_comm_msg(self._wrap_event(event))
+            mock_handle.assert_called_once_with(event)
+
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_download_request(self) -> None:
+        element, fig = self._make_element()
+        with patch.object(element, "_handle_download") as mock_dl:
+            element._handle_comm_msg(
+                self._wrap_event({"type": "download", "format": "svg"})
+            )
+            mock_dl.assert_called_once_with("svg")
+
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_download_default_format(self) -> None:
+        element, fig = self._make_element()
+        with patch.object(element, "_handle_download") as mock_dl:
+            element._handle_comm_msg(self._wrap_event({"type": "download"}))
+            mock_dl.assert_called_once_with("png")
+
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_empty_message_does_not_crash(self) -> None:
+        element, fig = self._make_element()
+        # Empty message — no "type" key, should still call handle_json
+        with patch.object(
+            element._figure_manager, "handle_json"
+        ) as mock_handle:
+            element._handle_comm_msg({"content": {"data": {}}})
+            mock_handle.assert_called_once_with({})
+
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
+class TestHandleDownload:
+    """Test that _handle_download renders the figure and sends it via comm."""
+
+    def test_download_produces_valid_png(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+
+        sent_data: list[dict[str, Any]] = []
+        sent_buffers: list[list[Any]] = []
+
+        def capture_send(data: Any, buffers: Any = None) -> None:
+            sent_data.append(data)
+            sent_buffers.append(buffers or [])
+
+        element._comm.send = capture_send  # type: ignore[assignment]
+
+        element._handle_download("png")
+
+        assert len(sent_data) == 1
+        assert sent_data[0]["content"]["type"] == "download"
+        assert sent_data[0]["content"]["format"] == "png"
+        assert len(sent_buffers[0]) == 1
+        # Verify it's valid PNG
+        assert sent_buffers[0][0][:4] == b"\x89PNG"
+
+        plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
+class TestMplCleanupHandle:
+    """Test that _MplCleanupHandle properly closes the comm."""
+
+    def test_dispose_closes_comm(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _MplCleanupHandle,
+        )
+
+        mock_comm = MagicMock()
+        handle = _MplCleanupHandle(mock_comm)
+        result = handle.dispose(context=MagicMock(), deletion=False)
+
+        assert result is True
+        mock_comm.close.assert_called_once()
+
+    def test_dispose_on_deletion(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _MplCleanupHandle,
+        )
+
+        mock_comm = MagicMock()
+        handle = _MplCleanupHandle(mock_comm)
+        result = handle.dispose(context=MagicMock(), deletion=True)
+
+        assert result is True
+        mock_comm.close.assert_called_once()
+
+
+@pytest.mark.requires("matplotlib")
+class TestMplInteractiveArgs:
+    """Test that mpl_interactive passes correct args to the UIElement."""
+
+    def test_initial_dimensions(self) -> None:
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot([1, 2, 3])
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+
+        dpi = matplotlib.rcParams["figure.dpi"]
+        expected_w = int(8 * dpi)
+        expected_h = int(6 * dpi)
+        # Args are rendered as data-* attributes in HTML
+        assert f"data-width='{expected_w}'" in element.text
+        assert f"data-height='{expected_h}'" in element.text
+
+        plt.close(fig)
+
+    def test_virtual_file_urls_in_args(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+
+        # Args should contain URL references, not inline content
+        assert "mpl-js-url" in element.text
+        assert "css-url" in element.text
+        assert "toolbar-images" in element.text
+        # URLs should be virtual file paths or data URIs
+        text = element.text
+        assert ".js" in text or "data:" in text
+        assert ".css" in text or "data:" in text
+
+        plt.close(fig)
+
+    def test_component_name(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+
+        assert "marimo-mpl-interactive" in element.text
+        plt.close(fig)
+
+    def test_convert_value_returns_empty_dict(self) -> None:
+        import matplotlib.pyplot as plt
+
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            mpl_interactive,
+        )
+
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+
+        with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+            element = mpl_interactive(fig)
+
+        assert element._convert_value({"model_id": "abc"}) == {}
+        plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
+class TestCachedAssets:
+    """Test that static assets are cached across instances."""
+
+    def test_toolbar_images_cached(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _get_toolbar_images,
+        )
+
+        # Clear the cache to test from scratch
+        _get_toolbar_images.cache_clear()
+
+        images1 = _get_toolbar_images()
+        images2 = _get_toolbar_images()
+        assert images1 is images2
+        assert len(images1) > 0
+        # All values should be data URIs
+        for key, val in images1.items():
+            assert val.startswith("data:image/png;base64,"), key
+
+    def test_mpl_css_content(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _get_mpl_css,
+        )
+
+        css = _get_mpl_css()
+        assert isinstance(css, str)
+        assert len(css) > 0
+        # Should contain our custom overrides
+        assert "mpl-toolbar" in css
+
+    def test_patched_js_has_focus_patches(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _get_patched_mpl_js,
+        )
+
+        js = _get_patched_mpl_js()
+        assert "// canvas.focus();" in js
+        assert "// canvas_div.focus();" in js
