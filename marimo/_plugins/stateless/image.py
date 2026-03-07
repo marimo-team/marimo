@@ -21,7 +21,13 @@ Tensor = Any
 ImageLike = Union[Image, Tensor]
 
 
-def _normalize_image(src: ImageLike) -> Image:
+def _normalize_image(
+    src: ImageLike,
+    *,
+    normalize: bool = True,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
+) -> Image:
     """Normalize an image-like object to a standard format.
 
     This function handles a variety of input types, including lists, arrays,
@@ -39,6 +45,9 @@ def _normalize_image(src: ImageLike) -> Image:
     Args:
         src: An image-like object. This can be a list, array, tensor, or a
             file-like object.
+        normalize: Whether to normalize array-like inputs to the 0-255 range.
+        vmin: Lower bound used for normalization when ``normalize=True``.
+        vmax: Upper bound used for normalization when ``normalize=True``.
 
     Returns:
         A BytesIO object or other Image type.
@@ -68,8 +77,25 @@ def _normalize_image(src: ImageLike) -> Image:
             if hasattr(src, "toarray"):
                 src = src.toarray()
             src = numpy.array(src)
-        src = (src - src.min()) / (src.max() - src.min()) * 255.0
-        img = _Image.fromarray(src.astype("uint8"))
+
+        import numpy as np
+
+        src_array = np.asarray(src, dtype=float)
+
+        if not normalize and (vmin is not None or vmax is not None):
+            raise ValueError("vmin/vmax can only be used when normalize=True")
+
+        if normalize:
+            lower = src_array.min() if vmin is None else float(vmin)
+            upper = src_array.max() if vmax is None else float(vmax)
+            if upper < lower:
+                raise ValueError("vmax must be greater than or equal to vmin")
+            if upper > lower:
+                src_array = (src_array - lower) / (upper - lower) * 255.0
+
+        src_array = np.clip(src_array, 0, 255)
+
+        img = _Image.fromarray(src_array.astype("uint8"))
         # io.BytesIO is one of the Image types.
         normalized_src: Image = io.BytesIO()
         img.save(normalized_src, format="PNG")
@@ -102,6 +128,9 @@ def image(
     rounded: bool = False,
     style: Optional[dict[str, Any]] = None,
     caption: Optional[str] = None,
+    normalize: bool = True,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
 ) -> Html:
     """Render an image as HTML.
 
@@ -132,13 +161,16 @@ def image(
         rounded: whether to round the corners of the image
         style: a dictionary of CSS styles to apply to the image
         caption: the caption of the image
+        normalize: whether to normalize array-like inputs to the 0-255 range
+        vmin: lower bound used when normalizing array-like inputs
+        vmax: upper bound used when normalizing array-like inputs
 
     Returns:
         `Html` object
     """
     # Convert to virtual file
     resolved_src: Optional[str]
-    src = _normalize_image(src)
+    src = _normalize_image(src, normalize=normalize, vmin=vmin, vmax=vmax)
     # TODO: Consider downsampling here. This is something matplotlib does
     # implicitly, and can potentially remove the bottle-neck of very large
     # images.

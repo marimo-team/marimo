@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.image import _normalize_image, image
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -175,6 +175,59 @@ async def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
             ]
         )
         assert len(get_context().virtual_file_registry.registry) == 1
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_normalize_image_constant_array_preserves_values() -> None:
+    import numpy as np
+    from PIL import Image as PILImage
+
+    normalized = _normalize_image(np.full((4, 4), 50, dtype=np.uint8))
+    assert isinstance(normalized, io.BytesIO)
+
+    normalized.seek(0)
+    pixel_values = np.asarray(PILImage.open(normalized))
+    assert pixel_values.min() == 50
+    assert pixel_values.max() == 50
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_normalize_image_can_be_disabled() -> None:
+    import numpy as np
+    from PIL import Image as PILImage
+
+    normalized = _normalize_image(
+        np.array([[10.0, 20.0], [30.0, 40.0]]),
+        normalize=False,
+    )
+    normalized.seek(0)
+
+    pixel_values = np.asarray(PILImage.open(normalized))
+    assert pixel_values.tolist() == [[10, 20], [30, 40]]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_normalize_image_with_vmin_vmax() -> None:
+    import numpy as np
+    from PIL import Image as PILImage
+
+    normalized = _normalize_image(
+        np.array([[50.0, 200.0]]),
+        vmin=0,
+        vmax=255,
+    )
+    normalized.seek(0)
+
+    pixel_values = np.asarray(PILImage.open(normalized))
+    assert pixel_values.tolist() == [[50, 200]]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_normalize_image_rejects_vmin_vmax_without_normalization() -> None:
+    import numpy as np
+
+    with pytest.raises(ValueError, match="normalize=True"):
+        _normalize_image(np.array([[1.0, 2.0]]), normalize=False, vmin=0)
 
 
 def test_image_constructor(tmp_path: Path):
