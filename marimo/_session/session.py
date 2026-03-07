@@ -130,7 +130,7 @@ class SessionImpl(Session):
         elif app_process_pool is not None and mode == SessionMode.RUN:
             from marimo._session.managers.app_process import (
                 AppKernelManager,
-                MuxQueueManager,
+                AppProcessQueueManager,
             )
 
             file_path = app_file_manager.path
@@ -139,7 +139,9 @@ class SessionImpl(Session):
                     "App process isolation requires a file-backed notebook"
                 )
             app_process = app_process_pool.get_or_create(file_path)
-            queue_manager = MuxQueueManager(app_process, initialization_id)
+            queue_manager = AppProcessQueueManager(
+                app_process, initialization_id
+            )
             kernel_manager = AppKernelManager(
                 app_process=app_process,
                 session_id=initialization_id,

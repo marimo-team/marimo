@@ -123,20 +123,20 @@ class TestAppProcess:
 
 
 @pytest.mark.requires("zmq")
-class TestMuxQueueManager:
+class TestAppProcessQueueManager:
     def test_stream_queue_is_regular_queue(self) -> None:
-        """MuxQueueManager's stream_queue is a regular queue.Queue."""
+        """AppProcessQueueManager's stream_queue is a regular queue.Queue."""
         import queue
 
         from marimo._session.managers.app_process import (
             AppProcessPool,
-            MuxQueueManager,
+            AppProcessQueueManager,
         )
 
         pool = AppProcessPool()
         try:
             app_proc = pool.get_or_create("/tmp/test_app.py")
-            qm = MuxQueueManager(app_proc, "s1")
+            qm = AppProcessQueueManager(app_proc, "s1")
             assert isinstance(qm.stream_queue, queue.Queue)
             assert qm.win32_interrupt_queue is None
 
@@ -156,14 +156,14 @@ class TestAppKernelManager:
         from marimo._session.managers.app_process import (
             AppKernelManager,
             AppProcessPool,
-            MuxQueueManager,
+            AppProcessQueueManager,
         )
         from marimo._session.model import SessionMode
 
         pool = AppProcessPool()
         try:
             app_proc = pool.get_or_create("/tmp/test.py")
-            qm = MuxQueueManager(app_proc, "s1")
+            qm = AppProcessQueueManager(app_proc, "s1")
             mgr = AppKernelManager(
                 app_process=app_proc,
                 session_id="s1",

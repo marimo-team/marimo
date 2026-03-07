@@ -3,7 +3,7 @@
 
 AppProcess: wraps a subprocess.Popen for one notebook.
 AppProcessPool: manages app processes keyed by absolute file path.
-MuxQueueManager: multiplexed queue manager for app process kernels.
+AppProcessQueueManager: queue manager for app process kernels.
 AppKernelManager: implements KernelManager protocol for app-process-backed kernels.
 """
 
@@ -323,7 +323,7 @@ class AppProcessPool:
 _T = TypeVar("_T")
 
 
-class _MuxPushQueue(QueueType[_T]):
+class _AppProcessPushQueue(QueueType[_T]):
     """Queue that sends commands over the multiplexed ZMQ channel.
 
     Satisfies QueueType protocol for the main-process side. Only put()
@@ -352,16 +352,16 @@ class _MuxPushQueue(QueueType[_T]):
         self.put(item)
 
     def get(self, block: bool = True, timeout: float | None = None) -> _T:
-        raise NotImplementedError("MuxPushQueue is write-only")
+        raise NotImplementedError("AppProcessPushQueue is write-only")
 
     def get_nowait(self) -> _T:
-        raise NotImplementedError("MuxPushQueue is write-only")
+        raise NotImplementedError("AppProcessPushQueue is write-only")
 
     def empty(self) -> bool:
         return True
 
 
-class MuxQueueManager(QueueManagerProto):
+class AppProcessQueueManager(QueueManagerProto):
     """QueueManager for multiplexed app process communication.
 
     Commands are sent over a shared ZMQ channel (tagged with session_id
@@ -373,16 +373,16 @@ class MuxQueueManager(QueueManagerProto):
         self._app_process = app_process
         self._session_id = session_id
 
-        self.control_queue: QueueType[commands.CommandMessage] = _MuxPushQueue(
-            app_process, session_id, "control"
+        self.control_queue: QueueType[commands.CommandMessage] = (
+            _AppProcessPushQueue(app_process, session_id, "control")
         )
         self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
-            _MuxPushQueue(app_process, session_id, "ui_element")
+            _AppProcessPushQueue(app_process, session_id, "ui_element")
         )
         self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
-            _MuxPushQueue(app_process, session_id, "completion")
+            _AppProcessPushQueue(app_process, session_id, "completion")
         )
-        self.input_queue: QueueType[str] = _MuxPushQueue(
+        self.input_queue: QueueType[str] = _AppProcessPushQueue(
             app_process, session_id, "input"
         )
         self.win32_interrupt_queue: None = None
