@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Worker subprocess entry point for per-app process isolation.
+"""App process entry point for per-app process isolation.
 
-This module is the target for multiprocessing.Process. Each worker
+This module is the target for multiprocessing.Process. Each app process
 manages kernel threads for a single notebook file, providing OS-level
 isolation of sys.modules between different apps.
 """
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from multiprocessing import Queue as MPQueue
 
     from marimo._ipc.queue_manager import QueueManager
-    from marimo._session.managers.worker_commands import (
+    from marimo._session.managers.app_process_commands import (
         CreateKernelCmd,
     )
 
@@ -33,13 +33,13 @@ class _KernelInfo:
     session_id: str
 
 
-def worker_main(
+def app_process_main(
     mgmt_queue: MPQueue[object],
     response_queue: MPQueue[object],
     file_path: str,
     log_level: int,
 ) -> None:
-    """Worker subprocess main loop.
+    """App process main loop.
 
     Listens on mgmt_queue for management commands and spawns/stops
     kernel threads as requested. Each kernel thread communicates with
@@ -48,28 +48,28 @@ def worker_main(
     Args:
         mgmt_queue: Receives commands from the main process.
         response_queue: Sends responses back to the main process.
-        file_path: The notebook file this worker serves.
-        log_level: Log level for the worker process.
+        file_path: The notebook file this app process serves.
+        log_level: Log level for the app process.
     """
     import signal
 
-    # Ignore SIGINT in worker processes — the main process handles Ctrl-C
-    # and sends ShutdownWorkerCmd via mgmt_queue for graceful teardown.
+    # Ignore SIGINT in app processes — the main process handles Ctrl-C
+    # and sends ShutdownAppProcessCmd via mgmt_queue for graceful teardown.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     _loggers.set_level(log_level)
-    LOGGER.debug("Worker started for %s (pid=%d)", file_path, _getpid())
+    LOGGER.debug("App process started for %s (pid=%d)", file_path, _getpid())
 
     from marimo._output.formatters.formatters import register_formatters
-    from marimo._session.managers.worker_commands import (
+    from marimo._session.managers.app_process_commands import (
         CreateKernelCmd,
         KernelCreatedResponse,
         KernelStoppedResponse,
-        ShutdownWorkerCmd,
+        ShutdownAppProcessCmd,
         StopKernelCmd,
     )
 
-    # Register formatters once, shared by all kernel threads in this worker.
+    # Register formatters once, shared by all kernel threads in this app process.
     register_formatters()
 
     kernels: dict[str, _KernelInfo] = {}
@@ -84,12 +84,12 @@ def worker_main(
             _handle_create_kernel(cmd, kernels, response_queue)
         elif isinstance(cmd, StopKernelCmd):
             _handle_stop_kernel(cmd, kernels, response_queue)
-        elif isinstance(cmd, ShutdownWorkerCmd):
-            LOGGER.debug("Worker shutting down for %s", file_path)
+        elif isinstance(cmd, ShutdownAppProcessCmd):
+            LOGGER.debug("App process shutting down for %s", file_path)
             _shutdown_all_kernels(kernels)
             break
         else:
-            LOGGER.warning("Worker received unknown command: %s", type(cmd))
+            LOGGER.warning("App process received unknown command: %s", type(cmd))
 
 
 def _handle_create_kernel(
@@ -100,7 +100,7 @@ def _handle_create_kernel(
     from marimo._ipc.queue_manager import QueueManager
     from marimo._runtime import runtime
     from marimo._runtime.commands import StopKernelCommand
-    from marimo._session.managers.worker_commands import (
+    from marimo._session.managers.app_process_commands import (
         KernelCreatedResponse,
     )
 
@@ -133,7 +133,7 @@ def _handle_create_kernel(
                     redirect_console_to_browser=cmd.redirect_console_to_browser,
                     interrupt_queue=qm.win32_interrupt_queue,
                     log_level=cmd.log_level,
-                    # Not IPC — this is a thread within a worker process
+                    # Not IPC — this is a thread within an app process
                     is_ipc=False,
                 )
             except Exception:
@@ -175,7 +175,7 @@ def _handle_stop_kernel(
     response_queue: MPQueue[object],
 ) -> None:
     from marimo._runtime.commands import StopKernelCommand
-    from marimo._session.managers.worker_commands import (
+    from marimo._session.managers.app_process_commands import (
         KernelStoppedResponse,
         StopKernelCmd,
     )

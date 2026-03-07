@@ -98,12 +98,12 @@ class SessionManager:
         self._config_manager = config_manager
         self.sandbox_mode = sandbox_mode
 
-        # Create worker pool for multi-app process isolation
-        from marimo._session.managers.worker import WorkerProcessPool
+        # Create app process pool for multi-app process isolation
+        from marimo._session.managers.app_process import AppProcessPool
 
-        self._worker_pool: WorkerProcessPool | None = None
+        self._app_process_pool: AppProcessPool | None = None
         if process_isolation and mode == SessionMode.RUN:
-            self._worker_pool = WorkerProcessPool()
+            self._app_process_pool = AppProcessPool()
 
         self._repository = SessionRepository()
 
@@ -226,7 +226,7 @@ class SessionManager:
             auto_instantiate=auto_instantiate,
             extensions=extensions,
             sandbox_mode=self.sandbox_mode,
-            worker_pool=self._worker_pool,
+            app_process_pool=self._app_process_pool,
         )
 
         # Add to repository
@@ -398,8 +398,8 @@ class SessionManager:
         """Shutdown the session manager and stop all file watchers."""
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
-        if self._worker_pool is not None:
-            self._worker_pool.shutdown()
+        if self._app_process_pool is not None:
+            self._app_process_pool.shutdown()
         self.lsp_server.stop()
         self._watcher_manager.stop_all()
 

@@ -7,15 +7,15 @@ import pytest
 
 
 @pytest.mark.requires("zmq")
-class TestWorkerCommands:
+class TestAppProcessCommands:
     def test_commands_are_picklable(self) -> None:
         """All commands must be picklable for multiprocessing.Queue."""
         from marimo._ipc.types import ConnectionInfo
-        from marimo._session.managers.worker_commands import (
+        from marimo._session.managers.app_process_commands import (
             CreateKernelCmd,
             KernelCreatedResponse,
             KernelStoppedResponse,
-            ShutdownWorkerCmd,
+            ShutdownAppProcessCmd,
             StopKernelCmd,
         )
 
@@ -40,7 +40,7 @@ class TestWorkerCommands:
                 log_level=10,
             ),
             StopKernelCmd(session_id="s1"),
-            ShutdownWorkerCmd(),
+            ShutdownAppProcessCmd(),
             KernelCreatedResponse(session_id="s1", success=True),
             KernelCreatedResponse(
                 session_id="s1", success=False, error="boom"
@@ -55,12 +55,12 @@ class TestWorkerCommands:
 
 
 @pytest.mark.requires("zmq")
-class TestWorkerProcessPool:
-    def test_create_and_reuse_worker(self, tmp_path: object) -> None:
-        """Pool creates one worker per file and reuses it."""
-        from marimo._session.managers.worker import WorkerProcessPool
+class TestAppProcessPool:
+    def test_create_and_reuse(self, tmp_path: object) -> None:
+        """Pool creates one process per file and reuses it."""
+        from marimo._session.managers.app_process import AppProcessPool
 
-        pool = WorkerProcessPool()
+        pool = AppProcessPool()
         try:
             w1 = pool.get_or_create("/tmp/test_app1.py")
             w2 = pool.get_or_create("/tmp/test_app1.py")
@@ -69,11 +69,11 @@ class TestWorkerProcessPool:
         finally:
             pool.shutdown()
 
-    def test_different_files_get_different_workers(self) -> None:
-        """Different files get different workers."""
-        from marimo._session.managers.worker import WorkerProcessPool
+    def test_different_files_get_different_processes(self) -> None:
+        """Different files get different app processes."""
+        from marimo._session.managers.app_process import AppProcessPool
 
-        pool = WorkerProcessPool()
+        pool = AppProcessPool()
         try:
             w1 = pool.get_or_create("/tmp/test_app1.py")
             w2 = pool.get_or_create("/tmp/test_app2.py")
@@ -83,11 +83,11 @@ class TestWorkerProcessPool:
         finally:
             pool.shutdown()
 
-    def test_shutdown_stops_all_workers(self) -> None:
-        """Shutdown terminates all worker processes."""
-        from marimo._session.managers.worker import WorkerProcessPool
+    def test_shutdown_stops_all(self) -> None:
+        """Shutdown terminates all app processes."""
+        from marimo._session.managers.app_process import AppProcessPool
 
-        pool = WorkerProcessPool()
+        pool = AppProcessPool()
         w1 = pool.get_or_create("/tmp/test_app1.py")
         w2 = pool.get_or_create("/tmp/test_app2.py")
 
@@ -98,36 +98,36 @@ class TestWorkerProcessPool:
 
 
 @pytest.mark.requires("zmq")
-class TestWorkerProcess:
+class TestAppProcess:
     def test_start_and_shutdown(self) -> None:
-        """Worker process starts and shuts down cleanly."""
-        from marimo._session.managers.worker import WorkerProcess
+        """App process starts and shuts down cleanly."""
+        from marimo._session.managers.app_process import AppProcess
 
-        worker = WorkerProcess("/tmp/test_app.py")
-        worker.start()
-        assert worker.is_alive()
-        assert worker.pid is not None
+        app_proc = AppProcess("/tmp/test_app.py")
+        app_proc.start()
+        assert app_proc.is_alive()
+        assert app_proc.pid is not None
 
-        worker.shutdown()
-        assert not worker.is_alive()
+        app_proc.shutdown()
+        assert not app_proc.is_alive()
 
 
 @pytest.mark.requires("zmq")
-class TestWorkerKernelManager:
+class TestAppKernelManager:
     def test_satisfies_kernel_manager_protocol(self) -> None:
-        """WorkerKernelManager has all required KernelManager attributes."""
+        """AppKernelManager has all required KernelManager attributes."""
         from unittest.mock import MagicMock
 
-        from marimo._session.managers.worker import (
-            WorkerKernelManager,
-            WorkerProcessPool,
+        from marimo._session.managers.app_process import (
+            AppKernelManager,
+            AppProcessPool,
         )
         from marimo._session.model import SessionMode
 
-        pool = WorkerProcessPool()
+        pool = AppProcessPool()
         try:
-            mgr = WorkerKernelManager(
-                worker_pool=pool,
+            mgr = AppKernelManager(
+                app_process_pool=pool,
                 file_path="/tmp/test.py",
                 session_id="s1",
                 connection_info=MagicMock(),

@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Picklable commands for worker process management channel.
+"""Picklable commands for app process management channel.
 
 These dataclasses are sent over multiprocessing.Queue between the main
-process and worker subprocesses.
+process and app subprocesses.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass
 class CreateKernelCmd:
-    """Request the worker to create a new kernel thread."""
+    """Request the app process to create a new kernel thread."""
 
     session_id: str
     connection_info: ConnectionInfo
@@ -37,14 +37,14 @@ class CreateKernelCmd:
 
 @dataclasses.dataclass
 class StopKernelCmd:
-    """Request the worker to stop a kernel thread."""
+    """Request the app process to stop a kernel thread."""
 
     session_id: str
 
 
 @dataclasses.dataclass
-class ShutdownWorkerCmd:
-    """Request the worker to shut down entirely."""
+class ShutdownAppProcessCmd:
+    """Request the app process to shut down entirely."""
 
 
 # Responses (worker -> main)

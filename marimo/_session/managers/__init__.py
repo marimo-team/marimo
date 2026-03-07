@@ -19,9 +19,9 @@ from marimo._session.managers.ipc import (
 )
 from marimo._session.managers.kernel import KernelManagerImpl
 from marimo._session.managers.queue import QueueManagerImpl
-from marimo._session.managers.worker import (
-    WorkerKernelManager,
-    WorkerProcessPool,
+from marimo._session.managers.app_process import (
+    AppKernelManager,
+    AppProcessPool,
 )
 
 __all__ = [
@@ -29,6 +29,6 @@ __all__ = [
     "KernelManagerImpl",
     "IPCQueueManagerImpl",
     "IPCKernelManagerImpl",
-    "WorkerKernelManager",
-    "WorkerProcessPool",
+    "AppKernelManager",
+    "AppProcessPool",
 ]

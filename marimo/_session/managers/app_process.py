@@ -1,9 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Worker process management for per-app process isolation.
+"""App process management for per-app process isolation.
 
-WorkerProcess: wraps a single multiprocessing.Process for one notebook.
-WorkerProcessPool: manages workers keyed by absolute file path.
-WorkerKernelManager: implements KernelManager protocol for worker-backed kernels.
+AppProcess: wraps a single multiprocessing.Process for one notebook.
+AppProcessPool: manages app processes keyed by absolute file path.
+AppKernelManager: implements KernelManager protocol for app-process-backed kernels.
 """
 
 from __future__ import annotations
@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING, Optional, Union
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
-from marimo._session.managers.worker_commands import (
+from marimo._session.managers.app_process_commands import (
     CreateKernelCmd,
     KernelCreatedResponse,
-    ShutdownWorkerCmd,
+    ShutdownAppProcessCmd,
     StopKernelCmd,
 )
 from marimo._session.model import SessionMode
@@ -42,7 +42,7 @@ LOGGER = _loggers.marimo_logger()
 _RESPONSE_TIMEOUT = 30  # seconds
 
 
-class WorkerProcess:
+class AppProcess:
     """Wraps a multiprocessing.Process for a single notebook file."""
 
     def __init__(self, file_path: str) -> None:
@@ -52,14 +52,16 @@ class WorkerProcess:
         self._response_queue: mp.Queue[object] | None = None
 
     def start(self) -> None:
-        from marimo._session.managers.worker_entry import worker_main
+        from marimo._session.managers.app_process_entry import (
+            app_process_main,
+        )
 
         ctx = get_context("spawn")
         self._mgmt_queue = ctx.Queue()
         self._response_queue = ctx.Queue()
 
         self._process = ctx.Process(
-            target=worker_main,
+            target=app_process_main,
             args=(
                 self._mgmt_queue,
                 self._response_queue,
@@ -70,7 +72,7 @@ class WorkerProcess:
         )
         self._process.start()
         LOGGER.debug(
-            "Worker process started for %s (pid=%s)",
+            "App process started for %s (pid=%s)",
             self._file_path,
             self._process.pid,
         )
@@ -119,7 +121,7 @@ class WorkerProcess:
     def shutdown(self) -> None:
         if self._mgmt_queue is not None:
             try:
-                self._mgmt_queue.put(ShutdownWorkerCmd())
+                self._mgmt_queue.put(ShutdownAppProcessCmd())
             except Exception:
                 pass
 
@@ -131,30 +133,30 @@ class WorkerProcess:
                 if self._process.is_alive():
                     self._process.kill()
 
-        LOGGER.debug("Worker process shut down for %s", self._file_path)
+        LOGGER.debug("App process shut down for %s", self._file_path)
 
 
-class WorkerProcessPool:
-    """Manages worker processes keyed by absolute file path."""
+class AppProcessPool:
+    """Manages app processes keyed by absolute file path."""
 
     def __init__(self) -> None:
-        self._workers: dict[str, WorkerProcess] = {}
+        self._workers: dict[str, AppProcess] = {}
         self._lock = threading.Lock()
 
-    def get_or_create(self, file_path: str) -> WorkerProcess:
+    def get_or_create(self, file_path: str) -> AppProcess:
         abs_path = os.path.abspath(file_path)
         with self._lock:
             worker = self._workers.get(abs_path)
             if worker is not None and worker.is_alive():
                 return worker
 
-            # Dead worker or no worker — create a new one
+            # Dead process or no process — create a new one
             if worker is not None:
                 LOGGER.warning(
-                    "Worker for %s was dead, respawning", abs_path
+                    "App process for %s was dead, respawning", abs_path
                 )
 
-            worker = WorkerProcess(abs_path)
+            worker = AppProcess(abs_path)
             worker.start()
             self._workers[abs_path] = worker
             return worker
@@ -166,37 +168,37 @@ class WorkerProcessPool:
             self._workers.clear()
 
 
-class _WorkerProcessLike(ProcessLike):
-    """Makes WorkerProcess satisfy ProcessLike for kernel_task."""
+class _AppProcessLike(ProcessLike):
+    """Makes AppProcess satisfy ProcessLike for kernel_task."""
 
-    def __init__(self, worker: WorkerProcess) -> None:
-        self._worker = worker
+    def __init__(self, app_process: AppProcess) -> None:
+        self._app_process = app_process
 
     @property
     def pid(self) -> int | None:
-        return self._worker.pid
+        return self._app_process.pid
 
     def is_alive(self) -> bool:
-        return self._worker.is_alive()
+        return self._app_process.is_alive()
 
     def terminate(self) -> None:
-        pass  # Don't terminate the shared worker from here
+        pass  # Don't terminate the shared app process from here
 
     def join(self, timeout: Optional[float] = None) -> None:
-        pass  # Don't join the shared worker from here
+        pass  # Don't join the shared app process from here
 
 
-class WorkerKernelManager(KernelManager):
-    """KernelManager backed by a worker subprocess.
+class AppKernelManager(KernelManager):
+    """KernelManager backed by an app subprocess.
 
-    The kernel runs as a thread inside the worker process.
+    The kernel runs as a thread inside the app process.
     Communication happens via ZeroMQ channels.
     """
 
     def __init__(
         self,
         *,
-        worker_pool: WorkerProcessPool,
+        app_process_pool: AppProcessPool,
         file_path: str,
         session_id: str,
         connection_info: ConnectionInfo,
@@ -207,7 +209,7 @@ class WorkerKernelManager(KernelManager):
         config_manager: MarimoConfigReader,
         redirect_console_to_browser: bool,
     ) -> None:
-        self._worker_pool = worker_pool
+        self._app_process_pool = app_process_pool
         self._file_path = file_path
         self._session_id = session_id
         self._connection_info = connection_info
@@ -218,13 +220,15 @@ class WorkerKernelManager(KernelManager):
         self._config_manager = config_manager
         self._redirect_console_to_browser = redirect_console_to_browser
 
-        self._worker: WorkerProcess | None = None
+        self._app_process: AppProcess | None = None
         self.kernel_task: Optional[Union[ProcessLike, threading.Thread]] = None
 
     def start_kernel(self) -> None:
-        self._worker = self._worker_pool.get_or_create(self._file_path)
+        self._app_process = self._app_process_pool.get_or_create(
+            self._file_path
+        )
 
-        response = self._worker.create_kernel(
+        response = self._app_process.create_kernel(
             session_id=self._session_id,
             connection_info=self._connection_info,
             configs=self._configs,
@@ -237,23 +241,23 @@ class WorkerKernelManager(KernelManager):
 
         if not response.success:
             raise RuntimeError(
-                f"Failed to create kernel in worker: {response.error}"
+                f"Failed to create kernel in app process: {response.error}"
             )
 
-        self.kernel_task = _WorkerProcessLike(self._worker)
+        self.kernel_task = _AppProcessLike(self._app_process)
 
     @property
     def pid(self) -> int | None:
-        if self._worker is None:
+        if self._app_process is None:
             return None
-        return self._worker.pid
+        return self._app_process.pid
 
     @property
     def profile_path(self) -> str | None:
         return None
 
     def is_alive(self) -> bool:
-        return self._worker is not None and self._worker.is_alive()
+        return self._app_process is not None and self._app_process.is_alive()
 
     def interrupt_kernel(self) -> None:
         # Run-mode threads can't be interrupted (same as current behavior)
@@ -266,13 +270,13 @@ class WorkerKernelManager(KernelManager):
         self.queue_manager.put_control_request(StopKernelCommand())
         self.queue_manager.close_queues()
 
-        # Also notify the worker via management channel
-        if self._worker is not None:
-            self._worker.stop_kernel(self._session_id)
+        # Also notify the app process via management channel
+        if self._app_process is not None:
+            self._app_process.stop_kernel(self._session_id)
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
-        # Worker kernels use stream_queue, not kernel_connection
+        # App process kernels use stream_queue, not kernel_connection
         raise NotImplementedError(
-            "Worker kernel uses stream_queue, not kernel_connection"
+            "App process kernel uses stream_queue, not kernel_connection"
         )
