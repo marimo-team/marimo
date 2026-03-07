@@ -248,6 +248,18 @@ def start(
             }
         )
 
+    is_multi = file_router.get_unique_file_key() is None
+
+    if is_multi and mode == SessionMode.RUN:
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            LOGGER.warning(
+                "pyzmq is not installed. Multi-app process isolation "
+                "is disabled. Install with: pip install pyzmq"
+            )
+            is_multi = False
+
     session_manager = SessionManager(
         file_router=file_router,
         mode=mode,
@@ -262,6 +274,7 @@ def start(
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
         sandbox_mode=sandbox_mode,
+        process_isolation=is_multi,
     )
 
     log_level = "info" if development_mode else "error"

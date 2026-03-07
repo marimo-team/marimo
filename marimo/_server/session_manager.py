@@ -83,6 +83,7 @@ class SessionManager:
         ttl_seconds: Optional[int],
         watch: bool = False,
         sandbox_mode: SandboxMode | None = None,
+        process_isolation: bool = False,
     ) -> None:
         # Core configuration
         self.file_router = file_router
@@ -96,6 +97,13 @@ class SessionManager:
         self.redirect_console_to_browser = redirect_console_to_browser
         self._config_manager = config_manager
         self.sandbox_mode = sandbox_mode
+
+        # Create worker pool for multi-app process isolation
+        from marimo._session.managers.worker import WorkerProcessPool
+
+        self._worker_pool: WorkerProcessPool | None = None
+        if process_isolation and mode == SessionMode.RUN:
+            self._worker_pool = WorkerProcessPool()
 
         self._repository = SessionRepository()
 
@@ -218,6 +226,7 @@ class SessionManager:
             auto_instantiate=auto_instantiate,
             extensions=extensions,
             sandbox_mode=self.sandbox_mode,
+            worker_pool=self._worker_pool,
         )
 
         # Add to repository
@@ -389,6 +398,8 @@ class SessionManager:
         """Shutdown the session manager and stop all file watchers."""
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
+        if self._worker_pool is not None:
+            self._worker_pool.shutdown()
         self.lsp_server.stop()
         self._watcher_manager.stop_all()
 
