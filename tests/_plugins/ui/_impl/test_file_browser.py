@@ -23,6 +23,7 @@ def test_file_browser_init(tmp_path: Path) -> None:
     assert str(fb._initial_path) == str(normalize_path(tmp_path))
     assert fb._selection_mode == "file"
     assert fb._filetypes == set()
+    assert fb._path_filter is None
     assert fb._restrict_navigation is False
 
     # Test with custom filetypes
@@ -30,11 +31,13 @@ def test_file_browser_init(tmp_path: Path) -> None:
     fb = file_browser(
         initial_path=tmp_path,
         filetypes=custom_filetypes,
+        path_filter="*.txt",
         selection_mode="directory",
         restrict_navigation=True,
     )
     assert fb._initial_path == normalize_path(tmp_path)
     assert fb._filetypes == set(custom_filetypes)
+    assert fb._path_filter == "*.txt"
     assert fb._selection_mode == "directory"
     assert fb._restrict_navigation is True
 
@@ -54,6 +57,55 @@ def test_list_directory() -> None:
         assert file_info["is_directory"] or file_info["path"].endswith(
             tuple(fb._filetypes)
         )
+
+
+def test_path_filter_glob_in_file_mode(tmp_path: Path) -> None:
+    (tmp_path / "data_1.csv").touch()
+    (tmp_path / "data_2.csv").touch()
+    (tmp_path / "notes.txt").touch()
+
+    fb = file_browser(initial_path=tmp_path, path_filter="data_*.csv")
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    file_names = [f["name"] for f in response.files if not f["is_directory"]]
+    assert file_names == ["data_1.csv", "data_2.csv"]
+
+
+def test_path_filter_callable_in_file_mode(tmp_path: Path) -> None:
+    (tmp_path / "small.txt").write_text("small")
+    (tmp_path / "large.txt").write_text("x" * 1024)
+
+    fb = file_browser(
+        initial_path=tmp_path,
+        filetypes=[".txt"],
+        path_filter=lambda path: path.stat().st_size < 100,
+    )
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    file_names = [f["name"] for f in response.files if not f["is_directory"]]
+    assert file_names == ["small.txt"]
+
+
+def test_path_filter_applies_to_directories_in_directory_mode(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "data_dir").mkdir()
+    (tmp_path / "other_dir").mkdir()
+
+    fb = file_browser(
+        initial_path=tmp_path,
+        selection_mode="directory",
+        path_filter="data_*",
+    )
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    names = [f["name"] for f in response.files]
+    assert names == ["data_dir"]
+
+
+def test_path_filter_validation(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="path_filter must be"):
+        file_browser(initial_path=tmp_path, path_filter=123)  # type: ignore[arg-type]
 
 
 def test_navigation_restriction() -> None:
