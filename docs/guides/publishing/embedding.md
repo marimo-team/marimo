@@ -20,7 +20,7 @@ complete walkthrough, and the below for a a simple example.
 ```html
 <iframe
     src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true"
-    sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+    sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-forms"
     allow="microphone"
     allowfullscreen
     loading="lazy"
@@ -36,7 +36,7 @@ complete walkthrough, and the below for a a simple example.
     <iframe
         src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true"
         class="demo large"
-        sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+        sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-forms"
         allow="microphone"
         allowfullscreen
         loading="lazy"
@@ -84,7 +84,7 @@ For the best user experience, include these additional attributes:
 ```html
 <iframe
   src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm"
-  sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
+  sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-forms"
   allow="microphone"
   allowfullscreen
   width="100%"
@@ -97,6 +97,7 @@ For the best user experience, include these additional attributes:
 * **`allow-same-origin`**: Enables persistent storage (localStorage) and full clipboard API. Only use this if you trust the content of the iframe or the iframe URL is hosted on a different domain.
 * **`allow-downloads`**: Enables downloading notebook outputs, data exports, and screenshots
 * **`allow-popups`**: Allows opening links and notebooks in new tabs
+* **`allow-forms`**: Enables form submissions, required for interactive UI elements like `mo.ui.form`
 * **`allowfullscreen`** (attribute, not sandbox): Enables fullscreen mode for slides and outputs
 
 **Permission Policy:**
@@ -113,7 +114,7 @@ A complete, copy-pasteable example with all recommended settings:
 ```html
 <iframe
   src="https://marimo.app/github/marimo-team/gallery-examples/blob/main/notebooks/math/cellular-automaton-art.py/wasm?embed=true&mode=read"
-  sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-downloads-without-user-activation"
+  sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-forms allow-downloads-without-user-activation"
   allow="microphone"
   allowfullscreen
   width="100%"
