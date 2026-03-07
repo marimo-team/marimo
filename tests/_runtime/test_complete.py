@@ -19,6 +19,7 @@ from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.commands import CodeCompletionCommand
 from marimo._runtime.complete import (
     _build_docstring_cached,
+    _get_docstring,
     _maybe_get_key_options,
     _resolve_chained_key_path,
     complete,
@@ -66,6 +67,169 @@ def test_docstring_function_with_google_style():
     assert "Description of arg2" in result
     assert "A description of the return value" in result
     snapshot("docstrings_function_google.txt", result)
+
+
+def test_docstring_math_directive_is_normalized():
+    result = _build_docstring_cached(
+        completion_type="function",
+        completion_name="my_func",
+        signature_strings=("my_func(arg1)",),
+        raw_body=r"""
+        For :math:`t > 0`, we have:
+
+        .. math::
+
+            m_t = \beta_1 \cdot m_{t-1}
+        """,
+        init_docstring=None,
+    )
+
+    assert ".. math::" not in result
+    assert ":math:`" not in result
+    assert "<marimo-tex" in result
+    assert "m_t" in result
+
+
+def test_docstring_inline_math_directive_is_normalized():
+    result = _build_docstring_cached(
+        completion_type="function",
+        completion_name="my_func",
+        signature_strings=("my_func(arg1)",),
+        raw_body=(
+            r".. math::\begin{align*} m_t &= \beta_1 g_t "
+            r"\\ v_t &= \beta_2 g_t^2 \end{align*}"
+        ),
+        init_docstring=None,
+    )
+
+    assert ".. math::" not in result
+    assert "<marimo-tex" in result
+    assert r"\begin{align*}" in result
+
+
+def test_docstring_unindented_math_block_is_normalized():
+    result = _build_docstring_cached(
+        completion_type="function",
+        completion_name="my_func",
+        signature_strings=("my_func(arg1)",),
+        raw_body=r"""
+        .. math::
+
+        \begin{align*}
+        m_t &= \beta_1 g_t
+        \end{align*}
+        """,
+        init_docstring=None,
+    )
+
+    assert ".. math::" not in result
+    assert "<marimo-tex" in result
+    assert r"\begin{align*}" in result
+
+
+def test_docstring_inline_math_role_is_normalized():
+    result = _build_docstring_cached(
+        completion_type="function",
+        completion_name="my_func",
+        signature_strings=("my_func(arg1)",),
+        raw_body=r"""Computes :math:`\alpha + \beta`.""",
+        init_docstring=None,
+    )
+
+    assert ":math:`" not in result
+    assert "<marimo-tex" in result
+    assert r"\alpha + \beta" in result
+
+
+def test_docstring_latex_delimiters_are_normalized():
+    result = _build_docstring_cached(
+        completion_type="function",
+        completion_name="my_func",
+        signature_strings=("my_func(arg1)",),
+        raw_body=r"""Inline \(x^2\), display \[x^2 + y^2\], and $z^2$.""",
+        init_docstring=None,
+    )
+
+    assert r"\(" not in result
+    assert r"\[" not in result
+    assert "<marimo-tex" in result
+    assert result.count("<marimo-tex") >= 3
+
+
+def test_docstring_math_normalization_skips_fenced_code_blocks():
+    raw_docstring = """
+Before
+
+```python
+formula = ":math:`x`"
+directive = '''
+.. math::
+
+    x^2
+'''
+```
+
+After :math:`y`
+"""
+    result = _build_docstring_cached(
+        completion_type="function",
+        completion_name="my_func",
+        signature_strings=("my_func(arg1)",),
+        raw_body=raw_docstring,
+        init_docstring=None,
+    )
+
+    if DependencyManager.docstring_to_markdown.has():
+        # docstring_to_markdown may normalize fenced code content to $$.
+        assert "$$" in result
+    else:
+        assert ".. math::" in result
+    assert ":math:`y`" not in result
+    assert result.count("<marimo-tex") == 1
+
+
+def test_get_docstring_class_init_uses_same_math_rendering_path():
+    class _FakeSignature:
+        def to_string(self) -> str:
+            return "MyClass()"
+
+    class _FakeInit:
+        name = "__init__"
+
+        def docstring(self, raw: bool = False) -> str:
+            assert raw
+            return r"""
+            .. math::
+
+                m_t = \beta_1 \cdot g_t
+            """
+
+    class _FakeDefinition:
+        def defined_names(self) -> list[_FakeInit]:
+            return [_FakeInit()]
+
+    class _FakeCompletion:
+        type = "class"
+        name = "MyClass"
+
+        def docstring(self, raw: bool = False) -> str:
+            assert raw
+            return "Class docs."
+
+        def get_signatures(self) -> list[_FakeSignature]:
+            return [_FakeSignature()]
+
+        def goto(self) -> list[_FakeDefinition]:
+            return [_FakeDefinition()]
+
+    with mock.patch(
+        "marimo._runtime.complete.jedi.api.classes.Name", _FakeDefinition
+    ):
+        result = _get_docstring(_FakeCompletion())
+
+    assert "__init__ docstring:" in result
+    assert ".. math::" not in result
+    assert "<marimo-tex" in result
 
 
 def test_build_docstring_class_with_init():

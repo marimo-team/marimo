@@ -75,23 +75,16 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         assert is_not_narwhals_dataframe(subject.value)
-        assert (
-            subject._component_args["columns"]
-            == [
-                ["A", "integer", "i64"],
-                ["B", "string", "str"],
-            ]
-            or subject._component_args["columns"]
-            == [
-                ["A", "integer", "int64"],
-                ["B", "string", "object"],
-            ]
-            or subject._component_args["columns"]
-            == [
-                ["A", "integer", "int64"],
-                ["B", "string", "string"],
-            ]
-        )
+        assert subject._component_args["columns"] in [
+            # polars
+            [["A", "integer", "i64"], ["B", "string", "str"]],
+            # pandas 2.x
+            [["A", "integer", "int64"], ["B", "string", "object"]],
+            # pandas 2.x with future.infer_string
+            [["A", "integer", "int64"], ["B", "string", "string"]],
+            # pandas 3.x
+            [["A", "integer", "int64"], ["B", "string", "str"]],
+        ]
         assert subject._get_column_values(
             GetColumnValuesArgs(column="A")
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
@@ -119,9 +112,11 @@ class TestDataframes:
         subject = ui.dataframe(df)
 
         assert is_not_narwhals_dataframe(subject.value)
-        assert subject._component_args["columns"] == [
-            ["1", "integer", "int64"],
-            ["2", "string", "object"],
+        assert subject._component_args["columns"] in [
+            # pandas 2.x
+            [["1", "integer", "int64"], ["2", "string", "object"]],
+            # pandas 3.x
+            [["1", "integer", "int64"], ["2", "string", "str"]],
         ]
 
         assert subject._get_column_values(
@@ -355,6 +350,22 @@ class TestDataframes:
         csv_bytes = from_data_uri(csv_url)[1]
         assert csv_bytes.startswith(b"\xef\xbb\xbf")
         assert "こんにちは" in csv_bytes.decode("utf-8-sig")
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_csv_separator() -> None:
+        df = pd.DataFrame({"A": [1, 2], "B": ["x", "y"]})
+        subject = ui.dataframe(
+            df,
+            download_csv_separator=";",
+        )
+
+        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_text = from_data_uri(csv_url)[1].decode("utf-8")
+        assert "A;B" in csv_text
+        assert "1;x" in csv_text
 
     @staticmethod
     @pytest.mark.skipif(

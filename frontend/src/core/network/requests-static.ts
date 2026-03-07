@@ -75,6 +75,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     getRunningNotebooks: throwNotInEditMode,
     shutdownSession: throwNotInEditMode,
     exportAsHTML: throwNotInEditMode,
+    exportAsIPYNB: throwNotInEditMode,
     exportAsMarkdown: throwNotInEditMode,
     exportAsPDF: throwNotInEditMode,
     autoExportAsHTML: throwNotInEditMode,
@@ -90,5 +91,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     invokeAiTool: throwNotInEditMode,
     clearCache: throwNotInEditMode,
     getCacheInfo: throwNotInEditMode,
+    listStorageEntries: throwNotInEditMode,
+    downloadStorage: throwNotInEditMode,
   };
 }

@@ -1,12 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, {
-  memo,
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { memo, Suspense, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -30,6 +23,7 @@ import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
+import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
@@ -123,6 +117,7 @@ export const OutputRenderer: React.FC<{
       );
 
     case "text/plain":
+    case "text/password":
       invariant(
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
@@ -141,10 +136,17 @@ export const OutputRenderer: React.FC<{
     case "image/bmp":
     case "image/gif":
     case "image/jpeg":
+    case "image/svg+xml":
       invariant(
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
+      if (
+        mimetype === "image/svg+xml" &&
+        !data.startsWith("data:image/svg+xml;base64,")
+      ) {
+        return renderHTML({ html: data, alwaysSanitizeHtml: true });
+      }
       return (
         <ImageOutput
           className={channel}
@@ -154,12 +156,6 @@ export const OutputRenderer: React.FC<{
           height={metadata?.height}
         />
       );
-    case "image/svg+xml":
-      invariant(
-        typeof data === "string",
-        `Expected string data for mime=${mimetype}. Got ${typeof data}`,
-      );
-      return renderHTML({ html: data, alwaysSanitizeHtml: true });
 
     case "video/mp4":
     case "video/mpeg":
@@ -425,27 +421,8 @@ const ExpandableOutput = React.memo(
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
-    const [isOverflowing, setIsOverflowing] = useState(false);
+    const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
-
-    // Create resize observer to detect overflow
-    useEffect(() => {
-      if (!containerRef.current) {
-        return;
-      }
-      const el = containerRef.current;
-
-      const detectOverflow = () => {
-        setIsOverflowing(el.scrollHeight > el.clientHeight);
-      };
-
-      const resizeObserver = new ResizeObserver(detectOverflow);
-      resizeObserver.observe(el);
-
-      return () => {
-        resizeObserver.disconnect();
-      };
-    }, [props.id]);
 
     return (
       <>

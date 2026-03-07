@@ -35,6 +35,7 @@ from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._data._external_storage.models import StorageBackend, StorageEntry
 from marimo._data.preview_column import (
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -69,6 +70,8 @@ from marimo._messaging.notification import (
     SQLMetadata,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
+    StorageDownloadReadyNotification,
+    StorageEntriesNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -127,6 +130,8 @@ from marimo._runtime.commands import (
     RefreshSecretsCommand,
     RenameNotebookCommand,
     StopKernelCommand,
+    StorageDownloadCommand,
+    StorageListEntriesCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -144,7 +149,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
-from marimo._runtime.input_override import input_override
+from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -174,6 +179,7 @@ from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
+from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
@@ -533,6 +539,7 @@ class Kernel:
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
         self.cache_callbacks = CacheCallbacks(self)
+        self.external_storage_callbacks = ExternalStorageCallbacks(self)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -612,6 +619,12 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Override getpass.getpass to route through marimo's stdin with
+        # password masking, instead of trying /dev/tty or falling back
+        # to plaintext with warnings.
+        import getpass
+
+        getpass.getpass = getpass_override
         # Webbrowser may not be set (e.g. docker container) or stubbed/broken
         # (e.g. in pyodide). Set default to just inject an iframe of the
         # expected page to output.
@@ -2340,6 +2353,14 @@ class Kernel:
         )
         # SQL
         handler.register(ValidateSQLCommand, self.sql_callbacks.validate_sql)
+        # External storage
+        handler.register(
+            StorageListEntriesCommand,
+            self.external_storage_callbacks.list_entries,
+        )
+        handler.register(
+            StorageDownloadCommand, self.external_storage_callbacks.download
+        )
         # Secrets
         handler.register(
             ListSecretKeysCommand, self.secrets_callbacks.list_secrets
@@ -2638,6 +2659,194 @@ class DatasetCallbacks:
         broadcast_notification(
             DataSourceConnectionsNotification(
                 connections=[data_source_connection],
+            ),
+        )
+
+
+class ExternalStorageCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+
+    def _get_storage_backend(
+        self, namespace: str
+    ) -> tuple[StorageBackend[Any] | None, str | None]:
+        """Look up a storage backend by variable name from kernel globals.
+
+        Returns (backend, error). If there is error, backend is None.
+        """
+        from marimo._data._external_storage.get_storage import STORAGE_BACKENDS
+
+        variable_name = VariableName(namespace)
+        if variable_name not in self._kernel.globals:
+            return None, f"Variable '{namespace}' not found"
+
+        var = self._kernel.globals[variable_name]
+
+        for backend in STORAGE_BACKENDS:
+            if backend.is_compatible(var):
+                return backend(var, variable_name), None
+        return None, (
+            f"Variable '{namespace}' is not a compatible "
+            "storage backend (expected obstore or fsspec)"
+        )
+
+    _VFILE_TTL_SECONDS = 60
+
+    def _schedule_vfile_cleanup(self, vfile: VirtualFile) -> None:
+        """Best-effort cleanup of a virtual file after a TTL."""
+        import asyncio
+
+        from marimo._runtime.context import get_context
+
+        try:
+            registry = get_context().virtual_file_registry
+            loop = asyncio.get_running_loop()
+            loop.call_later(self._VFILE_TTL_SECONDS, registry.remove, vfile)
+        except Exception:
+            LOGGER.debug(
+                "Could not schedule virtual file cleanup for %s",
+                vfile.filename,
+            )
+
+    @kernel_tracer.start_as_current_span("storage_list_entries")
+    async def list_entries(self, request: StorageListEntriesCommand) -> None:
+        """List storage entries at a given prefix."""
+        backend, error = self._get_storage_backend(request.namespace)
+        if error is not None or backend is None:
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=[],
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                    error=error,
+                ),
+            )
+            return
+
+        # list_entries is synchronous, so we wrap it in asyncio.to_thread
+        def list_entries() -> list[StorageEntry]:
+            return backend.list_entries(
+                prefix=request.prefix, limit=request.limit
+            )
+
+        try:
+            entries = await asyncio.to_thread(list_entries)
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=entries,
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                ),
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to list entries for %s at prefix %s",
+                request.namespace,
+                request.prefix,
+            )
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=[],
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                    error=f"Failed to list entries: {e}",
+                ),
+            )
+
+    _PREVIEW_MAX_BYTES = 1_000_000  # 1 MB
+
+    @kernel_tracer.start_as_current_span("storage_download")
+    async def download(self, request: StorageDownloadCommand) -> None:
+        """
+        Download a storage entry, preferring a signed URL.
+        If preview is true, downloads the first 1MB of the file and returns a same-origin virtual file URL.
+        """
+        backend, error = self._get_storage_backend(request.namespace)
+        if error is not None or backend is None:
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=None,
+                    filename=None,
+                    error=error,
+                ),
+            )
+            return
+
+        filename = request.path.rsplit("/", 1)[-1] or "download"
+
+        try:
+            if request.preview:
+                await self._download_preview(backend, request, filename)
+            else:
+                await self._download_full(backend, request, filename)
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to download %s from %s",
+                request.path,
+                request.namespace,
+            )
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=None,
+                    filename=None,
+                    error=f"Failed to download: {e}",
+                ),
+            )
+
+    async def _download_full(
+        self,
+        backend: StorageBackend[Any],
+        request: StorageDownloadCommand,
+        filename: str,
+    ) -> None:
+        signed_url = await backend.sign_download_url(request.path)
+        if signed_url is not None:
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=signed_url,
+                    filename=filename,
+                ),
+            )
+            return
+
+        # Signing not supported; fall back to virtual file with TTL
+        result = await backend.download_file(request.path)
+        vfile = VirtualFile.create_and_register(result.file_bytes, result.ext)
+        self._schedule_vfile_cleanup(vfile)
+
+        broadcast_notification(
+            StorageDownloadReadyNotification(
+                request_id=request.request_id,
+                url=vfile.url,
+                filename=result.filename,
+            ),
+        )
+
+    async def _download_preview(
+        self,
+        backend: StorageBackend[Any],
+        request: StorageDownloadCommand,
+        filename: str,
+    ) -> None:
+        """Read partial content and serve via a virtual file with TTL. This is useful to bypass CORS."""
+        data = await backend.read_range(
+            request.path, offset=0, length=self._PREVIEW_MAX_BYTES
+        )
+        _, ext = os.path.splitext(filename)
+        vfile = VirtualFile.create_and_register(data, ext.lstrip(".") or "txt")
+        self._schedule_vfile_cleanup(vfile)
+
+        broadcast_notification(
+            StorageDownloadReadyNotification(
+                request_id=request.request_id,
+                url=vfile.url,
+                filename=filename,
             ),
         )
 
@@ -3171,6 +3380,10 @@ def launch_kernel(
         profiler.enable()
 
     should_redirect_stdio = is_edit_mode or redirect_console_to_browser
+    # Only use os.dup2-based fd redirection in process-based modes
+    # (edit mode / IPC).  Thread-based run mode uses the lighter-weight
+    # thread-local proxy instead to avoid process-global fd mutations.
+    use_fd_redirect = is_subprocess
 
     # Create communication channels
     pipe: Optional[TypedConnection[KernelMessage]] = None
@@ -3206,10 +3419,16 @@ def launch_kernel(
             "One of queue_pipe and socket_addr must be non None"
         )
 
-    # Console output is hidden in run mode, so no need to redirect
-    # (redirection of console outputs is not thread-safe anyway)
-    stdout = ThreadSafeStdout(stream) if should_redirect_stdio else None
-    stderr = ThreadSafeStderr(stream) if should_redirect_stdio else None
+    stdout = (
+        ThreadSafeStdout(stream, forward_os_streams=use_fd_redirect)
+        if should_redirect_stdio
+        else None
+    )
+    stderr = (
+        ThreadSafeStderr(stream, forward_os_streams=use_fd_redirect)
+        if should_redirect_stdio
+        else None
+    )
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
@@ -3352,6 +3571,13 @@ def launch_kernel(
     # primitives anywhere else in the runtime unless there is a *very* good
     # reason; prefer using threads (for performance and clarity).
     asyncio.run(control_loop(kernel))
+
+    if not use_fd_redirect:
+        from marimo._messaging.thread_local_streams import (
+            clear_thread_local_streams,
+        )
+
+        clear_thread_local_streams()
 
     if profiler is not None and profile_path is not None:
         profiler.disable()

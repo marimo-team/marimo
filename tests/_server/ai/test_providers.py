@@ -1,5 +1,7 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from marimo._config.config import AiConfig
@@ -333,3 +335,40 @@ def test_anthropic_is_extended_thinking_model(
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
     assert provider.is_extended_thinking_model(model_name) == expected
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_completion_does_not_pass_redundant_instructions() -> None:
+    from pydantic_ai.messages import ModelResponse, TextPart
+    from pydantic_ai.models.openai import OpenAIResponsesModel
+
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    with (
+        patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm,
+        patch.object(
+            OpenAIResponsesModel, "request", new_callable=AsyncMock
+        ) as mock_request,
+    ):
+        mock_get_tm.return_value = MagicMock()
+        mock_request.return_value = ModelResponse(
+            parts=[TextPart(content="test")]
+        )
+
+        await provider.completion(
+            messages=[],
+            system_prompt="Test prompt",
+            max_tokens=100,
+            additional_tools=[],
+        )
+
+        mock_request.assert_called_once()
+        request_messages = mock_request.call_args.args[0]
+
+        assert len(request_messages) == 1
+        # The bug caused instructions to be "Test prompt\nTest prompt"
+        instructions = request_messages[0].instructions
+
+        # This asserts the duplication is gone
+        assert instructions == "Test prompt"

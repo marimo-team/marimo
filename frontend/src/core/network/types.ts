@@ -105,6 +105,9 @@ export type LspRestartRequest = schemas["LspRestartRequest"];
 export type LspRestartResponse = schemas["LspRestartResponse"];
 export type LspServerHealth = schemas["LspServerHealth"];
 
+export type StorageListEntriesRequest = schemas["StorageListEntriesRequest"];
+export type StorageDownloadRequest = schemas["StorageDownloadRequest"];
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -177,6 +180,7 @@ export interface EditRequests {
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
+  exportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<string>;
   exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
   exportAsPDF: (request: ExportAsPDFRequest) => Promise<Blob>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
@@ -198,6 +202,9 @@ export interface EditRequests {
   // Cache requests
   clearCache: () => Promise<null>;
   getCacheInfo: () => Promise<null>;
+  // Storage requests
+  listStorageEntries: (request: StorageListEntriesRequest) => Promise<null>;
+  downloadStorage: (request: StorageDownloadRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

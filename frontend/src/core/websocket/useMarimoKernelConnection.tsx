@@ -56,6 +56,11 @@ import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
+import {
+  DownloadStorage,
+  ListStorageEntries,
+} from "../storage/request-registry";
+import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
@@ -105,6 +110,10 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
+  const {
+    setNamespaces: setStorageNamespaces,
+    filterFromVariables: filterStorageFromVariables,
+  } = useStorageActions();
 
   const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -196,6 +205,9 @@ export function useMarimoKernelConnection(opts: {
         filterDataSourcesFromVariables(
           msg.data.variables.map((v) => v.name as VariableName),
         );
+        filterStorageFromVariables(
+          msg.data.variables.map((v) => v.name as VariableName),
+        );
         return;
       case "variable-values":
         setMetadata(
@@ -285,7 +297,13 @@ export function useMarimoKernelConnection(opts: {
         });
         return;
       case "storage-namespaces":
-        // TODO: Handle storage namespaces
+        setStorageNamespaces(msg.data);
+        return;
+      case "storage-entries":
+        ListStorageEntries.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "storage-download-ready":
+        DownloadStorage.resolve(msg.data.request_id as RequestId, msg.data);
         return;
 
       case "reconnected":

@@ -1,7 +1,8 @@
 {
   "version": "1",
   "metadata": {
-    "marimo_version": "0.0.0"
+    "marimo_version": "0.0.0",
+    "script_metadata_hash": null
   },
   "cells": [
     {

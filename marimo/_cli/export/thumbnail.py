@@ -2,31 +2,32 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import subprocess
-import threading
-from contextlib import AbstractContextManager
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 import click
 
+from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._cli.export._common import (
+    SandboxVenvPool,
+    collect_notebooks,
+    is_multi_target,
+    run_python_subprocess,
+)
+from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import run_app_then_export_as_html
-from marimo._server.file_router import flatten_files
-from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.export._html_asset_server import HtmlAssetServer
 from marimo._server.utils import asyncio_run
-from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path, maybe_make_dirs
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from types import TracebackType
+    from marimo._cli.sandbox import SandboxMode
 
 
 _sandbox_message = (
@@ -35,6 +36,9 @@ _sandbox_message = (
     "install automatically. Requires uv. Only applies when --execute is used."
 )
 _READINESS_WAIT_TIMEOUT_MS = 30_000
+_sandbox_bootstrapped_env = "MARIMO_THUMBNAIL_SANDBOX_BOOTSTRAPPED"
+_sandbox_mode_env = "MARIMO_THUMBNAIL_SANDBOX_MODE"
+_thumbnail_sandbox_deps = ["playwright"]
 
 
 def _split_paths_and_args(
@@ -48,28 +52,61 @@ def _split_paths_and_args(
     return paths, ()
 
 
-def _collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
-    notebooks: dict[str, MarimoPath] = {}
+def _sandbox_mode_from_env() -> SandboxMode | None:
+    from marimo._cli.sandbox import SandboxMode
 
-    for path in paths:
-        if path.is_dir():
-            scanner = DirectoryScanner(str(path), include_markdown=True)
-            try:
-                file_infos = scanner.scan()
-            except HTTPException as e:
-                if e.status_code != HTTPStatus.REQUEST_TIMEOUT:
-                    raise
-                # Match server behavior: use partial results on scan timeout.
-                file_infos = scanner.partial_results
-            for file_info in flatten_files(file_infos):
-                if not file_info.is_marimo_file or file_info.is_directory:
-                    continue
-                absolute_path = str(Path(path) / file_info.path)
-                notebooks[absolute_path] = MarimoPath(absolute_path)
-        else:
-            notebooks[str(path)] = MarimoPath(str(path))
+    if os.environ.get(_sandbox_bootstrapped_env) != "1":
+        return None
 
-    return [notebooks[k] for k in sorted(notebooks)]
+    mode = os.environ.get(_sandbox_mode_env)
+    if mode == SandboxMode.SINGLE.value:
+        return SandboxMode.SINGLE
+    if mode == SandboxMode.MULTI.value:
+        return SandboxMode.MULTI
+    return None
+
+
+def _resolve_thumbnail_sandbox_mode(
+    *,
+    execute: bool,
+    sandbox: bool | None,
+    path_targets: list[Path],
+    first_target: str,
+) -> SandboxMode | None:
+    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
+
+    if not execute:
+        return None
+
+    env_mode = _sandbox_mode_from_env()
+    if env_mode is not None:
+        return env_mode
+
+    if is_multi_target(path_targets):
+        if sandbox is None:
+            return None
+        return SandboxMode.MULTI if sandbox else None
+
+    return resolve_sandbox_mode(sandbox=sandbox, name=first_target)
+
+
+def _bootstrap_thumbnail_sandbox(
+    *,
+    args: list[str],
+    name: str,
+    sandbox_mode: SandboxMode,
+) -> None:
+    from marimo._cli.sandbox import run_in_sandbox
+
+    run_in_sandbox(
+        args,
+        name=name,
+        additional_deps=_thumbnail_sandbox_deps,
+        extra_env={
+            _sandbox_bootstrapped_env: "1",
+            _sandbox_mode_env: sandbox_mode.value,
+        },
+    )
 
 
 async def _render_html(
@@ -147,131 +184,12 @@ result = asyncio.run(
 sys.stdout.write(result.text)
 """
 
-    result = subprocess.run(
-        [venv_python, "-c", script, json.dumps(payload)],
-        capture_output=True,
-        text=True,
+    return run_python_subprocess(
+        venv_python=venv_python,
+        script=script,
+        payload=payload,
+        action="render notebook",
     )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        raise click.ClickException(
-            "Failed to render notebook in sandbox.\n\n"
-            f"Command:\n\n  {venv_python} -c <script>\n\n"
-            f"Stderr:\n\n{stderr}"
-        )
-    return result.stdout
-
-
-class _ThumbnailRequestHandler(SimpleHTTPRequestHandler):
-    def do_GET(self) -> None:  # noqa: N802
-        if self.path.split("?", 1)[0] == "/__marimo_thumbnail__.html":
-            html = getattr(self.server, "thumbnail_html", "")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(html.encode("utf-8"))
-            return
-        return super().do_GET()
-
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
-        # Silence noisy server logs for CLI usage.
-        del format
-        del args
-        return
-
-
-class _ThumbnailHTTPServer(ThreadingHTTPServer):
-    # Set by _ThumbnailAssetServer to serve a fresh HTML document per notebook.
-    thumbnail_html: str
-
-
-class _ThumbnailAssetServer(AbstractContextManager["_ThumbnailAssetServer"]):
-    def __init__(self, *, directory: Path) -> None:
-        self._directory = directory
-        self._server: _ThumbnailHTTPServer | None = None
-        self._thread: threading.Thread | None = None
-
-    @property
-    def base_url(self) -> str:
-        assert self._server is not None
-        host, port = self._server.server_address[:2]
-        if isinstance(host, bytes):
-            host = host.decode("utf-8")
-        return f"http://{host}:{port}"
-
-    @property
-    def page_url(self) -> str:
-        return f"{self.base_url}/__marimo_thumbnail__.html"
-
-    def set_html(self, html: str) -> None:
-        assert self._server is not None
-        self._server.thumbnail_html = html
-
-    def __enter__(self) -> _ThumbnailAssetServer:
-        if not self._directory.is_dir():
-            raise click.ClickException(
-                f"Static assets not found at {self._directory}"
-            )
-
-        handler = partial(
-            _ThumbnailRequestHandler, directory=str(self._directory)
-        )
-        self._server = _ThumbnailHTTPServer(("127.0.0.1", 0), handler)
-        self._server.thumbnail_html = ""
-
-        self._thread = threading.Thread(
-            target=self._server.serve_forever, daemon=True
-        )
-        self._thread.start()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        del exc_type
-        del exc
-        del tb
-        if self._server is not None:
-            self._server.shutdown()
-            self._server.server_close()
-            self._server = None
-        if self._thread is not None:
-            self._thread.join(timeout=1)
-            self._thread = None
-        return None
-
-
-class _SandboxVenvPool:
-    def __init__(self) -> None:
-        self._envs: dict[tuple[str, ...], tuple[str, str]] = {}
-
-    def get_python(self, notebook_path: str) -> str:
-        """Return a venv python path for the notebook's sandbox requirements."""
-        from marimo._cli.sandbox import (
-            build_sandbox_venv,
-            get_sandbox_requirements,
-        )
-
-        requirements = tuple(get_sandbox_requirements(notebook_path))
-        existing = self._envs.get(requirements)
-        if existing is not None:
-            return existing[1]
-
-        sandbox_dir, venv_python = build_sandbox_venv(notebook_path)
-        self._envs[requirements] = (sandbox_dir, venv_python)
-        return venv_python
-
-    def close(self) -> None:
-        """Clean up any sandbox environments we created."""
-        from marimo._cli.sandbox import cleanup_sandbox_dir
-
-        for sandbox_dir, _ in self._envs.values():
-            cleanup_sandbox_dir(sandbox_dir)
-        self._envs.clear()
 
 
 async def _generate_thumbnails(
@@ -287,8 +205,9 @@ async def _generate_thumbnails(
     execute: bool,
     notebook_args: tuple[str, ...],
     continue_on_error: bool,
-    sandbox: bool,
+    sandbox_mode: SandboxMode | None,
 ) -> None:
+    from marimo._cli.sandbox import SandboxMode
     from marimo._metadata.opengraph import default_opengraph_image
 
     failures: list[tuple[MarimoPath, Exception]] = []
@@ -300,28 +219,31 @@ async def _generate_thumbnails(
         )
     except ModuleNotFoundError as e:
         if getattr(e, "name", None) == "playwright":
-            raise click.ClickException(
-                "Playwright is required to generate thumbnails.\n\n"
-                "  Tip: Install dependencies with:\n\n"
-                "    pip install 'nbconvert[webpdf]'\n\n"
-                "  and install Chromium with:\n\n"
-                "    python -m playwright install chromium"
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required to generate thumbnails.",
+                "nbconvert[webpdf]",
+                followup_commands=get_playwright_chromium_setup_commands(),
             ) from None
         raise
 
-    if sandbox and not DependencyManager.which("uv"):
-        raise click.ClickException(
-            "uv is required for --sandbox thumbnail generation.\n\n"
-            "  Tip: Install uv from https://github.com/astral-sh/uv"
+    use_per_notebook_sandbox = sandbox_mode is SandboxMode.MULTI
+
+    if use_per_notebook_sandbox and not DependencyManager.which("uv"):
+        raise MarimoCLIMissingDependencyError(
+            "uv is required for --sandbox thumbnail generation.",
+            "uv",
+            additional_tip="Install uv from https://github.com/astral-sh/uv",
         )
 
     static_dir = marimo_package_path() / "_static"
 
-    sandbox_pool: _SandboxVenvPool | None = (
-        _SandboxVenvPool() if sandbox else None
+    sandbox_pool: SandboxVenvPool | None = (
+        SandboxVenvPool() if use_per_notebook_sandbox else None
     )
     try:
-        with _ThumbnailAssetServer(directory=static_dir) as server:
+        with HtmlAssetServer(
+            directory=static_dir, route="/__marimo_thumbnail__.html"
+        ) as server:
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.launch()
                 context = await browser.new_context(
@@ -518,21 +440,9 @@ def thumbnail(
     args: tuple[str, ...],
 ) -> None:
     """Generate thumbnails for one or more notebooks (or directories)."""
-    try:
-        DependencyManager.playwright.require("for thumbnail generation")
-    except ModuleNotFoundError as e:
-        if getattr(e, "name", None) == "playwright":
-            raise click.ClickException(
-                "Playwright is required for thumbnail generation.\n\n"
-                "  Tip: Install with:\n\n"
-                "    python -m pip install playwright\n\n"
-                "  and install Chromium with:\n\n"
-                "    python -m playwright install chromium"
-            ) from None
-        raise
-
     paths, notebook_args = _split_paths_and_args(str(name), args)
-    notebooks = _collect_notebooks([Path(p) for p in paths])
+    path_targets = [Path(p) for p in paths]
+    notebooks = collect_notebooks(path_targets)
     if not notebooks:
         raise click.ClickException("No marimo notebooks found.")
     if output is not None and len(notebooks) > 1:
@@ -540,16 +450,38 @@ def thumbnail(
             "--output can only be used when generating thumbnail for a single notebook."
         )
 
-    from marimo._cli.sandbox import resolve_sandbox_mode
-
     if not execute and sandbox:
         raise click.UsageError("--sandbox requires --execute.")
 
-    sandbox_mode = (
-        resolve_sandbox_mode(sandbox=sandbox, name=str(name))
-        if execute
-        else None
+    sandbox_mode = _resolve_thumbnail_sandbox_mode(
+        execute=execute,
+        sandbox=sandbox,
+        path_targets=path_targets,
+        first_target=str(name),
     )
+
+    if (
+        execute
+        and sandbox_mode is not None
+        and _sandbox_mode_from_env() is None
+    ):
+        _bootstrap_thumbnail_sandbox(
+            args=sys.argv[1:],
+            name=str(name),
+            sandbox_mode=sandbox_mode,
+        )
+        return
+
+    try:
+        DependencyManager.playwright.require("for thumbnail generation")
+    except ModuleNotFoundError as e:
+        if getattr(e, "name", None) == "playwright":
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required for thumbnail generation.",
+                "playwright",
+                followup_commands=get_playwright_chromium_setup_commands(),
+            ) from None
+        raise
 
     asyncio_run(
         _generate_thumbnails(
@@ -564,6 +496,6 @@ def thumbnail(
             execute=execute,
             notebook_args=notebook_args,
             continue_on_error=continue_on_error,
-            sandbox=sandbox_mode is not None,
+            sandbox_mode=sandbox_mode,
         )
     )

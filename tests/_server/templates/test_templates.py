@@ -78,6 +78,27 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "read" in result
+        assert '"cwd": ""' in result
+        _assert_no_leftover_replacements(result)
+
+    def test_notebook_page_template_with_filepath(self) -> None:
+        absolute_path = str(self.filename.resolve())
+        expected_cwd = str(self.filename.resolve().parent)
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=self.filename.name,
+            filepath=absolute_path,
+            mode=self.mode,
+        )
+
+        assert self.filename.name in result
+        # json.dumps to match JSON-escaped backslashes on Windows paths
+        assert f'"cwd": {json.dumps(expected_cwd)}' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_no_filename(self) -> None:
@@ -96,6 +117,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
+        assert '"cwd": ""' in result
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_edit_mode(self) -> None:
@@ -268,6 +290,58 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert "nonexistent.css" in result
         assert "<style title='marimo-custom'>" not in result
+        _assert_no_leftover_replacements(result)
+
+    def test_notebook_page_template_global_html_head(self) -> None:
+        global_head = (
+            '<script src="https://analytics.example.com/tracker.js"></script>'
+        )
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
+            html_head=global_head,
+        )
+
+        assert global_head in result.split("</head>", 1)[0]
+        _assert_no_leftover_replacements(result)
+
+    def test_notebook_page_template_global_and_per_notebook_html_head(
+        self,
+    ) -> None:
+        global_head = (
+            '<script src="https://analytics.example.com/tracker.js"></script>'
+        )
+
+        per_notebook_head = "<style>.notebook-specific { color: red; }</style>"
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(per_notebook_head)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(html_head_file="head.html"),
+            filename=str(self.filename),
+            mode=self.mode,
+            html_head=global_head,
+        )
+
+        head_section = result.split("</head>", 1)[0]
+        assert global_head in head_section
+        assert per_notebook_head in head_section
+        # Global should appear before per-notebook
+        assert head_section.index(global_head) < head_section.index(
+            per_notebook_head
+        )
         _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_asset_url(self) -> None:

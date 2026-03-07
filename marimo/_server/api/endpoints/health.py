@@ -221,31 +221,36 @@ async def usage(request: Request) -> JSONResponse:
         # subsequent calls return delta since last call
         cpu = psutil.cpu_percent(interval=None)
 
-    # Server memory (and children)
-    main_process = psutil.Process()
-    server_memory = main_process.memory_info().rss
-    children = main_process.children(recursive=True)
-    for child in children:
-        try:
-            server_memory += child.memory_info().rss
-        except psutil.NoSuchProcess:
-            pass
-
-    # Kernel memory
+    # Collect kernel PIDs first so we can exclude them from server memory
     kernel_memory: Optional[int] = None
+    kernel_pids: set[int] = set()
     session = AppState(request).get_current_session()
     try:
         if session and (pid := session.kernel_pid()) is not None:
             kernel_process = psutil.Process(pid)
+            kernel_pids.add(kernel_process.pid)
             kernel_memory = kernel_process.memory_info().rss
             kernel_children = kernel_process.children(recursive=True)
             for child in kernel_children:
+                kernel_pids.add(child.pid)
                 try:
                     kernel_memory += child.memory_info().rss
                 except psutil.NoSuchProcess:
                     pass
     except psutil.ZombieProcess:
         LOGGER.warning("Kernel process is a zombie")
+
+    # Server memory (excluding kernel processes to avoid double-counting)
+    main_process = psutil.Process()
+    server_memory = main_process.memory_info().rss
+    children = main_process.children(recursive=True)
+    for child in children:
+        if child.pid in kernel_pids:
+            continue
+        try:
+            server_memory += child.memory_info().rss
+        except psutil.NoSuchProcess:
+            pass
 
     # GPU stats
     gpu_stats: list[dict[str, Any]] = []

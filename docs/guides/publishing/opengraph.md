@@ -2,7 +2,7 @@
 
 marimo can attach OpenGraph metadata to notebooks for:
 
-- previews in the `marimo run <directory>` [gallery](../apps.md#gallery-mode)
+- previews in the `marimo run <directory>` [gallery](../apps.md#gallery)
 - link previews (OpenGraph tags in the notebook HTML)
 
 You configure this metadata in your notebook file using inline script metadata (PEP 723), under `[tool.marimo.opengraph]`.
@@ -46,8 +46,8 @@ __marimo__/assets/<notebook_stem>/opengraph.png
 To generate these thumbnails, use:
 
 ```bash
-marimo tools thumbnails generate notebook.py
-marimo tools thumbnails generate folder/
+marimo export thumbnail notebook.py
+marimo export thumbnail folder/
 ```
 
 For execution and sandbox options (and for Playwright installation instructions), see [Thumbnails](thumbnails.md).

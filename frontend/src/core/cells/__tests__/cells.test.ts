@@ -279,6 +279,36 @@ describe("cell reducer", () => {
     `);
   });
 
+  it("undo delete restores cell config (hide_code, disabled)", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+      code: "x = 1",
+    });
+    const newCellId = state.cellIds.getColumns()[0].atOrThrow(1);
+
+    // Set config to hidden and disabled
+    actions.updateCellConfig({
+      cellId: newCellId,
+      config: { hide_code: true, disabled: true },
+    });
+    expect(state.cellData[newCellId].config.hide_code).toBe(true);
+    expect(state.cellData[newCellId].config.disabled).toBe(true);
+
+    // Delete the cell
+    actions.deleteCell({ cellId: newCellId });
+    expect(state.cellIds.inOrderIds).not.toContain(newCellId);
+
+    // Undo delete
+    actions.undoDeleteCell();
+    const restoredCellId =
+      state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+
+    // Config should be preserved
+    expect(state.cellData[restoredCellId].config.hide_code).toBe(true);
+    expect(state.cellData[restoredCellId].config.disabled).toBe(true);
+  });
+
   it("can update a cell", () => {
     actions.updateCellCode({
       cellId: firstCellId,

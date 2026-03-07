@@ -18,7 +18,7 @@
         "delta": [
             "1 days 06:05:01.000030"
         ],
-        "none": "NaT",
+        "none": null,
         "infs": "inf",
         "struct": {
             "a": 1,
@@ -83,7 +83,7 @@
             "1 days 06:05:01.000030",
             "0 days 00:00:00.000015500"
         ],
-        "none":NaN,
+        "none": null,
         "infs": "inf",
         "struct": {
             "a": 3,
@@ -147,7 +147,7 @@
         "delta": [
             "1 days 06:05:01.000030",
             "0 days 00:00:00.000015500",
-            "NaT"
+            null
         ],
         "none": null,
         "infs": "-inf",

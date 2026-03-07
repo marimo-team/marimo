@@ -207,3 +207,71 @@ async def test_ui_element_update_skips_overridden_cells(
     assert embed_result.defs["result"] == 200
     # x should still be the overridden value, not slider.value
     assert embed_result.defs["x"] == 100
+
+
+async def test_converging_cell_stays_stopped_until_all_branches_trigger(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get_with_id("a", "mo.stop(True); a = 'A'"),
+            exec_req.get("mo.stop(True); b = 'B'"),
+            exec_req.get_with_id("res", "result = a + b"),
+        ]
+    )
+    assert "a" not in k.globals
+    assert "b" not in k.globals
+
+    await k.run([exec_req.get_with_id("a", "a = 'A'")])
+
+    assert "a" in k.globals
+    assert "b" not in k.globals
+    assert "result" not in k.globals
+    assert k.graph.cells["res"].run_result_status == "cancelled"
+
+
+async def test_sibling_cells_of_stopped_ancestor_both_cancelled(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get_with_id("stopper", "mo.stop(True); s = 1"),
+            exec_req.get_with_id("trigger", "t = 1"),
+            exec_req.get_with_id("s1", "x = s + t"),
+            exec_req.get_with_id("s2", "y = s + t"),
+        ]
+    )
+    assert "x" not in k.globals
+    assert "y" not in k.globals
+
+    await k.run([exec_req.get_with_id("trigger", "t = 2")])
+
+    assert "x" not in k.globals
+    assert "y" not in k.globals
+    assert k.graph.cells["s1"].run_result_status == "cancelled"
+    assert k.graph.cells["s2"].run_result_status == "cancelled"
+
+
+async def test_converging_runs_when_all_branches_trigger(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get_with_id("a", "mo.stop(True); a = 'A'"),
+            exec_req.get_with_id("b", "mo.stop(True); b = 'B'"),
+            exec_req.get_with_id("res", "result = a + b"),
+        ]
+    )
+    assert "a" not in k.globals
+    assert "b" not in k.globals
+
+    await k.run([exec_req.get_with_id("a", "a = 'A'")])
+    await k.run([exec_req.get_with_id("b", "b = 'B'")])
+
+    assert "a" in k.globals
+    assert "b" in k.globals
+    assert "result" in k.globals
+    assert k.graph.cells["res"].run_result_status == "success"

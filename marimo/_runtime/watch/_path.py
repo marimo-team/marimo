@@ -41,7 +41,12 @@ def write_side_effect(data: str | bytes) -> None:
 
 
 class PathState(State[Path]):
-    """Base class for path state."""
+    """Base class for reactive path watchers.
+
+    Args:
+        path: The filesystem path to watch for changes.
+        allow_self_loops: Whether to allow self-referential reactivity.
+    """
 
     _forbidden_attributes: set[str]
     _target: Callable[[Path, Self, threading.Event], None]
@@ -110,6 +115,12 @@ class PathState(State[Path]):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._value})"
+
+    def __fspath__(self) -> str:
+        return self._value.__fspath__()
+
+    def __str__(self) -> str:
+        return str(self._value)
 
     def exists(self) -> bool:
         """Check if the path exists."""

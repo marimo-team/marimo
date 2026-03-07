@@ -171,7 +171,10 @@ class MockStdin(ThreadSafeStdin):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def _readline_with_prompt(self, prompt: str = "") -> str:
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
+        del password
         return prompt
 
 

@@ -329,6 +329,40 @@ describe("NotebookLanguageServerClient", () => {
       });
     });
 
+    it("should normalize math content in hover markdown", async () => {
+      const hoverParams: LSP.HoverParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 1 },
+      };
+
+      const mockHoverResponse: LSP.Hover = {
+        contents: {
+          kind: "markdown",
+          value:
+            "For t > 0:\n\n.. math::\n\n\\begin{align*}\nm_t &= \\beta_1 \\cdot g_t\n\\end{align*}",
+        },
+      };
+
+      mockClient.textDocumentHover.mockResolvedValue(mockHoverResponse);
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "value = 1",
+        },
+      });
+
+      const result = await notebookClient.textDocumentHover(hoverParams);
+      const contents = result?.contents as LSP.MarkupContent;
+
+      expect(contents.kind).toBe("markdown");
+      expect(contents.value).toContain("<marimo-tex");
+      expect(contents.value).not.toContain(".. math::");
+      expect(contents.value).toContain("\\begin{align*}");
+    });
+
     it("should return null for empty hover contents", async () => {
       const hoverParams: LSP.HoverParams = {
         textDocument: { uri: "file:///cell1.py" },
@@ -389,6 +423,168 @@ describe("NotebookLanguageServerClient", () => {
           textDocument: { uri: "file:///__marimo_notebook__.py" },
         }),
       );
+    });
+
+    it("should normalize completion item markdown documentation", async () => {
+      const completionParams: LSP.CompletionParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 4 },
+      };
+
+      const mockCompletionResponse: LSP.CompletionList = {
+        isIncomplete: false,
+        items: [
+          {
+            label: "math_completion",
+            kind: LSP.CompletionItemKind.Function,
+            documentation: {
+              kind: "markdown",
+              value: "Compute :math:`x^2`",
+            },
+          },
+        ],
+      };
+
+      mockClient.textDocumentCompletion.mockResolvedValue(
+        mockCompletionResponse,
+      );
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "math",
+        },
+      });
+
+      const result =
+        await notebookClient.textDocumentCompletion(completionParams);
+      const completion = (result as LSP.CompletionList).items[0];
+      const documentation = completion?.documentation as LSP.MarkupContent;
+
+      expect(documentation.kind).toBe("markdown");
+      expect(documentation.value).toContain("<marimo-tex");
+      expect(documentation.value).not.toContain(":math:`");
+    });
+
+    it("should normalize completion item plaintext math documentation", async () => {
+      const completionParams: LSP.CompletionParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 4 },
+      };
+
+      const mockCompletionResponse: LSP.CompletionList = {
+        isIncomplete: false,
+        items: [
+          {
+            label: "math_completion_plain",
+            kind: LSP.CompletionItemKind.Function,
+            documentation: {
+              kind: "plaintext",
+              value: "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+            },
+          },
+        ],
+      };
+
+      mockClient.textDocumentCompletion.mockResolvedValue(
+        mockCompletionResponse,
+      );
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "math",
+        },
+      });
+
+      const result =
+        await notebookClient.textDocumentCompletion(completionParams);
+      const completion = (result as LSP.CompletionList).items[0];
+      const documentation = completion?.documentation as LSP.MarkupContent;
+
+      expect(documentation.kind).toBe("markdown");
+      expect(documentation.value).toContain("<marimo-tex");
+      expect(documentation.value).not.toContain(".. math::");
+    });
+  });
+
+  describe("completionItemResolve", () => {
+    it("should normalize resolved completion markdown documentation", async () => {
+      const unresolvedItem: LSP.CompletionItem = { label: "test" };
+      const resolvedItem: LSP.CompletionItem = {
+        label: "test",
+        documentation: {
+          kind: "markdown",
+          value: "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+        },
+      };
+
+      mockClient.completionItemResolve.mockResolvedValue(resolvedItem);
+
+      const result = await notebookClient.completionItemResolve(unresolvedItem);
+      const documentation = result.documentation as LSP.MarkupContent;
+
+      expect(documentation.kind).toBe("markdown");
+      expect(documentation.value).toContain("<marimo-tex");
+      expect(documentation.value).not.toContain(".. math::");
+    });
+  });
+
+  describe("textDocumentSignatureHelp", () => {
+    it("should normalize signature and parameter markdown documentation", async () => {
+      const signatureHelpParams: LSP.SignatureHelpParams = {
+        textDocument: { uri: "file:///cell1.py" },
+        position: { line: 0, character: 3 },
+      };
+
+      const mockSignatureHelp: LSP.SignatureHelp = {
+        signatures: [
+          {
+            label: "foo(x)",
+            documentation: {
+              kind: "markdown",
+              value: "Compute :math:`x^2`",
+            },
+            parameters: [
+              {
+                label: "x",
+                documentation: {
+                  kind: "markdown",
+                  value:
+                    "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentSignatureHelp.mockResolvedValue(mockSignatureHelp);
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: "file:///cell1.py",
+          languageId: "python",
+          version: 1,
+          text: "foo(",
+        },
+      });
+
+      const result =
+        await notebookClient.textDocumentSignatureHelp(signatureHelpParams);
+      const signature = result?.signatures[0];
+      const signatureDoc = signature?.documentation as LSP.MarkupContent;
+      const parameterDoc = signature?.parameters?.[0]
+        ?.documentation as LSP.MarkupContent;
+
+      expect(signatureDoc.value).toContain("<marimo-tex");
+      expect(signatureDoc.value).not.toContain(":math:`");
+      expect(parameterDoc.value).toContain("<marimo-tex");
+      expect(parameterDoc.value).not.toContain(".. math::");
     });
   });
 

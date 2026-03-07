@@ -24,14 +24,14 @@ def test_sympy_formatters_basic_symbols() -> None:
     assert formatter
     mime, content = formatter(x)
     assert mime == "text/html"
-    assert content.find(r"||[x||]") > 0
+    assert content.find("||[\nx\n||]") > 0
 
     # y Symbol
     formatter = get_formatter(y, include_opinionated=False)
     assert formatter
     mime, content = formatter(y)
     assert mime == "text/html"
-    assert content.find(r"||[y||]") > 0
+    assert content.find("||[\ny\n||]") > 0
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -47,7 +47,7 @@ def test_sympy_formatters_addition() -> None:
     assert formatter
     mime, content = formatter(out_exp)
     assert mime == "text/html"
-    assert content.find("||[x + y + z||]") > 0
+    assert content.find("||[\nx + y + z\n||]") > 0
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -64,7 +64,7 @@ def test_sympy_formatters_power() -> None:
     assert formatter
     mime, content = formatter(x_squared)
     assert mime == "text/html"
-    assert content.find("||[x^{2}||]") > 0
+    assert content.find("||[\nx^{2}\n||]") > 0
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -86,7 +86,7 @@ def test_sympy_formatters_matrix() -> None:
     assert mime == "text/html"
     assert (
         content.find(
-            r"||[\left[\begin{matrix}1 &amp; 2\\3 &amp; 4\end{matrix}\right]||]"  # noqa: E501
+            "||[\n\\left[\\begin{matrix}1 &amp; 2\\\\3 &amp; 4\\end{matrix}\\right]\n||]"  # noqa: E501
         )
         > 0
     )
@@ -97,7 +97,7 @@ def test_sympy_formatters_matrix() -> None:
     assert mime == "text/html"
     assert (
         content.find(
-            r"||[\left[\begin{matrix}x &amp; 2 y\\z &amp; 4\end{matrix}\right]||]"  # noqa: E501
+            "||[\n\\left[\\begin{matrix}x &amp; 2 y\\\\z &amp; 4\\end{matrix}\\right]\n||]"  # noqa: E501
         )
         > 0
     )
@@ -117,4 +117,4 @@ def test_sympy_formatters_Integral() -> None:
     assert formatter
     mime, content = formatter(out_exp)
     assert mime == "text/html"
-    assert content.find(r"||[\int \sqrt{\frac{1}{x}}\, dx||]") > 0
+    assert content.find("||[\n\\int \\sqrt{\\frac{1}{x}}\\, dx\n||]") > 0

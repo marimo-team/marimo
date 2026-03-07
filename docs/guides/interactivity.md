@@ -1,3 +1,7 @@
+---
+description: "Build interactive notebooks with marimo's UI elements: sliders, dropdowns, tables, and more. No callbacks required."
+---
+
 # Interactive elements
 
 One of marimo's most powerful features is its first-class support for

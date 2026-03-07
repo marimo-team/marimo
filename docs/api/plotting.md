@@ -6,6 +6,10 @@ as you normally would.
 
 For more information about plotting, see the [plotting guide](../guides/working_with_data/plotting.md).
 
+## Reactive plots with matplotlib
+
+::: marimo.ui.matplotlib
+
 ## Reactive charts with Altair
 
 /// marimo-embed
@@ -70,17 +74,26 @@ chart # You can now access chart.value to get the selected data
 
 Altair has a concept of [data](https://altair-viz.github.io/user_guide/data_transformers.html) transformers, which can be used to improve performance.
 
-Such examples are:
+Some examples are:
 
-- pandas Dataframe has to be sanitized and serialized to JSON.
-- The rows of a Dataframe might need to be sampled or limited to a maximum number.
-- The Dataframe might be written to a `.csv` or `.json` file for performance reasons.
+- pandas Dataframe has to be sanitized and serialized to JSON;
+- the rows of a Dataframe might need to be sampled or limited to a maximum number;
+- the Dataframe might be written to a `.csv` or `.json` file for performance reasons.
 
-By default, Altair uses the `default` data transformer, which is the slowest in marimo. It is limited to 5000 rows (although we increase this to `20_000` rows as marimo can handle this). This includes the data inside the HTML that is being sent over the network, which can also be limited by marimo's maximum message size.
+By default, Altair uses the `default` data transformer, which is the slowest in
+marimo. It is limited to 5000 rows (although we increase this to `20_000` rows
+as marimo can handle this). This includes the data inside the HTML that is
+being sent over the network, which can also be limited by marimo's maximum
+message size.
 
-It is recommended to use the `marimo_csv` data transformer, which is the most performant and can handle the largest datasets: it converts the data to a CSV file which is smaller and can be sent over the network. This can handle up to +400,000 rows with no issues.
+It is recommended to use the `marimo_csv` data transformer, which is the most
+performant and can handle the largest datasets: it converts the data to a CSV
+file which is smaller and can be sent over the network. This can handle up to
++400,000 rows with no issues.
 
-When using `mo.ui.altair_chart`, we automatically set the data transformer to `marimo_csv` for you. If you are using Altair directly, you can set the data transformer using the following code:
+When using `mo.ui.altair_chart`, we automatically set the data transformer to
+`marimo_csv` for you. If you are using Altair directly, you can set the data
+transformer using the following code:
 
 ```python
 import altair as alt
@@ -92,9 +105,9 @@ alt.data_transformers.enable('marimo_csv')
 !!! warning "Supported charts"
 
     marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
-    supports reactive selections for scatter plots, bar charts, heatmaps,
-    treemaps, and sunburst charts. If you require other kinds of selection,
-    please [file an issue](https://github.com/marimo-team/marimo/issues).
+    supports reactive selections for scatter/scattergl plots, bar charts,
+    heatmaps, treemaps, and sunburst charts. If you require other kinds of
+    selection, please [file an issue](https://github.com/marimo-team/marimo/issues).
 
 ::: marimo.ui.plotly
 
@@ -105,13 +118,13 @@ alt.data_transformers.enable('marimo_csv')
       show_root_heading: true
       show_source: true
 
-## Leafmap support
+## Leafmap
 
 marimo supports rendering [Leafmap](https://leafmap.org/) maps using the `folium` and `plotly` backends.
 
 ## Other plotting libraries
 
-You can use all the popular plotting libraries with marimo. Such as:
+You can use all the popular plotting libraries with marimo, such as:
 
 - [Matplotlib](https://matplotlib.org/)
 - [Plotly](https://plotly.com/)

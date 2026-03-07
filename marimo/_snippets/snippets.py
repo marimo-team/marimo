@@ -51,14 +51,14 @@ async def read_snippets(config: MarimoConfig) -> Snippets:
                 if not title and "# " in code:
                     title = get_title_from_code(code)
 
-                    ret = cell.run()
-                    if isinstance(ret, Awaitable):
-                        output, _defs = await ret
-                    else:
-                        output, _defs = ret
-                    sections.append(
-                        SnippetSection(html=output.text, id=cell._cell.cell_id)
-                    )
+                ret = cell.run()
+                if isinstance(ret, Awaitable):
+                    output, _defs = await ret
+                else:
+                    output, _defs = ret
+                sections.append(
+                    SnippetSection(html=output.text, id=cell._cell.cell_id)
+                )
             else:
                 sections.append(
                     SnippetSection(code=code, id=cell._cell.cell_id)

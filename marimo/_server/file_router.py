@@ -177,7 +177,8 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         self._allow_single_file_key = allow_single_file_key
         self._allow_dynamic = allow_dynamic
         self._allowed_paths = {
-            MarimoPath(file.path).absolute_name for file in files
+            str(normalize_path(Path(MarimoPath(file.path).absolute_name)))
+            for file in files
         }
 
     @property
@@ -257,7 +258,9 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         """
         if not self._allow_dynamic:
             return
-        self._allowed_paths.add(MarimoPath(filepath).absolute_name)
+        self._allowed_paths.add(
+            str(normalize_path(Path(MarimoPath(filepath).absolute_name)))
+        )
 
 
 class LazyListOfFilesAppFileRouter(AppFileRouter):

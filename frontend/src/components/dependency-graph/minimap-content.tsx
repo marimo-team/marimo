@@ -17,6 +17,7 @@ import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
+import { extractCellPreview } from "./utils/cell-preview";
 
 interface MinimapCellProps {
   cellId: CellId;
@@ -45,6 +46,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   }
 
   const isSelected = selectedCell?.id === cell.id;
+  const preview = extractCellPreview(cell.code);
   const circleRadius = isNonReferenceableCell(cell.graph) ? 1.5 : 3;
 
   const handleClick = () => {
@@ -90,7 +92,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
             <VariablesList cell={cell} selectedCell={selectedCell} />
           ) : (
             <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
-              {codePreview(cell.code) ?? <span className="italic">empty</span>}
+              {preview.text ?? <span className="italic">empty</span>}
             </span>
           )}
         </div>
@@ -122,10 +124,6 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     </button>
   );
 };
-
-function codePreview(code: string): string | undefined {
-  return code.split("\n")[0].trim() || undefined;
-}
 
 const VariablesList: React.FC<{
   cell: { id: CellId; graph: CellGraph };

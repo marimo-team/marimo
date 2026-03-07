@@ -36,7 +36,7 @@ import {
   DEFAULT_RUNTIME_CONFIG,
   runtimeConfigAtom,
 } from "./core/runtime/config";
-import { codeAtom, filenameAtom } from "./core/saving/file-state";
+import { codeAtom, cwdAtom, filenameAtom } from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
 import {
@@ -59,9 +59,9 @@ import { reportVitals } from "./utils/vitals";
 let hasMounted = false;
 
 /**
- * Main entry point for the mairmo app.
+ * Main entry point for the marimo app.
  *
- * Sets up the mairmo app with a theme provider.
+ * Sets up the marimo app with a theme provider.
  */
 export function mount(options: unknown, el: Element): Error | undefined {
   if (hasMounted) {
@@ -146,6 +146,10 @@ const mountOptionsSchema = z.object({
       Logger.warn("No filename provided, using fallback");
       return getFilenameFromDOM();
     }),
+  /**
+   * absolute working directory of the notebook
+   */
+  cwd: z.string().nullish().default(null),
   /**
    * notebook code
    */
@@ -282,6 +286,7 @@ function initStore(options: unknown) {
 
   // Files
   store.set(filenameAtom, parsedOptions.data.filename);
+  store.set(cwdAtom, parsedOptions.data.cwd ?? null);
   store.set(codeAtom, parsedOptions.data.code);
   store.set(initialModeAtom, mode);
 

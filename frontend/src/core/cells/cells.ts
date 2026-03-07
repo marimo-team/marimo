@@ -84,6 +84,7 @@ export interface NotebookState {
     column: CellColumnId;
     index: CellIndex;
     isSetupCell: boolean;
+    config: CellConfig;
   }[];
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
@@ -590,17 +591,19 @@ const {
 
     // release the granular atom(s) created for this cell
     releaseCellAtoms(cellId);
+    const prevData = state.cellData[cellId];
     return {
       ...state,
       cellIds: state.cellIds.deleteById(cellId),
       history: [
         ...state.history,
         {
-          name: state.cellData[cellId].name,
+          name: prevData.name,
           serializedEditorState: serializedEditorState,
           column: column.id,
           index: cellIndex,
           isSetupCell: cellId === SETUP_CELL_ID,
+          config: prevData.config,
         },
       ],
       scrollKey: scrollKey,
@@ -619,6 +622,7 @@ const {
       column,
       index,
       isSetupCell,
+      config,
     } = mostRecentlyDeleted;
 
     const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
@@ -628,6 +632,7 @@ const {
       code: serializedEditorState.doc,
       edited: serializedEditorState.doc.trim().length > 0,
       serializedEditorState,
+      config,
     });
 
     return {

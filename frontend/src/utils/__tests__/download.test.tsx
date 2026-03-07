@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import {
+  downloadAsPDF,
   downloadByURL,
   downloadCellOutputAsImage,
   downloadHTMLAsImage,
@@ -10,16 +11,28 @@ import {
   withLoadingToast,
 } from "../download";
 
+const { mockExportAsPDF } = vi.hoisted(() => ({
+  mockExportAsPDF: vi.fn(),
+}));
+
 // Mock html-to-image
 vi.mock("html-to-image", () => ({
   toPng: vi.fn(),
 }));
 
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({
+    exportAsPDF: mockExportAsPDF,
+  }),
+}));
+
 // Mock the toast module
 const mockDismiss = vi.fn();
+const mockUpdate = vi.fn();
 vi.mock("@/components/ui/use-toast", () => ({
   toast: vi.fn(() => ({
     dismiss: mockDismiss,
+    update: mockUpdate,
   })),
 }));
 
@@ -39,6 +52,7 @@ vi.mock("@/utils/Logger", () => ({
 vi.mock("@/utils/filenames", () => ({
   Filenames: {
     toPNG: (name: string) => `${name}.png`,
+    toPDF: (name: string) => `${name}.pdf`,
   },
 }));
 
@@ -113,6 +127,51 @@ describe("withLoadingToast", () => {
     );
   });
 
+  it("should update toast on finish when onFinish is provided", async () => {
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+    });
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Upload complete",
+        description: undefined,
+        duration: 1200,
+      }),
+    );
+    expect(mockDismiss).not.toHaveBeenCalled();
+  });
+
+  it("should allow onFinish to override duration", async () => {
+    await withLoadingToast("Uploading files...", async () => "done", {
+      title: "Upload complete",
+      duration: 2000,
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: 2000,
+      }),
+    );
+  });
+
+  it("should not update toast when the operation fails", async () => {
+    await expect(
+      withLoadingToast(
+        "Uploading files...",
+        async () => {
+          throw new Error("Upload failed");
+        },
+        { title: "Upload complete" },
+      ),
+    ).rejects.toThrow("Upload failed");
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
   it("should wait for the async function to complete", async () => {
     const events: string[] = [];
 
@@ -124,6 +183,33 @@ describe("withLoadingToast", () => {
 
     expect(events).toEqual(["start", "end"]);
     expect(mockDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("downloadAsPDF", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should send the preset in export request payload", async () => {
+    mockExportAsPDF.mockRejectedValue(new Error("network"));
+
+    await expect(
+      downloadAsPDF({
+        filename: "path/to/notebook.py",
+        webpdf: false,
+        preset: "slides",
+      }),
+    ).rejects.toThrow("network");
+
+    expect(mockExportAsPDF).toHaveBeenCalledWith({
+      webpdf: false,
+      preset: "slides",
+      includeInputs: true,
+      rasterizeOutputs: true,
+      rasterScale: 4,
+      rasterServer: "static",
+    });
   });
 });
 

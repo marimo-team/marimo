@@ -4,10 +4,10 @@ import { CornerLeftUp } from "lucide-react";
 import { type JSX, useEffect, useState } from "react";
 import { z } from "zod";
 import {
-  FILE_TYPE_ICONS,
-  type FileType,
-  guessFileType,
-} from "@/components/editor/file-tree/types";
+  FILE_ICON as FILE_TYPE_ICONS,
+  type FileIconType as FileType,
+  guessFileIconType as guessFileType,
+} from "@/components/editor/file-tree/file-icons";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

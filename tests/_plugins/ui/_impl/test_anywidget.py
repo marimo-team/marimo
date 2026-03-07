@@ -27,6 +27,7 @@ from tests.conftest import ExecReqProvider
 HAS_DEPS = (
     DependencyManager.anywidget.has() and DependencyManager.traitlets.has()
 )
+HAS_PLOTLY = DependencyManager.plotly.has()
 
 if HAS_DEPS:
     import anywidget as _anywidget
@@ -732,3 +733,38 @@ run_count = globals().get("run_count", 0) + 1
         assert k.globals["result"] == 7
         # The defining cell should NOT have re-run (no self-loop)
         assert k.globals["run_count"] == initial_run_count
+
+    @staticmethod
+    @pytest.mark.skipif(not HAS_PLOTLY, reason="plotly not installed")
+    async def test_plotly_figure_widget_uses_anywidget_path(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that plotly FigureWidget is rendered via the anywidget path.
+
+        FigureWidget is an anywidget.AnyWidget subclass and must go through
+        the widget comm path (not static plotly rendering) for interactive
+        features like plotly-resampler's dynamic resampling to work.
+
+        Regression test for https://github.com/marimo-team/marimo/issues/4091
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import plotly.graph_objects as go
+import marimo as mo
+
+fig = go.FigureWidget(
+    data=[go.Scatter(x=[1, 2, 3], y=[4, 5, 6])]
+)
+html_output = mo.as_html(fig).text
+uses_anywidget = "marimo-anywidget" in html_output
+uses_static_plotly = "marimo-plotly" in html_output
+"""
+                )
+            ]
+        )
+        # FigureWidget should use the anywidget path
+        assert k.globals["uses_anywidget"] is True
+        # FigureWidget should NOT use the static plotly path
+        assert k.globals["uses_static_plotly"] is False

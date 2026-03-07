@@ -104,6 +104,8 @@ ui
   file
   file_browser
   form
+  matplotlib
+  matrix
   microphone
   multiselect
   number
@@ -122,5 +124,8 @@ ui
 video
 vstack
 watch
+  DirectoryState
+  FileState
+  PathState
   directory
   file

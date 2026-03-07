@@ -41,6 +41,7 @@ marimo behaves differently depending on how you run it:
 - Notebooks run as web applications
 - Content is treated as a trusted website (no sanitization)
 - Token authentication can be configured via CLI flags or custom middleware
+- With `marimo run <folder> --watch`, newly created notebooks in the watched folder can appear in gallery mode without restarting the server
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 

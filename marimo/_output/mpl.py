@@ -66,10 +66,23 @@ def _render_figure_mimebundle(
         fig: Matplotlib figure canvas to render
 
     Returns:
-        Tuple of (mimetype, json_data) where json_data is a mimebundle
-        containing the PNG data URL and display metadata
+        Tuple of (mimetype, data). If `matplotlib.rcParams["savefig.format"]` is 'svg',
+        mimetype is 'image/svg+xml' and data is the Base64-encoded SVG data URL.
+        Otherwise, mimetype is 'application/vnd.marimo+mimebundle' and data is a JSON string
+        representing a mimebundle containing the PNG data URL and display metadata.
     """
     buf = io.BytesIO()
+
+    # SVG is rendered as a base64 data URL in an <img> tag rather than
+    # inlined into the DOM. This avoids sanitization complexity (SVG can
+    # contain scripts, event handlers, etc.) at the cost of non-selectable
+    # text. Could inline with a stricter sanitizer if that's needed.
+    if plt.rcParams["savefig.format"] == "svg":
+        fig.figure.savefig(buf, format="svg", bbox_inches="tight")  # type: ignore[attr-defined]
+        svg_bytes = buf.getvalue()
+        plot_bytes = base64.b64encode(svg_bytes)
+        data_url = build_data_url(mimetype="image/svg+xml", data=plot_bytes)
+        return "image/svg+xml", data_url
 
     # Get current DPI and double it for retina display (like Jupyter)
     original_dpi = fig.figure.dpi  # type: ignore[attr-defined]

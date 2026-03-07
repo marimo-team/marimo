@@ -36,6 +36,15 @@ class TestStdin:
         )
         assert k.globals["output"] == [""]
 
+    @staticmethod
+    async def test_getpass_installed(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [exec_req.get("import getpass; output = getpass.getpass('pwd: ')")]
+        )
+        assert k.globals["output"] == "pwd: "
+
 
 class TestStdout:
     @staticmethod

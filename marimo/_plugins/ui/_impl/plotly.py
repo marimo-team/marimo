@@ -135,8 +135,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     Use `mo.ui.plotly` to make plotly plots reactive: select data with your
     cursor on the frontend, get them as a list of dicts in Python!
 
-    This function supports scatter plots, line charts, area charts, bar charts,
-    treemap charts, sunburst charts, and heatmaps.
+    This function supports scatter plots, scattergl plots, line charts, area
+    charts, bar charts, treemap charts, sunburst charts, and heatmaps.
 
     Examples:
         ```python
@@ -363,8 +363,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             for trace in self._figure.data
         )
 
+        scatter_trace_types = {"scatter", "scattergl"}
         has_scatter = any(
-            getattr(trace, "type", None) == "scatter"
+            getattr(trace, "type", None) in scatter_trace_types
             for trace in self._figure.data
         )
 
@@ -551,9 +552,9 @@ def _extract_heatmap_cells_numpy(
 def _append_scatter_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:
-    """Append scatter/line points within the selection range to the selection data.
+    """Append scatter/scattergl/line points within range to selection data.
 
-    This modifies selection_data in place, appending any scatter/line points
+    This modifies selection_data in place, appending any scatter/scattergl/line points
     that fall within the x-range to the existing points and indices.
 
     For line charts, Plotly may not send point-level data in the selection event
@@ -615,7 +616,7 @@ def _append_scatter_points_to_selection(
 def _extract_scatter_points_from_range(
     figure: go.Figure, range_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points that fall within a selection range.
+    """Extract scatter/scattergl/line points in a selection range.
 
     This follows Altair's behavior: returns all points where x is within
     the x-range, regardless of y value.
@@ -638,7 +639,7 @@ def _extract_scatter_points_numpy(
     x_min: float,
     x_max: float,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points using numpy for better performance."""
+    """Extract scatter/scattergl/line points using numpy."""
     import numpy as np
 
     selected_points: list[dict[str, Any]] = []
@@ -656,8 +657,8 @@ def _extract_scatter_points_numpy(
     y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
 
     for trace_idx, trace in enumerate(figure.data):
-        # Only process scatter traces (which includes lines, markers, lines+markers)
-        if getattr(trace, "type", None) != "scatter":
+        # Process scatter-like traces (includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
             continue
 
         x_data = getattr(trace, "x", None)
@@ -727,7 +728,7 @@ def _extract_scatter_points_fallback(
     x_min: float,
     x_max: float,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points using pure Python (fallback when numpy unavailable)."""
+    """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
 
     # Get axis titles for field naming
@@ -743,8 +744,8 @@ def _extract_scatter_points_fallback(
     y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
 
     for trace_idx, trace in enumerate(figure.data):
-        # Only process scatter traces (which includes lines, markers, lines+markers)
-        if getattr(trace, "type", None) != "scatter":
+        # Process scatter-like traces (includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
             continue
 
         x_data = getattr(trace, "x", None)
