@@ -31,9 +31,12 @@ declare global {
         ondownload: (figure: MplFigure, format: string) => void,
         element: HTMLElement,
       ) => MplFigure;
-      toolbar_items: Array<
-        [string | null, string | null, string | null, string | null]
-      >;
+      toolbar_items: [
+        string | null,
+        string | null,
+        string | null,
+        string | null,
+      ][];
     };
   }
 }
@@ -118,7 +121,7 @@ function patchToolbarImages(
 
   // Patch any existing images
   for (const img of container.querySelectorAll("img")) {
-    patchImg(img as HTMLImageElement);
+    patchImg(img);
   }
 
   // Observe for new images added by mpl.js
@@ -129,7 +132,7 @@ function patchToolbarImages(
           patchImg(node);
         } else if (node instanceof HTMLElement) {
           for (const img of node.querySelectorAll("img")) {
-            patchImg(img as HTMLImageElement);
+            patchImg(img);
           }
         }
       }
@@ -232,9 +235,7 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
       // Set the canvas_div to the backend's figure size so the
       // ResizeObserver doesn't trigger an immediate resize cycle.
       // mpl.js creates: fig.root > [titlebar, canvas_div, toolbar]
-      const canvasDiv = fig.root.querySelector(
-        "div[tabindex]",
-      ) as HTMLElement | null;
+      const canvasDiv = fig.root.querySelector("div[tabindex]");
       if (canvasDiv) {
         canvasDiv.style.width = `${width}px`;
         canvasDiv.style.height = `${height}px`;
