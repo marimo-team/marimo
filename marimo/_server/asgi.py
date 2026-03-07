@@ -465,11 +465,9 @@ def create_asgi_app(
     # Check for pyzmq — required for per-app process isolation
     from marimo._dependencies.dependencies import DependencyManager
 
-    if not DependencyManager.zmq.has():
-        raise RuntimeError(
-            "pyzmq is required for running multiple notebooks with "
-            "create_asgi_app(). Install with: pip install pyzmq"
-        )
+    DependencyManager.zmq.require(
+        "for running multiple notebooks with create_asgi_app()"
+    )
 
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
