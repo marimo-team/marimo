@@ -235,7 +235,7 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
       // Set the canvas_div to the backend's figure size so the
       // ResizeObserver doesn't trigger an immediate resize cycle.
       // mpl.js creates: fig.root > [titlebar, canvas_div, toolbar]
-      const canvasDiv = fig.root.querySelector("div[tabindex]");
+      const canvasDiv = fig.root.querySelector<HTMLElement>("div[tabindex]");
       if (canvasDiv) {
         canvasDiv.style.width = `${width}px`;
         canvasDiv.style.height = `${height}px`;
