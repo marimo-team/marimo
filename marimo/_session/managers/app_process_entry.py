@@ -1,19 +1,27 @@
 # Copyright 2026 Marimo. All rights reserved.
 """App process entry point for per-app process isolation.
 
-This module is the target for multiprocessing.Process. Each app process
-manages kernel threads for a single notebook file, providing OS-level
-isolation of sys.modules between different apps.
+Launched via subprocess.Popen as:
+
+    python -m marimo._session.managers.app_process_entry
+
+Reads startup args (management channel ports, file path, log level) from
+stdin as JSON, then enters a loop processing management commands over ZeroMQ.
+Each app process manages kernel threads for a single notebook file, providing
+OS-level isolation of sys.modules between different apps.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import os
-import queue
 import signal
+import sys
 import threading
-from typing import TYPE_CHECKING
+import typing
+
+import msgspec
+import msgspec.json
 
 from marimo import _loggers
 from marimo._ipc.queue_manager import QueueManager
@@ -27,12 +35,27 @@ from marimo._session.managers.app_process_commands import (
     KernelStoppedResponse,
     ShutdownAppProcessCmd,
     StopKernelCmd,
+    decode_command,
+    encode_response,
 )
 
-if TYPE_CHECKING:
-    from multiprocessing import Queue as MPQueue
-
 LOGGER = _loggers.marimo_logger()
+
+
+class AppProcessArgs(msgspec.Struct):
+    """Startup args sent from main process via stdin."""
+
+    mgmt_port: int  # ZMQ PULL port for receiving commands
+    response_port: int  # ZMQ PUSH port for sending responses
+    file_path: str
+    log_level: int
+
+    def encode_json(self) -> bytes:
+        return msgspec.json.encode(self)
+
+    @classmethod
+    def decode_json(cls, buf: bytes) -> AppProcessArgs:
+        return msgspec.json.decode(buf, type=cls)
 
 
 @dataclasses.dataclass
@@ -54,22 +77,23 @@ def _shutdown_all_kernels(kernels: dict[str, _KernelInfo]) -> None:
 
 
 def _handle_stop_kernel(
-    cmd: object,
+    cmd: StopKernelCmd,
     kernels: dict[str, _KernelInfo],
-    response_queue: MPQueue[object],
+    response_socket: typing.Any,
 ) -> None:
-    assert isinstance(cmd, StopKernelCmd)
     info = kernels.pop(cmd.session_id, None)
     if info is not None:
         info.queue_manager.control_queue.put(StopKernelCommand())
         LOGGER.debug("Kernel stopped for session %s", cmd.session_id)
-    response_queue.put(KernelStoppedResponse(session_id=cmd.session_id))
+    response_socket.send(
+        encode_response(KernelStoppedResponse(session_id=cmd.session_id))
+    )
 
 
 def _handle_create_kernel(
     cmd: CreateKernelCmd,
     kernels: dict[str, _KernelInfo],
-    response_queue: MPQueue[object],
+    response_socket: typing.Any,
 ) -> None:
     try:
         # Connect to the ZeroMQ channels created by the main process
@@ -116,8 +140,10 @@ def _handle_create_kernel(
             session_id=cmd.session_id,
         )
 
-        response_queue.put(
-            KernelCreatedResponse(session_id=cmd.session_id, success=True)
+        response_socket.send(
+            encode_response(
+                KernelCreatedResponse(session_id=cmd.session_id, success=True)
+            )
         )
         LOGGER.debug("Kernel created for session %s", cmd.session_id)
 
@@ -125,58 +151,79 @@ def _handle_create_kernel(
         LOGGER.exception(
             "Failed to create kernel for session %s", cmd.session_id
         )
-        response_queue.put(
-            KernelCreatedResponse(
-                session_id=cmd.session_id, success=False, error=str(e)
+        response_socket.send(
+            encode_response(
+                KernelCreatedResponse(
+                    session_id=cmd.session_id, success=False, error=str(e)
+                )
             )
         )
 
 
-def app_process_main(
-    mgmt_queue: MPQueue[object],
-    response_queue: MPQueue[object],
-    file_path: str,
-    log_level: int,
-) -> None:
+def app_process_main(args: AppProcessArgs) -> None:
     """App process main loop.
 
-    Listens on mgmt_queue for management commands and starts/stops
-    kernel threads as requested. Each kernel thread communicates with
-    the main process via ZeroMQ channels.
-
-    Args:
-        mgmt_queue: Receives commands from the main process.
-        response_queue: Sends responses back to the main process.
-        file_path: The notebook file this app process serves.
-        log_level: Log level for the app process.
+    Connects to the management ZMQ sockets and processes commands
+    to create/stop kernel threads.
     """
+    import zmq
+
     # Ignore SIGINT in app processes — the main process handles Ctrl-C
-    # and sends ShutdownAppProcessCmd via mgmt_queue for graceful teardown.
+    # and sends ShutdownAppProcessCmd via the management channel.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    _loggers.set_level(log_level)
-    LOGGER.debug("App process started for %s (pid=%d)", file_path, os.getpid())
+    _loggers.set_level(args.log_level)
+    LOGGER.debug(
+        "App process started for %s (pid=%d)", args.file_path, os.getpid()
+    )
 
     # Register formatters once, shared by all kernel threads in this app process.
     register_formatters()
 
+    context = zmq.Context()
+    mgmt_socket = context.socket(zmq.PULL)
+    mgmt_socket.connect(f"tcp://127.0.0.1:{args.mgmt_port}")
+
+    response_socket = context.socket(zmq.PUSH)
+    response_socket.connect(f"tcp://127.0.0.1:{args.response_port}")
+
     kernels: dict[str, _KernelInfo] = {}
+    poller = zmq.Poller()
+    poller.register(mgmt_socket, zmq.POLLIN)
 
     while True:
-        try:
-            cmd = mgmt_queue.get(timeout=1.0)
-        except queue.Empty:
+        events = dict(poller.poll(timeout=1000))
+        if mgmt_socket not in events:
             continue
 
+        data = mgmt_socket.recv()
+        cmd = decode_command(data)
+
         if isinstance(cmd, CreateKernelCmd):
-            _handle_create_kernel(cmd, kernels, response_queue)
+            _handle_create_kernel(cmd, kernels, response_socket)
         elif isinstance(cmd, StopKernelCmd):
-            _handle_stop_kernel(cmd, kernels, response_queue)
+            _handle_stop_kernel(cmd, kernels, response_socket)
         elif isinstance(cmd, ShutdownAppProcessCmd):
-            LOGGER.debug("App process shutting down for %s", file_path)
+            LOGGER.debug("App process shutting down for %s", args.file_path)
             _shutdown_all_kernels(kernels)
             break
         else:
             LOGGER.warning(
                 "App process received unknown command: %s", type(cmd)
             )
+
+    mgmt_socket.close(linger=0)
+    response_socket.close(linger=0)
+    context.destroy(linger=0)
+
+
+def main() -> None:
+    """Entry point when run as a module."""
+    args = AppProcessArgs.decode_json(sys.stdin.buffer.read())
+    sys.stdout.write("APP_PROCESS_READY\n")
+    sys.stdout.flush()
+    app_process_main(args)
+
+
+if __name__ == "__main__":
+    main()

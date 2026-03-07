@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 """App process management for per-app process isolation.
 
-AppProcess: wraps a single multiprocessing.Process for one notebook.
+AppProcess: wraps a subprocess.Popen for one notebook.
 AppProcessPool: manages app processes keyed by absolute file path.
 AppKernelManager: implements KernelManager protocol for app-process-backed kernels.
 """
@@ -9,9 +9,12 @@ AppKernelManager: implements KernelManager protocol for app-process-backed kerne
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import threading
-from multiprocessing import get_context
 from typing import TYPE_CHECKING, Optional, Union
+
+import zmq
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -22,17 +25,16 @@ from marimo._session.managers.app_process_commands import (
     KernelCreatedResponse,
     ShutdownAppProcessCmd,
     StopKernelCmd,
+    decode_response,
+    encode_command,
 )
-from marimo._session.managers.app_process_entry import app_process_main
+from marimo._session.managers.app_process_entry import AppProcessArgs
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from multiprocessing.context import SpawnProcess
-    from multiprocessing.queues import Queue as MPQueue
-
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
     from marimo._ipc.types import ConnectionInfo
@@ -42,34 +44,76 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-_RESPONSE_TIMEOUT = 30  # seconds
+_RESPONSE_TIMEOUT = 30_000  # milliseconds
+_READY_TIMEOUT = 30  # seconds
+_ADDR = "tcp://127.0.0.1"
 
 
 class AppProcess:
-    """Wraps a multiprocessing.Process for a single notebook file."""
+    """Wraps a subprocess.Popen for a single notebook file."""
 
-    def __init__(self, file_path: str) -> None:
+    def __init__(self, file_path: str, python: str | None = None) -> None:
         self._file_path = file_path
-        self._process: SpawnProcess | None = None
-        self._mgmt_queue: MPQueue[object] | None = None
-        self._response_queue: MPQueue[object] | None = None
+        self._python = python or sys.executable
+        self._process: subprocess.Popen[bytes] | None = None
+        self._mgmt_socket: zmq.Socket[bytes] | None = None
+        self._response_socket: zmq.Socket[bytes] | None = None
+        self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
 
     def start(self) -> None:
-        ctx = get_context("spawn")
-        self._mgmt_queue = ctx.Queue()
-        self._response_queue = ctx.Queue()
+        context = zmq.Context()
+        self._zmq_context = context
 
-        self._process = ctx.Process(
-            target=app_process_main,
-            args=(
-                self._mgmt_queue,
-                self._response_queue,
-                self._file_path,
-                GLOBAL_SETTINGS.LOG_LEVEL,
-            ),
-            daemon=True,
+        # Bind management sockets (main process side)
+        mgmt_socket = context.socket(zmq.PUSH)
+        mgmt_port = mgmt_socket.bind_to_random_port(_ADDR)
+        self._mgmt_socket = mgmt_socket
+
+        response_socket = context.socket(zmq.PULL)
+        response_port = response_socket.bind_to_random_port(_ADDR)
+        self._response_socket = response_socket
+
+        args = AppProcessArgs(
+            mgmt_port=mgmt_port,
+            response_port=response_port,
+            file_path=self._file_path,
+            log_level=GLOBAL_SETTINGS.LOG_LEVEL,
         )
-        self._process.start()
+
+        cmd = [
+            self._python,
+            "-m",
+            "marimo._session.managers.app_process_entry",
+        ]
+        LOGGER.debug("Launching app process: %s", " ".join(cmd))
+
+        self._process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        # Send startup args via stdin
+        proc_stdin = self._process.stdin
+        proc_stdout = self._process.stdout
+        if proc_stdin is None or proc_stdout is None:
+            raise RuntimeError("Failed to open stdin/stdout for app process")
+        proc_stdin.write(args.encode_json())
+        proc_stdin.flush()
+        proc_stdin.close()
+
+        # Wait for ready signal
+        ready = proc_stdout.readline().decode().strip()
+        if ready != "APP_PROCESS_READY":
+            stderr = ""
+            if self._process.stderr is not None:
+                stderr = self._process.stderr.read().decode()
+            raise RuntimeError(
+                f"App process failed to start for {self._file_path}.\n\n"
+                f"Stderr:\n{stderr}"
+            )
+
         LOGGER.debug(
             "App process started for %s (pid=%s)",
             self._file_path,
@@ -87,8 +131,8 @@ class AppProcess:
         redirect_console_to_browser: bool,
         log_level: int,
     ) -> KernelCreatedResponse:
-        assert self._mgmt_queue is not None
-        assert self._response_queue is not None
+        if self._mgmt_socket is None or self._response_socket is None:
+            raise RuntimeError("App process not started")
 
         cmd = CreateKernelCmd(
             session_id=session_id,
@@ -100,37 +144,56 @@ class AppProcess:
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
         )
-        self._mgmt_queue.put(cmd)
+        self._mgmt_socket.send(encode_command(cmd))
 
-        response = self._response_queue.get(timeout=_RESPONSE_TIMEOUT)
-        assert isinstance(response, KernelCreatedResponse)
-        return response
+        if self._response_socket.poll(timeout=_RESPONSE_TIMEOUT):
+            data = self._response_socket.recv()
+            response = decode_response(data)
+            if not isinstance(response, KernelCreatedResponse):
+                raise RuntimeError(
+                    f"Unexpected response type: {type(response)}"
+                )
+            return response
+        raise TimeoutError(
+            f"Timed out waiting for kernel creation in {self._file_path}"
+        )
 
     def stop_kernel(self, session_id: str) -> None:
-        if self._mgmt_queue is not None:
-            self._mgmt_queue.put(StopKernelCmd(session_id=session_id))
+        if self._mgmt_socket is not None:
+            self._mgmt_socket.send(
+                encode_command(StopKernelCmd(session_id=session_id))
+            )
 
     def is_alive(self) -> bool:
-        return self._process is not None and self._process.is_alive()
+        return self._process is not None and self._process.poll() is None
 
     @property
     def pid(self) -> int | None:
         return self._process.pid if self._process else None
 
     def shutdown(self) -> None:
-        if self._mgmt_queue is not None:
+        if self._mgmt_socket is not None:
             try:
-                self._mgmt_queue.put(ShutdownAppProcessCmd())
-            except Exception:
+                self._mgmt_socket.send(encode_command(ShutdownAppProcessCmd()))
+            except zmq.ZMQError:
                 pass
 
         if self._process is not None:
-            self._process.join(timeout=5)
-            if self._process.is_alive():
+            try:
+                self._process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
                 self._process.terminate()
-                self._process.join(timeout=2)
-                if self._process.is_alive():
+                try:
+                    self._process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
                     self._process.kill()
+
+        if self._mgmt_socket is not None:
+            self._mgmt_socket.close(linger=0)
+        if self._response_socket is not None:
+            self._response_socket.close(linger=0)
+        if self._zmq_context is not None:
+            self._zmq_context.destroy(linger=0)
 
         LOGGER.debug("App process shut down for %s", self._file_path)
 
@@ -263,15 +326,12 @@ class AppKernelManager(KernelManager):
         return self._app_process is not None and self._app_process.is_alive()
 
     def interrupt_kernel(self) -> None:
-        # Run-mode threads can't be interrupted (same as current behavior)
+        # Run-mode threads can't be interrupted
         pass
 
     def close_kernel(self) -> None:
-        # Send stop via ZMQ control queue first
         self.queue_manager.put_control_request(StopKernelCommand())
         self.queue_manager.close_queues()
-
-        # Also notify the app process via management channel
         if self._app_process is not None:
             self._app_process.stop_kernel(self._session_id)
 

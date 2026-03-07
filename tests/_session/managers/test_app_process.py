@@ -1,22 +1,26 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import pickle
-
 import pytest
 
 
 @pytest.mark.requires("zmq")
 class TestAppProcessCommands:
-    def test_commands_are_picklable(self) -> None:
-        """All commands must be picklable for multiprocessing.Queue."""
+    def test_commands_roundtrip_json(self) -> None:
+        """All commands must survive JSON encode/decode."""
+        from marimo._config.config import DEFAULT_CONFIG
         from marimo._ipc.types import ConnectionInfo
+        from marimo._runtime.commands import AppMetadata
         from marimo._session.managers.app_process_commands import (
             CreateKernelCmd,
             KernelCreatedResponse,
             KernelStoppedResponse,
             ShutdownAppProcessCmd,
             StopKernelCmd,
+            decode_command,
+            decode_response,
+            encode_command,
+            encode_response,
         )
 
         conn_info = ConnectionInfo(
@@ -27,20 +31,36 @@ class TestAppProcessCommands:
             input=5,
             stream=6,
         )
+        app_metadata = AppMetadata(
+            query_params={},
+            cli_args={},
+            app_config={},  # type: ignore[arg-type]
+        )
+        user_config = DEFAULT_CONFIG
 
+        # Test commands
         commands = [
             CreateKernelCmd(
                 session_id="s1",
                 connection_info=conn_info,
                 configs={},
-                app_metadata=None,  # type: ignore[arg-type]
-                user_config=None,  # type: ignore[arg-type]
+                app_metadata=app_metadata,
+                user_config=user_config,
                 virtual_files_supported=True,
                 redirect_console_to_browser=True,
                 log_level=10,
             ),
             StopKernelCmd(session_id="s1"),
             ShutdownAppProcessCmd(),
+        ]
+
+        for cmd in commands:
+            data = encode_command(cmd)
+            restored = decode_command(data)
+            assert type(restored) is type(cmd)
+
+        # Test responses
+        responses = [
             KernelCreatedResponse(session_id="s1", success=True),
             KernelCreatedResponse(
                 session_id="s1", success=False, error="boom"
@@ -48,10 +68,10 @@ class TestAppProcessCommands:
             KernelStoppedResponse(session_id="s1"),
         ]
 
-        for cmd in commands:
-            data = pickle.dumps(cmd)
-            restored = pickle.loads(data)  # noqa: S301
-            assert type(restored) is type(cmd)
+        for resp in responses:
+            data = encode_response(resp)
+            restored = decode_response(data)
+            assert type(restored) is type(resp)
 
 
 @pytest.mark.requires("zmq")
