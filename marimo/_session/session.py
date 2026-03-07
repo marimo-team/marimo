@@ -39,9 +39,9 @@ from marimo._session.extensions.extensions import (
 )
 from marimo._session.extensions.types import SessionExtension
 from marimo._session.managers import (
+    AppProcessPool,
     KernelManagerImpl,
     QueueManagerImpl,
-    AppProcessPool,
 )
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
@@ -136,9 +136,14 @@ class SessionImpl(Session):
 
             ipc_queue_manager, connection_info = IPCQueueManager.create()
             queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
+            file_path = app_file_manager.path
+            if file_path is None:
+                raise ValueError(
+                    "App process isolation requires a file-backed notebook"
+                )
             kernel_manager = AppKernelManager(
                 app_process_pool=app_process_pool,
-                file_path=app_file_manager.path,
+                file_path=file_path,
                 session_id=initialization_id,
                 connection_info=connection_info,
                 queue_manager=queue_manager,

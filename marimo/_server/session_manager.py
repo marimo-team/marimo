@@ -101,6 +101,9 @@ class SessionManager:
         # Create app process pool for multi-app process isolation
         from marimo._session.managers.app_process import AppProcessPool
 
+        # When running multiple apps, each app runs in an isolated process,
+        # to avoid collisions in sys.modules and other Python global
+        # structures.
         self._app_process_pool: AppProcessPool | None = None
         if process_isolation and mode == SessionMode.RUN:
             self._app_process_pool = AppProcessPool()

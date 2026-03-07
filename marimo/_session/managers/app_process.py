@@ -16,19 +16,22 @@ from typing import TYPE_CHECKING, Optional, Union
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
+from marimo._runtime.commands import StopKernelCommand
 from marimo._session.managers.app_process_commands import (
     CreateKernelCmd,
     KernelCreatedResponse,
     ShutdownAppProcessCmd,
     StopKernelCmd,
 )
+from marimo._session.managers.app_process_entry import app_process_main
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
-from marimo._session.types import KernelManager, QueueManager
+from marimo._session.types import KernelManager
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    import multiprocessing as mp
+    from multiprocessing.context import SpawnProcess
+    from multiprocessing.queues import Queue as MPQueue
 
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
@@ -47,15 +50,11 @@ class AppProcess:
 
     def __init__(self, file_path: str) -> None:
         self._file_path = file_path
-        self._process: mp.Process | None = None
-        self._mgmt_queue: mp.Queue[object] | None = None
-        self._response_queue: mp.Queue[object] | None = None
+        self._process: SpawnProcess | None = None
+        self._mgmt_queue: MPQueue[object] | None = None
+        self._response_queue: MPQueue[object] | None = None
 
     def start(self) -> None:
-        from marimo._session.managers.app_process_entry import (
-            app_process_main,
-        )
-
         ctx = get_context("spawn")
         self._mgmt_queue = ctx.Queue()
         self._response_queue = ctx.Queue()
@@ -137,7 +136,11 @@ class AppProcess:
 
 
 class AppProcessPool:
-    """Manages app processes keyed by absolute file path."""
+    """Manages app processes keyed by absolute file path.
+
+    Each app is run in its own process to avoid collisions
+    in sys.modules and other Python global data structures.
+    """
 
     def __init__(self) -> None:
         self._workers: dict[str, AppProcess] = {}
@@ -265,8 +268,6 @@ class AppKernelManager(KernelManager):
 
     def close_kernel(self) -> None:
         # Send stop via ZMQ control queue first
-        from marimo._runtime.commands import StopKernelCommand
-
         self.queue_manager.put_control_request(StopKernelCommand())
         self.queue_manager.close_queues()
 

@@ -13,16 +13,16 @@ IPC implementations (IPCQueueManagerImpl, IPCKernelManagerImpl):
     Each notebook gets its own sandboxed virtual environment.
 """
 
+from marimo._session.managers.app_process import (
+    AppKernelManager,
+    AppProcessPool,
+)
 from marimo._session.managers.ipc import (
     IPCKernelManagerImpl,
     IPCQueueManagerImpl,
 )
 from marimo._session.managers.kernel import KernelManagerImpl
 from marimo._session.managers.queue import QueueManagerImpl
-from marimo._session.managers.app_process import (
-    AppKernelManager,
-    AppProcessPool,
-)
 
 __all__ = [
     "QueueManagerImpl",

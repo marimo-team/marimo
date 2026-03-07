@@ -56,7 +56,7 @@ class TestAppProcessCommands:
 
 @pytest.mark.requires("zmq")
 class TestAppProcessPool:
-    def test_create_and_reuse(self, tmp_path: object) -> None:
+    def test_create_and_reuse(self) -> None:
         """Pool creates one process per file and reuses it."""
         from marimo._session.managers.app_process import AppProcessPool
 
