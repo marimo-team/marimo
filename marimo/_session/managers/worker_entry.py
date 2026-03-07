@@ -51,6 +51,12 @@ def worker_main(
         file_path: The notebook file this worker serves.
         log_level: Log level for the worker process.
     """
+    import signal
+
+    # Ignore SIGINT in worker processes — the main process handles Ctrl-C
+    # and sends ShutdownWorkerCmd via mgmt_queue for graceful teardown.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
     _loggers.set_level(log_level)
     LOGGER.debug("Worker started for %s (pid=%d)", file_path, _getpid())
 
