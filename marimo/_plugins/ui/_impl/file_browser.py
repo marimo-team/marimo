@@ -233,7 +233,9 @@ class file_browser(
                 "initial-path": str(initial_path),
                 "selection-mode": selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
-                "path-filter": path_filter if isinstance(path_filter, str) else "",
+                "path-filter": path_filter
+                if isinstance(path_filter, str)
+                else "",
                 "multiple": multiple,
                 "restrict-navigation": restrict_navigation,
             },
