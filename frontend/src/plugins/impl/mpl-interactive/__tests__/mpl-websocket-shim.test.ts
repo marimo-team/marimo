@@ -41,8 +41,8 @@ describe("MplCommWebSocket", () => {
 
   it("receiveJson() is a no-op if onmessage is not set", () => {
     const ws = new MplCommWebSocket(vi.fn());
-    // Should not throw
     ws.receiveJson({ type: "test" });
+    expect(ws.onmessage).toBeNull();
   });
 
   it("receiveBinary() dispatches MessageEvent with Blob data", () => {

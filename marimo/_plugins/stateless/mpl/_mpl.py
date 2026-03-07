@@ -119,13 +119,6 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
 
 # Custom CSS to make the mpl toolbar fit the marimo UI
 css_content = """
-body {
-    background-color: transparent;
-    width: 100%;
-}
-#figure, mlp-canvas {
-    width: 100%;
-}
 .ui-dialog-titlebar + div {
     border-radius: 4px;
 }

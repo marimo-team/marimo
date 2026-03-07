@@ -59,16 +59,25 @@ class _SyncWebSocket:
 
 
 def _get_mpl_css() -> str:
-    """Collect all matplotlib WebAgg CSS files and our custom CSS."""
+    """Collect safe matplotlib WebAgg CSS files and our custom CSS.
+
+    We skip boilerplate.css and page.css because they contain global
+    selectors (body, html, div, span, etc.) designed for a standalone
+    page / iframe that would leak into the host page. Only mpl.css and
+    fbm.css have properly scoped class-based selectors.
+    """
     from matplotlib.backends.backend_webagg_core import (
         FigureManagerWebAgg,
     )
 
+    _SKIP = {"boilerplate.css", "page.css"}
     static_path = Path(
         FigureManagerWebAgg.get_static_file_path()  # type: ignore[no-untyped-call]
     )
     parts: list[str] = []
     for css_file in sorted(static_path.glob("css/*.css")):
+        if css_file.name in _SKIP:
+            continue
         parts.append(css_file.read_text())
     # Our own overrides
     parts.append(css_content)
@@ -137,14 +146,16 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
         )
 
         # Get figure dimensions in CSS pixels for initial sizing.
-        # The logical DPI from rcParams gives the CSS pixel size that
-        # mpl.js expects before device_pixel_ratio adjustment.
+        # get_width_height() returns device pixels (includes DPI scaling).
+        # Divide by the device-to-logical DPI ratio to get CSS pixels.
         import matplotlib
 
-        logical_dpi = matplotlib.rcParams["figure.dpi"]
-        w_in, h_in = figure.get_size_inches()
-        css_w = int(w_in * logical_dpi)
-        css_h = int(h_in * logical_dpi)
+        w_px, h_px = self._figure_manager.canvas.get_width_height()
+        logical_dpi: float = matplotlib.rcParams["figure.dpi"]
+        actual_dpi: float = self._figure_manager.canvas.figure.dpi
+        ratio = actual_dpi / logical_dpi if logical_dpi > 0 else 1
+        css_w = int(w_px / ratio)
+        css_h = int(h_px / ratio)
 
         # Generate a model id for the comm
         model_id = WidgetModelId(uuid4().hex)

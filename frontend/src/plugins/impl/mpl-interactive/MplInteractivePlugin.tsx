@@ -73,7 +73,10 @@ async function ensureMplJs(jsUrl: string): Promise<void> {
     const script = document.createElement("script");
     script.src = jsUrl;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load mpl.js"));
+    script.onerror = () => {
+      mplJsLoading = null;
+      reject(new Error("Failed to load mpl.js"));
+    };
     document.head.append(script);
   });
   return mplJsLoading;
@@ -267,12 +270,24 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     const removeImageObserver = patchToolbarImages(container, toolbarImages);
 
     let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-    setupFigure(container).then((cleanupFn) => {
-      cleanup = cleanupFn;
-    });
+    setupFigure(container)
+      .then((cleanupFn) => {
+        if (cancelled) {
+          cleanupFn?.();
+          return;
+        }
+        cleanup = cleanupFn;
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          Logger.error("Failed to set up MPL interactive figure", error);
+        }
+      });
 
     return () => {
+      cancelled = true;
       removeCss();
       removeImageObserver();
       cleanup?.();
