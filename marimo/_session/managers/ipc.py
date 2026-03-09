@@ -307,9 +307,7 @@ class IPCKernelManagerImpl(KernelManager):
             # Forward remaining subprocess stdout/stderr to the parent
             # process so that cell errors and print output are visible
             # in the console.
-            self._output_threads = _forward_subprocess_output(
-                self._process
-            )
+            self._output_threads = _forward_subprocess_output(self._process)
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
