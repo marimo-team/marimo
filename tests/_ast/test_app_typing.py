@@ -26,7 +26,11 @@ def _check_pyright(code: str) -> None:
             capture_output=True,
             text=True,
         )
-    assert "0 errors" in result.stdout, result.stdout
+    assert result.returncode == 0, (
+        f"basedpyright exited with code {result.returncode}\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}"
+    )
 
 
 _PREAMBLE = """
