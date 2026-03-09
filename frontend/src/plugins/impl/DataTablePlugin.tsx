@@ -170,6 +170,7 @@ const valueCounts: z.ZodType<ValueCounts> = z.array(
 interface Data<T> {
   label: string | null;
   data: TableData<T>;
+  rawData?: TableData<T> | null;
   totalRows: number | TooManyRows;
   pagination: boolean;
   pageSize: number;
@@ -217,6 +218,7 @@ type DataTableFunctions = {
     total_rows: number | TooManyRows;
     cell_styles?: CellStyleState | null;
     cell_hover_texts?: Record<string, Record<string, string | null>> | null;
+    raw_data?: TableData<T> | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
@@ -239,6 +241,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       ]),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      rawData: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
       totalRows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
@@ -479,17 +482,23 @@ export const LoadingDataTableComponent = memo(
     // Data loading
     const { data, error, isPending, isFetching } = useAsyncData<{
       rows: T[];
+      rawRows?: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
       cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
-        return { rows: Arrays.EMPTY, totalRows: 0, cellStyles: {} };
+        return {
+          rows: Arrays.EMPTY,
+          totalRows: 0,
+          cellStyles: {},
+        };
       }
 
       // Table data is a url string or an array of objects
       let tableData = props.data;
+      let rawTableData: TableData<T> | undefined | null = props.rawData;
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
       let cellHoverTexts = props.cellHoverTexts;
@@ -537,13 +546,18 @@ export const LoadingDataTableComponent = memo(
       } else {
         const searchResults = await searchResultsPromise;
         tableData = searchResults.data;
+        rawTableData = searchResults.raw_data;
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
       tableData = await loadTableData(tableData);
+      const rawRows = rawTableData
+        ? await loadTableData(rawTableData)
+        : undefined;
       return {
         rows: tableData,
+        rawRows,
         totalRows: totalRows,
         cellStyles,
         cellHoverTexts,
@@ -665,6 +679,7 @@ export const LoadingDataTableComponent = memo(
       <DataTableComponent
         {...props}
         data={data?.rows ?? Arrays.EMPTY}
+        rawData={data?.rawRows}
         columnSummaries={columnSummaries}
         sorting={sorting}
         setSorting={setSorting}
@@ -716,6 +731,7 @@ LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 const DataTableComponent = ({
   label,
   data,
+  rawData,
   totalRows,
   maxColumns,
   pagination,
@@ -764,6 +780,7 @@ const DataTableComponent = ({
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
+    rawData?: unknown[];
     columnSummaries?: ColumnSummaries;
     getRow: (rowIdx: number) => Promise<GetRowResult>;
   }): JSX.Element => {
@@ -965,6 +982,7 @@ const DataTableComponent = ({
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
             data={data}
+            rawData={rawData}
             columns={columns}
             className={className}
             maxHeight={maxHeight}

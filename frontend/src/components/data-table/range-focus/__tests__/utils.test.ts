@@ -93,6 +93,33 @@ describe("getCellValues", () => {
     const result = getCellValues(table, new Set(["0_0", "0_1", "0_2"]));
     expect(result).toBe('{"name":"test"}\tnull\tundefined');
   });
+
+  it("should use raw values when rawData is available", () => {
+    const mimeBundle = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: "<b>formatted_42</b>",
+      },
+    };
+    const cell1 = createMockCell("0_a", mimeBundle);
+    const cell2 = createMockCell("0_b", "displayed_b");
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], [], {
+      rawData: [{ a: 42, b: "raw_b" }],
+    });
+
+    const result = getCellValues(table, new Set(["0_a", "0_b"]));
+    expect(result).toBe("42\traw_b");
+  });
+
+  it("should fall back to displayed value when rawData is not set", () => {
+    const cell = createMockCell("0_name", "displayed");
+    const row = createMockRow("0", [cell]);
+    const table = createMockTable([row], []);
+
+    const result = getCellValues(table, new Set(["0_name"]));
+    expect(result).toBe("displayed");
+  });
 });
 
 describe("getCellsBetween", () => {

@@ -2,11 +2,11 @@
 
 import type { Table } from "@tanstack/react-table";
 import { SELECT_COLUMN_ID } from "../types";
-import { stringifyUnknownValue } from "../utils";
+import { getRawRowValue, stringifyUnknownValue } from "../utils";
 import type { SelectedCell } from "./atoms";
 
 /**
- * Get the values of the selected cells.
+ * Get the values of the selected cells, preferring raw (unformatted) values.
  */
 export function getCellValues<TData>(
   table: Table<TData>,
@@ -26,7 +26,8 @@ export function getCellValues<TData>(
       continue;
     }
 
-    const cellValue = row.getValue(columnId);
+    const rawValue = getRawRowValue(table, row.index, columnId);
+    const cellValue = rawValue ?? row.getValue(columnId);
     const values = rowValues.get(rowId) ?? [];
     values.push(stringifyUnknownValue({ value: cellValue }));
     rowValues.set(rowId, values);
@@ -74,7 +75,8 @@ export function getNumericValuesFromSelectedCells<TData>(
       continue;
     }
 
-    const value = row.getValue(columnId);
+    const value =
+      getRawRowValue(table, row.index, columnId) ?? row.getValue(columnId);
 
     // Only accept numbers and strings
     // Skip booleans, null, etc.
