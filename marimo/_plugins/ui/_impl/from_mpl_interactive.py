@@ -35,6 +35,9 @@ class _SyncWebSocket:
 
     Translates send_json/send_binary calls into MarimoComm messages
     that travel through the model-lifecycle notification channel.
+
+    Implements the interface expected by FigureManagerWebAgg:
+    https://github.com/matplotlib/matplotlib/blob/9d83ca60096f313dfc9f144288501af18c770a4e/lib/matplotlib/backends/backend_webagg_core.py#L459
     """
 
     def __init__(self, comm: MarimoComm) -> None:
