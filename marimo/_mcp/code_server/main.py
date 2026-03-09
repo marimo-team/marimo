@@ -128,34 +128,33 @@ def setup_code_mcp_server(
 
         # Create a fresh listener per execution to avoid cross-session signaling
         listener = ScratchCellListener()
-        session.attach_extension(listener)
+        with session.scoped(listener):
+            async with session.scratchpad_lock:
+                try:
+                    # Set up event before sending command
+                    done = listener.wait_for(session_id)
 
-        async with session.scratchpad_lock:
-            try:
-                # Set up event before sending command
-                done = listener.wait_for(session_id)
+                    # Send the scratchpad execution command
+                    session.put_control_request(
+                        ExecuteScratchpadCommand(code=code),
+                        from_consumer_id=None,
+                    )
 
-                # Send the scratchpad execution command
-                session.put_control_request(
-                    ExecuteScratchpadCommand(code=code),
-                    from_consumer_id=None,
-                )
+                    # Wait for the scratch cell to become idle
+                    await asyncio.wait_for(
+                        done.wait(), timeout=EXECUTION_TIMEOUT
+                    )
 
-                # Wait for the scratch cell to become idle
-                await asyncio.wait_for(done.wait(), timeout=EXECUTION_TIMEOUT)
-
-                # FIXME: stdout/stderr are flushed every 10ms by the buffered
-                # writer thread. Wait 50ms so trailing console output arrives
-                # before we read cell_notifications.
-                # See: marimo-team/marimo-lsp ExecutionRegistry.ts
-                await asyncio.sleep(0.05)
-            except asyncio.TimeoutError:
-                return CodeExecutionResult(
-                    success=False,
-                    error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
-                )
-            finally:
-                session.detach_extension(listener)
+                    # FIXME: stdout/stderr are flushed every 10ms by the
+                    # buffered writer thread. Wait 50ms so trailing console
+                    # output arrives before we read cell_notifications.
+                    # See: marimo-team/marimo-lsp ExecutionRegistry.ts
+                    await asyncio.sleep(0.05)
+                except asyncio.TimeoutError:
+                    return CodeExecutionResult(
+                        success=False,
+                        error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
+                    )
 
             return extract_result(session)
 
