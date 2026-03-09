@@ -22,7 +22,14 @@ def _check_pyright(code: str) -> None:
         p = Path(tmpdir) / "check.py"
         p.write_text(textwrap.dedent(code))
         result = subprocess.run(
-            ["basedpyright", "--pythonpath", sys.executable, str(p)],
+            [
+                "basedpyright",
+                "--pythonpath",
+                sys.executable,
+                "--level",
+                "error",
+                str(p),
+            ],
             capture_output=True,
             text=True,
         )

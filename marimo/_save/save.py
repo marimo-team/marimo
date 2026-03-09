@@ -428,8 +428,9 @@ class _cache_call(CacheContext, Generic[P, R]):
                     "cache() takes at most 1 argument (expecting function)"
                 )
             # Check if the function is async - if so, create async variant
-            if inspect.iscoroutinefunction(args[0]):
-                async_copy = _cache_call_async(
+            fn = cast(Callable[..., Any], args[0])
+            if inspect.iscoroutinefunction(fn):
+                async_copy: _cache_call_async[P, R] = _cache_call_async(
                     None,
                     self._loader_partial,
                     pin_modules=self.pin_modules,
@@ -437,12 +438,12 @@ class _cache_call(CacheContext, Generic[P, R]):
                 )
                 async_copy._frame_offset = self._frame_offset
                 async_copy._frame_offset -= 4
-                async_copy._set_context(args[0])
+                async_copy._set_context(fn)
                 return async_copy  # type: ignore[return-value]
             # Remove the additional frames from singledispatch, because invoking
             # the function directly.
             self._frame_offset -= 4
-            self._set_context(args[0])
+            self._set_context(fn)
             return self  # type: ignore[return-value]
 
         # Prepare execution context
@@ -453,7 +454,7 @@ class _cache_call(CacheContext, Generic[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
-                return attempt.meta.get("return")
+                return cast(R, attempt.meta.get("return"))
 
             start_time = time.time()
             response = self.__wrapped__(*args, **kwargs)
@@ -468,7 +469,7 @@ class _cache_call(CacheContext, Generic[P, R]):
             if ctx and not failed:
                 ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
         self._misses += 1
-        return response
+        return cast(R, response)
 
 
 class _cache_call_async(_cache_call[P, R]):
@@ -486,11 +487,13 @@ class _cache_call_async(_cache_call[P, R]):
     # WeakKeyDictionary ensures instances are cleaned up when garbage collected
     # Key: cache instance, Value: dict of {cache_key: Task}
     _pending_executions: weakref.WeakKeyDictionary[
-        _cache_call_async, dict[str, asyncio.Task[Any]]
+        _cache_call_async[Any, Any], dict[str, asyncio.Task[Any]]
     ] = weakref.WeakKeyDictionary()
     _pending_lock = threading.Lock()
 
-    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
+    async def __call__(  # type: ignore[override]
+        self, *args: P.args, **kwargs: P.kwargs
+    ) -> R:
         # Capture the deferred call case
         if self.__wrapped__ is None:
             if len(args) != 1:
@@ -500,7 +503,7 @@ class _cache_call_async(_cache_call[P, R]):
             # Remove the additional frames from singledispatch, because invoking
             # the function directly.
             self._frame_offset -= 4
-            self._set_context(args[0])
+            self._set_context(cast(Callable[..., Any], args[0]))
             return self  # type: ignore[return-value]
 
         # Prepare execution context to get cache key
@@ -520,7 +523,7 @@ class _cache_call_async(_cache_call[P, R]):
 
         # Await the existing task AFTER releasing the lock to avoid deadlock
         if existing_task is not None:
-            return await existing_task
+            return cast(R, await existing_task)
 
         # No pending execution - create a new task
         task = asyncio.create_task(
@@ -541,7 +544,7 @@ class _cache_call_async(_cache_call[P, R]):
                 if not pending and self in self._pending_executions:
                     del self._pending_executions[self]
 
-        return result
+        return cast(R, result)
 
     async def _execute_cached(
         self,
@@ -924,7 +927,7 @@ def cache(  # type: ignore[misc]
     _frame_offset: int = 1,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
-) -> Union[_cache_call, _cache_context]:
+) -> Union[_cache_call[..., Any], _cache_context]:
     """## Cache the value of a function based on args and closed-over variables.
 
     Decorating a function with `@mo.cache` will cache its value based on
@@ -1040,7 +1043,7 @@ def lru_cache(  # type: ignore[misc]
     pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
-) -> Union[_cache_call, _cache_context]:
+) -> Union[_cache_call[..., Any], _cache_context]:
     """Decorator for LRU caching the return value of a function.
 
     `mo.lru_cache` is a version of `mo.cache` with a bounded cache size. As an
@@ -1085,7 +1088,7 @@ def lru_cache(  # type: ignore[misc]
         )
 
     return cast(
-        Union[_cache_call, _cache_context],
+        Union[_cache_call[..., Any], _cache_context],
         cache(  # type: ignore[call-overload]
             arg,
             *args,
@@ -1112,7 +1115,7 @@ def persistent_cache(
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     pin_modules: bool = False,
-) -> _cache_call: ...
+) -> _cache_call[..., Any]: ...
 
 
 def persistent_cache(  # type: ignore[misc]
@@ -1125,7 +1128,7 @@ def persistent_cache(  # type: ignore[misc]
     pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
-) -> Union[_cache_call, _cache_context]:
+) -> Union[_cache_call[..., Any], _cache_context]:
     """## Context manager to save variables to disk and restore them thereafter.
 
     The `mo.persistent_cache` context manager lets you delimit a block of code
@@ -1234,7 +1237,7 @@ def persistent_cache(  # type: ignore[misc]
         raise TypeError("Do not use fn directly, use positional arguments.")
 
     return cast(
-        Union[_cache_call, _cache_context],
+        Union[_cache_call[..., Any], _cache_context],
         cache(  # type: ignore[call-overload]
             arg,
             *args,
