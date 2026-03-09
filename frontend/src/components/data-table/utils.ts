@@ -87,3 +87,37 @@ export function stringifyUnknownValue(opts: {
   }
   return String(value);
 }
+
+/**
+ * Get the raw (unformatted) value for a cell, falling back to
+ * the displayed value if raw data is not available.
+ */
+export function getRawCellValue<TData>(cell: Cell<TData, unknown>): unknown {
+  const rawData = cell.getContext().table.options.meta?.rawData;
+  if (rawData) {
+    const rawRow = rawData[cell.row.index];
+    if (rawRow && typeof rawRow === "object") {
+      return (rawRow as Record<string, unknown>)[cell.column.id];
+    }
+  }
+  return cell.getValue();
+}
+
+/**
+ * Get the raw (unformatted) value for a row/column from the table,
+ * falling back to the row's displayed value.
+ */
+export function getRawRowValue<TData>(
+  table: Table<TData>,
+  rowIndex: number,
+  columnId: string,
+): unknown {
+  const rawData = table.options.meta?.rawData;
+  if (rawData) {
+    const rawRow = rawData[rowIndex];
+    if (rawRow && typeof rawRow === "object") {
+      return (rawRow as Record<string, unknown>)[columnId];
+    }
+  }
+  return undefined;
+}
