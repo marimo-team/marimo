@@ -122,15 +122,16 @@ def test_queued_distributor_clears_consumers_on_stop() -> None:
 
     thread = distributor.start()
 
-    # Send a message, then stop
+    # Send a message and give the loop time to deliver it before stopping.
     q.put("hello")
+    time.sleep(0.2)
     distributor.stop()
     thread.join(timeout=2.0)
     assert not thread.is_alive()
 
     # Consumer list should have been cleared by the loop exit
     assert distributor._consumers == []
-    # The message was still delivered before stop
+    # The message was delivered before stop
     assert captured == ["hello"]
 
 
@@ -144,3 +145,56 @@ def test_queued_distributor_stop_sets_flag() -> None:
     assert distributor._stop is True
     # None sentinel should be in the queue
     assert q.get_nowait() is None
+
+
+def test_queued_distributor_restart_after_stop() -> None:
+    """A distributor can be restarted on the same queue after stop().
+
+    stop() may leave a None sentinel on the queue due to the _stop flag
+    winning the race. start() must drain those sentinels and reset _stop
+    so the new loop works correctly.
+    """
+    q: queue.Queue[str | None] = queue.Queue()
+    distributor = QueueDistributor[str](q)
+
+    # First run
+    captured1: list[str] = []
+    distributor.add_consumer(lambda msg: captured1.append(msg))
+    thread1 = distributor.start()
+    q.put("round1")
+    time.sleep(0.2)
+    distributor.stop()
+    thread1.join(timeout=2.0)
+    assert not thread1.is_alive()
+    assert captured1 == ["round1"]
+
+    # Restart on the same queue -- leftover None sentinel must not
+    # cause the new loop to exit immediately.
+    captured2: list[str] = []
+    distributor.add_consumer(lambda msg: captured2.append(msg))
+    thread2 = distributor.start()
+    q.put("round2")
+    time.sleep(0.2)
+    assert captured2 == ["round2"]
+
+    distributor.stop()
+    thread2.join(timeout=2.0)
+    assert not thread2.is_alive()
+
+
+def test_queued_distributor_drain_sentinels_preserves_messages() -> None:
+    """_drain_sentinels removes None values but preserves real messages."""
+    q: queue.Queue[str | None] = queue.Queue()
+    q.put("keep1")
+    q.put(None)
+    q.put("keep2")
+    q.put(None)
+
+    distributor = QueueDistributor[str](q)
+    distributor._drain_sentinels()
+
+    # Real messages should still be on the queue, None values removed
+    items = []
+    while not q.empty():
+        items.append(q.get_nowait())
+    assert items == ["keep1", "keep2"]

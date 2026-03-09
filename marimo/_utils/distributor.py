@@ -135,9 +135,15 @@ class QueueDistributor(Distributor[T]):
         return Disposable(_remove)
 
     def _loop(self) -> None:
-        while not self._stop:
+        while True:
             msg = self._queue.get()
             if msg is None:
+                break
+
+            # If stop was requested while we were blocked on get(),
+            # discard this message and exit. This avoids delivering
+            # messages after stop() has been called.
+            if self._stop:
                 break
 
             with self._lock:
@@ -151,6 +157,10 @@ class QueueDistributor(Distributor[T]):
             self._consumers.clear()
 
     def start(self) -> threading.Thread:
+        # Reset state so the distributor can be restarted on the same queue.
+        # Drain any leftover None sentinels from a previous stop().
+        self._stop = False
+        self._drain_sentinels()
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
         return self._thread
@@ -158,6 +168,27 @@ class QueueDistributor(Distributor[T]):
     def stop(self) -> None:
         self._stop = True
         self._queue.put_nowait(None)
+
+    def _drain_sentinels(self) -> None:
+        """Remove any leftover None sentinels from the queue.
+
+        After stop() puts a None sentinel on the queue, a race condition
+        can cause the loop to exit via the _stop flag before consuming the
+        sentinel. This method drains those stale sentinels so that a
+        subsequent start() won't immediately terminate.
+
+        Only None values are removed; real messages are put back.
+        """
+        recovered: list[T] = []
+        try:
+            while True:
+                item = self._queue.get_nowait()
+                if item is not None:
+                    recovered.append(item)
+        except Exception:
+            pass
+        for item in recovered:
+            self._queue.put_nowait(item)
 
     def flush(self) -> None:
         """Flush the distributor."""
