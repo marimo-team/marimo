@@ -1095,12 +1095,9 @@ def test_cli_run_sandbox_directory_shows_cell_errors() -> None:
                 break
             time.sleep(0.5)
 
-        stderr_text = b"".join(stderr_chunks).decode(
-            errors="replace"
-        )
+        stderr_text = b"".join(stderr_chunks).decode(errors="replace")
         assert "sandbox_error_test" in stderr_text, (
-            "Expected cell error in stderr, "
-            f"got:\n{stderr_text}"
+            f"Expected cell error in stderr, got:\n{stderr_text}"
         )
     finally:
         p.kill()
