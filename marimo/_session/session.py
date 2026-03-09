@@ -8,6 +8,8 @@ and websocket for bidirectional communication.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -241,16 +243,19 @@ class SessionImpl(Session):
                 )
                 continue
 
-    def attach_extension(self, extension: SessionExtension) -> None:
-        """Dynamically attach an extension to the session."""
+    @contextlib.contextmanager
+    def scoped(
+        self, extension: SessionExtension
+    ) -> Iterator[SessionExtension]:
+        """Attach an extension for the duration of the context."""
         self.extensions.append(extension)
         extension.on_attach(self, self._event_bus)
-
-    def detach_extension(self, extension: SessionExtension) -> None:
-        """Dynamically detach an extension from the session."""
-        extension.on_detach()
-        if extension in self.extensions:
-            self.extensions.remove(extension)
+        try:
+            yield extension
+        finally:
+            extension.on_detach()
+            if extension in self.extensions:
+                self.extensions.remove(extension)
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:

@@ -274,30 +274,27 @@ async def execute_scratchpad(
     session_id = app_state.require_current_session_id()
 
     listener = ScratchCellListener()
-    session.attach_extension(listener)
-
-    async with session.scratchpad_lock:
-        try:
-            done = listener.wait_for(session_id)
-            session.put_control_request(
-                ExecuteScratchpadCommand(code=body.code),
-                from_consumer_id=None,
-            )
-            await asyncio.wait_for(done.wait(), timeout=EXECUTION_TIMEOUT)
-            # FIXME: stdout/stderr are flushed every 10ms by the buffered
-            # writer thread. Wait 50ms so trailing console output arrives
-            # before we read cell_notifications.
-            await asyncio.sleep(0.05)
-        except asyncio.TimeoutError:
-            return JSONResponse(
-                status_code=504,
-                content={
-                    "success": False,
-                    "error": f"Execution timed out after {EXECUTION_TIMEOUT}s",
-                },
-            )
-        finally:
-            session.detach_extension(listener)
+    with session.scoped(listener):
+        async with session.scratchpad_lock:
+            try:
+                done = listener.wait_for(session_id)
+                session.put_control_request(
+                    ExecuteScratchpadCommand(code=body.code),
+                    from_consumer_id=None,
+                )
+                await asyncio.wait_for(done.wait(), timeout=EXECUTION_TIMEOUT)
+                # FIXME: stdout/stderr are flushed every 10ms by the buffered
+                # writer thread. Wait 50ms so trailing console output arrives
+                # before we read cell_notifications.
+                await asyncio.sleep(0.05)
+            except asyncio.TimeoutError:
+                return JSONResponse(
+                    status_code=504,
+                    content={
+                        "success": False,
+                        "error": f"Execution timed out after {EXECUTION_TIMEOUT}s",
+                    },
+                )
 
         result = extract_result(session)
         return JSONResponse(content=asdict(result))
