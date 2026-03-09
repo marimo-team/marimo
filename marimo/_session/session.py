@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import Iterator
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -60,7 +59,7 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from marimo._server.models.models import InstantiateNotebookRequest
 
