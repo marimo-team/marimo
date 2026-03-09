@@ -18,9 +18,9 @@ class BokehFormatter(FormatterFactory):
         return "bokeh"
 
     def register(self) -> Callable[[], None]:
-        import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._output import formatting
         from marimo._runtime.output import _output
@@ -47,7 +47,6 @@ class BokehFormatter(FormatterFactory):
             # Noop
             del args
             del kwargs
-            pass
 
         bokeh.plotting.show = show
         bokeh.plotting.output_notebook = output_notebook
@@ -63,9 +62,9 @@ class BokehFormatter(FormatterFactory):
         def _show_plot(
             plot: bokeh.models.Model | bokeh.document.Document,
         ) -> tuple[KnownMimeType, str]:
-            import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-            import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-            from bokeh.io import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore]
+            import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore]
+            from bokeh.io import (  # type: ignore[import-not-found,import-untyped,unused-ignore]
                 curdoc,
             )
 

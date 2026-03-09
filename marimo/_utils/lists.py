@@ -14,7 +14,7 @@ def first(iterable: Union[Iterable[T], T]) -> T:
         return iterable
 
 
-def as_list(value: Union[T, Optional[T], list[T]]) -> list[T]:
+def as_list(value: Union[T, None, list[T]]) -> list[T]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]  # type: ignore[no-any-return]

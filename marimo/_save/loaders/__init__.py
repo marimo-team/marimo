@@ -21,6 +21,7 @@ PERSISTENT_LOADERS: dict[LoaderKey, LoaderType] = {
 }
 
 __all__ = [
+    "PERSISTENT_LOADERS",
     "BasePersistenceLoader",
     "JsonLoader",
     "Loader",
@@ -28,6 +29,5 @@ __all__ = [
     "LoaderPartial",
     "LoaderType",
     "MemoryLoader",
-    "PERSISTENT_LOADERS",
     "PickleLoader",
 ]

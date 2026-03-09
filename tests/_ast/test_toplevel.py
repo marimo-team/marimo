@@ -24,8 +24,6 @@ class TestTopLevelStatus:
             def add(a: int, b: int) -> int:
                 return a + b
 
-            pass
-
         status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
         assert status.type == TopLevelType.CELL
         assert status.hint == toplevel.HINT_NOT_SINGLE
@@ -296,7 +294,7 @@ class TestTopLevelExtraction:
             def Y() -> float:
                 return 1.0
 
-            pass  # to make it a cell
+            # to make it a cell
 
         @app.cell
         def _(Y):
@@ -629,7 +627,6 @@ class TestTopLevelHook:
                 @staticmethod
                 def method() -> None:
                     print(__class__)
-                    return
 
         status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
         assert status.type == TopLevelType.TOPLEVEL

@@ -158,7 +158,7 @@ def _make_request(
             original_error=e,
         )
     except Exception as e:
-        raise RequestError(f"Request failed: {str(e)}") from e
+        raise RequestError(f"Request failed: {e!s}") from e
 
 
 def get(

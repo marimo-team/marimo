@@ -59,7 +59,7 @@ async def save_user_config(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     app_state = AppState(request)
     session_id = app_state.get_current_session_id()
     session = app_state.get_current_session()

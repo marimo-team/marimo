@@ -398,4 +398,3 @@ def latex(*, filename: Union[str, Path]) -> None:
     # Append the LaTeX to the output, in case this
     # is not the last expression of the cell
     output.append(_md(f"$$\n{text.strip()}\n$$"))
-    return

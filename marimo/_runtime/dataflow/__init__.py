@@ -250,9 +250,9 @@ def get_import_block_relatives(
 
 
 __all__ = [
+    "DirectedGraph",
     "Edge",
     "EdgeWithVar",
-    "DirectedGraph",
     "Runner",
     "get_cycles",
     "get_import_block_relatives",

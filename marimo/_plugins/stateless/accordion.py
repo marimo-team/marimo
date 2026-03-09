@@ -50,7 +50,7 @@ def accordion(
             return md(tab).text
         return as_html(tab).text
 
-    item_labels = list(md(label).text for label in items.keys())
+    item_labels = list(md(label).text for label in items)
     item_content = "".join(
         ["<div>" + render_content(item) + "</div>" for item in items.values()]
     )

@@ -92,12 +92,12 @@ class _DataclassParser:
             if value is None:
                 return None  # type: ignore[return-value]
             else:
-                return self._build_value(value, arg_type)  # type: ignore # noqa: E501
+                return self._build_value(value, arg_type)  # type: ignore
         elif origin_cls in (list, set) and isinstance(
             value, (tuple, list, set)
         ):
             (arg_type,) = get_args(cls)
-            return origin_cls(self._build_value(v, arg_type) for v in value)  # type: ignore # noqa: E501
+            return origin_cls(self._build_value(v, arg_type) for v in value)  # type: ignore
         elif origin_cls is tuple and isinstance(value, (tuple, list)):
             arg_types = get_args(cls)
             if len(arg_types) == 2 and isinstance(
@@ -107,7 +107,7 @@ class _DataclassParser:
                     self._build_value(v, arg_types[0]) for v in value
                 )
             else:
-                return origin_cls(  # type: ignore # noqa: E501
+                return origin_cls(  # type: ignore
                     self._build_value(v, t) for v, t in zip(value, arg_types)
                 )
         elif origin_cls is dict and isinstance(value, dict):
@@ -124,7 +124,7 @@ class _DataclassParser:
             arg_types = get_args(cls)
             for arg_type in arg_types:
                 try:
-                    return self._build_value(value, arg_type)  # type: ignore # noqa: E501
+                    return self._build_value(value, arg_type)  # type: ignore
                 # catch expected exceptions when conversion fails
                 except (TypeError, ValueError):
                     continue

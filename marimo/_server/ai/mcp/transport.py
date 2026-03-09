@@ -41,7 +41,6 @@ class MCPTransportConnector(ABC):
         Returns:
             Tuple of (read_stream, write_stream) for the ClientSession
         """
-        pass
 
 
 class StdioTransportConnector(MCPTransportConnector):

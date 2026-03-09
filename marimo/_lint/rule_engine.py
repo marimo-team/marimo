@@ -104,7 +104,7 @@ class RuleEngine:
                     diagnostic, diagnostic_count
                 ):
                     # Cancel remaining tasks
-                    for task in pending_tasks.keys():
+                    for task in pending_tasks:
                         task.cancel()
 
                     # Wait for cancellations to complete

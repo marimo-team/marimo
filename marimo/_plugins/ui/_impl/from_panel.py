@@ -77,7 +77,7 @@ def _get_comm_class() -> type[Any]:
             self,
             data: Any = None,
             metadata: Any = None,
-            buffers: Any = None,  # noqa: ARG002
+            buffers: Any = None,
         ) -> None:
             del metadata
             if self._ui_element_id is None:
@@ -195,7 +195,7 @@ def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
     are respected when rendering holoviews objects through Panel.
     """
     try:
-        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         # Check if the object is a holoviews object
         if not isinstance(

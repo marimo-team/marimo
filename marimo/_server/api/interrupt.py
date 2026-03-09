@@ -31,7 +31,7 @@ class InterruptHandler:
             # Windows
             signal.signal(
                 signal.SIGINT,
-                lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005,E501
+                lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005
             )
 
     def _interrupt_handler(self) -> None:

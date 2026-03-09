@@ -113,7 +113,6 @@ def test_convert_from_ir_to_markdown_with_markdown_cell():
     @app.cell()
     def __(mo):
         mo.md("# Hello World")
-        return
 
     internal_app = InternalApp(app)
     notebook = internal_app.to_ir()
@@ -215,12 +214,10 @@ def test_convert_from_ir_to_markdown_consecutive_markdown_cells():
     @app.cell()
     def __(mo):
         mo.md("# First markdown")
-        return
 
     @app.cell()
     def __(mo):
         mo.md("# Second markdown")
-        return
 
     internal_app = InternalApp(app)
     notebook = internal_app.to_ir()
@@ -246,7 +243,6 @@ def test_convert_from_ir_to_markdown_with_column():
     @app.cell(column=1)
     def __(mo):
         mo.md("# Markdown in column")
-        return
 
     internal_app = InternalApp(app)
     notebook = internal_app.to_ir()

@@ -87,7 +87,7 @@ __all__ = [
     "FunctionStub",
     "ModuleStub",
     "UIElementStub",
-    "maybe_register_stub",
     "maybe_get_custom_stub",
+    "maybe_register_stub",
     "register_stub",
 ]

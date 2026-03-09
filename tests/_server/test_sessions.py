@@ -536,7 +536,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -575,7 +575,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -612,7 +612,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer2.notify_calls) > 0:
                 break
@@ -746,7 +746,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         session.session_view = mock_session_view
 
         # Wait for file watcher to be initialized by checking it exists
-        for _ in range(20):  # noqa: B007
+        for _ in range(20):
             await asyncio.sleep(0.05)
             if (
                 hasattr(session_manager, "_file_watcher")
@@ -771,7 +771,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
 
         # Wait for the watcher to detect the change and send UpdateCellCodes
         update_ops: list[UpdateCellCodesNotification] = []
-        for _ in range(20):  # noqa: B007
+        for _ in range(20):
             await asyncio.sleep(0.1)
             update_ops = [
                 op
@@ -856,7 +856,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         )
 
         # Wait a bit for session to be ready
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -877,7 +877,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(session_consumer.notify_calls) > 0:
                 break
@@ -994,7 +994,7 @@ def __():
         )
 
         # Wait for the watcher to detect the change
-        for _ in range(16):  # noqa: B007
+        for _ in range(16):
             await asyncio.sleep(0.1)
             if len(operations) > 0:
                 break
@@ -1011,7 +1011,7 @@ def __():
     finally:
         # Cleanup
         session_manager.shutdown()
-        if new_path.exists():  # noqa: ASYNC240
+        if new_path.exists():
             os.remove(new_path)
         if tmp_path1.exists():  # noqa: ASYNC240
             os.remove(tmp_path1)
