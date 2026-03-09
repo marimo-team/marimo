@@ -65,6 +65,10 @@ def _get_mpl_css() -> str:
     selectors (body, html, div, span, etc.) designed for a standalone
     page / iframe that would leak into the host page. Only mpl.css and
     fbm.css have properly scoped class-based selectors.
+
+    All rules are wrapped inside a ``.mpl-interactive-figure`` scope so
+    that any remaining broad selectors (e.g. ``body``, ``#figure``) do
+    not leak into the host page when loaded as a ``<link>`` stylesheet.
     """
     from matplotlib.backends.backend_webagg_core import (
         FigureManagerWebAgg,
@@ -81,7 +85,48 @@ def _get_mpl_css() -> str:
         parts.append(css_file.read_text())
     # Our own overrides
     parts.append(css_content)
-    return "\n".join(parts)
+    raw_css = "\n".join(parts)
+    return _scope_css(raw_css, ".mpl-interactive-figure")
+
+
+def _scope_css(css: str, scope: str) -> str:
+    """Prefix every CSS rule selector with *scope* so styles don't leak.
+
+    This is intentionally simple: it handles the common cases found in
+    matplotlib's WebAgg CSS (plain selectors, no ``@media`` / ``@keyframes``).
+    Selectors targeting ``body`` or ``html`` are rewritten to target the
+    scope element itself.
+    """
+    import re
+
+    result: list[str] = []
+    # Remove comments
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+
+    # Split into rule blocks: selector { declarations }
+    for match in re.finditer(r"([^{}]+?)\{([^{}]*)\}", css, flags=re.DOTALL):
+        selectors_raw = match.group(1).strip()
+        declarations = match.group(2).strip()
+        if not selectors_raw or not declarations:
+            continue
+
+        scoped_selectors: list[str] = []
+        for selector in selectors_raw.split(","):
+            selector = selector.strip()
+            if not selector:
+                continue
+            # body / html should become the container itself
+            if re.match(r"^(body|html)$", selector):
+                scoped_selectors.append(scope)
+            elif re.match(r"^(body|html)\s+", selector):
+                rest = re.sub(r"^(body|html)\s+", "", selector)
+                scoped_selectors.append(f"{scope} {rest}")
+            else:
+                scoped_selectors.append(f"{scope} {selector}")
+
+        result.append(f"{', '.join(scoped_selectors)} {{\n{declarations}\n}}")
+
+    return "\n\n".join(result)
 
 
 @functools.lru_cache(maxsize=1)

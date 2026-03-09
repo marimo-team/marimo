@@ -312,5 +312,5 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     };
   }, []);
 
-  return <div ref={containerRef} />;
+  return <div ref={containerRef} className="mpl-interactive-figure" />;
 };
