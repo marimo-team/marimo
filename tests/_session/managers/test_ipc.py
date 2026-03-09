@@ -1,9 +1,64 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
+import subprocess
 import time
 
 import pytest
+
+
+class TestForwardSubprocessOutput:
+    def test_stdout_and_stderr_are_forwarded(self) -> None:
+        """Subprocess stdout/stderr should be forwarded to the parent."""
+        from marimo._session.managers.ipc import _forward_subprocess_output
+
+        proc = subprocess.Popen(
+            [
+                "python",
+                "-c",
+                "import sys; "
+                "sys.stdout.write('KERNEL_READY\\n'); sys.stdout.flush(); "
+                "sys.stdout.write('hello out\\n'); sys.stdout.flush(); "
+                "sys.stderr.write('hello err\\n'); sys.stderr.flush()",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert proc.stdout is not None
+        # Consume the KERNEL_READY line (mirrors real startup)
+        ready = proc.stdout.readline()
+        assert ready.strip() == b"KERNEL_READY"
+
+        stdout_buf = io.StringIO()
+        stderr_buf = io.StringIO()
+
+        from unittest.mock import patch
+
+        with patch("sys.stdout", stdout_buf), patch("sys.stderr", stderr_buf):
+            threads = _forward_subprocess_output(proc)
+            for t in threads:
+                t.join(timeout=5)
+
+        proc.wait()
+        assert "hello out" in stdout_buf.getvalue()
+        assert "hello err" in stderr_buf.getvalue()
+
+    def test_handles_closed_dest_gracefully(self) -> None:
+        """Forwarding should not raise if the destination is closed."""
+        from marimo._session.managers.ipc import _forward_pipe
+
+        proc = subprocess.Popen(
+            ["python", "-c", "print('line')"],
+            stdout=subprocess.PIPE,
+        )
+        assert proc.stdout is not None
+        dest = io.StringIO()
+        dest.close()
+
+        # Should not raise
+        _forward_pipe(proc.stdout, dest)
+        proc.wait()
 
 
 @pytest.mark.requires("zmq")

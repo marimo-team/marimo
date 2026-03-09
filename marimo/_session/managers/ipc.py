@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import _loggers
@@ -160,6 +161,7 @@ class IPCKernelManagerImpl(KernelManager):
         self.kernel_task: ProcessLike | None = None
         self._sandbox_dir: str | None = None
         self._venv_python: str | None = None
+        self._output_threads: list[threading.Thread] = []
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -302,6 +304,13 @@ class IPCKernelManagerImpl(KernelManager):
 
             LOGGER.debug("Kernel ready")
 
+            # Forward remaining subprocess stdout/stderr to the parent
+            # process so that cell errors and print output are visible
+            # in the console.
+            self._output_threads = _forward_subprocess_output(
+                self._process
+            )
+
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
         except KernelStartupError:
@@ -374,6 +383,47 @@ class IPCKernelManagerImpl(KernelManager):
         raise NotImplementedError(
             "IPC kernel uses stream_queue, not kernel_connection"
         )
+
+
+def _forward_pipe(
+    pipe: subprocess.IO[bytes],
+    dest: subprocess.IO[str],
+) -> None:
+    """Read lines from *pipe* and write them to *dest* until EOF."""
+    assert pipe is not None
+    try:
+        for line in pipe:
+            try:
+                dest.write(line.decode("utf-8", errors="replace"))
+                dest.flush()
+            except ValueError:
+                # dest was closed (e.g. during shutdown)
+                break
+    except OSError:
+        pass
+    finally:
+        pipe.close()
+
+
+def _forward_subprocess_output(
+    process: subprocess.Popen[bytes],
+) -> list[threading.Thread]:
+    """Spawn daemon threads that forward a subprocess's stdout/stderr."""
+    threads: list[threading.Thread] = []
+    for pipe, dest in (
+        (process.stdout, sys.stdout),
+        (process.stderr, sys.stderr),
+    ):
+        if pipe is None:
+            continue
+        t = threading.Thread(
+            target=_forward_pipe,
+            args=(pipe, dest),
+            daemon=True,
+        )
+        t.start()
+        threads.append(t)
+    return threads
 
 
 class _SubprocessWrapper(ProcessLike):
