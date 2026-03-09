@@ -1025,6 +1025,88 @@ def test_cli_run_multiple_files_gallery_sandbox() -> None:
     _check_contents(p, b'"mode": "gallery"', contents)
 
 
+@pytest.mark.skipif(
+    not (HAS_UV and HAS_ZMQ),
+    reason="uv and pyzmq are required for multi-sandbox tests",
+)
+def test_cli_run_sandbox_directory_shows_cell_errors() -> None:
+    """Cell errors in sandbox-directory mode should appear on stderr.
+
+    Regression test: the IPC kernel subprocess had its pipes captured
+    for the KERNEL_READY handshake but never forwarded afterwards,
+    silently swallowing all subsequent output.
+    """
+    import threading
+
+    directory = tempfile.TemporaryDirectory()
+    # Create a notebook whose cell always raises.
+    filecontents = codegen.generate_filecontents(
+        codes=[
+            "import marimo as mo",
+            'raise ValueError("sandbox_error_test")',
+        ],
+        names=["one", "two"],
+        cell_configs=[CellConfig(), CellConfig()],
+    )
+    (Path(directory.name) / "error_nb.py").write_text(
+        filecontents, encoding="utf-8"
+    )
+    port = _get_port()
+
+    # Collect stderr in a background thread to avoid pipe deadlocks.
+    stderr_chunks: list[bytes] = []
+
+    def _drain_stderr(stream: Any) -> None:
+        for chunk in iter(lambda: stream.read(4096), b""):
+            stderr_chunks.append(chunk)
+
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ],
+        stderr=subprocess.PIPE,
+    )
+    reader = threading.Thread(
+        target=_drain_stderr, args=(p.stderr,), daemon=True
+    )
+    reader.start()
+
+    try:
+        # Wait for the gallery to be served.
+        contents = _try_fetch(port)
+        assert contents is not None
+
+        # Open the notebook — this spawns an IPC kernel and runs
+        # the cells (including the one that raises).
+        url = f"http://localhost:{port}/?file=error_nb.py"
+        urllib.request.urlopen(url).read()
+
+        # Wait for the error to surface on stderr.
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            stderr_so_far = b"".join(stderr_chunks)
+            if b"sandbox_error_test" in stderr_so_far:
+                break
+            time.sleep(0.5)
+
+        stderr_text = b"".join(stderr_chunks).decode(
+            errors="replace"
+        )
+        assert "sandbox_error_test" in stderr_text, (
+            "Expected cell error in stderr, "
+            f"got:\n{stderr_text}"
+        )
+    finally:
+        p.kill()
+        p.wait()
+
+
 def test_collect_marimo_files_includes_markdown(
     tmp_path: Path,
 ) -> None:

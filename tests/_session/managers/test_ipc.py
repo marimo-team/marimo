@@ -25,41 +25,6 @@ _KERNEL_SCRIPT = (
 
 
 class TestForwardSubprocessOutput:
-    def test_output_lost_without_forwarding(self) -> None:
-        """Without forwarding, captured pipe output is silently lost.
-
-        This is the regression scenario: the IPC kernel subprocess has
-        stdout/stderr captured into pipes for the KERNEL_READY
-        handshake, but if nobody reads those pipes afterwards all
-        subsequent output (cell errors, print statements) disappears.
-        """
-        proc = subprocess.Popen(
-            [sys.executable, "-c", _KERNEL_SCRIPT],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        assert proc.stdout is not None
-
-        # Consume only the KERNEL_READY handshake (this is what
-        # start_kernel did before the fix — and then stopped reading).
-        ready = proc.stdout.readline()
-        assert ready.strip() == b"KERNEL_READY"
-
-        proc.wait()
-
-        # The remaining output is stuck in the pipes; it never reached
-        # the parent's sys.stdout / sys.stderr.
-        remaining_stdout = proc.stdout.read().decode()
-        remaining_stderr = proc.stderr.read().decode()  # type: ignore[union-attr]
-
-        # Data IS sitting in the pipe buffers …
-        assert "hello out" in remaining_stdout
-        assert "hello err" in remaining_stderr
-
-        # … but it never appeared on the real console because nobody
-        # forwarded it. The fix adds _forward_subprocess_output to
-        # drain these pipes into the parent's stdout/stderr.
-
     def test_forwarding_delivers_output(self) -> None:
         """With _forward_subprocess_output, pipe data reaches the parent."""
         proc = subprocess.Popen(
@@ -68,6 +33,7 @@ class TestForwardSubprocessOutput:
             stderr=subprocess.PIPE,
         )
         assert proc.stdout is not None
+        # Consume only the KERNEL_READY handshake, same as start_kernel.
         ready = proc.stdout.readline()
         assert ready.strip() == b"KERNEL_READY"
 
@@ -83,8 +49,8 @@ class TestForwardSubprocessOutput:
         assert "hello out" in stdout_buf.getvalue()
         assert "hello err" in stderr_buf.getvalue()
 
-    def test_forward_pipe_handles_closed_dest(self) -> None:
-        """Forwarding should not raise if the destination is closed."""
+    def test_forward_pipe_drains_on_closed_dest(self) -> None:
+        """When dest is closed, the pipe is still drained (no SIGPIPE)."""
         proc = subprocess.Popen(
             [sys.executable, "-c", "print('line')"],
             stdout=subprocess.PIPE,
@@ -93,7 +59,8 @@ class TestForwardSubprocessOutput:
         dest = io.StringIO()
         dest.close()
 
-        # Should not raise
+        # Should not raise — the pipe is fully drained even though
+        # nothing can be written.
         _forward_pipe(proc.stdout, dest)
         proc.wait()
 

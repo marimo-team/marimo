@@ -12,7 +12,7 @@ import signal
 import subprocess
 import sys
 import threading
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import IO, TYPE_CHECKING, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._cli.sandbox import (
@@ -384,19 +384,28 @@ class IPCKernelManagerImpl(KernelManager):
 
 
 def _forward_pipe(
-    pipe: subprocess.IO[bytes],
-    dest: subprocess.IO[str],
+    pipe: IO[bytes],
+    dest: IO[str],
 ) -> None:
-    """Read lines from *pipe* and write them to *dest* until EOF."""
+    """Read lines from *pipe* and write them to *dest* until EOF.
+
+    If *dest* becomes unwritable (e.g. closed during shutdown) we keep
+    draining *pipe* so the child process never gets a ``SIGPIPE``/``EPIPE``.
+    """
     assert pipe is not None
+    encoding = getattr(dest, "encoding", "utf-8") or "utf-8"
+    writable = True
     try:
         for line in pipe:
+            if not writable:
+                continue
             try:
-                dest.write(line.decode("utf-8", errors="replace"))
+                dest.write(line.decode(encoding, errors="replace"))
                 dest.flush()
-            except ValueError:
-                # dest was closed (e.g. during shutdown)
-                break
+            except (ValueError, OSError):
+                # dest was closed or broken — stop writing but keep
+                # draining so the child doesn't get SIGPIPE.
+                writable = False
     except OSError:
         pass
     finally:
