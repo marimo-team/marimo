@@ -4420,9 +4420,18 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             source: Where to install. "kernel" (default) dispatches to the kernel
+     *                     subprocess; "server" installs directly into the server's Python
+     *                     environment (sys.executable), used when the server itself needs
+     *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       /** @enum {unknown} */
       type: "install-packages";
       versions: {
@@ -4432,6 +4441,11 @@ export interface components {
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       versions: {
         [key: string]: string;
       };
@@ -5007,13 +5021,21 @@ export interface components {
      *
      *         Attributes:
      *             packages: Missing package names.
-     *             isolated: Whether in isolated environment.
+     *             isolated: Whether auto-install is possible in this environment.
+     *             source: Which Python environment to install into. "kernel" (default)
+     *                     installs in the kernel's venv; "server" installs in the
+     *                     server's own Python env (e.g. for formatter tools like ruff).
      */
     MissingPackageAlertNotification: {
       isolated: boolean;
       /** @enum {unknown} */
       op: "missing-package-alert";
       packages: string[];
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /**
      * ModelClose
