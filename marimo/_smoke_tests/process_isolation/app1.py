@@ -1,3 +1,9 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.13.0"
@@ -26,7 +32,13 @@ def _():
 
 @app.cell
 def _(identity, shared_module):
+    import os
+    import threading
+
     import marimo as mo
+
+    pid = os.getpid()
+    tid = threading.get_ident()
 
     expected_app = "app1"
     expected_magic = 111
@@ -45,6 +57,8 @@ def _(identity, shared_module):
             | `APP_NAME` | `{identity['app']}` | `{expected_app}` |
             | `MAGIC_NUMBER` | `{identity['magic']}` | `{expected_magic}` |
             | `__file__` | `{shared_module.__file__}` | — |
+            | `PID` | `{pid}` | — |
+            | `Thread ID` | `{tid}` | — |
             """
         ).callout(kind="success")
     else:
@@ -57,6 +71,8 @@ def _(identity, shared_module):
             | `APP_NAME` | `{identity['app']}` | `{expected_app}` |
             | `MAGIC_NUMBER` | `{identity['magic']}` | `{expected_magic}` |
             | `__file__` | `{shared_module.__file__}` | — |
+            | `PID` | `{pid}` | — |
+            | `Thread ID` | `{tid}` | — |
 
             **Module clash!** Got another app's `shared_module`.
             """
