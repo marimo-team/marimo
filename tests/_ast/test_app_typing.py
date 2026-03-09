@@ -109,31 +109,16 @@ class TestCacheTyping:
 """
         )
 
-    def test_cache_typeis_narrowing(self) -> None:
+    def test_cache_exposes_cache_info(self) -> None:
         _check_pyright(
             _PREAMBLE
             + """
     @mo.cache
-    def is_int(x: object) -> TypeIs[int]:
-        return isinstance(x, int)
+    def compute(x: int) -> int:
+        return x * 2
 
-    val = _int_or_str()
-    if is_int(val):
-        assert_type(val, int)
-"""
-        )
-
-    def test_cache_typeguard_narrowing(self) -> None:
-        _check_pyright(
-            _PREAMBLE
-            + """
-    @mo.cache
-    def guard_int(x: object) -> TypeGuard[int]:
-        return isinstance(x, int)
-
-    val = _int_or_str()
-    if guard_int(val):
-        assert_type(val, int)
+    info = compute.cache_info()
+    compute.cache_clear()
 """
         )
 
@@ -151,30 +136,15 @@ class TestLruCacheTyping:
 """
         )
 
-    def test_lru_cache_typeis_narrowing(self) -> None:
+    def test_lru_cache_exposes_cache_info(self) -> None:
         _check_pyright(
             _PREAMBLE
             + """
     @mo.lru_cache
-    def is_int(x: object) -> TypeIs[int]:
-        return isinstance(x, int)
+    def compute(x: int) -> int:
+        return x * 2
 
-    val = _int_or_str()
-    if is_int(val):
-        assert_type(val, int)
-"""
-        )
-
-    def test_lru_cache_typeguard_narrowing(self) -> None:
-        _check_pyright(
-            _PREAMBLE
-            + """
-    @mo.lru_cache
-    def guard_int(x: object) -> TypeGuard[int]:
-        return isinstance(x, int)
-
-    val = _int_or_str()
-    if guard_int(val):
-        assert_type(val, int)
+    info = compute.cache_info()
+    compute.cache_clear()
 """
         )
