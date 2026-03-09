@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._cli.sandbox import SandboxMode
-from marimo._messaging.notification import UpdateCellIdsNotification
+from marimo._messaging.notification import (
+    MissingPackageAlertNotification,
+    UpdateCellIdsNotification,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.models.models import (
@@ -140,14 +142,27 @@ async def format_cell(request: Request) -> FormatResponse:
     try:
         return FormatResponse(codes=await formatter.format(body.codes))
     except ModuleNotFoundError:
+        from marimo._runtime.packages.utils import can_server_auto_install
+        from marimo._session.utils import send_message_to_consumer
+
         app_state = AppState(request)
-        # Installation occurs in the kernel which is not useful for multi mode.
-        if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
-            # Re-raise without name so error handler won't send install notification
-            raise ModuleNotFoundError(
-                "Server does not have a formatter. Please install ruff"
-            ) from None
-        raise
+        session_id = app_state.get_current_session_id()
+        session = app_state.get_current_session()
+        if session_id is not None and session is not None:
+            send_message_to_consumer(
+                session=session,
+                operation=MissingPackageAlertNotification(
+                    packages=["ruff"],
+                    isolated=can_server_auto_install(),
+                    source="server",
+                ),
+                consumer_id=ConsumerId(session_id),
+            )
+        # Re-raise without name so the error handler returns 500 without
+        # sending a second notification.
+        raise ModuleNotFoundError(
+            "Server does not have a formatter. Please install ruff"
+        ) from None
 
 
 @router.post("/set_cell_config")
@@ -229,4 +244,27 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, InstallPackagesRequest)
+    from marimo._runtime.packages.package_managers import create_package_manager
+
+    app_state = AppState(request)
+    body = await parse_request(request, cls=InstallPackagesRequest)
+    cmd = body.as_command()
+
+    if cmd.source == "server":
+        # Install into the server's own Python environment (sys.executable).
+        # Used when the server itself needs a package (e.g. nbformat for
+        # IPYNB auto-export when running with --sandbox).
+        pkg_manager = create_package_manager(cmd.manager, python_exe=None)
+        if not pkg_manager.is_manager_installed():
+            pkg_manager.alert_not_installed()
+        else:
+            for pkg, version in cmd.versions.items():
+                await pkg_manager.install(pkg, version=version or None)
+        return SuccessResponse()
+
+    # Default ("kernel"): dispatch to kernel via ZeroMQ control queue.
+    app_state.require_current_session().put_control_request(
+        cmd,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+    return SuccessResponse()

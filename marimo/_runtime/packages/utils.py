@@ -44,6 +44,24 @@ def is_python_isolated() -> bool:
     )
 
 
+def can_server_auto_install() -> bool:
+    """Whether the server can safely auto-install packages into its own env.
+
+    Stricter than is_python_isolated(): only true when in a virtual environment
+    (explicit isolated env) or there's a pyproject.toml (managed project).
+    Excludes conda, docker, modal, etc., where installing server-side tools
+    without explicit user intent is risky.
+    """
+    from pathlib import Path
+
+    from marimo._config.reader import find_nearest_pyproject_toml
+
+    return (
+        in_virtual_environment()
+        or find_nearest_pyproject_toml(Path.cwd()) is not None
+    )
+
+
 def append_version(pkg_name: str, version: Optional[str]) -> str:
     """Qualify a version string with a leading '==' if it doesn't have one"""
     if version is None:

@@ -35,6 +35,7 @@ from marimo._server.models.export import (
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
+from marimo._types.ids import ConsumerId
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
@@ -460,7 +461,26 @@ async def auto_export_as_ipynb(
     async def _background_export() -> None:
         # Check has nbformat installed
         if not DependencyManager.nbformat.has():
-            LOGGER.error("Cannot snapshot to IPYNB: nbformat not installed")
+            from marimo._messaging.notification import (
+                MissingPackageAlertNotification,
+            )
+            from marimo._runtime.packages.utils import can_server_auto_install
+            from marimo._session.utils import send_message_to_consumer
+
+            LOGGER.warning(
+                "Cannot snapshot to IPYNB: nbformat not installed"
+            )
+            session_id = app_state.get_current_session_id()
+            if session_id is not None:
+                send_message_to_consumer(
+                    session=session,
+                    operation=MissingPackageAlertNotification(
+                        packages=["nbformat"],
+                        isolated=can_server_auto_install(),
+                        source="server",
+                    ),
+                    consumer_id=ConsumerId(session_id),
+                )
             return
 
         # Reload the file manager to get the latest state

@@ -681,6 +681,7 @@ def pdf(
             "for PDF export",
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
+            source="server",
         )
     except ManyModulesNotFoundError as e:
         sandbox_rerun_command = (
