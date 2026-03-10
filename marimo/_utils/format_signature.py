@@ -7,7 +7,7 @@ import textwrap
 def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
     black_installed = False
     try:
-        import black
+        import black  # type: ignore[import-not-found]
 
         black_installed = True
     except ModuleNotFoundError:
