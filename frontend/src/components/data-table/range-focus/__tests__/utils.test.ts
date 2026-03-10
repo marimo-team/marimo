@@ -20,7 +20,8 @@ describe("getCellValues", () => {
   it("should return empty string for empty selection", () => {
     const mockTable = createMockTable([], []);
     const result = getCellValues(mockTable, new Set());
-    expect(result).toBe("");
+    expect(result.text).toBe("");
+    expect(result.html).toBeUndefined();
   });
 
   it("should ignore select checkbox in tables", () => {
@@ -29,7 +30,8 @@ describe("getCellValues", () => {
     const table = createMockTable([row], []);
 
     const result = getCellValues(table, new Set());
-    expect(result).toBe("");
+    expect(result.text).toBe("");
+    expect(result.html).toBeUndefined();
   });
 
   it("should return single cell value", () => {
@@ -38,7 +40,8 @@ describe("getCellValues", () => {
     const table = createMockTable([row], []);
 
     const result = getCellValues(table, new Set(["0_0"]));
-    expect(result).toBe("test");
+    expect(result.text).toBe("test");
+    expect(result.html).toBeUndefined();
   });
 
   it("should return multiple cells from same row separated by tabs", () => {
@@ -48,7 +51,8 @@ describe("getCellValues", () => {
     const table = createMockTable([row], []);
 
     const result = getCellValues(table, new Set(["0_0", "0_1"]));
-    expect(result).toBe("value1\tvalue2");
+    expect(result.text).toBe("value1\tvalue2");
+    expect(result.html).toBeUndefined();
   });
 
   it("should return multiple rows separated by newlines", () => {
@@ -59,7 +63,8 @@ describe("getCellValues", () => {
     const table = createMockTable([row1, row2], []);
 
     const result = getCellValues(table, new Set(["0_0", "1_0"]));
-    expect(result).toBe("row1\nrow2");
+    expect(result.text).toBe("row1\nrow2");
+    expect(result.html).toBeUndefined();
   });
 
   it("should handle missing rows gracefully", () => {
@@ -69,7 +74,7 @@ describe("getCellValues", () => {
 
     // Row "999" doesn't exist and is skipped
     const result = getCellValues(table, new Set(["0_0", "999_0"]));
-    expect(result).toBe("test");
+    expect(result.text).toBe("test");
   });
 
   it("should include undefined for missing columns on existing rows", () => {
@@ -80,7 +85,7 @@ describe("getCellValues", () => {
 
     // Column "999" doesn't exist but row.getValue() returns undefined
     const result = getCellValues(table, new Set(["0_0", "0_1", "0_999"]));
-    expect(result).toBe("test1\ttest2\tundefined");
+    expect(result.text).toBe("test1\ttest2\tundefined");
   });
 
   it("should handle complex data types", () => {
@@ -91,7 +96,8 @@ describe("getCellValues", () => {
     const table = createMockTable([row], []);
 
     const result = getCellValues(table, new Set(["0_0", "0_1", "0_2"]));
-    expect(result).toBe('{"name":"test"}\tnull\tundefined');
+    expect(result.text).toBe('{"name":"test"}\tnull\tundefined');
+    expect(result.html).toBeUndefined();
   });
 
   it("should use raw values when rawData is available", () => {
@@ -109,7 +115,10 @@ describe("getCellValues", () => {
     });
 
     const result = getCellValues(table, new Set(["0_a", "0_b"]));
-    expect(result).toBe("42\traw_b");
+    expect(result.text).toBe("42\traw_b");
+    expect(result.html).toBe(
+      "<table><tr><td><b>formatted_42</b></td><td>raw_b</td></tr></table>",
+    );
   });
 
   it("should fall back to displayed value when rawData is not set", () => {
@@ -118,7 +127,45 @@ describe("getCellValues", () => {
     const table = createMockTable([row], []);
 
     const result = getCellValues(table, new Set(["0_name"]));
-    expect(result).toBe("displayed");
+    expect(result.text).toBe("displayed");
+    expect(result.html).toBeUndefined();
+  });
+
+  it("should return html table when cells contain mime bundles", () => {
+    const mimeBundle = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: '<a href="https://example.com">link</a>',
+      },
+    };
+    const cell1 = createMockCell("0_url", mimeBundle);
+    const cell2 = createMockCell("0_name", "plain text");
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], []);
+
+    const result = getCellValues(table, new Set(["0_url", "0_name"]));
+    expect(result.text).toBe("link\tplain text");
+    expect(result.html).toBe(
+      '<table><tr><td><a href="https://example.com">link</a></td><td>plain text</td></tr></table>',
+    );
+  });
+
+  it("should escape html entities in non-mime cells within html table", () => {
+    const mimeBundle = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: "<b>bold</b>",
+      },
+    };
+    const cell1 = createMockCell("0_html", mimeBundle);
+    const cell2 = createMockCell("0_text", "a < b & c > d");
+    const row = createMockRow("0", [cell1, cell2]);
+    const table = createMockTable([row], []);
+
+    const result = getCellValues(table, new Set(["0_html", "0_text"]));
+    expect(result.html).toBe(
+      "<table><tr><td><b>bold</b></td><td>a &lt; b &amp; c &gt; d</td></tr></table>",
+    );
   });
 });
 

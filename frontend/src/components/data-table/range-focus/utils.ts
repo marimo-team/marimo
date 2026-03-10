@@ -2,17 +2,25 @@
 
 import type { Table } from "@tanstack/react-table";
 import { SELECT_COLUMN_ID } from "../types";
-import { getRawRowValue, stringifyUnknownValue } from "../utils";
+import { getClipboardContent, getRawRowValue } from "../utils";
 import type { SelectedCell } from "./atoms";
 
+export interface CellValuesResult {
+  text: string;
+  html: string | undefined;
+}
+
 /**
- * Get the values of the selected cells, preferring raw (unformatted) values.
+ * Get the values of the selected cells, preferring raw (unformatted) values
+ * for plain text. If any cell contains HTML (e.g. a hyperlink), also builds
+ * an HTML table so rich content can be preserved on paste.
  */
 export function getCellValues<TData>(
   table: Table<TData>,
   selectedCellIds: Set<string>,
-): string {
-  const rowValues = new Map<string, string[]>();
+): CellValuesResult {
+  const rows = new Map<string, { text: string; html?: string }[]>();
+  let hasHtml = false;
 
   for (const cellId of selectedCellIds) {
     if (cellId.includes(SELECT_COLUMN_ID)) {
@@ -27,17 +35,45 @@ export function getCellValues<TData>(
     }
 
     const rawValue = getRawRowValue(table, row.index, columnId);
-    const cellValue = rawValue ?? row.getValue(columnId);
-    const values = rowValues.get(rowId) ?? [];
-    values.push(stringifyUnknownValue({ value: cellValue }));
-    rowValues.set(rowId, values);
+    const { text, html } = getClipboardContent(
+      rawValue,
+      row.getValue(columnId),
+    );
+
+    if (html) {
+      hasHtml = true;
+    }
+    const cells = rows.get(rowId) ?? [];
+    cells.push({ text, html });
+    rows.set(rowId, cells);
   }
 
-  return getTabSeparatedValues([...rowValues.values()]);
+  const rowValues = [...rows.values()];
+  const tabSeparatedText = rowValues
+    .map((cells) => cells.map((c) => c.text).join("\t"))
+    .join("\n");
+
+  let htmlTable: string | undefined;
+  if (hasHtml) {
+    const htmlTableRows = rowValues
+      .map(
+        (cells) =>
+          `<tr>${cells.map((c) => `<td>${c.html ?? escapeHtml(c.text)}</td>`).join("")}</tr>`,
+      )
+      .join("");
+    htmlTable = `<table>${htmlTableRows}</table>`;
+  }
+
+  return {
+    text: tabSeparatedText,
+    html: htmlTable,
+  };
 }
 
-export function getTabSeparatedValues(values: string[][]) {
-  return values.map((row) => row.join("\t")).join("\n");
+function escapeHtml(str: string): string {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 /**

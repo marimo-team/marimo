@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { Cell, Table } from "@tanstack/react-table";
 import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { getMimeValues } from "./mime-cell";
 import { INDEX_COLUMN_NAME } from "./types";
 
 /**
@@ -70,6 +72,7 @@ export function getPageIndexForRow(
 
 /**
  * Stringify an unknown value. Converts objects to JSON strings.
+ * If the value is a mime bundle, extracts the text content.
  * @param opts.value - The value to stringify.
  * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
  */
@@ -80,12 +83,61 @@ export function stringifyUnknownValue(opts: {
   const { value, nullAsEmptyString = false } = opts;
 
   if (typeof value === "object" && value !== null) {
+    const mimeValues = getMimeValues(value);
+    if (mimeValues) {
+      return mimeValues.map((v) => stripHtml(v.data)).join(", ");
+    }
     return JSON.stringify(value);
   }
   if (value === null && nullAsEmptyString) {
     return "";
   }
   return String(value);
+}
+
+function stripHtml(html: string): string {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  const text = (div.textContent || div.innerText || "").trim();
+  return text || html;
+}
+
+const HTML_MIMETYPES = new Set(["text/html", "text/markdown"]);
+
+/**
+ * Get clipboard-ready text and optional HTML for a cell.
+ *
+ * @param rawValue - The raw (unformatted) value, or undefined if not available.
+ * @param displayedValue - The displayed value (may be a mime bundle).
+ */
+export function getClipboardContent(
+  rawValue: unknown,
+  displayedValue: unknown,
+): { text: string; html?: string } {
+  const mimeValues =
+    typeof displayedValue === "object" && displayedValue !== null
+      ? getMimeValues(displayedValue)
+      : undefined;
+
+  let html: string | undefined;
+  if (mimeValues) {
+    // text/markdown from mo.md() contains rendered HTML
+    const htmlParts = mimeValues
+      .filter((v) => HTML_MIMETYPES.has(v.mimetype))
+      .map((v) => v.data);
+    html = htmlParts.length > 0 ? htmlParts.join("") : undefined;
+  }
+
+  let text: string;
+  if (rawValue !== undefined && rawValue !== displayedValue) {
+    text = stringifyUnknownValue({ value: rawValue });
+  } else if (mimeValues) {
+    text = mimeValues.map((v) => stripHtml(v.data)).join(", ");
+  } else {
+    text = stringifyUnknownValue({ value: displayedValue });
+  }
+
+  return { text, html };
 }
 
 /**
