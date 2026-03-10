@@ -41,11 +41,8 @@ def _check_pyright(code: str) -> None:
 
 
 _PREAMBLE = """
-    from typing_extensions import TypeGuard, TypeIs, assert_type
+    from typing_extensions import assert_type
     import marimo as mo
-
-    def _int_or_str() -> int | str:
-        return 0
 """
 
 
@@ -129,9 +126,8 @@ class TestCacheTyping:
     async def compute(x: int) -> int:
         return x * 2
 
-    async def main():
-        val = await compute(1)
-        assert_type(val, int)
+    async def _main():  # pyright: ignore[reportUnusedFunction]
+        assert_type(await compute(1), int)
 """
         )
 
@@ -159,9 +155,8 @@ class TestCacheTyping:
         async def method(self, x: int) -> int:
             return x
 
-    async def main():
-        val = await A().method(1)
-        assert_type(val, int)
+    async def _main():  # pyright: ignore[reportUnusedFunction]
+        assert_type(await A().method(1), int)
 """
         )
 
@@ -173,7 +168,7 @@ class TestCacheTyping:
     def compute(x: int) -> int:
         return x * 2
 
-    info = compute.cache_info()
+    _info = compute.cache_info()
     compute.cache_clear()
 """
         )
@@ -200,7 +195,7 @@ class TestLruCacheTyping:
     def compute(x: int) -> int:
         return x * 2
 
-    info = compute.cache_info()
+    _info = compute.cache_info()
     compute.cache_clear()
 """
         )
