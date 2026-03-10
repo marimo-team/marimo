@@ -1,16 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-# Remove the UV env var that `uv run` sets *before* any marimo imports.
-# `uv run` sets UV to the absolute path of the uv binary, which causes
-# `infer_package_manager()` (called at import time in DEFAULT_CONFIG) to
-# always return "uv" and `find_uv_bin()` to return a full path instead of
-# the bare "uv" command, breaking test assertions and snapshots.
-import os as _os
-
-_os.environ.pop("UV", None)
-del _os
-
 import dataclasses
 import re
 import shutil
