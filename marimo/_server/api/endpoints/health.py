@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -92,19 +92,24 @@ async def status(request: Request) -> JSONResponse:
     )
 
 
+class SessionInfo(TypedDict):
+    filename: str | None
+    path: str | None
+
+
 @router.get("/api/sessions", include_in_schema=False)
 @requires("edit")
 async def list_sessions(request: Request) -> JSONResponse:
     """List active session IDs and their notebook paths."""
-    from typing import Any
 
-    app_state = AppState(request)
-    sessions: dict[str, Any] = {}
-    for session_id, session in app_state.session_manager.sessions.items():
-        sessions[session_id] = {
-            "filename": session.app_file_manager.filename,
-            "path": session.app_file_manager.path,
-        }
+    state = AppState(request)
+    sessions = {
+        [session_id]: SessionInfo(
+            filename=session.app_file_manager.filename,
+            path=session.app_file_manager.path,
+        )
+        for session_id, session in state.session_manager.sessions.items()
+    }
     return JSONResponse(sessions)
 
 
