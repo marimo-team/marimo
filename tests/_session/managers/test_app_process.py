@@ -129,64 +129,60 @@ class TestAppProcessQueueManager:
         import queue
 
         from marimo._session.managers.app_process import (
-            AppProcessPool,
+            AppProcess,
             AppProcessQueueManager,
         )
 
-        pool = AppProcessPool()
-        try:
-            app_proc = pool.get_or_create("/tmp/test_app.py")
-            qm = AppProcessQueueManager(app_proc, "s1")
-            assert isinstance(qm.stream_queue, queue.Queue)
-            assert qm.win32_interrupt_queue is None
+        # No need to start a real subprocess — register_stream and
+        # unregister_stream only use the in-memory dict from __init__.
+        app_proc = AppProcess("/tmp/test_app.py")
+        qm = AppProcessQueueManager(app_proc, "s1")
+        assert isinstance(qm.stream_queue, queue.Queue)
+        assert qm.win32_interrupt_queue is None
 
-            # close_queues puts None sentinel for QueueDistributor
-            qm.close_queues()
-            assert qm.stream_queue.get_nowait() is None
-        finally:
-            pool.shutdown()
+        # close_queues puts None sentinel for QueueDistributor
+        qm.close_queues()
+        assert qm.stream_queue.get_nowait() is None
 
 
 @pytest.mark.requires("zmq")
 class TestAppKernelManager:
     def test_satisfies_kernel_manager_protocol(self) -> None:
         """AppKernelManager has all required KernelManager attributes."""
-        from unittest.mock import MagicMock
+        from unittest.mock import Mock
 
         from marimo._session.managers.app_process import (
             AppKernelManager,
-            AppProcessPool,
+            AppProcess,
             AppProcessQueueManager,
         )
         from marimo._session.model import SessionMode
 
-        pool = AppProcessPool()
-        try:
-            app_proc = pool.get_or_create("/tmp/test.py")
-            qm = AppProcessQueueManager(app_proc, "s1")
-            mgr = AppKernelManager(
-                app_process=app_proc,
-                session_id="s1",
-                queue_manager=qm,
-                mode=SessionMode.RUN,
-                configs={},
-                app_metadata=MagicMock(),
-                config_manager=MagicMock(),
-                redirect_console_to_browser=True,
-            )
+        # No need to start a real subprocess — an unstarted AppProcess
+        # is sufficient to verify the protocol surface.
+        app_proc = AppProcess("/tmp/test.py")
+        qm = AppProcessQueueManager(app_proc, "s1")
+        mgr = AppKernelManager(
+            app_process=app_proc,
+            session_id="s1",
+            queue_manager=qm,
+            mode=SessionMode.RUN,
+            configs={},
+            app_metadata=Mock(),
+            config_manager=Mock(),
+            redirect_console_to_browser=True,
+        )
 
-            # Check protocol attributes exist
-            assert mgr.kernel_task is None
-            assert mgr.mode == SessionMode.RUN
-            assert mgr.pid is not None  # app process is running
-            assert mgr.profile_path is None
-            assert mgr.is_alive()  # app process is alive
+        # Check protocol attributes exist
+        assert mgr.kernel_task is None
+        assert mgr.mode == SessionMode.RUN
+        assert mgr.pid is None  # no subprocess started
+        assert mgr.profile_path is None
+        assert not mgr.is_alive()  # no subprocess started
 
-            # interrupt_kernel is a no-op
-            mgr.interrupt_kernel()
+        # interrupt_kernel is a no-op
+        mgr.interrupt_kernel()
 
-            # kernel_connection raises
-            with pytest.raises(NotImplementedError):
-                _ = mgr.kernel_connection
-        finally:
-            pool.shutdown()
+        # kernel_connection raises
+        with pytest.raises(NotImplementedError):
+            _ = mgr.kernel_connection
