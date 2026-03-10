@@ -27,7 +27,7 @@ class _FlexContainerHtml(Html):
 
     def __init__(
         self,
-        style: str,
+        style: Optional[str],
         live_children: list[Html],
         child_flexes: Optional[Sequence[Optional[float]]],
     ) -> None:
@@ -62,7 +62,7 @@ class _FlexContainerHtml(Html):
                 h.div(c.text, style=_item_style(i))
                 for i, c in enumerate(self._live_children)
             ]
-        return h.div(grid_items, style=self._style)
+        return h.div(grid_items, style=self._style or "")
 
     @property
     def text(self) -> str:  # type: ignore[override]
