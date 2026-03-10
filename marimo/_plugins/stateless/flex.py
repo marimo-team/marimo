@@ -46,6 +46,9 @@ class _FlexContainerHtml(Html):
             item_style: dict[str, str | int | float | None] = {
                 "flex": f"{child_flex}"
             }
+            # Only make the wrapper a flex container for nested stacks so their
+            # flex: 1 and justify work. Leaf content (e.g. mo.stat) fills the
+            # wrapper when it is a block.
             if isinstance(self._live_children[idx], _FlexContainerHtml):
                 item_style["display"] = "flex"
                 item_style["min-width"] = "0"
