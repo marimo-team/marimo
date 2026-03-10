@@ -239,7 +239,7 @@ async def run_cell(
     return SuccessResponse()
 
 
-@router.post("/scratchpad/execute")
+@router.post("/scratchpad/execute", include_in_schema=False)
 @requires("edit")
 async def execute_scratchpad(
     *,
