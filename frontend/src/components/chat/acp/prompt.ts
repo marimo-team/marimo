@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { SQL_QUOTE_PREFIX } from "@marimo-team/smart-cells";
+
 export function getAgentPrompt(filename: string) {
   return `
   I am currently editing a marimo notebook.
@@ -76,7 +78,7 @@ export function getAgentPrompt(filename: string) {
   </ui_elements>
 
   <sql>
-  - When writing duckdb, prefer using marimo's SQL cells, which start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.
+  - When writing duckdb, prefer using marimo's SQL cells, which start with df = mo.sql(${SQL_QUOTE_PREFIX}"""<your query>""") for DuckDB, or df = mo.sql(${SQL_QUOTE_PREFIX}"""<your query>""", engine=engine) for other SQL engines.
   - See the SQL with duckdb example for an example on how to do this
   - Don't add comments in cells that use mo.sql()
   - Consider using \`vega_datasets\` for common example datasets

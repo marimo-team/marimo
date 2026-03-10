@@ -162,3 +162,75 @@ def test_get_markdown_from_cell_broken():
         compile_cell(empty_markdown_str, "id"), "mo.md(f'{broken(}')"
     )
     assert markdown is None
+
+
+class TestSqlToMarimo:
+    """Tests for sql_to_marimo() function.
+
+    Ensures generated SQL code uses rf-strings to avoid unicode escape
+    errors from Windows backslash paths (issue #8179).
+    """
+
+    def test_basic_sql_to_marimo(self) -> None:
+        """Test basic SQL to marimo conversion uses rf-string."""
+        result = format.sql_to_marimo("SELECT * FROM test", "_df")
+        assert 'rf"""' in result
+        assert "_df = mo.sql(" in result
+        assert "SELECT * FROM test" in result
+
+    def test_sql_to_marimo_with_engine(self) -> None:
+        """Test SQL with engine parameter."""
+        result = format.sql_to_marimo(
+            "SELECT * FROM test", "_df", engine="postgres_engine"
+        )
+        assert 'rf"""' in result
+        assert "engine=postgres_engine" in result
+
+    def test_sql_to_marimo_with_all_options(self) -> None:
+        """Test SQL with all options."""
+        result = format.sql_to_marimo(
+            "SELECT * FROM test",
+            "my_df",
+            hide_output=True,
+            engine="sqlite_conn",
+        )
+        assert 'rf"""' in result
+        assert "my_df = mo.sql(" in result
+        assert "output=False" in result
+        assert "engine=sqlite_conn" in result
+
+    def test_sql_to_marimo_generated_code_is_valid_python(self) -> None:
+        """Test that the generated code is valid Python syntax."""
+        result = format.sql_to_marimo(
+            "SELECT * FROM users WHERE id > 5", "_df"
+        )
+        # Should compile without syntax errors
+        compile(result, "<test>", "exec")
+
+    def test_sql_to_marimo_rf_string_handles_backslashes(self) -> None:
+        """Test that the generated rf-string code handles backslash paths.
+
+        This is the core fix for issue #8179. The generated code should
+        not raise SyntaxError or produce unicode escape sequences when
+        the SQL contains Windows-style backslash paths.
+        """
+        # Simulate SQL with a Windows path
+        sql_with_path = r"SELECT * FROM read_csv('C:\Users\data\file.csv')"
+        result = format.sql_to_marimo(sql_with_path, "_df")
+        assert 'rf"""' in result
+        # The generated code should be valid Python
+        compile(result, "<test>", "exec")
+
+    def test_sql_to_marimo_does_not_use_plain_f_string(self) -> None:
+        """Ensure we don't use plain f-string (which would break
+        on backslashes)."""
+        result = format.sql_to_marimo("SELECT 1", "_df")
+        # Should NOT have a bare f""" without the r prefix
+        lines = result.split("\n")
+        for line in lines:
+            stripped = line.strip()
+            # Check that any triple-quoted f-string has the r prefix
+            if '"""' in stripped and stripped.startswith(("f", "'")):
+                assert not stripped.startswith('f"""'), (
+                    "Should use rf-string, not plain f-string"
+                )

@@ -1,13 +1,22 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Final, Optional, Union
 
 from marimo._ast import codegen
 from marimo._ast.compiler import extract_markdown
 
 if TYPE_CHECKING:
     from marimo._ast.cell import Cell, CellImpl
+
+# Raw f-string prefix for SQL cells.
+# Using rf-strings avoids unicode escape errors when users paste
+# Windows backslash paths (e.g., C:\Users\data\file.csv) into SQL cells.
+# See https://github.com/marimo-team/marimo/issues/8179
+#
+# Keep in sync with SQL_QUOTE_PREFIX in:
+#   packages/smart-cells/src/parsers/sql-parser.ts
+SQL_QUOTE_PREFIX: Final[str] = "rf"
 
 
 def markdown_to_marimo(source: str) -> str:
@@ -37,8 +46,7 @@ def sql_to_marimo(
     return "\n".join(
         [
             f"{table} = mo.sql(",
-            # f-string: expected for sql
-            codegen.indent_text('f"""'),
+            codegen.indent_text(f'{SQL_QUOTE_PREFIX}"""'),
             codegen.indent_text(source),
             ",\n".join(terminal_options),
             ")",

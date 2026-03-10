@@ -14,7 +14,7 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
-from marimo._convert.common.format import markdown_to_marimo
+from marimo._convert.common.format import SQL_QUOTE_PREFIX, markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -202,7 +202,7 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         """
         del command
         source = source.strip()
-        return f'_df = mo.sql("""\n{source}\n""")'
+        return f'_df = mo.sql({SQL_QUOTE_PREFIX}"""\n{source}\n""")'
 
     def magic_remove(source: str, command: str) -> str:
         """

@@ -16,7 +16,7 @@ def _():
 @app.cell
 def _(mo):
     # This should trigger an MF005 SQL parsing error due to trailing comma
-    result = mo.sql(f"""
+    result = mo.sql(rf"""
         WITH ranked_stories AS (
             SELECT
                 title,

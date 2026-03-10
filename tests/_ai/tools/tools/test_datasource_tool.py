@@ -569,7 +569,7 @@ def test_form_sample_query_full_qualified(tool: GetDatabaseTables):
 
     assert (
         query
-        == 'df = mo.sql(f"""SELECT * FROM mydb.myschema.mytable LIMIT 100""", engine=postgres_conn)'
+        == 'df = mo.sql(rf"""SELECT * FROM mydb.myschema.mytable LIMIT 100""", engine=postgres_conn)'
     )
 
 
@@ -586,7 +586,7 @@ def test_form_sample_query_default_database(tool: GetDatabaseTables):
 
     assert (
         query
-        == 'df = mo.sql(f"""SELECT * FROM myschema.mytable LIMIT 100""", engine=mysql_conn)'
+        == 'df = mo.sql(rf"""SELECT * FROM myschema.mytable LIMIT 100""", engine=mysql_conn)'
     )
 
 
@@ -603,7 +603,7 @@ def test_form_sample_query_default_schema(tool: GetDatabaseTables):
 
     assert (
         query
-        == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""", engine=postgres_conn)'
+        == 'df = mo.sql(rf"""SELECT * FROM mytable LIMIT 100""", engine=postgres_conn)'
     )
 
 
@@ -620,7 +620,7 @@ def test_form_sample_query_both_defaults(tool: GetDatabaseTables):
 
     assert (
         query
-        == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""", engine=mysql_conn)'
+        == 'df = mo.sql(rf"""SELECT * FROM mytable LIMIT 100""", engine=mysql_conn)'
     )
 
 
@@ -640,7 +640,7 @@ def test_form_sample_query_internal_duckdb_no_defaults(
 
     assert (
         query
-        == 'df = mo.sql(f"""SELECT * FROM mydb.myschema.mytable LIMIT 100""")'
+        == 'df = mo.sql(rf"""SELECT * FROM mydb.myschema.mytable LIMIT 100""")'
     )
 
 
@@ -658,4 +658,4 @@ def test_form_sample_query_internal_duckdb_with_defaults(
         engine=INTERNAL_DUCKDB_ENGINE,
     )
 
-    assert query == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""")'
+    assert query == 'df = mo.sql(rf"""SELECT * FROM mytable LIMIT 100""")'

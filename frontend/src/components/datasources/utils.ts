@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
+import { SQL_QUOTE_PREFIX } from "@marimo-team/smart-cells";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -140,13 +141,13 @@ export function sqlCode({
     );
 
     if (engine === DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""\n${selectClause}\n""")`;
+      return `_df = mo.sql(${SQL_QUOTE_PREFIX}"""\n${selectClause}\n""")`;
     }
 
-    return `_df = mo.sql(f"""\n${selectClause}\n""", engine=${engine})`;
+    return `_df = mo.sql(${SQL_QUOTE_PREFIX}"""\n${selectClause}\n""", engine=${engine})`;
   }
 
-  return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
+  return `_df = mo.sql(${SQL_QUOTE_PREFIX}'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
 }
 
 export function convertStatsName(stat: ColumnHeaderStatsKey, type: DataType) {
