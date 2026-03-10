@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Must match the className on the container div in MplInteractivePlugin.tsx
+_MPL_SCOPE = ".mpl-interactive-figure"
+
 
 class _SyncWebSocket:
     """Adapter passed to FigureManagerWebAgg.add_web_socket().
@@ -89,7 +92,7 @@ def _get_mpl_css() -> str:
     # Our own overrides
     parts.append(css_content)
     raw_css = "\n".join(parts)
-    return _scope_css(raw_css, ".mpl-interactive-figure")
+    return _scope_css(raw_css, _MPL_SCOPE)
 
 
 def _scope_css(css: str, scope: str) -> str:

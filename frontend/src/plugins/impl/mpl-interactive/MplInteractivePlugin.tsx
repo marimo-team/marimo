@@ -3,12 +3,16 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
+import { useEventListener } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
 import { MODEL_MANAGER, type Model } from "@/plugins/impl/anywidget/model";
 import type { ModelState, WidgetModelId } from "@/plugins/impl/anywidget/types";
 import type { IPluginProps } from "@/plugins/types";
+import { downloadBlob } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { MplCommWebSocket } from "./mpl-websocket-shim";
+
+const MPL_SCOPE_CLASS = "mpl-interactive-figure";
 
 interface Data {
   mplJsUrl: string;
@@ -202,21 +206,16 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
           buffers &&
           buffers.length > 0
         ) {
-          // Handle download response from backend
+          const fmt = content.format || "png";
           const dv = buffers[0];
           const ab = dv.buffer.slice(
             dv.byteOffset,
             dv.byteOffset + dv.byteLength,
           ) as ArrayBuffer;
-          const blob = new Blob([ab], {
-            type: `image/${content.format || "png"}`,
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `figure.${content.format || "png"}`;
-          a.click();
-          URL.revokeObjectURL(url);
+          downloadBlob(
+            new Blob([ab], { type: `image/${fmt}` }),
+            `figure.${fmt}`,
+          );
         }
       };
 
@@ -297,20 +296,14 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     };
   }, [modelId, cssUrl, toolbarImages, setupFigure]);
 
-  // Visibility change handler: re-request figure when tab becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const fig = figureRef.current;
-      if (!document.hidden && fig?.ws?.readyState === WebSocket.OPEN) {
-        fig.send_message("refresh", {});
-      }
-    };
+  // Re-request figure when tab becomes visible
+  useEventListener(document, "visibilitychange", () => {
+    const fig = figureRef.current;
+    if (!document.hidden && fig?.ws?.readyState === WebSocket.OPEN) {
+      fig.send_message("refresh", {});
+    }
+  });
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
-  return <div ref={containerRef} className="mpl-interactive-figure" />;
+  // Must match _MPL_SCOPE in from_mpl_interactive.py
+  return <div ref={containerRef} className={MPL_SCOPE_CLASS} />;
 };
