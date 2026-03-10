@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._ast.cell_id import CellIdGenerator
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._schemas.notebook import (
     NotebookCell,
     NotebookCellConfig,
@@ -12,6 +14,7 @@ from marimo._schemas.serialization import (
     CellDef,
     NotebookSerialization,
     NotebookSerializationV1,
+    SetupCell,
 )
 from marimo._utils.code import hash_code
 from marimo._version import __version__
@@ -28,11 +31,18 @@ def convert_from_ir_to_notebook_v1(
     Returns:
         NotebookV1: The notebook v1.
     """
+    cell_id_generator = CellIdGenerator()
     cells: list[NotebookCell] = []
-    for data in notebook_ir.cells:
+    for i, data in enumerate(notebook_ir.cells):
+        if isinstance(data, SetupCell) or (
+            i == 0 and data.name == SETUP_CELL_NAME
+        ):
+            cell_id = SETUP_CELL_NAME
+        else:
+            cell_id = cell_id_generator.create_cell_id()
         cells.append(
             NotebookCell(
-                id=None,
+                id=cell_id,
                 code=data.code,
                 code_hash=hash_code(data.code) if data.code else None,
                 name=data.name,

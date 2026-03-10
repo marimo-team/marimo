@@ -826,20 +826,16 @@ components:
       description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
         \ is first loaded. Contains all cells and initial UI element values.\n\n \
         \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
-        \ cell.\n        cell_ids: Initial cell IDs in the notebook (unused for now).\n\
-        \        set_ui_element_value_request: Initial UI element values.\n      \
-        \  auto_run: Whether to automatically execute cells on instantiation.\n  \
-        \      request: HTTP request context if available."
+        \ cell.\n        cell_ids: Initial cell IDs in the notebook.\n        set_ui_element_value_request:\
+        \ Initial UI element values.\n        auto_run: Whether to automatically execute\
+        \ cells on instantiation.\n        request: HTTP request context if available."
       properties:
         autoRun:
           type: boolean
         cellIds:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
+          items:
+            type: string
+          type: array
         executionRequests:
           items:
             $ref: '#/components/schemas/ExecuteCellCommand'
@@ -857,6 +853,7 @@ components:
       required:
       - type
       - executionRequests
+      - cellIds
       - setUiElementValueRequest
       - autoRun
       title: CreateNotebookCommand
