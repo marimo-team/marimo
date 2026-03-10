@@ -154,7 +154,7 @@ jobs:
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl
           cd ${{ runner.temp }}
-          uv run --no-project pytest -v ${{ github.workspace }}/tests/_cli/test_cli* --maxfail=2
+          VIRTUAL_ENV=${{ github.workspace }}/.venv uv run --no-project pytest -v ${{ github.workspace }}/tests/_cli/test_cli* --maxfail=2
 
   test_examples:
     needs: [changes]
