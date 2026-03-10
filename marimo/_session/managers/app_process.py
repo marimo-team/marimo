@@ -75,7 +75,9 @@ class AppProcess:
         self._cmd_socket: zmq.Socket[bytes] | None = None
         self._stream_socket: zmq.Socket[bytes] | None = None
         # Stream demux: session_id -> stream_queue
-        self._stream_receivers: dict[str, queue.Queue[KernelMessage]] = {}
+        self._stream_receivers: dict[
+            str, queue.Queue[KernelMessage | None]
+        ] = {}
         self._stream_lock = threading.Lock()
 
     def start(self) -> None:
@@ -196,7 +198,7 @@ class AppProcess:
             )
 
     def register_stream(
-        self, session_id: str, q: queue.Queue[KernelMessage]
+        self, session_id: str, q: queue.Queue[KernelMessage | None]
     ) -> None:
         """Register a stream queue to receive output for a session."""
         with self._stream_lock:
@@ -397,7 +399,7 @@ class AppProcessQueueManager(QueueManagerProto):
         self.stream_queue: queue.Queue[Union[KernelMessage, None]] = (
             queue.Queue()
         )
-        app_process.register_stream(session_id, self.stream_queue)  # type: ignore[arg-type]
+        app_process.register_stream(session_id, self.stream_queue)
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         # Completions are on their own queue

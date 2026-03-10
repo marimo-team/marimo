@@ -38,7 +38,6 @@ from marimo._runtime.commands import StopKernelCommand
 from marimo._session.managers.app_process_commands import (
     CreateKernelCmd,
     KernelCreatedResponse,
-    KernelStoppedResponse,
     ShutdownAppProcessCmd,
     StopKernelCmd,
     decode_command,
@@ -216,16 +215,12 @@ def _handle_stop_kernel(
     cmd: StopKernelCmd,
     kernels: dict[str, _KernelInfo],
     kernel_lock: threading.Lock,
-    response_socket: typing.Any,
 ) -> None:
     with kernel_lock:
         info = kernels.pop(cmd.session_id, None)
     if info is not None:
         info.queues.control.put(StopKernelCommand())
         LOGGER.debug("Kernel stopped for session %s", cmd.session_id)
-    response_socket.send(
-        encode_response(KernelStoppedResponse(session_id=cmd.session_id))
-    )
 
 
 def _handle_create_kernel(
@@ -382,7 +377,7 @@ def app_process_main(args: AppProcessArgs) -> None:
                 cmd, kernels, kernel_lock, stream_outbox, response_socket
             )
         elif isinstance(cmd, StopKernelCmd):
-            _handle_stop_kernel(cmd, kernels, kernel_lock, response_socket)
+            _handle_stop_kernel(cmd, kernels, kernel_lock)
         elif isinstance(cmd, ShutdownAppProcessCmd):
             LOGGER.debug("App process shutting down for %s", args.file_path)
             _shutdown_all_kernels(kernels, kernel_lock)

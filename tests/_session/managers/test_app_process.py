@@ -13,7 +13,6 @@ class TestAppProcessCommands:
         from marimo._session.managers.app_process_commands import (
             CreateKernelCmd,
             KernelCreatedResponse,
-            KernelStoppedResponse,
             ShutdownAppProcessCmd,
             StopKernelCmd,
             decode_command,
@@ -55,7 +54,6 @@ class TestAppProcessCommands:
             KernelCreatedResponse(
                 session_id="s1", success=False, error="boom"
             ),
-            KernelStoppedResponse(session_id="s1"),
         ]
 
         for resp in responses:

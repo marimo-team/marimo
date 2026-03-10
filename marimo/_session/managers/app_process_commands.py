@@ -53,17 +53,11 @@ class KernelCreatedResponse(msgspec.Struct, tag=True):
     error: typing.Union[str, None] = None
 
 
-class KernelStoppedResponse(msgspec.Struct, tag=True):
-    """Confirms a kernel was stopped."""
-
-    session_id: str
-
-
 # Union types for tagged deserialization
 MgmtCommand = typing.Union[
     CreateKernelCmd, StopKernelCmd, ShutdownAppProcessCmd
 ]
-MgmtResponse = typing.Union[KernelCreatedResponse, KernelStoppedResponse]
+MgmtResponse = KernelCreatedResponse
 
 _cmd_encoder = msgspec.json.Encoder()
 _cmd_decoder = msgspec.json.Decoder(MgmtCommand)
