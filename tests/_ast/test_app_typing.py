@@ -161,17 +161,16 @@ class TestCacheTyping:
         )
 
     def test_cache_exposes_cache_info(self) -> None:
-        _check_pyright(
-            _PREAMBLE
-            + """
-    @mo.cache
-    def compute(x: int) -> int:
-        return x * 2
+        _check_pyright("""
+            import marimo as mo
 
-    _info = compute.cache_info()
-    compute.cache_clear()
-"""
-        )
+            @mo.cache
+            def compute(x: int) -> int:
+                return x * 2
+
+            _info = compute.cache_info()
+            compute.cache_clear()
+        """)
 
 
 class TestLruCacheTyping:
@@ -188,17 +187,16 @@ class TestLruCacheTyping:
         )
 
     def test_lru_cache_exposes_cache_info(self) -> None:
-        _check_pyright(
-            _PREAMBLE
-            + """
-    @mo.lru_cache
-    def compute(x: int) -> int:
-        return x * 2
+        _check_pyright("""
+            import marimo as mo
 
-    _info = compute.cache_info()
-    compute.cache_clear()
-"""
-        )
+            @mo.lru_cache
+            def compute(x: int) -> int:
+                return x * 2
+
+            _info = compute.cache_info()
+            compute.cache_clear()
+        """)
 
 
 class TestPersistentCacheTyping:
@@ -222,7 +220,9 @@ class TestCacheContext:
         _check_pyright(
             _PREAMBLE
             + f"""
-    from marimo._save.save import _cache_context
+    from marimo._save.save import (
+        _cache_context,  # pyright: ignore[reportPrivateUsage]
+    )
     assert_type(mo.{cache_func}("cache"), _cache_context)
 """
         )
