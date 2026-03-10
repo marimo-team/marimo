@@ -2,7 +2,13 @@
 
 import type { Cell, Column, Row, Table } from "@tanstack/react-table";
 import { describe, expect, it } from "vitest";
-import { getPageIndexForRow, getRawCellValue, getRawRowValue } from "../utils";
+import {
+  getClipboardContent,
+  getPageIndexForRow,
+  getRawCellValue,
+  getRawRowValue,
+  stringifyUnknownValue,
+} from "../utils";
 
 describe("getPageIndexForRow", () => {
   it("should return null when row is on current page", () => {
@@ -76,6 +82,144 @@ describe("getPageIndexForRow", () => {
     expect(getPageIndexForRow(1009, 100, 10)).toBeNull();
     expect(getPageIndexForRow(1010, 100, 10)).toBe(101);
     expect(getPageIndexForRow(999, 100, 10)).toBe(99);
+  });
+});
+
+describe("stringifyUnknownValue", () => {
+  it("should stringify primitives", () => {
+    expect(stringifyUnknownValue({ value: "hello" })).toBe("hello");
+    expect(stringifyUnknownValue({ value: 42 })).toBe("42");
+    expect(stringifyUnknownValue({ value: true })).toBe("true");
+    expect(stringifyUnknownValue({ value: null })).toBe("null");
+    expect(stringifyUnknownValue({ value: undefined })).toBe("undefined");
+  });
+
+  it("should stringify null as empty string when flag is set", () => {
+    expect(
+      stringifyUnknownValue({ value: null, nullAsEmptyString: true }),
+    ).toBe("");
+  });
+
+  it("should JSON-stringify plain objects", () => {
+    expect(stringifyUnknownValue({ value: { x: 1 } })).toBe('{"x":1}');
+  });
+
+  it("should extract text from _serialized_mime_bundle", () => {
+    const mimeBundle = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: '<a href="https://example.com">Click here</a>',
+      },
+    };
+    expect(stringifyUnknownValue({ value: mimeBundle })).toBe("Click here");
+  });
+
+  it("should extract text from serialized_mime_bundle (no underscore)", () => {
+    const mimeBundle = {
+      serialized_mime_bundle: {
+        mimetype: "text/markdown",
+        data: '<span class="markdown">Hello <b>world</b></span>',
+      },
+    };
+    expect(stringifyUnknownValue({ value: mimeBundle })).toBe("Hello world");
+  });
+
+  it("should extract text from direct mime values", () => {
+    const mimeValue = {
+      mimetype: "text/html",
+      data: "<b>bold text</b>",
+    };
+    expect(stringifyUnknownValue({ value: mimeValue })).toBe("bold text");
+  });
+
+  it("should handle arrays of mime values", () => {
+    const mimeArray = [
+      { mimetype: "text/html", data: "<b>first</b>" },
+      { mimetype: "text/html", data: "<i>second</i>" },
+    ];
+    expect(stringifyUnknownValue({ value: mimeArray })).toBe("first, second");
+  });
+});
+
+describe("getClipboardContent", () => {
+  it("should use rawValue for text when it differs from displayedValue", () => {
+    const displayed = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: '<a href="https://example.com">42</a>',
+      },
+    };
+    const result = getClipboardContent(42, displayed);
+    expect(result.text).toBe("42");
+    expect(result.html).toBe('<a href="https://example.com">42</a>');
+  });
+
+  it("should strip html for text when rawValue equals displayedValue", () => {
+    const mimeBundle = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: "<b>bold</b>",
+      },
+    };
+    const result = getClipboardContent(mimeBundle, mimeBundle);
+    expect(result.text).toBe("bold");
+    expect(result.html).toBe("<b>bold</b>");
+  });
+
+  it("should handle undefined rawValue", () => {
+    const displayed = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: "<b>hello</b>",
+      },
+    };
+    const result = getClipboardContent(undefined, displayed);
+    expect(result.text).toBe("hello");
+    expect(result.html).toBe("<b>hello</b>");
+  });
+
+  it("should return no html for plain values", () => {
+    const result = getClipboardContent(undefined, "plain text");
+    expect(result.text).toBe("plain text");
+    expect(result.html).toBeUndefined();
+  });
+
+  it("should treat text/markdown as html since mo.md() data is rendered html", () => {
+    const displayed = {
+      _serialized_mime_bundle: {
+        mimetype: "text/markdown",
+        data: '<span class="markdown"><strong>Hello</strong></span>',
+      },
+    };
+    const result = getClipboardContent(undefined, displayed);
+    expect(result.text).toBe("Hello");
+    expect(result.html).toBe(
+      '<span class="markdown"><strong>Hello</strong></span>',
+    );
+  });
+
+  it("should return no html for non-html mime bundles", () => {
+    const displayed = {
+      _serialized_mime_bundle: {
+        mimetype: "text/plain",
+        data: "just text",
+      },
+    };
+    const result = getClipboardContent(undefined, displayed);
+    expect(result.text).toBe("just text");
+    expect(result.html).toBeUndefined();
+  });
+
+  it("should handle null rawValue as a real value", () => {
+    const displayed = {
+      _serialized_mime_bundle: {
+        mimetype: "text/html",
+        data: "<i>N/A</i>",
+      },
+    };
+    const result = getClipboardContent(null, displayed);
+    expect(result.text).toBe("null");
+    expect(result.html).toBe("<i>N/A</i>");
   });
 });
 

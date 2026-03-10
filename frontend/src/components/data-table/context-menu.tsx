@@ -18,7 +18,7 @@ import {
 import { DATA_CELL_ID } from "./cell-utils";
 import { Filter } from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
-import { getRawCellValue, stringifyUnknownValue } from "./utils";
+import { getClipboardContent, getRawCellValue } from "./utils";
 
 export const DataTableContextMenu = <TData,>({
   contextMenuRef,
@@ -83,11 +83,12 @@ export const CellContextMenu = <TData,>({
   }
 
   const rawValue = getRawCellValue(cell);
+  const displayedValue = cell.getValue();
 
   const handleCopyCell = () => {
     try {
-      const stringValue = stringifyUnknownValue({ value: rawValue });
-      copyToClipboard(stringValue);
+      const { text, html } = getClipboardContent(rawValue, displayedValue);
+      copyToClipboard(text, html);
     } catch (error) {
       Logger.error("Failed to copy context menu cell", error);
     }
