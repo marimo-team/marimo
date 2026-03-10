@@ -125,6 +125,10 @@ class AppProcess:
         ]
         LOGGER.debug("Launching app process: %s", " ".join(cmd))
 
+        # TODO: stderr=subprocess.PIPE is never drained after startup.
+        # If the subprocess writes enough to fill the pipe buffer (~64KB)
+        # it will block. Spawn a daemon thread to drain stderr to the
+        # logger, or redirect to a file.
         self._process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -141,12 +145,27 @@ class AppProcess:
         proc_stdin.flush()
         proc_stdin.close()
 
-        # Wait for ready signal
-        ready = proc_stdout.readline().decode().strip()
+        # Wait for ready signal with a timeout — if the child crashes
+        # before writing APP_PROCESS_READY, readline() would block forever.
+        _READY_TIMEOUT = 30  # seconds
+        result: list[bytes] = []
+        reader = threading.Thread(
+            target=lambda: result.append(proc_stdout.readline()),
+            daemon=True,
+        )
+        reader.start()
+        reader.join(timeout=_READY_TIMEOUT)
+
+        ready = result[0].decode().strip() if result else ""
         if ready != "APP_PROCESS_READY":
             stderr = ""
             if self._process.stderr is not None:
                 stderr = self._process.stderr.read().decode()
+            if not result:
+                raise RuntimeError(
+                    f"App process timed out ({_READY_TIMEOUT}s) for "
+                    f"{self._file_path}.\n\nStderr:\n{stderr}"
+                )
             raise RuntimeError(
                 f"App process failed to start for {self._file_path}.\n\n"
                 f"Stderr:\n{stderr}"
