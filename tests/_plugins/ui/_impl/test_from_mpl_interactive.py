@@ -293,6 +293,34 @@ class TestMplInteractiveArgs:
         plt.close(fig)
 
 
+class TestScopeCss:
+    """Test that _scope_css uses native CSS nesting."""
+
+    def test_wraps_rules_in_scope(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import _scope_css
+
+        css = ".toolbar { display: flex; }\n.btn { color: red; }"
+        result = _scope_css(css, ".my-scope")
+        assert result.startswith(".my-scope {")
+        assert result.endswith("}")
+        assert ".toolbar { display: flex; }" in result
+        assert ".btn { color: red; }" in result
+
+    def test_keyframes_preserved(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import _scope_css
+
+        css = "@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }"
+        result = _scope_css(css, ".s")
+        assert "@keyframes spin" in result
+
+    def test_media_query_preserved(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import _scope_css
+
+        css = "@media (max-width: 600px) { .x { display: none; } }"
+        result = _scope_css(css, ".s")
+        assert "@media (max-width: 600px)" in result
+
+
 @pytest.mark.requires("matplotlib")
 class TestCachedAssets:
     """Test that static assets are cached across instances."""

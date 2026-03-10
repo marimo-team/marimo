@@ -93,43 +93,17 @@ def _get_mpl_css() -> str:
 
 
 def _scope_css(css: str, scope: str) -> str:
-    """Prefix every CSS rule selector with *scope* so styles don't leak.
+    """Scope CSS rules using native CSS nesting.
 
-    This is intentionally simple: it handles the common cases found in
-    matplotlib's WebAgg CSS (plain selectors, no ``@media`` / ``@keyframes``).
-    Selectors targeting ``body`` or ``html`` are rewritten to target the
-    scope element itself.
+    Wraps all rules inside a ``<scope> { … }`` block so that child
+    selectors are implicitly prefixed.  This replaces the previous
+    regex-based rewriter and correctly handles ``@keyframes``,
+    ``@media``, and any other at-rules or complex selectors.
+
+    Requires browser support for CSS Nesting (Chrome 120+, Firefox 117+,
+    Safari 17.2+).
     """
-    import re
-
-    result: list[str] = []
-    # Remove comments
-    css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
-
-    # Split into rule blocks: selector { declarations }
-    for match in re.finditer(r"([^{}]+?)\{([^{}]*)\}", css, flags=re.DOTALL):
-        selectors_raw = match.group(1).strip()
-        declarations = match.group(2).strip()
-        if not selectors_raw or not declarations:
-            continue
-
-        scoped_selectors: list[str] = []
-        for selector in selectors_raw.split(","):
-            selector = selector.strip()
-            if not selector:
-                continue
-            # body / html should become the container itself
-            if re.match(r"^(body|html)$", selector):
-                scoped_selectors.append(scope)
-            elif re.match(r"^(body|html)\s+", selector):
-                rest = re.sub(r"^(body|html)\s+", "", selector)
-                scoped_selectors.append(f"{scope} {rest}")
-            else:
-                scoped_selectors.append(f"{scope} {selector}")
-
-        result.append(f"{', '.join(scoped_selectors)} {{\n{declarations}\n}}")
-
-    return "\n\n".join(result)
+    return f"{scope} {{\n{css}\n}}"
 
 
 @functools.lru_cache(maxsize=1)
