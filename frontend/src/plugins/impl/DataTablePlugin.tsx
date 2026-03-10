@@ -420,9 +420,12 @@ const LazyDataTableComponent = ({
   preload: boolean;
   host: HTMLElement;
 }) => {
-  const parent = host.parentElement;
-  const objectId = parent?.getAttribute(OBJECT_ID_ATTR);
-  const randomId = parent?.getAttribute(RANDOM_ID_ATTR);
+  const objectId = host
+    .closest(`[${OBJECT_ID_ATTR}]`)
+    ?.getAttribute(OBJECT_ID_ATTR);
+  const randomId = host
+    .closest(`[${RANDOM_ID_ATTR}]`)
+    ?.getAttribute(RANDOM_ID_ATTR);
 
   const [isLazy, setIsLazy] = useState(
     initialIsLazy && !preload && !wasTablePreviewed(objectId, randomId),
