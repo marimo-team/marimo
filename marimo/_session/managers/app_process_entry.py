@@ -36,6 +36,10 @@ from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
 from marimo._runtime.commands import StopKernelCommand
 from marimo._session.managers.app_process_commands import (
+    CHANNEL_COMPLETION,
+    CHANNEL_CONTROL,
+    CHANNEL_INPUT,
+    CHANNEL_UI_ELEMENT,
     CreateKernelCmd,
     KernelCreatedResponse,
     ShutdownAppProcessCmd,
@@ -122,10 +126,10 @@ class _TaggedStreamQueue:
         return True
 
 
-_CHANNEL_CONTROL = b"control"
-_CHANNEL_UI_ELEMENT = b"ui_element"
-_CHANNEL_COMPLETION = b"completion"
-_CHANNEL_INPUT = b"input"
+_CHANNEL_CONTROL = CHANNEL_CONTROL.encode()
+_CHANNEL_UI_ELEMENT = CHANNEL_UI_ELEMENT.encode()
+_CHANNEL_COMPLETION = CHANNEL_COMPLETION.encode()
+_CHANNEL_INPUT = CHANNEL_INPUT.encode()
 
 
 def _cmd_dispatcher_loop(
@@ -395,9 +399,26 @@ def app_process_main(args: AppProcessArgs) -> None:
     context.destroy(linger=0)
 
 
+_STDIN_TIMEOUT = 30  # seconds
+
+
 def main() -> None:
     """Entry point when run as a module."""
-    args = AppProcessArgs.decode_json(sys.stdin.buffer.read())
+    # Read startup args with a timeout — if the parent process crashes
+    # before closing stdin, read() would block forever.
+    result: list[bytes] = []
+    reader = threading.Thread(
+        target=lambda: result.append(sys.stdin.buffer.read()),
+        daemon=True,
+    )
+    reader.start()
+    reader.join(timeout=_STDIN_TIMEOUT)
+    if not result:
+        sys.stderr.write(
+            "Timed out reading startup args from parent process\n"
+        )
+        sys.exit(1)
+    args = AppProcessArgs.decode_json(result[0])
     sys.stdout.write("APP_PROCESS_READY\n")
     sys.stdout.flush()
     app_process_main(args)

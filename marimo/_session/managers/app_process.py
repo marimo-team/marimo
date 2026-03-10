@@ -15,7 +15,7 @@ import queue
 import subprocess
 import sys
 import threading
-from typing import TYPE_CHECKING, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, TypeVar
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -23,6 +23,10 @@ from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._runtime.commands import StopKernelCommand
 from marimo._session.managers.app_process_commands import (
+    CHANNEL_COMPLETION,
+    CHANNEL_CONTROL,
+    CHANNEL_INPUT,
+    CHANNEL_UI_ELEMENT,
     CreateKernelCmd,
     KernelCreatedResponse,
     ShutdownAppProcessCmd,
@@ -42,6 +46,7 @@ if TYPE_CHECKING:
     import zmq
 
     from marimo._ast.cell import CellConfig
+    from marimo._config.config import MarimoConfig
     from marimo._config.manager import MarimoConfigReader
     from marimo._runtime.commands import AppMetadata
     from marimo._types.ids import CellId_t
@@ -182,7 +187,7 @@ class AppProcess:
             except zmq.ZMQError:
                 break
             except Exception:
-                LOGGER.exception("Error in stream receiver")
+                LOGGER.warning("Error in stream receiver", exc_info=True)
 
     def send_command(
         self, session_id: str, channel: str, payload: object
@@ -214,7 +219,7 @@ class AppProcess:
         session_id: str,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config: object,
+        user_config: MarimoConfig,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
         log_level: int,
@@ -226,7 +231,7 @@ class AppProcess:
             session_id=session_id,
             configs=configs,
             app_metadata=app_metadata,
-            user_config=user_config,  # type: ignore[arg-type]
+            user_config=user_config,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
@@ -260,6 +265,16 @@ class AppProcess:
 
     def shutdown(self) -> None:
         import zmq
+
+        # Signal all registered stream receivers to stop, so their
+        # QueueDistributor threads don't hang waiting for messages.
+        with self._stream_lock:
+            for q in self._stream_receivers.values():
+                try:
+                    q.put(None)
+                except Exception:
+                    pass
+            self._stream_receivers.clear()
 
         if self._mgmt_socket is not None:
             try:
@@ -383,22 +398,20 @@ class AppProcessQueueManager(QueueManagerProto):
 
         # Channel names must match _CHANNEL_* constants in app_process_entry.py
         self.control_queue: QueueType[commands.CommandMessage] = (
-            _AppProcessPushQueue(app_process, session_id, "control")
+            _AppProcessPushQueue(app_process, session_id, CHANNEL_CONTROL)
         )
         self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
-            _AppProcessPushQueue(app_process, session_id, "ui_element")
+            _AppProcessPushQueue(app_process, session_id, CHANNEL_UI_ELEMENT)
         )
         self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
-            _AppProcessPushQueue(app_process, session_id, "completion")
+            _AppProcessPushQueue(app_process, session_id, CHANNEL_COMPLETION)
         )
         self.input_queue: QueueType[str] = _AppProcessPushQueue(
-            app_process, session_id, "input"
+            app_process, session_id, CHANNEL_INPUT
         )
         self.win32_interrupt_queue: None = None
 
-        self.stream_queue: queue.Queue[Union[KernelMessage, None]] = (
-            queue.Queue()
-        )
+        self.stream_queue: queue.Queue[KernelMessage | None] = queue.Queue()
         app_process.register_stream(session_id, self.stream_queue)
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
@@ -440,7 +453,7 @@ class _AppProcessLike(ProcessLike):
     def terminate(self) -> None:
         pass  # Don't terminate the shared app process from here
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         pass  # Don't join the shared app process from here
 
 
@@ -473,7 +486,7 @@ class AppKernelManager(KernelManager):
         self._config_manager = config_manager
         self._redirect_console_to_browser = redirect_console_to_browser
 
-        self.kernel_task: Optional[Union[ProcessLike, threading.Thread]] = None
+        self.kernel_task: ProcessLike | threading.Thread | None = None
 
     def start_kernel(self) -> None:
         response = self._app_process.create_kernel(

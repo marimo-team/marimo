@@ -17,6 +17,14 @@ from marimo._config.config import MarimoConfig
 from marimo._runtime.commands import AppMetadata
 from marimo._types.ids import CellId_t
 
+# Channel names for multiplexed command routing.
+# Shared between app_process.py (main process) and app_process_entry.py
+# (subprocess).
+CHANNEL_CONTROL = "control"
+CHANNEL_UI_ELEMENT = "ui_element"
+CHANNEL_COMPLETION = "completion"
+CHANNEL_INPUT = "input"
+
 # Commands (main -> app process)
 
 
@@ -50,7 +58,7 @@ class KernelCreatedResponse(msgspec.Struct, tag=True):
 
     session_id: str
     success: bool
-    error: typing.Union[str, None] = None
+    error: str | None = None
 
 
 # Union types for tagged deserialization
