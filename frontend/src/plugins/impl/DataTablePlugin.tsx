@@ -61,6 +61,10 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
+import {
+  OBJECT_ID_ATTR,
+  RANDOM_ID_ATTR,
+} from "@/core/dom/ui-element-constants";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -417,8 +421,8 @@ const LazyDataTableComponent = ({
   host: HTMLElement;
 }) => {
   const parent = host.parentElement;
-  const objectId = parent?.getAttribute("object-id");
-  const randomId = parent?.getAttribute("random-id");
+  const objectId = parent?.getAttribute(OBJECT_ID_ATTR);
+  const randomId = parent?.getAttribute(RANDOM_ID_ATTR);
 
   const [isLazy, setIsLazy] = useState(
     initialIsLazy && !preload && !wasTablePreviewed(objectId, randomId),
