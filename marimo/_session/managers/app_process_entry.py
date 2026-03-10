@@ -42,6 +42,7 @@ from marimo._session.managers.app_process_commands import (
     CHANNEL_UI_ELEMENT,
     CreateKernelCmd,
     KernelCreatedResponse,
+    KernelExited,
     ShutdownAppProcessCmd,
     StopKernelCmd,
     decode_command,
@@ -269,6 +270,9 @@ def _handle_create_kernel(
                 LOGGER.exception(
                     "Kernel thread crashed for session %s", cmd.session_id
                 )
+            finally:
+                # Notify the main process that this kernel thread has exited.
+                stream_queue.put(KernelExited())
 
         thread = threading.Thread(
             target=launch_kernel_with_cleanup,

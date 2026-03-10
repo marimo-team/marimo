@@ -61,6 +61,12 @@ class KernelCreatedResponse(msgspec.Struct, tag=True):
     error: str | None = None
 
 
+# Sentinel sent on the stream channel when a kernel thread exits.
+# Pickled and sent as a regular stream message; not a mgmt command.
+class KernelExited:
+    """Signals that a kernel thread has exited (normally or via crash)."""
+
+
 # Union types for tagged deserialization
 MgmtCommand = typing.Union[
     CreateKernelCmd, StopKernelCmd, ShutdownAppProcessCmd

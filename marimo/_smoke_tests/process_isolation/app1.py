@@ -78,6 +78,8 @@ def _(identity, shared_module):
             """
         ).callout(kind="danger")
 
+    print("HELLO FROM APP 1")
+
     status
     return
 

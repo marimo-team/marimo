@@ -21,7 +21,6 @@ from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
-from marimo._runtime.commands import StopKernelCommand
 from marimo._session.managers.app_process_commands import (
     CHANNEL_COMPLETION,
     CHANNEL_CONTROL,
@@ -29,6 +28,7 @@ from marimo._session.managers.app_process_commands import (
     CHANNEL_UI_ELEMENT,
     CreateKernelCmd,
     KernelCreatedResponse,
+    KernelExited,
     ShutdownAppProcessCmd,
     StopKernelCmd,
     decode_response,
@@ -64,8 +64,9 @@ class AppProcess:
     Manages four ZeroMQ channels to the subprocess:
     - mgmt (PUSH): management commands (create/stop kernel, shutdown)
     - response (PULL): management responses
-    - cmd (PUSH): multiplexed kernel commands (control, UI, completion, input)
-    - stream (PULL): multiplexed kernel output
+    - cmd (PUSH): kernel commands (control, UI, completion, input),
+        multiplexed by client session
+    - stream (PULL): kernel output, multiplexed by session
     """
 
     def __init__(self, file_path: str, python: str | None = None) -> None:
@@ -73,17 +74,23 @@ class AppProcess:
         self._python = python or sys.executable
         self._process: subprocess.Popen[bytes] | None = None
         self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
-        # Management channel
+        # Management commands and responses
         self._mgmt_socket: zmq.Socket[bytes] | None = None
         self._response_socket: zmq.Socket[bytes] | None = None
         # Multiplexed data channels
         self._cmd_socket: zmq.Socket[bytes] | None = None
         self._stream_socket: zmq.Socket[bytes] | None = None
-        # Stream demux: session_id -> stream_queue
+        # Maps each client session to a unique queue for kernel outputs
         self._stream_receivers: dict[
             str, queue.Queue[KernelMessage | None]
         ] = {}
+        # Protects the iterate-then-clear in shutdown() from racing
+        # with the receiver loop's dict reads.
         self._stream_lock = threading.Lock()
+        # Tracks which sessions have a live kernel thread in the
+        # subprocess. Set to True on create_kernel, set to False when
+        # a KernelExited sentinel arrives from the subprocess.
+        self._kernel_alive: dict[str, bool] = {}
 
     def start(self) -> None:
         import zmq
@@ -91,7 +98,6 @@ class AppProcess:
         context = zmq.Context()
         self._zmq_context = context
 
-        # Management sockets
         mgmt_socket = context.socket(zmq.PUSH)
         mgmt_port = mgmt_socket.bind_to_random_port(_BIND_ADDR)
         self._mgmt_socket = mgmt_socket
@@ -100,7 +106,6 @@ class AppProcess:
         response_port = response_socket.bind_to_random_port(_BIND_ADDR)
         self._response_socket = response_socket
 
-        # Multiplexed data sockets
         cmd_socket = context.socket(zmq.PUSH)
         cmd_port = cmd_socket.bind_to_random_port(_BIND_ADDR)
         self._cmd_socket = cmd_socket
@@ -171,7 +176,6 @@ class AppProcess:
                 f"Stderr:\n{stderr}"
             )
 
-        # Start stream receiver thread
         stream_thread = threading.Thread(
             target=self._stream_receiver_loop, daemon=True
         )
@@ -194,6 +198,13 @@ class AppProcess:
                 frames = self._stream_socket.recv_multipart()
                 session_id = frames[0].decode()
                 payload = pickle.loads(frames[1])
+                if isinstance(payload, KernelExited):
+                    self._kernel_alive[session_id] = False
+                    LOGGER.debug(
+                        "Kernel thread exited for session %s",
+                        session_id,
+                    )
+                    continue
                 with self._stream_lock:
                     q = self._stream_receivers.get(session_id)
                 if q is not None:
@@ -264,6 +275,8 @@ class AppProcess:
                 raise RuntimeError(
                     f"Unexpected response type: {type(response)}"
                 )
+            if response.success:
+                self._kernel_alive[session_id] = True
             return response
         raise TimeoutError(
             f"Timed out waiting for kernel creation in {self._file_path}"
@@ -274,6 +287,14 @@ class AppProcess:
             self._mgmt_socket.send(
                 encode_command(StopKernelCmd(session_id=session_id))
             )
+
+    def is_kernel_alive(self, session_id: str) -> bool:
+        """Check if a specific kernel thread is alive in this process."""
+        return (
+            self._kernel_alive.get(session_id, False)
+            and self._process is not None
+            and self._process.poll() is None
+        )
 
     def is_alive(self) -> bool:
         return self._process is not None and self._process.poll() is None
@@ -321,6 +342,16 @@ class AppProcess:
             self._stream_socket.close(linger=0)
         if self._zmq_context is not None:
             self._zmq_context.destroy(linger=0)
+
+        # Null out sockets so that any stale references from
+        # AppProcessQueueManager / AppKernelManager instances that
+        # still point to this (now-dead) AppProcess will silently
+        # no-op instead of raising ZMQError on closed sockets.
+        self._mgmt_socket = None
+        self._response_socket = None
+        self._cmd_socket = None
+        self._stream_socket = None
+        self._zmq_context = None
 
         LOGGER.debug("App process shut down for %s", self._file_path)
 
@@ -459,15 +490,16 @@ class AppProcessQueueManager(QueueManagerProto):
 class _AppProcessLike(ProcessLike):
     """Makes AppProcess satisfy ProcessLike for kernel_task."""
 
-    def __init__(self, app_process: AppProcess) -> None:
+    def __init__(self, app_process: AppProcess, session_id: str) -> None:
         self._app_process = app_process
+        self._session_id = session_id
 
     @property
     def pid(self) -> int | None:
         return self._app_process.pid
 
     def is_alive(self) -> bool:
-        return self._app_process.is_alive()
+        return self._app_process.is_kernel_alive(self._session_id)
 
     def terminate(self) -> None:
         pass  # Don't terminate the shared app process from here
@@ -523,7 +555,9 @@ class AppKernelManager(KernelManager):
                 f"Failed to create kernel in app process: {response.error}"
             )
 
-        self.kernel_task = _AppProcessLike(self._app_process)
+        self.kernel_task = _AppProcessLike(
+            self._app_process, self._session_id
+        )
 
     @property
     def pid(self) -> int | None:
@@ -534,15 +568,17 @@ class AppKernelManager(KernelManager):
         return None
 
     def is_alive(self) -> bool:
-        return self._app_process.is_alive()
+        return self._app_process.is_kernel_alive(self._session_id)
 
     def interrupt_kernel(self) -> None:
         # Run-mode threads can't be interrupted
         pass
 
     def close_kernel(self) -> None:
-        self.queue_manager.put_control_request(StopKernelCommand())
         self.queue_manager.close_queues()
+        # StopKernelCmd on the mgmt channel both sends StopKernelCommand
+        # to the kernel's control queue and removes it from the kernel
+        # registry in the subprocess.
         self._app_process.stop_kernel(self._session_id)
 
     @property
