@@ -361,6 +361,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         <LazyDataTableComponent
           isLazy={props.data.lazy}
           preload={props.data.preload}
+          host={props.host}
         >
           <LoadingDataTableComponent
             {...props.data}
@@ -377,21 +378,63 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     );
   });
 
+/**
+ * Tracks which lazy tables have been previewed across remounts (e.g. tab switches).
+ * Keyed by objectId (stable across remounts) with randomId as value
+ * (changes on cell re-execution, so stale entries are naturally invalidated).
+ */
+const previewedTables = new Map<string, string>();
+
+function wasTablePreviewed(
+  objectId: string | null | undefined,
+  randomId: string | null | undefined,
+): boolean {
+  return (
+    objectId != null &&
+    randomId != null &&
+    previewedTables.get(objectId) === randomId
+  );
+}
+
+function markTablePreviewed(
+  objectId: string | null | undefined,
+  randomId: string | null | undefined,
+): void {
+  if (objectId != null && randomId != null) {
+    previewedTables.set(objectId, randomId);
+  }
+}
+
 const LazyDataTableComponent = ({
   isLazy: initialIsLazy,
   children,
   preload,
+  host,
 }: {
   isLazy: boolean;
   children: React.ReactNode;
   preload: boolean;
+  host: HTMLElement;
 }) => {
-  const [isLazy, setIsLazy] = useState(initialIsLazy && !preload);
+  const parent = host.parentElement;
+  const objectId = parent?.getAttribute("object-id");
+  const randomId = parent?.getAttribute("random-id");
+
+  const [isLazy, setIsLazy] = useState(
+    initialIsLazy && !preload && !wasTablePreviewed(objectId, randomId),
+  );
 
   if (isLazy) {
     return (
       <div className="flex h-20 items-center justify-center">
-        <Button variant="outline" size="xs" onClick={() => setIsLazy(false)}>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => {
+            markTablePreviewed(objectId, randomId);
+            setIsLazy(false);
+          }}
+        >
           <Table2Icon className="mr-2 h-4 w-4" />
           Preview data
         </Button>
