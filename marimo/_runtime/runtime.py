@@ -3573,7 +3573,13 @@ def launch_kernel(
                 continue
 
             if request is not None:
-                await kernel.handle_message(request)
+                try:
+                    await kernel.handle_message(request)
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to handle control request: %s",
+                        type(request).__name__,
+                    )
 
     # The control loop is asynchronous only because we allow user code to use
     # top-level await; nothing else is awaited. Don't introduce async
