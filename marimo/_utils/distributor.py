@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import threading
 import time
 from typing import Any, Callable, Generic, Protocol, TypeVar, Union
@@ -135,26 +136,27 @@ class QueueDistributor(Distributor[T]):
         return Disposable(_remove)
 
     def _loop(self) -> None:
-        while True:
-            msg = self._queue.get()
-            if msg is None:
-                break
+        try:
+            while True:
+                msg = self._queue.get()
+                if msg is None:
+                    break
 
-            # If stop was requested while we were blocked on get(),
-            # discard this message and exit. This avoids delivering
-            # messages after stop() has been called.
-            if self._stop:
-                break
+                # If stop was requested while we were blocked on get(),
+                # discard this message and exit. This avoids delivering
+                # messages after stop() has been called.
+                if self._stop:
+                    break
 
+                with self._lock:
+                    for consumer in self._consumers:
+                        consumer(msg)
+        finally:
+            # Clear consumers to release any captured references (e.g.
+            # session closures) as soon as the loop exits, rather than
+            # waiting for GC of the distributor object.
             with self._lock:
-                for consumer in self._consumers:
-                    consumer(msg)
-
-        # Clear consumers to release any captured references (e.g. session
-        # closures) as soon as the loop exits, rather than waiting for GC
-        # of the distributor object.
-        with self._lock:
-            self._consumers.clear()
+                self._consumers.clear()
 
     def start(self) -> threading.Thread:
         # Reset state so the distributor can be restarted on the same queue.
@@ -185,7 +187,7 @@ class QueueDistributor(Distributor[T]):
                 item = self._queue.get_nowait()
                 if item is not None:
                     recovered.append(item)
-        except Exception:
+        except queue.Empty:
             pass
         for item in recovered:
             self._queue.put_nowait(item)
