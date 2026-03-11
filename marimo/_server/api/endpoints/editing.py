@@ -247,7 +247,9 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    from marimo._runtime.packages.package_managers import create_package_manager
+    from marimo._runtime.packages.package_managers import (
+        create_package_manager,
+    )
 
     app_state = AppState(request)
     body = await parse_request(request, cls=InstallPackagesRequest)

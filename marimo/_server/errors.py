@@ -10,7 +10,7 @@ from starlette.responses import JSONResponse
 from marimo import _loggers
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.notification import MissingPackageAlertNotification
-from marimo._runtime.packages.utils import can_server_auto_install, is_python_isolated
+from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.api.deps import AppState
 from marimo._session import send_message_to_consumer
 from marimo._session.model import SessionMode
@@ -96,11 +96,7 @@ async def handle_error(request: Request, response: Any) -> Any:
                         )
                     packages = [response.name]
                     source = "kernel"
-                isolated = (
-                    can_server_auto_install()
-                    if source == "server"
-                    else is_python_isolated()
-                )
+                isolated = True if source == "server" else is_python_isolated()
                 send_message_to_consumer(
                     session=session,
                     operation=MissingPackageAlertNotification(

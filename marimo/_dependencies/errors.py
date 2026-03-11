@@ -16,7 +16,7 @@ class ManyModulesNotFoundError(ModuleNotFoundError):
         self,
         package_names: list[str],
         msg: str,
-        source: Literal["kernel", "server"] = "kernel",
+        source: Literal["kernel", "server"],
     ) -> None:
         self.package_names = package_names
         self.source = source

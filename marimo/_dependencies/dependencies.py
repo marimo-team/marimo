@@ -288,7 +288,7 @@ class DependencyManager:
     def require_many(
         why: str,
         *dependencies: Dependency,
-        source: Literal["kernel", "server"] = "kernel",
+        source: Literal["kernel", "server"],
     ) -> None:
         missing = [
             dep.pkg_name_to_install

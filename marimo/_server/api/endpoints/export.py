@@ -23,7 +23,10 @@ from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import (
+    notify_server_missing_packages,
+    parse_request,
+)
 from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
@@ -35,7 +38,6 @@ from marimo._server.models.export import (
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
-from marimo._types.ids import ConsumerId
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
@@ -458,31 +460,18 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    # Check nbformat before scheduling background task so the alert fires at
+    # most once per save cycle (mark_auto_export_ipynb prevents re-alerting
+    # until the notebook is saved again).
+    if not DependencyManager.nbformat.has():
+        LOGGER.warning("Cannot snapshot to IPYNB: nbformat not installed")
+        notify_server_missing_packages(
+            session, app_state.get_current_session_id(), ["nbformat"]
+        )
+        session_view.mark_auto_export_ipynb()
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
+
     async def _background_export() -> None:
-        # Check has nbformat installed
-        if not DependencyManager.nbformat.has():
-            from marimo._messaging.notification import (
-                MissingPackageAlertNotification,
-            )
-            from marimo._runtime.packages.utils import can_server_auto_install
-            from marimo._session.utils import send_message_to_consumer
-
-            LOGGER.warning(
-                "Cannot snapshot to IPYNB: nbformat not installed"
-            )
-            session_id = app_state.get_current_session_id()
-            if session_id is not None:
-                send_message_to_consumer(
-                    session=session,
-                    operation=MissingPackageAlertNotification(
-                        packages=["nbformat"],
-                        isolated=can_server_auto_install(),
-                        source="server",
-                    ),
-                    consumer_id=ConsumerId(session_id),
-                )
-            return
-
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
 
