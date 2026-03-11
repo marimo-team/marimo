@@ -15,7 +15,10 @@ from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
-from marimo._convert.common.format import markdown_to_marimo
+from marimo._convert.common.format import (
+    DEFAULT_MARKDOWN_PREFIX,
+    markdown_to_marimo,
+)
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -1402,7 +1405,9 @@ def convert_from_ipynb_to_notebook_ir(
         is_markdown: bool = cell["cell_type"] == "markdown"
         if is_markdown:
             cell_meta = cell.get("metadata", {})
-            md_prefix = cell_meta.get("marimo", {}).get("md_prefix", "r")
+            md_prefix = cell_meta.get("marimo", {}).get(
+                "md_prefix", DEFAULT_MARKDOWN_PREFIX
+            )
             source = markdown_to_marimo(source, prefix=md_prefix)
         elif inline_meta is None:
             # Eagerly find PEP 723 metadata, first match wins

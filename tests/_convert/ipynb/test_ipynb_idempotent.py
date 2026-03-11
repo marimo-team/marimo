@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import pathlib
 
 import pytest
@@ -24,6 +25,7 @@ def sanitized_version(output: str) -> str:
     return output.replace(__version__, "0.0.0")
 
 
+@functools.cache
 def roundtrip(py_path: pathlib.Path) -> str:
     """Load a .py marimo file, export to ipynb, re-import, and return .py."""
     app = load_app(py_path)

@@ -9,8 +9,12 @@ from marimo._ast.compiler import extract_markdown
 if TYPE_CHECKING:
     from marimo._ast.cell import Cell, CellImpl
 
+DEFAULT_MARKDOWN_PREFIX = "r"
 
-def markdown_to_marimo(source: str, prefix: str = "r") -> str:
+
+def markdown_to_marimo(
+    source: str, prefix: str = DEFAULT_MARKDOWN_PREFIX
+) -> str:
     # NB. This should be kept in sync with the logic in
     # frontend/src/core/codemirror/language/languages/markdown.ts
     # ::transformOut

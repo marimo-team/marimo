@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 # Note: We intentionally omit "version" as it would vary across environments
 # and break reproducibility. The marimo_version in metadata is sufficient.
-_MD_PREFIX_RE = re.compile(r'mo\.md\(([fFrR]*)(?:"""|\'\'\')')
+_MD_PREFIX_RE = re.compile(r'mo\.md\(([fFrR]*)(?:"""|\'\'\'|"|\')')
 
 
 def _extract_markdown_prefix(code: str) -> str:
