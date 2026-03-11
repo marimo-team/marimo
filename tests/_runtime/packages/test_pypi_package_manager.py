@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
@@ -25,15 +26,23 @@ parse_cell = partial(compiler.compile_cell, cell_id="0")
 PY_EXE = sys.executable
 
 
+def _normalize_cmd(cmd: list[Any]) -> list[Any]:
+    """Normalize path-like args (containing / or \\) to their stem."""
+    return [
+        Path(arg).stem
+        if isinstance(arg, str) and ("/" in arg or "\\" in arg)
+        else arg
+        for arg in cmd
+    ]
+
+
 def _assert_cmd_called_once_with(
     mock: MagicMock, expected_cmd: list[Any], **expected_kwargs: Any
 ) -> None:
-    """Assert mock was called once with a uv command, tolerating full paths to the uv binary."""
+    """Assert mock was called once, normalizing path args for cross-platform comparison."""
     mock.assert_called_once()
     call_args, call_kwargs = mock.call_args
-    actual_cmd = call_args[0]
-    assert os.path.basename(actual_cmd[0]) == os.path.basename(expected_cmd[0])
-    assert actual_cmd[1:] == expected_cmd[1:]
+    assert _normalize_cmd(call_args[0]) == _normalize_cmd(expected_cmd)
     assert call_kwargs == expected_kwargs
 
 
@@ -490,7 +499,10 @@ async def test_uv_uninstall_in_project(mock_run: MagicMock):
 
 
 @patch("subprocess.run")
-def test_uv_list_packages(mock_run: MagicMock):
+@patch.object(UvPackageManager, "dependency_tree", return_value=None)
+def test_uv_list_packages(
+    mock_dependency_tree: MagicMock, mock_run: MagicMock
+):
     """Test UV list packages uses pip list subcommand"""
     mock_output = json.dumps(
         [

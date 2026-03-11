@@ -747,7 +747,7 @@ class TestExportIpynb:
         reason="This test requires nbformat.",
     )
     @pytest.mark.skipif(
-        sys.platform == "darwin",
+        sys.platform != "linux",
         reason="Plotly template varies across versions; snapshot is linux-only.",
     )
     def test_export_ipynb_with_media_outputs(
