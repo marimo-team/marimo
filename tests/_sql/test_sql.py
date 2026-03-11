@@ -485,9 +485,9 @@ logical_plan
         assert result == snapshot("""\
 physical_plan
 ┌───────────────────────────┐
-│         SEQ_SCAN          │
+│          SEQ_SCAN         │
 │    ────────────────────   │
-│          Table: t         │
+│    Table: memory.main.t   │
 │   Type: Sequential Scan   │
 │      Projections: id      │
 │                           │
