@@ -182,6 +182,8 @@ jobs:
           fi
 
       # Test with base dependencies
+      # Exit code 5 = no tests collected (e.g. only CLI test files changed);
+      # treat that as success since CLI tests run in a separate workflow.
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
@@ -192,7 +194,8 @@ jobs:
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first
+            --picked=first \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with optional dependencies
       - name: Test changed with optional dependencies
@@ -205,7 +208,8 @@ jobs:
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first
+            --picked=first \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with minimal dependencies using lowest resolution
       # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
@@ -220,7 +224,8 @@ jobs:
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first
+            --picked=first \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
         env:
           UV_RESOLUTION: lowest
 
