@@ -5,7 +5,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+import sys
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired
+else:
+    from typing import NotRequired
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
