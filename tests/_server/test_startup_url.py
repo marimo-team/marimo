@@ -64,6 +64,7 @@ def test_startup_url_ipv6_with_token() -> None:
     assert url == "http://[fd00::cafe]:2718/?access_token=tok3n"
     # Verify it's parseable and components are correct
     from urllib.parse import urlparse
+
     parsed = urlparse(url)
     assert parsed.hostname == "fd00::cafe"
     assert parsed.port == 2718
