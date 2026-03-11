@@ -28,6 +28,7 @@ from marimo._cli.errors import (
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup
+from marimo._cli.pair import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
@@ -1490,3 +1491,5 @@ main.command()(convert)
 main.add_command(export)
 main.add_command(config)
 main.add_command(development)
+
+main.add_command(pair)
