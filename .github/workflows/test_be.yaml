@@ -77,7 +77,7 @@ jobs:
 
       - name: 🔍 Typecheck
         id: typecheck
-        run: uv run --group typecheck mypy marimo --exclude=marimo/_tutorials/
+        run: uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/
 
       - name: Comment on lint failure
         if: failure() && steps.lint.outcome == 'failure'
@@ -92,7 +92,7 @@ jobs:
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "typecheck"
-          command: "uv run --group typecheck mypy marimo --exclude=marimo/_tutorials/"
+          command: "uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # For PRs, we only run the tests for the changed files.

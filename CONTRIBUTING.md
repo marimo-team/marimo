@@ -148,7 +148,7 @@ make fe-check
     <td>
       <pre><code>uv run ruff check --fix
 uv run ruff format
-uv run --group typecheck mypy marimo --exclude=marimo/_tutorials/</code></pre>
+uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/</code></pre>
     </td>
   </tr>
 </table>

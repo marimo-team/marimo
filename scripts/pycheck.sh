@@ -9,6 +9,6 @@ uv run ruff check --fix
 echo "[check: format]"
 uv run ruff format
 echo "[check: typecheck]"
-uv run --group typecheck mypy marimo --exclude=marimo/_tutorials/
+uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/
 echo "[check: update-lock]"
 uv run pixi lock
