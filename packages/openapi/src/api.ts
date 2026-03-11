@@ -5911,6 +5911,8 @@ export interface components {
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
+      /** @enum {unknown} */
+      backendType: "fsspec" | "obstore";
       displayName: string;
       name: string;
       protocol: string;

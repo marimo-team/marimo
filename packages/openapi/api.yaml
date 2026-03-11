@@ -4483,6 +4483,10 @@ components:
         \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
         \        storage_entries: The storage entries in the storage namespace."
       properties:
+        backendType:
+          enum:
+          - fsspec
+          - obstore
         displayName:
           type: string
         name:
@@ -4500,6 +4504,7 @@ components:
       - displayName
       - protocol
       - rootPath
+      - backendType
       - storageEntries
       title: StorageNamespace
       type: object

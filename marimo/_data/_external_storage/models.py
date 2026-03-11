@@ -12,6 +12,7 @@ from marimo._utils.assert_never import log_never
 
 CLOUD_STORAGE_TYPES = Literal["s3", "gcs", "azure", "cloudflare", "coreweave"]
 KNOWN_STORAGE_TYPES = Literal[CLOUD_STORAGE_TYPES, "http", "file", "in-memory"]
+BackendType = Literal["fsspec", "obstore"]
 SIGNED_URL_EXPIRATION = 60
 
 
@@ -51,6 +52,7 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
     display_name: str
     protocol: str
     root_path: str
+    backend_type: BackendType
     storage_entries: list[StorageEntry]
 
 
@@ -133,6 +135,11 @@ class StorageBackend(abc.ABC, Generic[Backend]):
     @abc.abstractmethod
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         """Return the protocol of the storage backend."""
+
+    @property
+    @abc.abstractmethod
+    def backend_type(self) -> BackendType:
+        """Return the type of the storage backend."""
 
     @property
     def display_name(self) -> str:
