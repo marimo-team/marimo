@@ -32,7 +32,7 @@ def _assert_uv_called_once_with(
     mock.assert_called_once()
     call_args, call_kwargs = mock.call_args
     actual_cmd = call_args[0]
-    assert os.path.basename(actual_cmd[0]) == "uv"
+    assert os.path.basename(actual_cmd[0]) == os.path.basename(expected_cmd[0])
     assert actual_cmd[1:] == expected_cmd[1:]
     assert call_kwargs == expected_kwargs
 
