@@ -39,3 +39,13 @@ def _make_state(host: str, port: int = 2718, base_url: str = "/") -> MagicMock:
 def test_startup_url_ipv6(host: str, expected: str) -> None:
     state = _make_state(host)
     assert _startup_url(state) == expected
+
+
+def test_startup_url_getnameinfo_failure() -> None:
+    """If getnameinfo raises (e.g. host not resolvable), URL is still valid."""
+    from unittest.mock import patch
+
+    state = _make_state("fd00::dead")
+    with patch("socket.getnameinfo", side_effect=OSError("unreachable")):
+        url = _startup_url(state)
+    assert url == "http://[fd00::dead]:2718/"

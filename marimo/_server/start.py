@@ -355,7 +355,9 @@ def start(
         uvicorn.Config(
             app,
             port=port,
-            host=host.strip("[]"),  # uvicorn expects bare IPv6 without brackets
+            host=host.strip(
+                "[]"
+            ),  # uvicorn expects bare IPv6 without brackets
             log_level=log_level,
             # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
             # seconds by default; for some reason breaks the server in

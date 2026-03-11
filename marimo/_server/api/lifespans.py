@@ -215,7 +215,9 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 
 
 def _startup_url(state: AppStateBase) -> str:
-    host = state.host.strip("[]")  # normalize: remove brackets if user passed [addr]
+    host = state.host.strip(
+        "[]"
+    )  # normalize: remove brackets if user passed [addr]
     port = state.port
     try:
         # pretty printing:
@@ -248,7 +250,9 @@ def _startup_url(state: AppStateBase) -> str:
 
 
 def _mcp_startup_url(state: AppStateBase) -> str:
-    host = state.host.strip("[]")  # normalize: remove brackets if user passed [addr]
+    host = state.host.strip(
+        "[]"
+    )  # normalize: remove brackets if user passed [addr]
     port = state.port
     base_url = state.base_url
 
