@@ -26,6 +26,7 @@ from marimo._session.managers.app_process_commands import (
     CHANNEL_CONTROL,
     CHANNEL_INPUT,
     CHANNEL_UI_ELEMENT,
+    AppProcessReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
     KernelExited,
@@ -130,50 +131,35 @@ class AppProcess:
         ]
         LOGGER.debug("Launching app process: %s", " ".join(cmd))
 
-        # TODO: stderr=subprocess.PIPE is never drained after startup.
-        # If the subprocess writes enough to fill the pipe buffer (~64KB)
-        # it will block. Spawn a daemon thread to drain stderr to the
-        # logger, or redirect to a file.
+        # stdin is piped to send startup args; stdout/stderr inherit the
+        # parent's fds so subprocess output (logging, print) appears in
+        # the terminal — same as running without process isolation.
         self._process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
         )
 
         # Send startup args via stdin
         proc_stdin = self._process.stdin
-        proc_stdout = self._process.stdout
-        if proc_stdin is None or proc_stdout is None:
-            raise RuntimeError("Failed to open stdin/stdout for app process")
+        if proc_stdin is None:
+            raise RuntimeError("Failed to open stdin for app process")
         proc_stdin.write(args.encode_json())
         proc_stdin.flush()
         proc_stdin.close()
 
-        # Wait for ready signal with a timeout — if the child crashes
-        # before writing APP_PROCESS_READY, readline() would block forever.
-        _READY_TIMEOUT = 30  # seconds
-        result: list[bytes] = []
-        reader = threading.Thread(
-            target=lambda: result.append(proc_stdout.readline()),
-            daemon=True,
-        )
-        reader.start()
-        reader.join(timeout=_READY_TIMEOUT)
-
-        ready = result[0].decode().strip() if result else ""
-        if ready != "APP_PROCESS_READY":
-            stderr = ""
-            if self._process.stderr is not None:
-                stderr = self._process.stderr.read().decode()
-            if not result:
-                raise RuntimeError(
-                    f"App process timed out ({_READY_TIMEOUT}s) for "
-                    f"{self._file_path}.\n\nStderr:\n{stderr}"
-                )
+        # Wait for ready signal over the ZMQ response channel.
+        _READY_TIMEOUT_MS = 30_000  # milliseconds
+        if not response_socket.poll(timeout=_READY_TIMEOUT_MS):
             raise RuntimeError(
-                f"App process failed to start for {self._file_path}.\n\n"
-                f"Stderr:\n{stderr}"
+                f"App process timed out ({_READY_TIMEOUT_MS // 1000}s) "
+                f"for {self._file_path}"
+            )
+        data = response_socket.recv()
+        ready_response = decode_response(data)
+        if not isinstance(ready_response, AppProcessReadyResponse):
+            raise RuntimeError(
+                f"Unexpected response during startup: "
+                f"{type(ready_response)}"
             )
 
         stream_thread = threading.Thread(

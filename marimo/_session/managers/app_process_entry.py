@@ -40,6 +40,7 @@ from marimo._session.managers.app_process_commands import (
     CHANNEL_CONTROL,
     CHANNEL_INPUT,
     CHANNEL_UI_ELEMENT,
+    AppProcessReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
     KernelExited,
@@ -349,6 +350,9 @@ def app_process_main(args: AppProcessArgs) -> None:
     stream_socket = context.socket(zmq.PUSH)
     stream_socket.connect(args.stream_addr)
 
+    # Signal the parent that we're ready to accept commands.
+    response_socket.send(encode_response(AppProcessReadyResponse()))
+
     kernels: dict[str, _KernelInfo] = {}
     kernel_lock = threading.Lock()
     stream_outbox: queue.Queue[typing.Any] = queue.Queue()
@@ -423,8 +427,6 @@ def main() -> None:
         )
         sys.exit(1)
     args = AppProcessArgs.decode_json(result[0])
-    sys.stdout.write("APP_PROCESS_READY\n")
-    sys.stdout.flush()
     app_process_main(args)
 
 

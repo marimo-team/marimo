@@ -53,6 +53,10 @@ class ShutdownAppProcessCmd(msgspec.Struct, tag=True):
 # Responses (app process -> main)
 
 
+class AppProcessReadyResponse(msgspec.Struct, tag=True):
+    """Signals that the app process has started and is ready."""
+
+
 class KernelCreatedResponse(msgspec.Struct, tag=True):
     """Confirms a kernel was created (or reports failure)."""
 
@@ -71,7 +75,7 @@ class KernelExited:
 MgmtCommand = typing.Union[
     CreateKernelCmd, StopKernelCmd, ShutdownAppProcessCmd
 ]
-MgmtResponse = KernelCreatedResponse
+MgmtResponse = typing.Union[AppProcessReadyResponse, KernelCreatedResponse]
 
 _cmd_encoder = msgspec.json.Encoder()
 _cmd_decoder = msgspec.json.Decoder(MgmtCommand)
