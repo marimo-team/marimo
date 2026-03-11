@@ -72,7 +72,6 @@ export function getPageIndexForRow(
 
 /**
  * Stringify an unknown value. Converts objects to JSON strings.
- * If the value is a mime bundle, extracts the text content.
  * @param opts.value - The value to stringify.
  * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
  */
@@ -83,10 +82,6 @@ export function stringifyUnknownValue(opts: {
   const { value, nullAsEmptyString = false } = opts;
 
   if (typeof value === "object" && value !== null) {
-    const mimeValues = getMimeValues(value);
-    if (mimeValues) {
-      return mimeValues.map((v) => stripHtml(v.data)).join(", ");
-    }
     return JSON.stringify(value);
   }
   if (value === null && nullAsEmptyString) {
@@ -103,6 +98,10 @@ function stripHtml(html: string): string {
 }
 
 const HTML_MIMETYPES = new Set(["text/html", "text/markdown"]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 /**
  * Get clipboard-ready text and optional HTML for a cell.
@@ -148,8 +147,8 @@ export function getRawCellValue<TData>(cell: Cell<TData, unknown>): unknown {
   const rawData = cell.getContext().table.options.meta?.rawData;
   if (rawData) {
     const rawRow = rawData[cell.row.index];
-    if (rawRow && typeof rawRow === "object") {
-      return (rawRow as Record<string, unknown>)[cell.column.id];
+    if (isRecord(rawRow)) {
+      return rawRow[cell.column.id];
     }
   }
   return cell.getValue();
@@ -167,8 +166,8 @@ export function getRawRowValue<TData>(
   const rawData = table.options.meta?.rawData;
   if (rawData) {
     const rawRow = rawData[rowIndex];
-    if (rawRow && typeof rawRow === "object") {
-      return (rawRow as Record<string, unknown>)[columnId];
+    if (isRecord(rawRow)) {
+      return rawRow[columnId];
     }
   }
   return undefined;
