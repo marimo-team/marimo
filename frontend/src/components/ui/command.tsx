@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import * as React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/utils/cn";
+import { smartMatchFilter } from "@/utils/smartMatch";
 import { Strings } from "@/utils/strings";
 import {
   MENU_ITEM_DISABLED,
@@ -21,6 +22,7 @@ const Command = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive
     ref={ref}
+    filter={smartMatchFilter}
     className={cn(
       "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
       className,
