@@ -251,7 +251,6 @@ async def install_missing_packages(request: Request) -> BaseResponse:
         create_package_manager,
     )
 
-    app_state = AppState(request)
     body = await parse_request(request, cls=InstallPackagesRequest)
     cmd = body.as_command()
 
