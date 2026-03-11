@@ -139,6 +139,8 @@ class TestDirectoryScanner(unittest.TestCase):
         for path in file_paths:
             assert "venv" not in path
             assert "node_modules" not in path
+            assert "__pycache__" not in path
+            assert ".git" not in path
             assert "winpython" not in path
 
     def test_skip_common_directories_case_insensitive(self):
@@ -167,18 +169,22 @@ class TestDirectoryScanner(unittest.TestCase):
 
     def test_skip_symlinks(self):
         """Test that symlinks are skipped to avoid cycles and broken links."""
-        # Create a symlink that points to a non-existent target (broken)
-        broken_link = os.path.join(self.test_dir, "broken_link.py")
-        os.symlink("/nonexistent/path/app.py", broken_link)
+        try:
+            # Create a symlink that points to a non-existent target (broken)
+            broken_link = os.path.join(self.test_dir, "broken_link.py")
+            broken_target = os.path.join(self.test_dir, "nonexistent_app.py")
+            os.symlink(broken_target, broken_link)
 
-        # Create a directory symlink that would cause a cycle
-        cycle_link = os.path.join(self.test_dir, "cycle")
-        os.symlink(self.test_dir, cycle_link)
+            # Create a directory symlink that would cause a cycle
+            cycle_link = os.path.join(self.test_dir, "cycle")
+            os.symlink(self.test_dir, cycle_link, target_is_directory=True)
 
-        # Create a symlink to a valid marimo file
-        valid_target = os.path.join(self.test_dir, "app1.py")
-        valid_link = os.path.join(self.test_dir, "linked_app.py")
-        os.symlink(valid_target, valid_link)
+            # Create a symlink to a valid marimo file
+            valid_target = os.path.join(self.test_dir, "app1.py")
+            valid_link = os.path.join(self.test_dir, "linked_app.py")
+            os.symlink(valid_target, valid_link)
+        except (OSError, NotImplementedError):
+            self.skipTest("Symlinks not supported on this platform")
 
         scanner = DirectoryScanner(self.test_dir)
         files = scanner.scan()
