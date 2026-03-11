@@ -4,74 +4,94 @@
       "cell_type": "code",
       "execution_count": null,
       "id": "Hbol",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "name": "my_imports"
+        }
+      },
       "outputs": [],
       "source": [
-        "import marimo as mo"
+        "import os\n",
+        "import sys"
       ]
     },
     {
-      "cell_type": "markdown",
+      "cell_type": "code",
+      "execution_count": null,
       "id": "MJUe",
       "metadata": {
         "marimo": {
-          "md_prefix": ""
+          "name": "compute"
         }
       },
+      "outputs": [],
       "source": [
-        "# Testing Various Output Types\n",
-        "\n",
-        "This notebook tests various output scenarios."
+        "result = os.getcwd() + sys.platform"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
       "id": "vblA",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "name": "display"
+        }
+      },
       "outputs": [],
       "source": [
-        "\"\"\"Cell with print statements.\"\"\"\n",
-        "print(\"Standard output\")\n",
-        "print(\"Multiple lines\")"
+        "print(result)"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
       "id": "bkHC",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "name": "*add"
+        }
+      },
       "outputs": [],
       "source": [
-        "\"\"\"Cell with rich output.\"\"\"\n",
-        "data = {\"x\": [1, 2, 3], \"y\": [4, 5, 6]}\n",
-        "mo.ui.table(data)"
+        "def add(a, b):\n",
+        "    return a + b"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
       "id": "lEQa",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "config": {
+            "hide_code": true
+          },
+          "name": "*subtract"
+        }
+      },
       "outputs": [],
       "source": [
-        "\"\"\"Cell with calculations and implicit output.\"\"\"\n",
-        "result = sum(data[\"x\"]) + sum(data[\"y\"])\n",
-        "result"
+        "def subtract(a, b):\n",
+        "    return a - b"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
       "id": "PKri",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "name": "*MyClass"
+        }
+      },
       "outputs": [],
       "source": [
-        "\"\"\"Cell with multiple outputs.\"\"\"\n",
-        "mo.md(\"## Section 1\")\n",
-        "print(\"Debug info\")\n",
-        "value = 42\n",
-        "value"
+        "class MyClass:\n",
+        "    def __init__(self, val):\n",
+        "        self.val = val\n",
+        "    def double(self):\n",
+        "        return self.val * 2"
       ]
     },
     {
@@ -80,18 +100,17 @@
       "id": "Xref",
       "metadata": {
         "marimo": {
-          "name": "error_cell"
+          "config": {
+            "hide_code": true
+          },
+          "name": "*HiddenClass"
         }
       },
       "outputs": [],
       "source": [
-        "\"\"\"This would cause an error if run.\"\"\"\n",
-        "# Note: This is valid Python, just demonstrates error handling\n",
-        "import sys\n",
-        "\n",
-        "if hasattr(sys, \"never_exists\"):\n",
-        "    raise ValueError(\"This should not happen\")\n",
-        "success = True"
+        "class HiddenClass:\n",
+        "    def __init__(self, val):\n",
+        "        self.val = val"
       ]
     }
   ],

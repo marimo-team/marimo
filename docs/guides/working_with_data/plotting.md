@@ -20,7 +20,7 @@ marimo automatically sends the selected data back to Python!
     Reactive plots currently require matplotlib, Altair, or Plotly. Matplotlib
     supports box and lasso selections (best suited for scatter plots);
     selections in Plotly are limited to scatter/scattergl plots, bar charts,
-    heatmaps, treemaps, and sunburst charts; Altair supports a larger class
+    histograms, heatmaps, treemaps, and sunburst charts; Altair supports a larger class
     of plots for selections.
 
 ### matplotlib
@@ -305,7 +305,7 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 
     marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
     supports reactive selections for scatter/scattergl plots, bar charts,
-    heatmaps, treemaps, and sunburst charts. If you require other kinds of
+    histograms, heatmaps, treemaps, and sunburst charts. If you require other kinds of
     selection, please [file an issue](https://github.com/marimo-team/marimo/issues).
 
 /// marimo-embed

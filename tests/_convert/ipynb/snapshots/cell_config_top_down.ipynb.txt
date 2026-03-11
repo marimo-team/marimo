@@ -11,37 +11,54 @@
       ]
     },
     {
-      "cell_type": "markdown",
+      "cell_type": "code",
+      "execution_count": null,
       "id": "MJUe",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "x = 1"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "vblA",
       "metadata": {
         "marimo": {
+          "config": {
+            "hide_code": true
+          },
           "md_prefix": ""
         }
       },
       "source": [
-        "# Hello, World!"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "id": "vblA",
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "x = 1\n",
-        "y = 2\n",
-        "z = x + y"
+        "# This cell is hidden"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
       "id": "bkHC",
+      "metadata": {
+        "marimo": {
+          "config": {
+            "disabled": true
+          }
+        }
+      },
+      "outputs": [],
+      "source": [
+        "y = x + 1"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "lEQa",
       "metadata": {},
       "outputs": [],
       "source": [
-        "print(z)"
+        "print(y)"
       ]
     }
   ],
