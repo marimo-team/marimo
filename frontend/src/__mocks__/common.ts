@@ -70,8 +70,33 @@ export const Mocks = {
     },
 };
 
+// Common mock modules for vi.mock() calls
+export const MockModules = {
+  toast: () => ({ toast: vi.fn() }),
+  toastWithControls: () => {
+    const dismiss = vi.fn();
+    const update = vi.fn();
+    return {
+      mock: { toast: vi.fn(() => ({ dismiss, update })) },
+      dismiss,
+      update,
+    };
+  },
+};
+
 // Global mock setup functions
 export const SetupMocks = {
+  resizeObserver: () => {
+    const observe = vi.fn();
+    const unobserve = vi.fn();
+    const disconnect = vi.fn();
+    global.ResizeObserver = class MockResizeObserver {
+      observe = observe;
+      unobserve = unobserve;
+      disconnect = disconnect;
+    } as unknown as typeof ResizeObserver;
+    return { observe, unobserve, disconnect };
+  },
   clipboard: (mockClipboard = Mocks.clipboard()) => {
     Object.defineProperty(navigator, "clipboard", {
       value: mockClipboard,
