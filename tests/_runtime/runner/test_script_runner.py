@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
+    import pathlib
+
     from marimo._runtime.runtime import Kernel
     from tests.conftest import ExecReqProvider
 
