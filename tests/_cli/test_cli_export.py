@@ -22,6 +22,7 @@ from marimo._cli.export.commands import pdf
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
+from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import (
@@ -38,13 +39,11 @@ if TYPE_CHECKING:
 HAS_UV = DependencyManager.which("uv")
 snapshot = snapshotter(__file__)
 
-# The in-process CliRunner resolves marimo from the source tree, which may
-# not contain _static/index.html (only present after `make fe`).  Ensure a
-# minimal index.html exists so HTML-export tests don't crash with
-# FileNotFoundError.
-_STATIC_INDEX = (
-    Path(__file__).resolve().parents[2] / "marimo" / "_static" / "index.html"
-)
+# The in-process CliRunner imports marimo from whatever location Python
+# resolves (source tree locally, installed wheel in CI).  The exporter reads
+# index.html from marimo_package_path() / "_static", so ensure it exists
+# there.  Copy the test-fixture index.html if it's missing.
+_STATIC_INDEX = (marimo_package_path() / "_static" / "index.html").resolve()
 if not _STATIC_INDEX.exists():
     _STATIC_INDEX.parent.mkdir(parents=True, exist_ok=True)
     _test_index = (
