@@ -303,7 +303,9 @@ def notebook_page_template(
             html = html.replace("</head>", f"{css_contents}</head>")
 
     # Add custom CSS from display config
-    html = _inject_custom_css_for_config(html, user_config, filepath or filename)
+    html = _inject_custom_css_for_config(
+        html, user_config, filepath or filename
+    )
     html = _inject_custom_css_for_config(
         html, config_overrides, filepath or filename
     )
