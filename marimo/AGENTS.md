@@ -5,8 +5,9 @@
 Tests live in `tests/` folder, mirroring `marimo/` structure.
 
 ```bash
-uvx hatch run +py=3.12 test:test tests/path/to/test.py
-uvx hatch run +py=3.12 test-optional:test tests/path/to/test.py  # with optional deps
+uv run --group test pytest tests/path/to/test.py
+uv run --group test-optional pytest tests/path/to/test.py  # with optional deps
+uv run --group test --python 3.11 pytest tests/path/to/test.py  # specific python version
 ```
 
 We should utilize inline-snapshots more often to verify the outputs of objects, functions, etc.
