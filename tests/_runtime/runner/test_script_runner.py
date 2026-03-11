@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pathlib
 import textwrap
 from typing import TYPE_CHECKING
 
