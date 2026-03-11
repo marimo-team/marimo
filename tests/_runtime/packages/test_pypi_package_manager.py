@@ -6,7 +6,7 @@ import subprocess
 import sys
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from marimo._ast import compiler
@@ -17,9 +17,6 @@ from marimo._runtime.packages.pypi_package_manager import (
     UvPackageManager,
     VersionMap,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -346,7 +343,6 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
 
     # Explicitly set environ, since patch doesn't work in an asynchronous
     # context.
-    import os
 
     os.environ["MARIMO_UV_TARGET"] = "target_path"
     result = await mgr._install("package1 package2", upgrade=False, group=None)
@@ -499,7 +495,7 @@ async def test_uv_uninstall_in_project(mock_run: MagicMock):
 
 
 @patch("subprocess.run")
-@patch.object(UvPackageManager, "dependency_tree", return_value=None)
+@patch.object(UvPackageManager, "dependency_tree")
 def test_uv_list_packages(
     mock_dependency_tree: MagicMock, mock_run: MagicMock
 ):
@@ -511,6 +507,7 @@ def test_uv_list_packages(
         ]
     )
     mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+    mock_dependency_tree.return_value = None
     mgr = UvPackageManager()
 
     packages = mgr.list_packages()
