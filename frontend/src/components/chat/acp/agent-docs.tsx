@@ -50,11 +50,11 @@ const AgentDocItem = memo<AgentDocItemProps>(
         </div>
         <div className="bg-muted/50 rounded-md p-2 border">
           <div className="flex items-start gap-2 text-xs">
-            <TerminalIcon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <code className="text-xs font-mono break-words flex-1 whitespace-pre-wrap">
+            <TerminalIcon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+            <code className="text-xs font-mono wrap-break-word flex-1 whitespace-pre-wrap">
               {command}
             </code>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {showCopy && (
                 <Button size="xs" variant="outline" className="border">
                   <CopyClipboardIcon value={command} className="h-3 w-3" />
