@@ -3,8 +3,12 @@
     {
       "cell_type": "code",
       "execution_count": null,
-      "id": "Hbol",
-      "metadata": {},
+      "id": "setup",
+      "metadata": {
+        "marimo": {
+          "name": "setup"
+        }
+      },
       "outputs": [],
       "source": [
         "import marimo as mo"
@@ -12,36 +16,24 @@
     },
     {
       "cell_type": "markdown",
-      "id": "MJUe",
+      "id": "Hbol",
       "metadata": {
         "marimo": {
           "md_prefix": ""
         }
       },
       "source": [
-        "# Hello, World!"
+        "# Hello from setup"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
-      "id": "vblA",
+      "id": "MJUe",
       "metadata": {},
       "outputs": [],
       "source": [
-        "x = 1\n",
-        "y = 2\n",
-        "z = x + y"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "id": "bkHC",
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "print(z)"
+        "x = 42"
       ]
     }
   ],

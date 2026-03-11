@@ -4,44 +4,43 @@
       "cell_type": "code",
       "execution_count": null,
       "id": "Hbol",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "name": "my_imports"
+        }
+      },
       "outputs": [],
       "source": [
-        "import marimo as mo"
+        "import os\n",
+        "import sys"
       ]
     },
     {
-      "cell_type": "markdown",
+      "cell_type": "code",
+      "execution_count": null,
       "id": "MJUe",
       "metadata": {
         "marimo": {
-          "md_prefix": ""
+          "name": "compute"
         }
       },
+      "outputs": [],
       "source": [
-        "# Hello, World!"
+        "result = os.getcwd() + sys.platform"
       ]
     },
     {
       "cell_type": "code",
       "execution_count": null,
       "id": "vblA",
-      "metadata": {},
+      "metadata": {
+        "marimo": {
+          "name": "display"
+        }
+      },
       "outputs": [],
       "source": [
-        "x = 1\n",
-        "y = 2\n",
-        "z = x + y"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "execution_count": null,
-      "id": "bkHC",
-      "metadata": {},
-      "outputs": [],
-      "source": [
-        "print(z)"
+        "print(result)"
       ]
     }
   ],
