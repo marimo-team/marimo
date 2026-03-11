@@ -134,52 +134,33 @@ _CHANNEL_COMPLETION = CHANNEL_COMPLETION.encode()
 _CHANNEL_INPUT = CHANNEL_INPUT.encode()
 
 
-def _cmd_dispatcher_loop(
+def _handle_command(
     cmd_socket: typing.Any,
     kernels: dict[str, _KernelInfo],
-    kernel_lock: threading.Lock,
 ) -> None:
-    """Read multiplexed commands from ZMQ and route to kernel queues."""
-    import zmq
+    """Read one multiplexed command from ZMQ and route to the kernel queue."""
+    frames = cmd_socket.recv_multipart()
+    session_id = frames[0].decode()
+    channel = frames[1]
+    payload = pickle.loads(frames[2])
 
-    poller = zmq.Poller()
-    poller.register(cmd_socket, zmq.POLLIN)
+    info = kernels.get(session_id)
+    if info is None:
+        LOGGER.debug(
+            "Dropping command for unknown session %s", session_id
+        )
+        return
 
-    while True:
-        try:
-            events = dict(poller.poll(timeout=1000))
-            if cmd_socket not in events:
-                continue
-
-            frames = cmd_socket.recv_multipart()
-            session_id = frames[0].decode()
-            channel = frames[1]
-            payload = pickle.loads(frames[2])
-
-            with kernel_lock:
-                info = kernels.get(session_id)
-
-            if info is None:
-                LOGGER.debug(
-                    "Dropping command for unknown session %s", session_id
-                )
-                continue
-
-            if channel == _CHANNEL_CONTROL:
-                info.queues.control.put(payload)
-            elif channel == _CHANNEL_UI_ELEMENT:
-                info.queues.ui_element.put(payload)
-            elif channel == _CHANNEL_COMPLETION:
-                info.queues.completion.put(payload)
-            elif channel == _CHANNEL_INPUT:
-                info.queues.input.put(payload)
-            else:
-                LOGGER.warning("Unknown channel: %s", channel)
-
-        except zmq.ZMQError:
-            break
-        except Exception:
-            LOGGER.exception("Error in cmd dispatcher")
+    if channel == _CHANNEL_CONTROL:
+        info.queues.control.put(payload)
+    elif channel == _CHANNEL_UI_ELEMENT:
+        info.queues.ui_element.put(payload)
+    elif channel == _CHANNEL_COMPLETION:
+        info.queues.completion.put(payload)
+    elif channel == _CHANNEL_INPUT:
+        info.queues.input.put(payload)
+    else:
+        LOGGER.warning("Unknown channel: %s", channel)
 
 
 def _stream_collector_loop(
@@ -204,26 +185,22 @@ def _stream_collector_loop(
 
 def _shutdown_all_kernels(
     kernels: dict[str, _KernelInfo],
-    kernel_lock: threading.Lock,
 ) -> None:
-    with kernel_lock:
-        for info in kernels.values():
-            try:
-                info.queues.control.put(StopKernelCommand())
-            except Exception:
-                LOGGER.exception(
-                    "Error stopping kernel for session %s", info.session_id
-                )
-        kernels.clear()
+    for info in kernels.values():
+        try:
+            info.queues.control.put(StopKernelCommand())
+        except Exception:
+            LOGGER.exception(
+                "Error stopping kernel for session %s", info.session_id
+            )
+    kernels.clear()
 
 
 def _handle_stop_kernel(
     cmd: StopKernelCmd,
     kernels: dict[str, _KernelInfo],
-    kernel_lock: threading.Lock,
 ) -> None:
-    with kernel_lock:
-        info = kernels.pop(cmd.session_id, None)
+    info = kernels.pop(cmd.session_id, None)
     if info is not None:
         info.queues.control.put(StopKernelCommand())
         LOGGER.debug("Kernel stopped for session %s", cmd.session_id)
@@ -232,7 +209,6 @@ def _handle_stop_kernel(
 def _handle_create_kernel(
     cmd: CreateKernelCmd,
     kernels: dict[str, _KernelInfo],
-    kernel_lock: threading.Lock,
     stream_outbox: queue.Queue[typing.Any],
     response_socket: typing.Any,
 ) -> None:
@@ -272,7 +248,6 @@ def _handle_create_kernel(
                     "Kernel thread crashed for session %s", cmd.session_id
                 )
             finally:
-                # Notify the main process that this kernel thread has exited.
                 stream_queue.put(KernelExited())
 
         thread = threading.Thread(
@@ -281,8 +256,7 @@ def _handle_create_kernel(
         )
         thread.start()
 
-        with kernel_lock:
-            kernels[cmd.session_id] = _KernelInfo(
+        kernels[cmd.session_id] = _KernelInfo(
                 thread=thread,
                 queues=queues,
                 session_id=cmd.session_id,
@@ -354,16 +328,7 @@ def app_process_main(args: AppProcessArgs) -> None:
     response_socket.send(encode_response(AppProcessReadyResponse()))
 
     kernels: dict[str, _KernelInfo] = {}
-    kernel_lock = threading.Lock()
     stream_outbox: queue.Queue[typing.Any] = queue.Queue()
-
-    # Start multiplexed data channel threads
-    dispatcher_thread = threading.Thread(
-        target=_cmd_dispatcher_loop,
-        args=(cmd_socket, kernels, kernel_lock),
-        daemon=True,
-    )
-    dispatcher_thread.start()
 
     collector_thread = threading.Thread(
         target=_stream_collector_loop,
@@ -372,33 +337,37 @@ def app_process_main(args: AppProcessArgs) -> None:
     )
     collector_thread.start()
 
-    # Management command loop
     poller = zmq.Poller()
     poller.register(mgmt_socket, zmq.POLLIN)
+    poller.register(cmd_socket, zmq.POLLIN)
 
     while True:
         events = dict(poller.poll(timeout=1000))
-        if mgmt_socket not in events:
-            continue
 
-        data = mgmt_socket.recv()
-        cmd = decode_command(data)
+        if cmd_socket in events:
+            _handle_command(cmd_socket, kernels)
 
-        if isinstance(cmd, CreateKernelCmd):
-            _handle_create_kernel(
-                cmd, kernels, kernel_lock, stream_outbox, response_socket
-            )
-        elif isinstance(cmd, StopKernelCmd):
-            _handle_stop_kernel(cmd, kernels, kernel_lock)
-        elif isinstance(cmd, ShutdownAppProcessCmd):
-            LOGGER.debug("App process shutting down for %s", args.file_path)
-            _shutdown_all_kernels(kernels, kernel_lock)
-            stream_outbox.put(None)  # Stop collector thread
-            break
-        else:
-            LOGGER.warning(
-                "App process received unknown command: %s", type(cmd)
-            )
+        if mgmt_socket in events:
+            data = mgmt_socket.recv()
+            cmd = decode_command(data)
+
+            if isinstance(cmd, CreateKernelCmd):
+                _handle_create_kernel(
+                    cmd, kernels, stream_outbox, response_socket
+                )
+            elif isinstance(cmd, StopKernelCmd):
+                _handle_stop_kernel(cmd, kernels)
+            elif isinstance(cmd, ShutdownAppProcessCmd):
+                LOGGER.debug(
+                    "App process shutting down for %s", args.file_path
+                )
+                _shutdown_all_kernels(kernels)
+                stream_outbox.put(None)  # Stop collector thread
+                break
+            else:
+                LOGGER.warning(
+                    "App process received unknown command: %s", type(cmd)
+                )
 
     mgmt_socket.close(linger=0)
     response_socket.close(linger=0)

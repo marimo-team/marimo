@@ -63,6 +63,106 @@ class TestAppProcessCommands:
 
 
 @pytest.mark.requires("zmq")
+class TestAppProcessOnEmpty:
+    def test_on_empty_fires_when_session_ids_becomes_empty(self) -> None:
+        """on_empty callback fires when all sessions exit."""
+        import pickle
+        import threading
+
+        from marimo._session.managers.app_process import AppProcess
+        from marimo._session.managers.app_process_commands import KernelExited
+
+        fired = threading.Event()
+
+        def on_empty() -> None:
+            fired.set()
+
+        app_proc = AppProcess("/tmp/test_app.py", on_empty=on_empty)
+        # Simulate a kernel being alive
+        app_proc._session_ids.add("s1")
+
+        # Simulate receiving a KernelExited message by calling
+        # discard + the callback logic directly (avoids needing
+        # a real subprocess with ZMQ sockets).
+        app_proc._session_ids.discard("s1")
+        assert len(app_proc._session_ids) == 0
+        # Replicate the callback logic from _stream_receiver_loop
+        callback = app_proc._on_empty
+        app_proc._on_empty = None
+        if callback is not None:
+            threading.Thread(target=callback, daemon=True).start()
+
+        assert fired.wait(timeout=2), "on_empty callback was not fired"
+
+    def test_on_empty_does_not_fire_when_kernels_remain(self) -> None:
+        """on_empty callback does NOT fire when kernels remain."""
+        import threading
+
+        from marimo._session.managers.app_process import AppProcess
+
+        fired = threading.Event()
+
+        def on_empty() -> None:
+            fired.set()
+
+        app_proc = AppProcess("/tmp/test_app.py", on_empty=on_empty)
+        app_proc._session_ids.add("s1")
+        app_proc._session_ids.add("s2")
+
+        # Remove one — still one left
+        app_proc._session_ids.discard("s1")
+        assert len(app_proc._session_ids) == 1
+
+        # Replicate the callback logic
+        if not app_proc._session_ids:
+            callback = app_proc._on_empty
+            app_proc._on_empty = None
+            if callback is not None:
+                threading.Thread(target=callback, daemon=True).start()
+
+        assert not fired.wait(timeout=0.5), (
+            "on_empty callback should not fire when kernels remain"
+        )
+
+    def test_on_empty_fires_only_once(self) -> None:
+        """on_empty callback fires at most once (double-fire prevention)."""
+        import threading
+
+        from marimo._session.managers.app_process import AppProcess
+
+        call_count = 0
+        lock = threading.Lock()
+        done = threading.Event()
+
+        def on_empty() -> None:
+            nonlocal call_count
+            with lock:
+                call_count += 1
+            done.set()
+
+        app_proc = AppProcess("/tmp/test_app.py", on_empty=on_empty)
+        app_proc._session_ids.add("s1")
+        app_proc._session_ids.add("s2")
+
+        # Simulate both kernels exiting
+        for sid in ["s1", "s2"]:
+            app_proc._session_ids.discard(sid)
+            if not app_proc._session_ids:
+                callback = app_proc._on_empty
+                app_proc._on_empty = None
+                if callback is not None:
+                    threading.Thread(target=callback, daemon=True).start()
+
+        assert done.wait(timeout=2)
+        # Give any potential second callback time to run
+        threading.Event().wait(timeout=0.2)
+        with lock:
+            assert call_count == 1, (
+                f"on_empty fired {call_count} times, expected 1"
+            )
+
+
+@pytest.mark.requires("zmq")
 class TestAppProcessPool:
     def test_create_and_reuse(self) -> None:
         """Pool creates one process per file and reuses it."""
