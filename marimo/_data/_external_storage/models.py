@@ -45,6 +45,7 @@ class StorageNamespace(msgspec.Struct, rename="camel"):
         display_name: The display name of the storage namespace.
         protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
         root_path: The root path of the storage namespace.
+        backend_type: The type of the storage backend (fsspec or obstore)
         storage_entries: The storage entries in the storage namespace.
     """
 
