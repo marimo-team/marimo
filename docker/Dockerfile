@@ -35,9 +35,6 @@ ENV HOST=0.0.0.0
 
 STOPSIGNAL SIGTERM
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health')"
-
 # -slim entry point
 FROM base AS slim
 USER appuser
