@@ -41,11 +41,8 @@ def _check_pyright(code: str) -> None:
 
 
 _PREAMBLE = """
-    from typing_extensions import TypeGuard, TypeIs, assert_type
+    from typing_extensions import assert_type
     import marimo as mo
-
-    def _int_or_str() -> int | str:
-        return 0
 """
 
 
@@ -103,12 +100,17 @@ class TestAppFunctionTyping:
         """)
 
 
+@pytest.fixture(params=["cache", "lru_cache", "persistent_cache"])
+def cache_func(request: pytest.FixtureRequest) -> str:
+    return request.param
+
+
 class TestCacheTyping:
-    def test_cache_preserves_return_type(self) -> None:
+    def test_cache_preserves_return_type(self, cache_func: str) -> None:
         _check_pyright(
             _PREAMBLE
-            + """
-    @mo.cache
+            + f"""
+    @mo.{cache_func}
     def compute(x: int) -> int:
         return x * 2
 
@@ -116,26 +118,67 @@ class TestCacheTyping:
 """
         )
 
-    def test_cache_exposes_cache_info(self) -> None:
+    def test_cache_async_preserves_return_type(self, cache_func: str) -> None:
         _check_pyright(
             _PREAMBLE
-            + """
-    @mo.cache
-    def compute(x: int) -> int:
+            + f"""
+    @mo.{cache_func}
+    async def compute(x: int) -> int:
         return x * 2
 
-    info = compute.cache_info()
-    compute.cache_clear()
+    async def _main():  # pyright: ignore[reportUnusedFunction]
+        assert_type(await compute(1), int)
 """
         )
 
+    def test_cache_method_preserves_return_type(self, cache_func: str) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + f"""
+    class A:
+        @mo.{cache_func}
+        def method(self, x: int) -> int:
+            return x
+
+    assert_type(A().method(1), int)
+"""
+        )
+
+    def test_cache_async_method_preserves_return_type(
+        self, cache_func: str
+    ) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + f"""
+    class A:
+        @mo.{cache_func}
+        async def method(self, x: int) -> int:
+            return x
+
+    async def _main():  # pyright: ignore[reportUnusedFunction]
+        assert_type(await A().method(1), int)
+"""
+        )
+
+    def test_cache_exposes_cache_info(self) -> None:
+        _check_pyright("""
+            import marimo as mo
+
+            @mo.cache
+            def compute(x: int) -> int:
+                return x * 2
+
+            _info = compute.cache_info()
+            compute.cache_clear()
+        """)
+
 
 class TestLruCacheTyping:
-    def test_lru_cache_preserves_return_type(self) -> None:
+    def test_lru_cache_parameterized_preserves_return_type(self) -> None:
         _check_pyright(
             _PREAMBLE
             + """
-    @mo.lru_cache
+    @mo.lru_cache(maxsize=128)
     def compute(x: int) -> int:
         return x * 2
 
@@ -144,14 +187,42 @@ class TestLruCacheTyping:
         )
 
     def test_lru_cache_exposes_cache_info(self) -> None:
+        _check_pyright("""
+            import marimo as mo
+
+            @mo.lru_cache
+            def compute(x: int) -> int:
+                return x * 2
+
+            _info = compute.cache_info()
+            compute.cache_clear()
+        """)
+
+
+class TestPersistentCacheTyping:
+    def test_persistent_cache_parameterized_preserves_return_type(
+        self,
+    ) -> None:
         _check_pyright(
             _PREAMBLE
             + """
-    @mo.lru_cache
+    @mo.persistent_cache(save_path="cache")
     def compute(x: int) -> int:
         return x * 2
 
-    info = compute.cache_info()
-    compute.cache_clear()
+    assert_type(compute(1), int)
+"""
+        )
+
+
+class TestCacheContext:
+    def test_cache_context_return_type(self, cache_func: str) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + f"""
+    from marimo._save.save import (
+        _cache_context,  # pyright: ignore[reportPrivateUsage]
+    )
+    assert_type(mo.{cache_func}("cache"), _cache_context)
 """
         )
