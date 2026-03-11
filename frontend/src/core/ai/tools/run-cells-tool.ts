@@ -24,6 +24,11 @@ import type { CopilotMode } from "./registry";
 const POST_EXECUTION_DELAY = 200;
 const WAIT_FOR_CELLS_TIMEOUT = 30_000;
 
+// Output size limits to prevent exceeding LLM token limits.
+const MAX_TEXT_OUTPUT_CHARS = 2000;
+const MAX_ERROR_OUTPUT_CHARS = 3000;
+const MAX_TOOL_OUTPUT_CHARS = 40_000;
+
 interface CellOutput {
   consoleOutput?: string;
   cellOutput?: string;
@@ -92,7 +97,7 @@ export class RunStaleCellsTool
 
     await runCells({
       cellIds: staleCells,
-      sendRun: sendRun,
+      sendRun,
       prepareForRun,
       notebook,
     });
@@ -116,44 +121,59 @@ export class RunStaleCellsTool
     const updatedNotebook = store.get(notebookAtom);
 
     const cellsToOutput = new Map<CellId, CellOutput | null>();
-    let resultMessage = "";
     let outputHasErrors = false;
+    let hasAnyConsoleOutput = false;
+    let totalOutputChars = 0;
 
     for (const cellId of staleCells) {
       const cellContextData = getCellContextData(cellId, updatedNotebook, {
         includeConsoleOutput: true,
       });
 
-      let cellOutputString: string | undefined;
-      let consoleOutputString: string | undefined;
-
       const cellOutput = cellContextData.cellOutput;
       const consoleOutputs = cellContextData.consoleOutputs;
       const hasConsoleOutput = consoleOutputs && consoleOutputs.length > 0;
 
+      // Track errors regardless of budget
+      if (
+        (cellOutput && this.outputHasErrors(cellOutput)) ||
+        (hasConsoleOutput &&
+          consoleOutputs.some((output) => this.outputHasErrors(output)))
+      ) {
+        outputHasErrors = true;
+      }
+
       if (!cellOutput && !hasConsoleOutput) {
-        // Set null to show no output
         cellsToOutput.set(cellId, null);
         continue;
       }
 
+      // If total budget exceeded, summarize remaining cells
+      if (totalOutputChars >= MAX_TOOL_OUTPUT_CHARS) {
+        cellsToOutput.set(cellId, {
+          cellOutput: "Cell executed (output omitted due to context limits).",
+        });
+        continue;
+      }
+
+      let cellOutputString: string | undefined;
+      let consoleOutputString: string | undefined;
+
       if (cellOutput) {
         cellOutputString = this.formatOutputString(cellOutput);
-        if (this.outputHasErrors(cellOutput)) {
-          outputHasErrors = true;
-        }
+        totalOutputChars += cellOutputString.length;
       }
 
       if (hasConsoleOutput) {
+        hasAnyConsoleOutput = true;
         consoleOutputString = consoleOutputs
           .map((output) => this.formatOutputString(output))
           .join("\n");
-        resultMessage +=
-          "Console output represents the stdout or stderr of the cell (eg. print statements).";
-
-        if (consoleOutputs.some((output) => this.outputHasErrors(output))) {
-          outputHasErrors = true;
-        }
+        consoleOutputString = this.truncateString(
+          consoleOutputString,
+          MAX_TEXT_OUTPUT_CHARS,
+        );
+        totalOutputChars += consoleOutputString.length;
       }
 
       cellsToOutput.set(cellId, {
@@ -179,43 +199,58 @@ export class RunStaleCellsTool
     return {
       status: "success",
       cellsToOutput: Object.fromEntries(cellsToOutput),
-      message: resultMessage === "" ? undefined : resultMessage,
+      message: hasAnyConsoleOutput
+        ? "Console output represents the stdout or stderr of the cell (eg. print statements)."
+        : undefined,
       next_steps: nextSteps,
     };
   };
 
   private outputHasErrors(cellOutput: BaseOutput): boolean {
-    const { output } = cellOutput;
-    if (
-      output.mimetype === "application/vnd.marimo+error" ||
-      output.mimetype === "application/vnd.marimo+traceback"
-    ) {
-      return true;
-    }
-    return false;
+    return (
+      cellOutput.output.mimetype === "application/vnd.marimo+error" ||
+      cellOutput.output.mimetype === "application/vnd.marimo+traceback"
+    );
   }
 
   private formatOutputString(cellOutput: BaseOutput): string {
-    let outputString = "";
     const { outputType, processedContent, imageUrl, output } = cellOutput;
-    if (outputType === "text") {
-      outputString += "Output:\n";
-      if (processedContent) {
-        outputString += processedContent;
-      } else if (typeof output.data === "string") {
-        outputString += output.data;
-      } else {
-        outputString += JSON.stringify(output.data);
-      }
-    } else if (outputType === "media") {
-      outputString += `Media Output: Contains ${output.mimetype} content`;
-      if (imageUrl) {
-        outputString += `\nImage URL: ${imageUrl}`;
-      }
+
+    if (outputType === "media") {
+      const base = `Media Output: Contains ${output.mimetype} content`;
+      return imageUrl ? `${base}\nImage URL: ${imageUrl}` : base;
     }
-    return outputString;
+
+    if (output.mimetype === "text/html") {
+      // text/html (e.g. plotly figures, rich dataframes) can be millions of
+      // chars and is not interpretable by LLMs — summarize instead
+      const dataLength =
+        typeof output.data === "string"
+          ? output.data.length
+          : JSON.stringify(output.data).length;
+      return `HTML Output: text/html content (${dataLength.toLocaleString()} chars). Full output visible in notebook UI.`;
+    }
+
+    const maxChars = this.outputHasErrors(cellOutput)
+      ? MAX_ERROR_OUTPUT_CHARS
+      : MAX_TEXT_OUTPUT_CHARS;
+
+    let content = processedContent;
+    if (!content) {
+      content =
+        typeof output.data === "string"
+          ? output.data
+          : JSON.stringify(output.data);
+    }
+    return `Output:\n${this.truncateString(content, maxChars)}`;
   }
 
+  private truncateString(str: string, maxLength: number): string {
+    if (str.length <= maxLength) {
+      return str;
+    }
+    return `${str.slice(0, maxLength)}\n\n[TRUNCATED: ${str.length.toLocaleString()} → ${maxLength.toLocaleString()} chars. Full output visible in the notebook UI.]`;
+  }
   /**
    * Wait for cells to finish executing (status becomes "idle")
    * Returns true if all cells finished executing, false if the timeout was reached

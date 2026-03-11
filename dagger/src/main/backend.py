@@ -32,8 +32,18 @@ class Backend:
                 ]
             )
             .with_exec(["make", "py"])
-            .with_exec(["hatch", "run", "lint"])
-            .with_exec(["hatch", "run", "typecheck:check"])
+            .with_exec(["uv", "run", "ruff", "check", "--fix"])
+            .with_exec(
+                [
+                    "uv",
+                    "run",
+                    "--only-group",
+                    "typecheck",
+                    "mypy",
+                    "marimo",
+                    "--exclude=marimo/_tutorials/",
+                ]
+            )
         )
 
         await env.sync()

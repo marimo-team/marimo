@@ -66,10 +66,14 @@ class NarwhalsTableManager(
     ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
         return NarwhalsTableManager(nw.from_native(data, pass_through=False))
 
-    def as_frame(self) -> nw.DataFrame[Any]:
+    @cached_property
+    def _collected_frame(self) -> nw.DataFrame[Any]:
         if is_narwhals_lazyframe(self.data):
             return self.data.collect()
         return self.data
+
+    def as_frame(self) -> nw.DataFrame[Any]:
+        return self._collected_frame
 
     def as_lazy_frame(self) -> nw.LazyFrame[Any]:
         if is_narwhals_lazyframe(self.data):
@@ -545,6 +549,11 @@ class NarwhalsTableManager(
 
         dtype = self.nw_schema[column]
 
+        # Some backends (e.g. DuckDB) report Unknown for types like Time
+        # until the data is collected. Resolve by checking the collected schema.
+        if dtype == nw.Unknown:
+            dtype = self.as_frame().schema[column]
+
         if dtype.is_temporal():
             return self._get_bin_values_temporal(column, dtype, num_bins)
 
@@ -741,6 +750,15 @@ class NarwhalsTableManager(
                 )
             else:
                 values = self.data[column].head(SAMPLE_SIZE).to_list()
+            # For non-numeric columns, NaN represents null values
+            # (e.g., pandas 3 with StringDtype stores None as NaN)
+            if not self.data[column].dtype.is_numeric():
+                import math
+
+                values = [
+                    None if isinstance(v, float) and math.isnan(v) else v
+                    for v in values
+                ]
             # Serialize values to primitives
             return [to_primitive(v) for v in values]
         except BaseException:
