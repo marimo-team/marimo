@@ -1,14 +1,16 @@
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.20.4"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+    import random
+    import polars as pl
 
-    return (mo,)
+    return mo, pl, random
 
 
 @app.cell
@@ -51,15 +53,11 @@ def _(mo):
     mo.ui.table(
         data,
         format_mapping={
-            "name": lambda name: mo.md(
-                f"**{name}**"
-            ),
+            "name": lambda name: mo.md(f"**{name}**"),
             "score": lambda score: mo.md(
                 f'<span style="color: {"green" if score >= 90 else "orange"}">{score}</span>'
             ),
-            "website": lambda url: mo.md(
-                f"[Visit site]({url})"
-            ),
+            "website": lambda url: mo.md(f"[Visit site]({url})"),
         },
         label="Hyperlinks via format_mapping",
     )
@@ -109,9 +107,15 @@ def _(mo):
                 mo.Html('<a href="https://python.org">Python</a>'),
             ],
             "badge": [
-                mo.Html('<span style="background: green; color: white; padding: 2px 6px; border-radius: 4px">Active</span>'),
-                mo.Html('<span style="background: red; color: white; padding: 2px 6px; border-radius: 4px">Inactive</span>'),
-                mo.Html('<span style="background: orange; color: white; padding: 2px 6px; border-radius: 4px">Pending</span>'),
+                mo.Html(
+                    '<span style="background: green; color: white; padding: 2px 6px; border-radius: 4px">Active</span>'
+                ),
+                mo.Html(
+                    '<span style="background: red; color: white; padding: 2px 6px; border-radius: 4px">Inactive</span>'
+                ),
+                mo.Html(
+                    '<span style="background: orange; color: white; padding: 2px 6px; border-radius: 4px">Pending</span>'
+                ),
             ],
             "plain": ["alpha", "beta", "gamma"],
         },
@@ -141,6 +145,19 @@ def _(mo):
         },
         label="Inline markdown as values (text/markdown mime)",
     )
+    return
+
+
+@app.cell
+def _(mo, pl, random):
+    def url(k):
+        return mo.md(f"[{k}](https://www.google.com/search?q={k})")
+
+
+    _random_numbers = [random.randint(1, 100) for _ in range(10)]
+    df = pl.DataFrame({"filter_by_this": _random_numbers})
+
+    mo.ui.table(df, format_mapping={"filter_by_this": url})
     return
 
 

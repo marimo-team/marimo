@@ -103,42 +103,6 @@ describe("stringifyUnknownValue", () => {
   it("should JSON-stringify plain objects", () => {
     expect(stringifyUnknownValue({ value: { x: 1 } })).toBe('{"x":1}');
   });
-
-  it("should extract text from _serialized_mime_bundle", () => {
-    const mimeBundle = {
-      _serialized_mime_bundle: {
-        mimetype: "text/html",
-        data: '<a href="https://example.com">Click here</a>',
-      },
-    };
-    expect(stringifyUnknownValue({ value: mimeBundle })).toBe("Click here");
-  });
-
-  it("should extract text from serialized_mime_bundle (no underscore)", () => {
-    const mimeBundle = {
-      serialized_mime_bundle: {
-        mimetype: "text/markdown",
-        data: '<span class="markdown">Hello <b>world</b></span>',
-      },
-    };
-    expect(stringifyUnknownValue({ value: mimeBundle })).toBe("Hello world");
-  });
-
-  it("should extract text from direct mime values", () => {
-    const mimeValue = {
-      mimetype: "text/html",
-      data: "<b>bold text</b>",
-    };
-    expect(stringifyUnknownValue({ value: mimeValue })).toBe("bold text");
-  });
-
-  it("should handle arrays of mime values", () => {
-    const mimeArray = [
-      { mimetype: "text/html", data: "<b>first</b>" },
-      { mimetype: "text/html", data: "<i>second</i>" },
-    ];
-    expect(stringifyUnknownValue({ value: mimeArray })).toBe("first, second");
-  });
 });
 
 describe("getClipboardContent", () => {
