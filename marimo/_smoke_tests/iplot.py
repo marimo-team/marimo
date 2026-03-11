@@ -2,13 +2,13 @@
 
 import marimo
 
-__generated_with = "0.16.3"
+__generated_with = "0.20.4"
 app = marimo.App()
 
 
 @app.cell
-def _(mo):
-    mo.app_meta().request
+def _():
+    # mo.app_meta().request
     return
 
 
@@ -17,6 +17,7 @@ def _():
     import marimo as mo
     import numpy as np
     import matplotlib.pyplot as plt
+
     return mo, np, plt
 
 
@@ -39,6 +40,7 @@ def _(mo, np, plt):
         ax.set_zlabel("Z Label")
 
         return mo.mpl.interactive(fig)
+
     return (interactive_plot,)
 
 

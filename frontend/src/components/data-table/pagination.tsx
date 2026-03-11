@@ -37,6 +37,8 @@ import {
 } from "../ui/select";
 import type { DataTableSelection, PageRange } from "./types";
 
+const MAX_PAGES_BEFORE_CLAMPING = 100;
+
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   selection?: DataTableSelection;
@@ -325,35 +327,39 @@ export const PageSelector = ({
             ),
           )}
         </div>
-        <DropdownMenuSeparator />
-        <div
-          className="px-2 pt-0.5 shrink-0"
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <label
-            htmlFor={jumpInputId}
-            className="text-xs text-muted-foreground block mb-1"
-          >
-            Jump to page
-          </label>
-          <Input
-            id={jumpInputId}
-            type="number"
-            min={1}
-            max={totalPages}
-            placeholder={`1-${totalPages}`}
-            value={jumpValue}
-            onChange={(e) => setJumpValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleJump();
-              }
-              e.stopPropagation();
-            }}
-            className="h-6 text-xs"
-            data-testid="page-jump-input"
-          />
-        </div>
+        {totalPages > MAX_PAGES_BEFORE_CLAMPING && (
+          <>
+            <DropdownMenuSeparator />
+            <div
+              className="px-2 pt-0.5 shrink-0"
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <label
+                htmlFor={jumpInputId}
+                className="text-xs text-muted-foreground block mb-1"
+              >
+                Jump to page
+              </label>
+              <Input
+                id={jumpInputId}
+                type="number"
+                min={1}
+                max={totalPages}
+                placeholder={`1-${totalPages}`}
+                value={jumpValue}
+                onChange={(e) => setJumpValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleJump();
+                  }
+                  e.stopPropagation();
+                }}
+                className="h-6 text-xs"
+                data-testid="page-jump-input"
+              />
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -363,7 +369,7 @@ export function getPageRanges(
   currentPage: number,
   totalPages: number,
 ): PageRange[] {
-  if (totalPages <= 100) {
+  if (totalPages <= MAX_PAGES_BEFORE_CLAMPING) {
     return range(totalPages).map((i) => ({ type: "page", page: i + 1 }));
   }
 

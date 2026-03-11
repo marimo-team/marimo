@@ -2,8 +2,8 @@
 
 import dedent from "string-dedent";
 import { assertNever } from "@/utils/assertNever";
+import { isSecret, unprefixSecret } from "../secrets";
 import { type DatabaseConnection, DatabaseConnectionSchema } from "./schemas";
-import { isSecret, unprefixSecret } from "./secrets";
 
 export type ConnectionLibrary =
   | "sqlmodel"

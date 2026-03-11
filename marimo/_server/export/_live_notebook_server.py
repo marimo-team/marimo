@@ -92,12 +92,16 @@ class LiveNotebookServer(AbstractContextManager["LiveNotebookServer"]):
             sys.executable,
             "-m",
             "marimo",
+            # We don't want to prompt for anything.
+            "-y",
             "run",
             self._filepath,
             "--headless",
             "--no-token",
             "--no-skew-protection",
             "--no-check",
+            # We don't need a sandbox because we are going to use the same marimo process.
+            "--no-sandbox",
             "--host",
             "127.0.0.1",
             "--port",

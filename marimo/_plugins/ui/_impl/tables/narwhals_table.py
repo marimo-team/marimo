@@ -741,6 +741,15 @@ class NarwhalsTableManager(
                 )
             else:
                 values = self.data[column].head(SAMPLE_SIZE).to_list()
+            # For non-numeric columns, NaN represents null values
+            # (e.g., pandas 3 with StringDtype stores None as NaN)
+            if not self.data[column].dtype.is_numeric():
+                import math
+
+                values = [
+                    None if isinstance(v, float) and math.isnan(v) else v
+                    for v in values
+                ]
             # Serialize values to primitives
             return [to_primitive(v) for v in values]
         except BaseException:

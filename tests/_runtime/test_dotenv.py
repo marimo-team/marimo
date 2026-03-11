@@ -84,6 +84,7 @@ async def test_load_dotenv_on_instantiate(mocked_kernel: MockedKernel):
         # Create a CreationRequest
         request = CreateNotebookCommand(
             execution_requests=(),
+            cell_ids=(),
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],

@@ -826,20 +826,16 @@ components:
       description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
         \ is first loaded. Contains all cells and initial UI element values.\n\n \
         \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
-        \ cell.\n        cell_ids: Initial cell IDs in the notebook (unused for now).\n\
-        \        set_ui_element_value_request: Initial UI element values.\n      \
-        \  auto_run: Whether to automatically execute cells on instantiation.\n  \
-        \      request: HTTP request context if available."
+        \ cell.\n        cell_ids: Initial cell IDs in the notebook.\n        set_ui_element_value_request:\
+        \ Initial UI element values.\n        auto_run: Whether to automatically execute\
+        \ cells on instantiation.\n        request: HTTP request context if available."
       properties:
         autoRun:
           type: boolean
         cellIds:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
+          items:
+            type: string
+          type: array
         executionRequests:
           items:
             $ref: '#/components/schemas/ExecuteCellCommand'
@@ -857,6 +853,7 @@ components:
       required:
       - type
       - executionRequests
+      - cellIds
       - setUiElementValueRequest
       - autoRun
       title: CreateNotebookCommand
@@ -5139,7 +5136,6 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.20.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5487,6 +5483,28 @@ paths:
               schema:
                 type: string
           description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/ipynb:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Export the notebook as IPYNB
         400:
           description: File must be saved before downloading
   /api/export/markdown:

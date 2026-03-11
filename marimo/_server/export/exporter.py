@@ -555,9 +555,7 @@ class Exporter:
             return None
         return pdf_data
 
-    def export_assets(
-        self, directory: Path, ignore_index_html: bool = False
-    ) -> None:
+    def export_assets(self, directory: Path) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
         LOGGER.debug(f"Copying assets to {dirpath}")
@@ -570,11 +568,7 @@ class Exporter:
             ROOT,
             dirpath,
             dirs_exist_ok=True,
-            ignore=(
-                shutil.ignore_patterns("index.html")
-                if ignore_index_html
-                else None
-            ),
+            ignore=(shutil.ignore_patterns("index.html")),
         )
 
     def export_public_folder(

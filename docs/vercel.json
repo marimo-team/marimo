@@ -462,7 +462,7 @@
     },
     {
       "source": "/guides/deploying/deploying_public_gallery.html",
-      "destination": "/guides/deploying/deploying_public_gallery/",
+      "destination": "/guides/publishing/public_gallery/",
       "permanent": true
     },
     {
@@ -633,6 +633,51 @@
     {
       "source": "/recipes.html",
       "destination": "/recipes/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/from_code_snippets/",
+      "destination": "/guides/publishing/embedding/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/from_github/",
+      "destination": "/guides/publishing/github/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/view_outputs_on_github/",
+      "destination": "/guides/publishing/github/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/github_pages/",
+      "destination": "/guides/publishing/github/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/deploying_public_gallery/",
+      "destination": "/guides/publishing/public_gallery/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/quarto/",
+      "destination": "/guides/exporting/quarto/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/deploy/",
+      "destination": "/guides/deploying/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/deploying/scheduled/",
+      "destination": "/guides/scripts/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/publishing/playground/",
+      "destination": "/guides/wasm/",
       "permanent": true
     },
     {

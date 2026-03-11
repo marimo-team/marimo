@@ -15,10 +15,10 @@ describe("runServerSidePDFDownload", () => {
 
     expect(downloadPDF).toHaveBeenCalledWith({
       filename: "slides.py",
-      webpdf: true,
+      webpdf: false,
       preset: "document",
-      includeInputs: false,
-      rasterServer: "live",
+      includeInputs: true,
+      rasterServer: "static",
     });
   });
 
@@ -33,10 +33,10 @@ describe("runServerSidePDFDownload", () => {
 
     expect(downloadPDF).toHaveBeenCalledWith({
       filename: "slides.py",
-      webpdf: true,
+      webpdf: false,
       preset: "slides",
-      includeInputs: false,
-      rasterServer: "live",
+      includeInputs: true,
+      rasterServer: "static",
     });
   });
 });
