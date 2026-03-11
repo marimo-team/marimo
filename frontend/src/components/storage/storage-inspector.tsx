@@ -471,7 +471,7 @@ const StorageNamespaceSection: React.FC<{
             <ErrorState
               error={error}
               style={indentStyle(1)}
-              className="py-1 text-xs h-auto"
+              className="py-1 text-xs h-auto overflow-auto max-h-32 items-start"
               showIcon={false}
             />
           )}
