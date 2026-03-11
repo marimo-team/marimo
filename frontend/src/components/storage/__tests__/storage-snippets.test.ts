@@ -58,6 +58,42 @@ describe("read-file snippet", () => {
       ),
     ).toBeNull();
   });
+
+  it("escapes double quotes in paths", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          entry: {
+            path: 'data/"file".csv',
+            kind: "object",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toMatchInlineSnapshot(`
+      "_data = store.get("data/\\"file\\".csv").bytes()
+      _data"
+    `);
+  });
+
+  it("escapes backslashes in paths", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          entry: {
+            path: "data\\file.csv",
+            kind: "object",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toMatchInlineSnapshot(`
+      "_data = store.get("data\\\\file.csv").bytes()
+      _data"
+    `);
+  });
 });
 
 describe("download-file snippet", () => {

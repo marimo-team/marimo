@@ -23,6 +23,10 @@ export interface StorageSnippet {
 
 const NOT_SIGNABLE_PROTOCOLS = new Set(["http", "file", "in-memory"]);
 
+function escapeForPythonString(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
 export const STORAGE_SNIPPETS: StorageSnippet[] = [
   {
     id: "read-file",
@@ -32,10 +36,11 @@ export const STORAGE_SNIPPETS: StorageSnippet[] = [
       if (ctx.entry.kind === "directory") {
         return null;
       }
+      const path = escapeForPythonString(ctx.entry.path);
       if (ctx.backendType === "obstore") {
-        return `_data = ${ctx.variableName}.get("${ctx.entry.path}").bytes()\n_data`;
+        return `_data = ${ctx.variableName}.get("${path}").bytes()\n_data`;
       }
-      return `_data = ${ctx.variableName}.cat_file("${ctx.entry.path}")\n_data`;
+      return `_data = ${ctx.variableName}.cat_file("${path}")\n_data`;
     },
   },
   {
@@ -46,14 +51,17 @@ export const STORAGE_SNIPPETS: StorageSnippet[] = [
       if (ctx.entry.kind === "directory") {
         return null;
       }
+      const path = escapeForPythonString(ctx.entry.path);
       if (ctx.backendType === "obstore") {
         if (NOT_SIGNABLE_PROTOCOLS.has(ctx.protocol)) {
           return null;
         }
-        return `from datetime import timedelta\nfrom obstore import sign\n\nsigned_url = sign(\n    ${ctx.variableName}, "GET", "${ctx.entry.path}",\n    expires_in=timedelta(hours=1),\n)\nsigned_url`;
+        return `from datetime import timedelta\nfrom obstore import sign\n\nsigned_url = sign(\n    ${ctx.variableName}, "GET", "${path}",\n    expires_in=timedelta(hours=1),\n)\nsigned_url`;
       }
-      const filename = ctx.entry.path.split("/").pop() || "download";
-      return `${ctx.variableName}.get("${ctx.entry.path}", "${filename}")`;
+      const filename = escapeForPythonString(
+        ctx.entry.path.split("/").pop() || "download",
+      );
+      return `${ctx.variableName}.get("${path}", "${filename}")`;
     },
   },
 ];
