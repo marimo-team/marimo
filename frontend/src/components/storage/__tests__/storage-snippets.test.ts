@@ -94,6 +94,42 @@ describe("read-file snippet", () => {
       _data"
     `);
   });
+
+  it("escapes newlines and tabs in paths", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          entry: {
+            path: "data/file\nname\there.csv",
+            kind: "object",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toMatchInlineSnapshot(`
+      "_data = store.get("data/file\\nname\\there.csv").bytes()
+      _data"
+    `);
+  });
+
+  it("escapes control characters in paths", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          entry: {
+            path: "data/\u0000\u001F.csv",
+            kind: "object",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toMatchInlineSnapshot(`
+      "_data = store.get("data/\\u0000\\u001f.csv").bytes()
+      _data"
+    `);
+  });
 });
 
 describe("download-file snippet", () => {

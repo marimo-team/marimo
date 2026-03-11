@@ -24,7 +24,7 @@ export interface StorageSnippet {
 const NOT_SIGNABLE_PROTOCOLS = new Set(["http", "file", "in-memory"]);
 
 function escapeForPythonString(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  return JSON.stringify(value).slice(1, -1);
 }
 
 export const STORAGE_SNIPPETS: StorageSnippet[] = [
