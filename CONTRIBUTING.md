@@ -20,56 +20,26 @@ contribution._ Get in touch at
 or [on Discord](https://marimo.io/discord?ref=contributing).
 
 ## Setup
+
 _Note: We recommend that Windows developers use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and clone the marimo repository [into the WSL environment and not the Windows mount](https://learn.microsoft.com/en-us/windows/wsl/filesystems)._
 
-Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed.
+### Prerequisites
 
-> [!NOTE]
->
-> As an alternative to installing `pixi`, you can try developing in [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
-> Note that developing in Gitpod is not officially supported by the marimo team.
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python package manager)
+- [Node.js](https://nodejs.org/) 20+
+- [pnpm](https://pnpm.io/installation) 9+
+
+### Getting started
+
+```bash
+make fe && make py
+make dev
+```
+
+This will build the frontend, install Python dependencies in editable mode, and launch the dev server (backend on port 2718, frontend on port 3000).
 
 > [!TIP]
-> `pixi` installs and manages both the Python and Node toolchains, then drops you into a ready shell with one command. If you already have Node 20+/pnpm 9+/uv installed, you can skip pixi and use `uv sync` directly. Typical flows:
-> - `pixi shell` → `make fe && make py` → `make dev`
-> - `uv sync` → `make fe && make py` → `make dev`
-
-```bash
-pixi shell
-```
-
-If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply sync your `marimo` development
-environment with `uv sync`.
-
-Now you can install the environment frontend and Python dependencies.
-
-```bash
-make fe && make py
-```
-
-After doing this, you can instantiate your marimo development environment by running the following command.
-
-```bash
-make dev
-```
-
-This will launch two processes, the backend one in port 2718 and the front end one in port 3000.
-
-In summary you will need to run:
-
-```bash
-pixi shell
-make fe && make py
-make dev
-```
-
-or if not using `pixi`:
-
-```bash
-uv sync
-make fe && make py
-make dev
-```
+> On the marimo team we use `uv` + `node`/`pnpm` directly. Alternatively, [pixi](https://github.com/prefix-dev/pixi) can manage the Python and Node toolchains for you (`pixi shell` then proceed as above), and [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo) provides a cloud-based dev environment — but we don't officially support either of these and recommend the setup above.
 
 ### `pre-commit` hooks
 
@@ -77,12 +47,6 @@ You can optionally install [pre-commit](https://pre-commit.com/) hooks to automa
 
 ```bash
 uvx pre-commit install
-```
-
-or
-
-```bash
-pixi run pre-commit install
 ```
 
 To build the frontend unminified, run:
