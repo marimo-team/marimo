@@ -57,6 +57,221 @@ async def test_matplotlib_special_case(
         )
 
 
+async def test_matplotlib_boxplot_dict_special_case(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that boxplot dict (containing artist lists) formats as single figure."""
+    if DependencyManager.matplotlib.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    fig, ax = plt.subplots()
+                    boxplot_result = ax.boxplot([0])
+                    formatter = get_formatter(boxplot_result)
+                    """
+                )
+            ]
+        )
+
+        formatter = executing_kernel.globals["formatter"]
+        boxplot_result = executing_kernel.globals["boxplot_result"]
+        assert formatter is not None
+        mimetype, data = formatter(boxplot_result)
+        # Should be a single image, not JSON with multiple formatted artists
+        assert (
+            mimetype.startswith("image")
+            or mimetype == "application/vnd.marimo+mimebundle"
+        ), f"Expected image mimetype, got {mimetype}"
+
+
+async def test_matplotlib_violinplot_dict_special_case(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that violinplot dict (with artist values) formats as single figure."""
+    if DependencyManager.matplotlib.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    fig, ax = plt.subplots()
+                    violinplot_result = ax.violinplot([1, 2, 3])
+                    formatter = get_formatter(violinplot_result)
+                    """
+                )
+            ]
+        )
+
+        formatter = executing_kernel.globals["formatter"]
+        violinplot_result = executing_kernel.globals["violinplot_result"]
+        assert formatter is not None
+        mimetype, data = formatter(violinplot_result)
+        # Should be a single image, not JSON with multiple formatted artists
+        assert (
+            mimetype.startswith("image")
+            or mimetype == "application/vnd.marimo+mimebundle"
+        ), f"Expected image mimetype, got {mimetype}"
+
+
+async def test_matplotlib_mixed_artists_and_non_artists(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that structures with mixed artists and non-artists fall through to JSON."""
+    if DependencyManager.matplotlib.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    fig, ax = plt.subplots()
+                    line = ax.plot([1, 2, 3])[0]
+                    # Mixed list: one Artist and one non-Artist
+                    mixed_list = [line, "not an artist"]
+                    formatter_list = get_formatter(mixed_list)
+                    # Mixed dict: Artist list and non-Artist list
+                    mixed_dict = {"line": [line], "other": [1, 2, 3]}
+                    formatter_dict = get_formatter(mixed_dict)
+                    # Dict with non-list/tuple/Artist value (e.g., a string)
+                    dict_with_scalar = {"line": [line], "label": "my label"}
+                    formatter_scalar = get_formatter(dict_with_scalar)
+                    plt.close(fig)
+                    """
+                )
+            ]
+        )
+
+        # Test mixed list falls through to JSON formatting
+        formatter_list = executing_kernel.globals["formatter_list"]
+        mixed_list = executing_kernel.globals["mixed_list"]
+        assert formatter_list is not None
+        mimetype, _ = formatter_list(mixed_list)
+        assert mimetype == "application/json", (
+            f"Mixed list should fall through to JSON, got {mimetype}"
+        )
+
+        # Test mixed dict falls through to JSON formatting
+        formatter_dict = executing_kernel.globals["formatter_dict"]
+        mixed_dict = executing_kernel.globals["mixed_dict"]
+        assert formatter_dict is not None
+        mimetype, _ = formatter_dict(mixed_dict)
+        assert mimetype == "application/json", (
+            f"Mixed dict should fall through to JSON, got {mimetype}"
+        )
+
+        # Test dict with scalar value falls through to JSON formatting
+        formatter_scalar = executing_kernel.globals["formatter_scalar"]
+        dict_with_scalar = executing_kernel.globals["dict_with_scalar"]
+        assert formatter_scalar is not None
+        mimetype, _ = formatter_scalar(dict_with_scalar)
+        assert mimetype == "application/json", (
+            f"Dict with scalar value should fall through to JSON, got {mimetype}"
+        )
+
+
+async def test_matplotlib_dict_with_axes_and_string(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that a dict mixing Axes (Artist) and string falls through to JSON.
+
+    Regression test for the case shown in issue #6838 where:
+        plt.plot([1, 2])
+        l = {"key1": plt.gca(), "key2": "Hello, World!"}
+        l
+    Should NOT render as a matplotlib figure - should be JSON.
+    """
+    if DependencyManager.matplotlib.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    plt.plot([1, 2])
+                    result = {"key1": plt.gca(), "key2": "Hello, World!"}
+                    formatter = get_formatter(result)
+                    plt.close('all')
+                    """
+                )
+            ]
+        )
+
+        formatter = executing_kernel.globals["formatter"]
+        result = executing_kernel.globals["result"]
+        assert formatter is not None
+        mimetype, _ = formatter(result)
+        assert mimetype == "application/json", (
+            f"Dict with Axes and string should fall through to JSON, got {mimetype}"
+        )
+
+
+async def test_matplotlib_hist_special_case(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that hist() tuple output formats as single figure.
+
+    ax.hist() returns a tuple of (n, bins, patches) where patches is a
+    BarContainer (which is a tuple subclass of Rectangle artists).
+    The tuple itself contains non-Artist elements (n, bins arrays),
+    so it should fall through to JSON formatting.
+    """
+    if DependencyManager.matplotlib.has() and DependencyManager.numpy.has():
+        from marimo._output.formatters.formatters import register_formatters
+
+        register_formatters()
+
+        await executing_kernel.run(
+            [
+                exec_req.get(
+                    """
+                    import numpy as np
+                    import matplotlib.pyplot as plt
+                    from marimo._output.formatting import get_formatter
+
+                    fig, ax = plt.subplots()
+                    hist_result = ax.hist([1, 2, 2, 3, 3, 3])
+                    formatter = get_formatter(hist_result)
+                    plt.close(fig)
+                    """
+                )
+            ]
+        )
+
+        formatter = executing_kernel.globals["formatter"]
+        hist_result = executing_kernel.globals["hist_result"]
+        assert formatter is not None
+        mimetype, _ = formatter(hist_result)
+        # hist() returns (n, bins, patches) - n and bins are arrays,
+        # so this should fall through to JSON
+        assert mimetype == "application/json", (
+            f"hist() tuple should fall through to JSON, got {mimetype}"
+        )
+
+
 def test_format_structure_types() -> None:
     formatted = cast(
         list[Any], format_structure(["hello", True, False, None, 1, 1.0])
