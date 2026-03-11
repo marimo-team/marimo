@@ -1,13 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""App process entry point for per-app process isolation.
+"""App host entry point for per-app process isolation.
 
 Launched via subprocess.Popen as:
 
-    python -m marimo._session.managers.app_process_entry
+    python -m marimo._session.app_host.main
 
 Reads startup args (management channel ports, file path, log level) from
 stdin as JSON, then enters a loop processing management commands over ZeroMQ.
-Each app process manages kernel threads for a single notebook file, providing
+Each app host manages kernel threads for a single notebook file, providing
 OS-level isolation of sys.modules between different apps.
 
 Communication uses multiplexed ZeroMQ channels:
@@ -35,16 +35,16 @@ from marimo._messaging.thread_local_streams import install_thread_local_proxies
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
 from marimo._runtime.commands import StopKernelCommand
-from marimo._session.managers.app_process_commands import (
+from marimo._session.app_host.commands import (
     CHANNEL_COMPLETION,
     CHANNEL_CONTROL,
     CHANNEL_INPUT,
     CHANNEL_UI_ELEMENT,
-    AppProcessReadyResponse,
+    AppHostReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
     KernelExited,
-    ShutdownAppProcessCmd,
+    ShutdownAppHostCmd,
     StopKernelCmd,
     decode_command,
     encode_response,
@@ -53,7 +53,7 @@ from marimo._session.managers.app_process_commands import (
 LOGGER = _loggers.marimo_logger()
 
 
-class AppProcessArgs(msgspec.Struct):
+class AppHostArgs(msgspec.Struct):
     """Startup args sent from main process via stdin."""
 
     mgmt_addr: str  # ZMQ PULL address for receiving management commands
@@ -67,7 +67,7 @@ class AppProcessArgs(msgspec.Struct):
         return msgspec.json.encode(self)
 
     @classmethod
-    def decode_json(cls, buf: bytes) -> AppProcessArgs:
+    def decode_json(cls, buf: bytes) -> AppHostArgs:
         return msgspec.json.decode(buf, type=cls)
 
 
@@ -146,9 +146,7 @@ def _handle_command(
 
     info = kernels.get(session_id)
     if info is None:
-        LOGGER.debug(
-            "Dropping command for unknown session %s", session_id
-        )
+        LOGGER.debug("Dropping command for unknown session %s", session_id)
         return
 
     if channel == _CHANNEL_CONTROL:
@@ -257,10 +255,10 @@ def _handle_create_kernel(
         thread.start()
 
         kernels[cmd.session_id] = _KernelInfo(
-                thread=thread,
-                queues=queues,
-                session_id=cmd.session_id,
-            )
+            thread=thread,
+            queues=queues,
+            session_id=cmd.session_id,
+        )
 
         response_socket.send(
             encode_response(
@@ -282,8 +280,8 @@ def _handle_create_kernel(
         )
 
 
-def app_process_main(args: AppProcessArgs) -> None:
-    """App process main loop.
+def app_host_main(args: AppHostArgs) -> None:
+    """App host main loop.
 
     Connects to the management ZMQ sockets and data channels, then processes
     management commands to create/stop kernel threads. Kernel commands and
@@ -292,16 +290,16 @@ def app_process_main(args: AppProcessArgs) -> None:
     """
     import zmq
 
-    # Ignore SIGINT in app processes — the main process handles Ctrl-C
-    # and sends ShutdownAppProcessCmd via the management channel.
+    # Ignore SIGINT in app host processes — the main process handles Ctrl-C
+    # and sends ShutdownAppHostCmd via the management channel.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     _loggers.set_level(args.log_level)
     LOGGER.debug(
-        "App process started for %s (pid=%d)", args.file_path, os.getpid()
+        "App host started for %s (pid=%d)", args.file_path, os.getpid()
     )
 
-    # Register formatters once, shared by all kernel threads in this app process.
+    # Register formatters once, shared by all kernel threads in this app host.
     register_formatters()
 
     # Install thread-local stream proxies once at process startup,
@@ -325,7 +323,7 @@ def app_process_main(args: AppProcessArgs) -> None:
     stream_socket.connect(args.stream_addr)
 
     # Signal the parent that we're ready to accept commands.
-    response_socket.send(encode_response(AppProcessReadyResponse()))
+    response_socket.send(encode_response(AppHostReadyResponse()))
 
     kernels: dict[str, _KernelInfo] = {}
     stream_outbox: queue.Queue[typing.Any] = queue.Queue()
@@ -357,16 +355,14 @@ def app_process_main(args: AppProcessArgs) -> None:
                 )
             elif isinstance(cmd, StopKernelCmd):
                 _handle_stop_kernel(cmd, kernels)
-            elif isinstance(cmd, ShutdownAppProcessCmd):
-                LOGGER.debug(
-                    "App process shutting down for %s", args.file_path
-                )
+            elif isinstance(cmd, ShutdownAppHostCmd):
+                LOGGER.debug("App host shutting down for %s", args.file_path)
                 _shutdown_all_kernels(kernels)
                 stream_outbox.put(None)  # Stop collector thread
                 break
             else:
                 LOGGER.warning(
-                    "App process received unknown command: %s", type(cmd)
+                    "App host received unknown command: %s", type(cmd)
                 )
 
     mgmt_socket.close(linger=0)
@@ -395,8 +391,8 @@ def main() -> None:
             "Timed out reading startup args from parent process\n"
         )
         sys.exit(1)
-    args = AppProcessArgs.decode_json(result[0])
-    app_process_main(args)
+    args = AppHostArgs.decode_json(result[0])
+    app_host_main(args)
 
 
 if __name__ == "__main__":

@@ -1,58 +1,47 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""App process management for per-app process isolation.
+"""AppHost: wraps a subprocess for a single notebook file.
 
-AppProcess: wraps a subprocess.Popen for one notebook.
-AppProcessPool: manages app processes keyed by absolute file path.
-AppProcessQueueManager: queue manager for app process kernels.
-AppKernelManager: implements KernelManager protocol for app-process-backed kernels.
+Manages four ZeroMQ channels to the subprocess:
+- mgmt (PUSH): management commands (create/stop kernel, shutdown)
+- response (PULL): management responses
+- cmd (PUSH): kernel commands (control, UI, completion, input),
+    multiplexed by client session
+- stream (PULL): kernel output, multiplexed by session
 """
 
 from __future__ import annotations
 
-import os
 import pickle
-import queue
 import subprocess
 import sys
 import threading
-from collections.abc import Callable
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
-from marimo._runtime import commands
-from marimo._session.managers.app_process_commands import (
-    CHANNEL_COMPLETION,
-    CHANNEL_CONTROL,
-    CHANNEL_INPUT,
-    CHANNEL_UI_ELEMENT,
-    AppProcessReadyResponse,
+from marimo._session.app_host.commands import (
+    AppHostReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
     KernelExited,
-    ShutdownAppProcessCmd,
+    ShutdownAppHostCmd,
     StopKernelCmd,
     decode_response,
     encode_command,
 )
-from marimo._session.managers.app_process_entry import AppProcessArgs
-from marimo._session.model import SessionMode
-from marimo._session.queue import ProcessLike, QueueType
-from marimo._session.types import (
-    KernelManager,
-    QueueManager as QueueManagerProto,
-)
+from marimo._session.app_host.main import AppHostArgs
 
 if TYPE_CHECKING:
+    import queue
+    from collections.abc import Callable
+
     import zmq
 
     from marimo._ast.cell import CellConfig
     from marimo._config.config import MarimoConfig
-    from marimo._config.manager import MarimoConfigReader
     from marimo._runtime.commands import AppMetadata
     from marimo._types.ids import CellId_t
-    from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
@@ -60,8 +49,8 @@ _RESPONSE_TIMEOUT = 30_000  # milliseconds
 _BIND_ADDR = "tcp://127.0.0.1"
 
 
-class AppProcess:
-    """Wraps a subprocess.Popen for a single notebook file.
+class AppHost:
+    """Wraps a subprocess for a single notebook file.
 
     Manages four ZeroMQ channels to the subprocess:
     - mgmt (PUSH): management commands (create/stop kernel, shutdown)
@@ -120,7 +109,7 @@ class AppProcess:
         stream_port = stream_socket.bind_to_random_port(_BIND_ADDR)
         self._stream_socket = stream_socket
 
-        args = AppProcessArgs(
+        args = AppHostArgs(
             mgmt_addr=f"{_BIND_ADDR}:{mgmt_port}",
             response_addr=f"{_BIND_ADDR}:{response_port}",
             cmd_addr=f"{_BIND_ADDR}:{cmd_port}",
@@ -132,9 +121,9 @@ class AppProcess:
         cmd = [
             self._python,
             "-m",
-            "marimo._session.managers.app_process_entry",
+            "marimo._session.app_host.main",
         ]
-        LOGGER.debug("Launching app process: %s", " ".join(cmd))
+        LOGGER.debug("Launching app host: %s", " ".join(cmd))
 
         # stdin is piped to send startup args; stdout/stderr inherit the
         # parent's fds so subprocess output (logging, print) appears in
@@ -147,7 +136,7 @@ class AppProcess:
         # Send startup args via stdin
         proc_stdin = self._process.stdin
         if proc_stdin is None:
-            raise RuntimeError("Failed to open stdin for app process")
+            raise RuntimeError("Failed to open stdin for app host")
         proc_stdin.write(args.encode_json())
         proc_stdin.flush()
         proc_stdin.close()
@@ -156,12 +145,12 @@ class AppProcess:
         _READY_TIMEOUT_MS = 30_000  # milliseconds
         if not response_socket.poll(timeout=_READY_TIMEOUT_MS):
             raise RuntimeError(
-                f"App process timed out ({_READY_TIMEOUT_MS // 1000}s) "
+                f"App host timed out ({_READY_TIMEOUT_MS // 1000}s) "
                 f"for {self._file_path}"
             )
         data = response_socket.recv()
         ready_response = decode_response(data)
-        if not isinstance(ready_response, AppProcessReadyResponse):
+        if not isinstance(ready_response, AppHostReadyResponse):
             raise RuntimeError(
                 f"Unexpected response during startup: {type(ready_response)}"
             )
@@ -172,13 +161,13 @@ class AppProcess:
         stream_thread.start()
 
         LOGGER.debug(
-            "App process started for %s (pid=%s)",
+            "App host started for %s (pid=%s)",
             self._file_path,
             self._process.pid,
         )
 
     def _stream_receiver_loop(self) -> None:
-        """Read stream messages from app process and route to sessions."""
+        """Read stream messages from app host and route to sessions."""
         import zmq
 
         while True:
@@ -223,7 +212,7 @@ class AppProcess:
     def send_command(
         self, session_id: str, channel: str, payload: object
     ) -> None:
-        """Send a command to a kernel in the app process."""
+        """Send a command to a kernel in the app host."""
         if self._cmd_socket is not None:
             self._cmd_socket.send_multipart(
                 [
@@ -256,7 +245,7 @@ class AppProcess:
         log_level: int,
     ) -> KernelCreatedResponse:
         if self._mgmt_socket is None or self._response_socket is None:
-            raise RuntimeError("App process not started")
+            raise RuntimeError("App host not started")
 
         cmd = CreateKernelCmd(
             session_id=session_id,
@@ -290,7 +279,7 @@ class AppProcess:
             )
 
     def is_session_ids(self, session_id: str) -> bool:
-        """Check if a specific kernel thread is alive in this process."""
+        """Check if a specific kernel thread is alive in this host."""
         return (
             session_id in self._session_ids
             and self._process is not None
@@ -319,7 +308,7 @@ class AppProcess:
 
         if self._mgmt_socket is not None:
             try:
-                self._mgmt_socket.send(encode_command(ShutdownAppProcessCmd()))
+                self._mgmt_socket.send(encode_command(ShutdownAppHostCmd()))
             except zmq.ZMQError:
                 pass
 
@@ -345,8 +334,8 @@ class AppProcess:
             self._zmq_context.destroy(linger=0)
 
         # Null out sockets so that any stale references from
-        # AppProcessQueueManager / AppKernelManager instances that
-        # still point to this (now-dead) AppProcess will silently
+        # AppHostQueueManager / AppHostKernelManager instances that
+        # still point to this (now-dead) AppHost will silently
         # no-op instead of raising ZMQError on closed sockets.
         self._mgmt_socket = None
         self._response_socket = None
@@ -354,260 +343,4 @@ class AppProcess:
         self._stream_socket = None
         self._zmq_context = None
 
-        LOGGER.debug("App process shut down for %s", self._file_path)
-
-
-class AppProcessPool:
-    """Manages app processes keyed by absolute file path.
-
-    Each app is run in its own process to avoid collisions
-    in sys.modules and other Python global data structures.
-    """
-
-    def __init__(self) -> None:
-        self._workers: dict[str, AppProcess] = {}
-        self._lock = threading.Lock()
-
-    def _remove_and_shutdown(self, abs_path: str) -> None:
-        """Remove an app process from the pool and shut it down.
-
-        Called when the process has zero active kernels.
-        """
-        with self._lock:
-            worker = self._workers.pop(abs_path, None)
-        if worker is not None:
-            LOGGER.debug(
-                "Auto-shutting down app process for %s (no active kernels)",
-                abs_path,
-            )
-            worker.shutdown()
-
-    def get_or_create(self, file_path: str) -> AppProcess:
-        abs_path = os.path.abspath(file_path)
-        with self._lock:
-            worker = self._workers.get(abs_path)
-            if worker is not None and worker.is_alive():
-                return worker
-
-            # Dead process or no process — create a new one
-            if worker is not None:
-                LOGGER.warning(
-                    "App process for %s was dead, respawning", abs_path
-                )
-                worker.shutdown()
-
-            def _on_empty() -> None:
-                self._remove_and_shutdown(abs_path)
-
-            worker = AppProcess(abs_path, on_empty=_on_empty)
-            worker.start()
-            self._workers[abs_path] = worker
-            return worker
-
-    def shutdown(self) -> None:
-        with self._lock:
-            for worker in self._workers.values():
-                worker.shutdown()
-            self._workers.clear()
-
-
-_T = TypeVar("_T")
-
-
-class _AppProcessPushQueue(QueueType[_T]):
-    """Queue that sends commands over the multiplexed ZMQ channel.
-
-    Satisfies QueueType protocol for the main-process side. Only put()
-    is meaningful; get() raises NotImplementedError since this queue
-    is write-only from the main process perspective.
-    """
-
-    def __init__(
-        self, app_process: AppProcess, session_id: str, channel: str
-    ) -> None:
-        self._app_process = app_process
-        self._session_id = session_id
-        self._channel = channel
-
-    def put(
-        self,
-        item: _T,
-        /,
-        block: bool = True,
-        timeout: float | None = None,
-    ) -> None:
-        del block, timeout
-        self._app_process.send_command(self._session_id, self._channel, item)
-
-    def put_nowait(self, item: _T, /) -> None:
-        self.put(item)
-
-    def get(self, block: bool = True, timeout: float | None = None) -> _T:
-        raise NotImplementedError("AppProcessPushQueue is write-only")
-
-    def get_nowait(self) -> _T:
-        raise NotImplementedError("AppProcessPushQueue is write-only")
-
-    def empty(self) -> bool:
-        return True
-
-
-class AppProcessQueueManager(QueueManagerProto):
-    """QueueManager for multiplexed app process communication.
-
-    Commands are sent over a shared ZMQ channel (tagged with session_id
-    and channel type). Stream output arrives via a per-session queue
-    filled by the AppProcess stream receiver thread.
-    """
-
-    def __init__(self, app_process: AppProcess, session_id: str) -> None:
-        self._app_process = app_process
-        self._session_id = session_id
-
-        # Channel names must match _CHANNEL_* constants in app_process_entry.py
-        self.control_queue: QueueType[commands.CommandMessage] = (
-            _AppProcessPushQueue(app_process, session_id, CHANNEL_CONTROL)
-        )
-        self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
-            _AppProcessPushQueue(app_process, session_id, CHANNEL_UI_ELEMENT)
-        )
-        self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
-            _AppProcessPushQueue(app_process, session_id, CHANNEL_COMPLETION)
-        )
-        self.input_queue: QueueType[str] = _AppProcessPushQueue(
-            app_process, session_id, CHANNEL_INPUT
-        )
-        self.win32_interrupt_queue: None = None
-
-        self.stream_queue: queue.Queue[KernelMessage | None] = queue.Queue()
-        app_process.register_stream(session_id, self.stream_queue)
-
-    def put_control_request(self, request: commands.CommandMessage) -> None:
-        # Completions are on their own queue
-        if isinstance(request, commands.CodeCompletionCommand):
-            self.completion_queue.put(request)
-            return
-
-        self.control_queue.put(request)
-        # UI element updates and model commands are on both queues
-        # so they can be batched
-        if isinstance(
-            request,
-            (commands.UpdateUIElementCommand, commands.ModelCommand),
-        ):
-            self.set_ui_element_queue.put(request)
-
-    def put_input(self, text: str) -> None:
-        self.input_queue.put(text)
-
-    def close_queues(self) -> None:
-        self._app_process.unregister_stream(self._session_id)
-        self.stream_queue.put(None)  # Signal QueueDistributor to stop
-
-
-class _AppProcessLike(ProcessLike):
-    """Makes AppProcess satisfy ProcessLike for kernel_task."""
-
-    def __init__(self, app_process: AppProcess, session_id: str) -> None:
-        self._app_process = app_process
-        self._session_id = session_id
-
-    @property
-    def pid(self) -> int | None:
-        return self._app_process.pid
-
-    def is_alive(self) -> bool:
-        return self._app_process.is_session_ids(self._session_id)
-
-    def terminate(self) -> None:
-        # We can't forcibly terminate a kernel thread
-        pass
-
-    def join(self, timeout: float | None = None) -> None:
-        # We never join kernel threads, just let them get cleaned up
-        # on their own
-        pass 
-
-
-class AppKernelManager(KernelManager):
-    """Manages the kernel for a single client session inside an app.
-
-    Each kernel (client session) is served by a thread inside an app's
-    process.
-
-    Has a reference to an AppProcess object which starts kernel threads
-    and coordinates communication from the server to kernel threads
-    and back.
-    """
-
-    def __init__(
-        self,
-        *,
-        app_process: AppProcess,
-        session_id: str,
-        queue_manager: QueueManagerProto,
-        mode: SessionMode,
-        configs: dict[CellId_t, CellConfig],
-        app_metadata: AppMetadata,
-        config_manager: MarimoConfigReader,
-        redirect_console_to_browser: bool,
-    ) -> None:
-        self._app_process = app_process
-        self._session_id = session_id
-        self.queue_manager = queue_manager
-        self.mode = mode
-        self._configs = configs
-        self._app_metadata = app_metadata
-        self._config_manager = config_manager
-        self._redirect_console_to_browser = redirect_console_to_browser
-
-        self.kernel_task: ProcessLike | threading.Thread | None = None
-
-    def start_kernel(self) -> None:
-        response = self._app_process.create_kernel(
-            session_id=self._session_id,
-            configs=self._configs,
-            app_metadata=self._app_metadata,
-            user_config=self._config_manager.get_config(hide_secrets=False),
-            virtual_files_supported=True,
-            redirect_console_to_browser=self._redirect_console_to_browser,
-            log_level=GLOBAL_SETTINGS.LOG_LEVEL,
-        )
-
-        if not response.success:
-            raise RuntimeError(
-                f"Failed to create kernel in app process: {response.error}"
-            )
-
-        # The kernel thread is created in a separate process so we don't
-        # have access to it's underlying thread.
-        self.kernel_task = _AppProcessLike(self._app_process, self._session_id)
-
-    @property
-    def pid(self) -> int | None:
-        return self._app_process.pid
-
-    @property
-    def profile_path(self) -> str | None:
-        return None
-
-    def is_alive(self) -> bool:
-        return self._app_process.is_session_ids(self._session_id)
-
-    def interrupt_kernel(self) -> None:
-        # Run-mode threads can't be interrupted
-        pass
-
-    def close_kernel(self) -> None:
-        self.queue_manager.close_queues()
-        # StopKernelCmd on the mgmt channel both sends StopKernelCommand
-        # to the kernel's control queue and removes it from the kernel
-        # registry in the subprocess.
-        self._app_process.stop_kernel(self._session_id)
-
-    @property
-    def kernel_connection(self) -> TypedConnection[KernelMessage]:
-        # App process kernels use stream_queue, not kernel_connection
-        raise NotImplementedError(
-            "App process kernel uses stream_queue, not kernel_connection"
-        )
+        LOGGER.debug("App host shut down for %s", self._file_path)

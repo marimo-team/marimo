@@ -264,7 +264,7 @@ def start(
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
         sandbox_mode=sandbox_mode,
-        process_isolation=is_multi,
+        isolate_apps=is_multi,
     )
 
     log_level = "info" if development_mode else "error"

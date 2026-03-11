@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._server.models.models import InstantiateNotebookRequest
-    from marimo._session.managers.app_process import AppProcessPool
+    from marimo._session.app_host import AppHostPool
 
 LOGGER = _loggers.marimo_logger()
 
@@ -91,7 +91,7 @@ class SessionImpl(Session):
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
         sandbox_mode: SandboxMode | None = None,
-        app_process_pool: AppProcessPool | None = None,
+        app_host_pool: AppHostPool | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -127,23 +127,21 @@ class SessionImpl(Session):
                 virtual_files_supported=virtual_files_supported,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
-        elif app_process_pool is not None and mode == SessionMode.RUN:
-            from marimo._session.managers.app_process import (
-                AppKernelManager,
-                AppProcessQueueManager,
+        elif app_host_pool is not None and mode == SessionMode.RUN:
+            from marimo._session.managers.app_host import (
+                AppHostKernelManager,
+                AppHostQueueManager,
             )
 
             file_path = app_file_manager.path
             if file_path is None:
                 raise ValueError(
-                    "App process isolation requires a file-backed notebook"
+                    "App host isolation requires a file-backed notebook"
                 )
-            app_process = app_process_pool.get_or_create(file_path)
-            queue_manager = AppProcessQueueManager(
-                app_process, initialization_id
-            )
-            kernel_manager = AppKernelManager(
-                app_process=app_process,
+            app_host = app_host_pool.get_or_create(file_path)
+            queue_manager = AppHostQueueManager(app_host, initialization_id)
+            kernel_manager = AppHostKernelManager(
+                app_host=app_host,
                 session_id=initialization_id,
                 queue_manager=queue_manager,
                 mode=mode,

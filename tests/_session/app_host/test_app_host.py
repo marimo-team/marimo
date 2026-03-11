@@ -5,15 +5,15 @@ import pytest
 
 
 @pytest.mark.requires("zmq")
-class TestAppProcessCommands:
+class TestAppHostCommands:
     def test_commands_roundtrip_json(self) -> None:
         """All commands must survive JSON encode/decode."""
         from marimo._config.config import DEFAULT_CONFIG
         from marimo._runtime.commands import AppMetadata
-        from marimo._session.managers.app_process_commands import (
+        from marimo._session.app_host.commands import (
             CreateKernelCmd,
             KernelCreatedResponse,
-            ShutdownAppProcessCmd,
+            ShutdownAppHostCmd,
             StopKernelCmd,
             decode_command,
             decode_response,
@@ -40,7 +40,7 @@ class TestAppProcessCommands:
                 log_level=10,
             ),
             StopKernelCmd(session_id="s1"),
-            ShutdownAppProcessCmd(),
+            ShutdownAppHostCmd(),
         ]
 
         for cmd in commands:
@@ -63,32 +63,30 @@ class TestAppProcessCommands:
 
 
 @pytest.mark.requires("zmq")
-class TestAppProcessOnEmpty:
+class TestAppHostOnEmpty:
     def test_on_empty_fires_when_session_ids_becomes_empty(self) -> None:
         """on_empty callback fires when all sessions exit."""
-        import pickle
         import threading
 
-        from marimo._session.managers.app_process import AppProcess
-        from marimo._session.managers.app_process_commands import KernelExited
+        from marimo._session.app_host.host import AppHost
 
         fired = threading.Event()
 
         def on_empty() -> None:
             fired.set()
 
-        app_proc = AppProcess("/tmp/test_app.py", on_empty=on_empty)
+        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
         # Simulate a kernel being alive
-        app_proc._session_ids.add("s1")
+        app_host._session_ids.add("s1")
 
         # Simulate receiving a KernelExited message by calling
         # discard + the callback logic directly (avoids needing
         # a real subprocess with ZMQ sockets).
-        app_proc._session_ids.discard("s1")
-        assert len(app_proc._session_ids) == 0
+        app_host._session_ids.discard("s1")
+        assert len(app_host._session_ids) == 0
         # Replicate the callback logic from _stream_receiver_loop
-        callback = app_proc._on_empty
-        app_proc._on_empty = None
+        callback = app_host._on_empty
+        app_host._on_empty = None
         if callback is not None:
             threading.Thread(target=callback, daemon=True).start()
 
@@ -98,25 +96,25 @@ class TestAppProcessOnEmpty:
         """on_empty callback does NOT fire when kernels remain."""
         import threading
 
-        from marimo._session.managers.app_process import AppProcess
+        from marimo._session.app_host.host import AppHost
 
         fired = threading.Event()
 
         def on_empty() -> None:
             fired.set()
 
-        app_proc = AppProcess("/tmp/test_app.py", on_empty=on_empty)
-        app_proc._session_ids.add("s1")
-        app_proc._session_ids.add("s2")
+        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
+        app_host._session_ids.add("s1")
+        app_host._session_ids.add("s2")
 
         # Remove one — still one left
-        app_proc._session_ids.discard("s1")
-        assert len(app_proc._session_ids) == 1
+        app_host._session_ids.discard("s1")
+        assert len(app_host._session_ids) == 1
 
         # Replicate the callback logic
-        if not app_proc._session_ids:
-            callback = app_proc._on_empty
-            app_proc._on_empty = None
+        if not app_host._session_ids:
+            callback = app_host._on_empty
+            app_host._on_empty = None
             if callback is not None:
                 threading.Thread(target=callback, daemon=True).start()
 
@@ -128,7 +126,7 @@ class TestAppProcessOnEmpty:
         """on_empty callback fires at most once (double-fire prevention)."""
         import threading
 
-        from marimo._session.managers.app_process import AppProcess
+        from marimo._session.app_host.host import AppHost
 
         call_count = 0
         lock = threading.Lock()
@@ -140,16 +138,16 @@ class TestAppProcessOnEmpty:
                 call_count += 1
             done.set()
 
-        app_proc = AppProcess("/tmp/test_app.py", on_empty=on_empty)
-        app_proc._session_ids.add("s1")
-        app_proc._session_ids.add("s2")
+        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
+        app_host._session_ids.add("s1")
+        app_host._session_ids.add("s2")
 
         # Simulate both kernels exiting
         for sid in ["s1", "s2"]:
-            app_proc._session_ids.discard(sid)
-            if not app_proc._session_ids:
-                callback = app_proc._on_empty
-                app_proc._on_empty = None
+            app_host._session_ids.discard(sid)
+            if not app_host._session_ids:
+                callback = app_host._on_empty
+                app_host._on_empty = None
                 if callback is not None:
                     threading.Thread(target=callback, daemon=True).start()
 
@@ -163,12 +161,12 @@ class TestAppProcessOnEmpty:
 
 
 @pytest.mark.requires("zmq")
-class TestAppProcessPool:
+class TestAppHostPool:
     def test_create_and_reuse(self) -> None:
-        """Pool creates one process per file and reuses it."""
-        from marimo._session.managers.app_process import AppProcessPool
+        """Pool creates one host per file and reuses it."""
+        from marimo._session.app_host.pool import AppHostPool
 
-        pool = AppProcessPool()
+        pool = AppHostPool()
         try:
             w1 = pool.get_or_create("/tmp/test_app1.py")
             w2 = pool.get_or_create("/tmp/test_app1.py")
@@ -177,11 +175,11 @@ class TestAppProcessPool:
         finally:
             pool.shutdown()
 
-    def test_different_files_get_different_processes(self) -> None:
-        """Different files get different app processes."""
-        from marimo._session.managers.app_process import AppProcessPool
+    def test_different_files_get_different_hosts(self) -> None:
+        """Different files get different app hosts."""
+        from marimo._session.app_host.pool import AppHostPool
 
-        pool = AppProcessPool()
+        pool = AppHostPool()
         try:
             w1 = pool.get_or_create("/tmp/test_app1.py")
             w2 = pool.get_or_create("/tmp/test_app2.py")
@@ -192,10 +190,10 @@ class TestAppProcessPool:
             pool.shutdown()
 
     def test_shutdown_stops_all(self) -> None:
-        """Shutdown terminates all app processes."""
-        from marimo._session.managers.app_process import AppProcessPool
+        """Shutdown terminates all app hosts."""
+        from marimo._session.app_host.pool import AppHostPool
 
-        pool = AppProcessPool()
+        pool = AppHostPool()
         w1 = pool.get_or_create("/tmp/test_app1.py")
         w2 = pool.get_or_create("/tmp/test_app2.py")
 
@@ -206,35 +204,33 @@ class TestAppProcessPool:
 
 
 @pytest.mark.requires("zmq")
-class TestAppProcess:
+class TestAppHost:
     def test_start_and_shutdown(self) -> None:
-        """App process starts and shuts down cleanly."""
-        from marimo._session.managers.app_process import AppProcess
+        """App host starts and shuts down cleanly."""
+        from marimo._session.app_host.host import AppHost
 
-        app_proc = AppProcess("/tmp/test_app.py")
-        app_proc.start()
-        assert app_proc.is_alive()
-        assert app_proc.pid is not None
+        app_host = AppHost("/tmp/test_app.py")
+        app_host.start()
+        assert app_host.is_alive()
+        assert app_host.pid is not None
 
-        app_proc.shutdown()
-        assert not app_proc.is_alive()
+        app_host.shutdown()
+        assert not app_host.is_alive()
 
 
 @pytest.mark.requires("zmq")
-class TestAppProcessQueueManager:
+class TestAppHostQueueManager:
     def test_stream_queue_is_regular_queue(self) -> None:
-        """AppProcessQueueManager's stream_queue is a regular queue.Queue."""
+        """AppHostQueueManager's stream_queue is a regular queue.Queue."""
         import queue
 
-        from marimo._session.managers.app_process import (
-            AppProcess,
-            AppProcessQueueManager,
-        )
+        from marimo._session.app_host.host import AppHost
+        from marimo._session.managers.app_host import AppHostQueueManager
 
         # No need to start a real subprocess — register_stream and
         # unregister_stream only use the in-memory dict from __init__.
-        app_proc = AppProcess("/tmp/test_app.py")
-        qm = AppProcessQueueManager(app_proc, "s1")
+        app_host = AppHost("/tmp/test_app.py")
+        qm = AppHostQueueManager(app_host, "s1")
         assert isinstance(qm.stream_queue, queue.Queue)
         assert qm.win32_interrupt_queue is None
 
@@ -244,24 +240,24 @@ class TestAppProcessQueueManager:
 
 
 @pytest.mark.requires("zmq")
-class TestAppKernelManager:
+class TestAppHostKernelManager:
     def test_satisfies_kernel_manager_protocol(self) -> None:
-        """AppKernelManager has all required KernelManager attributes."""
+        """AppHostKernelManager has all required KernelManager attributes."""
         from unittest.mock import Mock
 
-        from marimo._session.managers.app_process import (
-            AppKernelManager,
-            AppProcess,
-            AppProcessQueueManager,
+        from marimo._session.app_host.host import AppHost
+        from marimo._session.managers.app_host import (
+            AppHostKernelManager,
+            AppHostQueueManager,
         )
         from marimo._session.model import SessionMode
 
-        # No need to start a real subprocess — an unstarted AppProcess
+        # No need to start a real subprocess — an unstarted AppHost
         # is sufficient to verify the protocol surface.
-        app_proc = AppProcess("/tmp/test.py")
-        qm = AppProcessQueueManager(app_proc, "s1")
-        mgr = AppKernelManager(
-            app_process=app_proc,
+        app_host = AppHost("/tmp/test.py")
+        qm = AppHostQueueManager(app_host, "s1")
+        mgr = AppHostKernelManager(
+            app_host=app_host,
             session_id="s1",
             queue_manager=qm,
             mode=SessionMode.RUN,

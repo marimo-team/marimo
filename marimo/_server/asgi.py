@@ -528,7 +528,7 @@ def create_asgi_app(
                 auth_token=auth_token,
                 redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
-                process_isolation=True,
+                isolate_apps=True,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(

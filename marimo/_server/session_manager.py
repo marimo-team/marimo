@@ -32,6 +32,7 @@ from marimo._server.resume_strategies import create_resume_strategy
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._session.app_host import AppHostPool
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.types import SessionExtension
@@ -52,7 +53,6 @@ from marimo._utils.file_watcher import FileWatcherManager
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Coroutine, Mapping
 
-    from marimo._session.managers.app_process import AppProcessPool
     from marimo._session.notebook import AppFileManager
 
 LOGGER = _loggers.marimo_logger()
@@ -84,7 +84,7 @@ class SessionManager:
         ttl_seconds: Optional[int],
         watch: bool = False,
         sandbox_mode: SandboxMode | None = None,
-        process_isolation: bool = False,
+        isolate_apps: bool = False,
     ) -> None:
         # Core configuration
         self.file_router = file_router
@@ -99,14 +99,12 @@ class SessionManager:
         self._config_manager = config_manager
         self.sandbox_mode = sandbox_mode
 
-        # When running multiple apps, each app runs in an isolated process,
-        # to avoid collisions in sys.modules and other Python global
-        # structures.
-        self._app_process_pool: AppProcessPool | None = None
-        if process_isolation and mode == SessionMode.RUN:
-            from marimo._session.managers.app_process import AppProcessPool
-
-            self._app_process_pool = AppProcessPool()
+        # When running multiple apps, each app runs in an isolated  host
+        # process, to avoid collisions in sys.modules and other Python global
+        # structures. These processes are managed by an AppHostPool.
+        self._app_host_pool: AppHostPool | None = None
+        if isolate_apps and mode == SessionMode.RUN:
+            self._app_host_pool = AppHostPool()
 
         self._repository = SessionRepository()
 
@@ -229,7 +227,7 @@ class SessionManager:
             auto_instantiate=auto_instantiate,
             extensions=extensions,
             sandbox_mode=self.sandbox_mode,
-            app_process_pool=self._app_process_pool,
+            app_host_pool=self._app_host_pool,
         )
 
         # Add to repository
@@ -401,8 +399,8 @@ class SessionManager:
         """Shutdown the session manager and stop all file watchers."""
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
-        if self._app_process_pool is not None:
-            self._app_process_pool.shutdown()
+        if self._app_host_pool is not None:
+            self._app_host_pool.shutdown()
         self.lsp_server.stop()
         self._watcher_manager.stop_all()
 

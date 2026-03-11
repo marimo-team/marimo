@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Commands for app process management channel.
+"""Commands for app host management channel.
 
 These structs are serialized as JSON and sent over ZeroMQ between the main
-process and app subprocesses.
+process and app host subprocesses.
 """
 
 from __future__ import annotations
@@ -18,18 +18,17 @@ from marimo._runtime.commands import AppMetadata
 from marimo._types.ids import CellId_t
 
 # Channel names for multiplexed command routing.
-# Shared between app_process.py (main process) and app_process_entry.py
-# (subprocess).
+# Shared between host.py (main process) and main.py (subprocess).
 CHANNEL_CONTROL = "control"
 CHANNEL_UI_ELEMENT = "ui_element"
 CHANNEL_COMPLETION = "completion"
 CHANNEL_INPUT = "input"
 
-# Commands (main -> app process)
+# Commands (main -> app host)
 
 
 class CreateKernelCmd(msgspec.Struct, tag=True):
-    """Request the app process to create a new kernel thread."""
+    """Request the app host to create a new kernel thread."""
 
     session_id: str
     configs: dict[CellId_t, CellConfig]
@@ -41,20 +40,20 @@ class CreateKernelCmd(msgspec.Struct, tag=True):
 
 
 class StopKernelCmd(msgspec.Struct, tag=True):
-    """Request the app process to stop a kernel thread."""
+    """Request the app host to stop a kernel thread."""
 
     session_id: str
 
 
-class ShutdownAppProcessCmd(msgspec.Struct, tag=True):
-    """Request the app process to shut down entirely."""
+class ShutdownAppHostCmd(msgspec.Struct, tag=True):
+    """Request the app host to shut down entirely."""
 
 
-# Responses (app process -> main)
+# Responses (app host -> main)
 
 
-class AppProcessReadyResponse(msgspec.Struct, tag=True):
-    """Signals that the app process has started and is ready."""
+class AppHostReadyResponse(msgspec.Struct, tag=True):
+    """Signals that the app host has started and is ready."""
 
 
 class KernelCreatedResponse(msgspec.Struct, tag=True):
@@ -72,10 +71,8 @@ class KernelExited:
 
 
 # Union types for tagged deserialization
-MgmtCommand = typing.Union[
-    CreateKernelCmd, StopKernelCmd, ShutdownAppProcessCmd
-]
-MgmtResponse = typing.Union[AppProcessReadyResponse, KernelCreatedResponse]
+MgmtCommand = typing.Union[CreateKernelCmd, StopKernelCmd, ShutdownAppHostCmd]
+MgmtResponse = typing.Union[AppHostReadyResponse, KernelCreatedResponse]
 
 _cmd_encoder = msgspec.json.Encoder()
 _cmd_decoder = msgspec.json.Decoder(MgmtCommand)
