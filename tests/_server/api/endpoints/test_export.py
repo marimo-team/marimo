@@ -18,8 +18,8 @@ from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
-from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
+    get_session_manager,
     token_header,
     with_read_session,
     with_session,
