@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._messaging.notification import (
-    MissingPackageAlertNotification,
-    UpdateCellIdsNotification,
-)
+from marimo._cli.sandbox import SandboxMode
+from marimo._messaging.notification import UpdateCellIdsNotification
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import dispatch_control_request, parse_request
+from marimo._server.api.utils import (
+    dispatch_control_request,
+    notify_server_missing_packages,
+    parse_request,
+)
 from marimo._server.models.models import (
     BaseResponse,
     CodeCompletionRequest,
@@ -136,28 +138,29 @@ async def format_cell(request: Request) -> FormatResponse:
                     schema:
                         $ref: "#/components/schemas/FormatResponse"
     """
+    app_state = AppState(request)
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
 
     try:
-        return FormatResponse(codes=await formatter.format(body.codes))
-    except ModuleNotFoundError:
-        from marimo._runtime.packages.utils import can_server_auto_install
-        from marimo._session.utils import send_message_to_consumer
-
-        app_state = AppState(request)
-        session_id = app_state.get_current_session_id()
-        session = app_state.get_current_session()
-        if session_id is not None and session is not None:
-            send_message_to_consumer(
-                session=session,
-                operation=MissingPackageAlertNotification(
-                    packages=["ruff"],
-                    isolated=can_server_auto_install(),
-                    source="server",
-                ),
-                consumer_id=ConsumerId(session_id),
+        return FormatResponse(
+            codes=await formatter.format(
+                body.codes,
+                stdin_filename=app_state.require_current_session().app_file_manager.path,
             )
+        )
+    except ModuleNotFoundError:
+        # Installation occurs in the kernel which is not useful for multi mode.
+        if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
+            # Re-raise without name so error handler won't send install notification
+            raise ModuleNotFoundError(
+                "Server does not have a formatter. Please install ruff"
+            ) from None
+        notify_server_missing_packages(
+            app_state.get_current_session(),
+            app_state.get_current_session_id(),
+            ["ruff"],
+        )
         # Re-raise without name so the error handler returns 500 without
         # sending a second notification.
         raise ModuleNotFoundError(
@@ -263,8 +266,4 @@ async def install_missing_packages(request: Request) -> BaseResponse:
         return SuccessResponse()
 
     # Default ("kernel"): dispatch to kernel via ZeroMQ control queue.
-    app_state.require_current_session().put_control_request(
-        cmd,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-    return SuccessResponse()
+    return await dispatch_control_request(request, cmd)

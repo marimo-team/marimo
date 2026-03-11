@@ -207,6 +207,8 @@ test-optional = [
     "pyzmq>=27.1.0",
     # weave tracing integration
     "weave>=0.51.0",
+    # For type-checking tests
+    "basedpyright>=1.28.0",
 ]
 
 
@@ -323,6 +325,7 @@ dependencies = [
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
+    "lzstring>=1.0.4",
 ]
 
 [tool.uv.sources]

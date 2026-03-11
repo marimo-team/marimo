@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.0.0"
 app = marimo.App(width="medium", auto_download=["html"], sql_output="native")
 
 with app.setup:
@@ -36,6 +36,7 @@ def imports():
     """Named cell with imports."""
     import pandas as pd
     import numpy as np
+
     return np, pd
 
 
