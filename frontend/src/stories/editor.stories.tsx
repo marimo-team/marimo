@@ -67,6 +67,7 @@ export const Primary: Story = {
             activate_on_typing: false,
             copilot: false,
             signature_hint_on_typing: false,
+            disable_autocompletion_on_enter: false,
           },
           theme: ctx.globals.theme,
           hotkeys: new OverridingHotkeyProvider({}),
@@ -87,6 +88,7 @@ export const DefaultPython: Story = {
             signature_hint_on_typing: false,
             copilot: false,
             codeium_api_key: null,
+            disable_autocompletion_on_enter: false,
           }),
         ]}
       />

@@ -47,6 +47,7 @@ class CompletionConfig(TypedDict):
     activate_on_typing: bool
     signature_hint_on_typing: bool
     copilot: Union[bool, Literal["github", "codeium", "custom"]]
+    disable_autocompletion_on_enter: bool
 
     # Codeium
     codeium_api_key: NotRequired[Optional[str]]
@@ -673,6 +674,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "activate_on_typing": True,
         "signature_hint_on_typing": False,
         "copilot": False,
+        "disable_autocompletion_on_enter": False,
     },
     "display": {
         "theme": "light",

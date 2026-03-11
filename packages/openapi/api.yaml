@@ -737,7 +737,8 @@ components:
         \ the completion hotkey is entered\n    - `signature_hint_on_typing`: if `False`,\
         \ signature hint won't be shown when typing\n    - `copilot`: one of `\"github\"\
         `, `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
-        \ key"
+        \ key\n    - `disable_autocompletion_on_enter`: if `True`, disables\
+        \ autocompletion when pressing Enter in the editor."
       properties:
         activate_on_typing:
           type: boolean
@@ -766,10 +767,13 @@ components:
           - type: 'null'
         signature_hint_on_typing:
           type: boolean
+        disable_autocompletion_on_enter:
+          type: boolean
       required:
       - activate_on_typing
       - copilot
       - signature_hint_on_typing
+      - disable_autocompletion_on_enter
       title: CompletionConfig
       type: object
     CompletionOption:
@@ -6570,4 +6574,3 @@ paths:
       summary: Submit login form
       tags:
       - auth
-

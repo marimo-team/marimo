@@ -521,7 +521,7 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       When unchecked, code completion is still available through
-                      a hotkey.
+                      a hotkeys.
                     </FormDescription>
 
                     <div>
@@ -538,6 +538,41 @@ export const UserConfigForm: React.FC = () => {
                         Edit AI autocomplete
                       </Button>
                     </div>
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="completion.disable_autocompletion_on_enter"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Disable Autocompletion on Enter
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="disable-autocompletion-enter-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.disable_autocompletion_on_enter"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      When checked pressing Enter will insert a new line instead
+                      of accepting an autocomplete suggestion. You can still use
+                      Tab to accept suggestions.
+                    </FormDescription>
+
+                    <div />
                   </div>
                 )}
               />

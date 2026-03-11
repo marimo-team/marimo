@@ -23,6 +23,22 @@ def test_configure_partial_keymap() -> None:
     )
 
 
+def test_configure_disable_autocompletion_on_enter() -> None:
+    """Test that disable_autocompletion_on_enter is properly merged in config."""
+    config = merge_default_config(
+        PartialMarimoConfig(
+            completion={"disable_autocompletion_on_enter": True},
+        )
+    )
+    assert config["completion"]["disable_autocompletion_on_enter"] is True
+
+    config_default = merge_default_config(PartialMarimoConfig())
+    assert (
+        config_default["completion"]["disable_autocompletion_on_enter"]
+        is False
+    )
+
+
 def test_configure_full() -> None:
     assert_config(
         PartialMarimoConfig(
@@ -30,6 +46,7 @@ def test_configure_full() -> None:
                 "activate_on_typing": False,
                 "copilot": False,
                 "signature_hint_on_typing": False,
+                "disable_autocompletion_on_enter": False,
             },
             save={
                 "autosave": "after_delay",
