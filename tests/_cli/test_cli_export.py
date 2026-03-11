@@ -746,6 +746,10 @@ class TestExportIpynb:
         not DependencyManager.nbformat.has(),
         reason="This test requires nbformat.",
     )
+    @pytest.mark.skipif(
+        sys.platform == "darwin",
+        reason="Plotly template varies across versions; snapshot is linux-only.",
+    )
     def test_export_ipynb_with_media_outputs(
         self, temp_marimo_file_with_media: str
     ) -> None:
