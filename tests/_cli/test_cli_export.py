@@ -38,6 +38,24 @@ if TYPE_CHECKING:
 HAS_UV = DependencyManager.which("uv")
 snapshot = snapshotter(__file__)
 
+# The in-process CliRunner resolves marimo from the source tree, which may
+# not contain _static/index.html (only present after `make fe`).  Ensure a
+# minimal index.html exists so HTML-export tests don't crash with
+# FileNotFoundError.
+_STATIC_INDEX = (
+    Path(__file__).resolve().parents[2] / "marimo" / "_static" / "index.html"
+)
+if not _STATIC_INDEX.exists():
+    _STATIC_INDEX.parent.mkdir(parents=True, exist_ok=True)
+    _test_index = (
+        Path(__file__).resolve().parents[1]
+        / "_server"
+        / "templates"
+        / "data"
+        / "index.html"
+    )
+    shutil.copy(_test_index, _STATIC_INDEX)
+
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
