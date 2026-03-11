@@ -12,24 +12,28 @@ def _():
 
 
 @app.cell
+def _():
+    x = 1
+    return (x,)
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    # Hello, World!
+    # This cell is hidden
     """)
     return
 
 
-@app.cell
-def _():
-    x = 1
-    y = 2
-    z = x + y
-    return (z,)
+@app.cell(disabled=True)
+def _(x):
+    y = x + 1
+    return (y,)
 
 
 @app.cell
-def _(z):
-    print(z)
+def _(y):
+    print(y)
     return
 
 
