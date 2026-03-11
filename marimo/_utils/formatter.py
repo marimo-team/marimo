@@ -158,7 +158,7 @@ class BlackFormatter(Formatter):
         del stdin_filename
         DependencyManager.black.require("to enable code formatting")
 
-        import black
+        import black  # type: ignore[import-not-found]
 
         formatted_codes: CellCodes = {}
         for key, code in codes.items():
