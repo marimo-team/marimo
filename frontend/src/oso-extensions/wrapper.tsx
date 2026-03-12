@@ -89,6 +89,17 @@ export const OSOWrapper: React.FC<PropsWithChildren> = ({ children }) => {
     }
   }, [aiGenerateOpened]);
 
+  // Read theme from fragment params and apply it
+  useEffect(() => {
+    const theme = fragmentStore.getString("theme");
+    if (theme === "dark" || theme === "light") {
+      store.set(userConfigAtom, (prev) => ({
+        ...prev,
+        display: { ...prev.display, theme },
+      }));
+    }
+  }, [fragmentStore]);
+
   // Setup the bridge and inject environment variables
   useEffect(() => {
     const setupBridge = async () => {
