@@ -6021,17 +6021,23 @@ export interface components {
     };
     /**
      * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode).
+     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
      *
      *         Attributes:
      *             cell_ids: Cells to update.
      *             codes: New code for each cell.
      *             code_is_stale: If True, code was not executed on backend (output may not match).
+     *             names: Cell names for each cell (optional, for file reload).
+     *             configs: Cell configs for each cell (optional, for file reload).
      */
     UpdateCellCodesNotification: {
       cell_ids: string[];
       code_is_stale: boolean;
       codes: string[];
+      /** @default [] */
+      configs?: components["schemas"]["CellConfig"][];
+      /** @default [] */
+      names?: string[];
       /** @enum {unknown} */
       op: "update-cell-codes";
     };

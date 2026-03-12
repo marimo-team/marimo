@@ -215,13 +215,13 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
-def _pretty_print_host(host: str, port: int) -> str:
+def _pretty_host(host: str, port: int) -> str:
     """Replace loopback addresses with 'localhost' for display.
 
     Uses ipaddress for a reliable cross-platform loopback check (covers
     127.0.0.1, ::1, and the full 127.0.0.0/8 range).  Falls back to
     socket.getnameinfo only for non-IP hosts.  getnameinfo is skipped for
-    raw IP addresses because it can hang on Windows for link-local IPv6.
+    raw IP addresses because it can hang on Windows/CI for link-local IPv6.
     """
     try:
         if ipaddress.ip_address(host).is_loopback:
@@ -247,12 +247,12 @@ def _startup_url(state: AppStateBase) -> str:
 
     # Strip IPv6 zone ID (e.g. fe80::1%eth0 -> fe80::1); zone IDs are
     # interface-specific and not valid in URLs.
-    # Must happen before getnameinfo — zone IDs can cause it to hang
-    # on Windows.
+    # Must happen before _pretty_host — zone IDs can cause getnameinfo
+    # to hang on Windows/CI.
     host = host.split("%")[0]
 
     # pretty printing: show "localhost" for loopback addresses
-    host = _pretty_print_host(host, port)
+    host = _pretty_host(host, port)
 
     url_host_bare = host
     # IPv6 addresses must be wrapped in brackets in URLs (RFC 3986)
@@ -277,7 +277,7 @@ def _mcp_startup_url(state: AppStateBase) -> str:
 
     # Strip zone ID, then pretty-print loopback (same logic as _startup_url)
     host = host.split("%")[0]
-    host = _pretty_print_host(host, port)
+    host = _pretty_host(host, port)
 
     url_host_bare = host
     url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare

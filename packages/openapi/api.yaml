@@ -4670,10 +4670,12 @@ components:
       title: UnknownError
       type: object
     UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode).\n\n    Attributes:\n\
-        \        cell_ids: Cells to update.\n        codes: New code for each cell.\n\
-        \        code_is_stale: If True, code was not executed on backend (output\
-        \ may not match)."
+      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
+        \n    Attributes:\n        cell_ids: Cells to update.\n        codes: New\
+        \ code for each cell.\n        code_is_stale: If True, code was not executed\
+        \ on backend (output may not match).\n        names: Cell names for each cell\
+        \ (optional, for file reload).\n        configs: Cell configs for each cell\
+        \ (optional, for file reload)."
       properties:
         cell_ids:
           items:
@@ -4682,6 +4684,16 @@ components:
         code_is_stale:
           type: boolean
         codes:
+          items:
+            type: string
+          type: array
+        configs:
+          default: []
+          items:
+            $ref: '#/components/schemas/CellConfig'
+          type: array
+        names:
+          default: []
           items:
             type: string
           type: array

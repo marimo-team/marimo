@@ -29,16 +29,20 @@ def serialize(tree: DependencyTreeNode) -> str:
 
 def uv(cmd: list[str], cwd: str | None = None) -> str:
     assert UV_BIN, "Must have uv installed to use."
+    env = {
+        **os.environ,
+        "UV_PYTHON": "3.13",
+        "UV_EXCLUDE_NEWER": "2025-06-19T00:00:00-02:00",
+        # Override CI's lowest-direct resolution which can cause uv add to fail
+        "UV_RESOLUTION": "highest",
+    }
     result = subprocess.run(
         [UV_BIN] + cmd,
         check=True,
         capture_output=True,
         text=True,
         cwd=cwd,
-        env={
-            "UV_PYTHON": "3.13",
-            "UV_EXCLUDE_NEWER": "2025-06-19T00:00:00-02:00",
-        },
+        env=env,
     )
     return result.stdout
 
