@@ -10,13 +10,15 @@ Tip: check this module's imports for where types live.
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 from uuid import uuid4
 
 from marimo._ast.cell import CellConfig
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 @dataclass(frozen=True)

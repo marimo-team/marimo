@@ -10,9 +10,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any
-
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -98,6 +97,58 @@ class _PlanEntry:
     draft: bool = False
 
 
+def _build_plan(
+    existing_cell_ids: Sequence[CellId_t],
+    edits: Sequence[Edit],
+) -> list[_PlanEntry]:
+    """Reduce a sequence of edits into a flat plan.
+
+    Pure function — no graph or kernel access. The returned plan
+    describes the target cell list after all edits are applied.
+    """
+    plan: list[_PlanEntry] = [
+        _PlanEntry(cell_id=cid) for cid in existing_cell_ids
+    ]
+
+    for edit in edits:
+        if isinstance(edit, _InsertCells):
+            for offset, cell_data in enumerate(edit.cells):
+                if cell_data.code is None:
+                    raise ValueError("code is required when inserting a cell")
+                idx = min(edit.index + offset, len(plan))
+                plan.insert(
+                    idx,
+                    _PlanEntry(
+                        cell_id=cell_data.cell_id,
+                        code=cell_data.code,
+                        config=cell_data.config,
+                        draft=cell_data.draft,
+                    ),
+                )
+
+        elif isinstance(edit, _DeleteCells):
+            del plan[edit.start : edit.end]
+
+        elif isinstance(edit, _ReplaceCells):
+            for offset, cell_data in enumerate(edit.cells):
+                target_idx = edit.index + offset
+                if target_idx >= len(plan):
+                    raise IndexError(
+                        f"Index {target_idx} out of range "
+                        f"(plan has {len(plan)} cells)"
+                    )
+                entry = plan[target_idx]
+                entry.code = cell_data.code  # None = keep existing
+                if cell_data.config is not None:
+                    entry.config = cell_data.config
+                entry.draft = cell_data.draft
+
+        else:
+            raise TypeError(f"Unknown edit type: {type(edit)!r}")
+
+    return plan
+
+
 class AsyncCodeModeContext:
     """Async programmatic control of a running marimo notebook.
 
@@ -146,64 +197,24 @@ class AsyncCodeModeContext:
         if not isinstance(edits, Sequence):
             edits = [edits]
 
-        # -- Phase 1: reduce edits to a plan against a virtual cell list --
-        # None code means "keep existing".
-        plan: list[_PlanEntry] = [
-            _PlanEntry(cell_id=cid) for cid in self.graph.cells
-        ]
-
-        for edit in edits:
-            if isinstance(edit, _InsertCells):
-                for offset, cell_data in enumerate(edit.cells):
-                    if cell_data.code is None:
-                        raise ValueError(
-                            "code is required when inserting a cell"
-                        )
-                    idx = min(edit.index + offset, len(plan))
-                    plan.insert(
-                        idx,
-                        _PlanEntry(
-                            cell_id=cell_data.cell_id,
-                            code=cell_data.code,
-                            config=cell_data.config,
-                            draft=cell_data.draft,
-                        ),
-                    )
-
-            elif isinstance(edit, _DeleteCells):
-                del plan[edit.start : edit.end]
-
-            elif isinstance(edit, _ReplaceCells):
-                for offset, cell_data in enumerate(edit.cells):
-                    target_idx = edit.index + offset
-                    if target_idx >= len(plan):
-                        raise IndexError(
-                            f"Index {target_idx} out of range "
-                            f"(plan has {len(plan)} cells)"
-                        )
-                    entry = plan[target_idx]
-                    entry.code = cell_data.code  # None = keep existing
-                    if cell_data.config is not None:
-                        entry.config = cell_data.config
-                    entry.draft = cell_data.draft
-
-            else:
-                raise TypeError(f"Unknown edit type: {type(edit)!r}")
+        # -- Phase 1: reduce edits to a plan --
+        existing_ids = list(self.graph.cells.keys())
+        plan = _build_plan(existing_ids, edits)
 
         # -- Phase 1.5: auto-format new/changed code --
         plan = await self._format_plan(plan)
 
         # -- Phase 2: reconcile plan against the graph --
 
-        existing_ids = set(self.graph.cells.keys())
+        existing_id_set = set(self.graph.cells.keys())
         # Snapshot existing code so we can detect true changes vs moves
         existing_code = {
-            cid: self.graph.cells[cid].code for cid in existing_ids
+            cid: self.graph.cells[cid].code for cid in existing_id_set
         }
         plan_ids = {e.cell_id for e in plan}
 
         # Delete cells that are in the graph but not in the plan
-        for cid in existing_ids - plan_ids:
+        for cid in existing_id_set - plan_ids:
             self.graph.delete_cell(cid)
             self._kernel.cell_metadata.pop(cid, None)
 
@@ -212,7 +223,7 @@ class AsyncCodeModeContext:
         code_notifications: list[_PlanEntry] = []
 
         for entry in plan:
-            is_new = entry.cell_id not in existing_ids
+            is_new = entry.cell_id not in existing_id_set
             code_changed = (
                 entry.code is not None
                 and entry.code != existing_code.get(entry.cell_id)
@@ -339,14 +350,26 @@ class AsyncCodeModeContext:
 
         See ``marimo._runtime.commands`` for available types.
         """
-        await self._kernel.handle_message(command)
+        try:
+            await self._kernel.handle_message(command)
+        except Exception:
+            self.LOGGER.exception(
+                "Failed to execute command: %s",
+                type(command).__name__,
+            )
 
     def enqueue_command(self, command: CommandMessage) -> None:
         """Fire-and-forget: runs after the current cell finishes.
 
         See ``marimo._runtime.commands`` for available types.
         """
-        self._kernel.enqueue_control_request(command)
+        try:
+            self._kernel.enqueue_control_request(command)
+        except Exception:
+            self.LOGGER.exception(
+                "Failed to enqueue command: %s",
+                type(command).__name__,
+            )
 
     def notify(self, notification: Notification) -> None:
         """Send a notification to the frontend.
