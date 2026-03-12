@@ -45,6 +45,7 @@ def _make_tool_with_graph(
     cycles: set | None = None,
     ancestors_map: dict[str, set[str]] | None = None,
     descendants_map: dict[str, set[str]] | None = None,
+    variable_values: dict | None = None,
 ) -> GetCellDependencyGraph:
     graph = Mock()
     graph.cells = {CellId_t(k): v for k, v in cell_impls.items()}
@@ -85,6 +86,7 @@ def _make_tool_with_graph(
 
     mock_session = Mock()
     mock_session.app_file_manager.app = mock_app
+    mock_session.session_view.variable_values = variable_values or {}
 
     context = Mock(spec=ToolContext)
     context.get_session.return_value = mock_session
@@ -344,3 +346,42 @@ def test_empty_graph():
     assert result.variable_owners == {}
     assert result.multiply_defined == []
     assert result.cycles == []
+
+
+def test_variable_datatype_from_runtime():
+    """datatype should be populated from session_view.variable_values."""
+    from marimo._messaging.notification import VariableValue
+
+    tool = _make_tool_with_graph(
+        cell_impls={"c1": _make_cell_impl(defs={"df", "n"}, refs=set())},
+        parents={"c1": set()},
+        children={"c1": set()},
+        definitions={"df": {"c1"}, "n": {"c1"}},
+        cell_data_list=[_make_cell_data("c1")],
+        variable_values={
+            "df": VariableValue(name="df", value=None, datatype="DataFrame"),
+            "n": VariableValue(name="n", value="42", datatype="int"),
+        },
+    )
+    result = tool.handle(
+        GetCellDependencyGraphArgs(session_id=SessionId("s1"))
+    )
+    defs = {vi.name: vi for vi in result.cells[0].defs}
+    assert defs["df"].datatype == "DataFrame"
+    assert defs["n"].datatype == "int"
+
+
+def test_variable_datatype_none_when_not_executed():
+    """datatype is None when variable has no runtime value."""
+    tool = _make_tool_with_graph(
+        cell_impls={"c1": _make_cell_impl(defs={"x"}, refs=set())},
+        parents={"c1": set()},
+        children={"c1": set()},
+        definitions={"x": {"c1"}},
+        cell_data_list=[_make_cell_data("c1")],
+        variable_values={},  # nothing executed
+    )
+    result = tool.handle(
+        GetCellDependencyGraphArgs(session_id=SessionId("s1"))
+    )
+    assert result.cells[0].defs[0].datatype is None
