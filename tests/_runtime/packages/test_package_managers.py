@@ -335,11 +335,11 @@ async def test_uv_pip_install() -> None:
     with (
         patch(
             "marimo._runtime.packages.pypi_package_manager.UvPackageManager.is_in_uv_project",
-            new=property(lambda self: False),
+            new=property(lambda _: False),
         ),
         patch(
             "marimo._runtime.packages.pypi_package_manager.UvPackageManager._uv_bin",
-            new=property(lambda self: "uv"),
+            new=property(lambda _: "uv"),
         ),
         patch("marimo._utils.subprocess.subprocess.Popen") as mock_popen,
         patch("sys.stdout.buffer.write"),
