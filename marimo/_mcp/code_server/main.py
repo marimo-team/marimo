@@ -8,7 +8,6 @@ in a running marimo kernel via the scratchpad.
 
 from __future__ import annotations
 
-import asyncio
 import os
 from typing import TYPE_CHECKING
 
@@ -126,35 +125,20 @@ def setup_code_mcp_server(
                 "Use list_sessions to find valid session IDs.",
             )
 
-        # Create a fresh listener per execution to avoid cross-session signaling
         listener = ScratchCellListener()
         with session.scoped(listener):
             async with session.scratchpad_lock:
-                try:
-                    # Set up event before sending command
-                    done = listener.wait_for(session_id)
+                session.put_control_request(
+                    ExecuteScratchpadCommand(code=code),
+                    from_consumer_id=None,
+                )
+                await listener.wait(timeout=EXECUTION_TIMEOUT)
 
-                    # Send the scratchpad execution command
-                    session.put_control_request(
-                        ExecuteScratchpadCommand(code=code),
-                        from_consumer_id=None,
-                    )
-
-                    # Wait for the scratch cell to become idle
-                    await asyncio.wait_for(
-                        done.wait(), timeout=EXECUTION_TIMEOUT
-                    )
-
-                    # FIXME: stdout/stderr are flushed every 10ms by the
-                    # buffered writer thread. Wait 50ms so trailing console
-                    # output arrives before we read cell_notifications.
-                    # See: marimo-team/marimo-lsp ExecutionRegistry.ts
-                    await asyncio.sleep(0.05)
-                except asyncio.TimeoutError:
-                    return CodeExecutionResult(
-                        success=False,
-                        error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
-                    )
+            if listener.timed_out:
+                return CodeExecutionResult(
+                    success=False,
+                    error=f"Execution timed out after {EXECUTION_TIMEOUT}s",
+                )
 
             return extract_result(session)
 

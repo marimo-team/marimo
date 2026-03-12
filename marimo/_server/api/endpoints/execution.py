@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from starlette.authentication import requires
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
 from marimo._messaging.notification import AlertNotification
@@ -34,6 +34,8 @@ from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
@@ -239,12 +241,12 @@ async def run_cell(
     return SuccessResponse()
 
 
-@router.post("/scratchpad/execute", include_in_schema=False)
+@router.post("/execute", include_in_schema=False)
 @requires("edit")
-async def execute_scratchpad(
+async def execute_code(
     *,
     request: Request,
-) -> JSONResponse:
+) -> StreamingResponse:
     """
     requestBody:
         content:
@@ -253,51 +255,44 @@ async def execute_scratchpad(
                     $ref: "#/components/schemas/ExecuteScratchpadRequest"
     responses:
         200:
-            description: Synchronously execute code in the scratchpad and return the result.
+            description: Execute code in the kernel, streaming results as SSE.
             content:
-                application/json:
+                text/event-stream:
                     schema:
-                        type: object
+                        type: string
     """  # noqa: E501
-    from dataclasses import asdict
-
     from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.scratchpad import (
         EXECUTION_TIMEOUT,
         ScratchCellListener,
-        extract_result,
+        build_done_event,
+        build_timeout_event,
     )
 
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
     session = app_state.require_current_session()
-    session_id = app_state.require_current_session_id()
 
-    listener = ScratchCellListener()
-    with session.scoped(listener):
-        async with session.scratchpad_lock:
-            try:
-                done = listener.wait_for(session_id)
+    async def sse_generator() -> AsyncGenerator[str, None]:
+        listener = ScratchCellListener()
+        with session.scoped(listener):
+            async with session.scratchpad_lock:
                 session.put_control_request(
-                    ExecuteScratchpadCommand(code=body.code),
+                    ExecuteScratchpadCommand(
+                        code=body.code,
+                        request=HTTPRequest.from_request(request),
+                    ),
                     from_consumer_id=None,
                 )
-                await asyncio.wait_for(done.wait(), timeout=EXECUTION_TIMEOUT)
-                # FIXME: stdout/stderr are flushed every 10ms by the buffered
-                # writer thread. Wait 50ms so trailing console output arrives
-                # before we read cell_notifications.
-                await asyncio.sleep(0.05)
-            except asyncio.TimeoutError:
-                return JSONResponse(
-                    status_code=504,
-                    content={
-                        "success": False,
-                        "error": f"Execution timed out after {EXECUTION_TIMEOUT}s",
-                    },
-                )
+                async for event in listener.stream(timeout=EXECUTION_TIMEOUT):
+                    yield event
 
-        result = extract_result(session)
-        return JSONResponse(content=asdict(result))
+            if listener.timed_out:
+                yield build_timeout_event(EXECUTION_TIMEOUT)
+            else:
+                yield build_done_event(session)
+
+    return StreamingResponse(sse_generator(), media_type="text/event-stream")
 
 
 @router.post("/scratchpad/run")
