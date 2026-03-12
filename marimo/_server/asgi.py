@@ -462,7 +462,6 @@ def create_asgi_app(
     else:
         auth_token = AuthToken(token)
 
-    # Check for pyzmq — required for per-app process isolation
     from marimo._dependencies.dependencies import DependencyManager
 
     DependencyManager.zmq.require(

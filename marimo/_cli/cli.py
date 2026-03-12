@@ -1190,7 +1190,6 @@ def run(
                 "marimo[sandbox]",
             )
     elif is_multi:
-        # Multi-app process isolation requires pyzmq
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():

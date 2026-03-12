@@ -25,8 +25,6 @@ CHANNEL_COMPLETION = "completion"
 CHANNEL_INPUT = "input"
 
 # Commands (main -> app host)
-
-
 class CreateKernelCmd(msgspec.Struct, tag=True):
     """Request the app host to create a new kernel thread."""
 
@@ -50,8 +48,6 @@ class ShutdownAppHostCmd(msgspec.Struct, tag=True):
 
 
 # Responses (app host -> main)
-
-
 class AppHostReadyResponse(msgspec.Struct, tag=True):
     """Signals that the app host has started and is ready."""
 
@@ -65,7 +61,6 @@ class KernelCreatedResponse(msgspec.Struct, tag=True):
 
 
 # Sentinel sent on the stream channel when a kernel thread exits.
-# Pickled and sent as a regular stream message; not a mgmt command.
 class KernelExited:
     """Signals that a kernel thread has exited (normally or via crash)."""
 
@@ -99,7 +94,7 @@ def decode_response(data: bytes) -> MgmtResponse:
 
 
 class AppHostArgs(msgspec.Struct):
-    """Startup args sent from main process via stdin."""
+    """Args sent to the AppHost process."""
 
     mgmt_addr: str  # ZMQ PULL address for receiving management commands
     response_addr: str  # ZMQ PUSH address for sending management responses
