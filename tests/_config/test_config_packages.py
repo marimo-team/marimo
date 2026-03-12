@@ -122,8 +122,16 @@ def test_infer_package_manager(
         else:
             (mock_cwd / filename).write_text(content)
 
+    # Ensure CI env vars (e.g. UV set by uv-based runners) don't leak
+    # into the test. Start from a clean slate for the keys that
+    # infer_package_manager inspects, then layer on env_vars.
+    sanitized = {
+        k: v for k, v in os.environ.items() if k not in ("UV", "VIRTUAL_ENV")
+    }
+    sanitized.update(env_vars)
+
     # Mock environment variables
-    with patch.dict(os.environ, env_vars):
+    with patch.dict(os.environ, sanitized, clear=True):
         # Mock sys attributes
         if sys_attrs:
             with patch.multiple(sys, **sys_attrs):
