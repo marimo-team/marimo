@@ -18,6 +18,11 @@ skip_if_below_py312 = pytest.mark.skipif(
     reason="uv resolution snapshots only run on Python 3.12+",
 )
 
+skip_if_windows = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="uv tree output differs on Windows",
+)
+
 UV_BIN = os.environ.get("UV")
 SELF_DIR = pathlib.Path(__file__).parent
 snapshot_test = snapshotter(__file__)
@@ -48,6 +53,7 @@ def uv(cmd: list[str], cwd: str | None = None) -> str:
 
 
 @pytest.mark.skipif(UV_BIN is None, reason="requires uv executable.")
+@skip_if_windows
 def test_complex_project_tree(tmp_path: pathlib.Path) -> None:
     uv(["init", "blah"], cwd=str(tmp_path))
     project_dir = tmp_path / "blah"
@@ -70,6 +76,7 @@ def test_empty_project_tree(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.skipif(UV_BIN is None, reason="requires uv executable.")
+@skip_if_windows
 def test_simple_project_tree(tmp_path: pathlib.Path) -> None:
     uv(["init", "blah"], cwd=str(tmp_path))
     project_dir = tmp_path / "blah"
