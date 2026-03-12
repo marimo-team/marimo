@@ -1,9 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextvars
 import sys
 
 from marimo._messaging.types import Stderr
+
+# When set to True, write_traceback writes plain text instead of HTML.
+_plain_text_traceback: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_plain_text_traceback", default=False
+)
 
 
 def _highlight_traceback(traceback: str) -> str:
@@ -22,9 +28,12 @@ def _highlight_traceback(traceback: str) -> str:
 
 
 def write_traceback(traceback: str) -> None:
-    if isinstance(sys.stderr, Stderr):
+    trimmed = _trim_traceback(traceback)
+    if _plain_text_traceback.get():
+        sys.stderr.write(trimmed)
+    elif isinstance(sys.stderr, Stderr):
         sys.stderr._write_with_mimetype(
-            _highlight_traceback(_trim_traceback(traceback)),
+            _highlight_traceback(trimmed),
             mimetype="application/vnd.marimo+traceback",
         )
     else:

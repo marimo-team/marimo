@@ -1711,6 +1711,10 @@ class Kernel:
                 clear_console=True,
                 cell_id=SCRATCH_CELL_ID,
             )
+            CellNotificationUtils.broadcast_status(
+                cell_id=SCRATCH_CELL_ID,
+                status="idle",
+            )
             return
         elif not cell:
             return
@@ -2247,9 +2251,15 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            with http_request_context(request.request):
-                await self.run_scratchpad(request.code)
-            broadcast_notification(CompletedRunNotification())
+            from marimo._messaging.tracebacks import _plain_text_traceback
+
+            token = _plain_text_traceback.set(request.plain_text_traceback)
+            try:
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
+                broadcast_notification(CompletedRunNotification())
+            finally:
+                _plain_text_traceback.reset(token)
 
         async def handle_execute_stale(
             request: ExecuteStaleCellsCommand,

@@ -324,11 +324,14 @@ class ExecuteScratchpadCommand(Command):
     Attributes:
         code: Python code to execute.
         request: HTTP request context if available.
+        plain_text_traceback: When True, tracebacks are plain text, not HTML.
     """
 
     code: str
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
+    # When True, write_traceback emits plain text instead of HTML.
+    plain_text_traceback: bool = False
 
 
 class RenameNotebookCommand(Command):
