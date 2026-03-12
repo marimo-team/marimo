@@ -4,7 +4,7 @@ marimo makes it easy to work with cloud storage and remote filesystems by automa
 
 !!! example "Experimental"
 
-    Remote storage is an experimental feature. Enable it in **Settings > Experimental > Storage Inspector**.
+    Remote storage is an experimental feature. It is enabled by default; you can turn it off in **Settings > Experimental > Storage Inspector** if needed.
 
 <div align="center">
 <video autoplay muted loop playsinline width="100%" height="100%" align="center">
