@@ -178,7 +178,7 @@ def extract_docstring_from_header(header: str | None) -> str | None:
     try:
         tree = ast_parse(header)
         return ast.get_docstring(tree)
-    except SyntaxError:
+    except (SyntaxError, ValueError):
         return None
 
 
