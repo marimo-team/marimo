@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import Plain
@@ -482,18 +481,12 @@ logical_plan
         relation = conn.sql("EXPLAIN SELECT * FROM t")
         result = extract_explain_content(relation)
 
-        assert result == snapshot("""\
-physical_plan
-┌───────────────────────────┐
-│         SEQ_SCAN          │
-│    ────────────────────   │
-│          Table: t         │
-│   Type: Sequential Scan   │
-│      Projections: id      │
-│                           │
-│          ~5 Rows          │
-└───────────────────────────┘
-""")
+        # Check for key plan content instead of full snapshot (DuckDB output varies by version)
+        assert "physical_plan" in result
+        assert "SEQ_SCAN" in result
+        assert "Sequential Scan" in result
+        assert "Projections: id" in result
+        assert "~5" in result or "5 row" in result.lower()
 
         conn.close()
 
