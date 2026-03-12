@@ -12,6 +12,7 @@ from marimo._data._external_storage.models import (
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
     SIGNED_URL_EXPIRATION,
+    BackendType,
     StorageBackend,
     StorageEntry,
 )
@@ -169,6 +170,10 @@ class Obstore(StorageBackend["ObjectStore"]):
         else:
             log_never(self.store)
             return "unknown"
+
+    @property
+    def backend_type(self) -> BackendType:
+        return "obstore"
 
     @property
     def root_path(self) -> str | None:
@@ -349,6 +354,10 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "-".join(store_protocol)
 
         return normalize_protocol(store_protocol) or store_protocol
+
+    @property
+    def backend_type(self) -> BackendType:
+        return "fsspec"
 
     @property
     def root_path(self) -> str | None:
