@@ -1765,6 +1765,31 @@ except NameError:
         await k.run([ExecuteCellCommand(er.cell_id, "None")])
         assert f"_cell_{er.cell_id}_x" not in k.globals
 
+    async def test_private_recursive_function(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Regression test for MO-5426: underscore-prefixed recursive function
+        should be able to call itself within the same cell."""
+        k = any_kernel
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    def _recurse(n):
+                        if n > 0:
+                            return 1 + _recurse(n - 1)
+                        else:
+                            return 0
+
+                    result = _recurse(3)
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert k.globals["result"] == 3
+
     async def test_has_run_id(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
