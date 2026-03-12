@@ -163,7 +163,8 @@ def test_pipe_union_nullable() -> None:
     pipe_type = str | None
     assert type(pipe_type) is types.UnionType
     openapi_spec = PythonTypeToOpenAPI(
-        name_overrides={}, camel_case=False,
+        name_overrides={},
+        camel_case=False,
     ).convert(pipe_type, {})
     assert openapi_spec == {
         "type": "string",
@@ -176,7 +177,8 @@ def test_pipe_union_multi() -> None:
     pipe_type = int | str
     assert type(pipe_type) is types.UnionType
     openapi_spec = PythonTypeToOpenAPI(
-        name_overrides={}, camel_case=False,
+        name_overrides={},
+        camel_case=False,
     ).convert(pipe_type, {})
     assert openapi_spec == {
         "oneOf": [
@@ -195,7 +197,8 @@ def test_pipe_union_in_dataclass() -> None:
         optional_int: int | None = None
 
     openapi_spec = PythonTypeToOpenAPI(
-        name_overrides={}, camel_case=False,
+        name_overrides={},
+        camel_case=False,
     ).convert(PipeOptional, {})
     assert openapi_spec == {
         "type": "object",
