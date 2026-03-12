@@ -151,8 +151,8 @@ class SearchTableResponse:
     cell_hover_texts: Optional[
         dict[RowId, dict[ColumnName, Optional[str]]]
     ] = None
-    # Unformatted data for columns with format_mapping,
-    # only available if format_mapping is provided.
+    # Unformatted data mirroring the same shape/page as `data`,
+    # provided when format_mapping is applied.
     raw_data: str | None = None
 
 
