@@ -695,8 +695,12 @@ class TestTopLevelSQL:
 
     @staticmethod
     @pytest.mark.skipif(not HAS_DUCKDB, reason="Requires duckdb")
-    def test_sql_external_refs_not_toplevel(app) -> None:
-        """@app.function referencing genuinely external tables — should remain CELL."""
+    def test_sql_external_refs_toplevel(app) -> None:
+        """@app.function referencing external SQL tables — still TOPLEVEL.
+
+        SQL table references are runtime dependencies, not definition-time
+        dependencies, so they don't prevent a function from being top-level.
+        """
 
         @app.function
         def query_external():
@@ -705,6 +709,6 @@ class TestTopLevelSQL:
             return duckdb.sql("SELECT * FROM some_external_table").df()
 
         extraction = TopLevelExtraction.from_app(InternalApp(app))
-        assert [TopLevelType.CELL] == [s.type for s in extraction], [
+        assert [TopLevelType.TOPLEVEL] == [s.type for s in extraction], [
             s.hint for s in extraction
         ]
