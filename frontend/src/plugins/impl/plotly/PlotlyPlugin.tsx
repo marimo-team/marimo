@@ -123,9 +123,7 @@ function coalesceField<T>(
   return primary ?? fallback;
 }
 
-function getTraceSource(
-  point: Plotly.PlotDatum,
-): TraceSource {
+function getTraceSource(point: Plotly.PlotDatum): TraceSource {
   const withFullData = point as PointWithFullData;
   const data = (point.data ?? {}) as TraceSource;
   const fullData = (withFullData.fullData ?? {}) as TraceSource;
@@ -200,8 +198,7 @@ export function hasPureLineTrace(
   return data.some((trace) => {
     const traceType = (trace as { type?: unknown }).type;
     const isScatterLike =
-      traceType === undefined ||
-      LINE_CLICK_TRACE_TYPES.has(String(traceType));
+      traceType === undefined || LINE_CLICK_TRACE_TYPES.has(String(traceType));
     if (!isScatterLike) {
       return false;
     }
@@ -286,9 +283,7 @@ export function shouldHandleClickSelection(
   );
 }
 
-export function extractIndices(
-  points: readonly Plotly.PlotDatum[],
-): number[] {
+export function extractIndices(points: readonly Plotly.PlotDatum[]): number[] {
   return points
     .map(getPointIndex)
     .filter((pointIndex): pointIndex is number => pointIndex !== undefined);
@@ -312,10 +307,12 @@ export const PlotlyComponent = memo(
       handleReset();
       setValue({});
     });
-    const handleSetDragmode = useEvent((dragmode: Plotly.Layout["dragmode"]) => {
-      setLayout((prev) => ({ ...prev, dragmode }));
-      setValue((prev) => ({ ...prev, dragmode }));
-    });
+    const handleSetDragmode = useEvent(
+      (dragmode: Plotly.Layout["dragmode"]) => {
+        setLayout((prev) => ({ ...prev, dragmode }));
+        setValue((prev) => ({ ...prev, dragmode }));
+      },
+    );
 
     const configMemo = useDeepCompareMemoize(config);
     const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
@@ -346,7 +343,9 @@ export const PlotlyComponent = memo(
         ...configMemo,
         modeBarButtonsToAdd: mergeModeBarButtonsToAdd(
           defaultButtons,
-          configMemo.modeBarButtonsToAdd as readonly ModeBarButton[] | undefined,
+          configMemo.modeBarButtonsToAdd as
+            | readonly ModeBarButton[]
+            | undefined,
         ),
       };
     }, [handleResetWithClear, handleSetDragmode, configMemo, figure.data]);
@@ -504,11 +503,7 @@ function withInferredXY(
     if (Array.isArray(series) || ArrayBuffer.isView(series)) {
       return (series as ArrayLike<unknown>)[idx];
     }
-    if (
-      typeof series === "object" &&
-      series !== null &&
-      "length" in (series)
-    ) {
+    if (typeof series === "object" && series !== null && "length" in series) {
       const maybeLength = Number(
         (series as { length?: unknown }).length ?? Number.NaN,
       );
