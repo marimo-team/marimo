@@ -10,6 +10,7 @@ jobs:
   create-tag:
     if: >-
       github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
       startsWith(github.event.pull_request.title, 'release: ')
     runs-on: ubuntu-latest
     permissions:
@@ -52,6 +53,8 @@ jobs:
 
       - name: Create and push tag
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           VERSION="${{ steps.version.outputs.version }}"
           git tag -a "$VERSION" -m "release: $VERSION"
           git push origin "$VERSION"
