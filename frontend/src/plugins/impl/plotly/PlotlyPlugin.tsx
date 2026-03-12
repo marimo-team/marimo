@@ -108,13 +108,13 @@ type PointWithFullData = Plotly.PlotDatum & {
   };
 };
 
-type TraceSource = {
+interface TraceSource {
   type?: string;
   mode?: string;
   x?: unknown[];
   y?: unknown[];
   hovertemplate?: string | string[];
-};
+}
 
 function coalesceField<T>(
   primary: T | undefined,
@@ -191,7 +191,7 @@ function isPureLineMode(mode: unknown): boolean {
 }
 
 export function hasPureLineTrace(
-  data: ReadonlyArray<Plotly.Data> | undefined,
+  data: readonly Plotly.Data[] | undefined,
 ): boolean {
   if (!data) {
     return false;
@@ -255,8 +255,8 @@ function lineSelectionButtons(
 }
 
 function mergeModeBarButtonsToAdd(
-  defaults: ReadonlyArray<ModeBarButton>,
-  userButtons: ReadonlyArray<ModeBarButton> | undefined,
+  defaults: readonly ModeBarButton[],
+  userButtons: readonly ModeBarButton[] | undefined,
 ): ModeBarButton[] {
   const merged: ModeBarButton[] = [];
   const seenStrings = new Set<string>();
@@ -279,7 +279,7 @@ function mergeModeBarButtonsToAdd(
 }
 
 export function shouldHandleClickSelection(
-  points: ReadonlyArray<Plotly.PlotDatum>,
+  points: readonly Plotly.PlotDatum[],
 ): boolean {
   return points.some(
     (point) => getTraceSource(point).type === "heatmap" || isLinePoint(point),
@@ -287,7 +287,7 @@ export function shouldHandleClickSelection(
 }
 
 export function extractIndices(
-  points: ReadonlyArray<Plotly.PlotDatum>,
+  points: readonly Plotly.PlotDatum[],
 ): number[] {
   return points
     .map(getPointIndex)
@@ -346,7 +346,7 @@ export const PlotlyComponent = memo(
         ...configMemo,
         modeBarButtonsToAdd: mergeModeBarButtonsToAdd(
           defaultButtons,
-          configMemo.modeBarButtonsToAdd as ReadonlyArray<ModeBarButton> | undefined,
+          configMemo.modeBarButtonsToAdd as readonly ModeBarButton[] | undefined,
         ),
       };
     }, [handleResetWithClear, handleSetDragmode, configMemo, figure.data]);
@@ -507,7 +507,7 @@ function withInferredXY(
     if (
       typeof series === "object" &&
       series !== null &&
-      "length" in (series as object)
+      "length" in (series)
     ) {
       const maybeLength = Number(
         (series as { length?: unknown }).length ?? Number.NaN,
