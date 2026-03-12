@@ -4481,8 +4481,13 @@ components:
         \        display_name: The display name of the storage namespace.\n      \
         \  protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http,\
         \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
+        \        backend_type: The type of the storage backend (fsspec or obstore)\n\
         \        storage_entries: The storage entries in the storage namespace."
       properties:
+        backendType:
+          enum:
+          - fsspec
+          - obstore
         displayName:
           type: string
         name:
@@ -4500,6 +4505,7 @@ components:
       - displayName
       - protocol
       - rootPath
+      - backendType
       - storageEntries
       title: StorageNamespace
       type: object
