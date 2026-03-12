@@ -50,6 +50,10 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    "plotly>=6.5.2",
+    "nbformat>=5.10.4",
+    "nbconvert>=7.17.0",
+    "playwright>=1.58.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -84,7 +88,7 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 sql = [
     "duckdb>=1.0.0",           # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    "sqlglot[c]>=26.2.0"       # SQL cells parsing;
+    "sqlglot[c]>=26.8.0"       # SQL cells parsing;
 ]
 
 # For per-notebook sandboxed kernels
@@ -123,7 +127,7 @@ dev = [
     "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -169,7 +173,7 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -222,7 +226,7 @@ typecheck = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",

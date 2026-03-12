@@ -33,6 +33,8 @@ def uv(cmd: list[str], cwd: str | None = None) -> str:
         **os.environ,
         "UV_PYTHON": "3.13",
         "UV_EXCLUDE_NEWER": "2025-06-19T00:00:00-02:00",
+        # Override CI's lowest-direct resolution which can cause uv add to fail
+        "UV_RESOLUTION": "highest",
     }
     result = subprocess.run(
         [UV_BIN] + cmd,
