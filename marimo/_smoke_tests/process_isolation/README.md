@@ -32,11 +32,17 @@ python marimo/_smoke_tests/process_isolation/serve.py
 # Option B: marimo run (multi-file, auto-enables process isolation)
 marimo run marimo/_smoke_tests/process_isolation/app1.py \
            marimo/_smoke_tests/process_isolation/app2.py
+
+# Option C: marimo run --sandbox (multi-file, sandbox + process isolation)
+marimo run --sandbox marimo/_smoke_tests/process_isolation/app1.py \
+                     marimo/_smoke_tests/process_isolation/app2.py
 ```
 
 Open both apps in browser. Each should show a green "PASS" callout.
 
 ## Expected Results
 
-- **With process isolation (this branch)**: Both apps show PASS.
-- **Without process isolation (released marimo)**: One app shows FAIL — it got the other app's `shared_module`.
+- **With app/process isolation**: Both apps show PASS for process isolation.
+- **With `--sandbox`**: Both apps additionally show a green "Sandbox: PASS" callout —
+  each app's unique dependency (`humanize` for app1, `pyfiglet` for app2) was installed
+  in its own sandbox venv, and the other app's dependency is not present.

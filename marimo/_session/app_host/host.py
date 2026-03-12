@@ -21,6 +21,7 @@ from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._session.app_host.commands import (
+    AppHostArgs,
     AppHostReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
@@ -30,7 +31,6 @@ from marimo._session.app_host.commands import (
     decode_response,
     encode_command,
 )
-from marimo._session.app_host.main import AppHostArgs
 
 if TYPE_CHECKING:
     import queue
@@ -64,10 +64,12 @@ class AppHost:
         self,
         file_path: str,
         python: str | None = None,
+        sandbox_dir: str | None = None,
         on_empty: Callable[[], None] | None = None,
     ) -> None:
         self._file_path = file_path
         self._python = python or sys.executable
+        self._sandbox_dir = sandbox_dir
         self._on_empty = on_empty
         self._process: subprocess.Popen[bytes] | None = None
         self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
@@ -342,5 +344,11 @@ class AppHost:
         self._cmd_socket = None
         self._stream_socket = None
         self._zmq_context = None
+
+        if self._sandbox_dir is not None:
+            from marimo._cli.sandbox import cleanup_sandbox_dir
+
+            cleanup_sandbox_dir(self._sandbox_dir)
+            self._sandbox_dir = None
 
         LOGGER.debug("App host shut down for %s", self._file_path)

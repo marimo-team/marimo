@@ -2,6 +2,7 @@
 # requires-python = ">=3.13"
 # dependencies = [
 #     "marimo",
+#     "humanize",
 # ]
 # ///
 import marimo
@@ -81,6 +82,71 @@ def _(identity, shared_module):
     print("HELLO FROM APP 1")
 
     status
+    return
+
+
+@app.cell
+def _():
+    in_sandbox = sys.prefix != sys.base_prefix
+
+    # Try importing the sandbox-only dep for this app
+    sandbox_dep_ok = False
+    try:
+        import humanize
+
+        sandbox_dep_ok = True
+        dep_info = f"`humanize` {humanize.__version__}"
+    except ImportError:
+        dep_info = "`humanize` not installed"
+
+    # Check that the OTHER app's sandbox dep is NOT available
+    other_dep_leaked = False
+    try:
+        import pyfiglet  # noqa: F401
+
+        other_dep_leaked = True
+    except ImportError:
+        pass
+
+    if in_sandbox:
+        if sandbox_dep_ok and not other_dep_leaked:
+            sandbox_status = mo.md(
+                f"""
+                ## App 1 — Sandbox: PASS
+
+                | Field | Value |
+                |-------|-------|
+                | `sys.executable` | `{sys.executable}` |
+                | `sys.prefix` | `{sys.prefix}` |
+                | Sandbox dep | {dep_info} |
+                | Other app's dep leaked? | No |
+                """
+            ).callout(kind="success")
+        else:
+            sandbox_status = mo.md(
+                f"""
+                ## App 1 — Sandbox: FAIL
+
+                | Field | Value |
+                |-------|-------|
+                | `sys.executable` | `{sys.executable}` |
+                | `sys.prefix` | `{sys.prefix}` |
+                | Sandbox dep | {dep_info} |
+                | Other app's dep leaked? | {"Yes" if other_dep_leaked else "No"} |
+                """
+            ).callout(kind="danger")
+    else:
+        sandbox_status = mo.md(
+            f"""
+            ## App 1 — Not running in sandbox mode
+
+            `sys.executable`: `{sys.executable}`
+
+            Run with `--sandbox` to test sandbox isolation.
+            """
+        ).callout(kind="warn")
+
+    sandbox_status
     return
 
 

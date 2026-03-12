@@ -27,9 +27,6 @@ import sys
 import threading
 import typing
 
-import msgspec
-import msgspec.json
-
 from marimo import _loggers
 from marimo._messaging.thread_local_streams import install_thread_local_proxies
 from marimo._output.formatters.formatters import register_formatters
@@ -40,6 +37,7 @@ from marimo._session.app_host.commands import (
     CHANNEL_CONTROL,
     CHANNEL_INPUT,
     CHANNEL_UI_ELEMENT,
+    AppHostArgs,
     AppHostReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
@@ -51,24 +49,6 @@ from marimo._session.app_host.commands import (
 )
 
 LOGGER = _loggers.marimo_logger()
-
-
-class AppHostArgs(msgspec.Struct):
-    """Startup args sent from main process via stdin."""
-
-    mgmt_addr: str  # ZMQ PULL address for receiving management commands
-    response_addr: str  # ZMQ PUSH address for sending management responses
-    cmd_addr: str  # ZMQ PULL address for receiving kernel commands
-    stream_addr: str  # ZMQ PUSH address for sending kernel output
-    file_path: str
-    log_level: int
-
-    def encode_json(self) -> bytes:
-        return msgspec.json.encode(self)
-
-    @classmethod
-    def decode_json(cls, buf: bytes) -> AppHostArgs:
-        return msgspec.json.decode(buf, type=cls)
 
 
 @dataclasses.dataclass

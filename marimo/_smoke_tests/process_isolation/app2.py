@@ -2,6 +2,7 @@
 # requires-python = ">=3.13"
 # dependencies = [
 #     "marimo",
+#     "pyfiglet",
 # ]
 # ///
 import marimo
@@ -79,6 +80,72 @@ def _(identity, shared_module):
         ).callout(kind="danger")
 
     status
+    return
+
+
+@app.cell
+def _():
+    # Detect sandbox mode by checking if we're in a venv
+    in_sandbox = sys.prefix != sys.base_prefix
+
+    # Try importing the sandbox-only dep for this app
+    sandbox_dep_ok = False
+    try:
+        import pyfiglet
+
+        sandbox_dep_ok = True
+        dep_info = f"`pyfiglet` {pyfiglet.__version__}"
+    except ImportError:
+        dep_info = "`pyfiglet` not installed"
+
+    # Check that the OTHER app's sandbox dep is NOT available
+    other_dep_leaked = False
+    try:
+        import humanize  # noqa: F401
+
+        other_dep_leaked = True
+    except ImportError:
+        pass
+
+    if in_sandbox:
+        if sandbox_dep_ok and not other_dep_leaked:
+            sandbox_status = mo.md(
+                f"""
+                ## App 2 — Sandbox: PASS
+
+                | Field | Value |
+                |-------|-------|
+                | `sys.executable` | `{sys.executable}` |
+                | `sys.prefix` | `{sys.prefix}` |
+                | Sandbox dep | {dep_info} |
+                | Other app's dep leaked? | No |
+                """
+            ).callout(kind="success")
+        else:
+            sandbox_status = mo.md(
+                f"""
+                ## App 2 — Sandbox: FAIL
+
+                | Field | Value |
+                |-------|-------|
+                | `sys.executable` | `{sys.executable}` |
+                | `sys.prefix` | `{sys.prefix}` |
+                | Sandbox dep | {dep_info} |
+                | Other app's dep leaked? | {"Yes" if other_dep_leaked else "No"} |
+                """
+            ).callout(kind="danger")
+    else:
+        sandbox_status = mo.md(
+            f"""
+            ## App 2 — Not running in sandbox mode
+
+            `sys.executable`: `{sys.executable}`
+
+            Run with `--sandbox` to test sandbox isolation.
+            """
+        ).callout(kind="warn")
+
+    sandbox_status
     return
 
 

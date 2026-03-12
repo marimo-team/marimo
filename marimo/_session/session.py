@@ -105,29 +105,11 @@ class SessionImpl(Session):
         configs = app_file_manager.app.cell_manager.config_map()
 
         # Create kernel manager
-        # SandboxMode.MULTI uses IPC kernels with per-notebook sandboxed venvs
+        # AppHost path handles multi-app run mode (both sandbox and non-sandbox).
+        # SandboxMode.MULTI falls through to IPC kernels only in edit mode.
         queue_manager: QueueManager
         kernel_manager: KernelManager
-        if sandbox_mode is SandboxMode.MULTI:
-            from marimo._ipc import QueueManager as IPCQueueManager
-            from marimo._session.managers import (
-                IPCKernelManagerImpl,
-                IPCQueueManagerImpl,
-            )
-
-            ipc_queue_manager, connection_info = IPCQueueManager.create()
-            queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
-            kernel_manager = IPCKernelManagerImpl(
-                queue_manager=queue_manager,
-                connection_info=connection_info,
-                mode=mode,
-                configs=configs,
-                app_metadata=app_metadata,
-                config_manager=config_manager,
-                virtual_files_supported=virtual_files_supported,
-                redirect_console_to_browser=redirect_console_to_browser,
-            )
-        elif app_host_pool is not None and mode == SessionMode.RUN:
+        if app_host_pool is not None and mode == SessionMode.RUN:
             from marimo._session.managers.app_host import (
                 AppHostKernelManager,
                 AppHostQueueManager,
@@ -148,6 +130,27 @@ class SessionImpl(Session):
                 configs=configs,
                 app_metadata=app_metadata,
                 config_manager=config_manager,
+                redirect_console_to_browser=redirect_console_to_browser,
+            )
+        elif sandbox_mode is SandboxMode.MULTI:
+            # IPC kernel path — edit mode with sandbox
+            # (AppHostPool is never created in edit mode)
+            from marimo._ipc import QueueManager as IPCQueueManager
+            from marimo._session.managers import (
+                IPCKernelManagerImpl,
+                IPCQueueManagerImpl,
+            )
+
+            ipc_queue_manager, connection_info = IPCQueueManager.create()
+            queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
+            kernel_manager = IPCKernelManagerImpl(
+                queue_manager=queue_manager,
+                connection_info=connection_info,
+                mode=mode,
+                configs=configs,
+                app_metadata=app_metadata,
+                config_manager=config_manager,
+                virtual_files_supported=virtual_files_supported,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
         else:

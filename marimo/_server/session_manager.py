@@ -104,7 +104,9 @@ class SessionManager:
         # structures. These processes are managed by an AppHostPool.
         self._app_host_pool: AppHostPool | None = None
         if isolate_apps and mode == SessionMode.RUN:
-            self._app_host_pool = AppHostPool()
+            self._app_host_pool = AppHostPool(
+                sandbox=sandbox_mode is SandboxMode.MULTI,
+            )
 
         self._repository = SessionRepository()
 
