@@ -9,6 +9,7 @@ import textwrap
 import types
 from typing import TYPE_CHECKING, Any, Callable
 
+from marimo._ast.parse import ast_parse
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
 from marimo._utils.platform import is_pyodide
@@ -175,7 +176,7 @@ def extract_docstring_from_header(header: str | None) -> str | None:
     if not header:
         return None
     try:
-        tree = ast.parse(header)
+        tree = ast_parse(header)
         return ast.get_docstring(tree)
     except SyntaxError:
         return None
