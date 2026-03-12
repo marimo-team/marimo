@@ -151,7 +151,9 @@ class Obstore(StorageBackend["ObjectStore"]):
             return store.config
         except BaseException:
             # Sometimes, there will be a Rust panic when trying to get the config for invalid stores
-            LOGGER.exception("Failed to get endpoint from store config")
+            LOGGER.exception(
+                "Failed to read store config for %s", type(store).__name__
+            )
         return None
 
     @property
