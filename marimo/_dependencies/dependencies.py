@@ -247,6 +247,7 @@ class DependencyManager:
     boto3 = Dependency("boto3")
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
+    starrocks = Dependency("starrocks")
     mcp = Dependency("mcp")
     pydantic_ai = Dependency(
         "pydantic_ai", pkg_name_to_install="pydantic-ai-slim"

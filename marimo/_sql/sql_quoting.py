@@ -22,7 +22,7 @@ def quote_sql_identifier(identifier: str, *, dialect: str = "duckdb") -> str:
         # Double-quote style: escape embedded " as ""
         escaped = identifier.replace('"', '""')
         return f'"{escaped}"'
-    elif dialect in ("clickhouse", "mysql", "bigquery"):
+    elif dialect in ("clickhouse", "mysql", "bigquery", "starrocks"):
         # Backtick style: escape embedded ` as ``
         escaped = identifier.replace("`", "``")
         return f"`{escaped}`"
