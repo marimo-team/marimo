@@ -131,7 +131,9 @@ export function getClipboardContent(
   if (rawValue !== undefined && rawValue !== displayedValue) {
     text = stringifyUnknownValue({ value: rawValue });
   } else if (mimeValues) {
-    text = mimeValues.map((v) => stripHtml(v.data)).join(", ");
+    text = mimeValues
+      .map((v) => (HTML_MIMETYPES.has(v.mimetype) ? stripHtml(v.data) : v.data))
+      .join(", ");
   } else {
     text = stringifyUnknownValue({ value: displayedValue });
   }
@@ -156,7 +158,7 @@ export function getRawCellValue<TData>(cell: Cell<TData, unknown>): unknown {
 
 /**
  * Get the raw (unformatted) value for a row/column from the table,
- * falling back to the row's displayed value.
+ * or undefined if raw data is not available.
  */
 export function getRawRowValue<TData>(
   table: Table<TData>,
