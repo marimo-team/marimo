@@ -5,8 +5,14 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
-from marimo._code_mode._context import _build_plan, _PlanEntry
-from marimo._code_mode._edits import NotebookCellData, NotebookEdit
+from marimo._code_mode._context import (
+    _AddOp,
+    _build_plan,
+    _DeleteOp,
+    _MoveOp,
+    _UpdateOp,
+    _validate_ops,
+)
 from marimo._types.ids import CellId_t
 
 
@@ -14,58 +20,108 @@ def ids(*names: str) -> list[CellId_t]:
     return [CellId_t(n) for n in names]
 
 
-def cell(code: str, **kwargs: object) -> NotebookCellData:
-    return NotebookCellData(code=code, cell_id=CellId_t(code), **kwargs)
-
-
-def codes(plan: list[_PlanEntry]) -> list[str | None]:
-    return [e.code for e in plan]
-
-
-def cell_ids(plan: list[_PlanEntry]) -> list[str]:
+def cell_ids(plan: list) -> list[str]:
     return [str(e.cell_id) for e in plan]
 
 
-class TestInsert:
-    def test_insert_at_start(self) -> None:
-        plan = _build_plan(
-            ids("a", "b", "c"),
-            [NotebookEdit.insert_cells(0, [cell("new")])],
-        )
-        assert cell_ids(plan) == snapshot(["new", "a", "b", "c"])
-        assert codes(plan) == snapshot(["new", None, None, None])
+def codes(plan: list) -> list[str | None]:
+    return [e.code for e in plan]
 
-    def test_insert_at_end(self) -> None:
+
+class TestAdd:
+    def test_append_at_end(self) -> None:
         plan = _build_plan(
             ids("a", "b"),
-            [NotebookEdit.insert_cells(99, [cell("new")])],
+            [_AddOp(cell_id=CellId_t("new"), code="x", config=CellConfig())],
         )
         assert cell_ids(plan) == snapshot(["a", "b", "new"])
+        assert codes(plan) == snapshot([None, None, "x"])
 
-    def test_insert_in_middle(self) -> None:
+    def test_add_after(self) -> None:
         plan = _build_plan(
             ids("a", "b", "c"),
-            [NotebookEdit.insert_cells(1, [cell("new")])],
+            [
+                _AddOp(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    config=CellConfig(),
+                    after=CellId_t("a"),
+                )
+            ],
         )
         assert cell_ids(plan) == snapshot(["a", "new", "b", "c"])
 
-    def test_insert_multiple(self) -> None:
+    def test_add_before(self) -> None:
         plan = _build_plan(
-            ids("a", "b"),
-            [NotebookEdit.insert_cells(1, [cell("x"), cell("y")])],
+            ids("a", "b", "c"),
+            [
+                _AddOp(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    config=CellConfig(),
+                    before=CellId_t("b"),
+                )
+            ],
         )
-        assert cell_ids(plan) == snapshot(["a", "x", "y", "b"])
+        assert cell_ids(plan) == snapshot(["a", "new", "b", "c"])
 
-    def test_insert_into_empty(self) -> None:
-        plan = _build_plan([], [NotebookEdit.insert_cells(0, [cell("first")])])
-        assert cell_ids(plan) == snapshot(["first"])
-        assert codes(plan) == snapshot(["first"])
+    def test_add_into_empty(self) -> None:
+        plan = _build_plan(
+            [],
+            [_AddOp(cell_id=CellId_t("new"), code="x", config=CellConfig())],
+        )
+        assert cell_ids(plan) == snapshot(["new"])
 
-    def test_insert_without_code_raises(self) -> None:
-        with pytest.raises(ValueError, match="code is required"):
+    def test_add_multiple(self) -> None:
+        plan = _build_plan(
+            ids("a"),
+            [
+                _AddOp(cell_id=CellId_t("x"), code="1", config=CellConfig()),
+                _AddOp(cell_id=CellId_t("y"), code="2", config=CellConfig()),
+            ],
+        )
+        assert cell_ids(plan) == snapshot(["a", "x", "y"])
+
+    def test_add_after_pending(self) -> None:
+        """An add can reference a cell added earlier in the same batch."""
+        plan = _build_plan(
+            ids("a"),
+            [
+                _AddOp(cell_id=CellId_t("x"), code="1", config=CellConfig()),
+                _AddOp(
+                    cell_id=CellId_t("y"),
+                    code="2",
+                    config=CellConfig(),
+                    after=CellId_t("x"),
+                ),
+            ],
+        )
+        assert cell_ids(plan) == snapshot(["a", "x", "y"])
+
+
+class TestUpdate:
+    def test_update_code(self) -> None:
+        plan = _build_plan(
+            ids("a", "b", "c"),
+            [_UpdateOp(cell_id=CellId_t("b"), code="new")],
+        )
+        assert cell_ids(plan) == snapshot(["a", "b", "c"])
+        assert codes(plan) == snapshot([None, "new", None])
+
+    def test_update_config_only(self) -> None:
+        cfg = CellConfig(hide_code=True)
+        plan = _build_plan(
+            ids("a"),
+            [_UpdateOp(cell_id=CellId_t("a"), config=cfg)],
+        )
+        assert plan[0].config == cfg
+        assert plan[0].code is None
+
+    def test_update_not_found(self) -> None:
+        with pytest.raises(KeyError):
             _build_plan(
                 ids("a"),
-                [NotebookEdit.insert_cells(0, [NotebookCellData()])],
+                [_UpdateOp(cell_id=CellId_t("missing"), code="x")],
             )
 
 
@@ -73,116 +129,131 @@ class TestDelete:
     def test_delete_single(self) -> None:
         plan = _build_plan(
             ids("a", "b", "c"),
-            [NotebookEdit.delete_cells(1, 2)],
+            [_DeleteOp(cell_id=CellId_t("b"))],
         )
         assert cell_ids(plan) == snapshot(["a", "c"])
 
-    def test_delete_range(self) -> None:
+    def test_delete_multiple(self) -> None:
         plan = _build_plan(
             ids("a", "b", "c"),
-            [NotebookEdit.delete_cells(0, 2)],
+            [
+                _DeleteOp(cell_id=CellId_t("a")),
+                _DeleteOp(cell_id=CellId_t("c")),
+            ],
         )
-        assert cell_ids(plan) == snapshot(["c"])
+        assert cell_ids(plan) == snapshot(["b"])
 
     def test_delete_all(self) -> None:
         plan = _build_plan(
             ids("a", "b"),
-            [NotebookEdit.delete_cells(0, 2)],
+            [
+                _DeleteOp(cell_id=CellId_t("a")),
+                _DeleteOp(cell_id=CellId_t("b")),
+            ],
         )
         assert cell_ids(plan) == snapshot([])
 
+    def test_delete_not_found(self) -> None:
+        with pytest.raises(KeyError):
+            _build_plan(ids("a"), [_DeleteOp(cell_id=CellId_t("missing"))])
 
-class TestReplace:
-    def test_replace_code(self) -> None:
+
+class TestMove:
+    def test_move_after(self) -> None:
         plan = _build_plan(
             ids("a", "b", "c"),
-            [NotebookEdit.replace_cells(1, [NotebookCellData(code="new")])],
+            [_MoveOp(cell_id=CellId_t("a"), after=CellId_t("c"))],
         )
-        # cell_id preserved, code updated
-        assert cell_ids(plan) == snapshot(["a", "b", "c"])
-        assert codes(plan) == snapshot([None, "new", None])
+        assert cell_ids(plan) == snapshot(["b", "c", "a"])
 
-    def test_replace_code_none_keeps_existing(self) -> None:
+    def test_move_before(self) -> None:
         plan = _build_plan(
-            ids("a", "b"),
-            [NotebookEdit.replace_cells(0, [NotebookCellData()])],
+            ids("a", "b", "c"),
+            [_MoveOp(cell_id=CellId_t("c"), before=CellId_t("a"))],
         )
-        assert codes(plan) == snapshot([None, None])
+        assert cell_ids(plan) == snapshot(["c", "a", "b"])
 
-    def test_replace_config_only(self) -> None:
-        cfg = CellConfig(hide_code=True)
-        plan = _build_plan(
-            ids("a"),
-            [NotebookEdit.replace_cells(0, [NotebookCellData(config=cfg)])],
-        )
-        assert plan[0].config == cfg
-        assert plan[0].code is None
-
-    def test_replace_preserves_config_when_not_provided(self) -> None:
-        cfg = CellConfig(disabled=True)
-        plan = _build_plan(
-            ids("a"),
-            [
-                # First edit sets config
-                NotebookEdit.replace_cells(0, [NotebookCellData(config=cfg)]),
-                # Second edit changes code but not config
-                NotebookEdit.replace_cells(
-                    0, [NotebookCellData(code="updated")]
-                ),
-            ],
-        )
-        assert plan[0].config == cfg
-        assert plan[0].code == "updated"
-
-    def test_replace_out_of_bounds(self) -> None:
-        with pytest.raises(IndexError, match="out of range"):
+    def test_move_no_anchor_raises(self) -> None:
+        with pytest.raises(ValueError, match="before or after"):
             _build_plan(
-                ids("a"),
-                [NotebookEdit.replace_cells(5, [NotebookCellData(code="x")])],
+                ids("a", "b"),
+                [_MoveOp(cell_id=CellId_t("a"))],
             )
-
-    def test_replace_draft(self) -> None:
-        plan = _build_plan(
-            ids("a"),
-            [
-                NotebookEdit.replace_cells(
-                    0, [NotebookCellData(code="x", draft=True)]
-                )
-            ],
-        )
-        assert plan[0].draft is True
 
 
 class TestCombined:
-    def test_delete_then_insert(self) -> None:
+    def test_delete_then_add(self) -> None:
         plan = _build_plan(
             ids("a", "b", "c"),
             [
-                NotebookEdit.delete_cells(1, 2),
-                NotebookEdit.insert_cells(1, [cell("new")]),
+                _DeleteOp(cell_id=CellId_t("b")),
+                _AddOp(
+                    cell_id=CellId_t("new"),
+                    code="d",
+                    config=CellConfig(),
+                    after=CellId_t("a"),
+                ),
             ],
         )
         assert cell_ids(plan) == snapshot(["a", "new", "c"])
 
-    def test_insert_then_replace(self) -> None:
-        plan = _build_plan(
-            ids("a", "b"),
-            [
-                NotebookEdit.insert_cells(1, [cell("tmp")]),
-                NotebookEdit.replace_cells(
-                    1, [NotebookCellData(code="final")]
-                ),
-            ],
-        )
-        assert cell_ids(plan) == snapshot(["a", "tmp", "b"])
-        assert codes(plan) == snapshot([None, "final", None])
-
-    def test_multiple_inserts(self) -> None:
+    def test_add_then_update(self) -> None:
         plan = _build_plan(
             ids("a"),
             [
-                NotebookEdit.insert_cells(0, [cell("first")]),
-                NotebookEdit.insert_cells(2, [cell("last")]),
+                _AddOp(
+                    cell_id=CellId_t("new"), code="tmp", config=CellConfig()
+                ),
+                _UpdateOp(cell_id=CellId_t("new"), code="final"),
             ],
         )
-        assert cell_ids(plan) == snapshot(["first", "a", "last"])
+        assert cell_ids(plan) == snapshot(["a", "new"])
+        assert codes(plan) == snapshot([None, "final"])
+
+
+class TestValidation:
+    def test_delete_and_update_same_cell(self) -> None:
+        with pytest.raises(ValueError, match="delete.*update"):
+            _validate_ops(
+                [
+                    _UpdateOp(cell_id=CellId_t("a"), code="x"),
+                    _DeleteOp(cell_id=CellId_t("a")),
+                ]
+            )
+
+    def test_update_and_delete_same_cell(self) -> None:
+        with pytest.raises(ValueError, match="update.*delete"):
+            _validate_ops(
+                [
+                    _DeleteOp(cell_id=CellId_t("a")),
+                    _UpdateOp(cell_id=CellId_t("a"), code="x"),
+                ]
+            )
+
+    def test_delete_and_move_same_cell(self) -> None:
+        with pytest.raises(ValueError, match="delete.*move"):
+            _validate_ops(
+                [
+                    _MoveOp(cell_id=CellId_t("a"), after=CellId_t("b")),
+                    _DeleteOp(cell_id=CellId_t("a")),
+                ]
+            )
+
+    def test_double_delete(self) -> None:
+        with pytest.raises(ValueError, match="deleted more than once"):
+            _validate_ops(
+                [
+                    _DeleteOp(cell_id=CellId_t("a")),
+                    _DeleteOp(cell_id=CellId_t("a")),
+                ]
+            )
+
+    def test_valid_ops_pass(self) -> None:
+        # Should not raise.
+        _validate_ops(
+            [
+                _AddOp(cell_id=CellId_t("new"), code="x", config=CellConfig()),
+                _UpdateOp(cell_id=CellId_t("a"), code="y"),
+                _DeleteOp(cell_id=CellId_t("b")),
+            ]
+        )
