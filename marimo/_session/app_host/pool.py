@@ -99,9 +99,7 @@ class AppHostPool:
             return worker
 
         if worker is not None:
-            LOGGER.warning(
-                "App host for %s was dead, respawning", abs_path
-            )
+            LOGGER.warning("App host for %s was dead, respawning", abs_path)
             worker.shutdown()
 
         def _on_empty() -> None:
