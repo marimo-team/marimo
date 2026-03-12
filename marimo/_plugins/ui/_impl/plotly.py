@@ -152,6 +152,7 @@ def _to_numeric_coord(value: Any) -> Optional[float]:
             ).timestamp()
     return None
 
+
 @mddoc
 class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     """Make reactive plots with Plotly.
