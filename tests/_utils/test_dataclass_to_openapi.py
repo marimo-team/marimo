@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import sys
+import types
 from typing import Any, ClassVar, Literal, Optional, TypedDict, Union
 
 import pytest
@@ -155,6 +156,63 @@ def test_optional() -> None:
         "type": "string",
         "nullable": True,
     }
+
+
+def test_pipe_union_nullable() -> None:
+    """types.UnionType (X | None) should be handled like Optional[X]."""
+    pipe_type = str | None
+    assert type(pipe_type) is types.UnionType
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False,
+    ).convert(pipe_type, {})
+    assert openapi_spec == {
+        "type": "string",
+        "nullable": True,
+    }
+
+
+def test_pipe_union_multi() -> None:
+    """types.UnionType with multiple non-None args produces oneOf."""
+    pipe_type = int | str
+    assert type(pipe_type) is types.UnionType
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False,
+    ).convert(pipe_type, {})
+    assert openapi_spec == {
+        "oneOf": [
+            {"type": "integer"},
+            {"type": "string"},
+        ],
+    }
+
+
+def test_pipe_union_in_dataclass() -> None:
+    """Dataclass fields using X | None should produce nullable schema."""
+
+    @dataclasses.dataclass
+    class PipeOptional:
+        required: str
+        optional_int: int | None = None
+
+    openapi_spec = PythonTypeToOpenAPI(
+        name_overrides={}, camel_case=False,
+    ).convert(PipeOptional, {})
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "required": {"type": "string"},
+            "optional_int": {"type": "integer", "nullable": True},
+        },
+        "required": ["required"],
+    }
+
+
+def test_is_optional_with_pipe_union() -> None:
+    """_is_optional should recognise types.UnionType containing None."""
+    from marimo._utils.dataclass_to_openapi import _is_optional
+
+    assert _is_optional(str | None) is True
+    assert _is_optional(str | int) is False
 
 
 if sys.version_info >= (3, 11):
