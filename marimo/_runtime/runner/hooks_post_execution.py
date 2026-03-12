@@ -253,7 +253,7 @@ def broadcast_storage_backends(
             broadcast_notification(
                 StorageNamespacesNotification(namespaces=namespaces)
             )
-    except BaseException:
+    except Exception:
         LOGGER.debug("Error getting storage backends", exc_info=True)
 
 
