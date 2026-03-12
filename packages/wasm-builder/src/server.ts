@@ -110,6 +110,14 @@ export async function startServer(config: ServerConfig) {
   // Allow CORS for all responses. This is needed so that local testing is
   // possible in many scenarios. Particularly when using the notebook in an
   // iframe locally
+  app.use((_req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    next();
+  });
+
   proxy.on("proxyRes", (proxyRes, _req, _res) => {
     proxyRes.headers["Access-Control-Allow-Origin"] = "*";
     proxyRes.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
