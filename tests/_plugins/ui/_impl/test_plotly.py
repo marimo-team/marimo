@@ -568,7 +568,7 @@ def test_heatmap_curve_number() -> None:
     plot = plotly(fig)
 
     selection = {
-        "range": {"x": [-0.5, 1.5], "y": [-0.5, 0.5]},
+        "range": {"x": [-0.5, 1.5], "y": [-0.5, 2.5]},
         "points": [],
         "indices": [],
     }
@@ -994,6 +994,36 @@ def test_line_chart_basic() -> None:
     assert plot.value == []
 
 
+def test_line_chart_click_payload() -> None:
+    """Test pure line click payload is preserved without range selection."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    click_payload = {
+        "points": [
+            {
+                "x": 3,
+                "y": 15,
+                "curveNumber": 0,
+                "pointNumber": 2,
+            }
+        ],
+        "indices": [2],
+    }
+
+    result = plot._convert_value(click_payload)
+
+    assert result == click_payload["points"]
+    assert plot.indices == [2]
+    assert plot.ranges == {}
+
+
 def test_line_chart_selection() -> None:
     """Test box selection on pure line chart."""
     fig = go.Figure(
@@ -1059,12 +1089,12 @@ def test_scattergl_line_selection() -> None:
     assert result[2]["Y"] == 25
 
 
-def test_scattergl_line_filters_by_x_range_only() -> None:
-    """Test scattergl line selection uses x-range only."""
+def test_scattergl_line_uses_xy_box_filtering() -> None:
+    """Test scattergl line selection applies both x/y range filtering."""
     fig = go.Figure(
         data=go.Scattergl(
             x=[1, 2, 3, 4, 5],
-            y=[10, 50, 15, 60, 30],  # y values outside narrow selection
+            y=[10, 50, 70, 60, 30],
             mode="lines",
         )
     )
@@ -1078,14 +1108,7 @@ def test_scattergl_line_filters_by_x_range_only() -> None:
 
     result = plot._convert_value(selection)
 
-    # Should include all points with x in [2, 4], regardless of y.
-    assert len(result) == 3
-    assert result[0]["x"] == 2
-    assert result[0]["y"] == 50
-    assert result[1]["x"] == 3
-    assert result[1]["y"] == 15
-    assert result[2]["x"] == 4
-    assert result[2]["y"] == 60
+    assert result == []
 
 
 def test_scattergl_selection_datetime_x_axis() -> None:
@@ -1472,39 +1495,54 @@ def test_line_chart_with_curve_number() -> None:
     assert curve_numbers == {0, 1}
 
 
-def test_line_chart_filters_by_x_range_only() -> None:
-    """Test that line chart selection filters by x-range, matching Altair behavior."""
+def test_line_chart_uses_xy_box_filtering() -> None:
+    """Test line chart selection applies both x/y range filtering."""
     fig = go.Figure(
         data=go.Scatter(
             x=[1, 2, 3, 4, 5],
-            y=[10, 50, 15, 60, 30],  # Varying y values
+            y=[10, 50, 70, 60, 30],
             mode="lines",
         )
     )
 
     plot = plotly(fig)
 
-    # Select x range 2-4, with narrow y range that wouldn't include all points
+    # Select x range 2-4 with y range that excludes all vertices/segments
     selection = {
         "range": {
             "x": [2, 4],
             "y": [10, 20],
-        },  # y range only covers some points
+        },
         "points": [],
         "indices": [],
     }
 
     result = plot._convert_value(selection)
 
-    # Should return ALL points in x-range [2,4], regardless of y
-    # This matches Altair behavior
-    assert len(result) == 3
-    assert result[0]["x"] == 2
-    assert result[0]["y"] == 50  # y=50 is outside [10,20] but still included
-    assert result[1]["x"] == 3
-    assert result[1]["y"] == 15
-    assert result[2]["x"] == 4
-    assert result[2]["y"] == 60  # y=60 is outside [10,20] but still included
+    assert result == []
+
+
+def test_line_chart_excludes_intersecting_segments_without_vertices() -> None:
+    """Test pure line box selection returns only vertices inside the box."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1],
+            y=[0, 10],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    # No vertex lies inside this box, even though the segment crosses through it.
+    selection = {
+        "range": {"x": [0.4, 0.6], "y": [4, 6]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == []
 
 
 def test_scatter_points_numpy_and_fallback() -> None:
@@ -1538,6 +1576,48 @@ def test_scatter_points_numpy_and_fallback() -> None:
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]
         assert np_point["curveNumber"] == fb_point["curveNumber"]
+
+
+def test_scatter_points_numpy_and_fallback_with_y_range() -> None:
+    """Test numpy/fallback parity for scatter extraction with x/y bounds."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1],
+            y=[0, 10],
+            mode="lines",
+        )
+    )
+
+    numpy_result = _extract_scatter_points_numpy(fig, 0.4, 0.6, 4, 6)
+    fallback_result = _extract_scatter_points_fallback(fig, 0.4, 0.6, 4, 6)
+
+    assert len(numpy_result) == len(fallback_result) == 0
+
+
+def test_line_chart_lasso_selection_extracts_inside_points() -> None:
+    """Test pure line lasso selection returns only vertices inside polygon."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1, 2, 3],
+            y=[0, 2, 0, 2],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "lasso": {
+            "x": [-0.5, 2.5, 2.5, -0.5],
+            "y": [-0.5, -0.5, 0.5, 0.5],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert [p["pointIndex"] for p in result] == [0, 2]
+    assert [p["x"] for p in result] == [0, 2]
 
 
 def test_scattergl_points_numpy_and_fallback() -> None:
