@@ -320,7 +320,7 @@ def app_host_main(args: AppHostArgs) -> None:
     poller.register(cmd_socket, zmq.POLLIN)
 
     while True:
-        events = dict(poller.poll(timeout=1000))
+        events = dict(poller.poll())
 
         if cmd_socket in events:
             _handle_command(cmd_socket, kernels)
