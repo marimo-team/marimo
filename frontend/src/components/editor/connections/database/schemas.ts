@@ -267,7 +267,7 @@ export const SnowflakeConnectionSchema = z
       ])
       .default({
         type: "Password",
-        username: "",
+        username: "username",
         enable_mfa: false,
       })
       .describe(FieldOptions.of({ special: "tabs" })),
