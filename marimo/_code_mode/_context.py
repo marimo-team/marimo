@@ -36,8 +36,10 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import get_context as _get_runtime_context
+from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.runtime import CellMetadata
 from marimo._types.ids import CellId_t, UIElementId
+from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
@@ -50,7 +52,6 @@ def get_context() -> AsyncCodeModeContext:
     Must be called from within a running marimo kernel (e.g., scratchpad).
     Make sure to ``await`` all cell operations on the returned context.
     """
-    from marimo._runtime.context.kernel_context import KernelRuntimeContext
 
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
@@ -294,7 +295,6 @@ class AsyncCodeModeContext:
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code in the plan with the default formatter."""
-        from marimo._utils.formatter import DefaultFormatter
 
         existing_code = {
             cid: self.graph.cells[cid].code for cid in self.graph.cells
