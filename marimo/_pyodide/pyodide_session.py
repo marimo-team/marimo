@@ -480,6 +480,7 @@ def _launch_pyodide_kernel(
             file=app_metadata.filename,
             input_override=input_override,
             print_override=None,
+            doc=app_metadata.docstring,
         ),
         enqueue_control_request=_enqueue_control_request,
         debugger_override=debugger,

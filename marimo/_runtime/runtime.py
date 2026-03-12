@@ -3481,6 +3481,7 @@ def launch_kernel(
             file=app_metadata.filename,
             input_override=input_override,
             print_override=print_override,
+            doc=app_metadata.docstring,
         ),
         debugger_override=debugger,
         user_config=user_config,

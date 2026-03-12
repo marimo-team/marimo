@@ -29,6 +29,7 @@ from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
+from marimo._runtime.patches import extract_docstring_from_header
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
@@ -511,6 +512,9 @@ async def run_app_until_completion(
             cli_args=cli_args,
             argv=argv,
             app_config=file_manager.app.config,
+            docstring=extract_docstring_from_header(
+                file_manager.app._app._header
+            ),
         ),
         app_file_manager=file_manager,
         config_manager=config_manager,
