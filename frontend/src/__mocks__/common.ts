@@ -3,9 +3,19 @@
 import { type Mock, vi } from "vitest";
 import { invariant } from "@/utils/invariant";
 
+interface MockLogger {
+  debug: Mock;
+  log: Mock;
+  warn: Mock;
+  error: Mock;
+  trace: Mock;
+  get: Mock;
+  disabled: Mock;
+}
+
 // Common mock factories
 export const Mocks = {
-  quietLogger: () => ({
+  quietLogger: (): MockLogger => ({
     debug: vi.fn(),
     log: vi.fn(),
     warn: vi.fn(),
@@ -15,7 +25,7 @@ export const Mocks = {
     disabled: vi.fn(),
   }),
 
-  logger: () => ({
+  logger: (): MockLogger => ({
     debug: vi.fn().mockImplementation(console.debug),
     log: vi.fn().mockImplementation(console.log),
     warn: vi.fn().mockImplementation(console.warn),
@@ -104,12 +114,10 @@ export const SetupMocks = {
     });
 
     // Mock ClipboardItem
-    // @ts-expect-error - ClipboardItem types not exact
-    global.ClipboardItem = vi
-      .fn()
-      .mockImplementation((data) => Mocks.clipboardItem(data));
-
-    global.ClipboardItem.supports = vi.fn().mockReturnValue(true);
+    global.ClipboardItem = Object.assign(
+      vi.fn().mockImplementation((data) => Mocks.clipboardItem(data)),
+      { supports: vi.fn().mockReturnValue(true) },
+    ) as unknown as typeof ClipboardItem;
 
     // Mock Blob
     global.Blob = vi
