@@ -2,12 +2,11 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockModules } from "@/__mocks__/common";
 import { toast } from "@/components/ui/use-toast";
 import { useFileState } from "../chat-utils";
 
-vi.mock("@/components/ui/use-toast", () => ({
-  toast: vi.fn(),
-}));
+vi.mock("@/components/ui/use-toast", () => MockModules.toast());
 
 describe("useFileState", () => {
   beforeEach(() => {
