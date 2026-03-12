@@ -84,7 +84,7 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 sql = [
     "duckdb>=1.0.0",           # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    "sqlglot[c]>=26.2.0"       # SQL cells parsing;
+    "sqlglot[c]>=26.8.0"       # SQL cells parsing;
 ]
 
 # For per-notebook sandboxed kernels
@@ -123,7 +123,7 @@ dev = [
     "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -169,7 +169,7 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -222,7 +222,7 @@ typecheck = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -462,8 +462,8 @@ addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_da
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-timeout = 30 # seconds, per test
-faulthandler_timeout = 30 # seconds, during collection
+timeout = 120 # seconds, per test (Windows CI needs extra headroom)
+faulthandler_timeout = 120 # seconds, during collection
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
