@@ -269,13 +269,26 @@ class AsyncCodeModeContext:
 
         # -- Phase 3: notify frontend and execute --
         target_order = [e.cell_id for e in plan]
+
+        # Group code notifications by draft status so each batch has a
+        # single code_is_stale value, and include configs.
+        by_stale: dict[bool, list[_PlanEntry]] = {}
         for entry in code_notifications:
-            assert entry.code is not None
+            by_stale.setdefault(entry.draft, []).append(entry)
+
+        for is_stale, entries in by_stale.items():
             self.notify(
                 UpdateCellCodesNotification(
-                    cell_ids=[entry.cell_id],
-                    codes=[entry.code],
-                    code_is_stale=entry.draft,
+                    cell_ids=[e.cell_id for e in entries],
+                    codes=[
+                        # code is guaranteed non-None for code_notifications
+                        e.code  # type: ignore[misc]
+                        for e in entries
+                    ],
+                    code_is_stale=is_stale,
+                    configs=[
+                        e.config or CellConfig(hide_code=True) for e in entries
+                    ],
                 )
             )
 
