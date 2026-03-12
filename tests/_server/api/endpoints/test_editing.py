@@ -120,7 +120,7 @@ def test_focus_cell(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/focus_cell",
         headers=HEADERS,
-        json={"cell_id": "some-cell-id"},
+        json={"cellId": "some-cell-id"},
     )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
