@@ -65,8 +65,17 @@ def _format_sse(event: str, data: Any) -> str:
 # -- Listeners ----------------------------------------------------------------
 
 
-class _ScratchCellListenerBase(SessionEventListener):
-    """Shared attach/detach for scratch cell listeners."""
+class ScratchCellListener(SessionEventListener):
+    """Listens for scratch cell notifications via an asyncio.Queue.
+
+    Supports both SSE streaming (via ``stream()``) and simple blocking
+    wait (via ``wait()``) so the same listener works for the HTTP
+    ``/execute`` endpoint and the MCP ``execute_code`` tool.
+    """
+
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
+        self.timed_out = False
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
@@ -77,42 +86,6 @@ class _ScratchCellListenerBase(SessionEventListener):
         if hasattr(self, "_event_bus"):
             self._event_bus.unsubscribe(self)
             del self._event_bus
-
-
-class ScratchCellListener(_ScratchCellListenerBase):
-    """Listens for scratch cell idle notifications and signals waiters."""
-
-    def __init__(self) -> None:
-        self._waiters: dict[str, asyncio.Event] = {}
-
-    def wait_for(self, session_id: str) -> asyncio.Event:
-        event = asyncio.Event()
-        self._waiters[session_id] = event
-        return event
-
-    def on_notification_sent(
-        self, session: Session, notification: KernelMessage
-    ) -> None:
-        del session
-        msg = deserialize_kernel_message(notification)
-        if not isinstance(msg, CellNotification):
-            return
-        if msg.cell_id != SCRATCH_CELL_ID:
-            return
-        if msg.status != "idle":
-            return
-        for sid, event in list(self._waiters.items()):
-            if not event.is_set():
-                event.set()
-            del self._waiters[sid]
-
-
-class StreamingScratchCellListener(_ScratchCellListenerBase):
-    """Pushes scratch cell notifications into an asyncio.Queue for SSE streaming."""
-
-    def __init__(self) -> None:
-        self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
-        self.timed_out = False
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -161,6 +134,31 @@ class StreamingScratchCellListener(_ScratchCellListenerBase):
 
             for event_str in _format_console(msg):
                 yield event_str
+
+    async def wait(self, timeout: float = EXECUTION_TIMEOUT) -> None:
+        """Block until execution completes, discarding streamed events.
+
+        Sets ``self.timed_out`` if the deadline is exceeded.
+        """
+        import time
+
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                self.timed_out = True
+                return
+            try:
+                msg = await asyncio.wait_for(
+                    self._queue.get(), timeout=remaining
+                )
+            except asyncio.TimeoutError:
+                self.timed_out = True
+                return
+            if msg is None:
+                # Same flush delay as stream()
+                await asyncio.sleep(0.05)
+                return
 
 
 # -- Helpers ------------------------------------------------------------------

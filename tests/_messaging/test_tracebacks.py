@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 
 from marimo._messaging.context import HTTP_REQUEST_CTX
 from marimo._messaging.tracebacks import (
+    _accepts_html,
     _highlight_traceback,
     _trim_traceback,
-    _accepts_html,
     is_code_highlighting,
     write_traceback,
 )

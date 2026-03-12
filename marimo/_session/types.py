@@ -185,14 +185,6 @@ class Session(Protocol):
         """Instantiate the app."""
         ...
 
-    def attach_extension(self, extension: SessionExtension) -> None:
-        """Attach a single extension to the session."""
-        ...
-
-    def detach_extension(self, extension: SessionExtension) -> None:
-        """Detach a single extension from the session."""
-        ...
-
     @contextlib.contextmanager
     def scoped(
         self, extension: SessionExtension

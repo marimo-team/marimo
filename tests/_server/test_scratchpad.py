@@ -15,7 +15,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.notification import CellNotification
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.scratchpad import (
-    StreamingScratchCellListener,
+    ScratchCellListener,
     _format_console,
     _format_sse,
     build_done_event,
@@ -306,12 +306,12 @@ class TestBuildDoneEvent:
         assert "30.0s" in data["error"]["msg"]
 
 
-class TestStreamingScratchCellListener:
+class TestScratchCellListener:
     @pytest.mark.asyncio
     async def test_stream_basic(self) -> None:
         from marimo._messaging.serde import serialize_kernel_message
 
-        listener = StreamingScratchCellListener()
+        listener = ScratchCellListener()
         event_bus = MagicMock()
         session = MagicMock()
         listener.on_attach(session, event_bus)
@@ -343,7 +343,7 @@ class TestStreamingScratchCellListener:
     async def test_ignores_other_cells(self) -> None:
         from marimo._messaging.serde import serialize_kernel_message
 
-        listener = StreamingScratchCellListener()
+        listener = ScratchCellListener()
         event_bus = MagicMock()
         session = MagicMock()
         listener.on_attach(session, event_bus)
@@ -359,7 +359,7 @@ class TestStreamingScratchCellListener:
 
     @pytest.mark.asyncio
     async def test_stream_timeout(self) -> None:
-        listener = StreamingScratchCellListener()
+        listener = ScratchCellListener()
         event_bus = MagicMock()
         session = MagicMock()
         listener.on_attach(session, event_bus)

@@ -264,7 +264,7 @@ async def execute_code(
     from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.scratchpad import (
         EXECUTION_TIMEOUT,
-        StreamingScratchCellListener,
+        ScratchCellListener,
         build_done_event,
         build_timeout_event,
     )
@@ -274,9 +274,8 @@ async def execute_code(
     session = app_state.require_current_session()
 
     async def sse_generator() -> AsyncGenerator[str, None]:
-        listener = StreamingScratchCellListener()
-        session.attach_extension(listener)
-        try:
+        listener = ScratchCellListener()
+        with session.scoped(listener):
             async with session.scratchpad_lock:
                 session.put_control_request(
                     ExecuteScratchpadCommand(
@@ -292,8 +291,6 @@ async def execute_code(
                 yield build_timeout_event(EXECUTION_TIMEOUT)
             else:
                 yield build_done_event(session)
-        finally:
-            session.detach_extension(listener)
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
 

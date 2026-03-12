@@ -242,27 +242,19 @@ class SessionImpl(Session):
                 )
                 continue
 
-    def attach_extension(self, extension: SessionExtension) -> None:
-        """Attach a single extension to the session."""
-        self.extensions.append(extension)
-        extension.on_attach(self, self._event_bus)
-
-    def detach_extension(self, extension: SessionExtension) -> None:
-        """Detach a single extension from the session."""
-        extension.on_detach()
-        if extension in self.extensions:
-            self.extensions.remove(extension)
-
     @contextlib.contextmanager
     def scoped(
         self, extension: SessionExtension
     ) -> Iterator[SessionExtension]:
         """Attach an extension for the duration of the context."""
-        self.attach_extension(extension)
+        self.extensions.append(extension)
+        extension.on_attach(self, self._event_bus)
         try:
             yield extension
         finally:
-            self.detach_extension(extension)
+            extension.on_detach()
+            if extension in self.extensions:
+                self.extensions.remove(extension)
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
