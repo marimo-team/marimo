@@ -139,12 +139,16 @@ class TestDefaults:
         assert engine.get_default_database() is None
 
     def test_get_default_schema(self) -> None:
+        # get_default_schema() is inherited from SQLAlchemyEngine and tries
+        # inspector.default_schema_name first.
         engine = _make_engine()
-        _mock_connection_ctx(engine, [[("my_db",)]])
+        engine.inspector = MagicMock()
+        engine.inspector.default_schema_name = "my_db"
         assert engine.get_default_schema() == "my_db"
 
     def test_get_default_schema_none_on_error(self) -> None:
         engine = _make_engine()
+        engine.inspector = None
         engine._connection.connect.side_effect = Exception("connection failed")
         assert engine.get_default_schema() is None
 
@@ -172,7 +176,7 @@ class TestListCatalogs:
         assert engine._list_catalogs() == []
 
 
-class TestListDatabases:
+class TestExternalSchemas:
     def test_lists_databases_excluding_system(self) -> None:
         engine = _make_engine()
         rows = [
@@ -183,13 +187,21 @@ class TestListDatabases:
             ("_statistics_",),  # excluded
         ]
         _mock_connection_ctx(engine, [rows])
-        result = engine._list_databases_in_catalog("default_catalog")
-        assert result == ["tpch", "analytics"]
+        schemas = engine._get_external_schemas(
+            catalog="hive_catalog",
+            include_tables=False,
+            include_table_details=False,
+        )
+        assert [s.name for s in schemas] == ["tpch", "analytics"]
 
     def test_returns_empty_on_error(self) -> None:
         engine = _make_engine()
         engine._connection.connect.side_effect = Exception("oops")
-        assert engine._list_databases_in_catalog("default_catalog") == []
+        assert engine._get_external_schemas(
+            catalog="hive_catalog",
+            include_tables=False,
+            include_table_details=False,
+        ) == []
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +306,7 @@ class TestGetDatabases:
 class TestGetTablesInSchema:
     def test_returns_tables_and_views(self) -> None:
         engine = _make_engine()
+        # SHOW FULL TABLES returns (Tables_in_<db>, Table_type)
         rows = [
             ("orders", "BASE TABLE"),
             ("lineitem", "BASE TABLE"),
@@ -336,12 +349,13 @@ class TestGetTablesInSchema:
 class TestGetTableDetails:
     def test_returns_columns(self) -> None:
         engine = _make_engine()
+        # DESC output: Field, Type, Null, Key, Default, Extra, Comment
         rows = [
-            ("id", "INT"),
-            ("name", "VARCHAR"),
-            ("created_at", "DATETIME"),
-            ("score", "DOUBLE"),
-            ("is_active", "BOOLEAN"),
+            ("id", "INT", "YES", "", None, "", ""),
+            ("name", "VARCHAR(255)", "YES", "", None, "", ""),
+            ("created_at", "DATETIME", "YES", "", None, "", ""),
+            ("score", "DOUBLE", "YES", "", None, "", ""),
+            ("is_active", "BOOLEAN", "YES", "", None, "", ""),
         ]
         _mock_connection_ctx(engine, [rows])
 
@@ -399,14 +413,17 @@ class TestStarRocksQuoting:
 
 class TestResolveAuto:
     def test_true_stays_true(self) -> None:
-        assert StarRocksEngine._resolve_auto(True, default=False) is True
+        engine = _make_engine()
+        assert engine._resolve_should_auto_discover(True) is True
 
     def test_false_stays_false(self) -> None:
-        assert StarRocksEngine._resolve_auto(False, default=True) is False
+        engine = _make_engine()
+        assert engine._resolve_should_auto_discover(False) is False
 
-    def test_auto_returns_default(self) -> None:
-        assert StarRocksEngine._resolve_auto("auto", default=True) is True
-        assert StarRocksEngine._resolve_auto("auto", default=False) is False
+    def test_auto_resolves_to_false_for_starrocks(self) -> None:
+        # StarRocks is not in CHEAP_DISCOVERY_DATABASES, so "auto" → False.
+        engine = _make_engine()
+        assert engine._resolve_should_auto_discover("auto") is False
 
 
 # ---------------------------------------------------------------------------

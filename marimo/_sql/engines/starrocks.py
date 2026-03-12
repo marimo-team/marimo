@@ -6,16 +6,14 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 from marimo import _loggers
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import InferenceConfig, SQLConnection
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql_quoting import quote_sql_identifier
-from marimo._sql.utils import convert_to_output, sql_type_to_data_type
+from marimo._sql.utils import sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
     from sqlalchemy import Engine
 
 # StarRocks databases (marimo Schemas) that are internal and not useful to surface.
@@ -26,8 +24,12 @@ def _quote(name: str) -> str:
     return quote_sql_identifier(name, dialect="starrocks")
 
 
-class StarRocksEngine(SQLConnection["Engine"]):
+class StarRocksEngine(SQLAlchemyEngine):
     """StarRocks SQL engine with multi-catalog support.
+
+    Extends :class:`SQLAlchemyEngine`, inheriting the SQLAlchemy inspector
+    pattern for the connected (default) catalog.  External catalogs fall back
+    to explicit SQL because the inspector is bound to a single catalog.
 
     StarRocks uses a three-level hierarchy: Catalog → Database → Table.
     This maps to marimo's Database → Schema → Table model:
@@ -37,17 +39,8 @@ class StarRocksEngine(SQLConnection["Engine"]):
       - marimo ``DataTable`` ↔  StarRocks Table
     """
 
-    def __init__(
-        self, connection: Engine, engine_name: Optional[VariableName] = None
-    ) -> None:
-        super().__init__(connection, engine_name)
-
     @property
     def source(self) -> str:
-        return "starrocks"
-
-    @property
-    def dialect(self) -> str:
         return "starrocks"
 
     @staticmethod
@@ -61,76 +54,25 @@ class StarRocksEngine(SQLConnection["Engine"]):
 
         return isinstance(var, Engine) and str(var.dialect.name) == "starrocks"
 
-    @property
-    def inference_config(self) -> InferenceConfig:
-        return InferenceConfig(
-            auto_discover_schemas=True,
-            auto_discover_tables="auto",
-            auto_discover_columns=False,
-        )
-
-    def execute(self, query: str) -> Any:
-        from sqlalchemy import text
-
-        sql_output_format = self.sql_output_format()
-
-        with self._connection.connect() as conn:
-            result = conn.execute(text(query))
-            if sql_output_format == "native":
-                return result
-
-            rows = result.fetchall() if result.returns_rows else None
-
-            try:
-                conn.commit()
-            except Exception:
-                LOGGER.info("Unable to commit transaction", exc_info=True)
-
-            if rows is None:
-                return None
-
-            def convert_to_polars() -> pl.DataFrame:
-                import polars as pl
-
-                return pl.DataFrame(rows)
-
-            def convert_to_pandas() -> pd.DataFrame:
-                import pandas as pd
-
-                return pd.DataFrame(rows)
-
-            return convert_to_output(
-                sql_output_format=sql_output_format,
-                to_polars=convert_to_polars,
-                to_pandas=convert_to_pandas,
-            )
+    # ------------------------------------------------------------------
+    # Default catalog / schema
+    # ------------------------------------------------------------------
 
     def get_default_database(self) -> Optional[str]:
-        """Return the name of the current catalog."""
+        """Return the current StarRocks catalog via ``SELECT CATALOG()``.
+
+        Overrides the parent which reads from the SQLAlchemy connection URL,
+        because StarRocks exposes catalogs rather than a single database.
+        """
         try:
             from sqlalchemy import text
 
             with self._connection.connect() as conn:
-                row = conn.execute(
-                    text("SELECT CATALOG()")
-                ).fetchone()
+                row = conn.execute(text("SELECT CATALOG()")).fetchone()
             if row is not None and row[0] is not None:
                 return str(row[0])
         except Exception:
             LOGGER.warning("Failed to get current catalog", exc_info=True)
-        return None
-
-    def get_default_schema(self) -> Optional[str]:
-        """Return the name of the current database within the current catalog."""
-        try:
-            from sqlalchemy import text
-
-            with self._connection.connect() as conn:
-                row = conn.execute(text("SELECT DATABASE()")).fetchone()
-            if row is not None and row[0] is not None:
-                return str(row[0])
-        except Exception:
-            LOGGER.warning("Failed to get current database", exc_info=True)
         return None
 
     def get_databases(
@@ -140,36 +82,44 @@ class StarRocksEngine(SQLConnection["Engine"]):
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
-        """Return all catalogs, each containing its databases as schemas.
+        """Return all StarRocks catalogs, each containing its databases as schemas.
 
-        Args:
-            include_schemas: Whether to enumerate databases within each
-                catalog. ``"auto"`` resolves to ``True``.
-            include_tables: Whether to enumerate tables within each database.
-                ``"auto"`` resolves to ``False`` (StarRocks catalogs can be
-                very large, so table discovery is opt-in).
-            include_table_details: Whether to fetch column-level metadata for
-                each table. ``"auto"`` resolves to ``False``.
+        Uses the inherited inspector path for the default catalog and explicit
+        SQL for external catalogs.
+
+        ``"auto"`` resolution:
+          - ``include_schemas``      → ``True``  (always show databases)
+          - ``include_tables``       → ``False`` (StarRocks catalogs can be large)
+          - ``include_table_details``→ ``False``
         """
-        should_include_schemas = self._resolve_auto(include_schemas, default=True)
-        should_include_tables = self._resolve_auto(include_tables, default=False)
-        should_include_details = self._resolve_auto(
-            include_table_details, default=False
+        should_include_schemas = (
+            include_schemas if isinstance(include_schemas, bool) else True
+        )
+        should_include_tables = self._resolve_should_auto_discover(include_tables)
+        should_include_details = self._resolve_should_auto_discover(
+            include_table_details
         )
 
         databases: list[Database] = []
         for catalog in self._list_catalogs():
-            schemas: list[Schema] = []
             if should_include_schemas:
-                for db_name in self._list_databases_in_catalog(catalog):
-                    tables: list[DataTable] = []
-                    if should_include_tables:
-                        tables = self.get_tables_in_schema(
-                            schema=db_name,
-                            database=catalog,
-                            include_table_details=should_include_details,
-                        )
-                    schemas.append(Schema(name=db_name, tables=tables))
+                if catalog == self.default_database:
+                    # Inspector-based path (inherited from SQLAlchemyEngine).
+                    schemas = self._get_schemas(
+                        database=catalog,
+                        include_tables=should_include_tables,
+                        include_table_details=should_include_details,
+                    )
+                else:
+                    # SQL fallback for external catalogs.
+                    schemas = self._get_external_schemas(
+                        catalog=catalog,
+                        include_tables=should_include_tables,
+                        include_table_details=should_include_details,
+                    )
+            else:
+                schemas = []
+
             databases.append(
                 Database(
                     name=catalog,
@@ -183,23 +133,141 @@ class StarRocksEngine(SQLConnection["Engine"]):
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
-        """Return all tables in a StarRocks database.
+        """Return tables for *schema* inside *database* (a StarRocks catalog).
 
-        Args:
-            schema: The StarRocks database name.
-            database: The StarRocks catalog name.
-            include_table_details: Whether to fetch column metadata.
+        Delegates to the inherited inspector path for the default catalog;
+        falls back to an ``information_schema`` query for external catalogs.
+        """
+        if database == self.default_database:
+            return super().get_tables_in_schema(
+                schema=schema,
+                database=database,
+                include_table_details=include_table_details,
+            )
+        return self._get_external_tables(
+            schema=schema,
+            database=database,
+            include_table_details=include_table_details,
+        )
+
+    def get_table_details(
+        self, *, table_name: str, schema_name: str, database_name: str
+    ) -> Optional[DataTable]:
+        """Return column metadata for a table.
+
+        Delegates to the inherited inspector path for the default catalog;
+        falls back to an ``information_schema`` query for external catalogs.
+        """
+        if database_name == self.default_database:
+            return super().get_table_details(
+                table_name=table_name,
+                schema_name=schema_name,
+                database_name=database_name,
+            )
+        return self._get_external_table_details(
+            table_name=table_name,
+            schema_name=schema_name,
+            database_name=database_name,
+        )
+
+    # ------------------------------------------------------------------
+    # Meta-schema filter (overrides SQLAlchemyEngine._get_meta_schemas)
+    # ------------------------------------------------------------------
+
+    def _get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Filter system schemas out of the result entirely.
+
+        The parent implementation keeps meta-schemas in the list but skips
+        table discovery for them.  For StarRocks we want them hidden from the
+        sidebar completely.
+        """
+        schemas = super()._get_schemas(
+            database=database,
+            include_tables=include_tables,
+            include_table_details=include_table_details,
+        )
+        return [s for s in schemas if s.name.lower() not in _SYSTEM_SCHEMAS]
+
+    def _get_meta_schemas(self) -> list[str]:
+        return list(_SYSTEM_SCHEMAS)
+
+    # ------------------------------------------------------------------
+    # StarRocks-specific helpers
+    # ------------------------------------------------------------------
+
+    def _list_catalogs(self) -> list[str]:
+        """Return all catalog names via ``SHOW CATALOGS``.
+
+        There is no SQLAlchemy inspector equivalent for catalog enumeration.
         """
         try:
             from sqlalchemy import text
 
-            query = (
-                f"SELECT TABLE_NAME, TABLE_TYPE "
-                f"FROM {_quote(database)}.information_schema.tables "
-                f"WHERE TABLE_SCHEMA = :schema"
-            )
             with self._connection.connect() as conn:
-                rows = conn.execute(text(query), {"schema": schema}).fetchall()
+                rows = conn.execute(text("SHOW CATALOGS")).fetchall()
+            return [str(row[0]) for row in rows]
+        except Exception:
+            LOGGER.warning("Failed to list catalogs", exc_info=True)
+            return []
+
+    def _get_external_schemas(
+        self,
+        *,
+        catalog: str,
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """List databases in an external catalog via ``SHOW DATABASES``."""
+        try:
+            from sqlalchemy import text
+
+            with self._connection.connect() as conn:
+                rows = conn.execute(
+                    text(f"SHOW DATABASES IN {_quote(catalog)}")
+                ).fetchall()
+            db_names = [
+                str(row[0])
+                for row in rows
+                if str(row[0]).lower() not in _SYSTEM_SCHEMAS
+            ]
+        except Exception:
+            LOGGER.warning(
+                "Failed to list databases in catalog %r",
+                catalog,
+                exc_info=True,
+            )
+            return []
+
+        schemas: list[Schema] = []
+        for db_name in db_names:
+            tables: list[DataTable] = []
+            if include_tables:
+                tables = self._get_external_tables(
+                    schema=db_name,
+                    database=catalog,
+                    include_table_details=include_table_details,
+                )
+            schemas.append(Schema(name=db_name, tables=tables))
+        return schemas
+
+    def _get_external_tables(
+        self, *, schema: str, database: str, include_table_details: bool
+    ) -> list[DataTable]:
+        """List tables in an external catalog via ``SHOW FULL TABLES``."""
+        try:
+            from sqlalchemy import text
+
+            qualified = f"{_quote(database)}.{_quote(schema)}"
+            with self._connection.connect() as conn:
+                rows = conn.execute(
+                    text(f"SHOW FULL TABLES FROM {qualified}")
+                ).fetchall()
         except Exception:
             LOGGER.warning(
                 "Failed to get tables in %r.%r",
@@ -234,7 +302,7 @@ class StarRocksEngine(SQLConnection["Engine"]):
                     )
                 )
             else:
-                table = self.get_table_details(
+                table = self._get_external_table_details(
                     table_name=table_name,
                     schema_name=schema,
                     database_name=database,
@@ -245,30 +313,20 @@ class StarRocksEngine(SQLConnection["Engine"]):
 
         return tables
 
-    def get_table_details(
+    def _get_external_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
-        """Fetch column-level metadata for a table.
-
-        Args:
-            table_name: The table name.
-            schema_name: The StarRocks database name.
-            database_name: The StarRocks catalog name.
-        """
+        """Describe an external-catalog table via ``DESC <catalog>.<db>.<table>``."""
         try:
             from sqlalchemy import text
 
-            query = (
-                f"SELECT COLUMN_NAME, DATA_TYPE "
-                f"FROM {_quote(database_name)}.information_schema.columns "
-                f"WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table "
-                f"ORDER BY ORDINAL_POSITION"
+            qualified = (
+                f"{_quote(database_name)}"
+                f".{_quote(schema_name)}"
+                f".{_quote(table_name)}"
             )
             with self._connection.connect() as conn:
-                rows = conn.execute(
-                    text(query),
-                    {"schema": schema_name, "table": table_name},
-                ).fetchall()
+                rows = conn.execute(text(f"DESC {qualified}")).fetchall()
         except Exception:
             LOGGER.warning(
                 "Failed to get details for %r.%r.%r",
@@ -301,46 +359,3 @@ class StarRocksEngine(SQLConnection["Engine"]):
             primary_keys=[],
             indexes=[],
         )
-
-    def _list_catalogs(self) -> list[str]:
-        """Return all catalog names, excluding built-in system catalogs."""
-        try:
-            from sqlalchemy import text
-
-            with self._connection.connect() as conn:
-                rows = conn.execute(text("SHOW CATALOGS")).fetchall()
-            return [str(row[0]) for row in rows]
-        except Exception:
-            LOGGER.warning("Failed to list catalogs", exc_info=True)
-            return []
-
-    def _list_databases_in_catalog(self, catalog: str) -> list[str]:
-        """Return all database names within *catalog*, excluding system databases."""
-        try:
-            from sqlalchemy import text
-
-            with self._connection.connect() as conn:
-                rows = conn.execute(
-                    text(f"SHOW DATABASES IN {_quote(catalog)}")
-                ).fetchall()
-            return [
-                str(row[0])
-                for row in rows
-                if str(row[0]).lower() not in _SYSTEM_SCHEMAS
-            ]
-        except Exception:
-            LOGGER.warning(
-                "Failed to list databases in catalog %r",
-                catalog,
-                exc_info=True,
-            )
-            return []
-
-    @staticmethod
-    def _resolve_auto(
-        value: Union[bool, Literal["auto"]], *, default: bool
-    ) -> bool:
-        """Resolve an ``"auto"`` inference flag to a concrete boolean."""
-        if value == "auto":
-            return default
-        return value
