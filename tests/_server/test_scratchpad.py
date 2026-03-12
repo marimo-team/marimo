@@ -17,10 +17,10 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.scratchpad import (
     StreamingScratchCellListener,
     _format_console,
+    _format_sse,
     build_done_event,
     build_timeout_event,
     extract_result,
-    format_sse,
 )
 
 
@@ -159,11 +159,11 @@ class TestExtractResult:
 
 class TestFormatSse:
     def test_json_payload(self) -> None:
-        result = format_sse("done", {"success": True})
+        result = _format_sse("done", {"success": True})
         assert result == 'event: done\ndata: {"success": true}\n\n'
 
     def test_newlines_in_json_are_escaped(self) -> None:
-        result = format_sse("stdout", {"data": "line1\nline2\n"})
+        result = _format_sse("stdout", {"data": "line1\nline2\n"})
         # The JSON string escapes \n, so it's a single data: line
         assert result.count("\ndata: ") == 1
         event, payload = _parse_sse(result)

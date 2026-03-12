@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Shared utilities for synchronous scratchpad execution."""
+"""Shared utilities for scratchpad execution."""
 
 from __future__ import annotations
 
 import asyncio
 import json
-from typing import TYPE_CHECKING, NotRequired, TypedDict, Union
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
@@ -21,6 +21,12 @@ if TYPE_CHECKING:
     from marimo._session.session import Session
 
 EXECUTION_TIMEOUT = 30.0  # seconds
+
+# Channel name constants for SSE events
+_CHANNEL_MAP = {
+    CellChannel.STDOUT: "stdout",
+    CellChannel.STDERR: "stderr",
+}
 
 
 # -- SSE event payload types --------------------------------------------------
@@ -51,31 +57,16 @@ class DoneError(TypedDict):
     error: ErrorData
 
 
-DoneEvent = Union[DoneSuccess, DoneError]
-SSEPayload = Union[ConsoleEvent, DoneEvent]
-
-
-# -- SSE formatting -----------------------------------------------------------
-
-
-def format_sse(event: str, data: SSEPayload) -> str:
-    """Format a single SSE event (event + JSON data, no multi-line ambiguity)."""
+def _format_sse(event: str, data: Any) -> str:
+    """Format a single SSE event (event + JSON data)."""
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 # -- Listeners ----------------------------------------------------------------
 
 
-class ScratchCellListener(SessionEventListener):
-    """Listens for scratch cell idle notifications and signals waiters."""
-
-    def __init__(self) -> None:
-        self._waiters: dict[str, asyncio.Event] = {}
-
-    def wait_for(self, session_id: str) -> asyncio.Event:
-        event = asyncio.Event()
-        self._waiters[session_id] = event
-        return event
+class _ScratchCellListenerBase(SessionEventListener):
+    """Shared attach/detach for scratch cell listeners."""
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
@@ -86,6 +77,18 @@ class ScratchCellListener(SessionEventListener):
         if hasattr(self, "_event_bus"):
             self._event_bus.unsubscribe(self)
             del self._event_bus
+
+
+class ScratchCellListener(_ScratchCellListenerBase):
+    """Listens for scratch cell idle notifications and signals waiters."""
+
+    def __init__(self) -> None:
+        self._waiters: dict[str, asyncio.Event] = {}
+
+    def wait_for(self, session_id: str) -> asyncio.Event:
+        event = asyncio.Event()
+        self._waiters[session_id] = event
+        return event
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -104,22 +107,12 @@ class ScratchCellListener(SessionEventListener):
             del self._waiters[sid]
 
 
-class StreamingScratchCellListener(SessionEventListener):
+class StreamingScratchCellListener(_ScratchCellListenerBase):
     """Pushes scratch cell notifications into an asyncio.Queue for SSE streaming."""
 
     def __init__(self) -> None:
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self.timed_out = False
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
-        self._event_bus = event_bus
-        event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        if hasattr(self, "_event_bus"):
-            self._event_bus.unsubscribe(self)
-            del self._event_bus
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -132,8 +125,7 @@ class StreamingScratchCellListener(SessionEventListener):
             return
         self._queue.put_nowait(msg)
         if msg.status == "idle":
-            # Sentinel: signals that execution is complete
-            self._queue.put_nowait(None)
+            self._queue.put_nowait(None)  # sentinel
 
     async def stream(
         self, timeout: float = EXECUTION_TIMEOUT
@@ -175,38 +167,26 @@ class StreamingScratchCellListener(SessionEventListener):
 
 
 def _format_console(msg: CellNotification) -> list[str]:
-    """Extract stdout/stderr from a CellNotification as SSE events."""
+    """Extract SSE-formatted stdout/stderr events from a CellNotification."""
     if msg.console is None:
         return []
     console_list = (
         msg.console if isinstance(msg.console, list) else [msg.console]
     )
-    events: list[str] = []
-    for out in console_list:
-        if out is None:
-            continue
-        if out.channel == CellChannel.STDOUT:
-            events.append(
-                format_sse("stdout", ConsoleEvent(data=str(out.data)))
-            )
-        elif out.channel == CellChannel.STDERR:
-            events.append(
-                format_sse("stderr", ConsoleEvent(data=str(out.data)))
-            )
-    return events
+    return [
+        _format_sse(channel, ConsoleEvent(data=str(out.data)))
+        for out in console_list
+        if out is not None
+        for channel in (_CHANNEL_MAP.get(out.channel),)
+        if channel is not None
+    ]
 
 
 def build_done_event(session: Session) -> str:
-    """Build the ``done`` SSE event from the session's scratch cell state.
-
-    Returns either:
-      ``{"success": true, "output": {"mimetype": "...", "data": "..."}}``
-    or:
-      ``{"success": false, "error": {"type": "...", "msg": "..."}}``
-    """
+    """Build the ``done`` SSE event from the session's scratch cell state."""
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
     if cell_notif is None:
-        return format_sse("done", DoneSuccess(success=True))
+        return _format_sse("done", DoneSuccess(success=True))
 
     output = cell_notif.output
 
@@ -218,21 +198,20 @@ def build_done_event(session: Session) -> str:
         and output.data
     ):
         err = output.data[0]
-        msg = str(getattr(err, "msg", None) or err)
         error_data = ErrorData(
             type=type(err).__name__,
-            msg=msg,
+            msg=str(getattr(err, "msg", None) or err),
         )
         if hasattr(err, "exception_type"):
             error_data["exception_type"] = err.exception_type
-        return format_sse("done", DoneError(success=False, error=error_data))
+        return _format_sse("done", DoneError(success=False, error=error_data))
 
     # Success case
     if output is not None:
         data = output.data
         if isinstance(data, dict):
             data = data.get("text/plain", data.get("text/html", str(data)))
-        return format_sse(
+        return _format_sse(
             "done",
             DoneSuccess(
                 success=True,
@@ -242,12 +221,12 @@ def build_done_event(session: Session) -> str:
             ),
         )
 
-    return format_sse("done", DoneSuccess(success=True))
+    return _format_sse("done", DoneSuccess(success=True))
 
 
 def build_timeout_event(timeout: float) -> str:
     """Build a ``done`` SSE event for a timeout."""
-    return format_sse(
+    return _format_sse(
         "done",
         DoneError(
             success=False,

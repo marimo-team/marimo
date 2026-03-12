@@ -13,6 +13,10 @@ RUN_ID_CTX = ContextVar[Optional[RunId_t]]("run_id")
 
 HTTP_REQUEST_CTX = ContextVar[Optional[HTTPRequest]]("http_request")
 
+PLAIN_TEXT_TRACEBACK_CTX = ContextVar[bool](
+    "plain_text_traceback", default=False
+)
+
 
 @dataclass
 class run_id_context:
@@ -44,3 +48,16 @@ class http_request_context:
 
     def __exit__(self, *_: Any) -> None:
         HTTP_REQUEST_CTX.reset(self.token)
+
+
+@dataclass
+class plain_text_traceback_context:
+    """Context manager for writing plain-text tracebacks instead of HTML."""
+
+    enabled: bool = True
+
+    def __enter__(self) -> None:
+        self.token = PLAIN_TEXT_TRACEBACK_CTX.set(self.enabled)
+
+    def __exit__(self, *_: Any) -> None:
+        PLAIN_TEXT_TRACEBACK_CTX.reset(self.token)
