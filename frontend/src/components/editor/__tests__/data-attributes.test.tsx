@@ -2,6 +2,7 @@
 import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
+import { SetupMocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,17 +26,7 @@ function createTestWrapper() {
 }
 
 beforeAll(() => {
-  global.ResizeObserver = class ResizeObserver {
-    observe() {
-      // do nothing
-    }
-    unobserve() {
-      // do nothing
-    }
-    disconnect() {
-      // do nothing
-    }
-  };
+  SetupMocks.resizeObserver();
   global.HTMLDivElement.prototype.scrollIntoView = () => {
     // do nothing
   };
