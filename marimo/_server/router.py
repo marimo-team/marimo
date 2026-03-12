@@ -38,7 +38,7 @@ class APIRouter(Router):
             )
 
     def post(
-        self, path: str
+        self, path: str, include_in_schema: bool = True
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Post method that returns a JSON response"""
 
@@ -62,6 +62,7 @@ class APIRouter(Router):
                 path=self.prefix + path,
                 endpoint=wrapper_func,
                 methods=["POST"],
+                include_in_schema=include_in_schema,
             )
 
             return wrapper_func  # type: ignore[return-value]
