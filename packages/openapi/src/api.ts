@@ -756,6 +756,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/ipynb": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as IPYNB */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/markdown": {
     parameters: {
       query?: never;
@@ -2893,6 +2941,88 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/storage/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["StorageDownloadRequest"];
+        };
+      };
+      responses: {
+        /** @description Download a storage entry */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/storage/list_entries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["StorageListEntriesRequest"];
+        };
+      };
+      responses: {
+        /** @description List storage entries at a prefix */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/usage": {
     parameters: {
       query?: never;
@@ -3387,6 +3517,7 @@ export interface components {
         | "text/html"
         | "text/latex"
         | "text/markdown"
+        | "text/password"
         | "text/plain"
         | "video/mp4"
         | "video/mpeg";
@@ -3572,15 +3703,14 @@ export interface components {
      *
      *         Attributes:
      *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook (unused for now).
+     *             cell_ids: Initial cell IDs in the notebook.
      *             set_ui_element_value_request: Initial UI element values.
      *             auto_run: Whether to automatically execute cells on instantiation.
      *             request: HTTP request context if available.
      */
     CreateNotebookCommand: {
       autoRun: boolean;
-      /** @default null */
-      cellIds?: string[] | null;
+      cellIds: string[];
       executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -3991,6 +4121,22 @@ export interface components {
     };
     /** ExportAsPDFRequest */
     ExportAsPDFRequest: {
+      /** @default false */
+      includeInputs?: boolean;
+      /**
+       * @default document
+       * @enum {unknown}
+       */
+      preset?: "document" | "slides";
+      /** @default 4 */
+      rasterScale?: number;
+      /**
+       * @default static
+       * @enum {unknown}
+       */
+      rasterServer?: "live" | "static";
+      /** @default true */
+      rasterizeOutputs?: boolean;
       webpdf: boolean;
     };
     /** ExportAsScriptRequest */
@@ -4004,7 +4150,7 @@ export interface components {
       name: string;
       path: string;
       /** @enum {unknown} */
-      type: "directory" | "file";
+      type: "directory" | "file" | "notebook";
     };
     /** FileCreateResponse */
     FileCreateResponse: {
@@ -4490,6 +4636,8 @@ export interface components {
         | components["schemas"]["ListSQLTablesCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
+        | components["schemas"]["StorageListEntriesCommand"]
+        | components["schemas"]["StorageDownloadCommand"]
         | components["schemas"]["ListSecretKeysCommand"]
         | components["schemas"]["RefreshSecretsCommand"]
         | components["schemas"]["ClearCacheCommand"]
@@ -4550,6 +4698,8 @@ export interface components {
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
+        | components["schemas"]["StorageEntriesNotification"]
+        | components["schemas"]["StorageDownloadReadyNotification"]
         | components["schemas"]["SecretKeysResultNotification"]
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
@@ -5310,6 +5460,8 @@ export interface components {
      *             affected cells as stale, `"autorun"` automatically runs affected cells.
      *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
      *             values may affect frontend performance
+     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
+     *             The default is `False`.
      *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
      *           larger values may affect frontend performance
      *         - `pythonpath`: a list of directories to add to the Python search path.
@@ -5347,6 +5499,7 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
+      serve_cached_sessions_in_apps?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -5617,6 +5770,86 @@ export interface components {
       type: "stop-kernel";
     };
     /**
+     * StorageDownloadCommand
+     * @description Download a storage entry.
+     *
+     *         Obtains a pre-signed URL or downloads the file locally and returns a virtual file URL
+     *         so the frontend can fetch the contents.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             namespace: Variable name identifying the storage backend.
+     *             path: Full path of the entry to download.
+     *             preview: If true, a local preview of the file is returned.
+     *                 This is useful if you need to bypass CORS.
+     */
+    StorageDownloadCommand: {
+      namespace: string;
+      path: string;
+      /** @default false */
+      preview?: boolean;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "storage-download";
+    };
+    /**
+     * StorageDownloadReadyNotification
+     * @description Signals that a storage file download is ready.
+     *
+     *         The url may be a signed cloud URL (preferred) or a virtual file URL
+     *         (fallback for backends that don't support signing).
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             url: Signed or virtual-file URL to download from.
+     *             filename: Suggested filename for the download.
+     *             error: Error message if the download failed.
+     */
+    StorageDownloadReadyNotification: {
+      /** @default null */
+      error?: string | null;
+      /** @default null */
+      filename?: string | null;
+      /** @enum {unknown} */
+      op: "storage-download-ready";
+      request_id: string;
+      /** @default null */
+      url?: string | null;
+    };
+    /** StorageDownloadRequest */
+    StorageDownloadRequest: {
+      namespace: string;
+      path: string;
+      /** @default false */
+      preview?: boolean;
+      requestId: string;
+    };
+    /**
+     * StorageEntriesNotification
+     * @description Result of a storage operation that returns entries.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             entries: Storage entries returned by the operation.
+     *             namespace: Variable name of the storage backend.
+     *             prefix: The prefix that was listed (set by list_entries).
+     *             query: The search query that was used (set by search).
+     *             error: Error message if the operation failed.
+     */
+    StorageEntriesNotification: {
+      entries: components["schemas"]["StorageEntry"][];
+      /** @default null */
+      error?: string | null;
+      namespace: string;
+      /** @enum {unknown} */
+      op: "storage-entries";
+      /** @default null */
+      prefix?: string | null;
+      /** @default null */
+      query?: string | null;
+      request_id: string;
+    };
+    /**
      * StorageEntry
      * @description A storage entry is a file, directory, or object for external storage systems
      *
@@ -5626,6 +5859,7 @@ export interface components {
      *             size: The size of the storage entry.
      *             last_modified: The last modified time of the storage entry.
      *             metadata: The metadata of the storage entry.
+     *             mime_type: The MIME type of the storage entry, or None for directories.
      */
     StorageEntry: {
       /** @enum {unknown} */
@@ -5633,8 +5867,40 @@ export interface components {
       lastModified: number | null;
       /** @default {} */
       metadata?: Record<string, any>;
+      /** @default null */
+      mimeType?: string | null;
       path: string;
       size: number;
+    };
+    /**
+     * StorageListEntriesCommand
+     * @description List storage entries at a prefix.
+     *
+     *         Navigates storage like a folder tree using delimiter-based listing.
+     *         Returns entries (files/objects) and virtual directories at one level.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             namespace: Variable name identifying the storage backend.
+     *             limit: Max entries to return.
+     *             prefix: Path prefix to list (None = root).
+     */
+    StorageListEntriesCommand: {
+      limit: number;
+      namespace: string;
+      /** @default null */
+      prefix?: string | null;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "storage-list-entries";
+    };
+    /** StorageListEntriesRequest */
+    StorageListEntriesRequest: {
+      limit: number;
+      namespace: string;
+      /** @default null */
+      prefix?: string | null;
+      requestId: string;
     };
     /**
      * StorageNamespace
@@ -5645,11 +5911,14 @@ export interface components {
      *             display_name: The display name of the storage namespace.
      *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
      *             root_path: The root path of the storage namespace.
+     *             backend_type: The type of the storage backend (fsspec or obstore)
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
+      /** @enum {unknown} */
+      backendType: "fsspec" | "obstore";
       displayName: string;
-      name: string | null;
+      name: string;
       protocol: string;
       rootPath: string;
       storageEntries: components["schemas"]["StorageEntry"][];
@@ -5830,6 +6099,7 @@ export interface components {
             | "text/html"
             | "text/latex"
             | "text/markdown"
+            | "text/password"
             | "text/plain"
             | "video/mp4"
             | "video/mpeg"

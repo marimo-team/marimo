@@ -1393,6 +1393,29 @@ def test_search_with_regex(df: Any) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
+    create_dataframes(
+        {f"col_{i}": ["a", "b", "c"] for i in range(1, 500)}
+        | {"col_0": ["target", "b", "c"]},
+        exclude=["ibis", "duckdb"],
+    ),
+)
+def test_search_wide_dataframe(df: Any) -> None:
+    """Regression test: search must not crash on wide tables (GitHub #8449)."""
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    result = manager.search("target")
+    assert result.get_num_rows() == 1
+
+    result = manager.search("b")
+    assert result.get_num_rows() == 1
+
+    result = manager.search("nonexistent")
+    assert result.get_num_rows() == 0
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
     create_dataframes({"A": [3, 1, None, 2]}),
 )
 def test_sort_values_with_nulls(df: Any) -> None:

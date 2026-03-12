@@ -587,6 +587,18 @@ def test_print_code_result_matches_actual_transform_polars(
             "mean",
         }:
             assume(False)
+        # Polars does not support sum/mean/median on string or other non-numeric columns
+        if transform.aggregation in {"sum", "mean", "median"}:
+            if not transform.aggregation_column_ids:
+                assume(False)  # all columns used; would include strings
+            else:
+                numeric_only = {"integers", "floats", "mixed"}
+                assume(
+                    all(
+                        col in numeric_only
+                        for col in transform.aggregation_column_ids
+                    )
+                )
     if transform.type == TransformType.PIVOT:
         assume(
             (
@@ -636,6 +648,18 @@ def test_print_code_result_matches_actual_transform_polars(
             "mean",
         }:
             assume(False)
+        # Polars does not support sum/mean on string or other non-numeric columns
+        if (
+            transform.aggregation in {"sum", "mean"}
+            and transform.value_column_ids
+        ):
+            numeric_only = {"integers", "floats", "mixed"}
+            assume(
+                not any(
+                    col not in numeric_only
+                    for col in transform.value_column_ids
+                )
+            )
 
     # Polars
     polars_code = python_print_transforms(

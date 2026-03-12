@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useNonce() {
-  const [nonce, setNonce] = useState(0);
-  return () => {
-    setNonce(nonce + 1);
-  };
+  // eslint-disable-next-line react/hook-use-state
+  const [, setNonce] = useState(0);
+  return useCallback(() => {
+    setNonce((n) => n + 1);
+  }, []);
 }

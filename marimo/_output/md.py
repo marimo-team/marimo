@@ -18,6 +18,7 @@ from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.md_extensions.breakless_lists import (
     BreaklessListsExtension,
 )
+from marimo._output.md_extensions.display_math import DisplayMathExtension
 from marimo._output.md_extensions.external_links import ExternalLinksExtension
 from marimo._output.md_extensions.flexible_indent import (
     FlexibleIndentExtension,
@@ -175,6 +176,7 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         "tables",
         # LaTeX
         "pymdownx.arithmatex",
+        DisplayMathExtension(),
         # Subscripts and strikethrough
         "pymdownx.tilde",
         # Superscripts and insert

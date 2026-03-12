@@ -3,13 +3,91 @@
 <span class="twemoji"> {% include ".icons/material/new-box.svg" %} </span>
 <strong>New:</strong> Check out our latest features in the <a href="/latest">documentation</a>! {% endblock %} {% block
 extrahead %} {{ super() }}
-<!-- Add any custom head elements here -->
+<!-- Open Graph -->
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="Marimo Documentation" />
+<meta property="og:site_name" content="marimo Documentation" />
+<meta property="og:locale" content="en_US" />
 <meta
   property="og:title"
   content="{% if page.meta and page.meta.title %}{{ page.meta.title }}{% elif page.title %}{{ page.title }}{% else %}{{ config.site_name }}{% endif %}"
 />
+{% if page.meta and page.meta.description %}
+<meta property="og:description" content="{{ page.meta.description }}" />
+{% elif config.site_description %}
+<meta property="og:description" content="{{ config.site_description }}" />
+{% endif %}
+
+<!-- Twitter Card -->
+<meta name="twitter:site" content="@marimo_io" />
+
+<!-- JSON-LD Structured Data: Organization -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "marimo",
+  "url": "https://marimo.io",
+  "logo": "https://docs.marimo.io/assets/images/social/index.png",
+  "sameAs": [
+    "https://github.com/marimo-team/marimo",
+    "https://twitter.com/marimo_io",
+    "https://discord.gg/JE7nhX6mD8",
+    "https://www.youtube.com/@marimo-team",
+    "https://www.linkedin.com/company/marimo-io",
+    "https://mastodon.social/@marimo_io"
+  ]
+}
+</script>
+
+<!-- JSON-LD Structured Data: WebSite with search -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "marimo Documentation",
+  "url": "https://docs.marimo.io/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://docs.marimo.io/?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+<!-- JSON-LD Structured Data: BreadcrumbList -->
+{% if page and page.url and page.url != "." and page.url != "./" %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://docs.marimo.io/"
+    }
+    {% set ns = namespace(position=2) %}
+    {% set parts = page.url.rstrip('/').split('/') %}
+    {% for part in parts %}
+    {% if part %}
+    ,{
+      "@type": "ListItem",
+      "position": {{ ns.position }},
+      "name": "{% if loop.last and page.title %}{{ page.title }}{% else %}{{ part | replace('_', ' ') | title }}{% endif %}",
+      "item": "https://docs.marimo.io/{{ parts[:loop.index] | join('/') }}/"
+    }
+    {% set ns.position = ns.position + 1 %}
+    {% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
+
 {% endblock %} {% block scripts %} {{ super() }}
 <!-- Add any custom scripts here -->
 {% endblock %}

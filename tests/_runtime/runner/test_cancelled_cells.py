@@ -60,6 +60,17 @@ class TestCancelledCells:
         assert CellId_t("c") in cc
         assert CellId_t("d") not in cc
 
+    def test_same_raiser_accumulates_descendants(self) -> None:
+        """add() for the same raising cell unions, not overwrites, descendants."""
+        cc = CancelledCells()
+
+        cc.add(CellId_t("r"), {CellId_t("a")})
+        cc.add(CellId_t("r"), {CellId_t("b")})
+
+        assert CellId_t("a") in cc
+        assert CellId_t("b") in cc
+        assert cc[CellId_t("r")] == {CellId_t("a"), CellId_t("b")}
+
     def test_shared_reference_semantics(self) -> None:
         """Mutations after passing to a frozen dataclass are visible."""
         cc = CancelledCells()

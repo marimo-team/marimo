@@ -127,6 +127,8 @@ export async function initialize() {
       case "data-source-connections":
       case "validate-sql-result":
       case "storage-namespaces":
+      case "storage-entries":
+      case "storage-download-ready":
       case "secret-keys-result":
       case "startup-logs":
         // Unsupported

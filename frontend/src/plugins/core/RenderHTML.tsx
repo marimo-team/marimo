@@ -14,6 +14,7 @@ import React, {
 } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { QueryParamPreservingLink } from "@/components/ui/query-param-preserving-link";
+import { DocHoverTarget } from "@/core/documentation/DocHoverTarget";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
@@ -146,6 +147,19 @@ const addCopyButtonToCodehilite: TransformFn = (
   }
 };
 
+// Wrap elements with data-marimo-doc attribute in a DocHoverTarget
+const wrapDocHoverTargets: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+): JSX.Element | undefined => {
+  if (domNode instanceof Element && domNode.attribs?.["data-marimo-doc"]) {
+    const qualifiedName = domNode.attribs["data-marimo-doc"];
+    return (
+      <DocHoverTarget qualifiedName={qualifiedName}>{reactNode}</DocHoverTarget>
+    );
+  }
+};
+
 const CopyableCode = ({ children }: { children: ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null);
   return (
@@ -224,6 +238,7 @@ function parseHtml({
   const transformFunctions: TransformFn[] = [
     addCopyButtonToCodehilite,
     preserveQueryParamsInAnchorLinks,
+    wrapDocHoverTargets,
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];

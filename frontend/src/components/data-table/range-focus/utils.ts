@@ -20,19 +20,15 @@ export function getCellValues<TData>(
       continue;
     }
 
-    const [rowId] = cellId.split("_"); // CellId is rowId_columnId
+    const { rowId, columnId } = getRowAndColumnId(cellId);
     const row = table.getRow(rowId);
     if (!row) {
       continue;
     }
 
-    const tableCell = row.getAllCells().find((c) => c.id === cellId);
-    if (!tableCell) {
-      continue;
-    }
-
+    const cellValue = row.getValue(columnId);
     const values = rowValues.get(rowId) ?? [];
-    values.push(stringifyUnknownValue({ value: tableCell.getValue() }));
+    values.push(stringifyUnknownValue({ value: cellValue }));
     rowValues.set(rowId, values);
   }
 
@@ -41,6 +37,65 @@ export function getCellValues<TData>(
 
 export function getTabSeparatedValues(values: string[][]) {
   return values.map((row) => row.join("\t")).join("\n");
+}
+
+/**
+ * Count selected cells excluding the select checkbox column.
+ */
+export function countDataCellsInSelection(
+  selectedCellIds: Set<string>,
+): number {
+  let count = 0;
+  for (const cellId of selectedCellIds) {
+    if (!cellId.includes(SELECT_COLUMN_ID)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Extract numeric values from the selected cells. Only finite numbers and
+ * non-empty numeric strings (e.g. "42", "3.14", "0") are included. Skips select
+ * checkbox column, missing cells, and all other types (boolean, null, etc.).
+ */
+export function getNumericValuesFromSelectedCells<TData>(
+  table: Table<TData>,
+  selectedCellIds: Set<string>,
+): number[] {
+  const numericValues: number[] = [];
+  for (const cellId of selectedCellIds) {
+    if (cellId.includes(SELECT_COLUMN_ID)) {
+      continue;
+    }
+    const { rowId, columnId } = getRowAndColumnId(cellId);
+    const row = table.getRow(rowId);
+    if (!row) {
+      continue;
+    }
+
+    const value = row.getValue(columnId);
+
+    // Only accept numbers and strings
+    // Skip booleans, null, etc.
+    let num: number;
+    if (typeof value === "number") {
+      num = value;
+    } else if (typeof value === "string") {
+      if (value.trim() === "") {
+        continue;
+      }
+      num = Number(value);
+    } else {
+      continue;
+    }
+
+    // Skip NaN and Infinity
+    if (Number.isFinite(num)) {
+      numericValues.push(num);
+    }
+  }
+  return numericValues;
 }
 
 /**
@@ -102,4 +157,11 @@ export function getCellsBetween<TData>(
  */
 function getCellId(rowId: string, columnId: string) {
   return `${rowId}_${columnId}`;
+}
+
+function getRowAndColumnId(cellId: string) {
+  const sepIdx = cellId.indexOf("_");
+  const rowId = cellId.slice(0, sepIdx);
+  const columnId = cellId.slice(sepIdx + 1);
+  return { rowId, columnId };
 }

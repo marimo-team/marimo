@@ -1,3 +1,7 @@
+---
+description: "Code snippets and recipes for common marimo tasks: control flow, layout, data handling, state management, and more."
+---
+
 # Recipes
 
 This page includes code snippets or "**recipes**" for a variety of common tasks.

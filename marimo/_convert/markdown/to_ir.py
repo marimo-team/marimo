@@ -195,7 +195,12 @@ class SafeWrap(Generic[T]):
 
 
 def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
+    from marimo._ast.app_config import _AppConfig
+    from marimo._utils import yaml
+    from marimo._utils.scripts import wrap_script_metadata
+
     app_config = app_config_from_root(root)
+    config_only = _AppConfig.sanitize(app_config)
 
     sources: list[str] = []
     names: list[str] = []
@@ -208,14 +213,28 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
         )
         sources.append(get_source_from_tag(child))
 
-    from marimo._utils.scripts import wrap_script_metadata
-
-    header = root.get("header", None)
+    header_str = root.get("header", None)
     pyproject = root.get("pyproject", None)
-    if pyproject and not header:
-        header = wrap_script_metadata(pyproject)
+
+    # Collect non-config frontmatter metadata
+    frontmatter = {k: v for k, v in app_config.items() if k not in config_only}
+    if pyproject:
+        frontmatter["pyproject"] = pyproject
+    if header_str:
+        frontmatter["header"] = header_str
+
+    # Build header: frontmatter YAML for md, or script preamble
+    if frontmatter:
+        header_value = yaml.dump(frontmatter, sort_keys=False)
+    elif pyproject and not header_str:
+        header_value = wrap_script_metadata(pyproject)
+    elif header_str:
+        header_value = header_str
+    else:
+        header_value = None
+
     notebook = NotebookSerializationV1(
-        app=AppInstantiation(options=app_config),
+        app=AppInstantiation(options=config_only),
         cells=[
             CellDef(
                 name=name,
@@ -224,7 +243,7 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
             )
             for name, source, config in zip(names, sources, cell_config)
         ],
-        header=Header(value=header) if header else None,
+        header=Header(value=header_value) if header_value else None,
     )
     return SafeWrap(notebook)
 

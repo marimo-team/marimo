@@ -1,3 +1,7 @@
+---
+description: "marimo interactive UI inputs: sliders, dropdowns, tables, checkboxes, text fields, chat, and more. Build powerful notebook interfaces with marimo.ui."
+---
+
 # Inputs
 
 marimo comes packaged with interactive UI elements that you can use to build
@@ -21,6 +25,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
 | [`marimo.ui.file`][marimo.ui.file] | File uploads |
 | [`marimo.ui.file_browser`][marimo.ui.file_browser] | Browse files |
 | [`marimo.ui.form`][marimo.ui.form] | Create forms |
+| [`marimo.ui.matrix`][marimo.ui.matrix] | Interactive matrix/vector editor |
 | [`marimo.ui.microphone`][marimo.ui.microphone] | Record audio |
 | [`marimo.ui.multiselect`][marimo.ui.multiselect] | Multiple selection |
 | [`marimo.ui.number`][marimo.ui.number] | Number inputs |
@@ -45,6 +50,6 @@ automatically run with the element's latest value.
 | Integration | Description |
 |-------------|-------------|
 | [`marimo.ui.altair_chart`][marimo.ui.altair_chart] | Interactive Altair charts |
+| [`marimo.ui.matplotlib`][marimo.ui.matplotlib] | Reactive Matplotlib plots |
 | [`marimo.ui.plotly`][marimo.ui.plotly] | Interactive Plotly charts |
-| [`marimo.mpl.interactive`][marimo.mpl.interactive] | Interactive Matplotlib plots |
 | [`marimo.ui.anywidget`][marimo.ui.anywidget] | Custom widgets |

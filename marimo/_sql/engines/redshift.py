@@ -15,6 +15,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
+from marimo._sql.sql_quoting import quote_qualified_name
 from marimo._sql.utils import (
     raise_df_import_error,
     sql_type_to_data_type,
@@ -337,9 +338,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
 
             table_type = self._resolve_table_type(table[0][3])
 
-            row_count = cursor.execute(
-                f"SELECT COUNT(*) FROM {database_name}.{schema_name}.{table_name}"
+            quoted_name = quote_qualified_name(
+                database_name, schema_name, table_name, dialect="redshift"
             )
+            row_count = cursor.execute(f"SELECT COUNT(*) FROM {quoted_name}")
             row = row_count.fetchone()
             if row is None or row[0] is None:
                 return None
@@ -348,7 +350,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
             try:
                 # [[catalog, schema, table_name, column_name, ordinal_position, column_default, is_nullable, data_type, character_maximum_length, numeric_precision, numeric_scale, remarks]]
                 columns = cursor.execute(
-                    f"SHOW COLUMNS FROM TABLE {database_name}.{schema_name}.{table_name};"
+                    f"SHOW COLUMNS FROM TABLE {quoted_name};"
                 )
             except Exception as e:
                 LOGGER.debug(

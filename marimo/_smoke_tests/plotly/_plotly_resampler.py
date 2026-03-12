@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.19.11"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
@@ -48,7 +48,11 @@ def _():
     fig = px.scatter(
         df, x="x", y="y", color="color", title="Scatter Plot with 1M Datapoints"
     )
+    return (fig,)
 
+
+@app.cell
+def _(fig):
     fig
     return
 

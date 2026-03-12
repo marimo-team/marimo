@@ -7,7 +7,7 @@ import textwrap
 def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
     black_installed = False
     try:
-        import black
+        import black  # type: ignore[import-not-found]
 
         black_installed = True
     except ModuleNotFoundError:
@@ -39,7 +39,7 @@ def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
                 formatted = formatted.rsplit("\n", 1)[0].rstrip()
                 if formatted.endswith(":"):
                     formatted = formatted[:-1]
-            return formatted
+            return formatted  # type: ignore[no-any-return]
         except Exception:
             pass
 

@@ -1373,16 +1373,16 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.server_side_pdf_export"
+              name="experimental.storage_inspector"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
                     <FormLabel className="font-normal">
-                      Better PDF Export
+                      Storage Inspector
                     </FormLabel>
                     <FormControl>
                       <Checkbox
-                        data-testid="server-side-pdf-export-checkbox"
+                        data-testid="storage-inspector-checkbox"
                         checked={field.value === true}
                         onCheckedChange={field.onChange}
                       />
@@ -1390,16 +1390,10 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                   <IsOverridden
                     userConfig={config}
-                    name="experimental.server_side_pdf_export"
+                    name="experimental.storage_inspector"
                   />
                   <FormDescription>
-                    Enable PDF export using{" "}
-                    <Kbd className="inline">nbconvert</Kbd> and{" "}
-                    <Kbd className="inline">playwright</Kbd>. Refer to{" "}
-                    <ExternalLink href="https://docs.marimo.io/guides/exporting/#exporting-to-pdf-slides-or-rst">
-                      the docs
-                    </ExternalLink>
-                    .
+                    Enable experimental storage inspector.
                   </FormDescription>
                 </div>
               )}

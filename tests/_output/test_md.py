@@ -520,11 +520,11 @@ def test_md_caret_combined() -> None:
 @patch("marimo._runtime.output")
 def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
     filename = tmp_path / "macros.tex"
-    filename.write_text("\\newcommand{\\\foo}{bar}")
+    filename.write_text("\\newcommand{\\\\foo}{bar}")
     latex(filename=filename)
     assert (
         output.append.call_args[0][0].text
-        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\x0coo}{bar}\n||]</marimo-tex></span>'
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\\foo}{bar}\n||]</marimo-tex></span>'
     )
 
 
@@ -532,13 +532,13 @@ def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
 @patch("marimo._output.md.urlopen")
 def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
     mock_response = MagicMock()
-    mock_response.read.return_value = b"\\newcommand{\\\foo}{bar}"
+    mock_response.read.return_value = b"\\newcommand{\\\\foo}{bar}"
     mock_urlopen.return_value.__enter__.return_value = mock_response
 
     latex(filename="https://example.com/macros.tex")
     assert (
         output.append.call_args[0][0].text
-        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\foo}{bar}\n||]</marimo-tex></span>'
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\\foo}{bar}\n||]</marimo-tex></span>'
     )
 
 
@@ -647,3 +647,102 @@ And more text"""
     # Test that the text before and after is preserved
     assert "This is some text" in result
     assert "And more text" in result
+
+
+def test_md_display_math_without_blank_lines() -> None:
+    # Single-line $$...$$ without blank lines should render as display math
+    result = _md("Hello\n$$f(x)$$\nworld", apply_markdown_class=False).text
+    assert "||[" in result  # block delimiters
+    assert "||(" not in result  # NOT inline delimiters
+    assert "marimo-tex" in result
+
+    # Same with blank lines (regression check) — should produce same output
+    result_with_blanks = _md(
+        "Hello\n\n$$f(x)$$\n\nworld", apply_markdown_class=False
+    ).text
+    assert result == result_with_blanks
+
+    # Multi-line $$...$$ without blank lines
+    result_multi = _md(
+        "Hello\n$$\nf(x)\n$$\nworld", apply_markdown_class=False
+    ).text
+    assert "||[" in result_multi
+    assert "||(" not in result_multi
+    assert "marimo-tex" in result_multi
+
+    # Multiple $$ blocks without blank lines
+    result_multiple = _md("$$a$$\n$$b$$", apply_markdown_class=False).text
+    assert result_multiple.count("||[") == 2
+    assert "||(" not in result_multiple
+
+    # $$ at start of text
+    result_start = _md("$$f(x)$$\nworld", apply_markdown_class=False).text
+    assert "||[" in result_start
+    assert "||(" not in result_start
+
+    # $$ at end of text
+    result_end = _md("Hello\n$$f(x)$$", apply_markdown_class=False).text
+    assert "||[" in result_end
+    assert "||(" not in result_end
+
+    # Inline $...$ should NOT be affected
+    result_inline = _md("Hello $f(x)$ world", apply_markdown_class=False).text
+    assert "||(" in result_inline  # inline delimiters
+    assert "||[" not in result_inline  # NOT block delimiters
+
+    # $$ inside code blocks should NOT be affected
+    result_code = _md(
+        "```\na = 1\n$$ not math\n```", apply_markdown_class=False
+    ).text
+    assert "marimo-tex" not in result_code
+    assert "$$ not math" in result_code
+
+
+def test_md_normalizes_rst_math_directives() -> None:
+    result = _md(
+        "For t > 0:\n\n.. math::\n\n    m_t = \\beta_1 \\cdot g_t",
+        apply_markdown_class=False,
+    ).text
+    assert ".. math::" not in result
+    assert "<marimo-tex" in result
+    assert "||[" in result
+    assert "m_t = \\beta_1 \\cdot g_t" in result
+
+
+def test_md_normalizes_math_roles_and_latex_delimiters() -> None:
+    result = _md(
+        r"Inline :math:`x^2`, :math:<code>\alpha_t</code>, \(y^2\), and \[z^2\].",
+        apply_markdown_class=False,
+    ).text
+
+    assert ":math:`" not in result
+    assert ":math:<code>" not in result
+    assert result.count("<marimo-tex") >= 4
+    assert "||(x^2||)" in result
+    assert "||(\\alpha_t||)" in result
+    assert "||(y^2||)" in result
+    assert "||[" in result
+    assert "z^2" in result
+
+
+def test_md_math_normalization_skips_fenced_and_inline_code() -> None:
+    result = _md(
+        "```\n:math:`x`\n.. math::\n```\n\nUse `:math:` as text and :math:`y`.",
+        apply_markdown_class=False,
+    ).text
+
+    assert "codehilite" in result
+    assert "<code>:math:</code>" in result
+    assert ":math:`y`" not in result
+    assert result.count("<marimo-tex") == 1
+    assert "||(y||)" in result
+
+
+def test_md_display_math_format_preserved() -> None:
+    # __format__ should return original markdown text
+    text = "Hello\n$$f(x)$$\nworld"
+    md_obj = _md(text)
+    assert f"{md_obj}" == text
+
+    # _repr_markdown_ should return original markdown text
+    assert md_obj._repr_markdown_() == text

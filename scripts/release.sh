@@ -73,7 +73,7 @@ fi
 print_step "Pulling latest changes"
 git pull origin main
 
-# Run hatch version
+# Run uv version
 print_step "Updating version"
 echo -e "Running: uv version --bump $VERSION_TYPE\n"
 uv version --bump $VERSION_TYPE

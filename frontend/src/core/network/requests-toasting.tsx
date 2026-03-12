@@ -60,6 +60,7 @@ export function createErrorToastingRequests(
     getRunningNotebooks: "Failed to get running notebooks",
     shutdownSession: "Failed to shutdown session",
     exportAsHTML: "Failed to export HTML",
+    exportAsIPYNB: "Failed to export ipynb",
     exportAsMarkdown: "Failed to export Markdown",
     exportAsPDF: "Failed to export PDF",
     autoExportAsHTML: "", // No toast
@@ -75,6 +76,8 @@ export function createErrorToastingRequests(
     invokeAiTool: "Failed to invoke AI tool",
     clearCache: "Failed to clear cache",
     getCacheInfo: "", // No toast
+    listStorageEntries: "Failed to list storage entries",
+    downloadStorage: "Failed to download storage entry",
   };
 
   const handlers = {} as EditRequests & RunRequests;

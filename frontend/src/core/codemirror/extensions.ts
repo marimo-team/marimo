@@ -29,14 +29,9 @@ export function formatKeymapExtension(hotkeys: HotkeyProvider) {
       preventDefault: true,
       run: (ev) => {
         const currentLanguage = getCurrentLanguageAdapter(ev);
-        // Early return if not a supported language
-        if (currentLanguage !== "markdown" && currentLanguage !== "python") {
-          return false;
-        }
-
-        // Toggle between markdown and python
         const destinationLanguage =
-          currentLanguage === "python" ? "markdown" : "python";
+          currentLanguage === "markdown" ? "python" : "markdown";
+
         const response = toggleToLanguage(ev, destinationLanguage, {
           force: true,
         });

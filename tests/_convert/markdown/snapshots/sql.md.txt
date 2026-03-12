@@ -108,10 +108,10 @@ elements. This means your SQL statement and results can be reactive! 🚀
 <!---->
 ## Querying dataframes with SQL
 <!---->
-/// Tip | "Data sources panel"
+/// Tip | "Variables panel"
 
-    Click the database "barrel" icon in the left toolbar to see all dataframes and in-
-    memory tables that your notebook has access to.
+    Open the variables panel in the left toolbar to see all dataframes
+    and in-memory tables that your notebook has access to.
 ///
 <!---->
 Let's take a look at a SQL cell. The next cell generates a dataframe called `df`.

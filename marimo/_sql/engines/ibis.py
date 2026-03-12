@@ -338,14 +338,14 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         """
         try:
             # Query the target catalog directly to get tables that actually exist there
-            target_catalog_sql = f"""
+            target_catalog_sql = """
                 SELECT DISTINCT table_name
                 FROM information_schema.tables
-                WHERE table_catalog = '{current_database}'
-                AND table_schema = '{schema}'
+                WHERE table_catalog = $1
+                AND table_schema = $2
             """
             result = self._connection.con.execute(
-                target_catalog_sql
+                target_catalog_sql, [current_database, schema]
             ).fetchall()
             target_catalog_tables = {row[0] for row in result}
 

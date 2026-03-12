@@ -10,6 +10,49 @@ from marimo._runtime.virtual_file.storage import (
 )
 
 
+class TestInMemoryStorageReadChunked:
+    def test_read_chunked_basic(self) -> None:
+        storage = InMemoryStorage()
+        storage.store("test_key", b"hello world")
+        chunks = list(storage.read_chunked("test_key", 11))
+        assert b"".join(chunks) == b"hello world"
+
+    def test_read_chunked_with_byte_length(self) -> None:
+        storage = InMemoryStorage()
+        storage.store("test_key", b"hello world")
+        chunks = list(storage.read_chunked("test_key", 5))
+        assert b"".join(chunks) == b"hello"
+
+    def test_read_chunked_multiple_chunks(self) -> None:
+        storage = InMemoryStorage()
+        data = b"a" * 100
+        storage.store("test_key", data)
+        # Use a small chunk size to force multiple chunks
+        chunks = list(storage.read_chunked("test_key", 100, chunk_size=30))
+        assert b"".join(chunks) == data
+        assert len(chunks) == 4  # 30 + 30 + 30 + 10
+
+    def test_read_chunked_nonexistent_raises_keyerror(self) -> None:
+        storage = InMemoryStorage()
+        with pytest.raises(KeyError, match="Virtual file not found"):
+            list(storage.read_chunked("nonexistent", 10))
+
+    def test_read_chunked_chunk_sizes(self) -> None:
+        """Verify each chunk is at most chunk_size bytes."""
+        storage = InMemoryStorage()
+        data = b"x" * 250
+        storage.store("test_key", data)
+        chunk_size = 64
+        chunks = list(
+            storage.read_chunked("test_key", 250, chunk_size=chunk_size)
+        )
+        for chunk in chunks[:-1]:
+            assert len(chunk) == chunk_size
+        # Last chunk may be smaller
+        assert len(chunks[-1]) <= chunk_size
+        assert b"".join(chunks) == data
+
+
 class TestInMemoryStorage:
     def test_store_and_read(self) -> None:
         storage = InMemoryStorage()
@@ -156,6 +199,77 @@ class TestSharedMemoryStorage:
         storage.shutdown()
         storage.shutdown()  # Should not raise
 
+    def test_read_chunked_basic(self) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            storage.store("marimo_chunk_1", b"hello world")
+            chunks = list(storage.read_chunked("marimo_chunk_1", 11))
+            assert b"".join(chunks) == b"hello world"
+        finally:
+            storage.shutdown()
+
+    def test_read_chunked_with_byte_length(self) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            storage.store("marimo_chunk_2", b"hello world")
+            chunks = list(storage.read_chunked("marimo_chunk_2", 5))
+            assert b"".join(chunks) == b"hello"
+        finally:
+            storage.shutdown()
+
+    def test_read_chunked_multiple_chunks(self) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            data = b"a" * 100
+            storage.store("marimo_chunk_3", data)
+            chunks = list(
+                storage.read_chunked("marimo_chunk_3", 100, chunk_size=30)
+            )
+            assert b"".join(chunks) == data
+            assert len(chunks) == 4  # 30 + 30 + 30 + 10
+        finally:
+            storage.shutdown()
+
+    def test_read_chunked_nonexistent_raises_keyerror(self) -> None:
+        storage = SharedMemoryStorage()
+        try:
+            with pytest.raises(KeyError, match="Virtual file not found"):
+                list(storage.read_chunked("nonexistent_chunk", 10))
+        finally:
+            storage.shutdown()
+
+    def test_read_chunked_cross_process(self) -> None:
+        """Test chunked read works across fresh instances."""
+        storage1 = SharedMemoryStorage()
+        try:
+            data = b"cross process chunked"
+            storage1.store("marimo_chunk_cross", data)
+            storage2 = SharedMemoryStorage()
+            chunks = list(
+                storage2.read_chunked(
+                    "marimo_chunk_cross", len(data), chunk_size=5
+                )
+            )
+            assert b"".join(chunks) == data
+        finally:
+            storage1.shutdown()
+
+    def test_read_chunked_data_integrity(self) -> None:
+        """Test that chunked read produces identical data to regular read."""
+        storage = SharedMemoryStorage()
+        try:
+            data = bytes(range(256)) * 4  # 1024 bytes of varied data
+            storage.store("marimo_chunk_integ", data)
+            regular = storage.read("marimo_chunk_integ", len(data))
+            chunked = b"".join(
+                storage.read_chunked(
+                    "marimo_chunk_integ", len(data), chunk_size=100
+                )
+            )
+            assert regular == chunked == data
+        finally:
+            storage.shutdown()
+
 
 class TestVirtualFileStorageManager:
     def test_singleton(self) -> None:
@@ -196,6 +310,34 @@ class TestVirtualFileStorageManager:
             manager.storage = None
             result = manager.read("marimo_fallback_test", 13)
             assert result == b"fallback data"
+        finally:
+            manager.storage = original_storage
+            shm_storage.shutdown()
+
+    def test_read_chunked_with_storage(self) -> None:
+        manager = VirtualFileStorageManager()
+        original_storage = manager.storage
+        try:
+            storage = InMemoryStorage()
+            storage.store("test_file", b"test data chunked")
+            manager.storage = storage
+            chunks = list(manager.read_chunked("test_file", 17))
+            assert b"".join(chunks) == b"test data chunked"
+        finally:
+            manager.storage = original_storage
+
+    def test_read_chunked_falls_back_to_shared_memory(self) -> None:
+        manager = VirtualFileStorageManager()
+        original_storage = manager.storage
+        shm_storage = SharedMemoryStorage()
+        try:
+            shm_storage.store("marimo_fb_chunk", b"fallback chunked")
+            manager.storage = None
+            chunks = list(
+                manager.read_chunked("marimo_fb_chunk", 16, chunk_size=4)
+            )
+            assert b"".join(chunks) == b"fallback chunked"
+            assert len(chunks) == 4  # 16 / 4 = 4 chunks
         finally:
             manager.storage = original_storage
             shm_storage.shutdown()

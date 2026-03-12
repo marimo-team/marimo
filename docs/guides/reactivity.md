@@ -1,3 +1,7 @@
+---
+description: "Learn how marimo's reactive execution model works: run a cell and all dependent cells update automatically, keeping code and outputs consistent."
+---
+
 # Running cells
 
 marimo _reacts_ to your code changes: run a cell, and all other cells that

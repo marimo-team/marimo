@@ -15,11 +15,13 @@ from typing import (
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
 from marimo._utils.code import hash_code
+from marimo._utils.methods import getcallable
 
 AnyWidgetState: TypeAlias = dict[str, Any]
 
@@ -85,6 +87,28 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
         el = anywidget(widget)
         _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return el
+
+
+def _sync_widget_state(widget: AnyWidget) -> None:
+    """Call _repr_mimebundle_ to sync widget state if available.
+
+    Plotly's FigureWidget (and subclasses like plotly-resampler's
+    FigureWidgetResampler) maintain a split internal model: the figure's
+    data lives in _data/_layout_obj, but the widget traits (_widget_data,
+    _widget_layout) are only updated during _repr_mimebundle_(). This call
+    ensures the widget traits reflect the current figure state before the
+    comm sends state to the frontend.
+    """
+    repr_mimebundle = getcallable(widget, "_repr_mimebundle_")
+    if repr_mimebundle is not None:
+        try:
+            repr_mimebundle()
+        except Exception:
+            # Not critical — widget may still work without this sync
+            LOGGER.debug(
+                "Failed to call _repr_mimebundle_ on %s",
+                type(widget).__name__,
+            )
 
 
 def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
@@ -197,6 +221,38 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         comm = self.widget.comm
         if isinstance(comm, MarimoComm):
             comm.ui_element_id = self._id
+
+    def _ensure_widget_synced(self) -> None:
+        """Sync widget state lazily on first access (idempotent).
+
+        Some widgets (e.g. plotly FigureWidget, plotly-resampler) only sync
+        their internal data to widget traits during _repr_mimebundle_().
+        This ensures the sync happens once, the first time the element is
+        rendered.
+
+        NOTE: @once cannot be used here because Html is a @dataclass with
+        eq=True/frozen=False, making instances unhashable (WeakKeyDictionary
+        requires hashable keys).
+
+        NOTE: If you are a widget author and need to sync state from your
+        widget, do not do this in the repr_mimebundle method.
+        This is not a supported pattern and may break in the future.
+        """
+        # Use object.__dict__ directly to bypass anywidget's
+        # custom __getattr__/__setattr__
+        if self.__dict__.get("_widget_synced", False):
+            return
+        object.__setattr__(self, "_widget_synced", True)
+        _sync_widget_state(self.widget)
+
+    @property
+    def text(self) -> str:
+        self._ensure_widget_synced()
+        return super().text
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        self._ensure_widget_synced()
+        return super()._mime_()
 
     def _convert_value(
         self, value: ModelIdRef | AnyWidgetState

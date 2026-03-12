@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Protocol
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
+
+DEFAULT_CHUNK_SIZE = 256 * 1024  # 256KB
 
 if not is_pyodide():
     # the shared_memory module is not supported in the Pyodide distribution
@@ -23,6 +25,22 @@ class VirtualFileStorage(Protocol):
 
     def read(self, key: str, byte_length: int) -> bytes:
         """Read buffer data by key.
+
+        Raises:
+            KeyError: If key not found
+        """
+        ...
+
+    def read_chunked(
+        self,
+        key: str,
+        byte_length: int,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    ) -> Iterator[bytes]:
+        """Read buffer data by key in chunks.
+
+        Yields chunks of bytes, avoiding allocating the full buffer at once.
+        Useful for streaming large files over HTTP.
 
         Raises:
             KeyError: If key not found
@@ -110,13 +128,43 @@ class SharedMemoryStorage(VirtualFileStorage):
         shm = None
         try:
             shm = shared_memory.SharedMemory(name=key)
-            buffer_contents = bytes(shm.buf)[:byte_length]
+            # Slice the memoryview first, then copy — avoids allocating
+            # a bytes object for the entire buffer when only a prefix
+            # is needed.
+            buffer_contents = bytes(shm.buf[:byte_length])
         except FileNotFoundError as err:
             raise KeyError(f"Virtual file not found: {key}") from err
         finally:
             if shm is not None:
                 shm.close()
         return buffer_contents
+
+    def read_chunked(
+        self,
+        key: str,
+        byte_length: int,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    ) -> Iterator[bytes]:
+        if is_pyodide():
+            raise RuntimeError(
+                "Shared memory is not supported on this platform"
+            )
+        shm = None
+        view = None
+        try:
+            shm = shared_memory.SharedMemory(name=key)
+            view = shm.buf[:byte_length]
+            for i in range(0, byte_length, chunk_size):
+                yield bytes(view[i : i + chunk_size])
+        except FileNotFoundError as err:
+            raise KeyError(f"Virtual file not found: {key}") from err
+        finally:
+            # Release the memoryview before closing the shared memory,
+            # otherwise close() fails with "cannot close exported pointers".
+            if view is not None:
+                view.release()
+            if shm is not None:
+                shm.close()
 
     def remove(self, key: str) -> None:
         if key in self._storage:
@@ -164,6 +212,19 @@ class InMemoryStorage(VirtualFileStorage):
         if key not in self._storage:
             raise KeyError(f"Virtual file not found: {key}")
         return self._storage[key][:byte_length]
+
+    def read_chunked(
+        self,
+        key: str,
+        byte_length: int,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    ) -> Iterator[bytes]:
+        if key not in self._storage:
+            raise KeyError(f"Virtual file not found: {key}")
+        buffer = self._storage[key]
+        end = min(byte_length, len(buffer))
+        for i in range(0, end, chunk_size):
+            yield buffer[i : min(i + chunk_size, end)]
 
     def remove(self, key: str) -> None:
         if key in self._storage:
@@ -214,3 +275,26 @@ class VirtualFileStorageManager:
             # Use SharedMemoryStorage to read by name across processes
             return SharedMemoryStorage().read(filename, byte_length)
         return storage.read(filename, byte_length)
+
+    def read_chunked(
+        self,
+        filename: str,
+        byte_length: int,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+    ) -> Iterator[bytes]:
+        """Read from storage in chunks, with cross-process fallback.
+
+        Yields chunks of bytes for streaming. Avoids holding the entire
+        file in memory as a single bytes object.
+
+        Raises:
+            KeyError: If file not found
+            RuntimeError: When ``SharedMemoryStorage`` is used on the Pyodide platform.
+        """
+        storage = self.storage
+        if storage is None:
+            yield from SharedMemoryStorage().read_chunked(
+                filename, byte_length, chunk_size
+            )
+        else:
+            yield from storage.read_chunked(filename, byte_length, chunk_size)

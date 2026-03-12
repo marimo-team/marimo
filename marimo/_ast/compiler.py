@@ -11,7 +11,7 @@ import sys
 import textwrap
 import token as token_types
 import warnings
-from tokenize import tokenize
+from tokenize import TokenError, tokenize
 from types import CodeType, FrameType
 from typing import Any, Callable, Optional, TypeAlias, cast
 
@@ -85,8 +85,14 @@ def ends_with_semicolon(code: str) -> bool:
         bool: True if the last non-comment line ends with a semicolon
     """
     # Tokenize to check for semicolon
-    tokens = tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
-    for token in reversed(list(tokens)):
+    try:
+        tokens = list(
+            tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
+        )
+    except TokenError:
+        # Fallback for code with syntax errors (e.g., unterminated strings)
+        return code.rstrip().endswith(";")
+    for token in reversed(tokens):
         if token.type in (
             token_types.ENDMARKER,
             token_types.NEWLINE,

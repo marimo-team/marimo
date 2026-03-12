@@ -1,6 +1,9 @@
 name: Release
 
-# Orchestrates both production and development releases
+# Orchestrates both production and development releases.
+# PyPI publishing is done directly in this top-level workflow
+# because PyPI Trusted Publishing does not support reusable workflows.
+# See: https://docs.pypi.org/trusted-publishers/troubleshooting/#reusable-workflows-on-github
 on:
   push:
     branches:
@@ -14,8 +17,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Publish production release on tag push
-  release_prod:
+  # ── Production Release (tag push) ──────────────────────────────
+
+  build_prod:
     name: 🚀 Production Release
     if: startsWith(github.ref, 'refs/tags/')
     uses: ./.github/workflows/release-prod.yml
@@ -23,15 +27,108 @@ jobs:
     permissions:
       contents: read # Required for checkout
       packages: write # Required for Docker image publishing
-      id-token: write # Required for OIDC
+      id-token: write # Required for nodejs OIDC
 
-  # Publish development release on push to main
-  release_dev:
+  publish_prod_pypi:
+    name: 📤 Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build_prod
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: 📥 Download marimo dist
+        uses: actions/download-artifact@v4
+        with:
+          name: pypi-marimo
+          path: dist/
+      - name: 📤 Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ── Development Release (push to main) ─────────────────────────
+
+  build_dev:
     name: 🔧 Development Release
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/release-dev.yml
     secrets: inherit
     permissions:
       contents: read # Required for checkout
-      pull-requests: write # Required for PR comment
-      id-token: write # Required for OIDC
+      id-token: write # Required for nodejs OIDC
+
+  publish_dev_pypi_marimo:
+    name: 📤 Publish marimo to TestPyPI
+    if: github.ref == 'refs/heads/main'
+    needs: build_dev
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: 📥 Download marimo dist
+        uses: actions/download-artifact@v4
+        with:
+          name: pypi-marimo-dev
+          path: dist/
+      - name: 📤 Upload to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish_dev_pypi_marimo_base:
+    name: 📤 Publish marimo-base to TestPyPI
+    if: github.ref == 'refs/heads/main'
+    needs: build_dev
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: 📥 Download marimo-base dist
+        uses: actions/download-artifact@v4
+        with:
+          name: pypi-marimo-base-dev
+          path: dist/
+      - name: 📤 Upload to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  comment_pr:
+    name: 📝 Comment PR
+    if: github.ref == 'refs/heads/main'
+    needs: [build_dev, publish_dev_pypi_marimo, publish_dev_pypi_marimo_base]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: 📝 Comment PR
+        uses: actions/github-script@v7
+        continue-on-error: true
+        env:
+          MARIMO_VERSION: ${{ needs.build_dev.outputs.marimo_version }}
+        with:
+          script: |
+            try {
+              const marimoVersion = process.env.MARIMO_VERSION || 'unknown';
+              const pullRequest = await github.rest.search.issuesAndPullRequests({
+                q: `sha:${context.sha} is:pr is:merged`
+              });
+
+              if (pullRequest.data.items.length > 0) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pullRequest.data.items[0].number,
+                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${encodeURIComponent(marimoVersion)}`
+                });
+              } else {
+                console.log("No merged PR found for this SHA.");
+              }
+            } catch (err) {
+              console.error(err);
+            }

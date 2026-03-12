@@ -45,8 +45,8 @@ class FileTreeRequest(msgspec.Struct, rename="camel"):
 class FileCreateRequest(msgspec.Struct, rename="camel"):
     # The path where to create the file or directory
     path: str
-    # 'file' or 'directory'
-    type: Literal["file", "directory"]
+    # 'file', 'directory', or 'notebook'
+    type: Literal["file", "directory", "notebook"]
     # The name of the file or directory
     name: str
     # The contents of the file, base64-encoded

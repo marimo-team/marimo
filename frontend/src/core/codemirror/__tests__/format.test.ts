@@ -4,7 +4,7 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { atom } from "jotai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import type { NotebookState } from "@/core/cells/cells";
 import { getNotebook } from "@/core/cells/cells";
@@ -44,6 +44,7 @@ vi.mock("@/core/config/config", () => ({
 }));
 
 const updateCellCode = vi.fn();
+const createdViews: EditorView[] = [];
 
 function createEditor(content: string, cellId: CellId) {
   const state = EditorState.create({
@@ -74,6 +75,7 @@ function createEditor(content: string, cellId: CellId) {
     parent: document.body,
   });
 
+  createdViews.push(view);
   return view;
 }
 
@@ -86,6 +88,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Set the mock request client in the atom
   store.set(requestClientAtom, mockRequestClient);
+});
+
+afterEach(() => {
+  for (const view of createdViews) {
+    view.destroy();
+  }
 });
 
 describe("format", () => {

@@ -32,7 +32,10 @@ from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
-from marimo._server.models.export import ExportAsHTMLRequest
+from marimo._server.models.export import (
+    ExportAsHTMLRequest,
+    ExportPDFPreset,
+)
 from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
@@ -42,8 +45,12 @@ from marimo._utils.marimo_path import MarimoPath
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from marimo._server.export._pdf_raster import PDFRasterizationOptions
     from marimo._session.state.session_view import SessionView
     from marimo._session.types import Session
+    from marimo._types.ids import CellId_t
 
 
 @dataclass
@@ -172,6 +179,25 @@ def export_as_wasm(
     )
 
 
+def notebook_uses_slides_layout(filepath: MarimoPath) -> bool:
+    """Return whether a notebook declares the slides layout."""
+    try:
+        file_router = AppFileRouter.from_filename(filepath)
+        file_key = file_router.get_unique_file_key()
+        if file_key is None:
+            return False
+        file_manager = file_router.get_file_manager(file_key)
+        layout_config = file_manager.read_layout_config()
+        return layout_config is not None and layout_config.type == "slides"
+    except Exception as e:
+        LOGGER.debug(
+            "Unable to infer notebook layout for %s: %s",
+            filepath.absolute_name,
+            e,
+        )
+        return False
+
+
 async def run_app_then_export_as_ipynb(
     filepath: MarimoPath,
     sort_mode: Literal["top-down", "topological"],
@@ -212,6 +238,9 @@ async def run_app_then_export_as_pdf(
     webpdf: bool,
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
+    export_as: ExportPDFPreset | None,
+    include_inputs: bool = True,
+    rasterization_options: PDFRasterizationOptions | None = None,
 ) -> tuple[bytes | None, bool]:
     file_router = AppFileRouter.from_filename(filepath)
     file_key = file_router.get_unique_file_key()
@@ -219,6 +248,7 @@ async def run_app_then_export_as_pdf(
     file_manager = file_router.get_file_manager(file_key)
 
     session_view: SessionView | None = None
+    png_fallbacks: Mapping[CellId_t, str] | None = None
     did_error = False
 
     if include_outputs:
@@ -232,11 +262,39 @@ async def run_app_then_export_as_pdf(
                 quiet=True,
             )
 
-    pdf_data = Exporter().export_as_pdf(
-        app=file_manager.app,
-        session_view=session_view,
-        webpdf=webpdf,
-    )
+        if (
+            session_view is not None
+            and rasterization_options is not None
+            and rasterization_options.enabled
+        ):
+            from marimo._server.export._pdf_raster import (
+                collect_pdf_png_fallbacks,
+            )
+
+            png_fallbacks = await collect_pdf_png_fallbacks(
+                app=file_manager.app,
+                session_view=session_view,
+                filename=filepath.short_name,
+                filepath=filepath.absolute_name,
+                argv=argv,
+                options=rasterization_options,
+            )
+    exporter = Exporter()
+    if export_as == "slides":
+        pdf_data = await exporter.export_as_slides_pdf(
+            app=file_manager.app,
+            session_view=session_view,
+            png_fallbacks=png_fallbacks,
+            include_inputs=include_inputs,
+        )
+    else:
+        pdf_data = exporter.export_as_pdf(
+            app=file_manager.app,
+            session_view=session_view,
+            png_fallbacks=png_fallbacks,
+            include_inputs=include_inputs,
+            webpdf=webpdf,
+        )
     return pdf_data, did_error
 
 
@@ -356,6 +414,7 @@ async def run_app_until_completion(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
     quiet: bool = False,
+    persist_session: bool = True,
 ) -> tuple[SessionView, bool]:
     from marimo._session.consumer import SessionConsumer
     from marimo._session.events import SessionEventBus
@@ -477,6 +536,25 @@ async def run_app_until_completion(
     # Hack: yield to give the session view a chance to process the incoming
     # console operations.
     await asyncio.sleep(0.1)
+
+    if persist_session:
+        from marimo._server.export._session_cache import (
+            persist_session_view_to_cache,
+        )
+
+        try:
+            persist_session_view_to_cache(
+                view=session.session_view,
+                notebook_path=file_manager.path,
+                cell_ids=file_manager.app.cell_manager.cell_ids(),
+            )
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to persist session snapshot for %s: %s",
+                file_manager.path,
+                e,
+            )
+
     # Stop distributor, terminate kernel process, etc -- all information is
     # captured by the session view.
     session.close()

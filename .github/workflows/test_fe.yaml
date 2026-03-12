@@ -61,12 +61,31 @@ jobs:
         id: lint
         run: pnpm turbo lint
 
+      - name: 🔒 Verify clean git tree after lint
+        id: lint_clean_tree
+        run: |
+          CHANGES="$(git status --porcelain)"
+          if [[ -n "$CHANGES" ]]; then
+            echo "Lint changed tracked files. Commit generated/autofixed files."
+            echo "$CHANGES"
+            git --no-pager diff --stat
+            exit 1
+          fi
+
       - name: Comment on lint failure
         if: failure() && steps.lint.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "lint"
           command: "pnpm turbo lint"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on clean-tree failure after lint
+        if: failure() && steps.lint_clean_tree.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "clean-tree"
+          command: "pnpm turbo lint && git status --short"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Comment on dedupe failure
@@ -101,6 +120,17 @@ jobs:
         id: typecheck
         run: pnpm turbo typecheck
 
+      - name: 🔒 Verify clean git tree after typecheck
+        id: typecheck_clean_tree
+        run: |
+          CHANGES="$(git status --porcelain)"
+          if [[ -n "$CHANGES" ]]; then
+            echo "Typecheck/codegen changed tracked files. Commit generated files."
+            echo "$CHANGES"
+            git --no-pager diff --stat
+            exit 1
+          fi
+
       - name: 🧪 Test
         id: test
         run: pnpm turbo test
@@ -119,6 +149,14 @@ jobs:
         with:
           check-name: "test"
           command: "pnpm turbo test"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on clean-tree failure after typecheck
+        if: failure() && steps.typecheck_clean_tree.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "clean-tree"
+          command: "pnpm turbo typecheck && git status --short"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   build_frontend:

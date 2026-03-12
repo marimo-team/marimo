@@ -27,6 +27,7 @@ export interface ActionButton {
   handleHeadless?: (event?: Event) => void;
   divider?: boolean;
   dropdown?: ActionButton[];
+  additionalKeywords?: string[];
 }
 
 export function isParentAction(
@@ -51,6 +52,10 @@ export function flattenActions(
     if (isParentAction(action)) {
       return flattenActions(action.dropdown, `${prevLabel + action.label} > `);
     }
-    return { ...action, label: prevLabel + action.label };
+    return {
+      ...action,
+      label: prevLabel + action.label,
+      additionalKeywords: action.additionalKeywords,
+    };
   });
 }

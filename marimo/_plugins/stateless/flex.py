@@ -13,6 +13,15 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
+class _FlexContainerHtml(Html):
+    """Html produced by hstack/vstack; used to preserve justify in nested stacks.
+
+    When this is a child of another stack with widths/heights, the wrapper
+    is made a flex container so the nested stack's flex and justify work.
+    Non-flex children use a block wrapper so they fill the space.
+    """
+
+
 def _flex(
     items: Sequence[object],
     direction: Literal["row", "column"],
@@ -57,14 +66,15 @@ def _flex(
         child_flex = child_flexes[idx]
         if child_flex is None:
             return ""
-        return create_style(
-            {
-                "flex": f"{child_flex}",
-                "display": "flex",
-                "min-width": "0",
-                "min-height": "0",
-            }
-        )
+        style: dict[str, str | int | float | None] = {"flex": f"{child_flex}"}
+        # Only make the wrapper a flex container for nested stacks so their
+        # flex: 1 and justify work. Leaf content (e.g. mo.stat) fills the
+        # wrapper when it is a block.
+        if isinstance(items[idx], _FlexContainerHtml):
+            style["display"] = "flex"
+            style["min-width"] = "0"
+            style["min-height"] = "0"
+        return create_style(style)
 
     # If there are no child flexes, don't wrap them in an additional <div>
     if child_flexes is None:
@@ -75,7 +85,7 @@ def _flex(
             for i, item in enumerate(items)
         ]
 
-    return Html(h.div(grid_items, style=style))
+    return _FlexContainerHtml(h.div(grid_items, style=style))
 
 
 @mddoc

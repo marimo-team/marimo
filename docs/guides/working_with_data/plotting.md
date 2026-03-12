@@ -4,29 +4,121 @@ marimo supports most major plotting libraries, including Matplotlib, Seaborn,
 Plotly, Altair, and HoloViews. Just import your plotting library of choice and
 use it as you normally would.
 
-For Altair and Plotly plots, marimo does something special: use
+For matplotlib, Altair, and Plotly plots, marimo does something special: wrap
+your plot in [`mo.ui.matplotlib`][marimo.ui.matplotlib],
 [`mo.ui.altair_chart`][marimo.ui.altair_chart] or
-[`mo.ui.plotly`][marimo.ui.plotly] to connect frontend
-selections to Python!
+[`mo.ui.plotly`][marimo.ui.plotly], then select and filter with your mouse —
+marimo automatically sends the selected data back to Python!
+
 
 > For a video overview of reactive plots, check out our [YouTube tutorial](https://youtu.be/KFXsm1wr408).
-
-!!! important "Reactive plots!"
-
-    marimo supports reactive plots via
-    [`mo.ui.altair_chart`][marimo.ui.altair_chart] and
-    [`mo.ui.plotly`][marimo.ui.plotly]! Select and
-    filter with your mouse, and marimo _automatically makes the selected data
-    available in Python as a Pandas dataframe_!
 
 ## Reactive plots! ⚡
 
 !!! warning "Requirements"
 
-    Reactive plots currently require Altair or Plotly. Install with `pip install
-    altair` or `pip install plotly`, depending on which library you are using.
-    Selections in plotly are limited to scatter plots, treemaps charts, and sunbursts charts, while Altair supports
-    a larger class of plots for selections.
+    Reactive plots currently require matplotlib, Altair, or Plotly. Matplotlib
+    supports box and lasso selections (best suited for scatter plots);
+    selections in Plotly are limited to scatter/scattergl plots, bar charts,
+    histograms, heatmaps, treemaps, and sunburst charts; Altair supports a larger class
+    of plots for selections.
+
+### matplotlib
+
+Use [`mo.ui.matplotlib`][marimo.ui.matplotlib] to make matplotlib plots
+**reactive**: select data on the frontend, then use the selection to filter
+your data in Python.
+
+Two selection modes are supported:
+
+- **Box selection** — click and drag to draw a rectangular region.
+- **Lasso selection** — hold <kbd>Shift</kbd> and drag to draw a freehand
+  polygon.
+
+After selecting, use `fig.value.get_mask(x, y)` to get a boolean mask of the
+points inside the selection. When nothing is selected, `fig.value` is falsy and
+`get_mask()` returns an all-`False` array.
+
+#### Example
+
+/// tab | code
+
+```python
+import matplotlib.pyplot as plt
+import marimo as mo
+import numpy as np
+
+x = np.random.randn(500)
+y = np.random.randn(500)
+plt.scatter(x, y)
+# Wrap the Axes in mo.ui.matplotlib to make them reactive ⚡
+ax = mo.ui.matplotlib(plt.gca())
+ax
+```
+
+```python
+# In another cell — filter your data using the selection
+mask = ax.value.get_mask(x, y)
+selected_x, selected_y = x[mask], y[mask]
+```
+
+///
+
+/// tab | live example
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    x = np.random.randn(500)
+    y = np.random.randn(500)
+    plt.scatter(x, y)
+    ax = mo.ui.matplotlib(plt.gca())
+    ax
+    return
+
+@app.cell
+def __():
+    mask = ax.value.get_mask(x, y)
+    np.column_stack([x[mask], y[mask]])
+    return
+```
+
+///
+
+///
+
+#### Debouncing
+
+By default, the selection streams to Python as you drag. For expensive
+downstream computations or very large datasets, pass `debounce=True` so the
+value is only sent on mouse-up:
+
+```python
+ax = mo.ui.matplotlib(plt.gca(), debounce=True)
+```
+
+#### Selection types
+
+`ax.value` is one of three types:
+
+| Type | When | Attributes |
+|------|------|------------|
+| `EmptySelection` | Nothing selected (falsy) | — |
+| `BoxSelection` | Box drag | `x_min`, `x_max`, `y_min`, `y_max` |
+| `LassoSelection` | <kbd>Shift</kbd>+drag | `vertices` (tuple of `(x, y)` pairs) |
+
+All three have a `get_mask(x, y)` method that returns a boolean NumPy array,
+so you can always write:
+
+```python
+mask = ax.value.get_mask(x, y)
+```
 
 ### Altair
 
@@ -212,9 +304,9 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 !!! warning "Supported charts"
 
     marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
-    supports reactive selections for scatter plots, bar charts, heatmaps,
-    treemaps, and sunburst charts. If you require other kinds of selection,
-    please [file an issue](https://github.com/marimo-team/marimo/issues).
+    supports reactive selections for scatter/scattergl plots, bar charts,
+    histograms, heatmaps, treemaps, and sunburst charts. If you require other kinds of
+    selection, please [file an issue](https://github.com/marimo-team/marimo/issues).
 
 /// marimo-embed
     size: large
@@ -223,7 +315,7 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 @app.cell(hide_code=True)
 async def __():
     import micropip
-    await micropip.install("plotly[express]")
+    await micropip.install(["plotly[express]", "pandas"])
     import plotly.express as px
     return px,
 
@@ -271,11 +363,10 @@ ax
 If you want to output the plot in the console area, use `plt.show()` or
 `fig.show()`.
 
-### Interactive plots
+### Interactive plots with pan and zoom
 
-To make matplotlib plots interactive, use
-[mo.mpl.interactive][marimo.mpl.interactive].
-(Matplotlib plots are not yet reactive.)
+To make matplotlib plots interactive with pan and zoom, use
+[mo.mpl.interactive][marimo.mpl.interactive]. This does not support reactive selection.
 
 ## Chart builder
 

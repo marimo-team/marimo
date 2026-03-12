@@ -6,6 +6,7 @@ from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.virtual_file.storage import InMemoryStorage
 from marimo._runtime.virtual_file.virtual_file import (
+    VirtualFile,
     VirtualFileLifecycleItem,
     VirtualFileRegistry,
     read_virtual_file,
@@ -326,3 +327,77 @@ def test_virtual_file_registry_shared_inmemory_storage(
 
     # Ensure old file should still readable
     assert read_virtual_file(vf.filename, 3) == b"abc"
+
+
+def test_create_and_register_with_context(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    ctx = get_context()
+    assert len(ctx.virtual_file_registry.registry) == 0
+
+    vfile = VirtualFile.create_and_register(b"hello world", "txt")
+
+    assert vfile.filename.endswith(".txt")
+    # Should be a relative file URL, not a data URL
+    assert vfile.url.startswith("./@file/")
+    assert "11-" in vfile.url  # 11 bytes = len(b"hello world")
+    # Should be registered
+    assert len(ctx.virtual_file_registry.registry) == 1
+    assert read_virtual_file(vfile.filename, 11) == b"hello world"
+
+
+def test_create_and_register_without_context() -> None:
+    # No kernel context initialized — should fall back to data URL
+    vfile = VirtualFile.create_and_register(b"test data", "bin")
+
+    assert vfile.filename.endswith(".bin")
+    assert vfile.url.startswith("data:")
+
+
+def test_create_and_register_empty_buffer_uses_data_url(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    ctx = get_context()
+    registry_size_before = len(ctx.virtual_file_registry.registry)
+
+    vfile = VirtualFile.create_and_register(b"", "csv")
+
+    assert vfile.filename.endswith(".csv")
+    # Empty buffer should use a data URL, not a ./@file/ URL,
+    # because empty buffers can't be served via the file registry.
+    assert vfile.url.startswith("data:")
+    assert not vfile.url.startswith("./@file/")
+    # Registry should not have grown
+    assert len(ctx.virtual_file_registry.registry) == registry_size_before
+
+
+def test_create_and_register_empty_buffer_without_context() -> None:
+    # No kernel context — empty buffer should still produce a data URL
+    vfile = VirtualFile.create_and_register(b"", "bin")
+
+    assert vfile.filename.endswith(".bin")
+    assert vfile.url.startswith("data:")
+
+
+def test_create_and_register_virtual_files_not_supported(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    ctx = get_context()
+    ctx.virtual_files_supported = False
+    try:
+        vfile = VirtualFile.create_and_register(b"some data", "txt")
+
+        assert vfile.filename.endswith(".txt")
+        # Should fall back to data URL when virtual files aren't supported
+        assert vfile.url.startswith("data:")
+        assert len(ctx.virtual_file_registry.registry) == 0
+    finally:
+        ctx.virtual_files_supported = True
+
+
+def test_create_and_register_preserves_extension(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    for ext in ("pdf", "png", "csv"):
+        vfile = VirtualFile.create_and_register(b"content", ext)
+        assert vfile.filename.endswith(f".{ext}")

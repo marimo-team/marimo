@@ -19,6 +19,7 @@ These tools are available when using the [chat panel in ask mode](ai_completion.
 | **get_lightweight_cell_map** | Get an overview of notebook structure showing a preview of each cell. Takes a `session_id` and optional `preview_lines` parameter. Returns cell IDs, preview text, line counts, cell types (code, markdown, SQL), runtime state (`idle`, `running`, `queued`, etc.), and `has_output`/`has_console_output` flags. |
 | **get_cell_runtime_data** | Get detailed runtime information for one or more cells. Takes `session_id` and `cell_ids` (list) parameters. Returns full cell code, error details, runtime metadata (execution time, runtime state), and variables defined by each cell. |
 | **get_cell_outputs** | Get execution output from one or more cells. Takes `session_id` and `cell_ids` (list) parameters. Returns visual output (HTML, charts, tables, etc.) with mimetype, stdout messages, and stderr messages for each cell. |
+| **get_cell_dependency_graph** | Get the cell dependency graph showing variable ownership and cell relationships. Takes `session_id` and optional `cell_id` and `depth` parameters. Returns cell dependency info (defined variables with kind, referenced variables, parent/child cells), a variable ownership map, multiply-defined variables, and cycle information. Use `cell_id` to center on a specific cell and `depth` to limit traversal hops. |
 
 ### Data
 

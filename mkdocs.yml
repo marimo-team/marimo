@@ -22,6 +22,8 @@ extra:
       link: https://pypi.org/project/marimo/
     - icon: fontawesome/brands/youtube
       link: https://www.youtube.com/@marimo-team
+    - icon: fontawesome/brands/reddit
+      link: https://www.reddit.com/r/marimo_notebook/
 extra_css:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.9.0/katex.min.css
   - stylesheets/extra.css
@@ -85,11 +87,12 @@ nav:
       - Running cells: guides/reactivity.md
       - Interactive elements: guides/interactivity.md
       - Visualize outputs: guides/outputs.md
-      - SQL, dataframes, and plots:
-          - SQL, dataframes, and plots: guides/working_with_data/index.md
+      - Working with data:
+          - Working with data: guides/working_with_data/index.md
           - DataFrames: guides/working_with_data/dataframes.md
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
+          - Remote Storage: guides/working_with_data/remote_storage.md
       - Migrate from Jupyter: guides/coming_from/jupyter.md
       - Expensive notebooks: guides/expensive_notebooks.md
       - Understanding errors:
@@ -107,6 +110,7 @@ nav:
           - Using uv: guides/package_management/using_uv.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md
+          - Skills: guides/generate_with_ai/skills.md
           - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
           - AI-assisted coding: guides/editor_features/ai_completion.md
           - Prompts: guides/generate_with_ai/prompts.md
@@ -129,38 +133,42 @@ nav:
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
       - Reuse functions and classes: guides/reusing_functions.md
-      - Export to other formats: guides/exporting.md
-      - Cloud notebooks with molab: guides/molab.md
+      - Run in the cloud with molab: guides/molab.md
+      - Export to other formats:
+          - Export to other formats: guides/exporting/index.md
+          - Static HTML: guides/exporting/static_html.md
+          - PDF: guides/exporting/pdf.md
+          - Jupyter notebook: guides/exporting/jupyter_notebook.md
+          - Quarto: guides/exporting/quarto.md
+          - Python script: guides/exporting/python_script.md
+          - Markdown: guides/exporting/markdown.md
+          - WebAssembly HTML: guides/exporting/webassembly_html.md
+          - Session snapshots: guides/exporting/sessions.md
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
-          - Embedding:
-            - Embedding: guides/publishing/embedding.md
-            - From code snippets: guides/publishing/from_code_snippets.md
-          - From GitHub: guides/publishing/from_github.md
+          - molab (recommended): guides/molab.md
+          - Public gallery: guides/publishing/public_gallery.md
+          - GitHub: guides/publishing/github.md
+          - Embed in other webpages: guides/publishing/embedding.md
+          - Cloudflare: guides/publishing/cloudflare.md
+          - Self-host WebAssembly notebooks: guides/publishing/self_host_wasm.md
           - OpenGraph previews: guides/publishing/opengraph.md
           - Thumbnails: guides/publishing/thumbnails.md
-          - Static sites:
-            - GitHub Pages: guides/publishing/github_pages.md
-            - Cloudflare: guides/publishing/cloudflare.md
-            - Quarto: guides/publishing/quarto.md
-            - Self-host WebAssembly notebooks: guides/publishing/self_host_wasm.md
-          - Share playground notebooks: guides/publishing/playground.md
-          - View outputs on GitHub: guides/publishing/view_outputs_on_github.md
-          - Deploy a backend: guides/publishing/deploy.md
-      - Deployment:
+      - Deploy notebook servers or apps:
           - Deploy notebooks: guides/deploying/index.md
-          - Authentication: guides/deploying/authentication.md
-          - Docker: guides/deploying/deploying_docker.md
-          - Kubernetes: guides/deploying/deploying_kubernetes.md
-          - SkyPilot: guides/deploying/deploying_skypilot.md
-          - Slurm: guides/deploying/deploying_slurm.md
-          - HuggingFace: guides/deploying/deploying_hugging_face.md
-          - Public gallery: guides/deploying/deploying_public_gallery.md
-          - Railway: guides/deploying/deploying_railway.md
-          - nginx: guides/deploying/deploying_nginx.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
-          - Programmatic: guides/deploying/programmatically.md
-          - Scheduled jobs: guides/deploying/scheduled.md
+          - Notebook servers:
+            - JupyterHub: guides/deploying/jupyterhub.md
+            - Kubernetes: guides/deploying/deploying_kubernetes.md
+            - SkyPilot: guides/deploying/deploying_skypilot.md
+            - Slurm: guides/deploying/deploying_slurm.md
+          - Apps:
+            - FastAPI: guides/deploying/programmatically.md
+            - Authentication: guides/deploying/authentication.md
+            - Docker: guides/deploying/deploying_docker.md
+            - HuggingFace: guides/deploying/deploying_hugging_face.md
+            - Railway: guides/deploying/deploying_railway.md
+            - nginx: guides/deploying/deploying_nginx.md
       - WebAssembly notebooks: guides/wasm.md
       - Configuration:
           - Configuration: guides/configuration/index.md
@@ -195,6 +203,7 @@ nav:
               - Parse stdout: guides/lint_rules/rules/parse_stdout.md
               - Parse stderr: guides/lint_rules/rules/parse_stderr.md
               - Empty cells: guides/lint_rules/rules/empty_cells.md
+              - Markdown Dedent: guides/lint_rules/rules/markdown_dedent.md
               - Markdown Indentation: guides/lint_rules/rules/markdown_indentation.md
               - SQL parse error: guides/lint_rules/rules/sql_parse_error.md
               - Misc parse log: guides/lint_rules/rules/misc_log_capture.md
@@ -228,6 +237,7 @@ nav:
           - File: api/inputs/file.md
           - File Browser: api/inputs/file_browser.md
           - Form: api/inputs/form.md
+          - Matrix: api/inputs/matrix.md
           - Microphone: api/inputs/microphone.md
           - Multiselect: api/inputs/multiselect.md
           - Navigation Menu: api/inputs/nav_menu.md
@@ -297,6 +307,8 @@ nav:
   - Security: security.md
 plugins:
   - search
+  - git-revision-date-localized:
+      fallback_to_build_date: true
   - social:
       cards_layout_options:
         background_color: '#FFFFFF'

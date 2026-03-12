@@ -22,8 +22,11 @@ import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 import { FileBrowserPlugin } from "./impl/FileBrowserPlugin";
 import { FileUploadPlugin } from "./impl/FileUploadPlugin";
 import { FormPlugin } from "./impl/FormPlugin";
+import { MatrixPlugin } from "./impl/MatrixPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { MultiselectPlugin } from "./impl/MultiselectPlugin";
+import { MatplotlibPlugin } from "./impl/matplotlib/MatplotlibPlugin";
+import { MplInteractivePlugin } from "./impl/mpl-interactive/MplInteractivePlugin";
 import { NumberPlugin } from "./impl/NumberPlugin";
 import { PanelPlugin } from "./impl/panel/PanelPlugin";
 import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
@@ -67,6 +70,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new FileUploadPlugin(),
   FileBrowserPlugin,
   FormPlugin,
+  new MatrixPlugin(),
   new MicrophonePlugin(),
   new MultiselectPlugin(),
   new NumberPlugin(),
@@ -79,6 +83,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
+  new MatplotlibPlugin(),
   new PlotlyPlugin(),
   ChatPlugin,
   DataExplorerPlugin,
@@ -88,6 +93,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   AnyWidgetPlugin,
   DataEditorPlugin,
   PanelPlugin,
+  MplInteractivePlugin,
 ];
 
 // List of output / layout plugins

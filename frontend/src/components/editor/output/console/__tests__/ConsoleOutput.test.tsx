@@ -1,11 +1,29 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
+import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { ConsoleOutput } from "../ConsoleOutput";
+
+// Mock ResizeObserver for tests
+global.ResizeObserver = class ResizeObserver {
+  observe() {
+    // noop
+  }
+  unobserve() {
+    // noop
+  }
+  disconnect() {
+    // noop
+  }
+};
+
+const renderWithProvider = (ui: React.ReactElement) => {
+  return render(<TooltipProvider>{ui}</TooltipProvider>);
+};
 
 describe("ConsoleOutput integration", () => {
   const createOutput = (data: string, channel = "stdout"): OutputMessage => ({
@@ -18,7 +36,7 @@ describe("ConsoleOutput integration", () => {
   const defaultProps = {
     cellId: "cell-1" as CellId,
     cellName: "test_cell",
-    consoleOutputs: [],
+    consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
     debuggerActive: false,
     onSubmitDebugger: () => {
@@ -37,14 +55,151 @@ describe("ConsoleOutput integration", () => {
       ],
     };
 
-    render(
-      <TooltipProvider>
-        <ConsoleOutput {...props} />
-      </TooltipProvider>,
-    );
+    renderWithProvider(<ConsoleOutput {...props} />);
 
     const link = screen.getByRole("link", { name: "https://marimo.io" });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "https://marimo.io");
+  });
+});
+
+describe("ConsoleOutput pdb history", () => {
+  const defaultProps = {
+    cellId: "cell-1" as CellId,
+    cellName: "test_cell",
+    consoleOutputs: [] as WithResponse<OutputMessage>[],
+    stale: false,
+    debuggerActive: false,
+    onSubmitDebugger: vi.fn(),
+  };
+
+  const stdinPrompt = (
+    data: string,
+    response?: string,
+  ): WithResponse<OutputMessage> => ({
+    channel: "stdin" as const,
+    mimetype: "text/plain",
+    data,
+    timestamp: 0,
+    response,
+  });
+
+  it("should persist command history across StdInput remounts", () => {
+    // Initial state: pdb prompt waiting for input
+    const outputs1: WithResponse<OutputMessage>[] = [stdinPrompt("(Pdb) ")];
+
+    const onSubmitDebugger = vi.fn();
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={outputs1}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    const input = screen.getByTestId("console-input");
+
+    // Type "next" and submit
+    fireEvent.change(input, { target: { value: "next" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSubmitDebugger).toHaveBeenCalledWith("next", 0);
+
+    // Simulate server response: old stdin gets a response, new stdin prompt appears
+    const outputs2: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "next"),
+      stdinPrompt("(Pdb) "),
+    ];
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs2}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // New StdInput mounted — press ArrowUp to recall previous command
+    const newInput = screen.getByTestId("console-input");
+    fireEvent.keyDown(newInput, { key: "ArrowUp" });
+
+    expect(newInput).toHaveValue("next");
+  });
+
+  it("should navigate through multiple history entries across remounts", () => {
+    const onSubmitDebugger = vi.fn();
+
+    // First prompt
+    const outputs1: WithResponse<OutputMessage>[] = [stdinPrompt("(Pdb) ")];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={outputs1}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    // Submit "step"
+    let input = screen.getByTestId("console-input");
+    fireEvent.change(input, { target: { value: "step" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // Second prompt
+    const outputs2: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "step"),
+      stdinPrompt("(Pdb) "),
+    ];
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs2}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // Submit "print(x)"
+    input = screen.getByTestId("console-input");
+    fireEvent.change(input, { target: { value: "print(x)" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // Third prompt
+    const outputs3: WithResponse<OutputMessage>[] = [
+      stdinPrompt("(Pdb) ", "step"),
+      stdinPrompt("(Pdb) ", "print(x)"),
+      stdinPrompt("(Pdb) "),
+    ];
+
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput
+          {...defaultProps}
+          consoleOutputs={outputs3}
+          onSubmitDebugger={onSubmitDebugger}
+        />
+      </TooltipProvider>,
+    );
+
+    // ArrowUp should show most recent command first
+    input = screen.getByTestId("console-input");
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveValue("print(x)");
+
+    // ArrowUp again should show older command
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveValue("step");
+
+    // ArrowDown should go back to "print(x)"
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveValue("print(x)");
+
+    // ArrowDown again should return to empty input
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveValue("");
   });
 });

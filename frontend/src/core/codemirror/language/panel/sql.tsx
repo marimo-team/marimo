@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import {
   AlertCircle,
   CircleHelpIcon,
-  DatabaseBackup,
+  DatabaseZap,
   SearchCheck,
 } from "lucide-react";
 import { getCellForDomProps } from "@/components/data-table/cell-utils";
@@ -160,7 +160,7 @@ export const SQLModeSelect: React.FC = () => {
     return mode === "validate" ? (
       <SearchCheck className="h-3 w-3" />
     ) : (
-      <DatabaseBackup className="h-3 w-3" />
+      <DatabaseZap className="h-3 w-3" />
     );
   };
 
@@ -176,7 +176,7 @@ export const SQLModeSelect: React.FC = () => {
     ) : (
       <div className="text-xs">
         <div className="font-semibold mb-1 flex flex-row items-center gap-1">
-          <DatabaseBackup className="h-3 w-3" />
+          <DatabaseZap className="h-3 w-3" />
           Default Mode
         </div>
         <p>Standard editing</p>

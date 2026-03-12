@@ -32,6 +32,7 @@ import { ClearButton } from "../buttons/clear-button";
 import type { SignalListener } from "../charts/types";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
+import { usePanelSection } from "../editor/chrome/panels/panel-context";
 import { CellLink } from "../editor/links/cell-link";
 import {
   type ChartPosition,
@@ -50,6 +51,7 @@ export const Tracing: React.FC = () => {
 
   const { theme } = useTheme();
   const [chartPosition, setChartPosition] = useState<ChartPosition>("above");
+  const panelSection = usePanelSection();
 
   const toggleChartPosition = () => {
     if (chartPosition === "above") {
@@ -69,47 +71,56 @@ export const Tracing: React.FC = () => {
     );
   }
 
+  const tracingComponent = (
+    <div className="py-1 px-2 overflow-y-scroll h-full">
+      <div className="flex flex-row justify-start gap-3">
+        <div className="flex flex-row gap-1 items-center">
+          <label htmlFor="chartPosition" className="text-xs">
+            Inline chart
+          </label>
+          <input
+            type="checkbox"
+            name="chartPosition"
+            data-testid="chartPosition"
+            onClick={toggleChartPosition}
+            defaultChecked={chartPosition === "sideBySide"}
+            className="h-3 cursor-pointer"
+          />
+        </div>
+
+        <ClearButton dataTestId="clear-traces-button" onClick={clearRuns} />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {newestToOldestRunIds.map((runId: RunId, index: number) => {
+          const run = runMap.get(runId);
+          if (run) {
+            return (
+              <TraceBlock
+                key={run.runId}
+                run={run}
+                isExpanded={expandedRuns.get(run.runId)}
+                isMostRecentRun={index === 0}
+                chartPosition={chartPosition}
+                theme={theme}
+              />
+            );
+          }
+          return null;
+        })}
+      </div>
+    </div>
+  );
+
+  if (panelSection === "sidebar") {
+    return tracingComponent;
+  }
+
+  // Allow the panel to be resized when in the wider developer panel
   return (
     <PanelGroup direction="horizontal" className="h-full">
       <Panel defaultSize={50} minSize={30} maxSize={80}>
-        <div className="py-1 px-2 overflow-y-scroll h-full">
-          <div className="flex flex-row justify-start gap-3">
-            <div className="flex flex-row gap-1 items-center">
-              <label htmlFor="chartPosition" className="text-xs">
-                Inline chart
-              </label>
-              <input
-                type="checkbox"
-                name="chartPosition"
-                data-testid="chartPosition"
-                onClick={toggleChartPosition}
-                defaultChecked={chartPosition === "sideBySide"}
-                className="h-3 cursor-pointer"
-              />
-            </div>
-
-            <ClearButton dataTestId="clear-traces-button" onClick={clearRuns} />
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {newestToOldestRunIds.map((runId: RunId, index: number) => {
-              const run = runMap.get(runId);
-              if (run) {
-                return (
-                  <TraceBlock
-                    key={run.runId}
-                    run={run}
-                    isExpanded={expandedRuns.get(run.runId)}
-                    isMostRecentRun={index === 0}
-                    chartPosition={chartPosition}
-                    theme={theme}
-                  />
-                );
-              }
-              return null;
-            })}
-          </div>
-        </div>
+        {tracingComponent}
       </Panel>
       <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
       <Panel defaultSize={50}>
@@ -381,7 +392,7 @@ const TraceRow: React.FC<TraceRowProps> = ({
       <span className="text-(--gray-10) dark:text-(--gray-11)">
         [{formatLogTimestamp(cellRun.startTime)}]
       </span>
-      <span className="text-(--gray-10) w-16">
+      <span className="text-(--gray-10) w-16 overflow-hidden">
         (<CellLink cellId={cellRun.cellId} />)
       </span>
       <span className="w-40 truncate -ml-1">{cellRun.code}</span>

@@ -5,9 +5,11 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from inline_snapshot import snapshot
 
 from marimo._data.get_datasets import (
     _db_type_to_data_type,
+    _quote_identifier,
     form_databases_from_dict,
     get_databases_from_duckdb,
     get_datasets_from_variables,
@@ -751,3 +753,177 @@ def test_agg_query_does_not_backfill() -> None:
         mock_get_names.assert_not_called()
 
     connection.execute(cleanup_query)
+
+
+class TestQuoteIdentifier:
+    @pytest.mark.parametrize(
+        ("identifier", "expected"),
+        [
+            ("table", '"table"'),
+            ("nested.namespace", '"nested.namespace"'),
+            ("a.b.c.d", '"a.b.c.d"'),
+            ('my"table', '"my""table"'),
+            ("", '""'),
+            ("my table", '"my table"'),
+            ("schema-name", '"schema-name"'),
+            ("name/with/slashes", '"name/with/slashes"'),
+            ("has'single'quotes", "\"has'single'quotes\""),
+            ("mixed.dots and spaces", '"mixed.dots and spaces"'),
+            ("back`ticks", '"back`ticks"'),
+            ("paren(theses)", '"paren(theses)"'),
+            ('double""already', '"double""""already"'),
+            ("unicode_ñoño", '"unicode_ñoño"'),
+        ],
+    )
+    def test_quote_identifier(self, identifier: str, expected: str) -> None:
+        assert _quote_identifier(identifier) == expected
+
+
+@pytest.mark.requires("duckdb")
+class TestGetDatabasesNestedNamespace:
+    """Tests for DuckDB catalog tables with special characters in the schema name.
+
+    The catalog_table code path is triggered when SHOW ALL TABLES returns
+    a table with a single column named "__" (the Iceberg catalog pattern).
+    In that case, get_databases_from_duckdb falls back to DESCRIBE TABLE
+    with a quoted qualified name.
+    """
+
+    def test_dotted_schema_with_catalog_table(self) -> None:
+        """A table with a single '__' column in a dotted schema triggers
+        the catalog_table path and must quote identifiers correctly."""
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        connection.execute('CREATE SCHEMA "nested.namespace"')
+        connection.execute(
+            'CREATE TABLE "nested.namespace".my_table ("__" VARCHAR)'
+        )
+
+        result = get_databases_from_duckdb(connection=connection)
+        assert result == snapshot(
+            [
+                Database(
+                    name="memory",
+                    dialect="duckdb",
+                    schemas=[
+                        Schema(
+                            name="nested.namespace",
+                            tables=[
+                                DataTable(
+                                    name="my_table",
+                                    source_type="duckdb",
+                                    source="memory",
+                                    num_rows=None,
+                                    num_columns=1,
+                                    variable_name=None,
+                                    columns=[
+                                        DataTableColumn(
+                                            name="__",
+                                            type="string",
+                                            external_type="VARCHAR",
+                                            sample_values=[],
+                                        )
+                                    ],
+                                )
+                            ],
+                        )
+                    ],
+                    engine=None,
+                )
+            ]
+        )
+
+    def test_deeply_dotted_schema_with_catalog_table(self) -> None:
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        connection.execute('CREATE SCHEMA "a.b.c.d"')
+        connection.execute('CREATE TABLE "a.b.c.d".t ("__" INTEGER)')
+
+        result = get_databases_from_duckdb(connection=connection)
+        assert result == snapshot(
+            [
+                Database(
+                    name="memory",
+                    dialect="duckdb",
+                    schemas=[
+                        Schema(
+                            name="a.b.c.d",
+                            tables=[
+                                DataTable(
+                                    source_type="duckdb",
+                                    source="memory",
+                                    name="t",
+                                    num_rows=None,
+                                    num_columns=1,
+                                    variable_name=None,
+                                    columns=[
+                                        DataTableColumn(
+                                            name="__",
+                                            type="integer",
+                                            external_type="INTEGER",
+                                            sample_values=[],
+                                        )
+                                    ],
+                                    engine=None,
+                                    type="table",
+                                    primary_keys=None,
+                                    indexes=None,
+                                )
+                            ],
+                        )
+                    ],
+                    engine=None,
+                )
+            ]
+        )
+
+    @pytest.mark.parametrize(
+        "schema_name",
+        [
+            "has-dashes",
+            "has spaces",
+            "has.dots.and-dashes",
+            "slashes/in/name",
+        ],
+    )
+    def test_special_char_schema_with_catalog_table(
+        self, schema_name: str
+    ) -> None:
+        import duckdb
+
+        connection = duckdb.connect(":memory:")
+        connection.execute(f'CREATE SCHEMA "{schema_name}"')
+        connection.execute(f'CREATE TABLE "{schema_name}".t ("__" VARCHAR)')
+
+        result = get_databases_from_duckdb(connection=connection)
+        assert result == [
+            Database(
+                name="memory",
+                dialect="duckdb",
+                schemas=[
+                    Schema(
+                        name=schema_name,
+                        tables=[
+                            DataTable(
+                                name="t",
+                                source_type="duckdb",
+                                source="memory",
+                                num_rows=None,
+                                num_columns=1,
+                                variable_name=None,
+                                columns=[
+                                    DataTableColumn(
+                                        name="__",
+                                        type="string",
+                                        external_type="VARCHAR",
+                                        sample_values=[],
+                                    )
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            ),
+        ]

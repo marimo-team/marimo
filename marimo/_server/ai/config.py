@@ -23,6 +23,9 @@ from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._utils.http import HTTPStatus
 
+# https://github.com/pydantic/pydantic-ai/blob/8b9ac2bde2355b0d431abea6cf210a36fffe0c43/pydantic_ai_slim/pydantic_ai/providers/github.py#L41C17-L41C51
+GITHUB_COPILOT_BASE_URL = "https://models.github.ai/inference"
+
 
 @dataclass
 class AnyProviderConfig:
@@ -115,8 +118,8 @@ class AnyProviderConfig:
             "github",
             "GitHub",
             fallback_key=fallback_key,
-            # Default base URL for GitHub Copilot
-            fallback_base_url="https://api.githubcopilot.com/",
+            # Default base URL for GitHub Copilot, taken from
+            fallback_base_url=GITHUB_COPILOT_BASE_URL,
             require_key=True,
         )
 

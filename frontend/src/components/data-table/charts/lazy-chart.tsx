@@ -37,7 +37,7 @@ export const LazyChart: React.FC<{
               export: true,
               source: false,
               compiled: false,
-              editor: true,
+              editor: false,
             },
             mode: "vega",
             renderer: "canvas",
