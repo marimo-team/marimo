@@ -17,6 +17,10 @@ import msgspec
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._data._external_storage.models import (
+    StorageEntry,
+    StorageNamespace,
+)
 from marimo._data.models import (
     ColumnStats,
     DataSourceConnection,
@@ -201,6 +205,25 @@ class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
     model_id: WidgetModelId
     message: ModelMessage
 
+    def to_json_serializable(self) -> dict[str, Any]:
+        """Convert to a plain dict that json.dumps can serialize.
+
+        Used by static HTML export to embed model notifications in a
+        <script> tag via json_script().  We use msgspec.to_builtins for
+        the struct conversion, then base64-encode any bytes buffers
+        since raw bytes are not JSON-serializable.
+        """
+        import base64
+
+        d: dict[str, Any] = msgspec.to_builtins(self)
+        # bytes are not JSON-serializable; base64-encode each buffer
+        msg = d.get("message", {})
+        if "buffers" in msg:
+            msg["buffers"] = [
+                base64.b64encode(b).decode("ascii") for b in msg["buffers"]
+            ]
+        return d
+
 
 class InterruptedNotification(Notification, tag="interrupted"):
     """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
@@ -230,6 +253,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
     pylsp: bool = False
     ty: bool = False
     basedpyright: bool = False
+    pyrefly: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
@@ -237,6 +261,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.pylsp = DependencyManager.pylsp.has()
         self.basedpyright = DependencyManager.basedpyright.has()
         self.ty = DependencyManager.ty.has()
+        self.pyrefly = DependencyManager.pyrefly.has()
 
 
 class KernelReadyNotification(Notification, tag="kernel-ready"):
@@ -556,6 +581,60 @@ class DataSourceConnectionsNotification(
     connections: list[DataSourceConnection]
 
 
+class StorageNamespacesNotification(Notification, tag="storage-namespaces"):
+    """Available storage namespaces for storage inspector.
+
+    Attributes:
+        namespaces: Available storage namespaces.
+    """
+
+    name: ClassVar[str] = "storage-namespaces"
+    namespaces: list[StorageNamespace]
+
+
+class StorageEntriesNotification(Notification, tag="storage-entries"):
+    """Result of a storage operation that returns entries.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        entries: Storage entries returned by the operation.
+        namespace: Variable name of the storage backend.
+        prefix: The prefix that was listed (set by list_entries).
+        query: The search query that was used (set by search).
+        error: Error message if the operation failed.
+    """
+
+    name: ClassVar[str] = "storage-entries"
+    request_id: RequestId
+    entries: list[StorageEntry]
+    namespace: str
+    prefix: Optional[str] = None
+    query: Optional[str] = None
+    error: Optional[str] = None
+
+
+class StorageDownloadReadyNotification(
+    Notification, tag="storage-download-ready"
+):
+    """Signals that a storage file download is ready.
+
+    The url may be a signed cloud URL (preferred) or a virtual file URL
+    (fallback for backends that don't support signing).
+
+    Attributes:
+        request_id: Request ID this responds to.
+        url: Signed or virtual-file URL to download from.
+        filename: Suggested filename for the download.
+        error: Error message if the download failed.
+    """
+
+    name: ClassVar[str] = "storage-download-ready"
+    request_id: RequestId
+    url: Optional[str] = None
+    filename: Optional[str] = None
+    error: Optional[str] = None
+
+
 class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
     """SQL query validation result.
 
@@ -735,6 +814,10 @@ NotificationMessage = Union[
     SQLTableListPreviewNotification,
     DataSourceConnectionsNotification,
     ValidateSQLResultNotification,
+    # Storage
+    StorageNamespacesNotification,
+    StorageEntriesNotification,
+    StorageDownloadReadyNotification,
     # Secrets
     SecretKeysResultNotification,
     # Cache

@@ -61,3 +61,18 @@ class MarimoErrorDetail:
 class MarimoCellConsoleOutputs:
     stdout: list[str] = field(default_factory=list)
     stderr: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ListSessionsResult:
+    sessions: list[MarimoNotebookInfo] = field(default_factory=list)
+
+
+@dataclass
+class CodeExecutionResult:
+    success: bool
+    output: Optional[str] = None
+    stdout: list[str] = field(default_factory=list)
+    stderr: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    error: Optional[str] = None

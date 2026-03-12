@@ -140,6 +140,24 @@ def _(
     expect(extractCells(input)).toEqual(["x = a + b + c"]);
   });
 
+  it("preserves return statements inside nested functions", () => {
+    const input = `
+@app.cell
+def _(mo, px):
+    def make_fig():
+        data = {'category': ['foo', 'bar'], 'value': [10, 20]}
+        fig = px.bar(data, x='category', y='value')
+        return fig
+
+    fig = make_fig()
+    mo.ui.plotly(fig)
+    return
+`;
+    expect(extractCells(input)).toEqual([
+      "def make_fig():\n    data = {'category': ['foo', 'bar'], 'value': [10, 20]}\n    fig = px.bar(data, x='category', y='value')\n    return fig\n\nfig = make_fig()\nmo.ui.plotly(fig)",
+    ]);
+  });
+
   it("handles cells with config", () => {
     const input = `
 @app.cell(hide_code=True, column=2)

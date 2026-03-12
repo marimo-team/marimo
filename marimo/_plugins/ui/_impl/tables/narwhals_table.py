@@ -66,10 +66,14 @@ class NarwhalsTableManager(
     ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
         return NarwhalsTableManager(nw.from_native(data, pass_through=False))
 
-    def as_frame(self) -> nw.DataFrame[Any]:
+    @cached_property
+    def _collected_frame(self) -> nw.DataFrame[Any]:
         if is_narwhals_lazyframe(self.data):
             return self.data.collect()
         return self.data
+
+    def as_frame(self) -> nw.DataFrame[Any]:
+        return self._collected_frame
 
     def as_lazy_frame(self) -> nw.LazyFrame[Any]:
         if is_narwhals_lazyframe(self.data):
@@ -88,9 +92,10 @@ class NarwhalsTableManager(
     def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
+        separator: str | None = None,
     ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data)
+        return dataframe_to_csv(_data, separator=separator)
 
     def to_json_str(
         self,
@@ -329,11 +334,9 @@ class NarwhalsTableManager(
         if not expressions:
             return NarwhalsTableManager(self.data.filter(nw.lit(False)))
 
-        or_expr = expressions[0]
-        for expr in expressions[1:]:
-            or_expr = or_expr | expr
-
-        filtered = self.data.filter(or_expr)
+        filtered = self.data.filter(
+            nw.any_horizontal(expressions, ignore_nulls=False)
+        )
         return NarwhalsTableManager(filtered)
 
     def get_stats(self, column: str) -> ColumnStats:
@@ -517,8 +520,16 @@ class NarwhalsTableManager(
                     }
                 )
 
+        import warnings
+
         stats = frame.select(**exprs)
-        stats_dict = stats.collect().rows(named=True)[0]
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Mean of empty slice|Degrees of freedom",
+                category=RuntimeWarning,
+            )
+            stats_dict = stats.collect().rows(named=True)[0]
 
         # Maybe add units to the stats
         for key, value in stats_dict.items():
@@ -537,6 +548,11 @@ class NarwhalsTableManager(
             return []
 
         dtype = self.nw_schema[column]
+
+        # Some backends (e.g. DuckDB) report Unknown for types like Time
+        # until the data is collected. Resolve by checking the collected schema.
+        if dtype == nw.Unknown:
+            dtype = self.as_frame().schema[column]
 
         if dtype.is_temporal():
             return self._get_bin_values_temporal(column, dtype, num_bins)
@@ -734,6 +750,15 @@ class NarwhalsTableManager(
                 )
             else:
                 values = self.data[column].head(SAMPLE_SIZE).to_list()
+            # For non-numeric columns, NaN represents null values
+            # (e.g., pandas 3 with StringDtype stores None as NaN)
+            if not self.data[column].dtype.is_numeric():
+                import math
+
+                values = [
+                    None if isinstance(v, float) and math.isnan(v) else v
+                    for v in values
+                ]
             # Serialize values to primitives
             return [to_primitive(v) for v in values]
         except BaseException:

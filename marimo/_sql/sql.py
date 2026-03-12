@@ -127,18 +127,23 @@ def sql(
             raise_df_import_error("polars[pyarrow]")
 
     if output:
+        from marimo._output.formatters.df_formatters import include_opinionated
+        from marimo._output.formatting import plain
         from marimo._plugins.stateless.plain_text import plain_text
         from marimo._plugins.ui._impl import table
 
         if isinstance(sql_engine, DuckDBEngine) and is_explain_query(query):
             # For EXPLAIN queries in DuckDB, display plain output to preserve box drawings
             text_output = extract_explain_content(df)
-            t = plain_text(text_output)
+            replace(plain_text(text_output))
+        elif not include_opinionated():
+            # Respect display.dataframes config - use plain formatting
+            replace(plain(df))
         elif can_narwhalify_lazyframe(df):
             # For pl.LazyFrame and DuckDBRelation, we only show the first few rows
             # to avoid loading all the data into memory.
             # Also preload the first page of data without user confirmation.
-            t = table.table.lazy(df, preload=True)
+            replace(table.table.lazy(df, preload=True))
         else:
             # df may be a cursor result from an SQL Engine
             # In this case, we need to convert it to a DataFrame
@@ -148,13 +153,14 @@ def sql(
             elif DBAPIEngine.is_dbapi_cursor(df):
                 display_df = DBAPIEngine.get_cursor_metadata(df)
 
-            t = table.table(
-                display_df,
-                selection=None,
-                pagination=True,
-                _internal_total_rows=custom_total_count,
+            replace(
+                table.table(
+                    display_df,
+                    selection=None,
+                    pagination=True,
+                    _internal_total_rows=custom_total_count,
+                )
             )
-        replace(t)
     return df
 
 

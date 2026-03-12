@@ -99,12 +99,9 @@ def __():
         md_result = next(f for f in result.files if f.file.endswith(".md"))
         txt_result = next(f for f in result.files if f.file.endswith(".txt"))
 
-        # py files with simple comments are not valid notebooks, so they fail parsing
-        assert py_result.failed is True  # Not a valid notebook
-        # md files with simple content might be processed differently
-        assert (
-            md_result.failed is False or md_result.skipped is True
-        )  # Markdown files may be handled differently
+        # files with simple comments are valid notebooks with errors.
+        assert not py_result.failed
+        assert not md_result.failed
         assert txt_result.skipped is True  # Not a notebook
 
 

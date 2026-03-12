@@ -215,7 +215,9 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 
 
 def _startup_url(state: AppStateBase) -> str:
-    host = state.host
+    host = state.host.strip(
+        "[]"
+    )  # normalize: remove brackets if user passed [addr]
     port = state.port
     try:
         # pretty printing:
@@ -231,11 +233,16 @@ def _startup_url(state: AppStateBase) -> str:
         # printing the host name
         ...
 
-    url = f"http://{host}:{port}{state.base_url}"
+    # Strip IPv6 zone ID (e.g. fe80::1%eth0 -> fe80::1); zone IDs are
+    # interface-specific and not valid in URLs
+    url_host_bare = host.split("%")[0]
+    # IPv6 addresses must be wrapped in brackets in URLs (RFC 3986)
+    url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare
+    url = f"http://{url_host}:{port}{state.base_url}"
     if port == 80:
-        url = f"http://{host}{state.base_url}"
+        url = f"http://{url_host}{state.base_url}"
     elif port == 443:
-        url = f"https://{host}{state.base_url}"
+        url = f"https://{url_host}{state.base_url}"
 
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
@@ -243,7 +250,9 @@ def _startup_url(state: AppStateBase) -> str:
 
 
 def _mcp_startup_url(state: AppStateBase) -> str:
-    host = state.host
+    host = state.host.strip(
+        "[]"
+    )  # normalize: remove brackets if user passed [addr]
     port = state.port
     base_url = state.base_url
 
@@ -257,15 +266,18 @@ def _mcp_startup_url(state: AppStateBase) -> str:
     except Exception:
         ...
 
+    # Strip IPv6 zone ID; IPv6 addresses must be wrapped in brackets (RFC 3986)
+    url_host_bare = host.split("%")[0]
+    url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare
     # Construct MCP endpoint URL
     mcp_prefix = "/mcp"
     mcp_name = "server"
     full_mcp_path = f"{mcp_prefix}/{mcp_name}"
-    url = f"http://{host}:{port}{base_url}{full_mcp_path}"
+    url = f"http://{url_host}:{port}{base_url}{full_mcp_path}"
     if port == 80:
-        url = f"http://{host}{base_url}{full_mcp_path}"
+        url = f"http://{url_host}{base_url}{full_mcp_path}"
     elif port == 443:
-        url = f"https://{host}{base_url}{full_mcp_path}"
+        url = f"https://{url_host}{base_url}{full_mcp_path}"
 
     # Add access token if not empty
     if AuthToken.is_empty(state.session_manager.auth_token):

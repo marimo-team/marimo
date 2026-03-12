@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from marimo._config.config import merge_default_config
@@ -9,6 +11,8 @@ from marimo._snippets.snippets import (
     read_snippets,
 )
 from marimo._utils.platform import is_windows
+
+TEST_DATA_DIR = str(Path(__file__).parent / "data")
 
 
 async def test_snippets() -> None:
@@ -56,6 +60,32 @@ def test_get_title_from_code_with_mo_md() -> None:
     assert get_title_from_code(code) == "This is a title"
     code = 'mo.md(r"""# This is a title""")'
     assert get_title_from_code(code) == "This is a title"
+
+
+async def test_snippets_with_multiple_markdown_cells() -> None:
+    """Regression test: all markdown cells should be rendered, not just the title."""
+    config = merge_default_config(
+        {
+            "snippets": {
+                "include_default_snippets": False,
+                "custom_paths": [TEST_DATA_DIR],
+            }
+        }
+    )
+    snippets = await read_snippets(config)
+    assert len(snippets.snippets) == 1
+    snippet = snippets.snippets[0]
+    assert snippet.title == "Multi Markdown Snippet"
+
+    html_sections = [s for s in snippet.sections if s.html is not None]
+    code_sections = [s for s in snippet.sections if s.code is not None]
+
+    # Both markdown cells should be rendered as HTML sections
+    assert len(html_sections) == 2, (
+        f"Expected 2 HTML sections (title + description), got {len(html_sections)}"
+    )
+    # The code cell should be rendered
+    assert len(code_sections) == 1
 
 
 total_snippets = len(list(read_snippet_filenames(True, [])))

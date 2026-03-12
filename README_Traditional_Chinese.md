@@ -50,16 +50,14 @@
 - 🛜 **可分享：** [部署為互動式網頁應用程式](https://docs.marimo.io/guides/apps.html)或[簡報](https://docs.marimo.io/guides/apps.html#slides-layout)，[透過 WASM 在瀏覽器中執行](https://docs.marimo.io/guides/wasm.html)
 - 🧩 **可重用：** [匯入函式和類別](https://docs.marimo.io/guides/reusing_functions/)從一個筆記本到另一個筆記本
 - 🧪 **可測試：** 在筆記本上[執行 pytest](https://docs.marimo.io/guides/testing/)
-- ⌨️ **現代化編輯器：** [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI 助手](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama)、vim 鍵盤綁定、變數瀏覽器，以及[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
+- ⌨️ **現代化編輯器：** [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI 助手](https://docs.marimo.io/guides/editor_features/ai_completion.html)、vim 鍵盤綁定、變數瀏覽器，以及[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
 - 🧑‍💻 **使用您喜愛的編輯器**：在 [VS Code 或 Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) 中執行，或在 neovim、Zed [或任何其他文字編輯器](https://docs.marimo.io/guides/editor_features/watching/)中編輯
 
 ```python
 pip install marimo && marimo tutorial intro
 ```
 
-_在我們的[線上體驗平台](https://marimo.app/l/c7h6pz)來試用 marimo，完全在瀏覽器中執行！_
-
-_跳到[快速開始](#快速開始)了解我們的 CLI 工具。_
+_立即使用 [**mo**lab，我們的免費線上 notebook](https://molab.marimo.io/notebooks) 開始體驗。或跳至[快速開始](#快速開始)了解 CLI 使用方式。_
 
 ## 響應式程式設計環境
 
@@ -72,7 +70,7 @@ marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[
 
 <a name="expensive-notebooks"></a>
 
-**與高成本筆記本相容。** marimo 讓您[配置執行環境為惰性模式](https://docs.marimo.io/guides/configuration/runtime_configuration.html)，將受影響的單元格標記為過時，而不是自動執行它們。這為您提供了程式狀態的保證，同時防止意外執行高成本的單元格。
+**與高成本筆記本相容。** marimo 讓您[設定執行環境為惰性模式](https://docs.marimo.io/guides/configuration/runtime_configuration.html)，將受影響的單元格標記為過時，而不是自動執行它們。這為您提供了程式狀態的保證，同時防止意外執行高成本的單元格。
 
 **同步的 UI 元素。** 與 [UI 元素](https://docs.marimo.io/guides/interactivity.html)互動，如[滑桿](https://docs.marimo.io/api/inputs/slider.html#slider)、[下拉選單](https://docs.marimo.io/api/inputs/dropdown.html)、[資料框轉換器](https://docs.marimo.io/api/inputs/dataframe.html)和[聊天介面](https://docs.marimo.io/api/inputs/chat.html)，使用它們的單元格會自動以最新值重新執行。
 
@@ -118,7 +116,7 @@ marimo tutorial intro
 若要安裝包含額外相依套件以解鎖 SQL 單元格、AI 自動完成等功能，請執行
 
 ```bash
-pip install marimo[recommended]
+pip install "marimo[recommended]"
 ```
 
 **建立新筆記本**
@@ -131,7 +129,7 @@ marimo edit
 
 **作為應用程式執行**
 
-將您的筆記本作為網頁應用程式運行，Python 程式碼將被隱藏且不可編輯：
+將您的筆記本作為網頁應用程式執行，Python 程式碼將被隱藏且不可編輯：
 
 ```bash
 marimo run your_notebook.py
@@ -141,7 +139,7 @@ marimo run your_notebook.py
 
 **作為腳本執行**
 
-在命令列中將筆記本作為腳本執行
+在終端機中將 notebook 作為腳本執行
 
 ```bash
 python your_notebook.py
@@ -168,7 +166,7 @@ marimo tutorial --help
 **分享雲端筆記本。**
 
 使用 [molab](https://molab.marimo.io/notebooks)，一個類似於 Google Colab 的雲端 marimo 筆記本服務，
-來創建和分享筆記本連結。
+來建立和分享 notebook 連結。
 
 ## 有問題嗎？
 
@@ -178,7 +176,7 @@ marimo tutorial --help
 
 marimo 容易上手，並為進階使用者提供了許多強大功能。
 例如，這是一個使用 marimo 製作的嵌入視覺化工具
-（[影片](https://marimo.io/videos/landing/full.mp4)）：
+（[在 molab 上即時試用 notebook！](https://molab.marimo.io/notebooks/nb_jJiFFtznAy4BxkrrZA1o9b/app?show-code=true)）：
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
@@ -224,23 +222,23 @@ marimo 容易上手，並為進階使用者提供了許多強大功能。
   </tr>
   <tr>
     <td>
-      <a target="_blank" href="https://marimo.app/l/c7h6pz">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_TWVGCgZZK4L8zj5ziUBNVL">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://marimo.app/l/0ue871">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_WuoXgs7mjg5yqrMxJXjRpF">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://marimo.app/l/lxp1jk">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_vXxD13t2RoMTLjC89qdn6c">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
     <td>
-      <a target="_blank" href="https://marimo.app/l/14ovyr">
-        <img src="https://marimo.io/shield.svg"/>
+      <a target="_blank" href="https://molab.marimo.io/notebooks/nb_XpXx8MX99dWAjn4k1b3xiU">
+        <img src="https://marimo.io/molab-shield.svg"/>
       </a>
     </td>
   </tr>
@@ -252,17 +250,6 @@ marimo 容易上手，並為進階使用者提供了許多強大功能。
 請參閱 [CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) 以獲取更多關於如何開始的詳細資訊。
 
 > 有問題嗎？請在 [Discord](https://marimo.io/discord?ref=readme) 上與我們聯繫。
-
-我們熱烈歡迎貢獻！您可以幫助 marimo：
-
-- 🐛 [回報錯誤](https://github.com/marimo-team/marimo/issues/new)
-- 💡 [提出功能請求](https://github.com/marimo-team/marimo/issues/new)
-- 📈 [upvote 功能請求](https://github.com/marimo-team/marimo/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)
-- 🔨 [提交 pull requests](https://github.com/marimo-team/marimo/pulls)
-- 🌸 [分享您在 marimo 中製作的筆記本](https://github.com/marimo-team/marimo/discussions/categories/show-and-tell)
-- 🌟 [在 GitHub 上為我們加星](https://github.com/marimo-team/marimo)
-
-有關如何貢獻的更多資訊，請參見[貢獻指南](https://docs.marimo.io/guides/contributing.html)。
 
 ## 社群
 
@@ -276,11 +263,13 @@ marimo 容易上手，並為進階使用者提供了許多強大功能。
 - 🦋 [在 Bluesky 上追蹤我們](https://bsky.app/profile/marimo.io)
 - 🐦 [在 Twitter 上追蹤我們](https://twitter.com/marimo_io)
 - 🎥 [在 YouTube 上訂閱](https://www.youtube.com/@marimo-team)
+- 🤖 [在 Reddit 上追蹤我們](https://www.reddit.com/r/marimo_notebook)
 - 🕴️ [在 LinkedIn 上追蹤我們](https://www.linkedin.com/company/marimo-io)
 
 **NumFOCUS 附屬專案。** marimo 是更廣泛 Python 生態系統的核心部分，也是 NumFOCUS 社群的成員，該社群包括 NumPy、SciPy 和 Matplotlib 等專案。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/numfocus_affiliated_project.png" height="40px" />
+
 
 ## 靈感 ✨
 

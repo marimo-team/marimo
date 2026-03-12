@@ -61,5 +61,30 @@ def _(plt, x):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    Wrap an `Axes` in `mo.ui.matplotlib` to enable reactive selections.
+    Click-drag for box selection, shift-drag for lasso selection.
+    """)
+    return
+
+
+@app.cell
+def _(mo, np, plt):
+    _x = np.random.randn(200)
+    _y = np.random.randn(200)
+    plt.scatter(_x, _y)
+    scatter_fig = mo.ui.matplotlib(plt.gca())
+    scatter_fig
+    return (scatter_fig,)
+
+
+@app.cell
+def _(scatter_fig):
+    scatter_fig.value
+    return
+
+
 if __name__ == "__main__":
     app.run()

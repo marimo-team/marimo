@@ -1,5 +1,7 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from marimo._config.config import AiConfig
@@ -90,6 +92,9 @@ def test_get_completion_provider(
 ) -> None:
     """Test that the correct provider is returned for a given model."""
 
+    if not DependencyManager.pydantic_ai.has():
+        pytest.skip("requires pydantic_ai")
+
     if dependency and not dependency.has():
         pytest.skip(f"{dependency.pkg} is not installed")
 
@@ -107,6 +112,7 @@ def test_get_completion_provider(
     assert isinstance(provider, provider_type)
 
 
+@pytest.mark.requires("pydantic_ai")
 async def test_azure_openai_provider() -> None:
     """Test that Azure OpenAI provider uses correct parameters."""
     config = AnyProviderConfig(
@@ -272,6 +278,7 @@ def test_anthropic_process_part_text_file() -> None:
         ),
     ],
 )
+@pytest.mark.requires("pydantic_ai")
 def test_is_reasoning_model(
     model_name: str, base_url: str | None, expected: bool
 ) -> None:
@@ -328,3 +335,40 @@ def test_anthropic_is_extended_thinking_model(
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
     assert provider.is_extended_thinking_model(model_name) == expected
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_completion_does_not_pass_redundant_instructions() -> None:
+    from pydantic_ai.messages import ModelResponse, TextPart
+    from pydantic_ai.models.openai import OpenAIResponsesModel
+
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    with (
+        patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm,
+        patch.object(
+            OpenAIResponsesModel, "request", new_callable=AsyncMock
+        ) as mock_request,
+    ):
+        mock_get_tm.return_value = MagicMock()
+        mock_request.return_value = ModelResponse(
+            parts=[TextPart(content="test")]
+        )
+
+        await provider.completion(
+            messages=[],
+            system_prompt="Test prompt",
+            max_tokens=100,
+            additional_tools=[],
+        )
+
+        mock_request.assert_called_once()
+        request_messages = mock_request.call_args.args[0]
+
+        assert len(request_messages) == 1
+        # The bug caused instructions to be "Test prompt\nTest prompt"
+        instructions = request_messages[0].instructions
+
+        # This asserts the duplication is gone
+        assert instructions == "Test prompt"

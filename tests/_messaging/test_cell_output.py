@@ -117,6 +117,12 @@ def test_cell_output_static_methods():
     assert stdin.mimetype == "text/plain"
     assert stdin.data == "User input"
 
+    # Test stdin password method
+    stdin_pw = CellOutput.stdin("Enter password", password=True)
+    assert stdin_pw.channel == CellChannel.STDIN
+    assert stdin_pw.mimetype == "text/password"
+    assert stdin_pw.data == "Enter password"
+
     # Test errors method
     errors = CellOutput.errors([MarimoSyntaxError(msg="Test error")])
     assert errors.channel == CellChannel.MARIMO_ERROR

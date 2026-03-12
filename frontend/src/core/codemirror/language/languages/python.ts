@@ -175,6 +175,44 @@ const tyLspClient = once((_: LSPConfig) => {
   return notebookClient;
 });
 
+const pyreflyClient = once(
+  (lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig }) => {
+    let resyncCallback: (() => Promise<void>) | undefined;
+
+    const transport = createTransport("pyrefly", async () => {
+      await resyncCallback?.();
+    });
+
+    const lspClientOpts = {
+      transport,
+      rootUri: getLSPDocumentRootUri(),
+      workspaceFolders: [],
+    };
+
+    // We wrap the client in a NotebookLanguageServerClient to add some
+    // additional functionality to handle multiple cells
+    const notebookClient = new NotebookLanguageServerClient(
+      new LanguageServerClient({
+        ...lspClientOpts,
+        initializationOptions: {
+          pyrefly: {
+            displayTypeErrors:
+              (lspConfig.diagnostics?.enabled ?? false)
+                ? "force-on"
+                : "force-off",
+          },
+        },
+      }),
+      {},
+    );
+
+    // Set the resync callback now that the client exists
+    resyncCallback = () => notebookClient.resyncAllDocuments();
+
+    return notebookClient;
+  },
+);
+
 const pyrightClient = once((_: LSPConfig) => {
   let resyncCallback: (() => Promise<void>) | undefined;
 
@@ -262,6 +300,9 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
       }
       if (lspConfig?.ty?.enabled && hasCapability("ty")) {
         clients.push(tyLspClient(lspConfig));
+      }
+      if (lspConfig?.pyrefly?.enabled && hasCapability("pyrefly")) {
+        clients.push(pyreflyClient(lspConfig));
       }
       if (lspConfig?.basedpyright?.enabled && hasCapability("basedpyright")) {
         clients.push(pyrightClient(lspConfig));

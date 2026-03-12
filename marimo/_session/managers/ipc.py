@@ -80,7 +80,7 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def set_ui_element_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[commands.UpdateUIElementCommand]:
+    ) -> QueueType[commands.BatchableCommand]:
         return self._ipc.set_ui_element_queue
 
     @property

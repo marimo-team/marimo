@@ -14,6 +14,7 @@ import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { prettyError } from "@/utils/errors";
+import { Filenames } from "@/utils/filenames";
 import {
   jsonParseWithSpecialChar,
   jsonToMarkdown,
@@ -36,6 +37,7 @@ type DownloadFormat = "csv" | "json" | "parquet";
 
 export interface DownloadActionProps {
   downloadAs: (req: { format: DownloadFormat }) => Promise<string>;
+  downloadFileName?: string;
 }
 
 const options = [
@@ -158,7 +160,10 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
             onSelect={async () => {
               const downloadUrl = await getDownloadUrl(option.format);
               const ext = option.format;
-              downloadByURL(downloadUrl, `download.${ext}`);
+              const rawName = (props.downloadFileName ?? "").trim();
+              const baseName =
+                Filenames.withoutExtension(rawName) || "download";
+              downloadByURL(downloadUrl, `${baseName}.${ext}`);
             }}
           >
             <option.icon className="mo-dropdown-icon" />

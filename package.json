@@ -22,7 +22,6 @@
   "packageManager": "pnpm@10.28.2",
   "pnpm": {
     "patchedDependencies": {
-      "react-plotly.js": "patches/react-plotly.js.patch",
       "html-to-image@1.11.13": "patches/html-to-image@1.11.13.patch"
     },
     "overrides": {

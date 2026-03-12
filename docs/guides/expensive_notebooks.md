@@ -45,7 +45,7 @@ def __():
 
 If you habitually work with very expensive notebooks, you can
 [disable automatic
-execution](../guides/configuration/runtime_configuration.md#disable-autorun-on-cell-change-lazy-execution). When
+execution](../guides/configuration/runtime_configuration.md#on-cell-change-disabling-autorun-on-cell-change-lazy-execution). When
 automatic execution is disabled, when you run a cell, marimo
 marks dependent cells as stale instead of running them automatically.
 
@@ -140,7 +140,7 @@ through the notebook menu (these files are saved in addition to the
 notebook's `.py` file). Snapshots are saved to a folder called
 `__marimo__` in the notebook directory.
 
-Learn more about exporting notebooks in our [exporting guide](../guides/exporting.md).
+Learn more about exporting notebooks in our [exporting guide](../guides/exporting/index.md).
 
 ## Cache expensive computations
 

@@ -10,6 +10,8 @@ files:
   # Expected Errors
   anywidget/tldraw_colorpicker.py:
     failed_reason: "ModuleNotFoundError: No module named 'tldraw'"
+  formatters/pytorch_formatters.py:
+    failed_reason: "ModuleNotFoundError: No module named 'torch'"
   bugs/1055.py:
     failed_reason: "ModuleNotFoundError: No module named 'manim_slides'"
   bugs/1270.py:

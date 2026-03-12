@@ -184,6 +184,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             attachments types, or pass a list of mime types. Defaults to False.
         max_height (int, optional): Optional maximum height for the chat element.
             Defaults to None.
+        disabled (bool, optional): Whether the chat input is disabled. When True,
+            the user cannot type or send messages. Defaults to False.
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -198,6 +200,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
         allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
+        disabled: bool = False,
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
@@ -219,6 +222,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 "config": cast(JSONType, config or {}),
                 "allow-attachments": allow_attachments,
                 "max-height": max_height,
+                "disabled": disabled,
             },
             functions=(
                 Function(

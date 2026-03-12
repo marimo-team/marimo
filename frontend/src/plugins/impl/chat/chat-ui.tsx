@@ -67,6 +67,7 @@ interface Props extends PluginFunctions {
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
+  disabled: boolean;
   value: UIMessage[];
   setValue: (messages: UIMessage[]) => void;
   host: HTMLElement;
@@ -450,6 +451,9 @@ export const Chatbot: React.FC<Props> = (props) => {
       <form
         onSubmit={async (evt) => {
           evt.preventDefault();
+          if (props.disabled) {
+            return;
+          }
 
           const fileParts = files
             ? await convertToFileUIPart(files)
@@ -462,7 +466,12 @@ export const Chatbot: React.FC<Props> = (props) => {
           resetInput();
         }}
         ref={formRef}
-        className="flex w-full border-t border-(--slate-6) px-2 py-1 items-center"
+        // biome-ignore lint/a11y/useSemanticElements: inert is used to disable the entire form
+        inert={props.disabled || undefined}
+        className={cn(
+          "flex w-full border-t border-(--slate-6) px-2 py-1 items-center",
+          props.disabled && "opacity-50 cursor-not-allowed",
+        )}
       >
         {props.showConfigurationControls && (
           <ConfigPopup config={config} onChange={setConfig} />

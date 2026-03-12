@@ -178,6 +178,85 @@ describe("EditNotebookTool", () => {
       });
     });
 
+    it("should skip no-op edits where code hasn't changed", async () => {
+      const code = "x = 1";
+
+      const editorView = createMockEditorView(code);
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code },
+        },
+      });
+      notebook.cellHandles[cellId1] = { current: { editorView } } as never;
+      store.set(notebookAtom, notebook);
+
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "update_cell",
+            position: { type: "relative", cellId: cellId1 },
+            code: code, // Same code as current
+          },
+        },
+        toolContext as never,
+      );
+
+      expect(result.status).toBe("success");
+
+      // Should NOT stage the cell or update the editor
+      expect(toolContext.addStagedCell).not.toHaveBeenCalled();
+      expect(vi.mocked(updateEditorCodeFromPython)).not.toHaveBeenCalled();
+
+      // No staged cells
+      const stagedCells = store.get(stagedAICellsAtom);
+      expect(stagedCells.size).toBe(0);
+    });
+
+    it("should skip no-op edits that revert to original code", async () => {
+      const originalCode = "x = 1";
+      const modifiedCode = "x = 2";
+
+      const editorView = createMockEditorView(originalCode);
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: originalCode },
+        },
+      });
+      notebook.cellHandles[cellId1] = { current: { editorView } } as never;
+      store.set(notebookAtom, notebook);
+
+      // First edit: change the code
+      await tool.handler(
+        {
+          edit: {
+            type: "update_cell",
+            position: { type: "relative", cellId: cellId1 },
+            code: modifiedCode,
+          },
+        },
+        toolContext as never,
+      );
+
+      expect(toolContext.addStagedCell).toHaveBeenCalledTimes(1);
+
+      // Second edit: revert back to the original code
+      const result = await tool.handler(
+        {
+          edit: {
+            type: "update_cell",
+            position: { type: "relative", cellId: cellId1 },
+            code: originalCode, // Same as the previousCode
+          },
+        },
+        toolContext as never,
+      );
+
+      expect(result.status).toBe("success");
+
+      // addStagedCell should not be called again (still 1 from the first edit)
+      expect(toolContext.addStagedCell).toHaveBeenCalledTimes(1);
+    });
+
     it("should throw error when cell ID doesn't exist", async () => {
       const notebook = MockNotebook.notebookState({
         cellData: {

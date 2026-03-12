@@ -25,7 +25,11 @@
   {
    "cell_type": "markdown",
    "id": "vblA",
-   "metadata": {},
+   "metadata": {
+    "marimo": {
+     "md_prefix": ""
+    }
+   },
    "source": [
     "plain markdown"
    ]

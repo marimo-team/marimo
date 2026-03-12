@@ -39,6 +39,7 @@ describe("parseOutline", () => {
             "by": {
               "id": "what-is-marimo",
             },
+            "html": "What is <b>marimo</b>?",
             "level": 2,
             "name": "What is marimo?",
           },
@@ -310,6 +311,50 @@ describe("parseOutline", () => {
     `);
   });
 
+  it("preserves LaTeX HTML in headings", () => {
+    const html = `
+    <span class="markdown">
+      <h1 id="intro">Introduction</h1>
+      <h2 id="the-equation">The equation <marimo-tex class="arithmatex">||(E = mc^2||)</marimo-tex></h2>
+      <h2 id="plain">Plain heading</h2>
+    </span>
+    `;
+    const outline = parseOutline({
+      mimetype: "text/html",
+      timestamp: 0,
+      channel: "output",
+      data: html,
+    });
+    expect(outline).toMatchInlineSnapshot(`
+      {
+        "items": [
+          {
+            "by": {
+              "id": "intro",
+            },
+            "level": 1,
+            "name": "Introduction",
+          },
+          {
+            "by": {
+              "id": "the-equation",
+            },
+            "html": "The equation <marimo-tex class="arithmatex">||(E = mc^2||)</marimo-tex>",
+            "level": 2,
+            "name": "The equation ||(E = mc^2||)",
+          },
+          {
+            "by": {
+              "id": "plain",
+            },
+            "level": 2,
+            "name": "Plain heading",
+          },
+        ],
+      }
+    `);
+  });
+
   it("excludes headings within excluded tags", () => {
     const html = `
     <div>
@@ -323,6 +368,9 @@ describe("parseOutline", () => {
       <marimo-accordion>
         <h2 id="excluded-heading-accordion">Excluded Heading in Accordion</h2>
       </marimo-accordion>
+      <marimo-sidebar>
+        <h2 id="excluded-heading-sidebar">Excluded Heading in Sidebar</h2>
+      </marimo-sidebar>
       <h2 id="another-included-heading">Another Included Heading</h2>
     </div>
     `;

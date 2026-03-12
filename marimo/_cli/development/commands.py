@@ -10,6 +10,10 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
@@ -26,6 +30,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
     import marimo._config.config as config
+    import marimo._data._external_storage.models as storage
     import marimo._data.models as data
     import marimo._messaging.errors as errors
     import marimo._messaging.notification as notifications
@@ -48,7 +53,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
-    from marimo._version import __version__
 
     MODELS = [
         # Base
@@ -90,6 +94,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Storage
+        storage.StorageEntry,
+        storage.StorageNamespace,
         # Secrets
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
@@ -118,6 +125,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.SQLTablePreviewNotification,
         notifications.SQLTableListPreviewNotification,
         notifications.DataSourceConnectionsNotification,
+        notifications.StorageNamespacesNotification,
         notifications.SecretKeysResultNotification,
         notifications.CacheClearedNotification,
         notifications.CacheInfoNotification,
@@ -234,6 +242,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.MCPStatusResponse,
         models.PreviewDatasetColumnRequest,
         models.PreviewSQLTableRequest,
+        models.StorageListEntriesRequest,
+        models.StorageDownloadRequest,
         models.ReadCodeResponse,
         models.RenameNotebookRequest,
         models.ExecuteCellsRequest,
@@ -267,7 +277,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     schemas_generator = SchemaGenerator(
         {
             "openapi": "3.1.0",
-            "info": {"title": "marimo API", "version": __version__},
+            "info": {"title": "marimo API"},
             "components": {
                 "schemas": component_schemas,
             },
@@ -408,8 +418,12 @@ def inline_packages(name: Path) -> None:
 
     # Validate uv is installed
     if not DependencyManager.which("uv"):
-        raise click.UsageError(
-            "uv is not installed. See https://docs.astral.sh/uv/getting-started/installation/"
+        raise MarimoCLIMissingDependencyError(
+            "uv is not installed.",
+            "uv",
+            additional_tip=(
+                "See https://docs.astral.sh/uv/getting-started/installation/"
+            ),
         )
 
     # Validate the file exists
@@ -610,6 +624,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             code_hash=hash_code(code),
             notebook_snapshot=notebook_snapshot,
             files={},
+            model_notifications=session_view.get_model_notifications(),
             asset_url=asset_url,
         )
 
@@ -658,8 +673,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         uvicorn.run(app, host=host, port=port, log_level="error")
 
     except Exception as e:
-        click.echo(f"Error creating preview: {e}", err=True)
-        raise click.Abort() from e
+        raise MarimoCLIRuntimeError(f"Error creating preview: {e}") from e
 
 
 development.add_command(inline_packages)

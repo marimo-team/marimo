@@ -6,7 +6,7 @@ from typing import Any, Optional
 import narwhals.stable.v2 as nw
 
 from marimo import _loggers
-from marimo._data.charts import get_chart_builder
+from marimo._data.charts import ChartBuilder, get_chart_builder
 from marimo._data.models import ColumnStats
 from marimo._data.sql_summaries import (
     get_column_type,
@@ -179,13 +179,9 @@ def get_column_preview_for_duckdb(
     missing_packages = None
     should_limit_to_10_items = True
 
-    if DependencyManager.altair.has():
+    total_rows = stats.total
+    if total_rows is not None and DependencyManager.altair.has():
         try:
-            total_rows: int = wrapped_sql(
-                f"SELECT COUNT(*) FROM {fully_qualified_table_name}",
-                connection=None,
-            ).fetchone()[0]  # type: ignore[index]
-
             if total_rows <= CHART_MAX_ROWS:
                 relation = wrapped_sql(
                     f"SELECT {column_name} FROM {fully_qualified_table_name}",
@@ -195,7 +191,9 @@ def get_column_preview_for_duckdb(
                     column_data=relation,
                     column_type=column_type,
                     column_name=column_name,
-                    should_limit_to_10_items=should_limit_to_10_items,
+                    chart_builder=get_chart_builder(
+                        column_type, should_limit_to_10_items
+                    ),
                 )
             else:
                 error, missing_packages = (
@@ -284,7 +282,7 @@ def _get_altair_chart(
             column_data=downgrade_narwhals_df_to_v1(column_data),
             column_type=column_type,
             column_name=column_name,
-            should_limit_to_10_items=should_limit_to_10_items,
+            chart_builder=chart_builder,
         )
     except MaxRowsError:
         chart_spec = None
@@ -298,11 +296,9 @@ def _get_chart_spec(
     column_data: Any,
     column_type: FieldType,
     column_name: str,
-    should_limit_to_10_items: bool,
+    chart_builder: ChartBuilder,
 ) -> str:
     import altair as alt
-
-    chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
 
     # If we have vegafusion and vl-convert-python, use it
     if (

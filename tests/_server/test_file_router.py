@@ -216,6 +216,30 @@ class TestAppFileRouter(unittest.TestCase):
         assert file_manager.filename.startswith(self.test_dir)
         assert "nested" in file_manager.filename
 
+    def test_list_of_files_resolves_dotdot_in_path(self):
+        """Paths with '..' components should resolve correctly.
+
+        Regression test for https://github.com/marimo-team/marimo/issues/8414
+        """
+        # Build a path with '..' that resolves to test_file1
+        # e.g. /tmp/dir/nested/../file.py -> /tmp/dir/file.py
+        dotdot_path = os.path.join(
+            self.nested_dir, "..", os.path.basename(self.test_file1.name)
+        )
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=dotdot_path,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files)
+        key = router.get_unique_file_key()
+        assert key is not None
+        resolved = router.resolve_file_path(key)
+        assert resolved is not None
+        assert os.path.exists(resolved)
+
 
 def test_flatten_files() -> None:
     root = FileInfo(

@@ -7,9 +7,11 @@ from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.parse import (
     MarimoFileError,
     NonMarimoPythonScriptError,
+    all_violations_soft,
     is_non_marimo_python_script,
 )
 from marimo._schemas.serialization import (
@@ -18,6 +20,7 @@ from marimo._schemas.serialization import (
     UnparsableCell,
 )
 from marimo._session.notebook.serializer import get_notebook_serializer
+from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
 
@@ -38,12 +41,15 @@ class LoadResult:
 
     status can be one of:
      - empty: No content, or only comments / a doc string
-     - has_errors: Parsed, but has marimo-specific errors (**can load!!**)
+     - has_warnings: Parsed, but has soft issues auto-corrected on save
+     - has_errors: Parsed, but has errors that may lose data on save (**can load!!**)
      - invalid: Could not be parsed as a marimo notebook (**cannot load**)
      - valid: Parsed and valid marimo notebook
     """
 
-    status: Literal["empty", "has_errors", "invalid", "valid"] = "empty"
+    status: Literal[
+        "empty", "has_warnings", "has_errors", "invalid", "valid"
+    ] = "empty"
     notebook: Optional[NotebookSerialization] = None
     contents: Optional[str] = None
 
@@ -80,7 +86,14 @@ def load_notebook_ir(
     # Use filepath from notebook if not explicitly provided
     if filepath is None:
         filepath = notebook.filename
-    app = App(**notebook.app.options, _filename=filepath)
+
+    # Markdown frontmatter may contain non-config metadata (e.g., author,
+    # description). Filter to only pass recognized config keys to App().
+    options = notebook.app.options
+    if filepath and MarimoPath(filepath).is_markdown():
+        options = _AppConfig.sanitize(options)
+
+    app = App(**options, _filename=filepath)
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
             app._unparsable_cell(cell.code, **cell.options)
@@ -117,14 +130,21 @@ def get_notebook_status(filename: str) -> LoadResult:
     if notebook is None:
         return LoadResult(status="empty", contents=contents)
     if not notebook.valid:
-        return LoadResult(
-            status="invalid", notebook=notebook, contents=contents
-        )
+        if is_non_marimo_python_script(notebook):
+            return LoadResult(
+                status="invalid", notebook=notebook, contents=contents
+            )
+        # Only comments or a doc string — treat as empty per status definition
+        return LoadResult(status="empty", notebook=notebook, contents=contents)
     if len(notebook.violations) > 0:
         LOGGER.debug(
             "Notebook has violations: \n%s",
             "\n".join(map(repr, notebook.violations)),
         )
+        if all_violations_soft(notebook.violations):
+            return LoadResult(
+                status="has_warnings", notebook=notebook, contents=contents
+            )
         return LoadResult(
             status="has_errors", notebook=notebook, contents=contents
         )

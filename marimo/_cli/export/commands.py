@@ -7,9 +7,12 @@ from typing import Callable, Literal, Optional
 
 import click
 
+from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
+from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import (
     echo,
@@ -25,6 +28,7 @@ from marimo._server.export import (
     export_as_md,
     export_as_script,
     export_as_wasm,
+    notebook_uses_slides_layout,
     run_app_then_export_as_html,
     run_app_then_export_as_ipynb,
     run_app_then_export_as_pdf,
@@ -158,14 +162,12 @@ Optionally pass CLI args to the notebook:
 @click.option(
     "--include-code/--no-include-code",
     default=True,
-    show_default=True,
     type=bool,
     help="Include notebook code in the exported HTML file.",
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -183,7 +185,6 @@ Optionally pass CLI args to the notebook:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -258,7 +259,6 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -276,7 +276,6 @@ Watch for changes and regenerate the script on modification:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -337,7 +336,6 @@ Watch for changes and regenerate the script on modification:
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -355,7 +353,6 @@ Watch for changes and regenerate the script on modification:
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -420,12 +417,10 @@ Requires nbformat to be installed.
     type=click.Choice(["top-down", "topological"]),
     default="topological",
     help="Sort cells top-down or in topological order.",
-    show_default=True,
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -442,7 +437,6 @@ Requires nbformat to be installed.
 @click.option(
     "--include-outputs/--no-include-outputs",
     default=False,
-    show_default=True,
     type=bool,
     help="Run the notebook and include outputs in the exported ipynb file.",
 )
@@ -450,7 +444,6 @@ Requires nbformat to be installed.
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -497,9 +490,13 @@ def ipynb(
             )
             return
 
-    DependencyManager.nbformat.require(
-        why="to convert marimo notebooks to ipynb"
-    )
+    try:
+        DependencyManager.nbformat.require(
+            why="to convert marimo notebooks to ipynb"
+        )
+    except ModuleNotFoundError as e:
+        package = getattr(e, "name", None) or "nbformat"
+        raise MarimoCLIMissingDependencyError(str(e), package) from None
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
@@ -530,20 +527,28 @@ Optionally pass CLI args to the notebook:
 
     marimo export pdf notebook.py -o notebook.pdf -- -arg1 foo -arg2 bar
 
+Export PDFs in a specific format such as slides:
+
+    marimo export pdf notebook.py -o notebook.pdf --as=slides
+
 Requires nbformat and nbconvert to be installed.
 """,
 )
 @click.option(
     "--include-outputs/--no-include-outputs",
     default=True,
-    show_default=True,
     type=bool,
     help="Run the notebook and include outputs in the exported PDF file.",
 )
 @click.option(
+    "--include-inputs/--no-include-inputs",
+    default=True,
+    type=bool,
+    help="Include code cell inputs in the exported PDF file.",
+)
+@click.option(
     "--webpdf/--no-webpdf",
     default=True,
-    show_default=True,
     type=bool,
     help=(
         "Use nbconvert's WebPDF exporter (Chromium). If disabled, marimo will "
@@ -551,9 +556,43 @@ Requires nbformat and nbconvert to be installed.
     ),
 )
 @click.option(
+    "--rasterize-outputs/--no-rasterize-outputs",
+    default=True,
+    type=bool,
+    help=(
+        "Rasterize marimo widget HTML and Vega outputs to PNG fallbacks before PDF "
+        "conversion (enabled by default)."
+    ),
+)
+@click.option(
+    "--raster-scale",
+    type=click.FloatRange(min=1.0, max=4.0),
+    default=4.0,
+    help="Scale factor for rasterized output screenshots.",
+)
+@click.option(
+    "--raster-server",
+    type=click.Choice(["static", "live"], case_sensitive=False),
+    default="static",
+    help=(
+        "Server mode used for raster capture. Use 'static' (default) for "
+        "faster captures, or 'live' if outputs require a live Python connection. "
+        "For --as=slides, 'live' is recommended."
+    ),
+)
+@click.option(
+    "--as",
+    "export_as",
+    type=click.Choice(["document", "slides"]),
+    default=None,
+    help=(
+        "PDF export preset. Use `slides` for reveal.js slide-style output. "
+        "If omitted, marimo exports as a standard document PDF."
+    ),
+)
+@click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     type=bool,
     help=_watch_message,
 )
@@ -568,7 +607,6 @@ Requires nbformat and nbconvert to be installed.
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -585,18 +623,38 @@ Requires nbformat and nbconvert to be installed.
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
+@click.pass_context
 def pdf(
+    ctx: click.Context,
     name: str,
     output: Path,
     watch: bool,
     include_outputs: bool,
+    include_inputs: bool,
     webpdf: bool,
+    rasterize_outputs: bool,
+    raster_scale: float,
+    raster_server: str,
+    export_as: Literal["document", "slides"] | None,
     sandbox: Optional[bool],
     force: bool,
     args: tuple[str],
 ) -> None:
     """Run a notebook and export it as a PDF file."""
     import sys
+
+    if not include_outputs:
+        rasterize_source = ctx.get_parameter_source("rasterize_outputs")
+        raster_scale_source = ctx.get_parameter_source("raster_scale")
+        raster_server_source = ctx.get_parameter_source("raster_server")
+        if (
+            rasterize_source is not click.core.ParameterSource.DEFAULT
+            or raster_scale_source is not click.core.ParameterSource.DEFAULT
+            or raster_server_source is not click.core.ParameterSource.DEFAULT
+        ):
+            raise click.ClickException(
+                "Rasterization options require --include-outputs."
+            )
 
     if include_outputs:
         # Set default, if not provided
@@ -625,17 +683,58 @@ def pdf(
             DependencyManager.nbconvert,
         )
     except ManyModulesNotFoundError as e:
-        from marimo._cli.print import bold
-
-        pkgs = " ".join(e.package_names)
-        raise click.ClickException(
-            f"{e}\n\n"
-            f"  {green('Tip:')} Install with:\n\n"
-            f"    pip install {pkgs}\n\n"
-            f"  or rerun with {bold(f'marimo export pdf {name} --output {output} --sandbox')} (requires uv)"
+        sandbox_rerun_command = (
+            f"marimo export pdf {name} --output {output} --sandbox"
+        )
+        raise MarimoCLIMissingDependencyError(
+            str(e),
+            e.package_names,
+            followup_commands=sandbox_rerun_command,
+            followup_label="Alternative:",
+            additional_tip="Requires uv.",
         ) from None
 
+    if export_as is None and notebook_uses_slides_layout(MarimoPath(name)):
+        echo(
+            f"{green('Tip:')} Notebook is using slides layout. "
+            "Use --as=slides for slide-style PDF export.",
+            err=True,
+        )
+
     cli_args = parse_args(args) if include_outputs else {}
+    rasterization_enabled = include_outputs and rasterize_outputs
+    if (
+        export_as == "slides"
+        and rasterization_enabled
+        and raster_server.lower() != "live"
+    ):
+        echo(
+            f"{green('Tip:')} For --as=slides, prefer --raster-server=live "
+            "for better aspect-ratio capture and widget compatibility.",
+            err=True,
+        )
+
+    if rasterization_enabled:
+        try:
+            DependencyManager.playwright.require(
+                "for rasterized PDF output export"
+            )
+        except ModuleNotFoundError as e:
+            if getattr(e, "name", None) == "playwright":
+                raise MarimoCLIMissingDependencyError(
+                    "Playwright is required to rasterize HTML outputs for PDF export.",
+                    "playwright",
+                    followup_commands=get_playwright_chromium_setup_commands(),
+                ) from None
+            raise
+
+    from marimo._server.export._pdf_raster import PDFRasterizationOptions
+
+    rasterization_options = PDFRasterizationOptions(
+        enabled=rasterization_enabled,
+        scale=raster_scale,
+        server_mode=raster_server,
+    )
 
     def export_callback(
         file_path: MarimoPath,
@@ -645,19 +744,20 @@ def pdf(
                 run_app_then_export_as_pdf(
                     file_path,
                     include_outputs=include_outputs,
+                    include_inputs=include_inputs,
                     webpdf=webpdf,
+                    export_as=export_as,
                     cli_args=cli_args,
                     argv=list(args) if include_outputs else None,
+                    rasterization_options=rasterization_options,
                 )
             )
         except ModuleNotFoundError as e:
             if getattr(e, "name", None) == "playwright":
-                raise click.ClickException(
-                    "Playwright is required for WebPDF export.\n\n"
-                    f"  {green('Tip:')} Install webpdf dependencies with:\n\n"
-                    "    pip install 'nbconvert[webpdf]'\n\n"
-                    "  and install Chromium with:\n\n"
-                    "    python -m playwright install chromium"
+                raise MarimoCLIMissingDependencyError(
+                    "Playwright is required for WebPDF export.",
+                    "nbconvert[webpdf]",
+                    followup_commands=get_playwright_chromium_setup_commands(),
                 ) from None
             raise
         except Exception as e:
@@ -716,19 +816,16 @@ and cannot be opened directly from the file system (e.g. file://).
     type=click.Choice(["edit", "run"]),
     default="run",
     help="Whether the notebook code should be editable or readonly.",
-    show_default=True,
     required=True,
 )
 @click.option(
     "--watch/--no-watch",
     default=False,
-    show_default=True,
     help=("Whether to watch the original file and export upon change"),
 )
 @click.option(
     "--show-code/--no-show-code",
     default=False,
-    show_default=True,
     help=(
         "Whether to show code by default in the exported HTML file; "
         "only relevant for run mode."
@@ -737,7 +834,6 @@ and cannot be opened directly from the file system (e.g. file://).
 @click.option(
     "--include-cloudflare/--no-include-cloudflare",
     default=False,
-    show_default=True,
     help=(
         "Whether to include Cloudflare Worker configuration files"
         " (index.js and wrangler.jsonc) for easy deployment."
@@ -747,7 +843,6 @@ and cannot be opened directly from the file system (e.g. file://).
     "--sandbox/--no-sandbox",
     is_flag=True,
     default=None,
-    show_default=False,
     type=bool,
     help=_sandbox_message,
 )
@@ -790,12 +885,10 @@ def html_wasm(
 
     out_dir = output
     filename = "index.html"
-    ignore_index_html = False
     # If ends with .html, get the directory
     if output.suffix == ".html":
         out_dir = output.parent
         filename = output.name
-        ignore_index_html = True
 
     marimo_file = MarimoPath(name)
 
@@ -803,7 +896,7 @@ def html_wasm(
         return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Export assets first
-    Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
+    Exporter().export_assets(out_dir)
 
     # Create .nojekyll file to prevent GitHub Pages from interfering with asset
     # resolution
@@ -843,3 +936,4 @@ export.add_command(ipynb)
 export.add_command(pdf)
 export.add_command(html_wasm)
 export.add_command(thumbnail)
+export.add_command(session)

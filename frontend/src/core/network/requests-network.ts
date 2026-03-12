@@ -381,6 +381,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    exportAsIPYNB: async (request) => {
+      return getClient()
+        .POST("/api/export/ipynb", {
+          body: request,
+          parseAs: "text",
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
     exportAsPDF: async (request) => {
       return getClient()
         .POST("/api/export/pdf", {
@@ -484,6 +493,22 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/cache/info", {
           body: {},
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    listStorageEntries: (request) => {
+      return getClient()
+        .POST("/api/storage/list_entries", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    downloadStorage: (request) => {
+      return getClient()
+        .POST("/api/storage/download", {
+          body: request,
           params: getParams(),
         })
         .then(handleResponseReturnNull);

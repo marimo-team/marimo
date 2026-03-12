@@ -9,11 +9,12 @@ from __future__ import annotations
 import abc
 import threading
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app_config import _AppConfig
 from marimo._messaging.context import HTTP_REQUEST_CTX
+from marimo._runtime.cell_output_list import CellOutputList
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -26,7 +27,6 @@ if TYPE_CHECKING:
     )
     from marimo._config.config import MarimoConfig
     from marimo._messaging.types import Stderr, Stdout, Stream
-    from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime import dataflow
     from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
@@ -67,8 +67,8 @@ class ExecutionContext:
     # Cell ID corresponding to local graph object, and not prefixed in script
     # context.
     local_cell_id: Optional[CellId_t] = None
-    # output object set imperatively
-    output: Optional[list[Html]] = None
+    # outputs set imperatively via mo.output.append and associated functions
+    output: CellOutputList = field(default_factory=CellOutputList)
     duckdb_connection: duckdb.DuckDBPyConnection | None = None
 
     @contextmanager

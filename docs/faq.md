@@ -1,4 +1,5 @@
 ---
+description: "Frequently asked questions about marimo: how it differs from Jupyter, why reactive execution, deployment, and troubleshooting."
 hide:
   - navigation
 ---
@@ -315,6 +316,71 @@ use [`mo.ui.array`][marimo.ui.array] or
 For usage examples, see the
 [recipes for grouping UI elements together](recipes.md#grouping-ui-elements-together).
 
+
+### How do I let users interrupt a progress bar iteration?
+
+To create an interruptible progress bar, run the progress bar in its own thread,
+and create a button that on change signals to the thread that it should exit.
+
+Example:
+
+```python
+import marimo
+
+__generated_with = "0.20.1"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    import time
+    from threading import Event
+    return Event, mo, time
+
+
+@app.cell
+def _(Event):
+    cancelled = Event()
+    return (cancelled,)
+
+
+@app.cell
+def _(cancelled, mo):
+    cancel = mo.ui.button(
+        label="Interrupt the progress bar", on_change=lambda _: cancelled.set()
+    )
+    cancel
+    return
+
+
+@app.cell
+def _(cancelled, mo, time):
+    def progress(total):
+        with mo.status.progress_bar(total=10) as pbar:
+            for _ in range(10):
+                if cancelled.is_set():
+                    pbar.update(
+                        increment=0, subtitle="The user cancelled the iteration"
+                    )
+                    break
+                # Sleep... or anything else that releases GIL
+                time.sleep(0.5)
+                pbar.update()
+
+    return (progress,)
+
+
+@app.cell
+def _(mo, progress):
+    mo.Thread(target=progress, args=(10,)).start()
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+```
+
 <a name="faq-restart"></a>
 
 ### How do I restart a notebook?
@@ -474,8 +540,8 @@ marimo edit --host 0.0.0.0
 
 ### How do I use marimo behind JupyterHub?
 
-JupyterHub can be configured to launch marimo using the [`jupyter-marimo-proxy`
-package](https://github.com/jyio/jupyter-marimo-proxy).
+JupyterHub can be configured to launch marimo using the
+[`marimo-jupyter-extension`](https://github.com/marimo-team/marimo-jupyter-extension).
 
 <a name="faq-jupyter-book"></a>
 

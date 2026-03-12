@@ -234,6 +234,16 @@ def test_inject_service_worker() -> None:
     )
 
 
+def test_inject_service_worker_null_check() -> None:
+    result = _inject_service_worker("<body></body>", "notebook.py")
+    # The helper function should check registration.active before posting
+    assert "function sendNotebookId(registration)" in result
+    assert "if (registration.active)" in result
+    # Should handle installing/waiting workers via statechange listener
+    assert "registration.installing || registration.waiting" in result
+    assert "statechange" in result
+
+
 def test_index_with_missing_local_file_and_asset_url(
     client: TestClient,
 ) -> None:

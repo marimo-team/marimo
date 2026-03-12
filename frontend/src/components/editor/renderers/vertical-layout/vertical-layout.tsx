@@ -172,11 +172,9 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   // spacing is handled elsewhere
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
-      {showCode && canShowCode ? (
-        <div className="flex flex-col gap-5"> {renderCells()}</div>
-      ) : (
-        renderCells()
-      )}
+      <div className={cn("flex flex-col", showCode && canShowCode && "gap-5")}>
+        {renderCells()}
+      </div>
       {mode === "read" && (
         <ActionButtons
           canShowCode={canShowCode}

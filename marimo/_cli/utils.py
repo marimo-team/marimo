@@ -182,6 +182,10 @@ def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
         _loggers.marimo_logger().warning(
             "This notebook has errors, saving may lose data. Continuing anyway."
         )
+    elif status == "has_warnings":
+        _loggers.marimo_logger().info(
+            "This notebook has minor issues that will be auto-corrected on save."
+        )
 
 
 def check_app_correctness_or_convert(filename: str) -> None:

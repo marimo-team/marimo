@@ -17,7 +17,7 @@ from marimo._ast.transformers import (
     RemoveReturns,
     clean_to_modules,
     compiled_ast,
-    strip_function,
+    get_hashable_ast,
 )
 
 
@@ -253,14 +253,14 @@ def test_clean_to_modules_no_optional_vars() -> None:
     assert len(with_module.body) == 1
 
 
-def test_strip_function() -> None:
-    """Test the strip_function function."""
+def test_get_hashable_ast() -> None:
+    """Test the get_hashable_ast function."""
 
     def test_function(x: int, y: str) -> int:
         result = x + len(y)
         return result
 
-    module = strip_function(test_function)
+    module = get_hashable_ast(test_function)
     assert isinstance(module, ast.Module)
 
     # The function should be stripped of returns and arguments mangled
@@ -269,6 +269,49 @@ def test_strip_function() -> None:
     assert "return result" not in code
     assert f"{ARG_PREFIX}x" in code
     assert f"{ARG_PREFIX}y" in code
+
+
+def test_get_hashable_ast_with_decorators() -> None:
+    """Test that get_hashable_ast includes decorator AST and can skip specific ones.
+
+    When skip_decorator is provided, that decorator is filtered out while
+    all others are included so their parameters affect the hash.
+    """
+
+    def my_cache(fn):
+        return fn
+
+    def other_decorator(param: str):
+        del param
+
+        def wrapper(fn):
+            return fn
+
+        return wrapper
+
+    @other_decorator(param="before")
+    @my_cache
+    @other_decorator(param="after")
+    def decorated_function():
+        return 42
+
+    # Test 1: With skip_decorators, that decorator is filtered out
+    module = get_hashable_ast(decorated_function, skip_decorators={"my_cache"})
+    code = ast.unparse(module)
+
+    assert "my_cache" not in code
+    assert "other_decorator" in code
+    # Only decorators AFTER (inner to) the skipped one should be included
+    assert 'param="before"' not in code
+    assert "param='before'" not in code
+    assert 'param="after"' in code or "param='after'" in code
+
+    # Test 2: Without skip_decorator, all decorators are included
+    module_all = get_hashable_ast(decorated_function)
+    code_all = ast.unparse(module_all)
+
+    assert "my_cache" in code_all
+    assert "other_decorator" in code_all
 
 
 def test_mangle_arguments() -> None:
@@ -337,6 +380,86 @@ def test_func():
     assert (
         "x" in code_result
     )  # The value should still be there as an expression
+
+
+class TestRemoveReturnsBareName:
+    """return <Name> should become an Expr (the name is already captured)."""
+
+    def test_return_name(self) -> None:
+        tree = ast.parse("x = 1\nreturn x")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "x = 1" in code
+
+
+class TestRemoveReturnsConstant:
+    """return <constant> must be preserved in bytecode (regression #8364)."""
+
+    def test_return_int(self) -> None:
+        tree = ast.parse("return 42")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "* = 42" in code
+
+    def test_return_constant_expr(self) -> None:
+        """return 11 + 19 — no Name, so must preserve via assignment."""
+        tree = ast.parse("return 11 + 19")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "* = " in code
+        assert "11" in code
+        assert "19" in code
+
+
+class TestRemoveReturnsPureLambda:
+    """return (lambda: <const>) has no Name — must preserve via assignment."""
+
+    def test_return_pure_lambda(self) -> None:
+        tree = ast.parse("return (lambda: 1)")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "* = " in code
+        assert "lambda" in code
+
+    def test_return_lambda_with_name(self) -> None:
+        """return (lambda: x) — the lambda body references a Name."""
+        tree = ast.parse("return (lambda: x)")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "x" in code
+
+
+class TestRemoveReturnsExprWithName:
+    """return <expr containing Name> should become an Expr."""
+
+    def test_return_binop_with_name(self) -> None:
+        tree = ast.parse("return x + 1")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "x" in code
+
+    def test_return_call(self) -> None:
+        """return fn(x) — Call with Name args."""
+        tree = ast.parse("return fn(x)")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "fn" in code
+        assert "x" in code
+
+
+class TestRemoveReturnsBareReturn:
+    """A bare `return` (no value) should not crash."""
+
+    def test_bare_return(self) -> None:
+        tree = ast.parse("return")
+        result = RemoveReturns().visit(tree)
+        code = ast.unparse(result)
+        assert "return" not in code
+        assert "* = None" in code
 
 
 def test_extract_with_block_simple() -> None:

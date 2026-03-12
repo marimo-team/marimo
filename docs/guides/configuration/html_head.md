@@ -51,6 +51,10 @@ Here are some common use cases for custom HTML head content:
 <meta property="og:image" content="https://example.com/thumbnail.jpg" />
 ```
 
+!!! tip "OpenGraph previews"
+
+    For common OpenGraph fields (title, description, image), you can also use notebook OpenGraph metadata in script metadata. See [OpenGraph previews](../publishing/opengraph.md).
+
 4. **External Scripts and Libraries**
 
 ```html

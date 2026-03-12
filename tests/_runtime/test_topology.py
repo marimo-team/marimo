@@ -102,6 +102,39 @@ class TestMutableGraphTopology:
         assert "cell_2" not in graph.children["cell_1"]
         assert "cell_2" not in graph.parents["cell_3"]
 
+    def test_remove_hub_node_cleans_all_neighbors(self) -> None:
+        """Removing a hub node updates all its parents and children."""
+        graph = MutableGraphTopology()
+        cells = {f"cell_{i}": parse_cell(f"x{i} = {i}") for i in range(1, 6)}
+        for cid, cell in cells.items():
+            graph.add_node(cid, cell)
+
+        # cell_3 is a hub: parents=[cell_1, cell_2], children=[cell_4, cell_5]
+        graph.add_edge("cell_1", "cell_3")
+        graph.add_edge("cell_2", "cell_3")
+        graph.add_edge("cell_3", "cell_4")
+        graph.add_edge("cell_3", "cell_5")
+        # unrelated edge
+        graph.add_edge("cell_1", "cell_2")
+
+        graph.remove_node("cell_3")
+
+        # cell_3 is fully removed
+        assert "cell_3" not in graph.cells
+        assert "cell_3" not in graph.children
+        assert "cell_3" not in graph.parents
+
+        # parents no longer list cell_3 as a child
+        assert "cell_3" not in graph.children["cell_1"]
+        assert "cell_3" not in graph.children["cell_2"]
+        # children no longer list cell_3 as a parent
+        assert "cell_3" not in graph.parents["cell_4"]
+        assert "cell_3" not in graph.parents["cell_5"]
+
+        # unrelated edge is untouched
+        assert "cell_2" in graph.children["cell_1"]
+        assert "cell_1" in graph.parents["cell_2"]
+
     def test_add_edge(self) -> None:
         """Test adding an edge between two nodes."""
         graph = MutableGraphTopology()

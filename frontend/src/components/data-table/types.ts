@@ -80,3 +80,7 @@ export function extractTimezone(dtype: string | undefined): string | undefined {
   const match = /^datetime(?:64)?\[[^,]+,([^,]+)]$/.exec(dtype);
   return match?.[1]?.trim();
 }
+
+export type PageRange =
+  | { type: "page"; page: number }
+  | { type: "ellipsis"; key: string };

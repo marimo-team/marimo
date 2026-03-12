@@ -1,12 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Panel, PanelGroup } from "react-resizable-panels";
+import { MarimoIcon } from "@/components/icons/marimo-icons";
 import type { AppConfig } from "@/core/config/config-schema";
 import { Constants } from "@/core/constants";
 import { RunApp } from "@/core/run-app";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
-import marimoIcon from "../../assets/icon-32x32.png";
 import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { PanelsWrapper } from "../editor/chrome/wrapper/panels";
 import { StaticBanner } from "../static-html/static-banner";
@@ -41,7 +41,7 @@ const Watermark = () => {
         className="text-sm text-(--grass-11) font-bold tracking-wide transition-colors bg-(--grass-4) hover:bg-(--grass-5) border-t border-l border-(--grass-8) px-3 py-1 rounded-tl-md flex items-center gap-2"
       >
         <span>made with marimo</span>
-        <img src={marimoIcon} alt="marimo" className="h-4 w-auto" />
+        <MarimoIcon className="h-4 w-auto" />
       </a>
     </div>
   );

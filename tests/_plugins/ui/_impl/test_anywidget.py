@@ -15,13 +15,19 @@ from marimo._plugins.ui._impl.from_anywidget import (
     from_anywidget,
     get_anywidget_state,
 )
-from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.commands import (
+    ModelCommand,
+    ModelUpdateMessage,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import WidgetModelId
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = (
     DependencyManager.anywidget.has() and DependencyManager.traitlets.has()
 )
+HAS_PLOTLY = DependencyManager.plotly.has()
 
 if HAS_DEPS:
     import anywidget as _anywidget
@@ -193,7 +199,6 @@ x = as_marimo_element.count
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
-            "css": "",
             "js-url": "",
             "js-hash": md5(b"").hexdigest(),
         }
@@ -209,7 +214,6 @@ x = as_marimo_element.count
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
-            "css": "",
             "js-url": "",
             "js-hash": md5(b"").hexdigest(),
         }
@@ -344,7 +348,7 @@ x = as_marimo_element.count
             _css = "button { color: red; }"
 
         wrapped = anywidget(CSSWidget())
-        assert wrapped._component_args["css"] == "button { color: red; }"
+        assert "css" not in wrapped._component_args
 
     @staticmethod
     async def test_js_hash() -> None:
@@ -550,3 +554,217 @@ x = as_marimo_element.count
         # Test KeyError propagation
         with pytest.raises(KeyError):
             _ = wrapped["nonexistent"]
+
+    @staticmethod
+    async def test_model_message_with_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that mo.state setters work inside widget observe callbacks.
+
+        Regression test: when a model update message arrives from the
+        frontend, the observe callback fires outside any cell execution
+        context. The __external__ sentinel ensures state setters still
+        trigger downstream re-runs without causing self-loops.
+        This test does NOT use mo.ui.anywidget() — the model exists
+        without a view, verifying the model-to-cell mapping works
+        independently of the UIElement path.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
+
+c = Counter()
+get_count, set_count = mo.state(c.count)
+
+def _on_count_change(_):
+    set_count(c.count)
+
+c.observe(_on_count_change, names="count")
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
+        )
+
+        assert k.globals["result"] == 0
+
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        # Simulate a model update from the frontend
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 5},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # The observe callback should have fired set_count,
+        # which triggers re-execution of the cell reading get_count()
+        assert k.globals["result"] == 5
+
+    @staticmethod
+    async def test_nested_model_observe_and_state(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test observe on a child widget nested inside a parent widget.
+
+        Models the lonboard pattern: a Map widget holds Layer children,
+        and the user observes trait changes on the inner layer. The
+        parent (Map) is displayed via mo.ui.anywidget, but the observe
+        callback is on the child layer which has its own model.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Layer(anywidget.AnyWidget):
+    _esm = ""
+    selected_index = traitlets.Int(0).tag(sync=True)
+
+class Map(anywidget.AnyWidget):
+    _esm = ""
+    layer = traitlets.Instance(Layer).tag(sync=True)
+
+layer = Layer()
+m = Map(layer=layer)
+w = mo.ui.anywidget(m)
+
+get_selected, set_selected = mo.state(layer.selected_index)
+layer.observe(
+    lambda _: set_selected(layer.selected_index),
+    names="selected_index",
+)
+"""
+                ),
+                exec_req.get("result = get_selected()"),
+            ]
+        )
+
+        assert k.globals["result"] == 0
+
+        layer = k.globals["layer"]
+        layer_model_id = WidgetModelId(layer._model_id)
+
+        # Simulate frontend updating the child layer's trait
+        await k.handle_message(
+            ModelCommand(
+                model_id=layer_model_id,
+                message=ModelUpdateMessage(
+                    state={"selected_index": 42},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        assert k.globals["result"] == 42
+
+    @staticmethod
+    async def test_observe_state_no_self_loop(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify that __external__ sentinel doesn't cause self-loops.
+
+        If a cell both defines and reads a state (get_count), plus has
+        an observe callback that calls the setter, the defining cell
+        should NOT re-run — only downstream cells should.
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import anywidget
+import traitlets
+import marimo as mo
+
+class Counter(anywidget.AnyWidget):
+    _esm = ""
+    count = traitlets.Int(0).tag(sync=True)
+
+c = Counter()
+get_count, set_count = mo.state(c.count)
+c.observe(lambda _: set_count(c.count), names="count")
+
+# Read the state in the SAME cell that defines it
+same_cell_value = get_count()
+run_count = globals().get("run_count", 0) + 1
+"""
+                ),
+                exec_req.get("result = get_count()"),
+            ]
+        )
+
+        assert k.globals["same_cell_value"] == 0
+        assert k.globals["result"] == 0
+        initial_run_count = k.globals["run_count"]
+
+        widget = k.globals["c"]
+        model_id = WidgetModelId(widget._model_id)
+
+        await k.handle_message(
+            ModelCommand(
+                model_id=model_id,
+                message=ModelUpdateMessage(
+                    state={"count": 7},
+                    buffer_paths=[],
+                ),
+                buffers=[],
+            )
+        )
+
+        # Downstream cell should update
+        assert k.globals["result"] == 7
+        # The defining cell should NOT have re-run (no self-loop)
+        assert k.globals["run_count"] == initial_run_count
+
+    @staticmethod
+    @pytest.mark.skipif(not HAS_PLOTLY, reason="plotly not installed")
+    async def test_plotly_figure_widget_uses_anywidget_path(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that plotly FigureWidget is rendered via the anywidget path.
+
+        FigureWidget is an anywidget.AnyWidget subclass and must go through
+        the widget comm path (not static plotly rendering) for interactive
+        features like plotly-resampler's dynamic resampling to work.
+
+        Regression test for https://github.com/marimo-team/marimo/issues/4091
+        """
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import plotly.graph_objects as go
+import marimo as mo
+
+fig = go.FigureWidget(
+    data=[go.Scatter(x=[1, 2, 3], y=[4, 5, 6])]
+)
+html_output = mo.as_html(fig).text
+uses_anywidget = "marimo-anywidget" in html_output
+uses_static_plotly = "marimo-plotly" in html_output
+"""
+                )
+            ]
+        )
+        # FigureWidget should use the anywidget path
+        assert k.globals["uses_anywidget"] is True
+        # FigureWidget should NOT use the static plotly path
+        assert k.globals["uses_static_plotly"] is False

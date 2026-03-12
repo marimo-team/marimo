@@ -42,7 +42,6 @@ class PlotlyFormatter(FormatterFactory):
                 return ("text/html", plugin.text)
 
             @formatting.formatter(plotly.graph_objects.Figure)
-            @formatting.formatter(plotly.graph_objects.FigureWidget)
             def _plotly_formatter(
                 fig: plotly.graph_objects.Figure,
             ) -> tuple[KnownMimeType, str]:

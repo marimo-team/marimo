@@ -29,6 +29,7 @@ import type {
   SaveUserConfigurationRequest,
   Snippets,
 } from "../network/types";
+import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
 import { BasicTransport } from "../websocket/transports/basic";
 import type { IConnectionTransport } from "../websocket/transports/transport";
@@ -146,7 +147,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
-    const filename = PyodideRouter.getFilename();
+    const filename = store.get(filenameAtom) ?? PyodideRouter.getFilename();
     const userConfig = store.get(userConfigAtom);
 
     const queryParameters: Record<string, string | string[]> = {};
@@ -586,6 +587,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   getWorkspaceFiles = throwNotImplemented;
   getRunningNotebooks = throwNotImplemented;
   shutdownSession = throwNotImplemented;
+  exportAsIPYNB = throwNotImplemented;
   exportAsPDF = throwNotImplemented;
   autoExportAsHTML = throwNotImplemented;
   autoExportAsMarkdown = throwNotImplemented;
@@ -595,6 +597,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
+  listStorageEntries = throwNotImplemented;
+  downloadStorage = throwNotImplemented;
 
   private async putControlRequest(operation: CommandMessage) {
     await this.rpc.proxy.request.bridge({

@@ -5,6 +5,7 @@ import type { AnyModel } from "@anywidget/types";
 import { debounce } from "lodash-es";
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import { getRequestClient } from "@/core/network/requests";
+import { isStaticNotebook } from "@/core/static/static-state";
 import {
   decodeFromWire,
   serializeBuffersToBase64,
@@ -343,12 +344,14 @@ export async function handleWidgetMessage(
         return;
       }
 
-      modelManager.create(
-        modelId,
-        (signal) =>
-          new Model(
-            stateWithBuffers,
-            {
+      modelManager.create(modelId, (signal) => {
+        // In static exports there is no kernel, so comm calls are no-ops.
+        const comm: MarimoComm<ModelState> = isStaticNotebook()
+          ? {
+              sendUpdate: async () => undefined,
+              sendCustomMessage: async () => undefined,
+            }
+          : {
               async sendUpdate(changeData) {
                 if (signal.aborted) {
                   Logger.debug(
@@ -377,10 +380,10 @@ export async function handleWidgetMessage(
                   buffers: buffers.map(dataViewToBase64),
                 });
               },
-            },
-            signal,
-          ),
-      );
+            };
+
+        return new Model(stateWithBuffers, comm, signal);
+      });
       return;
     }
 
@@ -394,11 +397,10 @@ export async function handleWidgetMessage(
       return;
     }
 
-    case "close": {
+    case "close":
       BINDING_MANAGER.destroy(modelId);
       modelManager.delete(modelId); // aborts the model's signal, clearing listeners
       return;
-    }
 
     case "update": {
       const { state, buffer_paths = [] } = msg;

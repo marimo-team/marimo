@@ -35,6 +35,7 @@ from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._data._external_storage.models import StorageBackend, StorageEntry
 from marimo._data.preview_column import (
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -69,6 +70,9 @@ from marimo._messaging.notification import (
     SQLMetadata,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
+    StorageDownloadReadyNotification,
+    StorageEntriesNotification,
+    UpdateCellIdsNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -104,6 +108,7 @@ from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.commands import (
     AppMetadata,
+    BatchableCommand,
     ClearCacheCommand,
     CodeCompletionCommand,
     CommandMessage,
@@ -126,6 +131,8 @@ from marimo._runtime.commands import (
     RefreshSecretsCommand,
     RenameNotebookCommand,
     StopKernelCommand,
+    StorageDownloadCommand,
+    StorageListEntriesCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -143,7 +150,7 @@ from marimo._runtime.context.kernel_context import (
 )
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
-from marimo._runtime.input_override import input_override
+from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -162,25 +169,18 @@ from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
-from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner import cell_runner, hook_context
 from marimo._runtime.runner.hooks import (
-    ON_FINISH_HOOKS,
-    POST_EXECUTION_HOOKS,
-    PRE_EXECUTION_HOOKS,
-    PREPARATION_HOOKS,
+    NotebookCellHooks,
+    Priority,
+    create_default_hooks,
 )
-from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-from marimo._runtime.runner.hooks_post_execution import (
-    PostExecutionHookType,
-    render_toplevel_defs,
-)
-from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
-from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
+from marimo._runtime.virtual_file.virtual_file import VirtualFile
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
@@ -504,11 +504,7 @@ class Kernel:
         stdin: Stdin | None,
         module: ModuleType,
         enqueue_control_request: Callable[[CommandMessage], None],
-        preparation_hooks: list[PreparationHookType] | None = None,
-        pre_execution_hooks: list[PreExecutionHookType] | None = None,
-        post_execution_hooks: list[PostExecutionHookType] | None = None,
-        on_finish_hooks: list[OnFinishHookType] | None = None,
-        render_hook: PostExecutionHookType | None = None,
+        hooks: NotebookCellHooks,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -544,6 +540,7 @@ class Kernel:
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
         self.cache_callbacks = CacheCallbacks(self)
+        self.external_storage_callbacks = ExternalStorageCallbacks(self)
 
         # Apply pythonpath from config at initialization
         pythonpath = user_config["runtime"].get("pythonpath")
@@ -552,38 +549,9 @@ class Kernel:
                 if path not in sys.path:
                     sys.path.insert(0, path)
 
-        self._preparation_hooks = (
-            preparation_hooks
-            if preparation_hooks is not None
-            else PREPARATION_HOOKS
-        )
-        self._pre_execution_hooks = (
-            pre_execution_hooks
-            if pre_execution_hooks is not None
-            else PRE_EXECUTION_HOOKS
-        )
-        self._post_execution_hooks = (
-            post_execution_hooks
-            if post_execution_hooks is not None
-            else POST_EXECUTION_HOOKS
-        )
-        self._on_finish_hooks = (
-            on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
-        )
+        self._hooks = hooks
 
         self._original_environ = os.environ.copy()
-
-        # Adds in a post_execution hook to run pytest immediately
-        if user_config["runtime"].get("reactive_tests", False):
-            from marimo._runtime.runner.hooks_post_execution import (
-                attempt_pytest,
-            )
-
-            self._post_execution_hooks.append(attempt_pytest)
-
-        # Must be last to properly trigger render.
-        if render_hook is not None:
-            self._post_execution_hooks.append(render_hook)
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
@@ -652,6 +620,12 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        # Override getpass.getpass to route through marimo's stdin with
+        # password masking, instead of trying /dev/tty or falling back
+        # to plaintext with warnings.
+        import getpass
+
+        getpass.getpass = getpass_override
         # Webbrowser may not be set (e.g. docker container) or stubbed/broken
         # (e.g. in pyodide). Set default to just inject an iframe of the
         # expected page to output.
@@ -1409,9 +1383,9 @@ class Kernel:
 
     def _propagate_kernel_errors(
         self,
-        runner: cell_runner.Runner,
+        ctx: hook_context.OnFinishHookContext,
     ) -> None:
-        for cell_id, error in runner.exceptions.items():
+        for cell_id, error in ctx.exceptions.items():
             if isinstance(error, MarimoStrictExecutionError):
                 self.errors[cell_id] = (error,)
 
@@ -1421,26 +1395,33 @@ class Kernel:
         Returns set of cells that need to be re-run due to state updates.
         """
 
-        # Some hooks that are leaky and require the kernel
+        # Some hooks are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #
         # NB: lazy kernels don't invalidate state of cancelled cells
         # descendants (cancelled == cells that raise exceptions), whereas
         # eager kernels do (since we clear all state ahead of time, and
         # have the closure of the roots in cells to run)
-        def invalidate_state(runner: cell_runner.Runner) -> None:
-            for cid in runner.cells_to_run:
+        def invalidate_state(ctx: hook_context.PreparationHookContext) -> None:
+            for cid in ctx.cells_to_run:
                 self._invalidate_cell_state(cid)
 
         def note_time_of_interruption(
             cell_impl: CellImpl,
-            runner: cell_runner.Runner,
+            ctx: hook_context.PostExecutionHookContext,
             run_result: cell_runner.RunResult,
         ) -> None:
             del cell_impl
-            del runner
+            del ctx
             if isinstance(run_result.exception, MarimoInterrupt):
                 self.last_interrupt_timestamp = time.time()
+
+        # Copy hooks and add run-specific hooks
+        run_hooks = self._hooks.copy()
+        run_hooks.add_preparation(invalidate_state)
+        run_hooks.add_post_execution(note_time_of_interruption, Priority.LATE)
+        run_hooks.add_on_finish(self.packages_callbacks.missing_packages_hook)
+        run_hooks.add_on_finish(self._propagate_kernel_errors)
 
         # Rebuild graph with sourceful positions
         # Note, this is relatively expensive, but a reasonable tradeoff
@@ -1457,17 +1438,7 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=self._preparation_hooks + [invalidate_state],
-            pre_execution_hooks=self._pre_execution_hooks,
-            post_execution_hooks=self._post_execution_hooks
-            + [note_time_of_interruption],
-            on_finish_hooks=(
-                self._on_finish_hooks
-                + [
-                    self.packages_callbacks.missing_packages_hook,
-                    self._propagate_kernel_errors,
-                ]
-            ),
+            hooks=run_hooks,
         )
 
         # I/O
@@ -1491,20 +1462,43 @@ class Kernel:
         from marimo._runtime.threads import is_marimo_thread
 
         ctx = get_context()
-        assert ctx.execution_context is not None
-        setter_cell_id = ctx.execution_context.cell_id
+        if ctx.execution_context is not None:
+            setter_cell_id = ctx.execution_context.cell_id
+        else:
+            # Setter called outside cell execution (e.g. from a widget
+            # callback triggered by a frontend message, or an async
+            # task). Use a sentinel that won't match any real cell,
+            # so self-loop prevention is skipped.
+            setter_cell_id = CellId_t("__external__")
 
-        # When running on the main thread of execution, state updates
-        # are just logged in a data structure; it is the runner's
-        # job to process these later.
-        if not is_marimo_thread():
-            with self._state_lock:
-                self.state_updates[state] = setter_cell_id
+        # When running in a mo.Thread, eagerly process state updates.
+        if is_marimo_thread():
+            cells_with_stale_state = self._find_cells_for_state(
+                state, setter_cell_id
+            )
+            self.graph.set_stale(cells_with_stale_state, prune_imports=True)
+            if not self.lazy():
+                self._execute_stale_cells_callback()
             return
 
-        # Otherwise, when running in a mo.Thread, we eagerly process
-        # state updates.
-        cells_with_stale_state = set()
+        # On the main thread, queue the update for the runner.
+        with self._state_lock:
+            self.state_updates[state] = setter_cell_id
+
+        # Outside cell execution (async task, widget callback), nothing
+        # else will flush the queue, so enqueue a run.
+        if ctx.execution_context is None and not self.lazy():
+            self._execute_stale_cells_callback()
+
+    def _find_cells_for_state(
+        self, state: State[Any], setter_cell_id: CellId_t
+    ) -> set[CellId_t]:
+        """Find cells that should re-run due to a state update.
+
+        Returns cell IDs whose refs include the given state object,
+        excluding the setter cell (unless allow_self_loops is True).
+        """
+        result: set[CellId_t] = set()
         for cid, cell in self.graph.cells.items():
             # No self-loops
             if cid == setter_cell_id and not state.allow_self_loops:
@@ -1513,10 +1507,9 @@ class Kernel:
                 # run this cell if any of its refs match the state object
                 # by object ID (via is operator)
                 if ref in self.globals and self.globals[ref] is state:
-                    cells_with_stale_state.add(cid)
-        self.graph.set_stale(cells_with_stale_state, prune_imports=True)
-        if not self.lazy():
-            self._execute_stale_cells_callback()
+                    result.add(cid)
+                    break  # cell already matched; skip remaining refs
+        return result
 
     @kernel_tracer.start_as_current_span("delete_cell")
     async def delete_cell(self, request: DeleteCellCommand) -> None:
@@ -1728,6 +1721,12 @@ class Kernel:
         graph = dataflow.DirectedGraph()
         graph.register_cell(SCRATCH_CELL_ID, cell)
 
+        # Copy hooks and add scratchpad-specific hooks
+        scratchpad_hooks = self._hooks.copy()
+        scratchpad_hooks.add_on_finish(
+            self.packages_callbacks.missing_packages_hook
+        )
+
         runner = cell_runner.Runner(
             roots=roots,
             graph=graph,
@@ -1737,13 +1736,7 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=self._preparation_hooks,
-            pre_execution_hooks=self._pre_execution_hooks,
-            post_execution_hooks=self._post_execution_hooks,
-            on_finish_hooks=(
-                self._on_finish_hooks
-                + [self.packages_callbacks.missing_packages_hook]
-            ),
+            hooks=scratchpad_hooks,
         )
 
         await runner.run_all()
@@ -2111,6 +2104,10 @@ class Kernel:
             LOGGER.info("App is already instantiated, skipping instantiation.")
             return
 
+        broadcast_notification(
+            UpdateCellIdsNotification(cell_ids=list(request.cell_ids))
+        )
+
         # Handle markdown cells specially during kernel-ready initialization
         execution_requests = {
             er.cell_id: er for er in request.execution_requests
@@ -2281,13 +2278,23 @@ class Kernel:
                 request
             )
 
-            # If there's a ui_element_id, trigger a cell re-run
+            # Directly handle the UI element update instead of
+            # re-enqueuing it as a separate command. Re-enqueuing
+            # caused Model+UI interleaving that the batch merger
+            # couldn't collapse (different types), leading to every
+            # drag tick getting its own full cell re-execution.
             if ui_element_id and state:
                 await self.set_ui_element_value(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
                     )
                 )
+                broadcast_notification(CompletedRunNotification())
+            elif self.state_updates:
+                # Callbacks during message processing (e.g. widget observe
+                # handlers) may have called mo.state setters. Process
+                # those pending state updates now.
+                await self._run_cells(set())
                 broadcast_notification(CompletedRunNotification())
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:
@@ -2351,6 +2358,14 @@ class Kernel:
         )
         # SQL
         handler.register(ValidateSQLCommand, self.sql_callbacks.validate_sql)
+        # External storage
+        handler.register(
+            StorageListEntriesCommand,
+            self.external_storage_callbacks.list_entries,
+        )
+        handler.register(
+            StorageDownloadCommand, self.external_storage_callbacks.download
+        )
         # Secrets
         handler.register(
             ListSecretKeysCommand, self.secrets_callbacks.list_secrets
@@ -2653,6 +2668,194 @@ class DatasetCallbacks:
         )
 
 
+class ExternalStorageCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+
+    def _get_storage_backend(
+        self, namespace: str
+    ) -> tuple[StorageBackend[Any] | None, str | None]:
+        """Look up a storage backend by variable name from kernel globals.
+
+        Returns (backend, error). If there is error, backend is None.
+        """
+        from marimo._data._external_storage.get_storage import STORAGE_BACKENDS
+
+        variable_name = VariableName(namespace)
+        if variable_name not in self._kernel.globals:
+            return None, f"Variable '{namespace}' not found"
+
+        var = self._kernel.globals[variable_name]
+
+        for backend in STORAGE_BACKENDS:
+            if backend.is_compatible(var):
+                return backend(var, variable_name), None
+        return None, (
+            f"Variable '{namespace}' is not a compatible "
+            "storage backend (expected obstore or fsspec)"
+        )
+
+    _VFILE_TTL_SECONDS = 60
+
+    def _schedule_vfile_cleanup(self, vfile: VirtualFile) -> None:
+        """Best-effort cleanup of a virtual file after a TTL."""
+        import asyncio
+
+        from marimo._runtime.context import get_context
+
+        try:
+            registry = get_context().virtual_file_registry
+            loop = asyncio.get_running_loop()
+            loop.call_later(self._VFILE_TTL_SECONDS, registry.remove, vfile)
+        except Exception:
+            LOGGER.debug(
+                "Could not schedule virtual file cleanup for %s",
+                vfile.filename,
+            )
+
+    @kernel_tracer.start_as_current_span("storage_list_entries")
+    async def list_entries(self, request: StorageListEntriesCommand) -> None:
+        """List storage entries at a given prefix."""
+        backend, error = self._get_storage_backend(request.namespace)
+        if error is not None or backend is None:
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=[],
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                    error=error,
+                ),
+            )
+            return
+
+        # list_entries is synchronous, so we wrap it in asyncio.to_thread
+        def list_entries() -> list[StorageEntry]:
+            return backend.list_entries(
+                prefix=request.prefix, limit=request.limit
+            )
+
+        try:
+            entries = await asyncio.to_thread(list_entries)
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=entries,
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                ),
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to list entries for %s at prefix %s",
+                request.namespace,
+                request.prefix,
+            )
+            broadcast_notification(
+                StorageEntriesNotification(
+                    request_id=request.request_id,
+                    entries=[],
+                    namespace=request.namespace,
+                    prefix=request.prefix,
+                    error=f"Failed to list entries: {e}",
+                ),
+            )
+
+    _PREVIEW_MAX_BYTES = 1_000_000  # 1 MB
+
+    @kernel_tracer.start_as_current_span("storage_download")
+    async def download(self, request: StorageDownloadCommand) -> None:
+        """
+        Download a storage entry, preferring a signed URL.
+        If preview is true, downloads the first 1MB of the file and returns a same-origin virtual file URL.
+        """
+        backend, error = self._get_storage_backend(request.namespace)
+        if error is not None or backend is None:
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=None,
+                    filename=None,
+                    error=error,
+                ),
+            )
+            return
+
+        filename = request.path.rsplit("/", 1)[-1] or "download"
+
+        try:
+            if request.preview:
+                await self._download_preview(backend, request, filename)
+            else:
+                await self._download_full(backend, request, filename)
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to download %s from %s",
+                request.path,
+                request.namespace,
+            )
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=None,
+                    filename=None,
+                    error=f"Failed to download: {e}",
+                ),
+            )
+
+    async def _download_full(
+        self,
+        backend: StorageBackend[Any],
+        request: StorageDownloadCommand,
+        filename: str,
+    ) -> None:
+        signed_url = await backend.sign_download_url(request.path)
+        if signed_url is not None:
+            broadcast_notification(
+                StorageDownloadReadyNotification(
+                    request_id=request.request_id,
+                    url=signed_url,
+                    filename=filename,
+                ),
+            )
+            return
+
+        # Signing not supported; fall back to virtual file with TTL
+        result = await backend.download_file(request.path)
+        vfile = VirtualFile.create_and_register(result.file_bytes, result.ext)
+        self._schedule_vfile_cleanup(vfile)
+
+        broadcast_notification(
+            StorageDownloadReadyNotification(
+                request_id=request.request_id,
+                url=vfile.url,
+                filename=result.filename,
+            ),
+        )
+
+    async def _download_preview(
+        self,
+        backend: StorageBackend[Any],
+        request: StorageDownloadCommand,
+        filename: str,
+    ) -> None:
+        """Read partial content and serve via a virtual file with TTL. This is useful to bypass CORS."""
+        data = await backend.read_range(
+            request.path, offset=0, length=self._PREVIEW_MAX_BYTES
+        )
+        _, ext = os.path.splitext(filename)
+        vfile = VirtualFile.create_and_register(data, ext.lstrip(".") or "txt")
+        self._schedule_vfile_cleanup(vfile)
+
+        broadcast_notification(
+            StorageDownloadReadyNotification(
+                request_id=request.request_id,
+                url=vfile.url,
+                filename=filename,
+            ),
+        )
+
+
 class SqlCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
@@ -2824,10 +3027,12 @@ class PackagesCallbacks:
             ),
         )
 
-    def missing_packages_hook(self, runner: cell_runner.Runner) -> None:
+    def missing_packages_hook(
+        self, ctx: hook_context.OnFinishHookContext
+    ) -> None:
         module_not_found_errors = [
             e
-            for e in runner.exceptions.values()
+            for e in ctx.exceptions.values()
             if isinstance(e, (ImportError, ManyModulesNotFoundError))
         ]
 
@@ -3144,7 +3349,7 @@ class RequestHandler:
 
 def launch_kernel(
     control_queue: QueueType[CommandMessage],
-    set_ui_element_queue: QueueType[UpdateUIElementCommand],
+    set_ui_element_queue: QueueType[BatchableCommand],
     completion_queue: QueueType[CodeCompletionCommand],
     input_queue: QueueType[str],
     stream_queue: QueueType[KernelMessage] | None,
@@ -3180,6 +3385,10 @@ def launch_kernel(
         profiler.enable()
 
     should_redirect_stdio = is_edit_mode or redirect_console_to_browser
+    # Only use os.dup2-based fd redirection in process-based modes
+    # (edit mode / IPC).  Thread-based run mode uses the lighter-weight
+    # thread-local proxy instead to avoid process-global fd mutations.
+    use_fd_redirect = is_subprocess
 
     # Create communication channels
     pipe: Optional[TypedConnection[KernelMessage]] = None
@@ -3215,10 +3424,16 @@ def launch_kernel(
             "One of queue_pipe and socket_addr must be non None"
         )
 
-    # Console output is hidden in run mode, so no need to redirect
-    # (redirection of console outputs is not thread-safe anyway)
-    stdout = ThreadSafeStdout(stream) if should_redirect_stdio else None
-    stderr = ThreadSafeStderr(stream) if should_redirect_stdio else None
+    stdout = (
+        ThreadSafeStdout(stream, forward_os_streams=use_fd_redirect)
+        if should_redirect_stdio
+        else None
+    )
+    stderr = (
+        ThreadSafeStderr(stream, forward_os_streams=use_fd_redirect)
+        if should_redirect_stdio
+        else None
+    )
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
@@ -3227,9 +3442,6 @@ def launch_kernel(
         if is_edit_mode and not bool(os.getenv("DEBUGPY_RUNNING"))
         else None
     )
-
-    # Run mode kernels do not need additional rendering for toplevel defs
-    render_hook = render_toplevel_defs if is_edit_mode else None
 
     # In run mode, the kernel should always be in autorun, and the module
     # autoreloader is disabled
@@ -3240,8 +3452,23 @@ def launch_kernel(
 
     def _enqueue_control_request(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
-        if isinstance(req, UpdateUIElementCommand):
+        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
             set_ui_element_queue.put_nowait(req)
+
+    # Create hooks with mode-specific configuration
+    from marimo._runtime.runner.hooks_post_execution import (
+        attempt_pytest,
+        broadcast_storage_backends,
+        render_toplevel_defs,
+    )
+
+    hooks = create_default_hooks()
+    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
+        hooks.add_post_execution(attempt_pytest, Priority.LATE)
+    if is_edit_mode:
+        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
+    if user_config.get("experimental", {}).get("storage_inspector", False):
+        hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -3258,7 +3485,7 @@ def launch_kernel(
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
-        render_hook=render_hook,
+        hooks=hooks,
     )
     ctx = initialize_kernel_context(
         kernel=kernel,
@@ -3332,8 +3559,14 @@ def launch_kernel(
             )
             if isinstance(request, StopKernelCommand):
                 break
-            elif isinstance(request, UpdateUIElementCommand):
-                request = ui_element_request_mgr.process_request(request)
+            elif isinstance(request, (UpdateUIElementCommand, ModelCommand)):
+                # Drain the shared queue and merge pending requests:
+                # - UI element updates: last-write-wins per element ID
+                # - Model commands: last-write-wins per model ID
+                merged = ui_element_request_mgr.process_request(request)
+                for r in merged:
+                    await kernel.handle_message(r)
+                continue
 
             if request is not None:
                 await kernel.handle_message(request)
@@ -3343,6 +3576,13 @@ def launch_kernel(
     # primitives anywhere else in the runtime unless there is a *very* good
     # reason; prefer using threads (for performance and clarity).
     asyncio.run(control_loop(kernel))
+
+    if not use_fd_redirect:
+        from marimo._messaging.thread_local_streams import (
+            clear_thread_local_streams,
+        )
+
+        clear_thread_local_streams()
 
     if profiler is not None and profile_path is not None:
         profiler.disable()

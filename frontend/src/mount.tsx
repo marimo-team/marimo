@@ -36,14 +36,21 @@ import {
   DEFAULT_RUNTIME_CONFIG,
   runtimeConfigAtom,
 } from "./core/runtime/config";
-import { codeAtom, filenameAtom } from "./core/saving/file-state";
+import { codeAtom, cwdAtom, filenameAtom } from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
-import { isStaticNotebook } from "./core/static/static-state";
+import {
+  getStaticModelNotifications,
+  isStaticNotebook,
+} from "./core/static/static-state";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
 import { WebSocketState } from "./core/websocket/types";
+import {
+  handleWidgetMessage,
+  MODEL_MANAGER,
+} from "./plugins/impl/anywidget/model";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
@@ -52,9 +59,9 @@ import { reportVitals } from "./utils/vitals";
 let hasMounted = false;
 
 /**
- * Main entry point for the mairmo app.
+ * Main entry point for the marimo app.
  *
- * Sets up the mairmo app with a theme provider.
+ * Sets up the marimo app with a theme provider.
  */
 export function mount(options: unknown, el: Element): Error | undefined {
   if (hasMounted) {
@@ -77,6 +84,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
       // If we're in static mode, we need to patch fetch to use the virtual file
       patchFetch();
       patchVegaLoader(vegaLoader);
+      hydrateStaticModels();
     }
 
     // Init store
@@ -138,6 +146,10 @@ const mountOptionsSchema = z.object({
       Logger.warn("No filename provided, using fallback");
       return getFilenameFromDOM();
     }),
+  /**
+   * absolute working directory of the notebook
+   */
+  cwd: z.string().nullish().default(null),
   /**
    * notebook code
    */
@@ -274,6 +286,7 @@ function initStore(options: unknown) {
 
   // Files
   store.set(filenameAtom, parsedOptions.data.filename);
+  store.set(cwdAtom, parsedOptions.data.cwd ?? null);
   store.set(codeAtom, parsedOptions.data.code);
   store.set(initialModeAtom, mode);
 
@@ -327,6 +340,20 @@ function initStore(options: unknown) {
   );
   if (notebook) {
     store.set(notebookAtom, notebook);
+  }
+}
+
+/**
+ * Hydrate anywidget models from embedded static state so widgets
+ * render immediately without a kernel connection.
+ */
+function hydrateStaticModels(): void {
+  const notifications = getStaticModelNotifications();
+  if (!notifications) {
+    return;
+  }
+  for (const notification of notifications) {
+    handleWidgetMessage(MODEL_MANAGER, notification);
   }
 }
 

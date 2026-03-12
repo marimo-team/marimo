@@ -67,6 +67,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
+  justify?: "left" | "center" | "right";
   calculateTopKRows?: CalculateTopKRows;
   table?: Table<TData>;
 }
@@ -74,6 +75,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
 export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
+  justify,
   className,
   calculateTopKRows,
   table,
@@ -101,6 +103,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <div
             className={cn(
               "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-(--slate-3) data-[state=open]:bg-(--slate-3) data-[state=open]:border-border rounded px-1 -mx-1",
+              justify === "right" && "flex-row-reverse",
               className,
             )}
             data-testid="data-table-sort-button"

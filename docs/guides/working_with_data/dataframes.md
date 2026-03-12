@@ -477,7 +477,7 @@ When you run a SQL cell in marimo, you can get the output returned as a datafram
 </figure>
 </div>
 
-Alternatively you can also use the [marimo configuration file](/guides/configuration/#user-configuration) to configure the default SQL output. 
+Alternatively you can also use the [marimo configuration file](../configuration/index.md#user-configuration) to configure the default SQL output. 
 
 ```toml
 [runtime]

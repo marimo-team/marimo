@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._plugins.core.media import io_to_data_url
 
 
 class IPythonFormatter(FormatterFactory):
@@ -146,6 +147,22 @@ class IPythonFormatter(FormatterFactory):
                 data = str(html._repr_html_())  # type: ignore
 
             return ("text/html", data)
+
+        @formatting.formatter(
+            IPython.display.Image  # type:ignore
+        )
+        def _format_image(
+            img: IPython.display.Image,  # type:ignore
+        ) -> tuple[KnownMimeType, str]:
+            if img.data is not None:
+                mime_type = img._MIMETYPES.get(
+                    img.format, f"image/{img.format}"
+                )
+                data_url = io_to_data_url(img.data, mime_type)
+                return (cast(KnownMimeType, mime_type), data_url or "")
+            elif img.url is not None:
+                return ("text/html", h.img(src=img.url, alt=""))
+            return ("text/plain", repr(img))
 
         return unpatch
 

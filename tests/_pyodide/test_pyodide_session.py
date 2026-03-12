@@ -12,6 +12,7 @@ import pytest
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
@@ -351,7 +352,7 @@ async def test_pyodide_session_put_input(
         # Notebook operations
         (
             '{"type": "create-notebook", "executionRequests": [{"cellId": "cell-1", "code": "print(1)", "type": "execute-cell"}], '
-            '"setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
+            '"cellIds": ["cell-1"], "setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
             '"autoRun": true}',
             CreateNotebookCommand,
         ),
@@ -573,6 +574,10 @@ def test_pyodide_bridge_read_code(
     assert "marimo.App()" in response["contents"]
 
 
+@pytest.mark.skipif(
+    not (DependencyManager.ruff.has() or DependencyManager.black.has()),
+    reason="ruff or black not installed",
+)
 async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
     """Test formatting code through the bridge."""
     request_json = json.dumps(

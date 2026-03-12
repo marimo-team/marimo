@@ -2,20 +2,23 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "plotly==5.24.1",
-#     "pandas==2.2.3",
+#     "pandas==3.0.0",
 #     "marimo",
+#     "vega-datasets==0.9.0",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.9"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Plotly Express Chart""")
+    mo.md("""
+    # Plotly Express Chart
+    """)
     return
 
 
@@ -67,7 +70,9 @@ def _(mo, plot):
 
 @app.cell
 def _(mo):
-    mo.md("""# Plotly Graph Objects Chart""")
+    mo.md("""
+    # Plotly Graph Objects Chart
+    """)
     return
 
 
@@ -129,7 +134,9 @@ def _(mo, plot2):
 
 @app.cell
 def _(mo):
-    mo.md("""# Re-rendering Chart""")
+    mo.md("""
+    # Re-rendering Chart
+    """)
     return
 
 
@@ -174,7 +181,9 @@ def _(mo, plot3):
 
 @app.cell
 def _(mo):
-    mo.md("""# 3D Chart""")
+    mo.md("""
+    # 3D Chart
+    """)
     return
 
 
@@ -248,6 +257,42 @@ def _(go, pd):
     )
 
     _fig
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    # Heatmap Click
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(go, mo):
+    _fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 20, 30], [20, 1, 60], [30, 60, 1]],
+            x=["A", "B", "C"],
+            y=["X", "Y", "Z"],
+            colorscale="Viridis",
+        )
+    )
+    _fig.update_layout(title="Click on a cell", width=500, height=400)
+
+    heatmap = mo.ui.plotly(_fig)
+    heatmap
+    return (heatmap,)
+
+
+@app.cell
+def _(heatmap, mo):
+    mo.vstack(
+        [
+            mo.ui.table(heatmap.value, label="Points", selection=None),
+            heatmap.indices,
+        ]
+    )
     return
 
 

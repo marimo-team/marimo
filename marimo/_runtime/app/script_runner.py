@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo._ast.names import SETUP_CELL_NAME
@@ -56,12 +57,12 @@ class AppScriptRunner:
             excluded=CellId_t(SETUP_CELL_NAME),
         )
 
-        self.cells_to_run = [
+        self.cells_to_run: deque[CellId_t] = deque(
             cid
             for cid in pruned_execution_order
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
-        ]
+        )
         self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
@@ -90,7 +91,7 @@ class AppScriptRunner:
 
             outputs: dict[CellId_t, Any] = {}
             while self.cells_to_run:
-                cid = self.cells_to_run.pop(0)
+                cid = self.cells_to_run.popleft()
                 if cid in self.cells_cancelled:
                     continue
                 # Set up has already run in this case.
@@ -133,7 +134,7 @@ class AppScriptRunner:
             outputs: dict[CellId_t, Any] = {}
 
             while self.cells_to_run:
-                cid = self.cells_to_run.pop(0)
+                cid = self.cells_to_run.popleft()
                 if cid in self.cells_cancelled:
                     continue
 

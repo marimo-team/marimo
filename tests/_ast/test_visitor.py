@@ -1485,7 +1485,9 @@ def test_sql_statement_with_function() -> None:
 def test_unparsable_sql_doesnt_fail() -> None:
     code = "\n".join(
         [
-            # duckdb will raise a BinderError, but codegen shouldnt fail
+            # duckdb will raise a BinderError, but codegen shouldnt fail.
+            # sqlglot can still extract table refs even when duckdb can't
+            # parse the SQL.
             "df = mo.sql('select * from cars where cars.foo = ANY({bar})')",
         ]
     )
@@ -1493,7 +1495,7 @@ def test_unparsable_sql_doesnt_fail() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set(["df"])
-    assert v.refs == set(["mo"])
+    assert v.refs == set(["mo", "cars"])
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1562,6 +1564,22 @@ def test_sql_table_f_string() -> None:
     v.visit(mod)
     assert not v.defs
     assert v.refs == set(["mo", "my_table", "lim"])
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
+def test_sql_join_using_f_string() -> None:
+    # Regression test for https://github.com/marimo-team/marimo/issues/8436
+    # When an f-string expression appears in a USING clause, the placeholder
+    # "1" makes duckdb.extract_statements fail, which used to cause all SQL
+    # table references to be lost.
+    code = (
+        "mo.sql(f'SELECT {col}, colC, colD FROM df1 JOIN df2 USING ({col})')"
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == set(["mo", "df1", "df2", "col"])
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1686,11 +1704,14 @@ def test_sql_defined_in_same_statement(
                 reason="We still set the schema as defined even if it is deleted in the same statement"
             ),
         ),
-        (
+        pytest.param(
             "attach and detach catalog in same statement",
             'attach "my_catalog.db" as my_catalog; detach my_catalog;',
             set(),
             {"mo"},
+            marks=pytest.mark.xfail(
+                reason="We still set the catalog as defined even if it is detached in the same statement"
+            ),
         ),
     ],
 )

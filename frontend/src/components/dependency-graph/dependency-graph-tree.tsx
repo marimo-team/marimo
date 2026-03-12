@@ -58,6 +58,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
       cellAtoms,
       variables,
       settings.hidePureMarkdown,
+      settings.hideReusableFunctions,
     );
     elements = layoutElements({
       nodes: elements.nodes,
@@ -94,9 +95,17 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         cellAtoms,
         variables,
         settings.hidePureMarkdown,
+        settings.hideReusableFunctions,
       ),
     );
-  }, [cellIds, variables, cellAtoms, syncChanges, settings.hidePureMarkdown]);
+  }, [
+    cellIds,
+    variables,
+    cellAtoms,
+    syncChanges,
+    settings.hidePureMarkdown,
+    settings.hideReusableFunctions,
+  ]);
 
   const [selection, setSelection] = useState<GraphSelection>();
   useFitToViewOnDimensionChange();

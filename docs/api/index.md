@@ -1,3 +1,7 @@
+---
+description: "Complete API reference for the marimo Python library: interactive inputs, markdown, layouts, media, control flow, and more."
+---
+
 # API Reference
 
 Use the marimo library in marimo notebooks (`import marimo as mo`) to

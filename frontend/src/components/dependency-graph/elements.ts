@@ -2,6 +2,7 @@
 
 import type { Atom } from "jotai";
 import { type Edge, MarkerType, type Node, type NodeProps } from "reactflow";
+import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
@@ -29,6 +30,7 @@ interface ElementsBuilder {
     cellAtoms: Atom<CellData>[],
     variables: Variables,
     hidePureMarkdown: boolean,
+    hideReusableFunctions: boolean,
   ) => { nodes: Node<NodeData>[]; edges: Edge[] };
 }
 
@@ -76,6 +78,7 @@ export class VerticalElementsBuilder implements ElementsBuilder {
     cellAtoms: Atom<CellData>[],
     variables: Variables,
     _hidePureMarkdown: boolean,
+    _hideReusableFunctions: boolean,
   ) {
     let prevY = 0;
     const nodes: Node<NodeData>[] = [];
@@ -143,6 +146,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
     cellAtoms: Atom<CellData>[],
     variables: Variables,
     hidePureMarkdown: boolean,
+    hideReusableFunctions: boolean,
   ) {
     const nodes: Node<NodeData>[] = [];
     const edges: Edge[] = [];
@@ -171,18 +175,25 @@ export class TreeElementsBuilder implements ElementsBuilder {
       }
     }
 
+    const cellRuntime = getNotebook().cellRuntime;
+
     for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
-      // Show every cell
-      if (!hidePureMarkdown) {
-        nodes.push(this.createNode(cellId, cellAtom));
+      const code = store.get(cellAtom).code.trim();
+      const hasEdge = nodesWithEdges.has(cellId);
+      const isMarkdown = code.startsWith("mo.md");
+      const runtime = cellRuntime[cellId];
+      const isReusable = runtime?.serialization?.toLowerCase() === "valid";
+
+      // Apply filters
+      if (hidePureMarkdown && isMarkdown && !hasEdge) {
+        continue;
+      }
+      if (hideReusableFunctions && isReusable && !hasEdge) {
+        continue;
       }
 
-      const hasEdge = nodesWithEdges.has(cellId);
-      const isMarkdown = store.get(cellAtom).code.trim().startsWith("mo.md");
-      // Show only cells with edges or non-markdown cells
-      if (hasEdge || !isMarkdown) {
-        nodes.push(this.createNode(cellId, cellAtom));
-      }
+      // Show every cell that wasn't filtered out
+      nodes.push(this.createNode(cellId, cellAtom));
     }
 
     return { nodes, edges };

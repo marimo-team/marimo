@@ -82,6 +82,7 @@ class NotebookSessionMetadata(BaseDict):
     """Metadata about the notebook"""
 
     marimo_version: Optional[str]
+    script_metadata_hash: Optional[str]
 
     # We don't need to store AppConfig
     # since that exists in the notebook.py itself

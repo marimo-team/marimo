@@ -11,6 +11,16 @@ Running a notebook as a script is useful when your notebook has side-effects,
 like writing to disk. Print statements and other console outputs will show
 up in your terminal.
 
+marimo ntoebooks can also [double as importable modules, providing libraries
+of functions and classes that you can reuse in other programs:
+
+```python
+from my_notebook import my_function
+```
+
+Read our guide on [reusable functions](reusing_functions.md) for details.
+
+
 !!! tip "Check before running"
 
     Before running a notebook as a script, you can use marimo's linter to check for issues that might prevent execution:
@@ -66,3 +76,36 @@ running as a notebook.
 /// marimo-embed-file
     filepath: examples/running_as_a_script/with_simple_parsing.py
 ///
+
+
+## Example: scheduled execution
+
+marimo notebooks are Python files, so any scheduler that runs Python scripts
+can run marimo notebooks. This includes
+[cron](https://en.wikipedia.org/wiki/Cron),
+[Airflow](https://airflow.apache.org/), [Prefect](https://www.prefect.io/),
+and other tools. You can pass variables from the command line and [reuse
+functions](reusing_functions.md) from notebooks in other jobs as well.
+
+### GitHub Action
+
+Run notebooks on a schedule with [GitHub Actions](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#schedule). This example assumes [inline dependencies](package_management/inlining_dependencies.md):
+
+```yaml
+name: Run marimo notebook daily
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+
+jobs:
+  run-marimo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: astral-sh/setup-uv@v7
+    - run: uv run path/to/notebook.py
+```

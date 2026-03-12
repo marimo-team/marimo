@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from marimo._data.get_datasets import _db_type_to_data_type
 from marimo._data.models import ColumnStats, DataType
-from marimo._sql.utils import wrapped_sql
+from marimo._sql.sql_quoting import parse_fully_qualified_table_name
+from marimo._sql.utils import execute_duckdb_sql, wrapped_sql
 
 
 def get_sql_stats(
@@ -138,30 +139,35 @@ def get_column_type(
     # First, get the column info and data type
     if "." in fully_qualified_table_name:
         # Fully qualified table name
-        db_name, schema_name, table_name = _parse_fully_qualified_table_name(
+        db_name, schema_name, table_name = parse_fully_qualified_table_name(
             fully_qualified_table_name
         )
-        column_info_query = f"""
+        column_info_query = """
         SELECT data_type
         FROM information_schema.columns
-        WHERE table_name = '{table_name}'
-        AND table_schema = '{schema_name}'
-        AND table_catalog = '{db_name}'
-        AND column_name = '{column_name}'
+        WHERE table_name = $1
+        AND table_schema = $2
+        AND table_catalog = $3
+        AND column_name = $4
         """
+        column_info_result: tuple[str] | None = execute_duckdb_sql(
+            column_info_query,
+            [table_name, schema_name, db_name, column_name],
+        ).fetchone()
     else:
         # Simple table name
         table_name = fully_qualified_table_name
-        column_info_query = f"""
+        column_info_query = """
         SELECT data_type
         FROM information_schema.columns
-        WHERE table_name = '{table_name}'
-        AND column_name = '{column_name}'
+        WHERE table_name = $1
+        AND column_name = $2
         """
+        column_info_result = execute_duckdb_sql(
+            column_info_query,
+            [table_name, column_name],
+        ).fetchone()
 
-    column_info_result: tuple[str] | None = wrapped_sql(
-        column_info_query, connection=None
-    ).fetchone()
     if column_info_result is None:
         raise ValueError(
             f"Column {column_name} not found in table {table_name}"
@@ -181,17 +187,3 @@ def get_histogram_data(
     # TODO: Implement this
 
     return []
-
-
-def _parse_fully_qualified_table_name(
-    fully_qualified_table_name: str,
-) -> tuple[str, str, str]:
-    """
-    Parse a fully qualified table name into a database name, schema name, and table name.
-    """
-    parts = fully_qualified_table_name.split(".")
-    if len(parts) != 3:
-        raise ValueError(
-            f"Invalid fully qualified table name: {fully_qualified_table_name}"
-        )
-    return parts[0], parts[1], parts[2]

@@ -23,6 +23,7 @@ from marimo._server.lsp import (
     CompositeLspServer,
     CopilotLspServer,
     PyLspServer,
+    PyreflyServer,
     TyServer,
     any_lsp_server_running,
 )
@@ -317,11 +318,12 @@ def test_composite_server():
     with mock.patch("marimo._server.lsp.DependencyManager") as mock_dm:
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
-        total_lsp_servers = 4
+        total_lsp_servers = 5
         config = LanguageServersConfig(
             {
                 "pylsp": {"enabled": True},
                 "ty": {"enabled": True},
+                "pyrefly": {"enabled": True},
                 "basedpyright": {"enabled": True},
             }
         )
@@ -341,6 +343,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pylsp") is True
         assert server._is_enabled(config, "copilot") is True
         assert server._is_enabled(config, "ty") is True
+        assert server._is_enabled(config, "pyrefly") is True
         assert server._is_enabled(config, "basedpyright") is True
 
         # Test with only pylsp
@@ -359,6 +362,7 @@ def test_composite_server():
         assert server._is_enabled(config, "pylsp") is True
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is False
+        assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only ty enabled
         config = LanguageServersConfig(
@@ -366,6 +370,7 @@ def test_composite_server():
                 "ty": {"enabled": True},
                 "pylsp": {"enabled": False},
                 "basedpyright": {"enabled": False},
+                "pyrefly": {"enabled": False},
             }
         )
         completion_config = CompletionConfig(
@@ -383,6 +388,7 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is False
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is True
+        assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only basedpyright enabled
         config = LanguageServersConfig(
@@ -390,6 +396,7 @@ def test_composite_server():
                 "basedpyright": {"enabled": True},
                 "pylsp": {"enabled": False},
                 "ty": {"enabled": False},
+                "pyrefly": {"enabled": False},
             }
         )
         completion_config = CompletionConfig(
@@ -407,6 +414,33 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is True
         assert server._is_enabled(config, "copilot") is False
         assert server._is_enabled(config, "ty") is False
+        assert server._is_enabled(config, "pyrefly") is False
+
+        # Test with only pyrefly enabled
+        config = LanguageServersConfig(
+            {
+                "pyrefly": {"enabled": True},
+                "pylsp": {"enabled": False},
+                "basedpyright": {"enabled": False},
+                "ty": {"enabled": False},
+            }
+        )
+        completion_config = CompletionConfig(
+            {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
+        )
+        config_reader = as_reader(completion_config, config)
+        config = config_reader.get_config()
+        server = CompositeLspServer(config_reader, min_port=8000)
+        assert len(server.servers) == total_lsp_servers
+        assert server._is_enabled(config, "pylsp") is False
+        assert server._is_enabled(config, "basedpyright") is False
+        assert server._is_enabled(config, "copilot") is False
+        assert server._is_enabled(config, "ty") is False
+        assert server._is_enabled(config, "pyrefly") is True
 
         # Test with nothing enabled
         config = LanguageServersConfig({"pylsp": {"enabled": False}})
@@ -440,6 +474,37 @@ def test_basedpyright_server_uses_typed_format():
     assert lsp_command.startswith("basedpyright:")
     # Should NOT contain shell arguments
     assert "--stdio" not in lsp_command
+
+
+def test_pyrefly_server_uses_typed_format():
+    """Test that pyrefly server uses the new typed format."""
+    from unittest import mock
+
+    # Mock the entire pyrefly module and its find_pyrefly_bin function
+    mock_pyrefly_module = mock.MagicMock()
+    mock_pyrefly_module.get_pyrefly_bin.return_value = (
+        "/path/to/pyrefly/binary"
+    )
+
+    with mock.patch.dict(
+        "sys.modules",
+        {
+            "pyrefly": mock_pyrefly_module,
+            "pyrefly.__main__": mock_pyrefly_module,
+        },
+    ):
+        server = PyreflyServer(port=8000)
+        command = server.get_command()
+
+        # Find the --lsp argument
+        lsp_arg_index = command.index("--lsp")
+        lsp_command = command[lsp_arg_index + 1]
+
+        # Should use typed format
+        assert lsp_command == "pyrefly:/path/to/pyrefly/binary"
+        assert lsp_command.startswith("pyrefly:")
+        # Should NOT contain shell arguments
+        assert "server" not in lsp_command
 
 
 def test_ty_server_uses_typed_format():

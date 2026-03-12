@@ -128,6 +128,11 @@ export class EditNotebookTool
         const previousCode =
           existingStagedCell?.previousCode ?? currentCellCode;
 
+        // Skip no-op edits where the code hasn't changed
+        if (code === previousCode) {
+          break;
+        }
+
         addStagedCell({
           cellId,
           edit: { type: "update_cell", previousCode: previousCode },

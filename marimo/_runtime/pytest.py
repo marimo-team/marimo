@@ -30,19 +30,35 @@ class MarimoPytestResult:
     failed: int = 0
     errors: int = 0
     skipped: int = 0
+    xfailed: int = 0
+    xpassed: int = 0
     output: Optional[str] = None
 
     @property
     def total(self) -> int:
-        return self.skipped + self.passed + self.failed + self.errors
+        return (
+            self.passed
+            + self.failed
+            + self.errors
+            + self.skipped
+            + self.xfailed
+            + self.xpassed
+        )
 
     @property
     def summary(self) -> str:
-        return (
-            f"Total: {self.total}, Passed: {self.passed}, "
-            f"Failed: {self.failed}, Errors: {self.errors}, "
-            f"Skipped: {self.skipped}"
-        )
+        parts = [
+            f"Total: {self.total}",
+            f"Passed: {self.passed}",
+            f"Failed: {self.failed}",
+            f"Errors: {self.errors}",
+            f"Skipped: {self.skipped}",
+        ]
+        if self.xfailed:
+            parts.append(f"XFailed: {self.xfailed}")
+        if self.xpassed:
+            parts.append(f"XPassed: {self.xpassed}")
+        return ", ".join(parts)
 
 
 def _get_name(default: str = "notebook.py") -> str:
@@ -258,8 +274,15 @@ class ReplaceStubPlugin:
         failed: int = len(stats.get("failed", []))
         skipped: int = len(stats.get("skipped", []))
         errors: int = len(stats.get("error", []))
+        xfailed: int = len(stats.get("xfailed", []))
+        xpassed: int = len(stats.get("xpassed", []))
         self._result = MarimoPytestResult(
-            passed=passed, failed=failed, errors=errors, skipped=skipped
+            passed=passed,
+            failed=failed,
+            errors=errors,
+            skipped=skipped,
+            xfailed=xfailed,
+            xpassed=xpassed,
         )
 
         tr.write_line(self._result.summary)

@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import inspect
 import sys
 from dataclasses import dataclass
 from typing import (
@@ -51,6 +50,7 @@ from marimo._utils.memoize import memoize_last_value
 from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.variable_name import infer_variable_name
 
 TOO_MANY_ROWS = 100_000
 
@@ -120,6 +120,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         download_csv_encoding (str | None, optional): Encoding used when downloading CSV.
             Defaults to the runtime config value (or "utf-8" if not configured).
             Set to "utf-8-sig" to include BOM for Excel.
+        download_csv_separator (str | None, optional): Separator used in CSV downloads.
+            Defaults to ",".
         download_json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON downloads. Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
@@ -140,6 +142,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         *,
         format_mapping: Optional[FormatMapping] = None,
         download_csv_encoding: str | None = None,
+        download_csv_separator: str | None = None,
         download_json_ensure_ascii: bool = True,
         lazy: Optional[bool] = None,
     ) -> None:
@@ -147,20 +150,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         # This will raise an error if the dataframe type is not supported.
         handler = get_handler_for_dataframe(df)
 
-        # HACK: this is a hack to get the name of the variable that was passed
-        dataframe_name = "df"
-        try:
-            frame = inspect.currentframe()
-            if frame is not None and frame.f_back is not None:
-                for (
-                    var_name,
-                    var_value,
-                ) in frame.f_back.f_locals.items():
-                    if var_value is df:
-                        dataframe_name = var_name
-                        break
-        except Exception:
-            pass
+        dataframe_name = infer_variable_name(df, "df")
 
         # Make the dataframe lazy and keep an undo callback to restore original type
         nw_df, self._undo = make_lazy(df)
@@ -169,6 +159,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._dataframe_name = dataframe_name
         self._data = df
         self._download_csv_encoding = download_csv_encoding
+        self._download_csv_separator = download_csv_separator
         self._download_json_ensure_ascii = download_json_ensure_ascii
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
@@ -203,6 +194,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "page-size": page_size,
                 "show-download": show_download,
                 "download-csv-encoding": download_csv_encoding,
+                "download-csv-separator": download_csv_separator,
                 "download-json-ensure-ascii": download_json_ensure_ascii,
                 "lazy": self._lazy,
             },
@@ -362,6 +354,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             manager,
             args.format,
             csv_encoding=self._download_csv_encoding,
+            csv_separator=self._download_csv_separator,
             json_ensure_ascii=self._download_json_ensure_ascii,
         )
 

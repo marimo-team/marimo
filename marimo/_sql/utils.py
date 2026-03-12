@@ -61,6 +61,46 @@ def wrapped_sql(
     return relation
 
 
+def execute_duckdb_sql(
+    query: str,
+    params: list[Any],
+    connection: Optional[duckdb.DuckDBPyConnection] = None,
+) -> duckdb.DuckDBPyConnection:
+    """Execute a parameterized DuckDB query with kernel globals context.
+
+    Like wrapped_sql, but uses connection.execute() to support
+    parameterized queries ($1, $2, ...) for safe value interpolation.
+    """
+    DependencyManager.duckdb.require("to execute sql")
+
+    if connection is None:
+        import duckdb
+
+        connection = cast(duckdb.DuckDBPyConnection, duckdb)
+
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return connection.execute(query, params)
+    else:
+        install_connection = (
+            ctx.execution_context.with_connection
+            if ctx.execution_context is not None
+            else nullcontext
+        )
+        with install_connection(connection):
+            result: duckdb.DuckDBPyConnection = eval(
+                "connection.execute(query, params)",
+                ctx.globals,
+                {
+                    "query": query,
+                    "params": params,
+                    "connection": connection,
+                },
+            )
+            return result
+
+
 def try_convert_to_polars(
     *,
     query: str,
@@ -190,7 +230,9 @@ def sql_type_to_data_type(type_str: str) -> DataType:
 
 def is_explain_query(query: str) -> bool:
     """Check if a SQL query is an EXPLAIN query."""
-    return query.lstrip().lower().startswith("explain ")
+    import re
+
+    return bool(re.match(r"\s*explain\s", query, re.IGNORECASE))
 
 
 def wrap_query_with_explain(query: str) -> str:
@@ -242,29 +284,36 @@ def extract_explain_content(df: Any) -> str:
     """Extract all content from a DataFrame for EXPLAIN queries.
 
     Args:
-        df: DataFrame (pandas or polars). If not pandas / polars, return repr(df).
+        df: DataFrame (pandas or polars). If not pandas / polars / duckdb relation, return repr(df).
 
     Returns:
         String containing content of dataframe
     """
     try:
-        if DependencyManager.polars.has():
+        if DependencyManager.polars.imported():
             import polars as pl
 
             if isinstance(df, pl.LazyFrame):
                 df = df.collect()
             if isinstance(df, pl.DataFrame):
                 # Display full strings without truncation
-                with pl.Config(fmt_str_lengths=1000):
+                with pl.Config(fmt_str_lengths=10000):
                     return str(df)
 
-        if DependencyManager.pandas.has():
+        if DependencyManager.pandas.imported():
             import pandas as pd
 
             if isinstance(df, pd.DataFrame):
                 # Preserve newlines in the data
                 all_values = df.values.flatten().tolist()
                 return "\n".join(str(val) for val in all_values)
+
+        if DependencyManager.duckdb.imported():
+            import duckdb
+
+            if isinstance(df, duckdb.DuckDBPyRelation):
+                rows = df.fetchall()
+                return "\n".join(str(val) for row in rows for val in row)
 
         # Fallback to repr for other types
         return repr(df)

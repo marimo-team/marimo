@@ -1004,6 +1004,37 @@ class TestSessionCacheManager:
             )
             assert not loaded_view.cell_notifications
 
+    async def test_read_session_view_cache_miss_script_metadata_hash(
+        self, session_view: SessionView
+    ):
+        """Test reading session view from cache file."""
+        view = session_view
+        view.add_control_request(
+            ExecuteCellsCommand(cell_ids=["1", "2"], codes=["a", "b"])
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "notebook.py"
+            cache_file = get_session_cache_file(path)
+            cache_file.parent.mkdir(parents=True)
+
+            data = serialize_session_view(view, script_metadata_hash="old")
+            cache_file.write_text(json.dumps(data))
+
+            manager = SessionCacheManager(SessionView(), path, 0.1)
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(
+                    codes=(
+                        "a",
+                        "b",
+                    ),
+                    marimo_version=__version__,
+                    cell_ids=("1", "2"),
+                    script_metadata_hash="new",
+                )
+            )
+            assert not loaded_view.cell_notifications
+
     async def test_read_session_view_cache_hit(
         self, session_view: SessionView
     ):

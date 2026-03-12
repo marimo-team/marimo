@@ -209,6 +209,7 @@ class TestErrorUtilityFunctions:
             # Hint field should exist (may be None for this error)
             assert hasattr(error, "hint")
 
+    @pytest.mark.requires("duckdb")
     def test_create_sql_error_long_statement(self):
         """Test SQL statement truncation in error creation."""
         import duckdb
@@ -321,6 +322,7 @@ class TestIntegrationAndEdgeCases:
         with pytest.raises(MarimoSQLException):
             sql("SELECT * FROM table2_nonexistent")
 
+    @pytest.mark.requires("duckdb")
     def test_error_with_special_characters(self):
         """Test error handling with SQL containing special characters."""
         with pytest.raises(MarimoSQLException):

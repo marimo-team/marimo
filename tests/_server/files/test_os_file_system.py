@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -28,6 +29,34 @@ def test_create_file(test_dir: Path, fs: OSFileSystem) -> None:
     assert expected_path.exists()
 
 
+def test_create_notebook(test_dir: Path, fs: OSFileSystem) -> None:
+    test_notebook_name = "test_notebook.py"
+    fs.create_file_or_directory(
+        str(test_dir),
+        "notebook",
+        test_notebook_name,
+        None,
+    )
+    expected_path = test_dir / test_notebook_name
+    assert expected_path.exists()
+    notebook_code = expected_path.read_text("utf-8")
+    assert "import marimo" in notebook_code
+    assert "app.run()" in notebook_code
+
+
+def test_create_notebook_with_contents(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    test_notebook_name = "test_notebook.py"
+    fs.create_file_or_directory(
+        str(test_dir), "notebook", test_notebook_name, b"marimo"
+    )
+    expected_path = test_dir / test_notebook_name
+    assert expected_path.exists()
+    notebook_code = expected_path.read_text("utf-8")
+    assert notebook_code == "marimo"
+
+
 def test_create_file_with_duplicate_name(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
@@ -38,12 +67,13 @@ def test_create_file_with_duplicate_name(
     assert expected_path.exists()
 
 
+@pytest.mark.parametrize("file_type", ["file", "notebook"])
 def test_create_file_and_parent_directories(
-    test_dir: Path, fs: OSFileSystem
+    test_dir: Path, fs: OSFileSystem, file_type: Literal["file", "notebook"]
 ) -> None:
     test_file_name = "test_file.txt"
     fs.create_file_or_directory(
-        str(test_dir / "parent"), "file", test_file_name, None
+        str(test_dir / "parent"), file_type, test_file_name, None
     )
     expected_path = test_dir / "parent" / test_file_name
     assert expected_path.exists()
@@ -286,6 +316,68 @@ def test_get_details_non_utf8_encoding_and_contents(
         str(file_path), encoding="utf-8", contents="override"
     )
     assert result2.contents == "override"
+
+
+class TestIsMarimoFile:
+    """Tests for _is_marimo_file which delegates to is_marimo_app."""
+
+    def test_python_marimo_file(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        """Detects a Python marimo app."""
+        py_file = test_dir / "app.py"
+        py_file.write_text(
+            "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef __():\n    return\n"
+        )
+        assert fs._is_marimo_file(str(py_file)) is True
+
+    def test_python_non_marimo_file(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        """Regular Python file is not a marimo app."""
+        py_file = test_dir / "script.py"
+        py_file.write_text("print('hello world')\n")
+        assert fs._is_marimo_file(str(py_file)) is False
+
+    def test_markdown_marimo_file(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        """Detects a markdown marimo notebook."""
+        md_file = test_dir / "notebook.md"
+        md_file.write_text("---\nmarimo-version: 0.1.0\n---\n# Hello\n")
+        assert fs._is_marimo_file(str(md_file)) is True
+
+    def test_markdown_non_marimo_file(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        """Regular markdown is not a marimo file."""
+        md_file = test_dir / "readme.md"
+        md_file.write_text("# Just a readme\nSome text.\n")
+        assert fs._is_marimo_file(str(md_file)) is False
+
+    def test_non_python_non_markdown_file(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        """Non-Python/non-markdown file is not a marimo file."""
+        txt_file = test_dir / "data.txt"
+        txt_file.write_text("some data\n")
+        assert fs._is_marimo_file(str(txt_file)) is False
+
+    def test_nonexistent_file(self, test_dir: Path, fs: OSFileSystem) -> None:
+        """Nonexistent file returns False (no exception)."""
+        assert fs._is_marimo_file(str(test_dir / "nope.py")) is False
+
+    def test_list_files_shows_markdown_marimo(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        """list_files marks markdown marimo files correctly."""
+        md_file = test_dir / "notebook.md"
+        md_file.write_text("---\nmarimo-version: 0.1.0\n---\n# Hello\n")
+        files = fs.list_files(str(test_dir))
+        marimo_files = [f for f in files if f.is_marimo_file]
+        assert len(marimo_files) == 1
+        assert marimo_files[0].name == "notebook.md"
 
 
 def test_search_basic(test_dir: Path, fs: OSFileSystem) -> None:

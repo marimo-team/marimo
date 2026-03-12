@@ -152,6 +152,8 @@ class RuntimeConfig(TypedDict):
         affected cells as stale, `"autorun"` automatically runs affected cells.
     - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
         values may affect frontend performance
+    - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
+        The default is `False`.
     - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
       larger values may affect frontend performance
     - `pythonpath`: a list of directories to add to the Python search path.
@@ -177,6 +179,7 @@ class RuntimeConfig(TypedDict):
     on_cell_change: OnCellChangeType
     watcher_on_save: Literal["lazy", "autorun"]
     output_max_bytes: int
+    serve_cached_sessions_in_apps: NotRequired[bool]
     std_stream_max_bytes: int
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
@@ -458,17 +461,32 @@ class TyLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class PyreflyLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Pyrefly Language Server.
+
+    Pyrefly handles completion, hover, go-to-definition, and diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
     **Keys.**
 
     - `pylsp`: the pylsp config
+    - `basedpyright`: the basedpyright config
+    - `ty`: the ty config
+    - `pyrefly`: the pyrefly config
     """
 
     pylsp: PythonLanguageServerConfig
     basedpyright: BasedpyrightServerConfig
     ty: TyLanguageServerConfig
+    pyrefly: PyreflyLanguageServerConfig
 
 
 @dataclass

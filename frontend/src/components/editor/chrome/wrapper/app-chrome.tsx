@@ -226,7 +226,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const helperResizeHandle = (
     <PanelResizeHandle
+      disabled={!isSidebarOpen}
       onDragging={handleDragging}
+      hitAreaMargins={{ coarse: 15, fine: 2 }}
       className={cn(
         "border-border print:hidden z-10",
         isSidebarOpen ? "resize-handle" : "resize-handle-collapsed",
@@ -237,6 +239,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const panelResizeHandle = (
     <PanelResizeHandle
+      disabled={!isDeveloperPanelOpen}
       onDragging={handleDragging}
       className={cn(
         "border-border print:hidden z-20",

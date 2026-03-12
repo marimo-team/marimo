@@ -16,7 +16,8 @@ export const EngineVariable: React.FC<Props> = ({
   variableName,
   className,
 }) => {
-  const onClick = () => {
+  const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
     const cellId = findCellId(variableName);
     if (!cellId) {
       return;

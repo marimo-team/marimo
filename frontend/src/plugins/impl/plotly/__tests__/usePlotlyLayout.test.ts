@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Figure } from "react-plotly.js";
+import type * as Plotly from "plotly.js";
 import { describe, expect, it } from "vitest";
+import type { Figure } from "../Plot";
 import {
   computeLayoutOnFigureChange,
   computeLayoutUpdate,

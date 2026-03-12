@@ -8,18 +8,18 @@ import {
   connectionsAtom,
   DataSources,
 } from "@/components/datasources/datasources";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
+import { Accordion } from "@/components/ui/accordion";
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
+import {
+  PanelAccordionContent,
+  PanelAccordionItem,
+  PanelAccordionTrigger,
+  PanelBadge,
+} from "./components";
 
 type OpenSections = "variables" | "datasources";
 
@@ -69,34 +69,23 @@ const SessionPanel: React.FC = () => {
       onValueChange={handleValueChange}
       className="flex flex-col h-full overflow-auto"
     >
-      <AccordionItem value="datasources" className="border-b">
-        <AccordionTrigger className="px-3 py-2 text-xs font-semibold uppercase tracking-wide hover:no-underline">
-          <span className="flex items-center gap-2">
-            <DatabaseIcon className="w-4 h-4" />
-            Data sources
-            {showDatasourcesBadge && (
-              <Badge
-                variant="secondary"
-                className="ml-1 px-1.5 py-0 mb-px text-[10px]"
-              >
-                {datasourcesCount}
-              </Badge>
-            )}
-          </span>
-        </AccordionTrigger>
-        <AccordionContent wrapperClassName="p-0">
+      <PanelAccordionItem value="datasources">
+        <PanelAccordionTrigger>
+          <DatabaseIcon className="w-4 h-4" />
+          Data sources
+          {showDatasourcesBadge && <PanelBadge>{datasourcesCount}</PanelBadge>}
+        </PanelAccordionTrigger>
+        <PanelAccordionContent>
           <DataSources />
-        </AccordionContent>
-      </AccordionItem>
+        </PanelAccordionContent>
+      </PanelAccordionItem>
 
-      <AccordionItem value="variables" className="border-b-0">
-        <AccordionTrigger className="px-3 py-2 text-xs font-semibold uppercase tracking-wide hover:no-underline">
-          <span className="flex items-center gap-2">
-            <VariableIcon className="w-4 h-4" />
-            Variables
-          </span>
-        </AccordionTrigger>
-        <AccordionContent wrapperClassName="p-0">
+      <PanelAccordionItem value="variables" lastItem={true}>
+        <PanelAccordionTrigger>
+          <VariableIcon className="w-4 h-4" />
+          Variables
+        </PanelAccordionTrigger>
+        <PanelAccordionContent>
           {Object.keys(variables).length === 0 ? (
             <div className="px-3 py-4 text-sm text-muted-foreground">
               No variables defined
@@ -104,8 +93,8 @@ const SessionPanel: React.FC = () => {
           ) : (
             <VariableTable cellIds={cellIds.inOrderIds} variables={variables} />
           )}
-        </AccordionContent>
-      </AccordionItem>
+        </PanelAccordionContent>
+      </PanelAccordionItem>
     </Accordion>
   );
 };

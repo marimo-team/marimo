@@ -61,6 +61,9 @@ class TestUnsupportedDialects:
         assert result is None
         assert error == "Unsupported dialect: postgresql"
 
+    @pytest.mark.requires("duckdb")
+    def test_duckdb_dialect_with_whitespace(self):
+        """Test duckdb dialect with leading/trailing whitespace."""
         result, error = parse_sql("SELECT 1", " duckdb ")
         assert result is not None
         assert error is None
