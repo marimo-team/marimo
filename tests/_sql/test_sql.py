@@ -483,8 +483,7 @@ logical_plan
 
         # Check for key plan content instead of full snapshot (DuckDB output varies by version)
         assert "physical_plan" in result
-        assert "SEQ_SCAN" in result
-        assert "Sequential Scan" in result
+        assert "scan" in result.lower()
         assert "Projections: id" in result
         assert "~5" in result or "5 row" in result.lower()
 
