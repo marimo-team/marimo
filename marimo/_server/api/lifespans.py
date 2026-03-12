@@ -208,31 +208,42 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def session_registry(app: Starlette) -> AsyncIterator[None]:
-    from marimo._server.session_registry import (
-        SessionRegistryWriter,
-        create_registry_entry,
+async def server_registry(app: Starlette) -> AsyncIterator[None]:
+    """Register this server in the local registry for discovery.
+
+    Only servers started **without** an auth token (``--no-token``)
+    **and** without skew protection (``--no-skew-protection``) are
+    registered.  This ensures only servers that have explicitly opted
+    into relaxed local access are discoverable.
+    """
+    from marimo._server.server_registry import (
+        ServerRegistryEntry,
+        ServerRegistryWriter,
     )
 
     state = AppState.from_app(app)
-    manager = state.session_manager
-    file_router = manager.file_router
-    file = file_router.maybe_get_single_file()
 
-    entry = create_registry_entry(
+    # Guard: only register when the user has opted into relaxed local
+    # access (no auth token, no skew protection).
+    if state.enable_auth or state.skew_protection:
+        LOGGER.debug(
+            "Skipping server registry: auth=%s, skew_protection=%s",
+            state.enable_auth,
+            state.skew_protection,
+        )
+        yield
+        return
+
+    entry = ServerRegistryEntry.from_server(
         host=state.host,
         port=state.port,
         base_url=state.base_url,
-        auth_token=str(manager.auth_token),
-        mode=manager.mode.value,
-        notebook_path=file.name if file else None,
-        mcp_enabled=state.mcp_server_enabled,
     )
-    writer = SessionRegistryWriter(entry)
+    writer = ServerRegistryWriter(entry)
     try:
         writer.register()
     except Exception as e:
-        LOGGER.warning("Failed to register session: %s", e)
+        LOGGER.warning("Failed to register server: %s", e)
 
     yield
 
