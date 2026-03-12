@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import ipaddress
 import socket
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -215,46 +214,31 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
-def _pretty_print_host(host: str, port: int) -> str:
-    """Replace loopback addresses with 'localhost' for display.
-
-    Uses ipaddress for a reliable cross-platform loopback check (covers
-    127.0.0.1, ::1, and the full 127.0.0.0/8 range).  Falls back to
-    socket.getnameinfo only for non-IP hosts.  getnameinfo is skipped for
-    raw IP addresses because it can hang on Windows for link-local IPv6.
-    """
-    try:
-        if ipaddress.ip_address(host).is_loopback:
-            return "localhost"
-    except ValueError:
-        # Not a valid IP literal — might be a hostname; try getnameinfo
-        try:
-            if (
-                socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
-                == "localhost"
-            ):
-                return "localhost"
-        except Exception:
-            pass
-    return host
-
-
 def _startup_url(state: AppStateBase) -> str:
     host = state.host.strip(
         "[]"
     )  # normalize: remove brackets if user passed [addr]
     port = state.port
+    # pretty printing:
+    # if the address is a loopback, print "localhost" to stdout
+    if host in ("127.0.0.1", "::1"):
+        host = "localhost"
+    else:
+        try:
+            if (
+                socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
+                == "localhost"
+            ):
+                host = "localhost"
+        except Exception:
+            # aggressive try/except in case of platform-specific quirks;
+            # nothing to handle, since the `try` logic is just for pretty
+            # printing the host name
+            ...
 
     # Strip IPv6 zone ID (e.g. fe80::1%eth0 -> fe80::1); zone IDs are
-    # interface-specific and not valid in URLs.
-    # Must happen before getnameinfo — zone IDs can cause it to hang
-    # on Windows.
-    host = host.split("%")[0]
-
-    # pretty printing: show "localhost" for loopback addresses
-    host = _pretty_print_host(host, port)
-
-    url_host_bare = host
+    # interface-specific and not valid in URLs
+    url_host_bare = host.split("%")[0]
     # IPv6 addresses must be wrapped in brackets in URLs (RFC 3986)
     url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare
     url = f"http://{url_host}:{port}{state.base_url}"
@@ -275,11 +259,21 @@ def _mcp_startup_url(state: AppStateBase) -> str:
     port = state.port
     base_url = state.base_url
 
-    # Strip zone ID, then pretty-print loopback (same logic as _startup_url)
-    host = host.split("%")[0]
-    host = _pretty_print_host(host, port)
+    # Handle localhost pretty printing (same logic as _startup_url)
+    if host in ("127.0.0.1", "::1"):
+        host = "localhost"
+    else:
+        try:
+            if (
+                socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
+                == "localhost"
+            ):
+                host = "localhost"
+        except Exception:
+            ...
 
-    url_host_bare = host
+    # Strip IPv6 zone ID; IPv6 addresses must be wrapped in brackets (RFC 3986)
+    url_host_bare = host.split("%")[0]
     url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare
     # Construct MCP endpoint URL
     mcp_prefix = "/mcp"
