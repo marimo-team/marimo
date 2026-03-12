@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 
-from marimo._messaging.context import PLAIN_TEXT_TRACEBACK_CTX
+from marimo._messaging.context import HTTP_REQUEST_CTX
 from marimo._messaging.types import Stderr
 
 
@@ -22,11 +22,22 @@ def _highlight_traceback(traceback: str) -> str:
     return f'<span class="codehilite">{body}</span>'
 
 
+def _accepts_html() -> bool:
+    """Check if the current request context accepts HTML responses.
+
+    Returns True when there is no request context (e.g. websocket/browser)
+    or when the Accept header explicitly includes text/html.
+    """
+    request = HTTP_REQUEST_CTX.get(None)
+    if request is None:
+        return True
+    return "text/html" in request.headers.get("accept", "")
+
+
 def write_traceback(traceback: str) -> None:
-    trimmed = _trim_traceback(traceback)
-    if PLAIN_TEXT_TRACEBACK_CTX.get():
-        sys.stderr.write(trimmed)
-    elif isinstance(sys.stderr, Stderr):
+    if isinstance(sys.stderr, Stderr) and _accepts_html():
+        # Strip marimo's internal executor.py frame and highlight for the UI
+        trimmed = _trim_traceback(traceback)
         sys.stderr._write_with_mimetype(
             _highlight_traceback(trimmed),
             mimetype="application/vnd.marimo+traceback",

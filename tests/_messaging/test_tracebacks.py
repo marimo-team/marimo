@@ -3,13 +3,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from marimo._messaging.context import HTTP_REQUEST_CTX
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
     _trim_traceback,
+    _accepts_html,
     is_code_highlighting,
     write_traceback,
 )
 from marimo._messaging.types import Stderr
+from marimo._runtime.commands import HTTPRequest
 
 
 class TestTracebacks:
@@ -80,6 +83,125 @@ class TestTracebacks:
         assert is_code_highlighting("<span>code</span>") is False
         assert is_code_highlighting("") is False
         assert is_code_highlighting('class="not-codehilite"') is False
+
+    def test_write_traceback_plain_text_when_accept_not_html(self) -> None:
+        """When HTTP request has Accept without text/html, use plain text."""
+        mock_stderr = MagicMock(spec=Stderr)
+        req = HTTPRequest(
+            url={},
+            base_url={},
+            headers={"accept": "text/event-stream"},
+            query_params={},
+            path_params={},
+            cookies={},
+            meta={},
+            user=None,
+        )
+        token = HTTP_REQUEST_CTX.set(req)
+        try:
+            with patch("sys.stderr", mock_stderr):
+                traceback = 'Traceback (most recent call last):\n  File "<stdin>", line 1, in <module>\nValueError: bad'
+                write_traceback(traceback)
+                mock_stderr.write.assert_called_once()
+                mock_stderr._write_with_mimetype.assert_not_called()
+        finally:
+            HTTP_REQUEST_CTX.reset(token)
+
+    def test_write_traceback_html_when_accept_includes_html(self) -> None:
+        """When HTTP request has Accept with text/html, use HTML formatting."""
+        mock_stderr = MagicMock(spec=Stderr)
+        req = HTTPRequest(
+            url={},
+            base_url={},
+            headers={"accept": "text/html, application/json"},
+            query_params={},
+            path_params={},
+            cookies={},
+            meta={},
+            user=None,
+        )
+        token = HTTP_REQUEST_CTX.set(req)
+        try:
+            with patch("sys.stderr", mock_stderr):
+                traceback = 'Traceback (most recent call last):\n  File "<stdin>", line 1, in <module>\nValueError: bad'
+                write_traceback(traceback)
+                mock_stderr._write_with_mimetype.assert_called_once()
+                mock_stderr.write.assert_not_called()
+        finally:
+            HTTP_REQUEST_CTX.reset(token)
+
+
+class TestAcceptsHtml:
+    def test_no_request_context(self) -> None:
+        assert _accepts_html() is True
+
+    def test_accept_event_stream(self) -> None:
+        req = HTTPRequest(
+            url={},
+            base_url={},
+            headers={"accept": "text/event-stream"},
+            query_params={},
+            path_params={},
+            cookies={},
+            meta={},
+            user=None,
+        )
+        token = HTTP_REQUEST_CTX.set(req)
+        try:
+            assert _accepts_html() is False
+        finally:
+            HTTP_REQUEST_CTX.reset(token)
+
+    def test_accept_html(self) -> None:
+        req = HTTPRequest(
+            url={},
+            base_url={},
+            headers={"accept": "text/html"},
+            query_params={},
+            path_params={},
+            cookies={},
+            meta={},
+            user=None,
+        )
+        token = HTTP_REQUEST_CTX.set(req)
+        try:
+            assert _accepts_html() is True
+        finally:
+            HTTP_REQUEST_CTX.reset(token)
+
+    def test_accept_wildcard(self) -> None:
+        req = HTTPRequest(
+            url={},
+            base_url={},
+            headers={"accept": "*/*"},
+            query_params={},
+            path_params={},
+            cookies={},
+            meta={},
+            user=None,
+        )
+        token = HTTP_REQUEST_CTX.set(req)
+        try:
+            assert _accepts_html() is False
+        finally:
+            HTTP_REQUEST_CTX.reset(token)
+
+    def test_no_accept_header(self) -> None:
+        req = HTTPRequest(
+            url={},
+            base_url={},
+            headers={},
+            query_params={},
+            path_params={},
+            cookies={},
+            meta={},
+            user=None,
+        )
+        token = HTTP_REQUEST_CTX.set(req)
+        try:
+            assert _accepts_html() is False
+        finally:
+            HTTP_REQUEST_CTX.reset(token)
 
     def test_trim(self) -> None:
         prefix = "Traceback (most recent call last):\n"

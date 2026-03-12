@@ -281,7 +281,7 @@ async def execute_code(
                 session.put_control_request(
                     ExecuteScratchpadCommand(
                         code=body.code,
-                        plain_text_traceback=True,
+                        request=HTTPRequest.from_request(request),
                     ),
                     from_consumer_id=None,
                 )

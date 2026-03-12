@@ -2251,14 +2251,7 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            from marimo._messaging.context import (
-                plain_text_traceback_context,
-            )
-
-            with (
-                http_request_context(request.request),
-                plain_text_traceback_context(request.plain_text_traceback),
-            ):
+            with http_request_context(request.request):
                 await self.run_scratchpad(request.code)
             broadcast_notification(CompletedRunNotification())
 
