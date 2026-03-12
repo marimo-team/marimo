@@ -485,13 +485,13 @@ logical_plan
         assert result == snapshot("""\
 physical_plan
 ┌───────────────────────────┐
-│          SEQ_SCAN         │
+│         SEQ_SCAN          │
 │    ────────────────────   │
-│    Table: memory.main.t   │
+│          Table: t         │
 │   Type: Sequential Scan   │
 │      Projections: id      │
 │                           │
-│          ~5 rows          │
+│          ~5 Rows          │
 └───────────────────────────┘
 """)
 
