@@ -33,6 +33,7 @@ class NotebookCellData:
     config: CellConfig | None = None
     draft: bool = False
     cell_id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
+    name: str | None = field(default=None, repr=True, compare=False)
     _index: int | None = field(default=None, repr=False, compare=False)
 
     def replace(self, **kwargs: Any) -> NotebookCellData:  # noqa: ANN401

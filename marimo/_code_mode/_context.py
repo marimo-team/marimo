@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -42,6 +42,7 @@ from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
+    from marimo._ast.cell_manager import CellManager
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
 
@@ -56,11 +57,20 @@ def get_context() -> AsyncCodeModeContext:
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
-    return AsyncCodeModeContext(runtime_ctx._kernel)
+    cell_manager = runtime_ctx._app._cell_manager if runtime_ctx._app else None
+    return AsyncCodeModeContext(runtime_ctx._kernel, cell_manager=cell_manager)
 
 
 class _CellsView:
-    """List-like read-only view over notebook cells as ``NotebookCellData`` objects."""
+    """Read-only view over notebook cells as ``NotebookCellData`` objects.
+
+    Supports lookup by integer index, cell ID, or cell name::
+
+        ctx.cells[0]                   # by index
+        ctx.cells[-1]                  # negative index
+        ctx.cells["Abcd1234"]          # by cell ID
+        ctx.cells["my_cell"]           # by cell name
+    """
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
         self._ctx = ctx
@@ -68,24 +78,58 @@ class _CellsView:
     def _cell_ids(self) -> list[CellId_t]:
         return list(self._ctx.graph.cells.keys())
 
-    def __len__(self) -> int:
-        return len(self._ctx.graph.cells)
+    def _cell_name(self, cell_id: CellId_t) -> str | None:
+        cm = self._ctx._cell_manager
+        if cm is None:
+            return None
+        data = cm.get_cell_data(cell_id)
+        return data.name if data else None
 
-    def __getitem__(self, index: int) -> NotebookCellData:
-        cell_ids = self._cell_ids()
-        cell_id = cell_ids[index]
+    def _build_at(self, cell_id: CellId_t, index: int) -> NotebookCellData:
         cell_impl = self._ctx.graph.cells[cell_id]
-        config = self._ctx._kernel.cell_metadata.get(cell_id)
+        meta = self._ctx._kernel.cell_metadata.get(cell_id)
         return NotebookCellData(
             code=cell_impl.code,
-            config=config.config if config else CellConfig(),
+            config=meta.config if meta else CellConfig(),
+            name=self._cell_name(cell_id),
             cell_id=cell_id,
             _index=index,
         )
 
+    def __len__(self) -> int:
+        return len(self._ctx.graph.cells)
+
+    @overload
+    def __getitem__(self, key: int) -> NotebookCellData: ...
+    @overload
+    def __getitem__(self, key: str) -> NotebookCellData: ...
+
+    def __getitem__(self, key: int | str) -> NotebookCellData:
+        cell_ids = self._cell_ids()
+
+        if isinstance(key, int):
+            # Normalize negative indices for the stored _index.
+            idx = key if key >= 0 else len(cell_ids) + key
+            return self._build_at(cell_ids[key], idx)
+
+        # String key — try cell ID first, then cell name.
+        cell_id_key = CellId_t(key)
+        for idx, cid in enumerate(cell_ids):
+            if cid == cell_id_key:
+                return self._build_at(cid, idx)
+
+        # Fall back to matching against cell name.
+        for idx, cid in enumerate(cell_ids):
+            name = self._cell_name(cid)
+            if name == key:
+                return self._build_at(cid, idx)
+
+        raise KeyError(key)
+
     def __iter__(self) -> Iterator[NotebookCellData]:
-        for i in range(len(self)):
-            yield self[i]
+        cell_ids = self._cell_ids()
+        for i, cid in enumerate(cell_ids):
+            yield self._build_at(cid, i)
 
 
 @dataclass
@@ -154,13 +198,19 @@ class AsyncCodeModeContext:
     """Async programmatic control of a running marimo notebook.
 
     Build edits with ``NotebookEdit`` static methods, apply them with
-    ``await ctx.apply_edit(edits)``. Read cells via ``ctx.cells[index]``.
+    ``await ctx.apply_edit(edits)``. Read cells via ``ctx.cells[key]``
+    where *key* is an integer index, cell ID string, or cell name.
 
     Tip: check this module's imports for where types live.
     """
 
-    def __init__(self, kernel: Kernel) -> None:
+    def __init__(
+        self,
+        kernel: Kernel,
+        cell_manager: CellManager | None = None,
+    ) -> None:
         self._kernel = kernel
+        self._cell_manager = cell_manager
 
     # ------------------------------------------------------------------
     # Read-only attributes
@@ -178,7 +228,14 @@ class AsyncCodeModeContext:
 
     @property
     def cells(self) -> _CellsView:
-        """Read-only view of notebook cells as ``NotebookCellData`` objects."""
+        """Read-only view of notebook cells as ``NotebookCellData`` objects.
+
+        Supports lookup by index, cell ID, or cell name::
+
+            ctx.cells[0]              # by index
+            ctx.cells["cell-id"]      # by cell ID (CellId_t string)
+            ctx.cells["my_cell"]      # by cell name (function def name)
+        """
         return _CellsView(self)
 
     # ------------------------------------------------------------------
