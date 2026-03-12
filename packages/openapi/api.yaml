@@ -4840,11 +4840,11 @@ components:
       title: UnknownError
       type: object
     UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode).\n\nAttributes:\n    cell_ids:\
-        \ Cells to update.\n    codes: New code for each cell.\n    code_is_stale:\
-        \ If True, code was not executed on backend (output may not match).\n    names:\
-        \ Cell names for each cell (optional, for file reload).\n    configs: Cell\
-        \ configs for each cell (optional, for file reload)."
+      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
+        \nAttributes:\n    cell_ids: Cells to update.\n    codes: New code for each\
+        \ cell.\n    code_is_stale: If True, code was not executed on backend (output\
+        \ may not match).\n    names: Cell names for each cell (optional, for file\
+        \ reload).\n    configs: Cell configs for each cell (optional, for file reload)."
       properties:
         cell_ids:
           items:

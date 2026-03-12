@@ -6021,7 +6021,7 @@ export interface components {
     };
     /**
      * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode).
+     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
      *
      *     Attributes:
      *         cell_ids: Cells to update.
