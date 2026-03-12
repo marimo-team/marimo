@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import Plain
@@ -472,6 +473,10 @@ logical_plan
         )
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+    @pytest.mark.skipif(
+        not DependencyManager.duckdb.has_at_version(min_version="1.5.0"),
+        reason="DuckDB version is too old",
+    )
     def test_extract_explain_content_duckdb_relation(self):
         """Test extract_explain_content with a DuckDB relation."""
         import duckdb
@@ -481,11 +486,18 @@ logical_plan
         relation = conn.sql("EXPLAIN SELECT * FROM t")
         result = extract_explain_content(relation)
 
-        # Check for key plan content instead of full snapshot (DuckDB output varies by version)
-        assert "physical_plan" in result
-        assert "scan" in result.lower()
-        assert "Projections: id" in result
-        assert "~5" in result or "5 row" in result.lower()
+        assert result == snapshot("""\
+physical_plan
+┌───────────────────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│    Table: memory.main.t   │
+│   Type: Sequential Scan   │
+│      Projections: id      │
+│                           │
+│          ~5 rows          │
+└───────────────────────────┘
+""")
 
         conn.close()
 
