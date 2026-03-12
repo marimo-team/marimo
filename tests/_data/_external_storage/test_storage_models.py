@@ -405,6 +405,13 @@ class TestObstore:
             backend = self._make_backend(store)
             assert backend.protocol == "file"
 
+    def test_backend_type(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        backend = self._make_backend(store)
+        assert backend.backend_type == "obstore"
+
     def test_root_path_memory(self) -> None:
         from obstore.store import MemoryStore
 
@@ -1063,6 +1070,13 @@ class TestFsspecFilesystemIntegration:
         fs = MemoryFileSystem()
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
         assert backend.protocol == "in-memory"
+
+    def test_backend_type_memory_filesystem(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        assert backend.backend_type == "fsspec"
 
 
 @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")

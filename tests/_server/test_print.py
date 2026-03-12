@@ -42,6 +42,19 @@ def test_colorized_url() -> None:
     assert "localhost:8000/path" in result
     assert "query=value" in result
 
+    # Test with an IPv6 address (RFC 3986 requires brackets)
+    result = _colorized_url("http://[2001:db8::1]:8000/path")
+    assert "[2001:db8::1]:8000/path" in result
+
+    # Test with IPv6 loopback
+    result = _colorized_url("http://[::1]:2718")
+    assert "[::1]:2718" in result
+
+    # Zone IDs must not appear in URLs (stripped before URL construction)
+    result = _colorized_url("http://[fe80::1]:2718")
+    assert "[fe80::1]:2718" in result
+    assert "%" not in result
+
 
 def test_get_network_url() -> None:
     """Test the _get_network_url function."""

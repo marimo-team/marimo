@@ -5460,6 +5460,8 @@ export interface components {
      *             affected cells as stale, `"autorun"` automatically runs affected cells.
      *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
      *             values may affect frontend performance
+     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
+     *             The default is `False`.
      *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
      *           larger values may affect frontend performance
      *         - `pythonpath`: a list of directories to add to the Python search path.
@@ -5497,6 +5499,7 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
+      serve_cached_sessions_in_apps?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -5908,9 +5911,12 @@ export interface components {
      *             display_name: The display name of the storage namespace.
      *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
      *             root_path: The root path of the storage namespace.
+     *             backend_type: The type of the storage backend (fsspec or obstore)
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
+      /** @enum {unknown} */
+      backendType: "fsspec" | "obstore";
       displayName: string;
       name: string;
       protocol: string;
