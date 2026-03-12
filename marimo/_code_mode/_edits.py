@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Union
 from uuid import uuid4
 
 from marimo._ast.cell import CellConfig
@@ -33,7 +33,7 @@ class NotebookCellData:
     cell_id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
     _index: int | None = field(default=None, repr=False, compare=False)
 
-    def replace(self, **kwargs: object) -> NotebookCellData:
+    def replace(self, **kwargs: Any) -> NotebookCellData:  # noqa: ANN401
         """Return a copy with the given fields replaced."""
         return dataclasses.replace(self, **kwargs)
 

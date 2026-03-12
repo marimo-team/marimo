@@ -9,8 +9,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any
+
+from dataclasses import dataclass
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -18,7 +20,6 @@ from marimo._ast.compiler import compile_cell
 from marimo._code_mode._edits import (
     Edit,
     NotebookCellData,
-    NotebookEdit,
     _DeleteCells,
     _InsertCells,
     _ReplaceCells,
@@ -36,6 +37,7 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import get_context as _get_runtime_context
+from marimo._runtime.runtime import CellMetadata
 from marimo._types.ids import CellId_t, UIElementId
 
 if TYPE_CHECKING:
@@ -81,9 +83,19 @@ class _CellsView:
             _index=index,
         )
 
-    def __iter__(self):  # type: ignore[override]
+    def __iter__(self) -> Iterator[NotebookCellData]:
         for i in range(len(self)):
             yield self[i]
+
+
+@dataclass
+class _PlanEntry:
+    """A single slot in the edit plan."""
+
+    cell_id: CellId_t
+    code: str | None = None
+    config: CellConfig | None = None
+    draft: bool = False
 
 
 class AsyncCodeModeContext:
@@ -135,12 +147,9 @@ class AsyncCodeModeContext:
             edits = [edits]
 
         # -- Phase 1: reduce edits to a plan against a virtual cell list --
-        # Each slot is (cell_id, new_code_or_None, config_or_None, draft)
-        # A None cell_id means "new cell"; None code means "keep existing".
-        _SENTINEL = object()
-
-        plan: list[tuple[CellId_t, str | None, CellConfig | None, bool]] = [
-            (cid, _SENTINEL, None, False) for cid in self.graph.cells.keys()
+        # None code means "keep existing".
+        plan: list[_PlanEntry] = [
+            _PlanEntry(cell_id=cid) for cid in self.graph.cells
         ]
 
         for edit in edits:
@@ -153,11 +162,11 @@ class AsyncCodeModeContext:
                     idx = min(edit.index + offset, len(plan))
                     plan.insert(
                         idx,
-                        (
-                            cell_data.cell_id,
-                            cell_data.code,
-                            cell_data.config,
-                            cell_data.draft,
+                        _PlanEntry(
+                            cell_id=cell_data.cell_id,
+                            code=cell_data.code,
+                            config=cell_data.config,
+                            draft=cell_data.draft,
                         ),
                     )
 
@@ -172,31 +181,26 @@ class AsyncCodeModeContext:
                             f"Index {target_idx} out of range "
                             f"(plan has {len(plan)} cells)"
                         )
-                    old_cid, _, old_cfg, _ = plan[target_idx]
-                    plan[target_idx] = (
-                        old_cid,
-                        cell_data.code,  # None = keep existing
-                        cell_data.config
-                        if cell_data.config is not None
-                        else old_cfg,
-                        cell_data.draft,
-                    )
+                    entry = plan[target_idx]
+                    entry.code = cell_data.code  # None = keep existing
+                    if cell_data.config is not None:
+                        entry.config = cell_data.config
+                    entry.draft = cell_data.draft
 
             else:
                 raise TypeError(f"Unknown edit type: {type(edit)!r}")
 
         # -- Phase 1.5: auto-format new/changed code --
-        plan = await self._format_plan(plan, _SENTINEL)
+        plan = await self._format_plan(plan)
 
         # -- Phase 2: reconcile plan against the graph --
-        from marimo._runtime.runtime import CellMetadata
 
         existing_ids = set(self.graph.cells.keys())
         # Snapshot existing code so we can detect true changes vs moves
         existing_code = {
             cid: self.graph.cells[cid].code for cid in existing_ids
         }
-        plan_ids = {cid for cid, _, _, _ in plan}
+        plan_ids = {e.cell_id for e in plan}
 
         # Delete cells that are in the graph but not in the plan
         for cid in existing_ids - plan_ids:
@@ -205,65 +209,61 @@ class AsyncCodeModeContext:
 
         # Insert/update cells and collect what needs executing
         cells_to_execute: list[tuple[CellId_t, str]] = []
-        code_notifications: list[tuple[CellId_t, str, bool]] = []
+        code_notifications: list[_PlanEntry] = []
 
-        for cid, new_code, config, draft in plan:
-            is_new = cid not in existing_ids
+        for entry in plan:
+            is_new = entry.cell_id not in existing_ids
             code_changed = (
-                new_code is not _SENTINEL
-                and new_code is not None
-                and new_code != existing_code.get(cid)
+                entry.code is not None
+                and entry.code != existing_code.get(entry.cell_id)
             )
 
             if is_new:
                 # New cell — must have code
-                assert new_code is not None and new_code is not _SENTINEL
-                cfg = config or CellConfig(hide_code=True)
-                cell = compile_cell(new_code, cell_id=cid)
+                assert entry.code is not None
+                cfg = entry.config or CellConfig(hide_code=True)
+                cell = compile_cell(entry.code, cell_id=entry.cell_id)
                 cell.configure(cfg.asdict())
-                self._kernel.cell_metadata[cid] = CellMetadata(config=cfg)
-                self.graph.register_cell(cid, cell)
-                code_notifications.append((cid, new_code, draft))
-                if not draft:
-                    cells_to_execute.append((cid, new_code))
+                self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
+                    config=cfg
+                )
+                self.graph.register_cell(entry.cell_id, cell)
+                code_notifications.append(entry)
+                if not entry.draft:
+                    cells_to_execute.append((entry.cell_id, entry.code))
 
             elif code_changed:
                 # Existing cell with genuinely new code
-                self.graph.delete_cell(cid)
-                cell = compile_cell(new_code, cell_id=cid)
-                if config is not None:
-                    cell.configure(config.asdict())
-                    self._kernel.cell_metadata[cid] = CellMetadata(
-                        config=config
+                assert entry.code is not None
+                self.graph.delete_cell(entry.cell_id)
+                cell = compile_cell(entry.code, cell_id=entry.cell_id)
+                if entry.config is not None:
+                    cell.configure(entry.config.asdict())
+                    self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
+                        config=entry.config
                     )
-                self.graph.register_cell(cid, cell)
-                code_notifications.append((cid, new_code, draft))
-                if not draft:
-                    cells_to_execute.append((cid, new_code))
+                self.graph.register_cell(entry.cell_id, cell)
+                code_notifications.append(entry)
+                if not entry.draft:
+                    cells_to_execute.append((entry.cell_id, entry.code))
 
-            elif config is not None:
-                # Config-only update (or pure move — ordering handled in phase 3)
+            elif entry.config is not None:
+                # Config-only update
                 await self.execute_command(
-                    UpdateCellConfigCommand(configs={cid: config.asdict()})
+                    UpdateCellConfigCommand(
+                        configs={entry.cell_id: entry.config.asdict()}
+                    )
                 )
 
-        # -- Phase 3: reorder graph to match plan --
-        target_order = [cid for cid, _, _, _ in plan]
-        from collections import OrderedDict
-
-        new_cells = OrderedDict(
-            (cid, self.graph.cells[cid]) for cid in target_order
-        )
-        self.graph.cells.clear()
-        self.graph.cells.update(new_cells)
-
-        # -- Phase 4: notify frontend and execute --
-        for cid, code, draft in code_notifications:
+        # -- Phase 3: notify frontend and execute --
+        target_order = [e.cell_id for e in plan]
+        for entry in code_notifications:
+            assert entry.code is not None
             self.notify(
                 UpdateCellCodesNotification(
-                    cell_ids=[cid],
-                    codes=[code],
-                    code_is_stale=draft,
+                    cell_ids=[entry.cell_id],
+                    codes=[entry.code],
+                    code_is_stale=entry.draft,
                 )
             )
 
@@ -281,30 +281,21 @@ class AsyncCodeModeContext:
 
     LOGGER = _loggers.marimo_logger()
 
-    async def _format_plan(
-        self,
-        plan: list[
-            tuple[CellId_t, str | object | None, CellConfig | None, bool]
-        ],
-        sentinel: object,
-    ) -> list[tuple[CellId_t, str | object | None, CellConfig | None, bool]]:
+    async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code in the plan with the default formatter."""
         from marimo._utils.formatter import DefaultFormatter
 
         existing_code = {
-            cid: self.graph.cells[cid].code for cid in self.graph.cells.keys()
+            cid: self.graph.cells[cid].code for cid in self.graph.cells
         }
 
         # Collect codes that need formatting (new or changed)
         to_format: dict[CellId_t, str] = {}
-        for cid, code, _config, _draft in plan:
-            if (
-                code is not sentinel
-                and code is not None
-                and isinstance(code, str)
-                and code != existing_code.get(cid)
+        for entry in plan:
+            if entry.code is not None and entry.code != existing_code.get(
+                entry.cell_id
             ):
-                to_format[cid] = code
+                to_format[entry.cell_id] = entry.code
 
         if not to_format:
             return plan
@@ -316,11 +307,11 @@ class AsyncCodeModeContext:
             self.LOGGER.debug("Auto-format skipped: no formatter available")
             return plan
 
-        # Rebuild plan with formatted code
-        return [
-            (cid, formatted.get(cid, code), config, draft)
-            for cid, code, config, draft in plan
-        ]
+        # Apply formatted code back to plan entries
+        for entry in plan:
+            if entry.cell_id in formatted:
+                entry.code = formatted[entry.cell_id]
+        return plan
 
     # ------------------------------------------------------------------
     # UI elements
