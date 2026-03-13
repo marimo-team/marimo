@@ -1,9 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from re import Pattern
 from typing import (
     Any,
     Callable,
@@ -117,6 +119,13 @@ class file_browser(
         filetypes (Sequence[str], optional): The file types to display in each
             directory; for example, filetypes=[".txt", ".csv"]. If None, all
             files are displayed. Defaults to None.
+        file_pattern (Union[str, Callable[[Path], bool]], optional): A regex pattern
+            string or callback function for filtering files. If a string, it's treated
+            as a regex pattern to match against file names (not directories). If a callable,
+            it receives a Path object and returns True if the file/directory should be shown.
+            This is more flexible than filetypes and can be combined with it. Defaults to None.
+            Example regex: file_pattern=r".*\\.log$"  # Match files ending in .log
+            Example callback: file_pattern=lambda p: p.stat().st_size > 1024  # Files > 1KB
         selection_mode (Literal["file", "directory"], optional): Either "file" or "directory". Defaults to
             "file".
         multiple (bool, optional): If True, allow the user to select multiple
@@ -147,6 +156,7 @@ class file_browser(
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
+        file_pattern: Optional[Union[str, Callable[[Path], bool]]] = None,
         limit: Optional[int] = None,
         label: str = "",
         on_change: Optional[
@@ -196,6 +206,26 @@ class file_browser(
         self._restrict_navigation = restrict_navigation
         self._ignore_empty_dirs = ignore_empty_dirs
 
+        # Process file_pattern parameter
+        self._file_pattern: Optional[Pattern[str]] = None
+        self._file_pattern_callback: Optional[Callable[[Path], bool]] = None
+
+        if file_pattern is not None:
+            if isinstance(file_pattern, str):
+                # Compile regex pattern
+                try:
+                    self._file_pattern = re.compile(file_pattern)
+                except re.error as e:
+                    raise ValueError(
+                        f"Invalid regex pattern '{file_pattern}': {e}"
+                    ) from e
+            elif callable(file_pattern):
+                self._file_pattern_callback = file_pattern
+            else:
+                raise ValueError(
+                    "file_pattern must be a string (regex) or callable"
+                )
+
         # Smart default limit based on path type
         if limit is None:
             # Check if it's a cloud path
@@ -211,7 +241,7 @@ class file_browser(
             initial_value=[],
             label=label,
             args={
-                "initial-path": str(self._initial_path),
+                "initial-path": str(initial_path),
                 "selection-mode": selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
@@ -275,6 +305,23 @@ class file_browser(
                         and item.suffix.lower() not in self._filetypes
                     ):
                         continue
+
+                    # Apply file_pattern filter if specified
+                    if self._file_pattern:
+                        if not self._file_pattern.match(item.name):
+                            continue
+
+                    if self._file_pattern_callback:
+                        try:
+                            if not self._file_pattern_callback(item):
+                                continue
+                        except Exception as e:
+                            # If callback fails for any reason, skip this file
+                            LOGGER.debug(
+                                f"file_pattern callback failed for {item}: {e}"
+                            )
+                            continue
+
                     return True
                 elif item.is_dir() and not item.is_symlink():
                     # Skip directory symlinks to avoid infinite loops
@@ -300,7 +347,8 @@ class file_browser(
 
         if self._restrict_navigation and path in self._initial_path.parents:
             raise RuntimeError(
-                "Navigation is restricted; navigating to a parent of initial path is not allowed."
+                "Navigation is restricted; navigating to a "
+                "parent of initial path is not allowed."
             )
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
@@ -323,6 +371,28 @@ class file_browser(
             if self._filetypes and not is_directory:
                 if extension.lower() not in self._filetypes:
                     continue
+
+            # Apply file_pattern filter
+            should_include = True
+
+            # Regex patterns only apply to files, not directories
+            if self._file_pattern and not is_directory:
+                should_include = bool(self._file_pattern.match(file.name))
+
+            # Callback functions can filter both files and directories
+            if should_include and self._file_pattern_callback:
+                try:
+                    should_include = self._file_pattern_callback(file)
+                except Exception as e:
+                    # If callback fails for any reason (OSError, ValueError, etc.),
+                    # skip the entry and log the error
+                    LOGGER.debug(
+                        f"file_pattern callback failed for {file}: {e}"
+                    )
+                    should_include = False
+
+            if not should_include:
+                continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
             if self._ignore_empty_dirs and is_directory:

@@ -756,54 +756,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/export/ipynb": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
-        };
-      };
-      responses: {
-        /** @description Export the notebook as IPYNB */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-        /** @description File must be saved before downloading */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/export/markdown": {
     parameters: {
       query?: never;
@@ -3703,14 +3655,15 @@ export interface components {
      *
      *         Attributes:
      *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook.
+     *             cell_ids: Initial cell IDs in the notebook (unused for now).
      *             set_ui_element_value_request: Initial UI element values.
      *             auto_run: Whether to automatically execute cells on instantiation.
      *             request: HTTP request context if available.
      */
     CreateNotebookCommand: {
       autoRun: boolean;
-      cellIds: string[];
+      /** @default null */
+      cellIds?: string[] | null;
       executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -5460,8 +5413,6 @@ export interface components {
      *             affected cells as stale, `"autorun"` automatically runs affected cells.
      *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
      *             values may affect frontend performance
-     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
-     *             The default is `False`.
      *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
      *           larger values may affect frontend performance
      *         - `pythonpath`: a list of directories to add to the Python search path.
@@ -5499,7 +5450,6 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
-      serve_cached_sessions_in_apps?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -5911,12 +5861,9 @@ export interface components {
      *             display_name: The display name of the storage namespace.
      *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
      *             root_path: The root path of the storage namespace.
-     *             backend_type: The type of the storage backend (fsspec or obstore)
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
-      /** @enum {unknown} */
-      backendType: "fsspec" | "obstore";
       displayName: string;
       name: string;
       protocol: string;
@@ -6021,23 +5968,17 @@ export interface components {
     };
     /**
      * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
+     * @description Updates cell code contents (kiosk mode).
      *
      *         Attributes:
      *             cell_ids: Cells to update.
      *             codes: New code for each cell.
      *             code_is_stale: If True, code was not executed on backend (output may not match).
-     *             names: Cell names for each cell (optional, for file reload).
-     *             configs: Cell configs for each cell (optional, for file reload).
      */
     UpdateCellCodesNotification: {
       cell_ids: string[];
       code_is_stale: boolean;
       codes: string[];
-      /** @default [] */
-      configs?: components["schemas"]["CellConfig"][];
-      /** @default [] */
-      names?: string[];
       /** @enum {unknown} */
       op: "update-cell-codes";
     };

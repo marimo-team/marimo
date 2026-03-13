@@ -80,6 +80,9 @@ Enable the grid editor in the app preview, via a dropdown:
 
 If you prefer a slideshow-like experience, you can use the slides layout. Enable the slides layout in the app preview, via the same dropdown as above.
 
+!!! info "See slides layout in action"
+    Check out this [example notebook](https://marimo.io/p/@gvarnavides/stem-probes) that runs in slides mode, powered by our [Community Cloud](publishing/community_cloud/index.md).
+
 Unlike the grid layout, the slides are much less customizable:
 
 - The order of the slides is determined by the order of the cells in the notebook.

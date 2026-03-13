@@ -32,17 +32,6 @@ if TYPE_CHECKING:
 
 # Note: We intentionally omit "version" as it would vary across environments
 # and break reproducibility. The marimo_version in metadata is sufficient.
-_MD_PREFIX_RE = re.compile(r'mo\.md\(([fFrR]*)(?:"""|\'\'\'|"|\')')
-
-
-def _extract_markdown_prefix(code: str) -> str:
-    """Extract the string prefix from a mo.md() call (e.g. '', 'r', 'f', 'fr')."""
-    m = _MD_PREFIX_RE.search(code)
-    if m:
-        return m.group(1).lower()
-    return ""
-
-
 DEFAULT_LANGUAGE_INFO = {
     "codemirror_mode": {"name": "ipython", "version": 3},
     "file_extension": ".py",
@@ -173,9 +162,7 @@ def _create_ipynb_cell(
                 nbformat.NotebookNode,
                 nbformat.v4.new_markdown_cell(markdown_string, id=cell_id),  # type: ignore[no-untyped-call]
             )
-            _add_marimo_metadata(
-                node, name, config, md_prefix=_extract_markdown_prefix(code)
-            )
+            _add_marimo_metadata(node, name, config)
             return node
 
     node = cast(
@@ -189,10 +176,7 @@ def _create_ipynb_cell(
 
 
 def _add_marimo_metadata(
-    node: NotebookNode,
-    name: str,
-    config: CellConfig,
-    md_prefix: Optional[str] = None,
+    node: NotebookNode, name: str, config: CellConfig
 ) -> None:
     """Add marimo-specific metadata to a notebook cell."""
     marimo_metadata: dict[str, Any] = {}
@@ -200,10 +184,6 @@ def _add_marimo_metadata(
         marimo_metadata["config"] = config.asdict_without_defaults()
     if not is_internal_cell_name(name):
         marimo_metadata["name"] = name
-    if md_prefix is not None:
-        # Always store prefix for markdown cells so importer knows the original
-        # prefix and can distinguish marimo-created cells from foreign ipynb cells
-        marimo_metadata["md_prefix"] = md_prefix
     if marimo_metadata:
         node["metadata"]["marimo"] = marimo_metadata
 

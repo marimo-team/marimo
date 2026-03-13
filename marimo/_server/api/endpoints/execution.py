@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from starlette.authentication import requires
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import JSONResponse
 
 from marimo import _loggers
 from marimo._messaging.notification import AlertNotification
@@ -34,8 +34,6 @@ from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
-
     from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
@@ -239,60 +237,6 @@ async def run_cell(
     )
 
     return SuccessResponse()
-
-
-@router.post("/execute", include_in_schema=False)
-@requires("edit")
-async def execute_code(
-    *,
-    request: Request,
-) -> StreamingResponse:
-    """
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/ExecuteScratchpadRequest"
-    responses:
-        200:
-            description: Execute code in the kernel, streaming results as SSE.
-            content:
-                text/event-stream:
-                    schema:
-                        type: string
-    """  # noqa: E501
-    from marimo._runtime.commands import ExecuteScratchpadCommand
-    from marimo._server.scratchpad import (
-        EXECUTION_TIMEOUT,
-        ScratchCellListener,
-        build_done_event,
-        build_timeout_event,
-    )
-
-    app_state = AppState(request)
-    body = await parse_request(request, cls=ExecuteScratchpadRequest)
-    session = app_state.require_current_session()
-
-    async def sse_generator() -> AsyncGenerator[str, None]:
-        listener = ScratchCellListener()
-        with session.scoped(listener):
-            async with session.scratchpad_lock:
-                session.put_control_request(
-                    ExecuteScratchpadCommand(
-                        code=body.code,
-                        request=HTTPRequest.from_request(request),
-                    ),
-                    from_consumer_id=None,
-                )
-                async for event in listener.stream(timeout=EXECUTION_TIMEOUT):
-                    yield event
-
-            if listener.timed_out:
-                yield build_timeout_event(EXECUTION_TIMEOUT)
-            else:
-                yield build_done_event(session)
-
-    return StreamingResponse(sse_generator(), media_type="text/event-stream")
 
 
 @router.post("/scratchpad/run")

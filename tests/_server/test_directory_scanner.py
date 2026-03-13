@@ -121,13 +121,7 @@ class TestDirectoryScanner(unittest.TestCase):
 
     def test_skip_common_directories(self):
         """Test that common directories are skipped."""
-        for dirname in [
-            "venv",
-            "node_modules",
-            "__pycache__",
-            ".git",
-            "winpython",
-        ]:
+        for dirname in ["venv", "node_modules", "__pycache__", ".git"]:
             skip_dir = os.path.join(self.test_dir, dirname)
             os.makedirs(skip_dir)
             with open(os.path.join(skip_dir, "app.py"), "w") as f:
@@ -139,23 +133,6 @@ class TestDirectoryScanner(unittest.TestCase):
         for path in file_paths:
             assert "venv" not in path
             assert "node_modules" not in path
-            assert "__pycache__" not in path
-            assert ".git" not in path
-            assert "winpython" not in path
-
-    def test_skip_common_directories_case_insensitive(self):
-        """Test that SKIP_DIRS matching is case-insensitive."""
-        # WinPython distributions often use varied casing like "WinPython"
-        skip_dir = os.path.join(self.test_dir, "WinPython")
-        os.makedirs(skip_dir)
-        with open(os.path.join(skip_dir, "app.py"), "w") as f:
-            f.write("import marimo\napp = marimo.App()\n")
-
-        scanner = DirectoryScanner(self.test_dir)
-        files = scanner.scan()
-        file_paths = [f.path for f in files if not f.is_directory]
-        for path in file_paths:
-            assert "winpython" not in path.lower()
 
     def test_skip_hidden_files(self):
         """Test that hidden files are skipped."""
@@ -166,39 +143,6 @@ class TestDirectoryScanner(unittest.TestCase):
         files = scanner.scan()
         file_names = [f.name for f in files if not f.is_directory]
         assert ".hidden_app.py" not in file_names
-
-    def test_skip_symlinks(self):
-        """Test that symlinks are skipped to avoid cycles and broken links."""
-        try:
-            # Create a symlink that points to a non-existent target (broken)
-            broken_link = os.path.join(self.test_dir, "broken_link.py")
-            broken_target = os.path.join(self.test_dir, "nonexistent_app.py")
-            os.symlink(broken_target, broken_link)
-
-            # Create a directory symlink that would cause a cycle
-            cycle_link = os.path.join(self.test_dir, "cycle")
-            os.symlink(self.test_dir, cycle_link, target_is_directory=True)
-
-            # Create a symlink to a valid marimo file
-            valid_target = os.path.join(self.test_dir, "app1.py")
-            valid_link = os.path.join(self.test_dir, "linked_app.py")
-            os.symlink(valid_target, valid_link)
-        except (OSError, NotImplementedError):
-            self.skipTest("Symlinks not supported on this platform")
-
-        scanner = DirectoryScanner(self.test_dir)
-        files = scanner.scan()
-        file_names = [f.name for f in files if not f.is_directory]
-        dir_names = [f.name for f in files if f.is_directory]
-
-        # Symlinked files and directories should be skipped
-        assert "broken_link.py" not in file_names
-        assert "linked_app.py" not in file_names
-        assert "cycle" not in dir_names
-
-        # Original files should still be found
-        assert "app1.py" in file_names
-        assert "app2.py" in file_names
 
     def test_partial_results_populated_during_scan(self):
         """Test that partial_results is populated during scanning."""

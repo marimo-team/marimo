@@ -210,7 +210,7 @@ export async function downloadAsPDF(opts: {
     filename,
     webpdf,
     preset = "document",
-    includeInputs = true,
+    includeInputs = false,
     rasterizeOutputs = true,
     rasterScale = 4,
     rasterServer = "static",

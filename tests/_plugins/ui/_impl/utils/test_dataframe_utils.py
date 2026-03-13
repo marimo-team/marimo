@@ -43,11 +43,9 @@ def test_get_row_headers_pandas() -> None:
         ["one", "two", "three"],
     ]
     df_multi = pd.DataFrame({"A": range(3)}, index=arrays)
-    assert _get_row_headers(df_multi) in [
-        # pandas 2.x
-        [("", ("string", "object")), ("", ("string", "object"))],
-        # pandas 3.x (StringDtype default)
-        [("", ("string", "str")), ("", ("string", "str"))],
+    assert _get_row_headers(df_multi) == [
+        ("", ("string", "object")),
+        ("", ("string", "object")),
     ]
 
     # Test with RangeIndex

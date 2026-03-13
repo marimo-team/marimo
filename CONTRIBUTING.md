@@ -20,26 +20,56 @@ contribution._ Get in touch at
 or [on Discord](https://marimo.io/discord?ref=contributing).
 
 ## Setup
-
 _Note: We recommend that Windows developers use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and clone the marimo repository [into the WSL environment and not the Windows mount](https://learn.microsoft.com/en-us/windows/wsl/filesystems)._
 
-### Prerequisites
+Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed, using `hatch` as the environment manager.
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python package manager)
-- [Node.js](https://nodejs.org/) 20+
-- [pnpm](https://pnpm.io/installation) 9+
+> [!NOTE]
+>
+> As an alternative to installing `pixi`, you can try developing in [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
+> Note that developing in Gitpod is not officially supported by the marimo team.
 
-### Getting started
+> [!TIP]
+> New to both `pixi` and `hatch`? Pick `pixi`. It installs and manages both the Python and Node toolchains, then drops you into a ready shell with one command. Choose `hatch` only if you already maintain Node 20+/pnpm 9+ yourself and just want a Python environment manager. Typical flows:
+> - `pixi shell` → `make fe && make py` → `make dev`
+> - `hatch shell` → `make fe && make py` → `make dev`
 
 ```bash
+pixi shell
+```
+
+If you have the right non-python dependencies installed via other methods (e.g. homebrew) you can simply activate your `marimo` development
+environment with `hatch shell`.
+
+Now you can install the environment frontend and Python dependencies.
+
+```bash
+make fe && make py
+```
+
+After doing this, you can instantiate your marimo development environment by running the following command.
+
+```bash
+make dev
+```
+
+This will launch two processes, the backend one in port 2718 and the front end one in port 3000.
+
+In summary you will need to run:
+
+```bash
+pixi shell
 make fe && make py
 make dev
 ```
 
-This will build the frontend, install Python dependencies in editable mode, and launch the dev server (backend on port 2718, frontend on port 3000).
+or if not using `pixi`:
 
-> [!TIP]
-> On the marimo team we use `uv` + `node`/`pnpm` directly. Alternatively, [pixi](https://github.com/prefix-dev/pixi) can manage the Python and Node toolchains for you (`pixi shell` then proceed as above), and [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo) provides a cloud-based dev environment — but we don't officially support either of these and recommend the setup above.
+```bash
+hatch shell
+make fe && make py
+make dev
+```
 
 ### `pre-commit` hooks
 
@@ -47,6 +77,12 @@ You can optionally install [pre-commit](https://pre-commit.com/) hooks to automa
 
 ```bash
 uvx pre-commit install
+```
+
+or
+
+```bash
+pixi run pre-commit install
 ```
 
 To build the frontend unminified, run:
@@ -103,16 +139,16 @@ make fe-check
 <table>
   <tr>
     <th>Using <code>make</code></th>
-    <th>Using <code>uv</code></th>
+    <th>Using <code>hatch</code></th>
   </tr>
   <tr>
     <td>
       <pre><code>make py-check         </code></pre>
     </td>
     <td>
-      <pre><code>uv run ruff check --fix
-uv run ruff format
-uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/</code></pre>
+      <pre><code>hatch run lint
+hatch run format
+hatch run typecheck:check     </code></pre>
     </td>
   </tr>
 </table>
@@ -150,24 +186,38 @@ We use [pytest syntax](https://docs.pytest.org/en/stable/how-to/usage.html) for 
 make py-test
 ```
 
-#### Using uv
+#### Using Hatch
 
 Run a specific test
 
 ```bash
-uv run --python 3.13 --group test pytest tests/_ast/
+hatch run +py=3.13 test:test tests/_ast/
 ```
 
 Run all changed tests
 
 ```bash
-uv run --python 3.13 --group test pytest --picked
+hatch run +py=3.13 test:test --picked
 ```
 
 Run tests with optional dependencies
 
 ```bash
-uv run --python 3.13 --group test-optional pytest tests/_ast/
+hatch run +py=3.13 test-optional:test tests/_ast/
+```
+
+Run tests across all Python versions (omit `+py`)
+
+```bash
+hatch run test:test tests/_ast/
+```
+
+Run all tests across all Python versions
+
+Not recommended since it takes a long time.
+
+```bash
+hatch run test:test
 ```
 
 ### End-to-end

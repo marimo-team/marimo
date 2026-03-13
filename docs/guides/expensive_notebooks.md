@@ -140,7 +140,7 @@ through the notebook menu (these files are saved in addition to the
 notebook's `.py` file). Snapshots are saved to a folder called
 `__marimo__` in the notebook directory.
 
-Learn more about exporting notebooks in our [exporting guide](../guides/exporting/index.md).
+Learn more about exporting notebooks in our [exporting guide](../guides/exporting.md).
 
 ## Cache expensive computations
 

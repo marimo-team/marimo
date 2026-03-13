@@ -28,9 +28,9 @@ def test_openapi_up_to_date() -> None:
     # Remove the version from both contents
     # we don't care about the version for this comparison
     if "info" in current_content:
-        current_content["info"].pop("version", None)
+        del current_content["info"]["version"]
     if "info" in generated_content:
-        generated_content["info"].pop("version", None)
+        del generated_content["info"]["version"]
 
     cmd = "marimo development openapi > packages/openapi/api.yaml && make fe-codegen"
     assert current_content == generated_content, (

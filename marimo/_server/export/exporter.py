@@ -373,9 +373,9 @@ class Exporter:
                     PDFExporter,
                 )
 
-                exporter = PDFExporter()  # type: ignore[no-untyped-call]
+                exporter = PDFExporter()
                 exporter.exclude_input = not include_inputs
-                pdf_data, _resources = exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+                pdf_data, _resources = exporter.from_notebook_node(notebook)
                 if isinstance(pdf_data, bytes):
                     return pdf_data
                 LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -388,10 +388,10 @@ class Exporter:
 
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
-        web_exporter = WebPDFExporter()  # type: ignore[no-untyped-call]
+        web_exporter = WebPDFExporter()
         web_exporter.exclude_input = not include_inputs
         web_exporter.allow_chromium_download = True
-        pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        pdf_data, _resources = web_exporter.from_notebook_node(notebook)
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -490,9 +490,9 @@ class Exporter:
             )
 
         # Convert to reveal.js HTML
-        slides_exporter = SlidesExporter()  # type: ignore[no-untyped-call]
+        slides_exporter = SlidesExporter()
         slides_exporter.exclude_input = not include_inputs
-        html_data, _resources = slides_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)
 
         # Write HTML to a temp file for Playwright to load
         with tempfile.NamedTemporaryFile(
@@ -555,7 +555,9 @@ class Exporter:
             return None
         return pdf_data
 
-    def export_assets(self, directory: Path) -> None:
+    def export_assets(
+        self, directory: Path, ignore_index_html: bool = False
+    ) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
         LOGGER.debug(f"Copying assets to {dirpath}")
@@ -568,7 +570,11 @@ class Exporter:
             ROOT,
             dirpath,
             dirs_exist_ok=True,
-            ignore=(shutil.ignore_patterns("index.html")),
+            ignore=(
+                shutil.ignore_patterns("index.html")
+                if ignore_index_html
+                else None
+            ),
         )
 
     def export_public_folder(

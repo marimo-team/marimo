@@ -7,4 +7,4 @@ You can use MkDocs to publish your marimo notebooks as a interactive website wit
 !!! tip "Try the markdown file format tutorial"
     Learn more with `marimo tutorial markdown-format` at the command line.
 
-Alternatively, see our [Quarto guide](../exporting/quarto.md) for other methods of publishing marimo's markdown format.
+Alternatively, see our [Quarto guide](quarto.md) for other methods of publishing marimo's markdown format.

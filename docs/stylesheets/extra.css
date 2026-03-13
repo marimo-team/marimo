@@ -67,7 +67,7 @@ iframe.demo.medium {
 }
 
 iframe.demo.large {
-  height: 700px;
+  height: 600px;
 }
 
 iframe.demo.xlarge {
@@ -90,14 +90,4 @@ video {
 
 .examples-grid img {
   max-height: 125px;
-}
-
-.demo-container {
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 5px rgba(0,0,0,0.08);
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  margin-left: 5%;
-  margin-right: 5%;
 }

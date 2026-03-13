@@ -14,10 +14,10 @@ This plugin analyzes your git changes and uses Ruff's dependency graph analysis 
 pytest -p packages.pytest_changed --changed-from=main
 ```
 
-**Using uv:**
+**Using Hatch:**
 
 ```bash
-uv run --python 3.12 --group test pytest -p packages.pytest_changed --changed-from=main tests/
+hatch run +py=3.12 test:test -p packages.pytest_changed --changed-from=main tests/
 ```
 
 ### Compare Against Different References

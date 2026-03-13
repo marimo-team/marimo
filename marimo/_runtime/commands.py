@@ -488,16 +488,16 @@ class CreateNotebookCommand(Command):
 
     Attributes:
         execution_requests: ExecuteCellCommand for each notebook cell.
-        cell_ids: Initial cell IDs in the notebook.
+        cell_ids: Initial cell IDs in the notebook (unused for now).
         set_ui_element_value_request: Initial UI element values.
         auto_run: Whether to automatically execute cells on instantiation.
         request: HTTP request context if available.
     """
 
     execution_requests: tuple[ExecuteCellCommand, ...]
-    cell_ids: tuple[CellId_t, ...]
     set_ui_element_value_request: UpdateUIElementCommand
     auto_run: bool
+    cell_ids: Optional[tuple[CellId_t, ...]] = None
     request: Optional[HTTPRequest] = None
 
 

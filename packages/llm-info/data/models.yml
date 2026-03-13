@@ -1,72 +1,99 @@
-# Information provided by https://openrouter.ai/
-# Keep latest models at the top, deprecate old models
+# Information provided by https://hub.continue.dev/
 
 # Anthropic
 
-- name: Claude Sonnet 4.6
-  model: claude-sonnet-4-6
-  description: Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude Opus 4.6
+- name: Claude 4.6 Opus
   model: claude-opus-4-6
-  description: Strongest model for coding and long-running professional tasks
+  description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
-- name: Claude Opus 4.5
+- name: Claude 4.5 Opus
   model: claude-opus-4-5
-  description: Frontier reasoning model optimized for complex software engineering
+  description: Modern Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
-- name: Claude Sonnet 4.5
+- name: Claude 4.5 Sonnet
   model: claude-sonnet-4-5
-  description: Advanced Sonnet model optimized for real-world agents and coding workflows
+  description: Latest Sonnet model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
 
-- name: Claude Haiku 4.5
-  model: claude-haiku-4-5
-  description: Most efficient model, delivering near-frontier intelligence at a fraction of the cost
+- name: Claude 4.1 Opus
+  model: claude-opus-4-1
+  description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
+
+- name: Claude 4 Opus
+  model: claude-opus-4-0
+  description: Most capable model with superior performance on complex tasks and reasoning
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4 Sonnet
+  model: claude-sonnet-4-0
+  description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 3.7 Sonnet
+  model: claude-3-7-sonnet-latest
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Sonnet
+  model: claude-3-5-sonnet-latest
+  description: Balanced model with strong performance across reasoning, math, and coding
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Haiku
+  model: claude-3-5-haiku-latest
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
 
 # Google
 
-- name: Gemini 3.1 Flash Lite Preview
-  model: gemini-3.1-flash-lite-preview
-  description: High-efficiency model optimized for high-volume use cases
+- name: Gemini 3.0 Pro
+  model: gemini-3-pro-preview
+  description: Most capable Gemini model with advanced reasoning and large context support
+  providers: [google]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Gemini 2.5 Pro
+  model: gemini-2.5-pro
+  description: Most capable Gemini model with advanced reasoning and large context support
   providers: [google]
   roles: [chat, edit]
   thinking: false
 
-- name: Gemini 3.1 Pro Preview
-  model: gemini-3.1-pro-preview
-  description: Frontier reasoning model with enhanced software engineering and agentic reliability
+- name: Gemini 2.5 Pro Experimental
+  model: gemini-2.5-pro-exp
+  description: Experimental version of Gemini 2.5 Pro with latest improvements
   providers: [google]
   roles: [chat, edit]
-  thinking: true
-
-- name: Gemini 3 Flash Preview
-  model: gemini-3-flash-preview
-  description: High-speed thinking model for agentic workflows, multi-turn chat, and coding assistance
-  providers: [google]
-  roles: [chat, edit]
-  thinking: true
+  thinking: false
 
 - name: Gemini 2.5 Flash
   model: gemini-2.5-flash
-  description: State-of-the-art workhorse model with built-in thinking capabilities
+  description: Adaptive thinking, cost efficiency
   providers: [google]
   roles: [chat, edit]
-  thinking: true
+  thinking: false
 
 - name: Gemini 2.5 Flash Lite
   model: gemini-2.5-flash-lite
@@ -75,26 +102,61 @@
   roles: [chat, edit]
   thinking: false
 
+- name: Gemini 2.0 Flash
+  model: gemini-2.0-flash
+  description: Next-generation Flash model with improved performance and capabilities
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash Experimental
+  model: gemini-2.0-flash-exp
+  description: Experimental version of Gemini 2.0 Flash with cutting-edge features
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash Lite
+  model: gemini-2.0-flash-lite
+  description: Lightweight version of Gemini 2.0 Flash optimized for efficiency
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 2.0 Flash Thinking
+  model: gemini-2.0-flash-thinking-exp-01-21
+  description: Specialized reasoning model with enhanced thinking capabilities
+  providers: [google]
+  roles: [chat]
+  thinking: true
+
+- name: Gemini 1.5 Flash
+  model: gemini-1.5-flash
+  description: Fast and efficient model optimized for speed and everyday tasks
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 1.5 Flash 8B
+  model: gemini-1.5-flash-8b
+  description: Lightweight version of Gemini 1.5 Flash with 8 billion parameters
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Gemini 1.5 Pro
+  model: gemini-1.5-pro
+  description: Advanced model with superior reasoning capabilities and large context window
+  providers: [google]
+  roles: [chat, edit]
+  thinking: false
+
 # OpenAI
 
-- name: GPT-5.4
-  model: gpt-5.4
-  description: The latest frontier-grade model, unifying the Codex and GPT lines into a single system
-  providers: [openai]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5.3 Chat
-  model: gpt-5.3-chat
-  description: Most-used model that makes everyday conversations smoother and more useful
-  providers: [openai, azure]
-  roles: [chat, edit]
-  thinking: false
-
-- name: GPT-5.3-Codex
-  model: gpt-5.3-codex
-  description: Most advanced agentic coding model combining frontier software engineering with broad reasoning
-  providers: [openai]
+- name: GPT-5
+  model: gpt-5
+  description: The best model for coding and agentic tasks across domains
+  providers: [openai, azure, github]
   roles: [chat, edit]
   thinking: false
 
@@ -112,9 +174,51 @@
   roles: [chat, edit]
   thinking: false
 
+- name: GPT-4.1
+  model: gpt-4.1
+  description: Fast, highly intelligent model with largest context window (1 million tokens)
+  providers: [openai, azure]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-4.1 Mini
+  model: gpt-4.1-mini
+  description: Balanced for intelligence, speed, and cost
+  providers: [openai, azure]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-4o
+  model: gpt-4o
+  description: Fast, intelligent, flexible GPT model with multimodal capabilities
+  providers: [openai, azure]
+  roles: [chat, edit]
+  thinking: false
+
+- name: GPT-4o Mini
+  model: gpt-4o-mini
+  description: Fast, affordable small model for focused tasks
+  providers: [openai, azure, github]
+  roles: [chat, edit]
+  thinking: false
+
 - name: o3
   model: o3
-  description: Most powerful reasoning model with chain-of-thought capabilities
+  description: Our most powerful reasoning model with chain-of-thought capabilities
+  providers: [openai, azure]
+  roles: [chat, edit]
+  thinking: true
+
+- name: o3 Mini
+  model: o3-mini
+  description: A small model alternative to o3 for reasoning tasks
+  providers: [openai, azure]
+  roles: [chat, edit]
+  thinking: true
+
+- name: o3 Pro
+  model: o3-pro
+  description: Version of o3 designed to think longer and provide most reliable responses
   providers: [openai, azure]
   roles: [chat, edit]
   thinking: true
@@ -137,33 +241,40 @@
 
 # Bedrock
 
-- name: Claude 4.6 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-6-20260206-v1:0
-  description: Strongest model for coding and long-running professional tasks
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.5 Opus (Bedrock)
-  model: global.anthropic.claude-opus-4-5-20251120-v1:0
-  description: Frontier reasoning model optimized for complex software engineering
-  providers: [bedrock]
-  roles: [chat, edit]
-  thinking: true
-
 - name: Claude 4.5 Sonnet (Bedrock)
   model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
-  description: Most advanced Sonnet model to date, optimized for real-world agents
+  description: Enhanced Sonnet model with improved capabilities
   providers: [bedrock]
   roles: [chat, edit]
-  thinking: true
+  thinking: false
 
-- name: Claude 4.5 Haiku (Bedrock)
-  model: global.anthropic.claude-haiku-4-5-latest-v1:0
-  description: Most efficient model, delivering near-frontier intelligence at a fraction of the cost
+- name: Claude 4.1 Opus (Bedrock)
+  model: us.anthropic.claude-opus-4-1-20250805-v1:0
+  description: Opus model for deep thinking
   providers: [bedrock]
   roles: [chat, edit]
-  thinking: true
+  thinking: false
+
+- name: Claude 3.7 Sonnet (Bedrock)
+  model: us.anthropic.claude-3-7-sonnet-20250219-v1:0
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Sonnet v2 (Bedrock)
+  model: us.anthropic.claude-3-5-sonnet-20241022-v2:0
+  description: Balanced model with strong performance across reasoning, math, and coding
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Haiku (Bedrock)
+  model: us.anthropic.claude-3-5-haiku-20241022-v1:0
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: false
 
 - name: Llama 3.3 70B Instruct
   model: us.meta.llama3-3-70b-instruct-v1:0
@@ -190,7 +301,7 @@
 
 - name: gpt-oss 20b
   model: gpt-oss:20b
-  description: OpenAI's open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.
+  description: OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.
   providers: [ollama]
   roles: [chat, edit]
   thinking: true

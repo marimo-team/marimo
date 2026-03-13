@@ -10,7 +10,6 @@ function makeNamespace(
   overrides: Partial<StorageNamespace> & { name: string },
 ): StorageNamespace {
   return {
-    backendType: overrides.backendType ?? "obstore",
     displayName: overrides.displayName ?? overrides.name,
     name: overrides.name,
     protocol: overrides.protocol ?? "s3",

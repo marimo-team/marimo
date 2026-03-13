@@ -10,7 +10,6 @@ import pytest
 
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
-    CacheMode,
     CachingExtension,
     HeartbeatExtension,
     LoggingExtension,
@@ -108,25 +107,6 @@ class TestCachingExtension:
         mock_cache.stop.assert_called_once()
 
     @patch("marimo._session.extensions.extensions.SessionCacheManager")
-    def test_read_only_mode_skips_start(
-        self, mock_cache_cls, mock_session, event_bus
-    ) -> None:
-        """Test that read-only mode does not start the cache writer."""
-        mock_cache = Mock()
-        mock_cache_cls.return_value = mock_cache
-        mock_cache.read_session_view = Mock(
-            return_value=mock_session.session_view
-        )
-
-        extension = CachingExtension(enabled=True, mode=CacheMode.READ)
-        extension.on_attach(mock_session, event_bus)
-
-        mock_cache.start.assert_not_called()
-        mock_cache.read_session_view.assert_called_once()
-
-        extension.on_detach()
-
-    @patch("marimo._session.extensions.extensions.SessionCacheManager")
     async def test_rename_updates_path(
         self, mock_cache_cls, mock_session, event_bus
     ) -> None:
@@ -146,28 +126,6 @@ class TestCachingExtension:
         )
 
         mock_cache.rename_path.assert_called_once_with("/new/path.py")
-        extension.on_detach()
-
-    @patch("marimo._session.extensions.extensions.SessionCacheManager")
-    async def test_read_only_mode_ignores_rename(
-        self, mock_cache_cls, mock_session, event_bus
-    ) -> None:
-        """Test that read-only mode ignores rename events."""
-        mock_cache = Mock()
-        mock_cache_cls.return_value = mock_cache
-        mock_cache.read_session_view = Mock(
-            return_value=mock_session.session_view
-        )
-
-        extension = CachingExtension(enabled=True, mode=CacheMode.READ)
-        extension.on_attach(mock_session, event_bus)
-
-        mock_session.app_file_manager.path = "/new/path.py"
-        await extension.on_session_notebook_renamed(
-            mock_session, "/old/path.py"
-        )
-
-        mock_cache.rename_path.assert_not_called()
         extension.on_detach()
 
 

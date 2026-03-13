@@ -1373,6 +1373,39 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
+              name="experimental.server_side_pdf_export"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Better PDF Export
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="server-side-pdf-export-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.server_side_pdf_export"
+                  />
+                  <FormDescription>
+                    Enable PDF export using{" "}
+                    <Kbd className="inline">nbconvert</Kbd> and{" "}
+                    <Kbd className="inline">playwright</Kbd>. Refer to{" "}
+                    <ExternalLink href="https://docs.marimo.io/guides/exporting/#exporting-to-pdf-slides-or-rst">
+                      the docs
+                    </ExternalLink>
+                    .
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="experimental.storage_inspector"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">

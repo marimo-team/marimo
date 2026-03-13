@@ -381,15 +381,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    exportAsIPYNB: async (request) => {
-      return getClient()
-        .POST("/api/export/ipynb", {
-          body: request,
-          parseAs: "text",
-          params: getParams(),
-        })
-        .then(handleResponse);
-    },
     exportAsPDF: async (request) => {
       return getClient()
         .POST("/api/export/pdf", {

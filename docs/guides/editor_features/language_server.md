@@ -86,7 +86,7 @@ uv pip install ty
 enabled = true
 ```
 
-See the [ty docs](https://docs.astral.sh/ty/features/language-server/) for more information.
+See the [ty repository](https://github.com/astral-sh/ty) for more information.
 
 ### pyrefly
 
@@ -106,7 +106,7 @@ uv pip install pyrefly
 enabled = true
 ```
 
-See the [pyrefly docs](https://pyrefly.org/en/docs/IDE-features/) for more information.
+See the [pyrefly repository](https://github.com/facebook/pyrefly) for more information.
 
 ### GitHub Copilot
 

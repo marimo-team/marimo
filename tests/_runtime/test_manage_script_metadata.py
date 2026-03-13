@@ -36,10 +36,6 @@ HAS_UV = DependencyManager.which("uv")
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
-@patch(
-    "marimo._runtime.packages.pypi_package_manager.UvPackageManager.is_in_uv_project",
-    new=property(lambda _: False),
-)
 async def test_manage_script_metadata_uv(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:
@@ -89,10 +85,6 @@ async def test_manage_script_metadata_uv(
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
-@patch(
-    "marimo._runtime.packages.pypi_package_manager.UvPackageManager.is_in_uv_project",
-    new=property(lambda _: False),
-)
 async def test_manage_script_metadata_uv_deletion(
     tmp_path: pathlib.Path, mocked_kernel: MockedKernel
 ) -> None:

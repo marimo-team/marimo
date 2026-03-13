@@ -27,13 +27,11 @@ export interface Hotkey {
    * @default true
    */
   editable?: boolean;
-  additionalKeywords?: string[];
 }
 
 interface ResolvedHotkey {
   name: string;
   key: string;
-  additionalKeywords?: string[];
 }
 
 type ModKey = "Cmd" | "Ctrl";
@@ -112,7 +110,6 @@ const DEFAULT_HOT_KEY = {
     name: "Run",
     group: "Running Cells",
     key: "Mod-Enter",
-    additionalKeywords: ["execute", "submit"],
   },
   "cell.runAndNewBelow": {
     name: "Run and new below",
@@ -135,7 +132,6 @@ const DEFAULT_HOT_KEY = {
     name: "Format cell",
     group: "Editing",
     key: "Mod-b",
-    additionalKeywords: ["lint"],
   },
   "cell.viewAsMarkdown": {
     name: "View as Markdown",
@@ -205,7 +201,6 @@ const DEFAULT_HOT_KEY = {
     name: "Delete cell",
     group: "Editing",
     key: "Shift-Backspace",
-    additionalKeywords: ["remove"],
   },
   "cell.hideCode": {
     name: "Hide cell code",
@@ -325,7 +320,6 @@ const DEFAULT_HOT_KEY = {
     name: "Save file",
     group: "Other",
     key: "Mod-s",
-    additionalKeywords: ["write", "persist"],
   },
   "global.commandPalette": {
     name: "Show command palette",
@@ -491,26 +485,23 @@ export class HotkeyProvider implements IHotkeyProvider {
   }
 
   getHotkey(action: HotkeyAction): ResolvedHotkey {
-    const { name, key, additionalKeywords } = this.hotkeys[action];
+    const { name, key } = this.hotkeys[action];
     if (typeof key === "string") {
       return {
         name,
         key: key.replace("Mod", this.mod),
-        additionalKeywords,
       };
     }
     if (key === NOT_SET) {
       return {
         name,
         key: "",
-        additionalKeywords,
       };
     }
     const platformKey = key[this.platform] || key.main;
     return {
       name,
       key: platformKey.replace("Mod", this.mod),
-      additionalKeywords,
     };
   }
 
@@ -544,27 +535,10 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
 
   override getHotkey(action: HotkeyAction): ResolvedHotkey {
     const base = super.getHotkey(action);
-    const override = this.overrides[action];
+    const key = this.overrides[action] || base.key;
     return {
       name: base.name,
-      key: override ? normalizeKeyString(override) : base.key,
-      additionalKeywords: base.additionalKeywords,
+      key,
     };
   }
-}
-
-const MODIFIER_RE = /^(cmd|ctrl|alt|shift|meta|mod)$/i;
-
-/**
- * Capitalize multi-character base key names so they match the
- * casing that KeyboardEvent.key (and therefore CodeMirror) uses.
- * e.g. "Shift-enter" → "Shift-Enter", "Cmd-backspace" → "Cmd-Backspace"
- */
-export function normalizeKeyString(key: string): string {
-  const parts = key.split("-");
-  const last = parts[parts.length - 1];
-  if (last.length > 1 && !MODIFIER_RE.test(last)) {
-    parts[parts.length - 1] = last.charAt(0).toUpperCase() + last.slice(1);
-  }
-  return parts.join("-");
 }

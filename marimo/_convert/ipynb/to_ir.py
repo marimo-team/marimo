@@ -11,14 +11,10 @@ from typing import Any, Callable, Union
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
-from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
-from marimo._convert.common.format import (
-    DEFAULT_MARKDOWN_PREFIX,
-    markdown_to_marimo,
-)
+from marimo._convert.common.format import markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -35,7 +31,6 @@ Transform = Callable[[list[str]], list[str]]
 @dataclass
 class CodeCell:
     source: str
-    name: str = field(default_factory=lambda: DEFAULT_CELL_NAME)
     config: CellConfig = field(default_factory=CellConfig)
 
 
@@ -1174,30 +1169,24 @@ def bind_cell_metadata(
     cells: list[CodeCell] = []
     for source, meta, hide_code in zip(sources, metadata, hide_flags):
         tags: set[str] = set(meta.get("tags", []))
+        if "hide-cell" in tags:
+            tags.discard("hide-cell")
+            hide_code = True
+        if tags:
+            source = f"# Cell tags: {', '.join(sorted(tags))}\n{source}"
 
         # Extract marimo-specific cell config if present
         marimo_meta = meta.get("marimo", {})
         marimo_config = marimo_meta.get("config", {})
-        name = marimo_meta.get("name", DEFAULT_CELL_NAME)
 
-        # Determine hide_code with priority: marimo config > tags > hide_flags default
+        # Merge marimo config with existing flags
+        # marimo config takes precedence for hide_code if present
         if "hide_code" in marimo_config:
             hide_code = marimo_config["hide_code"]
-        elif "hide-cell" in tags:
-            tags.discard("hide-cell")
-            hide_code = True
-        elif "marimo" in meta:
-            # Cell was created by marimo; marimo would have stored hide_code=True
-            # explicitly if needed, so default to False instead of is_markdown
-            hide_code = False
-
-        if tags:
-            source = f"# Cell tags: {', '.join(sorted(tags))}\n{source}"
 
         cells.append(
             CodeCell(
                 source=source,
-                name=name,
                 config=CellConfig(
                     hide_code=hide_code,
                     column=marimo_config.get("column"),
@@ -1404,11 +1393,7 @@ def convert_from_ipynb_to_notebook_ir(
         )
         is_markdown: bool = cell["cell_type"] == "markdown"
         if is_markdown:
-            cell_meta = cell.get("metadata", {})
-            md_prefix = cell_meta.get("marimo", {}).get(
-                "md_prefix", DEFAULT_MARKDOWN_PREFIX
-            )
-            source = markdown_to_marimo(source, prefix=md_prefix)
+            source = markdown_to_marimo(source)
         elif inline_meta is None:
             # Eagerly find PEP 723 metadata, first match wins
             inline_meta, source = extract_inline_meta(source)
@@ -1435,7 +1420,6 @@ def convert_from_ipynb_to_notebook_ir(
         cells=[
             CellDef(
                 code=cell.source,
-                name=cell.name,
                 options=cell.config.asdict(),
             )
             for cell in transformed_cells

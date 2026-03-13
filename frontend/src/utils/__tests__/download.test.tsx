@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Mocks } from "@/__mocks__/common";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import {
@@ -28,23 +27,26 @@ vi.mock("@/core/network/requests", () => ({
 }));
 
 // Mock the toast module
-const { mockDismiss, mockUpdate, toastMock } = vi.hoisted(() => {
-  const dismiss = vi.fn();
-  const update = vi.fn();
-  return {
-    mockDismiss: dismiss,
-    mockUpdate: update,
-    toastMock: { toast: vi.fn(() => ({ dismiss, update })) },
-  };
-});
-vi.mock("@/components/ui/use-toast", () => toastMock);
+const mockDismiss = vi.fn();
+const mockUpdate = vi.fn();
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(() => ({
+    dismiss: mockDismiss,
+    update: mockUpdate,
+  })),
+}));
 
 // Mock the Spinner component
 vi.mock("@/components/icons/spinner", () => ({
   Spinner: () => "MockSpinner",
 }));
 
-vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
+// Mock Logger
+vi.mock("@/utils/Logger", () => ({
+  Logger: {
+    error: vi.fn(),
+  },
+}));
 
 // Mock Filenames
 vi.mock("@/utils/filenames", () => ({
@@ -203,7 +205,7 @@ describe("downloadAsPDF", () => {
     expect(mockExportAsPDF).toHaveBeenCalledWith({
       webpdf: false,
       preset: "slides",
-      includeInputs: true,
+      includeInputs: false,
       rasterizeOutputs: true,
       rasterScale: 4,
       rasterServer: "static",

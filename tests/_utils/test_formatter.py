@@ -59,9 +59,7 @@ class TestDefaultFormatter:
         result = await formatter.format(codes)
 
         mock_ruff_formatter.assert_called_once_with(88)
-        mock_instance.format.assert_called_once_with(
-            codes, stdin_filename=None
-        )
+        mock_instance.format.assert_called_once_with(codes)
         assert result == {"cell1": "formatted_code"}
 
     @patch("marimo._utils.formatter.BlackFormatter")
@@ -136,34 +134,7 @@ class TestRuffFormatter:
         result = await formatter.format(codes)
 
         mock_ruff.assert_called_once_with(
-            codes,
-            "format",
-            "--line-length",
-            "100",
-            stdin_filename=None,
-        )
-        assert result == {"cell1": "formatted_code"}
-
-    @patch("marimo._utils.formatter.ruff")
-    async def test_ruff_formatter_passes_stdin_filename(
-        self, mock_ruff: MagicMock
-    ) -> None:
-        """Test RuffFormatter forwards notebook filename for config discovery."""
-        mock_ruff.return_value = {"cell1": "formatted_code"}
-
-        formatter = RuffFormatter(line_length=100)
-        codes: CellCodes = {"cell1": "x=1"}
-
-        result = await formatter.format(
-            codes, stdin_filename="/tmp/notebook.py"
-        )
-
-        mock_ruff.assert_called_once_with(
-            codes,
-            "format",
-            "--line-length",
-            "100",
-            stdin_filename="/tmp/notebook.py",
+            codes, "format", "--line-length", "100"
         )
         assert result == {"cell1": "formatted_code"}
 
@@ -296,41 +267,6 @@ class TestRuffFunction:
             "format",
             "--line-length",
             "88",
-            "-",
-        )
-        assert format_call[1]["input_data"] == b"x=1"
-
-    @patch("marimo._utils.formatter._run_subprocess_safe")
-    async def test_ruff_function_passes_stdin_filename(
-        self, mock_subprocess_safe: MagicMock
-    ):
-        """Test ruff includes --stdin-filename when provided."""
-        mock_subprocess_safe.side_effect = [
-            (b"", b"", 0),  # help command success
-            (b"formatted_code\n", b"", 0),  # format command success
-        ]
-
-        codes: CellCodes = {"cell1": "x=1"}
-        result = await ruff(
-            codes,
-            "format",
-            "--line-length",
-            "88",
-            stdin_filename="/tmp/notebook.py",
-        )
-
-        assert result == {"cell1": "formatted_code"}
-
-        format_call = mock_subprocess_safe.call_args_list[1]
-        assert format_call[0] == (
-            sys.executable,
-            "-m",
-            "ruff",
-            "format",
-            "--line-length",
-            "88",
-            "--stdin-filename",
-            "/tmp/notebook.py",
             "-",
         )
         assert format_call[1]["input_data"] == b"x=1"

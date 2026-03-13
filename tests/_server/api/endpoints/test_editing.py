@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -69,33 +68,6 @@ def test_format_cell(client: TestClient) -> None:
     formatted_codes = response.json().get("codes", {})
     assert "cell-123" in formatted_codes
     assert formatted_codes["cell-123"] == "def foo():\n    return 1"
-
-
-@with_session(SESSION_ID)
-def test_format_cell_passes_notebook_path_to_formatter(
-    client: TestClient,
-) -> None:
-    with patch(
-        "marimo._server.api.endpoints.editing.DefaultFormatter.format",
-        new=AsyncMock(return_value={"cell-123": "x = 1"}),
-    ) as mock_format:
-        response = client.post(
-            "/api/kernel/format",
-            headers=HEADERS,
-            json={
-                "codes": {"cell-123": "x=1"},
-                "lineLength": 80,
-            },
-        )
-
-    assert response.status_code == 200, response.text
-    assert response.json() == {"codes": {"cell-123": "x = 1"}}
-    assert mock_format.await_count == 1
-
-    args, kwargs = mock_format.await_args
-    assert {"cell-123": "x=1"} in args
-    assert isinstance(kwargs["stdin_filename"], str)
-    assert kwargs["stdin_filename"].endswith(".py")
 
 
 @with_session(SESSION_ID)

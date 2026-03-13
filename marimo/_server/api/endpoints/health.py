@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Optional
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -90,42 +90,6 @@ async def status(request: Request) -> JSONResponse:
             "lsp_running": app_state.session_manager.lsp_server.is_running(),
         }
     )
-
-
-class SessionInfo(TypedDict):
-    filename: str | None
-    path: str | None
-
-
-@router.get("/api/sessions", include_in_schema=False)
-@requires("edit")
-async def list_sessions(request: Request) -> JSONResponse:
-    """List active session IDs and their notebook paths.
-
-    Only available when the server was started without an auth token
-    (``--no-token``) and without skew protection
-    (``--no-skew-protection``).
-    """
-
-    state = AppState(request)
-
-    if state.enable_auth or state.skew_protection:
-        return JSONResponse(
-            {
-                "error": "Session listing requires --no-token and "
-                "--no-skew-protection"
-            },
-            status_code=403,
-        )
-
-    sessions = {
-        session_id: SessionInfo(
-            filename=session.app_file_manager.filename,
-            path=session.app_file_manager.path,
-        )
-        for session_id, session in state.session_manager.sessions.items()
-    }
-    return JSONResponse(sessions)
 
 
 @router.get("/api/version")

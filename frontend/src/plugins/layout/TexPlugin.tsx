@@ -39,10 +39,7 @@ const importMhChem = once(async () => {
 });
 
 // Required, even if empty. (see https://github.com/KaTeX/KaTeX/issues/2513)
-const macros = {
-  // KaTeX doesn't support \mbox; map it to the equivalent \text
-  "\\mbox": "\\text{#1}",
-};
+const macros = {};
 
 async function renderLatex(mount: HTMLElement, tex: string): Promise<void> {
   const [katex] = await Promise.all([importKatex(), importMhChem()]);

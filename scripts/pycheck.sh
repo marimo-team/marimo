@@ -1,14 +1,14 @@
 #!/bin/sh
 
 echo "[check: typos]"
-uv run typos -w
+uvx hatch run typos -w
 echo "[check: copyright]"
 ./scripts/pycopyright.sh
 echo "[check: lint]"
-uv run ruff check --fix
+uvx hatch run ruff check --fix
 echo "[check: format]"
-uv run ruff format
+uvx hatch run ruff format
 echo "[check: typecheck]"
-uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/
+uvx hatch run typecheck:check
 echo "[check: update-lock]"
-uv run pixi lock
+uvx hatch run pixi lock

@@ -134,18 +134,13 @@ async def format_cell(request: Request) -> FormatResponse:
                     schema:
                         $ref: "#/components/schemas/FormatResponse"
     """
-    app_state = AppState(request)
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
 
     try:
-        return FormatResponse(
-            codes=await formatter.format(
-                body.codes,
-                stdin_filename=app_state.require_current_session().app_file_manager.path,
-            )
-        )
+        return FormatResponse(codes=await formatter.format(body.codes))
     except ModuleNotFoundError:
+        app_state = AppState(request)
         # Installation occurs in the kernel which is not useful for multi mode.
         if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
             # Re-raise without name so error handler won't send install notification

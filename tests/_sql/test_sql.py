@@ -473,10 +473,6 @@ logical_plan
         )
 
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-    @pytest.mark.skipif(
-        not DependencyManager.duckdb.has_at_version(min_version="1.5.0"),
-        reason="DuckDB version is too old",
-    )
     def test_extract_explain_content_duckdb_relation(self):
         """Test extract_explain_content with a DuckDB relation."""
         import duckdb
@@ -489,9 +485,9 @@ logical_plan
         assert result == snapshot("""\
 physical_plan
 ┌───────────────────────────┐
-│          SEQ_SCAN         │
+│         SEQ_SCAN          │
 │    ────────────────────   │
-│    Table: memory.main.t   │
+│          Table: t         │
 │   Type: Sequential Scan   │
 │      Projections: id      │
 │                           │

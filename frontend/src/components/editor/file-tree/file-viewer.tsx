@@ -166,7 +166,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
               </Tooltip>
               <Tooltip content={renderShortcut("global.save")}>
                 <Button
-                  variant="text"
+                  variant={internalValue === data.contents ? "text" : "success"}
                   size="xs"
                   onClick={handleSaveFile}
                   disabled={internalValue === data.contents}

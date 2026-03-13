@@ -509,11 +509,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
 
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
         # The variables might be empty strings, if they are, we set them to None
-        try:
-            table_name = table.name or None
-        except AttributeError:
-            # sqlglot may return Table nodes with this=None (e.g. DROP SCHEMA)
-            return None
+        table_name = table.name or None
         schema_name = table.db or None
         catalog_name = table.catalog or None
 

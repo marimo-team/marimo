@@ -40,6 +40,5 @@ def storage_backend_to_storage_namespace(
         display_name=storage_backend.display_name,
         protocol=storage_backend.protocol,
         root_path=storage_backend.root_path or "",
-        backend_type=storage_backend.backend_type,
         storage_entries=[],
     )

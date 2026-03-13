@@ -59,9 +59,7 @@ async def _run_subprocess_safe(
         return await asyncio.to_thread(run_sync)
 
 
-async def ruff(
-    codes: CellCodes, *cmd: str, stdin_filename: str | None = None
-) -> CellCodes:
+async def ruff(codes: CellCodes, *cmd: str) -> CellCodes:
     # Try with sys.executable first
     ruff_cmd = [sys.executable, "-m", "ruff"]
     stdout, _stderr, returncode = await _run_subprocess_safe(
@@ -82,13 +80,8 @@ async def ruff(
     formatted_codes: CellCodes = {}
     for key, code in codes.items():
         try:
-            command = [*ruff_cmd, *cmd]
-            if stdin_filename:
-                command.extend(["--stdin-filename", stdin_filename])
-            command.append("-")
-
             stdout, _stderr, returncode = await _run_subprocess_safe(
-                *command, input_data=code.encode()
+                *ruff_cmd, *cmd, "-", input_data=code.encode()
             )
 
             if returncode != 0:
@@ -108,10 +101,7 @@ class Formatter:
     def __init__(self, line_length: int) -> None:
         self.line_length = line_length
 
-    async def format(
-        self, codes: CellCodes, stdin_filename: str | None = None
-    ) -> CellCodes:
-        del stdin_filename
+    async def format(self, codes: CellCodes) -> CellCodes:
         return codes
 
 
@@ -120,14 +110,10 @@ class DefaultFormatter(Formatter):
     Tries ruff, then black, then no formatting.
     """
 
-    async def format(
-        self, codes: CellCodes, stdin_filename: str | None = None
-    ) -> CellCodes:
+    async def format(self, codes: CellCodes) -> CellCodes:
         # Ruff may be installed in venv or globally
         if DependencyManager.ruff.has() or DependencyManager.which("ruff"):
-            return await RuffFormatter(self.line_length).format(
-                codes, stdin_filename=stdin_filename
-            )
+            return await RuffFormatter(self.line_length).format(codes)
         # Black must be installed in venv
         elif DependencyManager.black.has():
             return await BlackFormatter(self.line_length).format(codes)
@@ -139,26 +125,17 @@ class DefaultFormatter(Formatter):
 
 
 class RuffFormatter(Formatter):
-    async def format(
-        self, codes: CellCodes, stdin_filename: str | None = None
-    ) -> CellCodes:
+    async def format(self, codes: CellCodes) -> CellCodes:
         return await ruff(
-            codes,
-            "format",
-            "--line-length",
-            str(self.line_length),
-            stdin_filename=stdin_filename,
+            codes, "format", "--line-length", str(self.line_length)
         )
 
 
 class BlackFormatter(Formatter):
-    async def format(
-        self, codes: CellCodes, stdin_filename: str | None = None
-    ) -> CellCodes:
-        del stdin_filename
+    async def format(self, codes: CellCodes) -> CellCodes:
         DependencyManager.black.require("to enable code formatting")
 
-        import black  # type: ignore[import-not-found]
+        import black
 
         formatted_codes: CellCodes = {}
         for key, code in codes.items():

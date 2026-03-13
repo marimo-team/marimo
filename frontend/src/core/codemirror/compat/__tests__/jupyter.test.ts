@@ -3,7 +3,6 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MockModules } from "@/__mocks__/common";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { toast } from "@/components/ui/use-toast";
 import { store } from "@/core/state/jotai";
@@ -17,7 +16,9 @@ vi.mock("@/core/state/jotai", () => ({
   },
 }));
 
-vi.mock("@/components/ui/use-toast", () => MockModules.toast());
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(),
+}));
 
 // Mock the helper to get request client
 const mockRequestClient = MockRequestClient.create();
