@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._session.model import ConnectionState
 from marimo._types.ids import ConsumerId
@@ -18,6 +19,7 @@ from marimo._types.ids import ConsumerId
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from marimo._messaging.notification import NotificationMessage
     from marimo._session.consumer import SessionConsumer
 
 
@@ -31,6 +33,7 @@ class Room:
     def __init__(self) -> None:
         self.main_consumer: Optional[SessionConsumer] = None
         self.consumers: dict[SessionConsumer, ConsumerId] = {}
+        self._suppressed_types: set[type[NotificationMessage]] = set()
 
     @property
     def size(self) -> int:
@@ -64,6 +67,18 @@ class Room:
         self.consumers.pop(consumer)
         consumer.on_detach()
 
+    def add_suppressed_types(
+        self, types: set[type[NotificationMessage]]
+    ) -> None:
+        """Add notification types to suppress from broadcasting."""
+        self._suppressed_types |= types
+
+    def remove_suppressed_types(
+        self, types: set[type[NotificationMessage]]
+    ) -> None:
+        """Remove notification types from the suppress set."""
+        self._suppressed_types -= types
+
     def broadcast(
         self,
         notification: KernelMessage,
@@ -71,6 +86,11 @@ class Room:
         except_consumer: Optional[ConsumerId],
     ) -> None:
         """Broadcast a notification to all consumers except the one specified."""
+        if self._suppressed_types:
+            msg = deserialize_kernel_message(notification)
+            if type(msg) in self._suppressed_types:
+                return
+
         for consumer in self.consumers:
             if consumer.consumer_id == except_consumer:
                 continue

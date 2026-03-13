@@ -244,14 +244,28 @@ class SessionImpl(Session):
 
     @contextlib.contextmanager
     def scoped(
-        self, extension: SessionExtension
+        self,
+        extension: SessionExtension,
+        suppress: set[type[NotificationMessage]] | None = None,
     ) -> Iterator[SessionExtension]:
-        """Attach an extension for the duration of the context."""
+        """Attach an extension for the duration of the context.
+
+        Args:
+            extension: The extension to attach.
+            suppress: Optional set of notification types to suppress from
+                being broadcast to the room (websocket consumers) while
+                the scope is active. Suppressed notifications are still
+                emitted to event listeners.
+        """
         self.extensions.append(extension)
         extension.on_attach(self, self._event_bus)
+        if suppress:
+            self.room.add_suppressed_types(suppress)
         try:
             yield extension
         finally:
+            if suppress:
+                self.room.remove_suppressed_types(suppress)
             extension.on_detach()
             if extension in self.extensions:
                 self.extensions.remove(extension)

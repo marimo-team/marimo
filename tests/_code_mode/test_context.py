@@ -284,7 +284,10 @@ class TestInstallPackages:
         with patch.object(
             pm, "install", new_callable=AsyncMock, return_value=True
         ) as mock_install:
-            await ctx.install_packages("pandas")
+            async with ctx:
+                ctx.install_packages("pandas")
+                # Not installed yet — still queued.
+                assert mock_install.call_count == 0
 
         assert mock_install.call_count == 1
         assert mock_install.call_args_list[0].args[0] == "pandas"
@@ -298,9 +301,10 @@ class TestInstallPackages:
         with patch.object(
             pm, "install", new_callable=AsyncMock, return_value=True
         ) as mock_install:
-            await ctx.install_packages("pandas", "polars>=0.20", "numpy==1.26")
+            async with ctx:
+                ctx.install_packages("pandas", "polars>=0.20", "numpy==1.26")
 
-        # Each package should have been passed through to install.
+        # Each package should have been installed one-by-one.
         installed = {
             call.args[0]: call.kwargs["version"]
             for call in mock_install.call_args_list

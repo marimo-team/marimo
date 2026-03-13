@@ -10,12 +10,12 @@ Usage::
 
     import marimo._code_mode as cm
 
-    async with cm.get_context() as nb:
-        cid = nb.add_cell("x = 1")
-        nb.add_cell("y = x + 1", after=cid)
-        nb.update_cell("my_cell", code="z = 42")
-        nb.delete_cell("old_cell")
-        nb.move_cell("my_cell", after="other_cell")
+    async with cm.get_context() as ctx:
+        cid = ctx.add_cell("x = 1")
+        ctx.add_cell("y = x + 1", after=cid)
+        ctx.update_cell("my_cell", code="z = 42")
+        ctx.delete_cell("old_cell")
+        ctx.move_cell("my_cell", after="other_cell")
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class NotebookCellData:
-    """Read-only snapshot of a notebook cell (returned by ``nb.cells[...]``)."""
+    """Read-only snapshot of a notebook cell (returned by ``ctx.cells[...]``)."""
 
     code: str | None = None
     config: CellConfig | None = None
@@ -93,8 +93,8 @@ def get_context() -> AsyncCodeModeContext:
 
     Use as an async context manager::
 
-        async with cm.get_context() as nb:
-            nb.add_cell("x = 1")
+        async with cm.get_context() as ctx:
+            ctx.add_cell("x = 1")
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
@@ -108,10 +108,10 @@ class _CellsView:
 
     Supports lookup by integer index, cell ID, or cell name::
 
-        nb.cells[0]  # by index
-        nb.cells[-1]  # negative index
-        nb.cells["Abcd1234"]  # by cell ID
-        nb.cells["my_cell"]  # by cell name
+        ctx.cells[0]  # by index
+        ctx.cells[-1]  # negative index
+        ctx.cells["Abcd1234"]  # by cell ID
+        ctx.cells["my_cell"]  # by cell name
     """
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
@@ -190,12 +190,12 @@ class AsyncCodeModeContext:
     Use as an async context manager — mutations are queued during the
     block and applied atomically on exit::
 
-        async with cm.get_context() as nb:
-            nb.add_cell("x = 1")
-            nb.update_cell("my_cell", code="x = 42")
-            nb.delete_cell("old_cell")
+        async with cm.get_context() as ctx:
+            ctx.add_cell("x = 1")
+            ctx.update_cell("my_cell", code="x = 42")
+            ctx.delete_cell("old_cell")
 
-    Read cells via ``nb.cells[key]`` where *key* is an integer index,
+    Read cells via ``ctx.cells[key]`` where *key* is an integer index,
     cell ID string, or cell name.
     """
 
@@ -210,6 +210,7 @@ class AsyncCodeModeContext:
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
         self._pending_adds: dict[CellId_t, _AddOp] = {}
+        self._packages_to_install: list[str] = []
 
     # ------------------------------------------------------------------
     # Async context manager
@@ -218,6 +219,7 @@ class AsyncCodeModeContext:
     async def __aenter__(self) -> AsyncCodeModeContext:
         self._ops = []
         self._pending_adds = {}
+        self._packages_to_install = []
         return self
 
     async def __aexit__(
@@ -227,11 +229,22 @@ class AsyncCodeModeContext:
         exc_tb: TracebackType | None,
     ) -> None:
         ops = self._ops
+        packages = self._packages_to_install
         self._ops = []
         self._pending_adds = {}
+        self._packages_to_install = []
 
         if exc_type is not None:
             return  # let exception propagate, discard queued ops
+
+        # Install queued packages before applying cell ops so that
+        # newly added cells can import them.
+        if packages:
+            manager = self._kernel.user_config["package_management"]["manager"]
+            for pkg in packages:
+                await self.execute_command(
+                    InstallPackagesCommand(manager=manager, versions={pkg: ""})
+                )
 
         if not ops:
             return
@@ -259,9 +272,9 @@ class AsyncCodeModeContext:
 
         Supports lookup by index, cell ID, or cell name::
 
-            nb.cells[0]  # by index
-            nb.cells["cell-id"]  # by cell ID
-            nb.cells["my_cell"]  # by cell name
+            ctx.cells[0]  # by index
+            ctx.cells["cell-id"]  # by cell ID
+            ctx.cells["my_cell"]  # by cell name
         """
         return _CellsView(self)
 
@@ -554,22 +567,17 @@ class AsyncCodeModeContext:
     # Package management
     # ------------------------------------------------------------------
 
-    async def install_packages(self, *packages: str) -> None:
-        """Install packages using the user's configured package manager.
+    def install_packages(self, *packages: str) -> None:
+        """Queue packages for installation on context exit.
 
         Each argument is a pip-style package specifier::
 
-            await nb.install_packages("pandas", "polars>=0.20", "numpy==1.26")
+            ctx.install_packages("pandas", "polars>=0.20", "numpy==1.26")
 
-        Specifiers are passed directly to the package manager.
+        Packages are installed one-by-one before cell ops are applied,
+        so newly added cells can import them.
         """
-        # Pass full specifier as key, empty version — append_version
-        # will return the key as-is, which pip/uv handle natively.
-        versions = {pkg: "" for pkg in packages}
-        manager = self._kernel.user_config["package_management"]["manager"]
-        await self.execute_command(
-            InstallPackagesCommand(manager=manager, versions=versions)
-        )
+        self._packages_to_install.extend(packages)
 
     # ------------------------------------------------------------------
     # Low-level primitives

@@ -261,6 +261,7 @@ async def execute_code(
                     schema:
                         type: string
     """  # noqa: E501
+    from marimo._messaging.notification import MissingPackageAlertNotification
     from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.scratchpad import (
         EXECUTION_TIMEOUT,
@@ -275,7 +276,10 @@ async def execute_code(
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         listener = ScratchCellListener()
-        with session.scoped(listener):
+        with session.scoped(
+            listener,
+            suppress={MissingPackageAlertNotification},
+        ):
             async with session.scratchpad_lock:
                 session.put_control_request(
                     ExecuteScratchpadCommand(
@@ -290,7 +294,10 @@ async def execute_code(
             if listener.timed_out:
                 yield build_timeout_event(EXECUTION_TIMEOUT)
             else:
-                yield build_done_event(session)
+                yield build_done_event(
+                    session,
+                    missing_packages=listener.missing_packages or None,
+                )
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
 

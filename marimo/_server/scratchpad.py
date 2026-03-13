@@ -15,7 +15,10 @@ else:
 
 from marimo._ai._tools.types import CodeExecutionResult
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification import (
+    CellNotification,
+    MissingPackageAlertNotification,
+)
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._session.events import SessionEventBus, SessionEventListener
@@ -82,6 +85,7 @@ class ScratchCellListener(SessionEventListener):
     def __init__(self) -> None:
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self.timed_out = False
+        self.missing_packages: list[str] = []
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
@@ -98,6 +102,9 @@ class ScratchCellListener(SessionEventListener):
     ) -> None:
         del session
         msg = deserialize_kernel_message(notification)
+        if isinstance(msg, MissingPackageAlertNotification):
+            self.missing_packages.extend(msg.packages)
+            return
         if not isinstance(msg, CellNotification):
             return
         if msg.cell_id != SCRATCH_CELL_ID:
@@ -186,8 +193,29 @@ def _format_console(msg: CellNotification) -> list[str]:
     ]
 
 
-def build_done_event(session: Session) -> str:
+def build_done_event(
+    session: Session,
+    missing_packages: list[str] | None = None,
+) -> str:
     """Build the ``done`` SSE event from the session's scratch cell state."""
+    # If packages were missing, produce a helpful error instead of the
+    # raw ModuleNotFoundError traceback.
+    if missing_packages:
+        pkgs = ", ".join(repr(p) for p in missing_packages)
+        return _format_sse(
+            "done",
+            DoneError(
+                success=False,
+                error=ErrorData(
+                    type="MissingPackageError",
+                    msg=(
+                        f"Missing package(s): {', '.join(missing_packages)}. "
+                        f"Use ctx.install_packages({pkgs}) to install."
+                    ),
+                ),
+            ),
+        )
+
     cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
     if cell_notif is None:
         return _format_sse("done", DoneSuccess(success=True))
