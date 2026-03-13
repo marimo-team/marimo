@@ -114,6 +114,17 @@ class MutableGraphTopology(GraphTopology):
         del self._children[cell_id]
         del self._parents[cell_id]
 
+    def reorder_nodes(self, ordered_ids: list[CellId_t]) -> None:
+        """Reorder the internal cells dict to match the given id order.
+
+        Ids not present in the graph are silently skipped.
+        """
+        self._cells = {
+            cid: self._cells[cid]
+            for cid in ordered_ids
+            if cid in self._cells
+        }
+
     def add_edge(self, parent: CellId_t, child: CellId_t) -> None:
         """Add an edge from parent to child."""
         self.children[parent].add(child)

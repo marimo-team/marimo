@@ -679,6 +679,12 @@ class AsyncCodeModeContext:
             execution_requests, deletion_requests
         )
 
+        # Restore cell ordering in the graph to match the plan.
+        # mutate_graph may reorder cells: _deactivate_cell removes a cell
+        # from the dict and _try_registering_cell re-adds it at the end.
+        target_order = [e.cell_id for e in plan]
+        self.graph.topology.reorder_nodes(target_order)
+
         # Apply configs to newly registered cells.
         for cell_id, cfg in resolved_configs.items():
             if cell_id in self.graph.cells:
