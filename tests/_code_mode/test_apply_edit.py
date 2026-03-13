@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
@@ -278,3 +280,38 @@ class TestCombined:
         # The add should not have been applied.
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
         assert len(k.graph.cells) == 1
+
+
+class TestInstallPackages:
+    async def test_install_single(self, k: Kernel) -> None:
+        ctx = AsyncCodeModeContext(k)
+        pm = k.packages_callbacks.package_manager
+        assert pm is not None
+
+        with patch.object(
+            pm, "install", new_callable=AsyncMock, return_value=True
+        ) as mock_install:
+            await ctx.install_packages("pandas")
+
+        assert mock_install.call_count == 1
+        assert mock_install.call_args_list[0].args[0] == "pandas"
+        assert mock_install.call_args_list[0].kwargs["version"] == ""
+
+    async def test_install_multiple_with_specifiers(self, k: Kernel) -> None:
+        ctx = AsyncCodeModeContext(k)
+        pm = k.packages_callbacks.package_manager
+        assert pm is not None
+
+        with patch.object(
+            pm, "install", new_callable=AsyncMock, return_value=True
+        ) as mock_install:
+            await ctx.install_packages("pandas", "polars>=0.20", "numpy==1.26")
+
+        # Each package should have been passed through to install.
+        installed = {
+            call.args[0]: call.kwargs["version"]
+            for call in mock_install.call_args_list
+        }
+        assert installed["pandas"] == ""
+        assert installed["polars>=0.20"] == ""
+        assert installed["numpy==1.26"] == ""

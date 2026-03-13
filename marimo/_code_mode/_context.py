@@ -36,6 +36,7 @@ from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
     CommandMessage,
     ExecuteCellsCommand,
+    InstallPackagesCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
@@ -696,6 +697,27 @@ class AsyncCodeModeContext:
                 object_ids=[element_id],
                 values=[value],
             )
+        )
+
+    # ------------------------------------------------------------------
+    # Package management
+    # ------------------------------------------------------------------
+
+    async def install_packages(self, *packages: str) -> None:
+        """Install packages using the user's configured package manager.
+
+        Each argument is a pip-style package specifier::
+
+            await nb.install_packages("pandas", "polars>=0.20", "numpy==1.26")
+
+        Specifiers are passed directly to the package manager.
+        """
+        # Pass full specifier as key, empty version — append_version
+        # will return the key as-is, which pip/uv handle natively.
+        versions = {pkg: "" for pkg in packages}
+        manager = self._kernel.user_config["package_management"]["manager"]
+        await self.execute_command(
+            InstallPackagesCommand(manager=manager, versions=versions)
         )
 
     # ------------------------------------------------------------------
