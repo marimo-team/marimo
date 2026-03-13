@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, overload
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig
+from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._code_mode._plan import (
     _AddOp,
@@ -88,19 +88,28 @@ LOGGER = _loggers.marimo_logger()
 # ------------------------------------------------------------------
 
 
-def get_context() -> AsyncCodeModeContext:
+def get_context(*, check: bool = True) -> AsyncCodeModeContext:
     """Return an ``AsyncCodeModeContext`` for the running kernel.
 
     Use as an async context manager::
 
         async with cm.get_context() as ctx:
             ctx.create_cell("x = 1")
+
+    By default, a dry-run compile check is performed on exit to catch
+    syntax errors, multiply-defined names, and cycles before any graph
+    mutations.  Pass ``check=False`` to skip this validation::
+
+        async with cm.get_context(check=False) as ctx:
+            ...
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
     cell_manager = runtime_ctx._app._cell_manager if runtime_ctx._app else None
-    return AsyncCodeModeContext(runtime_ctx._kernel, cell_manager=cell_manager)
+    return AsyncCodeModeContext(
+        runtime_ctx._kernel, cell_manager=cell_manager, check=check
+    )
 
 
 class _CellsView:
@@ -203,14 +212,18 @@ class AsyncCodeModeContext:
         self,
         kernel: Kernel,
         cell_manager: CellManager | None = None,
+        *,
+        check: bool = True,
     ) -> None:
         self._kernel = kernel
         self._cell_manager = cell_manager
+        self._check = check
         self._ops: list[_Op] = []
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
         self._pending_adds: dict[CellId_t, _AddOp] = {}
         self._packages_to_install: list[str] = []
+        self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._entered = False
 
     def _require_entered(self) -> None:
@@ -232,6 +245,7 @@ class AsyncCodeModeContext:
         self._ops = []
         self._pending_adds = {}
         self._packages_to_install = []
+        self._ui_updates = []
         self._entered = True
         return self
 
@@ -243,9 +257,11 @@ class AsyncCodeModeContext:
     ) -> None:
         ops = self._ops
         packages = self._packages_to_install
+        ui_updates = self._ui_updates
         self._ops = []
         self._pending_adds = {}
         self._packages_to_install = []
+        self._ui_updates = []
 
         if exc_type is not None:
             return  # let exception propagate, discard queued ops
@@ -259,11 +275,21 @@ class AsyncCodeModeContext:
                     InstallPackagesCommand(manager=manager, versions={pkg: ""})
                 )
 
-        if not ops:
-            return
+        if ops:
+            _validate_ops(ops)
+            if self._check:
+                self._dry_run_compile(ops)
+            await self._apply_ops(ops)
 
-        _validate_ops(ops)
-        await self._apply_ops(ops)
+        # Flush queued UI updates as a single batch.
+        if ui_updates:
+            object_ids, values = zip(*ui_updates)
+            await self._kernel.set_ui_element_value(
+                UpdateUIElementCommand(
+                    object_ids=list(object_ids),
+                    values=list(values),
+                )
+            )
 
     # ------------------------------------------------------------------
     # Read-only attributes
@@ -438,6 +464,75 @@ class AsyncCodeModeContext:
     # Apply queued operations
     # ------------------------------------------------------------------
 
+    def _dry_run_compile(self, ops: list[_Op]) -> None:
+        """Compile and graph-check every op before mutating real state.
+
+        For each op with code:
+        1. ``compile_cell`` — validates syntax, extracts defs/refs.
+        2. Temporarily register in the graph to detect multiply-defined
+           names and cycles.
+        3. Always clean up so the graph is left unchanged.
+
+        Raises ``SyntaxError`` for invalid code or ``RuntimeError`` for
+        graph conflicts (multiply-defined names, cycles).
+        """
+        graph = self.graph
+        registered: list[CellId_t] = []
+        # For updates we must evict the old cell first; remember it
+        # so we can restore on cleanup.
+        evicted: dict[CellId_t, CellImpl] = {}
+
+        # Snapshot existing problems so we only flag *new* ones.
+        existing_multiply_defined = set(graph.get_multiply_defined())
+        existing_cycles = set(graph.cycles)
+
+        try:
+            for op in ops:
+                code: str | None = getattr(op, "code", None)
+                if code is None:
+                    continue
+
+                cell_id: CellId_t = op.cell_id
+
+                # For updates, temporarily remove the existing cell so the
+                # new version can be registered in its place.
+                if isinstance(op, _UpdateOp) and cell_id in graph.cells:
+                    evicted[cell_id] = graph.cells[cell_id]
+                    graph.delete_cell(cell_id)
+
+                cell = compile_cell(code, cell_id=cell_id)
+                graph.register_cell(cell_id, cell)
+                registered.append(cell_id)
+
+            # Only error on problems *introduced* by these ops.
+            new_multiply_defined = (
+                set(graph.get_multiply_defined()) - existing_multiply_defined
+            )
+            new_cycles = set(graph.cycles) - existing_cycles
+
+            _check_false_hint = (
+                "\n\nTo skip validation, use: "
+                "async with cm.get_context(check=False) as ctx"
+            )
+            if new_multiply_defined:
+                raise RuntimeError(
+                    "Multiply-defined names: "
+                    f"{sorted(new_multiply_defined)}"
+                    f"{_check_false_hint}"
+                )
+            if new_cycles:
+                raise RuntimeError(
+                    f"Cycles detected: {new_cycles}"
+                    f"{_check_false_hint}"
+                )
+        finally:
+            # Always clean up: remove dry-run cells, restore evicted ones.
+            for cid in registered:
+                if cid in graph.cells:
+                    graph.delete_cell(cid)
+            for cid, old_cell in evicted.items():
+                graph.register_cell(cid, old_cell)
+
     async def _apply_ops(self, ops: list[_Op]) -> None:
         """Validate, plan, format, and apply a batch of operations."""
         existing_ids = list(self.graph.cells.keys())
@@ -570,15 +665,14 @@ class AsyncCodeModeContext:
     # UI elements
     # ------------------------------------------------------------------
 
-    async def set_ui_value(self, element: Any, value: Any) -> None:
-        """Set a UI element's value and re-run dependent cells."""
-        element_id = UIElementId(element._id)
-        await self._kernel.set_ui_element_value(
-            UpdateUIElementCommand(
-                object_ids=[element_id],
-                values=[value],
-            )
-        )
+    def set_ui_value(self, element: Any, value: Any) -> None:
+        """Queue a UI element value update.
+
+        Updates are flushed as a single batch on context exit, after
+        cell operations have been applied.
+        """
+        self._require_entered()
+        self._ui_updates.append((UIElementId(element._id), value))
 
     # ------------------------------------------------------------------
     # Package management
