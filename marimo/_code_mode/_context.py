@@ -211,6 +211,18 @@ class AsyncCodeModeContext:
         # can reference them before they exist in the graph.
         self._pending_adds: dict[CellId_t, _AddOp] = {}
         self._packages_to_install: list[str] = []
+        self._entered = False
+
+    def _require_entered(self) -> None:
+        if not self._entered:
+            raise RuntimeError(
+                "Cell operations require 'async with'. Use:\n"
+                "\n"
+                "    async with cm.get_context() as ctx:\n"
+                "        ctx.add_cell(...)\n"
+                "\n"
+                "Without 'async with', operations are silently lost."
+            )
 
     # ------------------------------------------------------------------
     # Async context manager
@@ -220,6 +232,7 @@ class AsyncCodeModeContext:
         self._ops = []
         self._pending_adds = {}
         self._packages_to_install = []
+        self._entered = True
         return self
 
     async def __aexit__(
@@ -318,6 +331,7 @@ class AsyncCodeModeContext:
         Appends at the end by default. Use ``before`` or ``after``
         to specify position (cell ID or name).
         """
+        self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
 
@@ -358,6 +372,7 @@ class AsyncCodeModeContext:
         ``target`` is a cell ID or cell name. ``None`` kwargs mean
         "don't change".
         """
+        self._require_entered()
         cell_id = self._resolve_target(target)
 
         # Build config only if any config kwarg was explicitly set.
@@ -387,6 +402,7 @@ class AsyncCodeModeContext:
 
     def delete_cell(self, target: str) -> None:
         """Queue a cell for deletion. ``target`` is a cell ID or name."""
+        self._require_entered()
         cell_id = self._resolve_target(target)
         self._ops.append(_DeleteOp(cell_id=cell_id))
 
@@ -398,6 +414,7 @@ class AsyncCodeModeContext:
         after: str | None = None,
     ) -> None:
         """Queue a cell move. Exactly one of ``before``/``after`` required."""
+        self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
         if before is None and after is None:
@@ -577,6 +594,7 @@ class AsyncCodeModeContext:
         Packages are installed one-by-one before cell ops are applied,
         so newly added cells can import them.
         """
+        self._require_entered()
         self._packages_to_install.extend(packages)
 
     # ------------------------------------------------------------------
