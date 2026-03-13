@@ -60,7 +60,7 @@ import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
-import { type CellId, findCellId } from "@/core/cells/ids";
+import { type CellId, findCellId, UIElementId } from "@/core/cells/ids";
 import {
   OBJECT_ID_ATTR,
   RANDOM_ID_ATTR,
@@ -384,28 +384,28 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
 
 /**
  * Tracks which lazy tables have been previewed across remounts (e.g. tab switches).
- * Keyed by objectId (stable across remounts) with randomId as value
+ * Keyed by uiElementId (stable across remounts) with randomId as value
  * (changes on cell re-execution, so stale entries are naturally invalidated).
  */
-const previewedTables = new Map<string, string>();
+const previewedTables = new Map<UIElementId, string>();
 
 function wasTablePreviewed(
-  objectId: string | null | undefined,
+  uiElementId: UIElementId | null | undefined,
   randomId: string | null | undefined,
 ): boolean {
   return (
-    objectId != null &&
+    uiElementId != null &&
     randomId != null &&
-    previewedTables.get(objectId) === randomId
+    previewedTables.get(uiElementId) === randomId
   );
 }
 
 function markTablePreviewed(
-  objectId: string | null | undefined,
+  uiElementId: UIElementId | null | undefined,
   randomId: string | null | undefined,
 ): void {
-  if (objectId != null && randomId != null) {
-    previewedTables.set(objectId, randomId);
+  if (uiElementId != null && randomId != null) {
+    previewedTables.set(uiElementId, randomId);
   }
 }
 
@@ -420,15 +420,15 @@ const LazyDataTableComponent = ({
   preload: boolean;
   host: HTMLElement;
 }) => {
-  const objectId = host
-    .closest(`[${OBJECT_ID_ATTR}]`)
-    ?.getAttribute(OBJECT_ID_ATTR);
+  const parentElement = host.closest(`[${OBJECT_ID_ATTR}]`);
+  const uiElementId = parentElement ? UIElementId.parse(parentElement) : null;
+
   const randomId = host
     .closest(`[${RANDOM_ID_ATTR}]`)
     ?.getAttribute(RANDOM_ID_ATTR);
 
   const [isLazy, setIsLazy] = useState(
-    initialIsLazy && !preload && !wasTablePreviewed(objectId, randomId),
+    initialIsLazy && !preload && !wasTablePreviewed(uiElementId, randomId),
   );
 
   if (isLazy) {
@@ -438,7 +438,7 @@ const LazyDataTableComponent = ({
           variant="outline"
           size="xs"
           onClick={() => {
-            markTablePreviewed(objectId, randomId);
+            markTablePreviewed(uiElementId, randomId);
             setIsLazy(false);
           }}
         >
