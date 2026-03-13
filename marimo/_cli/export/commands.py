@@ -370,12 +370,6 @@ def md(
     """
     import sys
 
-    # Set default, if not provided
-    if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
-        sandbox = maybe_prompt_run_in_sandbox(name)
-
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
