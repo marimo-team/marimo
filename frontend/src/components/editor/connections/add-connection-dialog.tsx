@@ -62,7 +62,7 @@ export const AddConnectionDialogContent: React.FC<{
     ) : (
       <>
         Don't see your storage or connection method? A{" "}
-        <ExternalLink href="https://docs.marimo.io/guides/working_with_data/remote_storage/">
+        <ExternalLink href="https://docs.marimo.io/guides/working_with_data/remote_storage/#creating-a-storage-connection">
           code snippet
         </ExternalLink>{" "}
         is all you need.
