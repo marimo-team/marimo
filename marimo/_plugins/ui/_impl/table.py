@@ -350,6 +350,10 @@ class table(
             If "stats", only show stats. If "chart", only show charts.
         show_data_types (bool, optional): Whether to show data types of columns in the table header.
             Defaults to True.
+        default_sort (str, optional): Column name to sort by on initial render.
+            Defaults to None (no default sort).
+        ascending (bool, optional): Sort direction when default_sort is set.
+            True for ascending, False for descending. Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
@@ -464,6 +468,8 @@ class table(
         wrapped_columns: Optional[list[str]] = None,
         header_tooltip: Optional[dict[str, str]] = None,
         show_download: bool = True,
+        default_sort: Optional[str] = None,
+        ascending: bool = True,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
         label: str = "",
@@ -651,7 +657,17 @@ class table(
                 pagination = True
             else:
                 pagination = False
-
+        # Build default sort if provided
+        self._default_sort: Optional[list[SortArgs]] = None
+        if default_sort is not None:
+            column_names = self._manager.get_column_names()
+            if default_sort not in column_names:
+                raise ValueError(
+                    f"default_sort column '{default_sort}' not found in table."
+                )
+            self._default_sort = [
+                SortArgs(by=default_sort, descending=not ascending)
+            ]
         self._style_cell = style_cell
         # Store hover callable vs string template separately
         self._hover_cell: Optional[Callable[[str, str, Any], str]] = None
@@ -676,7 +692,7 @@ class table(
                     page_size=page_size,
                     page_number=0,
                     query=None,
-                    sort=None,
+                    sort=self._default_sort,
                     filters=None,
                 )
             )
