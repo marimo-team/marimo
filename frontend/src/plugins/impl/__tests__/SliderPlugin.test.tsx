@@ -63,7 +63,7 @@ describe("SliderPlugin", () => {
 
     const thumb = container.querySelector('[role="slider"]');
     expect(thumb).toBeTruthy();
-    
+
     // Radix UI Slider updates on keyboard ArrowRight/ArrowLeft
     act(() => {
       thumb?.focus();
@@ -84,7 +84,7 @@ describe("SliderPlugin", () => {
     });
 
     const thumb = container.querySelector('[role="slider"]');
-    
+
     act(() => {
       thumb?.focus();
       // Simulate just a programmatic change that Radix would trigger via pointer move
@@ -108,7 +108,7 @@ describe("SliderPlugin", () => {
 
     // The react-aria NumberField renders an input textbox.
     const numericInput = getByRole("textbox");
-    
+
     act(() => {
       // Simulate typing a new value and pressing enter
       // With React-Aria NumberField, onChange fires on blur or enter
@@ -116,7 +116,7 @@ describe("SliderPlugin", () => {
       fireEvent.blur(numericInput);
     });
 
-    // Because the user explicitly typed 9 in the editable input, 
+    // Because the user explicitly typed 9 in the editable input,
     // setValue should be called immediately regardless of debounce=true.
     expect(setValue).toHaveBeenCalledWith(9);
   });
