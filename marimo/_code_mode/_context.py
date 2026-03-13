@@ -13,7 +13,7 @@ Usage::
     async with cm.get_context() as ctx:
         cid = ctx.create_cell("x = 1")
         ctx.create_cell("y = x + 1", after=cid)
-        ctx.update_cell("my_cell", code="z = 42")
+        ctx.edit_cell("my_cell", code="z = 42")
         ctx.delete_cell("old_cell")
         ctx.move_cell("my_cell", after="other_cell")
 """
@@ -202,7 +202,7 @@ class AsyncCodeModeContext:
 
         async with cm.get_context() as ctx:
             ctx.create_cell("x = 1")
-            ctx.update_cell("my_cell", code="x = 42")
+            ctx.edit_cell("my_cell", code="x = 42")
             ctx.delete_cell("old_cell")
 
     Read cells via ``ctx.cells[key]`` where *key* is an integer index,
@@ -414,7 +414,7 @@ class AsyncCodeModeContext:
         self._pending_adds[cell_id] = op
         return cell_id
 
-    def update_cell(
+    def edit_cell(
         self,
         target: str,
         *,
@@ -432,18 +432,18 @@ class AsyncCodeModeContext:
         Examples:
             ```python
             # Update only code (config like hide_code is preserved)
-            ctx.update_cell(
+            ctx.edit_cell(
                 "data_loader", code="df = pd.read_parquet('new.parquet')"
             )
 
             # Update only config (code is preserved)
-            ctx.update_cell("data_loader", hide_code=False)
+            ctx.edit_cell("data_loader", hide_code=False)
 
             # Update both code and config
-            ctx.update_cell("data_loader", code="df = load()", disabled=True)
+            ctx.edit_cell("data_loader", code="df = load()", disabled=True)
 
             # Stage new code without executing
-            ctx.update_cell("my_cell", code="new_code()", draft=True)
+            ctx.edit_cell("my_cell", code="new_code()", draft=True)
             ```
 
         Args:
@@ -576,11 +576,20 @@ class AsyncCodeModeContext:
 
         try:
             for op in ops:
+                # For deletes, evict the cell so its defs don't conflict
+                # with later adds/updates that reuse the same names.
+                if isinstance(op, _DeleteOp):
+                    cell_id = op.cell_id
+                    if cell_id in graph.cells:
+                        evicted[cell_id] = graph.cells[cell_id]
+                        graph.delete_cell(cell_id)
+                    continue
+
                 code: str | None = getattr(op, "code", None)
                 if code is None:
                     continue
 
-                cell_id: CellId_t = op.cell_id
+                cell_id = op.cell_id
 
                 # For updates, temporarily remove the existing cell so the
                 # new version can be registered in its place.

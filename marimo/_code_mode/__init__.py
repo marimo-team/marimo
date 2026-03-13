@@ -16,7 +16,7 @@ Usage::
         ctx.create_cell("y = x + 1", after=cid)
 
         # Update cells by ID or name
-        ctx.update_cell("my_cell", code="z = 42")
+        ctx.edit_cell("my_cell", code="z = 42")
 
         # Delete cells
         ctx.delete_cell("old_cell")

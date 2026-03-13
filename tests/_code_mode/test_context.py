@@ -206,7 +206,7 @@ class TestUpdateCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.update_cell("0", code="x = 42")
+            nb.edit_cell("0", code="x = 42")
 
         assert k.globals["x"] == 42
         assert _graph_codes(k) == snapshot({"0": "x = 42"})
@@ -238,7 +238,7 @@ class TestUpdateCell:
 
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
-            nb.update_cell("0", code="x = 42")
+            nb.edit_cell("0", code="x = 42")
 
         assert k.globals["x"] == 42
         assert "y" not in k.globals
@@ -250,14 +250,14 @@ class TestUpdateCell:
         # Set hide_code=True on the cell.
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
-            nb.update_cell("0", hide_code=True)
+            nb.edit_cell("0", hide_code=True)
 
         assert k.cell_metadata["0"].config.hide_code is True
 
         # Update code without touching config — hide_code should stick.
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
-            nb.update_cell("0", code="x = 42")
+            nb.edit_cell("0", code="x = 42")
 
         assert k.globals["x"] == 42
         assert k.cell_metadata["0"].config.hide_code is True
@@ -269,7 +269,7 @@ class TestUpdateCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.update_cell("0", hide_code=True)
+            nb.edit_cell("0", hide_code=True)
 
         assert k.globals["x"] == 1
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
@@ -296,6 +296,28 @@ class TestCombined:
         assert k.globals["d"] == 4
         codes = _graph_codes(k)
         assert "1" not in codes
+
+    async def test_delete_and_add_same_defs(self, k: Kernel) -> None:
+        """Delete a cell and add a replacement defining the same names."""
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="a = 1"),
+                ExecuteCellCommand(cell_id="1", code="b = a + 1"),
+            ]
+        )
+        assert k.globals["b"] == 2
+
+        ctx = AsyncCodeModeContext(k)
+        _clear_messages(k)
+
+        # Delete cell "1" and create a new cell that also defines "b".
+        # This must not raise a multiply-defined error.
+        async with ctx as nb:
+            nb.delete_cell("1")
+            nb.create_cell("b = a + 100")
+
+        assert k.globals["b"] == 101
+        assert "1" not in _graph_codes(k)
 
     async def test_noop_batch(self, k: Kernel) -> None:
         """An empty context manager does nothing."""
