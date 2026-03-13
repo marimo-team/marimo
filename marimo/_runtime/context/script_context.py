@@ -145,7 +145,7 @@ class ScriptRuntimeContext(RuntimeContext):
 def initialize_script_context(
     app: InternalApp, stream: Stream, filename: str | None
 ) -> ScriptRuntimeContext:
-    """Creates a ScriptRuntimeContext for use with install().
+    """Creates a ScriptRuntimeContext
 
     Use the returned context as a context manager via ``with ctx.install():``
     rather than calling ``initialize_context()`` directly, so that a
