@@ -161,6 +161,24 @@ class TestDeleteCell:
             [{"op": "update-cell-ids", "cell_ids": ["0", "2"]}]
         )
 
+    async def test_delete_cleans_globals(self, k: Kernel) -> None:
+        """Deleting a cell removes its defs from kernel globals."""
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="a = 1"),
+                ExecuteCellCommand(cell_id="1", code="b = 2"),
+            ]
+        )
+        assert k.globals["a"] == 1
+        assert k.globals["b"] == 2
+
+        ctx = AsyncCodeModeContext(k)
+        async with ctx as nb:
+            nb.delete_cell("1")
+
+        assert k.globals["a"] == 1
+        assert "b" not in k.globals
+
     async def test_delete_multiple(self, k: Kernel) -> None:
         await k.run(
             [
@@ -211,6 +229,38 @@ class TestUpdateCell:
                 }
             ]
         )
+
+    async def test_update_cleans_stale_globals(self, k: Kernel) -> None:
+        """Updating code removes old defs that are no longer defined."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1\ny = 2")])
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+
+        ctx = AsyncCodeModeContext(k)
+        async with ctx as nb:
+            nb.update_cell("0", code="x = 42")
+
+        assert k.globals["x"] == 42
+        assert "y" not in k.globals
+
+    async def test_update_preserves_config(self, k: Kernel) -> None:
+        """Updating only code preserves the cell's existing config."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+
+        # Set hide_code=True on the cell.
+        ctx = AsyncCodeModeContext(k)
+        async with ctx as nb:
+            nb.update_cell("0", hide_code=True)
+
+        assert k.cell_metadata["0"].config.hide_code is True
+
+        # Update code without touching config — hide_code should stick.
+        ctx = AsyncCodeModeContext(k)
+        async with ctx as nb:
+            nb.update_cell("0", code="x = 42")
+
+        assert k.globals["x"] == 42
+        assert k.cell_metadata["0"].config.hide_code is True
 
     async def test_update_config_only(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])

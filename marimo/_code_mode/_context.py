@@ -106,7 +106,7 @@ def get_context(*, check: bool = True) -> AsyncCodeModeContext:
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
-    cell_manager = runtime_ctx._app._cell_manager if runtime_ctx._app else None
+    cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
         runtime_ctx._kernel, cell_manager=cell_manager, check=check
     )
@@ -629,10 +629,16 @@ class AsyncCodeModeContext:
         }
         plan_ids = {e.cell_id for e in plan}
 
-        # Delete cells not in the plan.
+        # We call Kernel._delete_cell / _deactivate_cell directly
+        # rather than going through DeleteCellCommand because we need
+        # synchronous graph manipulation (delete + re-register) within
+        # a single atomic batch.  DeleteCellCommand would also trigger
+        # _run_cells for descendants, which we handle ourselves via the
+        # ExecuteCellsCommand at the end.  These are internal kernel
+        # primitives that properly clean up globals, UI elements, and
+        # lifecycle hooks — the raw graph.delete_cell() does not.
         for cid in existing_id_set - plan_ids:
-            self.graph.delete_cell(cid)
-            self._kernel.cell_metadata.pop(cid, None)
+            self._kernel._delete_cell(cid)
 
         # Insert/update cells.
         cells_to_execute: list[tuple[CellId_t, str]] = []
@@ -645,27 +651,22 @@ class AsyncCodeModeContext:
                 and entry.code != existing_code.get(entry.cell_id)
             )
 
-            if is_new:
+            if is_new or code_changed:
                 assert entry.code is not None
-                cfg = entry.config or CellConfig(hide_code=True)
-                cell = compile_cell(entry.code, cell_id=entry.cell_id)
-                cell.configure(cfg.asdict())
-                self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
-                    config=cfg
-                )
-                self.graph.register_cell(entry.cell_id, cell)
-                code_notifications.append(entry)
-                if not entry.draft:
-                    cells_to_execute.append((entry.cell_id, entry.code))
-
-            elif code_changed:
-                assert entry.code is not None
-                # Preserve existing config when none is explicitly provided.
-                existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
-                cfg = entry.config or (
-                    existing_meta.config if existing_meta else CellConfig()
-                )
-                self.graph.delete_cell(entry.cell_id)
+                if is_new:
+                    cfg = entry.config or CellConfig(hide_code=True)
+                else:
+                    # Preserve existing config when none is explicitly
+                    # provided.
+                    existing_meta = self._kernel.cell_metadata.get(
+                        entry.cell_id
+                    )
+                    cfg = entry.config or (
+                        existing_meta.config
+                        if existing_meta
+                        else CellConfig()
+                    )
+                    self._kernel._deactivate_cell(entry.cell_id)
                 cell = compile_cell(entry.code, cell_id=entry.cell_id)
                 cell.configure(cfg.asdict())
                 self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
@@ -697,12 +698,7 @@ class AsyncCodeModeContext:
                     codes=[e.code for e in entries],  # type: ignore[misc]
                     code_is_stale=is_stale,
                     configs=[
-                        e.config
-                        or (
-                            self._kernel.cell_metadata[e.cell_id].config
-                            if e.cell_id in self._kernel.cell_metadata
-                            else CellConfig(hide_code=True)
-                        )
+                        self._kernel.cell_metadata[e.cell_id].config
                         for e in entries
                     ],
                 )
