@@ -5,11 +5,12 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
-from marimo._code_mode._context import (
+from marimo._code_mode._plan import (
     _AddOp,
     _build_plan,
     _DeleteOp,
     _MoveOp,
+    _PlanEntry,
     _UpdateOp,
     _validate_ops,
 )
@@ -20,11 +21,11 @@ def ids(*names: str) -> list[CellId_t]:
     return [CellId_t(n) for n in names]
 
 
-def cell_ids(plan: list) -> list[str]:
+def cell_ids(plan: list[_PlanEntry]) -> list[str]:
     return [str(e.cell_id) for e in plan]
 
 
-def codes(plan: list) -> list[str | None]:
+def codes(plan: list[_PlanEntry]) -> list[str | None]:
     return [e.code for e in plan]
 
 

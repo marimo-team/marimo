@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import msgspec
 from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
@@ -14,33 +15,24 @@ from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
 
 
-def _notification_summary(
-    stream: object,
-) -> list[dict[str, object]]:
-    """Extract code-mode-relevant notifications from the mock stream."""
-    results: list[dict[str, object]] = []
-    for op in stream.operations:  # type: ignore[attr-defined]
-        if isinstance(op, UpdateCellCodesNotification):
-            results.append(
-                {
-                    "op": "update-cell-codes",
-                    "cell_ids": list(op.cell_ids),
-                    "codes": list(op.codes),
-                    "stale": op.code_is_stale,
-                }
-            )
-        elif isinstance(op, UpdateCellIdsNotification):
-            results.append(
-                {
-                    "op": "update-cell-ids",
-                    "cell_ids": list(op.cell_ids),
-                }
-            )
-    return results
+def _code_notifs(k: Kernel) -> list[UpdateCellCodesNotification]:
+    return [
+        op
+        for op in k.stream.operations
+        if isinstance(op, UpdateCellCodesNotification)
+    ]
 
 
-def _clear_messages(stream: object) -> None:
-    stream.messages.clear()  # type: ignore[attr-defined]
+def _ids_notifs(k: Kernel) -> list[UpdateCellIdsNotification]:
+    return [
+        op
+        for op in k.stream.operations
+        if isinstance(op, UpdateCellIdsNotification)
+    ]
+
+
+def _clear_messages(k: Kernel) -> None:
+    k.stream.messages.clear()
 
 
 def _graph_codes(k: Kernel) -> dict[str, str]:
@@ -50,7 +42,7 @@ def _graph_codes(k: Kernel) -> dict[str, str]:
 class TestAddCell:
     async def test_add_into_empty(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.add_cell("x = 1")
@@ -60,9 +52,14 @@ class TestAddCell:
         assert cell.code == "x = 1"
         assert k.globals["x"] == 1
 
-        notifs = _notification_summary(k.stream)
-        assert any(n["op"] == "update-cell-codes" for n in notifs)
-        assert any(n["op"] == "update-cell-ids" for n in notifs)
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        assert len(code_notifs) == 1
+        assert code_notifs[0]["codes"] == ["x = 1"]
+        assert code_notifs[0]["code_is_stale"] is False
+
+        ids_notifs = msgspec.to_builtins(_ids_notifs(k))
+        assert len(ids_notifs) == 1
+        assert len(ids_notifs[0]["cell_ids"]) == 1
 
     async def test_add_appends_by_default(self, k: Kernel) -> None:
         await k.run(
@@ -72,7 +69,7 @@ class TestAddCell:
             ]
         )
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.add_cell("c = a + b")
@@ -81,13 +78,10 @@ class TestAddCell:
         assert k.globals["c"] == 30
 
         # New cell should be last in the ordering notification.
-        notifs = _notification_summary(k.stream)
-        ids_notif = [n for n in notifs if n["op"] == "update-cell-ids"]
-        assert len(ids_notif) == 1
-        cell_ids = ids_notif[0]["cell_ids"]
-        assert cell_ids[0] == "0"
-        assert cell_ids[1] == "1"
-        # Third is the new cell (UUID, just check it's there).
+        ids_notifs = _ids_notifs(k)
+        assert len(ids_notifs) == 1
+        cell_ids = ids_notifs[0].cell_ids
+        assert cell_ids[:2] == ["0", "1"]
         assert len(cell_ids) == 3
 
     async def test_add_with_after(self, k: Kernel) -> None:
@@ -98,21 +92,20 @@ class TestAddCell:
             ]
         )
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.add_cell("c = a + b", after="0")
 
-        notifs = _notification_summary(k.stream)
-        ids_notif = [n for n in notifs if n["op"] == "update-cell-ids"]
-        cell_ids = ids_notif[0]["cell_ids"]
+        ids_notifs = _ids_notifs(k)
+        cell_ids = ids_notifs[0].cell_ids
         assert cell_ids[0] == "0"
         # New cell should be after "0", before "1".
         assert cell_ids[2] == "1"
 
     async def test_add_draft_does_not_execute(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.add_cell("x = 999", draft=True)
@@ -120,11 +113,10 @@ class TestAddCell:
         assert len(k.graph.cells) == 1
         assert "x" not in k.globals
 
-        notifs = _notification_summary(k.stream)
-        code_notifs = [n for n in notifs if n["op"] == "update-cell-codes"]
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
         assert len(code_notifs) == 1
         assert code_notifs[0]["codes"] == ["x = 999"]
-        assert code_notifs[0]["stale"] is True
+        assert code_notifs[0]["code_is_stale"] is True
 
     async def test_add_returns_cell_id(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
@@ -158,16 +150,14 @@ class TestDeleteCell:
         assert len(k.graph.cells) == 3
 
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.delete_cell("1")
 
         assert _graph_codes(k) == snapshot({"0": "a = 1", "2": "c = 3"})
 
-        notifs = _notification_summary(k.stream)
-        ids_notif = [n for n in notifs if n["op"] == "update-cell-ids"]
-        assert ids_notif == snapshot(
+        assert msgspec.to_builtins(_ids_notifs(k)) == snapshot(
             [{"op": "update-cell-ids", "cell_ids": ["0", "2"]}]
         )
 
@@ -180,7 +170,7 @@ class TestDeleteCell:
             ]
         )
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.delete_cell("0")
@@ -195,7 +185,7 @@ class TestUpdateCell:
         assert k.globals["x"] == 1
 
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.update_cell("0", code="x = 42")
@@ -203,15 +193,21 @@ class TestUpdateCell:
         assert k.globals["x"] == 42
         assert _graph_codes(k) == snapshot({"0": "x = 42"})
 
-        notifs = _notification_summary(k.stream)
-        code_notifs = [n for n in notifs if n["op"] == "update-cell-codes"]
-        assert code_notifs == snapshot(
+        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
             [
                 {
                     "op": "update-cell-codes",
                     "cell_ids": ["0"],
                     "codes": ["x = 42"],
-                    "stale": False,
+                    "code_is_stale": False,
+                    "names": [],
+                    "configs": [
+                        {
+                            "column": None,
+                            "disabled": False,
+                            "hide_code": True,
+                        }
+                    ],
                 }
             ]
         )
@@ -220,17 +216,14 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
 
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.update_cell("0", hide_code=True)
 
         assert k.globals["x"] == 1
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
-
-        notifs = _notification_summary(k.stream)
-        code_notifs = [n for n in notifs if n["op"] == "update-cell-codes"]
-        assert code_notifs == snapshot([])
+        assert msgspec.to_builtins(_code_notifs(k)) == snapshot([])
 
 
 class TestCombined:
@@ -244,7 +237,7 @@ class TestCombined:
         )
 
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:
             nb.delete_cell("1")
@@ -258,7 +251,7 @@ class TestCombined:
         """An empty context manager does nothing."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
         ctx = AsyncCodeModeContext(k)
-        _clear_messages(k.stream)
+        _clear_messages(k)
 
         async with ctx as nb:  # noqa: B018
             pass
