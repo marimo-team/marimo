@@ -1,41 +1,47 @@
-# Deploy notebook servers or apps
+# Deploying
 
-marimo can be deployed as an "edit" server for creating, running, and editing
-notebooks, or an app server for serving read-only web apps. For convenience,
-you can use our [pre-built containers](prebuilt_containers.md).
+You can deploy marimo in three ways:
 
-!!! tip "Sharing notebooks on the public web"
-    To share notebooks on the public web without managing infrastructure, try
-    [molab](../molab.md), our free cloud-hosted notebook environment
+1. via an **edit server**, which allows you to create and edit notebooks. On
+   the CLI, this is launched with `marimo edit`, and is similar to `jupyter notebook`.
+2. via a **run server**, which allows you serve marimo notebooks as read-only
+   web apps. On the CLI, this is launched with `marimo run notebook.py`
+3. programmatically, which allows you serve **read-only** marimo apps
+   as part of other ASGI applications, for example using FastAPI.
 
-## Notebook servers
+!!! tip "Sharing lightweight notebooks on the web"
+    To share notebooks on the public web, try using [our online playground](https://marimo.new). Our playground runs entirely in the browser -- no
+    backend required, via [WASM](../../guides/wasm.md).
 
-Deploy an edit server (`marimo edit`) to let users create and edit notebooks
-on a remote instance.
+    Or, to share notebooks with email-based authorization, you can also
+    try our free [community cloud](https://marimo.io/sign-up), which is
+    also powered by WASM.
 
-| Guide | Description |
-| ----- | ----------- |
-| [JupyterHub](jupyterhub.md) | Run marimo inside JupyterHub with our JupyterLab extension |
-| [Kubernetes](deploying_kubernetes.md) | Deploy on Kubernetes |
-| [SkyPilot](deploying_skypilot.md) | Deploy on cloud VMs with SkyPilot |
-| [Slurm](deploying_slurm.md) | Run on HPC clusters with Slurm |
+    WASM notebooks support most but not all Python features and packages.
 
-You can also deploy an edit server with [ssh port forwarding](../../faq.md#faq-remote)
-using `marimo edit --headless`.
+## Deploying an edit server
 
-## Apps
+Here are a few ways to deploy an edit server on a remote instance:
 
-Deploy notebooks as read-only web apps (`marimo run`) or embed them in
-other applications.
+1. With [ssh-port forwarding](../../faq.md#faq-remote), using `marimo edit --headless`.
+2. Via docker and our [prebuilt containers](prebuilt_containers.md).
+3. Via a deployment service [such as Railway](deploying_railway.md).
+4. Via [SkyPilot](deploying_skypilot.md).
+5. [On Slurm/HPC clusters](deploying_slurm.md).
+6. [Behind JupyterHub](../../faq.md#faq-jupyter-hub).
 
-| Guide | Description |
-| ----- | ----------- |
-| [FastAPI](programmatically.md) | Programmatically run marimo apps as part of ASGI applications |
-| [Authentication](authentication.md) | Authentication and security |
-| [Docker](deploying_docker.md) | Deploy with Docker |
-| [HuggingFace](deploying_hugging_face.md) | Deploy to Hugging Face Spaces |
-| [Railway](deploying_railway.md) | Deploy to Railway |
-| [nginx](deploying_nginx.md) | Deploy behind nginx |
+## Deploying as read-only apps
+
+These guides help you deploy marimo notebooks as read-only apps.
+
+|                                 |                                                          |
+| :------------------------------ | :------------------------------------------------------- |
+| [programmatically](./programmatically.md) | Programmatically run and customize read-only marimo apps |
+| [deploying_docker](./deploying_docker.md) | Deploy with Docker                                       |
+| [deploying_slurm](./deploying_slurm.md) | Run on HPCs/SUNK with slurm                  |
+| [authentication](./authentication.md) | Authentication and security                              |
+| [deploying_public_gallery](./deploying_public_gallery.md) | Deploy to our public gallery                             |
+| [deploying_hugging_face](./deploying_hugging_face.md) | Deploy to Hugging Face                                   |
 
 ### Health and status endpoints
 

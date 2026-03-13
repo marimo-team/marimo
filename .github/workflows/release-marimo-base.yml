@@ -14,6 +14,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  TURBO_TEAM: marimo
+  REGISTRY: ghcr.io
+  IMAGE_NAME: marimo-team/marimo
+
 jobs:
   publish_release:
     name: 📤 Publish release
@@ -50,12 +55,8 @@ jobs:
 
       - name: 📤 Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
 
       - name: 📤 Upload to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          skip-existing: true
-          attestations: false
           repository-url: https://test.pypi.org/legacy/

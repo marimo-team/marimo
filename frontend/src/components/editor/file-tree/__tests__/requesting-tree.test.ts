@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { MockModules } from "@/__mocks__/common";
 import { toast } from "@/components/ui/use-toast";
 import type { FilePath } from "@/utils/paths";
 import { RequestingTree } from "../requesting-tree";
@@ -10,7 +9,9 @@ const sendCreateFileOrFolder = vi.fn();
 const sendDeleteFileOrFolder = vi.fn();
 const sendRenameFileOrFolder = vi.fn();
 
-vi.mock("@/components/ui/use-toast", () => MockModules.toast());
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(),
+}));
 
 describe("RequestingTree", () => {
   let requestingTree: RequestingTree;

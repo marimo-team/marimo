@@ -133,7 +133,7 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert os.path.basename(uv_cmd[0]).startswith("uv")
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -148,7 +148,7 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert os.path.basename(uv_cmd[0]).startswith("uv")
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -164,7 +164,7 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         additional_deps=[],
     )
     assert "--refresh" not in uv_cmd
-    assert os.path.basename(uv_cmd[0]).startswith("uv")
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 

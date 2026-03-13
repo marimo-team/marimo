@@ -13,11 +13,7 @@
     {
       "cell_type": "markdown",
       "id": "MJUe",
-      "metadata": {
-        "marimo": {
-          "md_prefix": ""
-        }
-      },
+      "metadata": {},
       "source": [
         "# Hello, World!"
       ]

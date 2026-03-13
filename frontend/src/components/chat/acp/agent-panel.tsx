@@ -60,11 +60,11 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { useRequestClient } from "@/core/network/requests";
-import { cwdAtom, filenameAtom } from "@/core/saving/file-state";
+import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Functions } from "@/utils/functions";
-import { PathBuilder, Paths } from "@/utils/paths";
+import { Paths } from "@/utils/paths";
 import {
   AddContextButton,
   AttachFileButton,
@@ -614,11 +614,7 @@ ChatContent.displayName = "ChatContent";
 
 const NO_WS_SET = "_skip_auto_connect_";
 
-function getCwd(): string {
-  const cwd = store.get(cwdAtom);
-  if (cwd) {
-    return cwd;
-  }
+function getCwd() {
   const filename = store.get(filenameAtom);
   if (!filename) {
     throw new Error(
@@ -626,21 +622,6 @@ function getCwd(): string {
     );
   }
   return Paths.dirname(filename);
-}
-
-function getAbsoluteFilename(): string {
-  const filename = store.get(filenameAtom);
-  if (!filename) {
-    throw new Error(
-      "Please save the notebook and refresh the browser to use the agent",
-    );
-  }
-  const cwd = store.get(cwdAtom);
-  if (cwd) {
-    const builder = PathBuilder.guessDeliminator(cwd);
-    return builder.join(cwd, String(Paths.basename(filename)));
-  }
-  return filename;
 }
 
 const AgentPanel: React.FC = () => {
@@ -881,10 +862,8 @@ const AgentPanel: React.FC = () => {
         setSessionState((prev) => updateSessionTitle(prev, prompt));
       }
 
-      let absoluteFilename: string;
-      try {
-        absoluteFilename = getAbsoluteFilename();
-      } catch {
+      const filename = store.get(filenameAtom);
+      if (!filename) {
         toast({
           title: "Notebook must be named",
           description: "Please name the notebook to use the agent",
@@ -915,16 +894,16 @@ const AgentPanel: React.FC = () => {
         promptBlocks.push(
           {
             type: "resource_link",
-            uri: absoluteFilename,
+            uri: filename,
             mimeType: "text/x-python",
-            name: absoluteFilename,
+            name: filename,
           },
           {
             type: "resource",
             resource: {
               uri: "marimo_rules.md",
               mimeType: "text/plain",
-              text: getAgentPrompt(absoluteFilename),
+              text: getAgentPrompt(filename),
             },
           },
         );

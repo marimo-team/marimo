@@ -1,15 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { LoaderCircle, XIcon } from "lucide-react";
+import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
 import type { CSSProperties } from "react";
-import { TreeChevron } from "@/components/editor/file-tree/tree-actions";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { DATA_TYPE_ICON, getDataTypeColor } from "../datasets/icons";
 
 export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
   isExpanded,
-}) => <TreeChevron isExpanded={isExpanded} className="h-3 w-3" />;
+}) => (
+  <ChevronRightIcon
+    className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")}
+  />
+);
 
 export const DatasourceLabel: React.FC<{
   children: React.ReactNode;

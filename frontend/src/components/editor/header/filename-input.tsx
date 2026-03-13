@@ -3,10 +3,6 @@
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { FilePenIcon } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
-import {
-  FILE_ICON as FILE_TYPE_ICONS,
-  guessFileIconType as guessFileType,
-} from "@/components/editor/file-tree/file-icons";
 import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Paths } from "@/utils/paths";
@@ -19,6 +15,7 @@ import {
   CommandList,
 } from "../../ui/command";
 import { Popover, PopoverContent } from "../../ui/popover";
+import { FILE_TYPE_ICONS, guessFileType } from "../file-tree/types";
 
 import "./filename-input.css";
 import { getFeatureFlag } from "@/core/config/feature-flag";

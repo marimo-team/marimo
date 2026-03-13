@@ -113,22 +113,5 @@ describe("createNetworkRequests", () => {
         }),
       );
     });
-
-    it("exportAsIPYNB should call the new endpoint as text", async () => {
-      const requests = createNetworkRequests();
-      await requests.exportAsIPYNB({
-        download: false,
-      } as any);
-
-      expect(mockClient.POST).toHaveBeenCalledWith(
-        "/api/export/ipynb",
-        expect.objectContaining({
-          body: expect.objectContaining({
-            download: false,
-          }),
-          parseAs: "text",
-        }),
-      );
-    });
   });
 });

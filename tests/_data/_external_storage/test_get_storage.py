@@ -105,7 +105,6 @@ class TestStorageBackendToStorageNamespace:
         mock_backend.display_name = "Amazon S3"
         mock_backend.protocol = "s3"
         mock_backend.root_path = "my-bucket"
-        mock_backend.backend_type = "obstore"
 
         result = storage_backend_to_storage_namespace(mock_backend)
 
@@ -115,7 +114,6 @@ class TestStorageBackendToStorageNamespace:
                 display_name="Amazon S3",
                 protocol="s3",
                 root_path="my-bucket",
-                backend_type="obstore",
                 storage_entries=[],
             )
         )
@@ -127,7 +125,6 @@ class TestStorageBackendToStorageNamespace:
         mock_backend.protocol = "in-memory"
         mock_backend.root_path = None
         mock_backend.display_name = "In-memory"
-        mock_backend.backend_type = "obstore"
         mock_backend.list_entries.return_value = []
 
         result = storage_backend_to_storage_namespace(mock_backend)
@@ -138,7 +135,6 @@ class TestStorageBackendToStorageNamespace:
                 display_name="In-memory",
                 protocol="in-memory",
                 root_path="",
-                backend_type="obstore",
                 storage_entries=[],
             )
         )
@@ -159,7 +155,6 @@ class TestStorageBackendToStorageNamespace:
                 display_name="In-memory",
                 protocol="in-memory",
                 root_path="/",
-                backend_type="fsspec",
                 storage_entries=[],
             )
         )
@@ -179,7 +174,6 @@ class TestStorageBackendToStorageNamespace:
                 display_name="In-memory",
                 protocol="in-memory",
                 root_path="",
-                backend_type="obstore",
                 storage_entries=[],
             )
         )

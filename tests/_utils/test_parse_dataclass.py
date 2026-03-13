@@ -902,35 +902,6 @@ def test_date_and_datetime_types() -> None:
     )
 
 
-def test_pipe_union_optional() -> None:
-    """Dataclass fields using X | None should round-trip through parse_raw."""
-
-    @dataclass
-    class PipeOptional:
-        name: str
-        age: int | None = None
-
-    parsed = parse_raw({"name": "Alice"}, PipeOptional)
-    assert parsed == PipeOptional(name="Alice", age=None)
-
-    parsed = parse_raw({"name": "Bob", "age": 30}, PipeOptional)
-    assert parsed == PipeOptional(name="Bob", age=30)
-
-
-def test_pipe_union_multi_types() -> None:
-    """Dataclass fields using X | Y (no None) should parse correctly."""
-
-    @dataclass
-    class PipeUnion:
-        value: int | str
-
-    parsed = parse_raw({"value": 42}, PipeUnion)
-    assert parsed == PipeUnion(value=42)
-
-    parsed = parse_raw({"value": "hello"}, PipeUnion)
-    assert parsed == PipeUnion(value="hello")
-
-
 class StructClass(msgspec.Struct):
     limit: int
 

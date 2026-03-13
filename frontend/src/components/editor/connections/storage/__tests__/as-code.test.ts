@@ -27,14 +27,6 @@ describe("generateStorageCode", () => {
     account_key: "base64accountkey==",
   };
 
-  const baseCoreWeave: StorageConnection = {
-    type: "coreweave",
-    bucket: "operator-bucket",
-    region: "US-EAST-04A",
-    access_key_id: "AKIAIOSFODNN7EXAMPLE",
-    secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-  };
-
   const baseGDrive: StorageConnection = {
     type: "gdrive",
     credentials_json:
@@ -113,32 +105,6 @@ describe("generateStorageCode", () => {
     });
   });
 
-  describe("CoreWeave", () => {
-    it("basic connection with all fields", () => {
-      expect(generateStorageCode(baseCoreWeave, "obstore")).toMatchSnapshot();
-    });
-
-    it("minimal connection (bucket and region only)", () => {
-      const conn: StorageConnection = {
-        type: "coreweave",
-        bucket: "operator-bucket",
-        region: "US-EAST-04A",
-      };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
-    });
-
-    it("with secrets", () => {
-      const conn: StorageConnection = {
-        type: "coreweave",
-        bucket: "operator-bucket",
-        region: "US-EAST-04A",
-        access_key_id: prefixSecret("COREWEAVE_OBJECT_STORAGE_KEY"),
-        secret_access_key: prefixSecret("COREWEAVE_OBJECT_STORAGE_SECRET"),
-      };
-      expect(generateStorageCode(conn, "obstore")).toMatchSnapshot();
-    });
-  });
-
   describe("Google Drive", () => {
     it("with service account credentials", () => {
       expect(generateStorageCode(baseGDrive, "fsspec")).toMatchSnapshot();
@@ -191,32 +157,6 @@ describe("generateStorageCode", () => {
             type: "azure",
             container: "my-container",
             account_name: "",
-          } as StorageConnection,
-          "obstore",
-        ),
-      ).toThrow();
-    });
-
-    it("throws for empty CoreWeave bucket", () => {
-      expect(() =>
-        generateStorageCode(
-          {
-            type: "coreweave",
-            bucket: "",
-            region: "US-EAST-04A",
-          } as StorageConnection,
-          "obstore",
-        ),
-      ).toThrow();
-    });
-
-    it("throws for empty CoreWeave region", () => {
-      expect(() =>
-        generateStorageCode(
-          {
-            type: "coreweave",
-            bucket: "operator-bucket",
-            region: "",
           } as StorageConnection,
           "obstore",
         ),

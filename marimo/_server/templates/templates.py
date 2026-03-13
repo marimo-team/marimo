@@ -46,7 +46,6 @@ def json_script(data: Any) -> str:
 def _get_mount_config(
     *,
     filename: Optional[str],
-    cwd: Optional[str] = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
@@ -64,7 +63,6 @@ def _get_mount_config(
 
     options: dict[str, Any] = {
         "filename": filename or "",
-        "cwd": cwd or "",
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
@@ -83,7 +81,6 @@ def _get_mount_config(
 
     return """{{
             "filename": {filename},
-            "cwd": {cwd},
             "mode": {mode},
             "version": {version},
             "serverToken": {server_token},
@@ -254,12 +251,10 @@ def notebook_page_template(
 
     html = _replace_asset_urls(html, asset_url)
 
-    cwd = os.path.dirname(filepath) if filepath else None
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=filename,
-            cwd=cwd,
             mode="read" if mode == SessionMode.RUN else "edit",
             server_token=server_token,
             user_config=user_config,
@@ -291,24 +286,16 @@ def notebook_page_template(
         html = html.replace("</head>", f"{opengraph_tags}\n</head>")
 
     # If has custom css, inline the css and add to the head
-    # Prefer the absolute path for IO, since `filename` can be a display
-    # path (workspace-relative) in gallery/workspace mode.
     if app_config.css_file:
-        css_contents = read_css_file(
-            app_config.css_file, filename=filepath or filename
-        )
+        css_contents = read_css_file(app_config.css_file, filename=filename)
         if css_contents:
             css_contents = _custom_css_block(css_contents)
             # Append to head
             html = html.replace("</head>", f"{css_contents}</head>")
 
     # Add custom CSS from display config
-    html = _inject_custom_css_for_config(
-        html, user_config, filepath or filename
-    )
-    html = _inject_custom_css_for_config(
-        html, config_overrides, filepath or filename
-    )
+    html = _inject_custom_css_for_config(html, user_config, filename)
+    html = _inject_custom_css_for_config(html, config_overrides, filename)
 
     # Add global HTML head contents if specified (from create_asgi_app)
     if html_head:
@@ -317,7 +304,7 @@ def notebook_page_template(
     # Add per-notebook HTML head file contents if specified
     if app_config.html_head_file:
         head_contents = read_html_head_file(
-            app_config.html_head_file, filename=filepath or filename
+            app_config.html_head_file, filename=filename
         )
         if head_contents:
             # Append to head
@@ -356,7 +343,6 @@ def static_notebook_template(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=filename,
-            cwd=None,  # We don't need the cwd for static notebooks
             mode="read",
             server_token=server_token,
             user_config=user_config,

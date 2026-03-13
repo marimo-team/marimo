@@ -416,7 +416,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("date", dtype)
                 if lower_dtype == "time":
                     return ("time", dtype)
-                if lower_dtype.startswith("timedelta"):
+                if lower_dtype == "timedelta64[ns]":
                     return ("string", dtype)
                 if lower_dtype == "category":
                     return ("string", dtype)

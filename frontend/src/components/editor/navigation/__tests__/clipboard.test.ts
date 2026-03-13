@@ -3,13 +3,15 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { asMock, MockModules, Mocks, SetupMocks } from "@/__mocks__/common";
+import { asMock, Mocks, SetupMocks } from "@/__mocks__/common";
 import type { CellActions, NotebookState } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { useCellClipboard } from "../clipboard";
 
 // Mock dependencies
-vi.mock("@/components/ui/use-toast", () => MockModules.toast());
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(),
+}));
 
 vi.mock("@/core/cells/cells", () => ({
   getNotebook: vi.fn(),

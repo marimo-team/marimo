@@ -49,7 +49,6 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
 
   // Export operations start a connection
   exportAsHTML: "startConnection",
-  exportAsIPYNB: "startConnection",
   exportAsMarkdown: "startConnection",
   exportAsPDF: "startConnection",
   readCode: "startConnection",

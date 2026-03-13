@@ -250,7 +250,6 @@ const STANDARD_POINT_KEYS: string[] = [
   "lon",
   "curveNumber",
   "pointNumber",
-  "pointNumbers",
   "pointIndex",
 ];
 
@@ -264,8 +263,6 @@ function extractPoints(
   let parser: PlotlyTemplateParser | undefined;
 
   return points.map((point) => {
-    const standardPointFields = pick(point, STANDARD_POINT_KEYS);
-
     // Get the first hovertemplate
     const hovertemplate = Array.isArray(point.data.hovertemplate)
       ? point.data.hovertemplate[0]
@@ -274,16 +271,13 @@ function extractPoints(
     // For chart types with standard point keys (e.g. heatmaps),
     // or when there's no hovertemplate, pick keys directly from the point.
     if (!hovertemplate || point.data?.type === "heatmap") {
-      return standardPointFields;
+      return pick(point, STANDARD_POINT_KEYS);
     }
 
     // Update or create a parser
     parser = parser
       ? parser.update(hovertemplate)
       : createParser(hovertemplate);
-    return {
-      ...standardPointFields,
-      ...parser.parse(point),
-    };
+    return parser.parse(point);
   });
 }

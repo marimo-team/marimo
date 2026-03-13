@@ -21,6 +21,7 @@ export const S3StorageSchema = z
         FieldOptions.of({
           label: "Region",
           placeholder: "us-east-1",
+          optionRegex: ".*region.*",
         }),
       ),
     access_key_id: z
@@ -114,50 +115,6 @@ export const AzureStorageSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
-export const CoreWeaveStorageSchema = z
-  .object({
-    type: z.literal("coreweave"),
-    bucket: z
-      .string()
-      .nonempty()
-      .describe(
-        FieldOptions.of({
-          label: "Bucket",
-          placeholder: "bucket-name",
-        }),
-      ),
-    region: z
-      .string()
-      .nonempty()
-      .describe(
-        FieldOptions.of({
-          label: "Region",
-          placeholder: "US-EAST-04A",
-        }),
-      ),
-    access_key_id: z
-      .string()
-      .optional()
-      .describe(
-        FieldOptions.of({
-          label: "Access Key ID",
-          inputType: "password",
-          optionRegex: ".*object_storage_key.*",
-        }),
-      ),
-    secret_access_key: z
-      .string()
-      .optional()
-      .describe(
-        FieldOptions.of({
-          label: "Secret Access Key",
-          inputType: "password",
-          optionRegex: ".*object_storage_secret.*",
-        }),
-      ),
-  })
-  .describe(FieldOptions.of({ direction: "two-columns" }));
-
 export const GoogleDriveStorageSchema = z
   .object({
     type: z.literal("gdrive"),
@@ -178,7 +135,6 @@ export const StorageConnectionSchema = z.discriminatedUnion("type", [
   S3StorageSchema,
   GCSStorageSchema,
   AzureStorageSchema,
-  CoreWeaveStorageSchema,
   GoogleDriveStorageSchema,
 ]);
 

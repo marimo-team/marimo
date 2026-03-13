@@ -9,7 +9,6 @@ import {
   test,
   vi,
 } from "vitest";
-import { MockModules } from "@/__mocks__/common";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
@@ -26,7 +25,9 @@ import {
   insertUL,
 } from "../commands";
 
-vi.mock("@/components/ui/use-toast", () => MockModules.toast());
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(),
+}));
 
 import { toast } from "@/components/ui/use-toast";
 

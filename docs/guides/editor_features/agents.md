@@ -90,61 +90,6 @@ codex
     npx stdio-to-ws "cmd /c npx @zed-industries/codex-acp" --port 3021
     ```
 
-### OpenCode Agent
-
-[OpenCode](https://opencode.ai/) is an open source AI coding agent built for the terminal, but also supports ACP.
-
-**Installation:**
-
-```bash
-# Install
-npm install -g opencode-ai@latest
-
-# You can now use and configure opencode from the commandline
-opencode
-```
-
-**Connection command:**
-
-=== "macOS/Linux"
-
-    ```bash
-    npx stdio-to-ws "npx opencode-ai acp" --port 3023
-    ```
-
-=== "Windows"
-
-    ```bash
-    npx stdio-to-ws "cmd /c npx opencode-ai acp" --port 3023
-    ```
-
-
-Opencode supports many models, including local ones through Ollama, and can be configured via a [configuration file](https://opencode.ai/docs/config/).
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://localhost:11434/v1"
-      },
-      "models": {
-        "<model_name>": {
-          "tools": true
-        }
-      }
-    }
-  }
-}
-```
-
-If you choose to use a local model with Ollama, make sure that you set the maximum context length to be much higher than the 4K default. [This video tutorial](https://www.youtube.com/watch?v=4hUI2GF90nQ) explains how to set this up.
-
-Opencode can also be configured to use remote models like those hosted by [OpenRouter](https://openrouter.ai/) or via [the Zen service](https://opencode.ai/docs/zen/). For more information on configuring OpenCode providers, see the [provider documentation](https://opencode.ai/docs/providers).
-
-
 ## Connecting to an agent
 
 1. **Start the agent server**: Run the connection command for your chosen agent in a terminal

@@ -12,7 +12,6 @@ from marimo._data._external_storage.models import (
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
     SIGNED_URL_EXPIRATION,
-    BackendType,
     StorageBackend,
     StorageEntry,
 )
@@ -25,15 +24,7 @@ if TYPE_CHECKING:
         AbstractFileSystem,  # noqa: F401
     )
     from obstore import ObjectMeta
-    from obstore.store import (
-        AzureConfig,
-        AzureStore,
-        GCSConfig,
-        GCSStore,
-        ObjectStore,  # noqa: F401
-        S3Config,
-        S3Store,
-    )
+    from obstore.store import ObjectStore  # noqa: F401
 
 LOGGER = _loggers.marimo_logger()
 
@@ -63,12 +54,6 @@ class Obstore(StorageBackend["ObjectStore"]):
 
         # Objects are actual files/objects at this level
         for entry in result["objects"]:
-            # Skip zero-byte folder marker objects that some S3 clients
-            # create as directory placeholders (e.g., "folder" with size 0)
-            path = entry.get("path", "")
-            size = entry.get("size", 0)
-            if size == 0 and prefix and path == prefix.rstrip("/"):
-                continue
             storage_entries.append(self._create_storage_entry(entry))
 
         if len(storage_entries) > limit:
@@ -144,18 +129,6 @@ class Obstore(StorageBackend["ObjectStore"]):
             LOGGER.info("Failed to sign URL for %s", path)
             return None
 
-    def _get_config(
-        self, store: AzureStore | GCSStore | S3Store
-    ) -> AzureConfig | GCSConfig | S3Config | None:
-        try:
-            return store.config
-        except BaseException:
-            # Sometimes, there will be a Rust panic when trying to get the config for invalid stores
-            LOGGER.exception(
-                "Failed to read store config for %s", type(store).__name__
-            )
-        return None
-
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         from obstore.store import (
@@ -169,11 +142,7 @@ class Obstore(StorageBackend["ObjectStore"]):
 
         # Try the endpoint URL which can give a more accurate protocol
         if not isinstance(self.store, (MemoryStore, HTTPStore, LocalStore)):
-            config = self._get_config(self.store)
-            if config is None:
-                return "unknown"
-
-            endpoint = config.get("endpoint")
+            endpoint = self.store.config.get("endpoint")
             if isinstance(endpoint, str) and (
                 protocol := detect_protocol_from_url(endpoint)
             ):
@@ -196,10 +165,6 @@ class Obstore(StorageBackend["ObjectStore"]):
             return "unknown"
 
     @property
-    def backend_type(self) -> BackendType:
-        return "obstore"
-
-    @property
     def root_path(self) -> str | None:
         from obstore.store import HTTPStore, LocalStore, MemoryStore
 
@@ -213,10 +178,7 @@ class Obstore(StorageBackend["ObjectStore"]):
             if isinstance(self.store, LocalStore):
                 return None  # root
 
-            config = self._get_config(self.store)
-            if config is None:
-                return None
-
+            config = self.store.config
             bucket = config.get("bucket")
             if bucket is None:
                 LOGGER.debug(
@@ -381,10 +343,6 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "-".join(store_protocol)
 
         return normalize_protocol(store_protocol) or store_protocol
-
-    @property
-    def backend_type(self) -> BackendType:
-        return "fsspec"
 
     @property
     def root_path(self) -> str | None:

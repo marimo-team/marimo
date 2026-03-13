@@ -1439,68 +1439,6 @@ describe("cell reducer", () => {
     expect(state.cellData["5" as CellId]).not.toBeUndefined();
   });
 
-  it("can set cell codes with names and configs", () => {
-    const newIds = ["3", "4"] as CellId[];
-    actions.setCellIds({ cellIds: newIds });
-    actions.setCellCodes({
-      codes: ["code1", "code2"],
-      ids: newIds,
-      codeIsStale: false,
-      names: ["setup_cell", "analysis"],
-      configs: [
-        { hide_code: true, disabled: false, column: null },
-        { hide_code: false, disabled: true, column: null },
-      ],
-    });
-
-    expect(state.cellData["3" as CellId].name).toBe("setup_cell");
-    expect(state.cellData["3" as CellId].config.hide_code).toBe(true);
-    expect(state.cellData["3" as CellId].config.disabled).toBe(false);
-
-    expect(state.cellData["4" as CellId].name).toBe("analysis");
-    expect(state.cellData["4" as CellId].config.hide_code).toBe(false);
-    expect(state.cellData["4" as CellId].config.disabled).toBe(true);
-  });
-
-  it("can set cell codes without names/configs (backward compat)", () => {
-    const newIds = ["3"] as CellId[];
-    actions.setCellIds({ cellIds: newIds });
-    actions.setCellCodes({
-      codes: ["code1"],
-      ids: newIds,
-      codeIsStale: false,
-    });
-
-    // Should use defaults when names/configs not provided
-    expect(state.cellData["3" as CellId].code).toBe("code1");
-    expect(state.cellData["3" as CellId].config.hide_code).toBe(false);
-    expect(state.cellData["3" as CellId].config.disabled).toBe(false);
-  });
-
-  it("can update names and configs on existing cells via setCellCodes", () => {
-    // Set initial state
-    actions.setCellCodes({
-      codes: ["x = 1"],
-      ids: [firstCellId],
-      codeIsStale: false,
-      names: ["old_name"],
-      configs: [{ hide_code: false, disabled: false, column: null }],
-    });
-    expect(state.cellData[firstCellId].name).toBe("old_name");
-    expect(state.cellData[firstCellId].config.hide_code).toBe(false);
-
-    // Update with new name and config (same code)
-    actions.setCellCodes({
-      codes: ["x = 1"],
-      ids: [firstCellId],
-      codeIsStale: true,
-      names: ["new_name"],
-      configs: [{ hide_code: true, disabled: false, column: null }],
-    });
-    expect(state.cellData[firstCellId].name).toBe("new_name");
-    expect(state.cellData[firstCellId].config.hide_code).toBe(true);
-  });
-
   it("can fold and unfold all cells", () => {
     actions.foldAll();
     expect(foldAllBulk).toHaveBeenCalled();

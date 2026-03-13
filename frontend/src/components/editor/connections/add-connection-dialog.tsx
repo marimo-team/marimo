@@ -37,8 +37,6 @@ export const AddConnectionDialogContent: React.FC<{
   defaultTab?: ConnectionTab;
   onClose: () => void;
 }> = ({ defaultTab = "databases", onClose }) => {
-  const [activeTab, setActiveTab] = useState<ConnectionTab>(defaultTab);
-
   const tabHeader = (
     <TabsList className="w-full mb-4">
       <TabsTrigger value="databases" className="flex-1">
@@ -49,25 +47,6 @@ export const AddConnectionDialogContent: React.FC<{
       </TabsTrigger>
     </TabsList>
   );
-
-  const codeSnippetHint =
-    activeTab === "databases" ? (
-      <>
-        Don't see your database or connection method? A{" "}
-        <ExternalLink href="https://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database">
-          code snippet
-        </ExternalLink>{" "}
-        is all you need.
-      </>
-    ) : (
-      <>
-        Don't see your storage or connection method? A{" "}
-        <ExternalLink href="https://docs.marimo.io/guides/working_with_data/remote_storage/#creating-a-storage-connection">
-          code snippet
-        </ExternalLink>{" "}
-        is all you need.
-      </>
-    );
 
   return (
     <DialogContent className="max-h-[75vh] overflow-y-auto">
@@ -82,14 +61,10 @@ export const AddConnectionDialogContent: React.FC<{
           <ExternalLink href="https://docs.marimo.io/guides/working_with_data/remote_storage/">
             remote storage
           </ExternalLink>{" "}
-          directly from your notebook.
-          <span className="block">{codeSnippetHint}</span>
+          to work with data directly from your notebook.
         </DialogDescription>
       </DialogHeader>
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as ConnectionTab)}
-      >
+      <Tabs defaultValue={defaultTab}>
         <TabsContent
           value="databases"
           className="mt-0 focus-visible:ring-0 focus-visible:ring-offset-0"

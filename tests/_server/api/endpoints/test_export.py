@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -213,24 +212,6 @@ def test_export_markdown(client: TestClient) -> None:
     )
 
 
-@pytest.mark.skipif(
-    not DependencyManager.nbformat.has(), reason="nbformat not installed"
-)
-@with_session(SESSION_ID)
-def test_export_ipynb(client: TestClient) -> None:
-    response = client.post(
-        "/api/export/ipynb",
-        headers=HEADERS,
-        json={
-            "download": False,
-        },
-    )
-    assert response.status_code == 200
-    ipynb_json = json.loads(response.text)
-    assert "cells" in ipynb_json
-    assert ipynb_json["nbformat"] == 4
-
-
 @with_read_session(SESSION_ID)
 def test_other_exports_dont_work_in_read(client: TestClient) -> None:
     response = client.post(
@@ -243,14 +224,6 @@ def test_other_exports_dont_work_in_read(client: TestClient) -> None:
     assert response.status_code == 401
     response = client.post(
         "/api/export/script",
-        headers=HEADERS,
-        json={
-            "download": False,
-        },
-    )
-    assert response.status_code == 401
-    response = client.post(
-        "/api/export/ipynb",
         headers=HEADERS,
         json={
             "download": False,
@@ -640,30 +613,6 @@ def test_export_script_download_edge_case_filenames(
         session.app_file_manager.filename = filename
         response = client.post(
             "/api/export/script",
-            headers=HEADERS,
-            json={
-                "download": True,
-            },
-        )
-        assert response.status_code == 200, f"Failed for filename: {filename}"
-        assert "Content-Disposition" in response.headers
-        assert "attachment" in response.headers["Content-Disposition"]
-
-
-@pytest.mark.skipif(
-    not DependencyManager.nbformat.has(), reason="nbformat not installed"
-)
-@with_session(SESSION_ID)
-def test_export_ipynb_download_edge_case_filenames(
-    client: TestClient,
-) -> None:
-    """Test that ipynb export with download=True works for non-ASCII filenames."""
-    for filename in EDGE_CASE_FILENAMES:
-        session = get_session_manager(client).get_session(SESSION_ID)
-        assert session
-        session.app_file_manager.filename = filename
-        response = client.post(
-            "/api/export/ipynb",
             headers=HEADERS,
             json={
                 "download": True,

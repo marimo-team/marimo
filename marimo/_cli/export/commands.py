@@ -885,10 +885,12 @@ def html_wasm(
 
     out_dir = output
     filename = "index.html"
+    ignore_index_html = False
     # If ends with .html, get the directory
     if output.suffix == ".html":
         out_dir = output.parent
         filename = output.name
+        ignore_index_html = True
 
     marimo_file = MarimoPath(name)
 
@@ -896,7 +898,7 @@ def html_wasm(
         return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Export assets first
-    Exporter().export_assets(out_dir)
+    Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
 
     # Create .nojekyll file to prevent GitHub Pages from interfering with asset
     # resolution

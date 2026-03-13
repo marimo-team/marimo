@@ -68,12 +68,9 @@ class EditModeReloadStrategy(ReloadStrategy):
         self, session: Session, *, changed_cell_ids: set[CellId_t]
     ) -> None:
         """Handle reload in edit mode with optional auto-run."""
-        # Get the latest codes, cell IDs, names, and configs
-        cell_manager = session.app_file_manager.app.cell_manager
-        codes = list(cell_manager.codes())
-        cell_ids = list(cell_manager.cell_ids())
-        names = list(cell_manager.names())
-        configs = list(cell_manager.configs())
+        # Get the latest codes and cell IDs
+        codes = list(session.app_file_manager.app.cell_manager.codes())
+        cell_ids = list(session.app_file_manager.app.cell_manager.cell_ids())
 
         LOGGER.info(
             f"File changed: {session.app_file_manager.path}. "
@@ -103,20 +100,6 @@ class EditModeReloadStrategy(ReloadStrategy):
             changed_cell_ids_list = list(changed_cell_ids - deleted)
             cells = dict(zip(cell_ids, codes))
 
-            # Send names and configs to the frontend (SyncGraphCommand
-            # doesn't carry them)
-            if cell_ids:
-                session.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=cell_ids,
-                        codes=codes,
-                        code_is_stale=False,
-                        names=names,
-                        configs=configs,
-                    ),
-                    from_consumer_id=None,
-                )
-
             session.put_control_request(
                 SyncGraphCommand(
                     cells=cells,
@@ -138,8 +121,6 @@ class EditModeReloadStrategy(ReloadStrategy):
                         cell_ids=cell_ids,
                         codes=codes,
                         code_is_stale=True,
-                        names=names,
-                        configs=configs,
                     ),
                     from_consumer_id=None,
                 )

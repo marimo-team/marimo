@@ -78,7 +78,6 @@ const CommandPalette = () => {
     return (
       <CommandItem
         disabled={props.disabled}
-        keywords={hotkey.additionalKeywords}
         onSelect={() => {
           addRecentCommand(shortcut);
           // Close first and then run the action, so the dialog doesn't steal focus
@@ -106,18 +105,15 @@ const CommandPalette = () => {
     handle,
     props = {},
     hotkey,
-    additionalKeywords,
   }: {
     label: string;
     handle: () => void;
     props?: { disabled?: boolean; tooltip?: React.ReactNode };
     hotkey?: HotkeyAction;
-    additionalKeywords?: string[];
   }) => {
     return (
       <CommandItem
         disabled={props.disabled}
-        keywords={additionalKeywords}
         onSelect={() => {
           addRecentCommand(label);
           setOpen(false);
@@ -167,7 +163,6 @@ const CommandPalette = () => {
                       disabled: action.disabled,
                       tooltip: action.tooltip,
                     },
-                    additionalKeywords: action.additionalKeywords,
                   });
                 }
                 return null;
@@ -195,7 +190,6 @@ const CommandPalette = () => {
               label: action.label,
               handle: action.handleHeadless || action.handle,
               props: { disabled: action.disabled, tooltip: action.tooltip },
-              additionalKeywords: action.additionalKeywords,
             });
           })}
           {cellActions.map((action) => {
@@ -206,7 +200,6 @@ const CommandPalette = () => {
               label: `Cell > ${action.label}`,
               handle: action.handleHeadless || action.handle,
               props: { disabled: action.disabled, tooltip: action.tooltip },
-              additionalKeywords: action.additionalKeywords,
             });
           })}
         </CommandGroup>

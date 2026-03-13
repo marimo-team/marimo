@@ -29,11 +29,11 @@ These guides cover marimo's core concepts.
 | [Scripts](scripts.md)                                 | Running notebooks as scripts                               |
 | [Reusing functions and classes](reusing_functions.md) | Importing functions and classes defined in marimo notebooks |
 | [Tests](testing/index.md)                             | Running unit tests in notebooks                            |
-| [Export to other formats](exporting/index.md)         | Export notebooks to HTML, PDF, ipynb, scripts, and more    |
-| [Run and share in the cloud with molab](molab.md)     | Share cloud-hosted notebooks for free, preview from GitHub, embed in webpages |
-| [Publish to the web](publishing/index.md)             | Publish notebooks to molab, embed in webpages, to/from GitHub, and more    |
-| [Deploy notebook servers or apps](deploying/index.md) | Deploy notebook servers (JupyterHub, Kubernetes) or read-only apps |
-| [WebAssembly notebooks](wasm.md)                      | Run notebooks entirely in the browser with WebAssembly     |
+| [Export notebooks](exporting.md)                      | Exporting notebooks to HTML, ipynb, flat scripts, and more |
+| [Cloud notebooks with molab](molab.md)             | Share links to cloud-based marimo notebooks, similar to Google Colab                      |
+| [Publish to the web](publishing/index.md)             | Edit and publish notebooks on the web                      |
+| [Run notebooks with WebAssembly](wasm.md)             | Create notebooks in our online playground                  |
+| [Deploying](deploying/index.md)                       | Deploying marimo notebooks and apps                        |
 | [Configuration](configuration/index.md)               | Configure various settings                                 |
 | [Coming from other tools](coming_from/index.md)       | Transitioning from Jupyter and other tools                 |
 | [Extending marimo](integrating_with_marimo/index.md)  | Rich displays of objects, custom UI plugins                |

@@ -7,7 +7,7 @@ import { parse } from "yaml";
 import { z } from "zod";
 import { Logger } from "./simple_logger.ts";
 
-const ROLES = ["chat", "edit", "rerank", "embed", "autocomplete"] as const;
+const ROLES = ["chat", "edit", "rerank", "embed"] as const;
 
 export const LLMInfoSchema = z.object({
   name: z.string(),

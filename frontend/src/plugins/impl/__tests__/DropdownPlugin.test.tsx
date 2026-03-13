@@ -3,14 +3,23 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
-import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
 import { DropdownPlugin } from "../DropdownPlugin";
 
 beforeAll(() => {
-  SetupMocks.resizeObserver();
+  global.ResizeObserver = class ResizeObserver {
+    observe() {
+      // do nothing
+    }
+    unobserve() {
+      // do nothing
+    }
+    disconnect() {
+      // do nothing
+    }
+  };
   global.HTMLDivElement.prototype.scrollIntoView = () => {
     // do nothing
   };

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from functools import partial
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from marimo._ast import compiler
@@ -18,29 +16,12 @@ from marimo._runtime.packages.pypi_package_manager import (
     VersionMap,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
 PY_EXE = sys.executable
-
-
-def _normalize_cmd(cmd: list[Any]) -> list[Any]:
-    """Normalize path-like args (containing / or \\) to their stem."""
-    return [
-        Path(arg).stem
-        if isinstance(arg, str) and ("/" in arg or "\\" in arg)
-        else arg
-        for arg in cmd
-    ]
-
-
-def _assert_cmd_called_once_with(
-    mock: MagicMock, expected_cmd: list[Any], **expected_kwargs: Any
-) -> None:
-    """Assert mock was called once, normalizing path args for cross-platform comparison."""
-    mock.assert_called_once()
-    call_args, call_kwargs = mock.call_args
-    assert _normalize_cmd(call_args[0]) == _normalize_cmd(expected_cmd)
-    assert call_kwargs == expected_kwargs
 
 
 def test_module_to_package() -> None:
@@ -343,6 +324,7 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
 
     # Explicitly set environ, since patch doesn't work in an asynchronous
     # context.
+    import os
 
     os.environ["MARIMO_UV_TARGET"] = "target_path"
     result = await mgr._install("package1 package2", upgrade=False, group=None)
@@ -366,8 +348,7 @@ async def test_uv_install_in_project(mock_run: MagicMock):
 
     result = await mgr._install("package1 package2", upgrade=False, group=None)
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "add", "package1", "package2", "-p", PY_EXE],
     )
     assert result is True
@@ -384,8 +365,7 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
         "package1 package2", upgrade=False, group="dev"
     )
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         [
             "uv",
             "add",
@@ -409,8 +389,7 @@ async def test_uv_install_custom_group_in_project(mock_run: MagicMock):
 
     result = await mgr._install("sphinx", upgrade=False, group="docs")
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         [
             "uv",
             "add",
@@ -433,8 +412,7 @@ async def test_uv_install_no_group_in_project(mock_run: MagicMock):
 
     result = await mgr._install("requests", upgrade=False, group=None)
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         [
             "uv",
             "add",
@@ -455,8 +433,7 @@ async def test_uv_uninstall_with_group_in_project(mock_run: MagicMock):
 
     result = await mgr.uninstall("sphinx", group="docs")
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "remove", "--group", "docs", "sphinx", "-p", PY_EXE],
     )
     assert result is True
@@ -471,8 +448,7 @@ async def test_uv_uninstall_not_in_project(mock_run: MagicMock):
 
     result = await mgr.uninstall("package1 package2")
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "pip", "uninstall", "package1", "package2", "-p", PY_EXE],
     )
     assert result is True
@@ -487,18 +463,14 @@ async def test_uv_uninstall_in_project(mock_run: MagicMock):
 
     result = await mgr.uninstall("package1 package2")
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "remove", "package1", "package2", "-p", PY_EXE],
     )
     assert result is True
 
 
 @patch("subprocess.run")
-@patch.object(UvPackageManager, "dependency_tree")
-def test_uv_list_packages(
-    mock_dependency_tree: MagicMock, mock_run: MagicMock
-):
+def test_uv_list_packages(mock_run: MagicMock):
     """Test UV list packages uses pip list subcommand"""
     mock_output = json.dumps(
         [
@@ -507,13 +479,11 @@ def test_uv_list_packages(
         ]
     )
     mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
-    mock_dependency_tree.return_value = None
     mgr = UvPackageManager()
 
     packages = mgr.list_packages()
 
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
         capture_output=True,
         text=True,
@@ -606,8 +576,7 @@ def test_uv_list_packages_tree_fallback_to_pip_list(
     mock_dependency_tree.assert_called_once()
 
     # Should fall back to subprocess call
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
         capture_output=True,
         text=True,
@@ -816,8 +785,7 @@ async def test_uv_install_cache_error_fallback(
     assert call_kwargs[1]["bufsize"] == 0
 
     # Retry should add --no-cache flag
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         [
             "uv",
             "pip",
@@ -872,8 +840,7 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
     result = await mgr._install("package1", upgrade=False, group=None)
 
     # Should only call run once (no fallback for project mode)
-    _assert_cmd_called_once_with(
-        mock_run,
+    mock_run.assert_called_once_with(
         ["uv", "add", "package1", "-p", PY_EXE],
     )
 

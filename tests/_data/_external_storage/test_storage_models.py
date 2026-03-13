@@ -87,43 +87,6 @@ class TestObstore:
             ]
         )
 
-    def test_list_entries_skips_zero_byte_folder_marker(self) -> None:
-        now = datetime.now(tz=timezone.utc)
-        mock_store = MagicMock()
-        mock_store.list_with_delimiter.return_value = {
-            "common_prefixes": [],
-            "objects": [
-                {
-                    "path": "folder",
-                    "size": 0,
-                    "last_modified": now,
-                    "e_tag": "abcde",
-                    "version": None,
-                },
-                {
-                    "path": "folder/order_details.csv",
-                    "size": 5426089,
-                    "last_modified": now,
-                    "e_tag": "fghij",
-                    "version": None,
-                },
-            ],
-        }
-
-        backend = self._make_backend(mock_store)
-        result = backend.list_entries(prefix="folder")
-
-        assert result == [
-            StorageEntry(
-                path="folder/order_details.csv",
-                kind="object",
-                size=5426089,
-                last_modified=now.timestamp(),
-                metadata={"e_tag": "fghij"},
-                mime_type="text/csv",
-            ),
-        ]
-
     def test_list_entries_empty(self) -> None:
         mock_store = MagicMock()
         mock_store.list_with_delimiter.return_value = {
@@ -405,13 +368,6 @@ class TestObstore:
             backend = self._make_backend(store)
             assert backend.protocol == "file"
 
-    def test_backend_type(self) -> None:
-        from obstore.store import MemoryStore
-
-        store = MemoryStore()
-        backend = self._make_backend(store)
-        assert backend.backend_type == "obstore"
-
     def test_root_path_memory(self) -> None:
         from obstore.store import MemoryStore
 
@@ -523,38 +479,6 @@ class TestObstore:
         store = MemoryStore()
         backend = self._make_backend(store)
         assert backend.display_name == "In-memory"
-
-    def test_protocol_returns_unknown_when_config_panics(self) -> None:
-        from obstore.store import S3Store
-
-        store = S3Store("bucket", skip_signature=True)
-        backend = self._make_backend(store)
-
-        def _raise(_: Any) -> None:
-            raise BaseException("rust panic")  # noqa: TRY002
-
-        with patch.object(
-            type(store),
-            "config",
-            new_callable=lambda: property(_raise),
-        ):
-            assert backend.protocol == "unknown"
-
-    def test_root_path_returns_none_when_config_panics(self) -> None:
-        from obstore.store import S3Store
-
-        store = S3Store("bucket", skip_signature=True)
-        backend = self._make_backend(store)
-
-        def _raise(_: Any) -> None:
-            raise BaseException("rust panic")  # noqa: TRY002
-
-        with patch.object(
-            type(store),
-            "config",
-            new_callable=lambda: property(_raise),
-        ):
-            assert backend.root_path is None
 
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")
@@ -1102,13 +1026,6 @@ class TestFsspecFilesystemIntegration:
         fs = MemoryFileSystem()
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
         assert backend.protocol == "in-memory"
-
-    def test_backend_type_memory_filesystem(self) -> None:
-        from fsspec.implementations.memory import MemoryFileSystem
-
-        fs = MemoryFileSystem()
-        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
-        assert backend.backend_type == "fsspec"
 
 
 @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")

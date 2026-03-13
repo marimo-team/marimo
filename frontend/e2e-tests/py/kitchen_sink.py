@@ -9,6 +9,8 @@
 # ]
 # [tool.marimo.runtime]
 # auto_instantiate = true
+# [tool.marimo.experimental]
+# server_side_pdf_export = true
 # ///
 
 import marimo

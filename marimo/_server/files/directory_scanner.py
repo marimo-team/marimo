@@ -90,16 +90,11 @@ class DirectoryScanner:
         # Package management
         "node_modules",
         "site-packages",
-        # Portable Python distributions
-        "winpython",
-        # Conda / pixi environments
-        ".pixi",
         # Testing and tooling
         ".tox",
         ".nox",
         ".pytest_cache",
         ".mypy_cache",
-        ".ruff_cache",
         # Version control
         ".git",
     }
@@ -188,60 +183,46 @@ class DirectoryScanner:
                 if entry.name.startswith("."):
                     continue
 
-                try:
-                    # Skip symlinks to avoid cycles and broken links
-                    if entry.is_symlink():
+                if entry.is_dir():
+                    if entry.name in self.SKIP_DIRS or depth == self.max_depth:
                         continue
-
-                    if entry.is_dir():
-                        if (
-                            entry.name in self.SKIP_DIRS
-                            or entry.name.lower() in self.SKIP_DIRS
-                            or depth == self.max_depth
-                        ):
-                            continue
-                        children = recurse(entry.path, depth + 1)
-                        if children:
-                            entry_path = Path(entry.path)
-                            relative_path = str(
-                                entry_path.relative_to(self.directory)
-                            )
-                            folders.append(
-                                FileInfo(
-                                    id=relative_path,
-                                    path=relative_path,
-                                    name=entry.name,
-                                    is_directory=True,
-                                    is_marimo_file=False,
-                                    children=children,
-                                )
-                            )
-                    elif entry.name.endswith(self.allowed_extensions):
-                        if is_marimo_app(entry.path):
-                            file_count[0] += 1
-                            entry_path = Path(entry.path)
-                            relative_path = str(
-                                entry_path.relative_to(self.directory)
-                            )
-                            file_info = FileInfo(
+                    children = recurse(entry.path, depth + 1)
+                    if children:
+                        entry_path = Path(entry.path)
+                        relative_path = str(
+                            entry_path.relative_to(self.directory)
+                        )
+                        folders.append(
+                            FileInfo(
                                 id=relative_path,
                                 path=relative_path,
                                 name=entry.name,
-                                is_directory=False,
-                                is_marimo_file=True,
-                                last_modified=entry.stat().st_mtime,
+                                is_directory=True,
+                                is_marimo_file=False,
+                                children=children,
                             )
-                            files.append(file_info)
-                            # Also add to partial results for timeout recovery
-                            self.partial_results.append(file_info)
-                            # Check if we've reached the limit
-                            if file_count[0] >= self.max_files:
-                                break
-                except OSError as e:
-                    LOGGER.debug(
-                        "Error processing entry %s: %s", entry.path, e
-                    )
-                    continue
+                        )
+                elif entry.name.endswith(self.allowed_extensions):
+                    if is_marimo_app(entry.path):
+                        file_count[0] += 1
+                        entry_path = Path(entry.path)
+                        relative_path = str(
+                            entry_path.relative_to(self.directory)
+                        )
+                        file_info = FileInfo(
+                            id=relative_path,
+                            path=relative_path,
+                            name=entry.name,
+                            is_directory=False,
+                            is_marimo_file=True,
+                            last_modified=entry.stat().st_mtime,
+                        )
+                        files.append(file_info)
+                        # Also add to partial results for timeout recovery
+                        self.partial_results.append(file_info)
+                        # Check if we've reached the limit
+                        if file_count[0] >= self.max_files:
+                            break
 
             # Sort folders then files, based on natural sort (alpha, then num)
             return sorted(folders, key=natural_sort_file) + sorted(

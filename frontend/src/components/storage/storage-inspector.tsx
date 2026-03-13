@@ -2,38 +2,29 @@
 
 import { CommandList } from "cmdk";
 import {
+  ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
   FolderIcon,
   HardDriveIcon,
   HelpCircleIcon,
   LoaderCircle,
+  MoreVerticalIcon,
   PlusIcon,
+  RefreshCwIcon,
   ViewIcon,
   XIcon,
 } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { useLocale } from "react-aria";
 import { EngineVariable } from "@/components/databases/engine-variable";
-import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { AddConnectionDialog } from "@/components/editor/connections/add-connection-dialog";
-import {
-  FILE_ICON_COLOR,
-  renderFileIcon,
-} from "@/components/editor/file-tree/file-icons";
-import {
-  MENU_ITEM_ICON_CLASS,
-  MoreActionsButton,
-  RefreshIconButton,
-  TreeChevron,
-} from "@/components/editor/file-tree/tree-actions";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -49,7 +40,7 @@ import type {
   StorageNamespace,
   StoragePathKey,
 } from "@/core/storage/types";
-import { storagePathKey } from "@/core/storage/types";
+import { storagePathKey, storageUrl } from "@/core/storage/types";
 import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -58,9 +49,8 @@ import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
 import { ErrorState } from "../datasources/components";
 import { Button } from "../ui/button";
-import { ProtocolIcon } from "./components";
+import { ProtocolIcon, renderFileIcon } from "./components";
 import { StorageFileViewer } from "./storage-file-viewer";
-import { STORAGE_SNIPPETS } from "./storage-snippets";
 
 interface OpenFileInfo {
   entry: StorageEntry;
@@ -148,7 +138,6 @@ const StorageEntryChildren: React.FC<{
   namespace: string;
   protocol: string;
   rootPath: string;
-  backendType: StorageNamespace["backendType"];
   prefix: string;
   depth: number;
   locale: string;
@@ -158,7 +147,6 @@ const StorageEntryChildren: React.FC<{
   namespace,
   protocol,
   rootPath,
-  backendType,
   prefix,
   depth,
   locale,
@@ -219,7 +207,6 @@ const StorageEntryChildren: React.FC<{
           namespace={namespace}
           protocol={protocol}
           rootPath={rootPath}
-          backendType={backendType}
           depth={depth}
           locale={locale}
           searchValue={searchValue}
@@ -235,7 +222,6 @@ const StorageEntryRow: React.FC<{
   namespace: string;
   protocol: string;
   rootPath: string;
-  backendType: StorageNamespace["backendType"];
   depth: number;
   locale: string;
   searchValue: string;
@@ -245,7 +231,6 @@ const StorageEntryRow: React.FC<{
   namespace,
   protocol,
   rootPath,
-  backendType,
   depth,
   locale,
   searchValue,
@@ -253,7 +238,6 @@ const StorageEntryRow: React.FC<{
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { entriesByPath } = useStorage();
-  const addCodeToNewCell = useAddCodeToNewCell();
   const isDir = entry.kind === "directory";
   const name = displayName(entry.path);
   const hasSearch = !!searchValue.trim();
@@ -321,14 +305,17 @@ const StorageEntryRow: React.FC<{
         }}
       >
         {isDir ? (
-          <TreeChevron isExpanded={effectiveExpanded} className="h-3 w-3" />
+          <ChevronRightIcon
+            className={cn(
+              "h-3 w-3 shrink-0 transition-transform",
+              effectiveExpanded && "rotate-90",
+            )}
+          />
         ) : (
           <span className="w-3 shrink-0" />
         )}
         {isDir ? (
-          <FolderIcon
-            className={cn("h-3.5 w-3.5 shrink-0", FILE_ICON_COLOR.directory)}
-          />
+          <FolderIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
         ) : (
           renderFileIcon(name)
         )}
@@ -350,10 +337,14 @@ const StorageEntryRow: React.FC<{
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild={true}>
-              <MoreActionsButton
-                iconClassName="h-3 w-3"
+              <Button
+                variant="text"
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 transition-opacity hover:shadow-none hover:text-link text-muted-foreground"
                 onClick={(e) => e.stopPropagation()}
-              />
+              >
+                <MoreVerticalIcon className="h-3 w-3" />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
@@ -364,47 +355,26 @@ const StorageEntryRow: React.FC<{
                 <DropdownMenuItem
                   onSelect={() => onOpenFile({ entry, namespace })}
                 >
-                  <ViewIcon className={MENU_ITEM_ICON_CLASS} />
+                  <ViewIcon className="h-3.5 w-3.5 mr-2" />
                   View
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
                 onSelect={async () => {
-                  await copyToClipboard(entry.path);
+                  const url = storageUrl(protocol, rootPath, entry.path);
+                  await copyToClipboard(url.toString());
                   toast({ title: "Copied to clipboard" });
                 }}
               >
-                <CopyIcon className={MENU_ITEM_ICON_CLASS} />
-                Copy path
+                <CopyIcon className="h-3.5 w-3.5 mr-2" />
+                Copy URL
               </DropdownMenuItem>
               {!isDir && (
                 <DropdownMenuItem onSelect={() => handleDownload()}>
-                  <DownloadIcon className={MENU_ITEM_ICON_CLASS} />
+                  <DownloadIcon className="h-3.5 w-3.5 mr-2" />
                   Download
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              {STORAGE_SNIPPETS.map((snippet) => {
-                const code = snippet.getCode({
-                  variableName: namespace,
-                  protocol,
-                  entry,
-                  backendType,
-                });
-                if (code === null) {
-                  return null;
-                }
-                const Icon = snippet.icon;
-                return (
-                  <DropdownMenuItem
-                    key={snippet.id}
-                    onSelect={() => addCodeToNewCell(code)}
-                  >
-                    <Icon className={MENU_ITEM_ICON_CLASS} />
-                    {snippet.label}
-                  </DropdownMenuItem>
-                );
-              })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -414,7 +384,6 @@ const StorageEntryRow: React.FC<{
           namespace={namespace}
           protocol={protocol}
           rootPath={rootPath}
-          backendType={backendType}
           prefix={entry.path}
           depth={depth + 1}
           locale={locale}
@@ -433,6 +402,7 @@ const StorageNamespaceSection: React.FC<{
   onOpenFile: (info: OpenFileInfo) => void;
 }> = ({ namespace, locale, searchValue, onOpenFile }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isSpinning, setIsSpinning] = useState(false);
   const { entriesByPath } = useStorage();
   const { clearNamespaceCache } = useStorageActions();
   const namespaceName = namespace.name ?? namespace.displayName;
@@ -447,8 +417,10 @@ const StorageNamespaceSection: React.FC<{
   const handleRefresh = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      setIsSpinning(true);
       clearNamespaceCache(namespaceName);
       refetch();
+      setTimeout(() => setIsSpinning(false), 500);
     },
     [namespaceName, clearNamespaceCache, refetch],
   );
@@ -469,7 +441,12 @@ const StorageNamespaceSection: React.FC<{
         onSelect={() => setIsExpanded(!isExpanded)}
         className="flex flex-row font-semibold h-7 text-xs gap-1.5 bg-(--slate-2) text-muted-foreground rounded-none"
       >
-        <TreeChevron isExpanded={isExpanded} className="h-3 w-3" />
+        <ChevronRightIcon
+          className={cn(
+            "h-3 w-3 shrink-0 transition-transform",
+            isExpanded && "rotate-90",
+          )}
+        />
         <ProtocolIcon protocol={namespace.protocol} />
         <span>{namespace.displayName}</span>
         {namespace.name && (
@@ -477,12 +454,21 @@ const StorageNamespaceSection: React.FC<{
             (<EngineVariable variableName={namespace.name as VariableName} />)
           </span>
         )}
-        <RefreshIconButton
-          onClick={handleRefresh}
-          tooltip="Refresh storage connection"
-          className="p-0"
-          iconClassName="h-3 w-3"
-        />
+        <Tooltip content="Refresh storage connection">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-transparent hover:shadow-none"
+            onClick={handleRefresh}
+          >
+            <RefreshCwIcon
+              className={cn(
+                "h-3 w-3 text-muted-foreground hover:text-foreground",
+                isSpinning && "animate-[spin_0.5s]",
+              )}
+            />
+          </Button>
+        </Tooltip>
         <span className="text-[10px] text-muted-foreground font-normal tabular-nums ml-auto">
           {namespace.rootPath || "(root)"}
         </span>
@@ -502,7 +488,7 @@ const StorageNamespaceSection: React.FC<{
             <ErrorState
               error={error}
               style={indentStyle(1)}
-              className="py-1 text-xs h-auto overflow-auto max-h-32 items-start"
+              className="py-1 text-xs h-auto"
               showIcon={false}
             />
           )}
@@ -529,7 +515,6 @@ const StorageNamespaceSection: React.FC<{
               namespace={namespaceName}
               protocol={namespace.protocol}
               rootPath={namespace.rootPath}
-              backendType={namespace.backendType}
               depth={1}
               locale={locale}
               searchValue={searchValue}

@@ -1,8 +1,7 @@
 import textwrap
 import xml.etree.ElementTree as etree
 from typing import Any, Dict, List, Union, cast
-
-import lzstring
+import urllib.parse
 
 from pymdownx.blocks import BlocksExtension  # type: ignore
 from pymdownx.blocks.block import (
@@ -74,8 +73,8 @@ class MarimoEmbedBlock(BaseMarimoBlock):
         app_width: str = cast(str, self.options["app_width"])
         mode: str = cast(str, self.options["mode"])
         show_chrome: bool = cast(bool, self.options["show-chrome"])
-        url = create_marimo_wasm_url(
-            code=create_marimo_wasm_code(code=code, app_width=app_width),
+        url = create_marimo_app_url(
+            code=create_marimo_app_code(code=code, app_width=app_width),
             mode=mode,
             show_chrome=show_chrome,
         )
@@ -104,7 +103,7 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
 
         mode: str = cast(str, self.options["mode"])
         show_chrome: bool = cast(bool, self.options["show-chrome"])
-        url = create_marimo_wasm_url(
+        url = create_marimo_app_url(
             code=code, mode=mode, show_chrome=show_chrome
         )
         self._create_iframe(block, url)
@@ -131,10 +130,11 @@ class MarimoEmbedFileBlock(BaseMarimoBlock):
             code_block.text = code
 
 
-_lz = lzstring.LZString()
+def uri_encode_component(code: str) -> str:
+    return urllib.parse.quote(code, safe="~()*!.'")
 
 
-def create_marimo_wasm_code(
+def create_marimo_app_code(
     *,
     code: str,
     app_width: str = "medium",
@@ -162,11 +162,11 @@ def create_marimo_wasm_code(
     return header + mo_cell + code
 
 
-def create_marimo_wasm_url(
+def create_marimo_app_url(
     code: str, mode: str = "edit", show_chrome: bool = False
 ) -> str:
-    compressed = _lz.compressToEncodedURIComponent(code)
-    return f"https://marimo.app/?embed=true&mode={mode}&show-chrome={'true' if show_chrome else 'false'}#code/{compressed}"
+    encoded_code = uri_encode_component(code)
+    return f"https://marimo.app/?code={encoded_code}&embed=true&mode={mode}&show-chrome={'true' if show_chrome else 'false'}"
 
 
 class MarimoBlocksExtension(BlocksExtension):

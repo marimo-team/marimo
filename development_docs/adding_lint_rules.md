@@ -274,13 +274,13 @@ This will create:
 
 ```bash
 # Run lint tests
-uv run --group test pytest tests/_lint
+uv run hatch run test:test tests/_lint
 
 # Run your specific test
-uv run --group test pytest tests/_lint/test_your_rule.py
+uv run hatch run test:test tests/_lint/test_your_rule.py
 
 # Update snapshots if needed
-uv run --group test pytest tests/_lint/test_snapshots.py --snapshot-update
+uv run hatch run test:test tests/_lint/test_snapshots.py --snapshot-update
 ```
 
 ## Rule Implementation Guidelines

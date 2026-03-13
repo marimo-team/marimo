@@ -6,7 +6,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --py VERSION   Python version (e.g. 3.12). Default: 3.12"
-    echo "  --optional     Use test-optional groups (includes optional deps)"
+    echo "  --optional     Use test-optional env (includes optional deps)"
     echo ""
     echo "Everything after -- is forwarded to pytest."
     echo "If no -- is used, all unrecognized args are forwarded to pytest."
@@ -44,8 +44,4 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ "$ENV" = "test-optional" ]; then
-    exec uv run --python "$PY_VERSION" --group test-optional pytest "$@"
-else
-    exec uv run --python "$PY_VERSION" --group test pytest "$@"
-fi
+exec uvx hatch run +py="$PY_VERSION" "$ENV:test" "$@"
