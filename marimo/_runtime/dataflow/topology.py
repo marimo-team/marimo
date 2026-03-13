@@ -120,9 +120,7 @@ class MutableGraphTopology(GraphTopology):
         Ids not present in the graph are silently skipped.
         """
         self._cells = {
-            cid: self._cells[cid]
-            for cid in ordered_ids
-            if cid in self._cells
+            cid: self._cells[cid] for cid in ordered_ids if cid in self._cells
         }
 
     def add_edge(self, parent: CellId_t, child: CellId_t) -> None:

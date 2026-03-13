@@ -565,6 +565,11 @@ class AsyncCodeModeContext:
         # so we can restore on cleanup.
         evicted: dict[CellId_t, CellImpl] = {}
 
+        # Snapshot cell order before any mutations so we can restore it.
+        # The evict/re-register cycle appends cells to the end of the
+        # dict, which corrupts the ordering that _apply_ops relies on.
+        original_order = list(graph.cells.keys())
+
         # Snapshot existing problems so we only flag *new* ones.
         existing_multiply_defined = set(graph.get_multiply_defined())
         existing_cycles = set(graph.cycles)
@@ -614,6 +619,10 @@ class AsyncCodeModeContext:
                     graph.delete_cell(cid)
             for cid, old_cell in evicted.items():
                 graph.register_cell(cid, old_cell)
+
+            # Restore original cell ordering.
+            if evicted:
+                graph.topology.reorder_nodes(original_order)
 
     async def _apply_ops(self, ops: list[_Op]) -> None:
         """Validate, plan, format, and apply a batch of operations."""

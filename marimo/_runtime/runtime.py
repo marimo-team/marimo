@@ -1749,6 +1749,13 @@ class Kernel:
 
         await runner.run_all()
 
+        # Flush any state updates queued during scratchpad execution
+        # (e.g., from widget .observe() callbacks that call mo.state
+        # setters). Without this, state updates are queued but never
+        # processed, so downstream cells don't re-run.
+        if self.state_updates:
+            await self._run_cells(set())
+
     @kernel_tracer.start_as_current_span("run_stale_cells")
     async def run_stale_cells(self) -> None:
         cells_to_run: set[CellId_t] = set()
