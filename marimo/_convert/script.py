@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast import codegen
 from marimo._ast.app import InternalApp
 from marimo._ast.load import load_notebook_ir
 from marimo._runtime.dataflow import topological_sort
@@ -24,10 +23,7 @@ def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
             )
 
     graph = app.graph
-    if ir.filename:
-        header = codegen.get_header_comments(ir.filename) or ""
-    else:
-        header = ""
+    header = (ir.header.value if ir.header else None) or ""
     codes: list[str] = [
         "# %%\n" + graph.cells[cid].code
         for cid in topological_sort(graph, graph.cells.keys())
