@@ -1711,6 +1711,10 @@ class Kernel:
                 clear_console=True,
                 cell_id=SCRATCH_CELL_ID,
             )
+            CellNotificationUtils.broadcast_status(
+                cell_id=SCRATCH_CELL_ID,
+                status="idle",
+            )
             return
         elif not cell:
             return

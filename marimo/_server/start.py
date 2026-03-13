@@ -274,6 +274,7 @@ def start(
         lifespans.logging,
         lifespans.open_browser,
         lifespans.tool_manager,
+        lifespans.server_registry,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 
