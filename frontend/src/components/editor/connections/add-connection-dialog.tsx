@@ -83,7 +83,7 @@ export const AddConnectionDialogContent: React.FC<{
             remote storage
           </ExternalLink>{" "}
           directly from your notebook.
-          <p>{codeSnippetHint}</p>
+          <span className="block">{codeSnippetHint}</span>
         </DialogDescription>
       </DialogHeader>
       <Tabs
