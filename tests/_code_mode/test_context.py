@@ -205,7 +205,7 @@ class TestUpdateCell:
                         {
                             "column": None,
                             "disabled": False,
-                            "hide_code": True,
+                            "hide_code": False,
                         }
                     ],
                 }

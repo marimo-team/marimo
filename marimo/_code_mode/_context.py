@@ -522,8 +522,7 @@ class AsyncCodeModeContext:
                 )
             if new_cycles:
                 raise RuntimeError(
-                    f"Cycles detected: {new_cycles}"
-                    f"{_check_false_hint}"
+                    f"Cycles detected: {new_cycles}{_check_false_hint}"
                 )
         finally:
             # Always clean up: remove dry-run cells, restore evicted ones.
@@ -579,13 +578,17 @@ class AsyncCodeModeContext:
 
             elif code_changed:
                 assert entry.code is not None
+                # Preserve existing config when none is explicitly provided.
+                existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
+                cfg = entry.config or (
+                    existing_meta.config if existing_meta else CellConfig()
+                )
                 self.graph.delete_cell(entry.cell_id)
                 cell = compile_cell(entry.code, cell_id=entry.cell_id)
-                if entry.config is not None:
-                    cell.configure(entry.config.asdict())
-                    self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
-                        config=entry.config
-                    )
+                cell.configure(cfg.asdict())
+                self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
+                    config=cfg
+                )
                 self.graph.register_cell(entry.cell_id, cell)
                 code_notifications.append(entry)
                 if not entry.draft:
@@ -612,7 +615,13 @@ class AsyncCodeModeContext:
                     codes=[e.code for e in entries],  # type: ignore[misc]
                     code_is_stale=is_stale,
                     configs=[
-                        e.config or CellConfig(hide_code=True) for e in entries
+                        e.config
+                        or (
+                            self._kernel.cell_metadata[e.cell_id].config
+                            if e.cell_id in self._kernel.cell_metadata
+                            else CellConfig(hide_code=True)
+                        )
+                        for e in entries
                     ],
                 )
             )
