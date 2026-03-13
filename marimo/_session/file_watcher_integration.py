@@ -11,11 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 from marimo import _loggers
-from marimo._session.events import (
-    SessionEventBus,
-    SessionEventListener,
-)
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import EventAwareExtension
 from marimo._session.session import Session
 from marimo._utils.file_watcher import FileWatcherManager
 from marimo._utils.paths import normalize_path
@@ -25,8 +21,10 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Awaitable
 
+    from marimo._session.events import SessionEventBus
 
-class SessionFileWatcherExtension(SessionExtension, SessionEventListener):
+
+class SessionFileWatcherExtension(EventAwareExtension):
     """Manages file watcher lifecycle for sessions."""
 
     def __init__(
@@ -40,16 +38,13 @@ class SessionFileWatcherExtension(SessionExtension, SessionEventListener):
             watcher_manager: The underlying file watcher manager
             on_change_callback: The callback to invoke when a file changes
         """
+        super().__init__()
         self._watcher_manager = watcher_manager
-        self._event_bus: SessionEventBus | None = None
-        self._session: Session | None = None
         self._on_change_callback = on_change_callback
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Attach the file watcher extension to a session."""
-        self._event_bus = event_bus
-        self._event_bus.subscribe(self)
-        self._session = session
+        super().on_attach(session, event_bus)
 
         if not session.app_file_manager.path:
             return
@@ -74,23 +69,20 @@ class SessionFileWatcherExtension(SessionExtension, SessionEventListener):
 
     def on_detach(self) -> None:
         """Detach the file watcher extension from a session."""
-        if not self._session:
-            return
+        if self._session and self._session.app_file_manager.path:
+            # Remove from watcher manager
+            self._watcher_manager.remove_callback(
+                self._canonicalize_path(self._session.app_file_manager.path),
+                self._handle_file_change,
+            )
 
-        if not self._session.app_file_manager.path:
-            return
+            LOGGER.info(
+                "Detached file watcher for session %s from path %s",
+                self._session.initialization_id,
+                self._session.app_file_manager.path,
+            )
 
-        # Remove from watcher manager
-        self._watcher_manager.remove_callback(
-            self._canonicalize_path(self._session.app_file_manager.path),
-            self._handle_file_change,
-        )
-
-        LOGGER.info(
-            "Detached file watcher for session %s from path %s",
-            self._session.initialization_id,
-            self._session.app_file_manager.path,
-        )
+        super().on_detach()
 
     def _canonicalize_path(self, path: str) -> Path:
         """Canonicalize a path without resolving symlinks."""
