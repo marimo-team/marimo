@@ -555,7 +555,7 @@ export const StorageInspector: React.FC = () => {
         title="No storage connected"
         description={
           <span>
-            Create an Obstore or fsspec connection in your notebook. See the{" "}
+            Create an obstore or fsspec connection in your notebook. See the{" "}
             <a
               className="text-link"
               href="https://docs.marimo.io/guides/working_with_data/remote_storage/#quick-start"
