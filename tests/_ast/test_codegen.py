@@ -876,9 +876,7 @@ class TestToFunctionDef:
         code = "y + 1"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "\n".join(
-            ["@app.cell", "def foo(y):", "    y + 1", "    return"]
-        )
+        expected = "\n".join(["@app.cell", "def foo(y):", "    y + 1"])
         assert fndef == expected
 
     def test_tofunctiondef_empty_cells(self) -> None:
@@ -906,10 +904,53 @@ class TestToFunctionDef:
         code = "print(y)"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "\n".join(
-            ["@app.cell", "def foo(y):", "    print(y)", "    return"]
-        )
+        expected = "\n".join(["@app.cell", "def foo(y):", "    print(y)"])
         assert fndef == expected
+
+    def test_bare_return_stripped_unused_def(self) -> None:
+        # cell defines x, but x is not referenced by any other cell
+        # (used_refs=set()) -> defs=() -> bare return stripped
+        code = "x = 1"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert "return" not in fndef
+        expected = "\n".join(["@app.cell", "def foo():", "    x = 1"])
+        assert fndef == expected
+
+    def test_bare_return_kept_single_trailing_newline(self) -> None:
+        # cell.code ends with \n → blank line before return → keep return
+        code = "x = 1\n"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_multiple_trailing_newlines(self) -> None:
+        # cell.code ends with \n\n → multiple blank lines before return → keep return
+        code = "x = 1\n\n"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_only_comments(self) -> None:
+        # only comments, no AST statements → keep return (function must have a body)
+        code = "# just a comment"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo")
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_empty_cell(self) -> None:
+        # empty cell → keep return (function must have a body)
+        code = ""
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo")
+        assert fndef.endswith("    return")
+
+    def test_bare_return_kept_single_funcdef(self) -> None:
+        # single function def → keep return to prevent toplevel reclassification
+        code = "def helper():\n    pass"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", used_refs=set())
+        assert "    return" in fndef
 
     def test_tofunctiondef_refs_and_defs(self) -> None:
         code = "\n".join(["y = x", "z = x", "z = w + y"])
@@ -1032,7 +1073,6 @@ class TestToFunctionDef:
                     "@app.cell",
                     "def cell2(cars_df, empty):",
                     "    result = cars_df.filter(lambda x: x > 0); empty",
-                    "    return",
                 ]
             )
             in expected
@@ -1654,17 +1694,17 @@ def test_needs_trailing_blank_line(code: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("code", "expected_pattern", "unexpected_pattern"),
     [
-        # Import only - blank line before return
+        # Import only - return stripped (no blank line added)
         (
             "import datetime",
+            "    import datetime",
             "    import datetime\n\n    return",
-            None,
         ),
-        # Import then assignment - no blank line
+        # Import then assignment - return stripped (last stmt is assignment)
         (
             "import datetime\nx = 1",
+            "    import datetime\n    x = 1",
             "    import datetime\n    x = 1\n    return",
-            None,
         ),
         # Function def - blank line before return
         (
@@ -1678,11 +1718,11 @@ def test_needs_trailing_blank_line(code: str, expected: bool) -> None:
             "    # comment\n    return",
             "    # comment\n\n    return",
         ),
-        # Multiline import - blank line before return
+        # Multiline import - return stripped (no blank line added)
         (
             "from module import (\n    a,\n    b,\n)",
+            "    from module import (\n        a,\n        b,\n    )",
             "    )\n\n    return",
-            None,
         ),
     ],
     ids=[

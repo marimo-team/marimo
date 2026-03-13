@@ -28,7 +28,6 @@ def three(x):
 def four(np, x, y):
     # comment
     z = np.array(x + y)
-    return
 
 
 @app.cell
