@@ -352,10 +352,40 @@ class AsyncCodeModeContext:
         column: int | None = None,
         draft: bool = False,
     ) -> CellId_t:
-        """Queue a new cell to be added. Returns the new cell's ID.
+        """Queue a new cell. Returns the new cell's ID.
 
-        Appends at the end by default. Use ``before`` or ``after``
-        to specify position (cell ID or name).
+        The returned ID can be used in subsequent operations within the
+        same batch (e.g. as an ``after`` target for the next cell).
+
+        Examples:
+            ```python
+            # Append at the end
+            cid = ctx.create_cell("import pandas as pd")
+
+            # Chain cells in order
+            cid2 = ctx.create_cell("df = pd.read_csv('data.csv')", after=cid)
+            ctx.create_cell("df.head()", after=cid2)
+
+            # Insert before a named cell, with code visible
+            ctx.create_cell("# Setup", before="analysis", hide_code=False)
+
+            # Stage without executing
+            ctx.create_cell("expensive_computation()", draft=True)
+            ```
+
+        Args:
+            code (str): Python source code for the cell.
+            before (str, optional): Insert before this cell (ID or name).
+                Mutually exclusive with ``after``.
+            after (str, optional): Insert after this cell (ID or name).
+                Mutually exclusive with ``before``.
+            hide_code (bool): Collapse the code editor in the UI.
+                Defaults to True.
+            disabled (bool): Prevent the cell from executing.
+                Defaults to False.
+            column (int, optional): Column index for multi-column layouts.
+            draft (bool): Insert code without executing it.
+                Defaults to False.
         """
         self._require_entered()
         if before is not None and after is not None:
@@ -393,10 +423,35 @@ class AsyncCodeModeContext:
         column: int | None = None,
         draft: bool = False,
     ) -> None:
-        """Queue a cell update (code and/or config).
+        """Queue an update to an existing cell's code and/or config.
 
-        ``target`` is a cell ID or cell name. ``None`` kwargs mean
-        "don't change".
+        Only the arguments you explicitly pass are changed — the cell's
+        existing config is preserved for any argument left as ``None``.
+
+        Examples:
+            ```python
+            # Update only code (config like hide_code is preserved)
+            ctx.update_cell(
+                "data_loader", code="df = pd.read_parquet('new.parquet')"
+            )
+
+            # Update only config (code is preserved)
+            ctx.update_cell("data_loader", hide_code=False)
+
+            # Update both code and config
+            ctx.update_cell("data_loader", code="df = load()", disabled=True)
+
+            # Stage new code without executing
+            ctx.update_cell("my_cell", code="new_code()", draft=True)
+            ```
+
+        Args:
+            target (str): Cell ID or cell name.
+            code (str, optional): New Python source code. None keeps existing.
+            hide_code (bool, optional): Collapse the code editor. None keeps existing.
+            disabled (bool, optional): Prevent the cell from executing. None keeps existing.
+            column (int, optional): Column index for multi-column layouts. None keeps existing.
+            draft (bool): Update code without executing. Defaults to False.
         """
         self._require_entered()
         cell_id = self._resolve_target(target)
@@ -427,7 +482,17 @@ class AsyncCodeModeContext:
         )
 
     def delete_cell(self, target: str) -> None:
-        """Queue a cell for deletion. ``target`` is a cell ID or name."""
+        """Queue a cell for deletion.
+
+        Examples:
+            ```python
+            ctx.delete_cell("scratch")  # by name
+            ctx.delete_cell("a1b2c3d4-...")  # by cell ID
+            ```
+
+        Args:
+            target (str): Cell ID or cell name to delete.
+        """
         self._require_entered()
         cell_id = self._resolve_target(target)
         self._ops.append(_DeleteOp(cell_id=cell_id))
@@ -439,7 +504,24 @@ class AsyncCodeModeContext:
         before: str | None = None,
         after: str | None = None,
     ) -> None:
-        """Queue a cell move. Exactly one of ``before``/``after`` required."""
+        """Queue a cell to be repositioned in the notebook.
+
+        Moves only affect visual ordering — they do not re-execute
+        cells or change the dependency graph.
+
+        Examples:
+            ```python
+            ctx.move_cell("imports", before="analysis")
+            ctx.move_cell("cleanup", after="main_logic")
+            ```
+
+        Args:
+            target (str): Cell ID or cell name to move.
+            before (str, optional): Place before this cell (ID or name).
+                Mutually exclusive with ``after``.
+            after (str, optional): Place after this cell (ID or name).
+                Mutually exclusive with ``before``.
+        """
         self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
@@ -677,8 +759,21 @@ class AsyncCodeModeContext:
     def set_ui_value(self, element: Any, value: Any) -> None:
         """Queue a UI element value update.
 
-        Updates are flushed as a single batch on context exit, after
-        cell operations have been applied.
+        Triggers reactive re-execution the same way a user interaction
+        would. Updates are flushed as a single batch on context exit.
+
+        Examples:
+            ```python
+            slider = ctx.globals["my_slider"]
+            ctx.set_ui_value(slider, 42)
+
+            dropdown = ctx.globals["color_picker"]
+            ctx.set_ui_value(dropdown, "red")
+            ```
+
+        Args:
+            element: A marimo UI element (e.g. ``mo.ui.slider``).
+            value: The new value, matching the type the element expects.
         """
         self._require_entered()
         self._ui_updates.append((UIElementId(element._id), value))
@@ -690,12 +785,16 @@ class AsyncCodeModeContext:
     def install_packages(self, *packages: str) -> None:
         """Queue packages for installation on context exit.
 
-        Each argument is a pip-style package specifier::
+        Installed before cell ops, so newly added cells can import them.
 
-            ctx.install_packages("pandas", "polars>=0.20", "numpy==1.26")
+        Examples:
+            ```python
+            ctx.install_packages("pandas")
+            ctx.install_packages("polars>=0.20", "numpy==1.26")
+            ```
 
-        Packages are installed one-by-one before cell ops are applied,
-        so newly added cells can import them.
+        Args:
+            *packages (str): Pip-style package specifiers.
         """
         self._require_entered()
         self._packages_to_install.extend(packages)
