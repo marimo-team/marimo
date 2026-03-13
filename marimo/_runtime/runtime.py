@@ -45,7 +45,11 @@ from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.context import http_request_context, run_id_context
+from marimo._messaging.context import (
+    http_request_context,
+    is_headless_request,
+    run_id_context,
+)
 from marimo._messaging.errors import (
     Error,
     ImportStarError as MarimoImportStarError,
@@ -3105,6 +3109,9 @@ class PackagesCallbacks:
                 )
             )
         else:
+            if is_headless_request():
+                return
+
             broadcast_notification(
                 MissingPackageAlertNotification(
                     packages=packages,

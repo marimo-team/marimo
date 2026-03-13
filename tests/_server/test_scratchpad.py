@@ -299,6 +299,27 @@ class TestBuildDoneEvent:
         assert data["error"]["type"] == "MarimoSyntaxError"
         assert "exception_type" not in data["error"]
 
+    @pytest.mark.parametrize(
+        "exception_type",
+        ["ModuleNotFoundError", "ImportError"],
+    )
+    def test_import_error_includes_install_hint(
+        self, exception_type: str
+    ) -> None:
+        err = MarimoExceptionRaisedError(
+            msg=f"{exception_type}: No module named 'pandas'",
+            exception_type=exception_type,
+            raising_cell=None,
+        )
+        notif = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            output=CellOutput.errors([err]),
+            status="idle",
+        )
+        _, data = _parse_sse(build_done_event(_make_session(notif)))
+        assert data["success"] is False
+        assert "ctx.install_packages" in data["error"]["msg"]
+
     def test_timeout(self) -> None:
         _, data = _parse_sse(build_timeout_event(30.0))
         assert data["success"] is False
