@@ -11,8 +11,8 @@ Usage::
     import marimo._code_mode as cm
 
     async with cm.get_context() as ctx:
-        cid = ctx.add_cell("x = 1")
-        ctx.add_cell("y = x + 1", after=cid)
+        cid = ctx.create_cell("x = 1")
+        ctx.create_cell("y = x + 1", after=cid)
         ctx.update_cell("my_cell", code="z = 42")
         ctx.delete_cell("old_cell")
         ctx.move_cell("my_cell", after="other_cell")
@@ -94,7 +94,7 @@ def get_context() -> AsyncCodeModeContext:
     Use as an async context manager::
 
         async with cm.get_context() as ctx:
-            ctx.add_cell("x = 1")
+            ctx.create_cell("x = 1")
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
@@ -191,7 +191,7 @@ class AsyncCodeModeContext:
     block and applied atomically on exit::
 
         async with cm.get_context() as ctx:
-            ctx.add_cell("x = 1")
+            ctx.create_cell("x = 1")
             ctx.update_cell("my_cell", code="x = 42")
             ctx.delete_cell("old_cell")
 
@@ -219,7 +219,7 @@ class AsyncCodeModeContext:
                 "Cell operations require 'async with'. Use:\n"
                 "\n"
                 "    async with cm.get_context() as ctx:\n"
-                "        ctx.add_cell(...)\n"
+                "        ctx.create_cell(...)\n"
                 "\n"
                 "Without 'async with', operations are silently lost."
             )
@@ -315,7 +315,7 @@ class AsyncCodeModeContext:
             f"Cell {target!r} not found in notebook or pending adds"
         )
 
-    def add_cell(
+    def create_cell(
         self,
         code: str,
         *,

@@ -45,7 +45,7 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.add_cell("x = 1")
+            nb.create_cell("x = 1")
 
         assert len(k.graph.cells) == 1
         cell = list(k.graph.cells.values())[0]
@@ -72,7 +72,7 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.add_cell("c = a + b")
+            nb.create_cell("c = a + b")
 
         assert len(k.graph.cells) == 3
         assert k.globals["c"] == 30
@@ -95,7 +95,7 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.add_cell("c = a + b", after="0")
+            nb.create_cell("c = a + b", after="0")
 
         ids_notifs = _ids_notifs(k)
         cell_ids = ids_notifs[0].cell_ids
@@ -108,7 +108,7 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.add_cell("x = 999", draft=True)
+            nb.create_cell("x = 999", draft=True)
 
         assert len(k.graph.cells) == 1
         assert "x" not in k.globals
@@ -122,7 +122,7 @@ class TestAddCell:
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
-            cid = nb.add_cell("x = 1")
+            cid = nb.create_cell("x = 1")
             assert isinstance(cid, str)
             assert len(cid) > 0
 
@@ -131,8 +131,8 @@ class TestAddCell:
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
-            cid1 = nb.add_cell("x = 1")
-            nb.add_cell("y = 2", after=cid1)
+            cid1 = nb.create_cell("x = 1")
+            nb.create_cell("y = 2", after=cid1)
 
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
@@ -241,7 +241,7 @@ class TestCombined:
 
         async with ctx as nb:
             nb.delete_cell("1")
-            nb.add_cell("d = a + c", after="0")
+            nb.create_cell("d = a + c", after="0")
 
         assert k.globals["d"] == 4
         codes = _graph_codes(k)
@@ -265,7 +265,7 @@ class TestCombined:
 
         try:
             async with ctx as nb:
-                nb.add_cell("y = 2")
+                nb.create_cell("y = 2")
                 raise ValueError("oops")
         except ValueError:
             pass

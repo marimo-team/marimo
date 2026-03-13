@@ -10,19 +10,19 @@ Usage::
 
     import marimo._code_mode as cm
 
-    async with cm.get_context() as nb:
-        # Add cells (appends at end by default)
-        cid = nb.add_cell("x = 1")
-        nb.add_cell("y = x + 1", after=cid)
+    async with cm.get_context() as ctx:
+        # Create cells (appends at end by default)
+        cid = ctx.create_cell("x = 1")
+        ctx.create_cell("y = x + 1", after=cid)
 
         # Update cells by ID or name
-        nb.update_cell("my_cell", code="z = 42")
+        ctx.update_cell("my_cell", code="z = 42")
 
         # Delete cells
-        nb.delete_cell("old_cell")
+        ctx.delete_cell("old_cell")
 
         # Move cells
-        nb.move_cell("my_cell", after="other_cell")
+        ctx.move_cell("my_cell", after="other_cell")
 
     # Read cells (works outside the context manager too)
     ctx = cm.get_context()
