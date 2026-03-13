@@ -159,6 +159,60 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert css in result
         _assert_no_leftover_replacements(result)
 
+    def test_notebook_page_template_custom_css_workspace_relative(
+        self,
+    ) -> None:
+        # Simulate workspace mode: filename is workspace-relative display path,
+        # filepath is the absolute path used for I/O.
+        subdir = self.tmp_path / "data"
+        subdir.mkdir()
+        notebook = subdir / "notebook.py"
+        css = "/* workspace relative css */"
+        css_file = subdir / "custom.css"
+        css_file.write_text(css)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(css_file="custom.css"),
+            filename="data/notebook.py",  # workspace-relative display name
+            filepath=str(notebook.resolve()),  # absolute path for I/O
+            mode=self.mode,
+        )
+
+        assert css in result
+        _assert_no_leftover_replacements(result)
+
+    def test_notebook_page_template_custom_head_workspace_relative(
+        self,
+    ) -> None:
+        # Simulate workspace mode: filename is workspace-relative display path,
+        # filepath is the absolute path used for I/O.
+        subdir = self.tmp_path / "data"
+        subdir.mkdir()
+        notebook = subdir / "notebook.py"
+        head = "<style>.workspace-specific { color: blue; }</style>"
+        head_file = subdir / "head.html"
+        head_file.write_text(head)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(html_head_file="head.html"),
+            filename="data/notebook.py",  # workspace-relative display name
+            filepath=str(notebook.resolve()),  # absolute path for I/O
+            mode=self.mode,
+        )
+
+        assert head in result.split("</head>", 1)[0]
+        _assert_no_leftover_replacements(result)
+
     def test_notebook_page_template_custom_head(self) -> None:
         # Create html head file
         head = """

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
+import { Mocks } from "@/__mocks__/common";
 import {
   convertFilesToResourceLinks,
   parseContextFromPrompt,
@@ -19,12 +20,7 @@ vi.mock("@/core/state/jotai", () => ({
   store: {},
 }));
 
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    error: vi.fn(),
-    debug: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import type {

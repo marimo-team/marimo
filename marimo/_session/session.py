@@ -7,6 +7,8 @@ and websocket for bidirectional communication.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -29,6 +31,7 @@ from marimo._runtime.commands import (
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
+    CacheMode,
     CachingExtension,
     HeartbeatExtension,
     LoggingExtension,
@@ -56,7 +59,7 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from marimo._server.models.models import InstantiateNotebookRequest
 
@@ -141,12 +144,22 @@ class SessionImpl(Session):
                 redirect_console_to_browser=redirect_console_to_browser,
             )
 
+        if mode == SessionMode.EDIT:
+            cache_enabled = not auto_instantiate
+            cache_mode = CacheMode.READ_WRITE
+        else:
+            cache_enabled = config_manager.get_config()["runtime"].get(
+                "serve_cached_sessions_in_apps", False
+            )
+            cache_mode = CacheMode.READ
+
         extensions = [
             *(extensions or []),
             LoggingExtension(),
             HeartbeatExtension(),
             CachingExtension(
-                enabled=not auto_instantiate and mode == SessionMode.EDIT
+                enabled=cache_enabled,
+                mode=cache_mode,
             ),
             NotificationListenerExtension(
                 kernel_manager=kernel_manager, queue_manager=queue_manager
@@ -190,6 +203,7 @@ class SessionImpl(Session):
         self.session_view = SessionView()
         self.config_manager = config_manager
         self.extensions = extensions
+        self.scratchpad_lock = asyncio.Lock()
 
         self._kernel_manager.start_kernel()
         self._event_bus = SessionEventBus()
@@ -228,16 +242,19 @@ class SessionImpl(Session):
                 )
                 continue
 
-    def attach_extension(self, extension: SessionExtension) -> None:
-        """Dynamically attach an extension to the session."""
+    @contextlib.contextmanager
+    def scoped(
+        self, extension: SessionExtension
+    ) -> Iterator[SessionExtension]:
+        """Attach an extension for the duration of the context."""
         self.extensions.append(extension)
         extension.on_attach(self, self._event_bus)
-
-    def detach_extension(self, extension: SessionExtension) -> None:
-        """Dynamically detach an extension from the session."""
-        extension.on_detach()
-        if extension in self.extensions:
-            self.extensions.remove(extension)
+        try:
+            yield extension
+        finally:
+            extension.on_detach()
+            if extension in self.extensions:
+                self.extensions.remove(extension)
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:

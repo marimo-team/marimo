@@ -46,12 +46,72 @@ describe("generateDatabaseCode", () => {
   const snowflakeConnection: DatabaseConnection = {
     type: "snowflake",
     account: "account",
-    username: "user",
-    password: "pass",
     warehouse: "warehouse",
     database: "db",
     schema: "schema",
     role: "role",
+    authType: {
+      type: "Password",
+      username: "user",
+      password: "pass",
+      enable_mfa: false,
+    },
+  };
+
+  const snowflakeMFAConnection: DatabaseConnection = {
+    type: "snowflake",
+    account: "account",
+    warehouse: "warehouse",
+    database: "db",
+    schema: "schema",
+    role: "role",
+    authType: {
+      type: "Password",
+      username: "user",
+      password: "pass",
+      enable_mfa: true,
+    },
+  };
+
+  const snowflakeSSOConnection: DatabaseConnection = {
+    type: "snowflake",
+    account: "account",
+    warehouse: "warehouse",
+    database: "db",
+    schema: "schema",
+    role: "role",
+    authType: {
+      type: "SSO (Browser)",
+      username: "user",
+    },
+  };
+
+  const snowflakeKeyPairConnection: DatabaseConnection = {
+    type: "snowflake",
+    account: "account",
+    warehouse: "warehouse",
+    database: "db",
+    schema: "schema",
+    role: "role",
+    authType: {
+      type: "Key Pair",
+      username: "user",
+      private_key_path: "/path/to/rsa_key.p8",
+      private_key_passphrase: "my_passphrase",
+    },
+  };
+
+  const snowflakeOAuthConnection: DatabaseConnection = {
+    type: "snowflake",
+    account: "account",
+    warehouse: "warehouse",
+    database: "db",
+    schema: "schema",
+    role: "role",
+    authType: {
+      type: "OAuth / PAT",
+      token: "my_token",
+    },
   };
 
   const bigqueryConnection: DatabaseConnection = {
@@ -240,6 +300,10 @@ describe("generateDatabaseCode", () => {
       ["duckdb", duckdbConnection, "duckdb"],
       ["motherduck", motherduckConnection, "duckdb"],
       ["snowflake", snowflakeConnection, "sqlmodel"],
+      ["snowflake with MFA", snowflakeMFAConnection, "sqlmodel"],
+      ["snowflake with SSO", snowflakeSSOConnection, "sqlmodel"],
+      ["snowflake with key pair", snowflakeKeyPairConnection, "sqlmodel"],
+      ["snowflake with OAuth/PAT", snowflakeOAuthConnection, "sqlmodel"],
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
       ["chdb", chdbConnection, "chdb"],
@@ -300,9 +364,13 @@ describe("generateDatabaseCode", () => {
         "snowflake with multiple secrets",
         {
           ...snowflakeConnection,
-          username: prefixSecret("ENV_USER"),
-          password: prefixSecret("ENV_PASSWORD"),
           account: prefixSecret("ENV_ACCOUNT"),
+          authType: {
+            type: "Password" as const,
+            username: prefixSecret("ENV_USER"),
+            password: prefixSecret("ENV_PASSWORD"),
+            enable_mfa: false,
+          },
         },
         "sqlmodel",
       ],
@@ -388,12 +456,16 @@ describe("generateDatabaseCode", () => {
         {
           type: "snowflake",
           account: "account",
-          username: "user",
-          password: "pass",
           database: "db",
           warehouse: "",
           schema: "",
           role: "",
+          authType: {
+            type: "Password" as const,
+            username: "user",
+            password: "pass",
+            enable_mfa: false,
+          },
         },
         "sqlmodel",
       ],
@@ -489,12 +561,33 @@ describe("generateDatabaseCode", () => {
         {
           type: "snowflake",
           account: "org-account",
-          username: "user",
-          password: "pass",
           database: "db",
           warehouse: "compute_wh",
           schema: "public",
           role: "accountadmin",
+          authType: {
+            type: "Password" as const,
+            username: "user",
+            password: "pass",
+            enable_mfa: false,
+          },
+        },
+        "sqlmodel",
+      ],
+      [
+        "snowflake key pair without passphrase",
+        {
+          type: "snowflake",
+          account: "account",
+          database: "db",
+          warehouse: "warehouse",
+          schema: "schema",
+          role: "role",
+          authType: {
+            type: "Key Pair" as const,
+            username: "user",
+            private_key_path: "/path/to/rsa_key.p8",
+          },
         },
         "sqlmodel",
       ],

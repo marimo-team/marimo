@@ -60,6 +60,36 @@ def _is_win32() -> bool:
     return sys.platform == "win32"
 
 
+def _playwright_browsers_installed() -> bool:
+    """Check if Playwright Chromium browser binary is actually installed."""
+    try:
+        import os
+
+        # Playwright stores browsers in PLAYWRIGHT_BROWSERS_PATH or
+        # the default cache: ~/.cache/ms-playwright (Linux),
+        # ~/Library/Caches/ms-playwright (macOS)
+        browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+        if not browsers_path:
+            if sys.platform == "darwin":
+                browsers_path = str(
+                    Path.home() / "Library" / "Caches" / "ms-playwright"
+                )
+            elif sys.platform == "win32":
+                local = os.environ.get("LOCALAPPDATA", "")
+                browsers_path = (
+                    str(Path(local) / "ms-playwright") if local else ""
+                )
+            else:
+                browsers_path = str(Path.home() / ".cache" / "ms-playwright")
+        p = Path(browsers_path)
+        if not p.exists():
+            return False
+        # Check if any chromium directory exists
+        return any(d.name.startswith("chromium") for d in p.iterdir())
+    except Exception:
+        return False
+
+
 _runner = CliRunner()
 
 
@@ -1148,6 +1178,11 @@ class TestExportPDF:
 @pytest.mark.skipif(
     not DependencyManager.playwright.has(),
     reason="This test requires playwright.",
+)
+@pytest.mark.skipif(
+    DependencyManager.playwright.has()
+    and not _playwright_browsers_installed(),
+    reason="Playwright browsers are not installed.",
 )
 class TestExportThumbnail:
     def test_export_thumbnail(self, temp_marimo_file: str) -> None:

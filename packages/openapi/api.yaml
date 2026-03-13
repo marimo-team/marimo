@@ -3781,14 +3781,16 @@ components:
         \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
         \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
         \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
-        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
-        \    - `pythonpath`: a list of directories to add to the Python search path.\n\
-        \        Directories will be added to the head of sys.path. Similar to the\n\
-        \        `PYTHONPATH` environment variable, the directories will be included\
-        \ in\n        where Python will look for imported modules.\n    - `dotenv`:\
-        \ a list of paths to `.env` files to load.\n        If the file does not exist,\
-        \ it will be silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
+        \ frontend performance\n    - `serve_cached_sessions_in_apps`: if `True`,\
+        \ initialize applications with session cache.\n        The default is `False`.\n\
+        \    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;\n\
+        \      larger values may affect frontend performance\n    - `pythonpath`:\
+        \ a list of directories to add to the Python search path.\n        Directories\
+        \ will be added to the head of sys.path. Similar to the\n        `PYTHONPATH`\
+        \ environment variable, the directories will be included in\n        where\
+        \ Python will look for imported modules.\n    - `dotenv`: a list of paths\
+        \ to `.env` files to load.\n        If the file does not exist, it will be\
+        \ silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
         \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
         \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
@@ -3835,6 +3837,8 @@ components:
             type: string
           type: array
         reactive_tests:
+          type: boolean
+        serve_cached_sessions_in_apps:
           type: boolean
         std_stream_max_bytes:
           type: integer
@@ -4504,8 +4508,13 @@ components:
         \        display_name: The display name of the storage namespace.\n      \
         \  protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http,\
         \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
+        \        backend_type: The type of the storage backend (fsspec or obstore)\n\
         \        storage_entries: The storage entries in the storage namespace."
       properties:
+        backendType:
+          enum:
+          - fsspec
+          - obstore
         displayName:
           type: string
         name:
@@ -4523,6 +4532,7 @@ components:
       - displayName
       - protocol
       - rootPath
+      - backendType
       - storageEntries
       title: StorageNamespace
       type: object
@@ -4683,10 +4693,12 @@ components:
       title: UnknownError
       type: object
     UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode).\n\n    Attributes:\n\
-        \        cell_ids: Cells to update.\n        codes: New code for each cell.\n\
-        \        code_is_stale: If True, code was not executed on backend (output\
-        \ may not match)."
+      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
+        \n    Attributes:\n        cell_ids: Cells to update.\n        codes: New\
+        \ code for each cell.\n        code_is_stale: If True, code was not executed\
+        \ on backend (output may not match).\n        names: Cell names for each cell\
+        \ (optional, for file reload).\n        configs: Cell configs for each cell\
+        \ (optional, for file reload)."
       properties:
         cell_ids:
           items:
@@ -4695,6 +4707,16 @@ components:
         code_is_stale:
           type: boolean
         codes:
+          items:
+            type: string
+          type: array
+        configs:
+          default: []
+          items:
+            $ref: '#/components/schemas/CellConfig'
+          type: array
+        names:
+          default: []
           items:
             type: string
           type: array

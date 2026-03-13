@@ -951,3 +951,33 @@ def test_file_browser_relative_path_normalization(tmp_path: Path) -> None:
     finally:
         # Restore original directory
         os.chdir(original_cwd)
+
+
+def test_file_browser_relative_path_sent_to_frontend_as_absolute(
+    tmp_path: Path,
+) -> None:
+    """Test that the initial-path arg sent to the frontend is always absolute."""
+    sub_dir = tmp_path / "subdir"
+    sub_dir.mkdir()
+    (sub_dir / "file.txt").touch()
+
+    original_cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+
+        for rel_path in ["subdir", "./subdir", Path("subdir")]:
+            fb = file_browser(initial_path=rel_path)
+            initial_path_arg = str(fb._component_args["initial-path"])  # pyright: ignore[reportPrivateUsage]
+            assert "/" in initial_path_arg, (
+                f"initial-path sent to frontend must contain '/' "
+                f"(be absolute), got: {initial_path_arg!r}"
+            )
+            assert Path(initial_path_arg).is_absolute()
+
+            # Navigating up from the initial path should work
+            parent = str(Path(initial_path_arg).parent)
+            response = fb._list_directory(ListDirectoryArgs(path=parent))  # pyright: ignore[reportPrivateUsage]
+            assert isinstance(response, ListDirectoryResponse)
+
+    finally:
+        os.chdir(original_cwd)

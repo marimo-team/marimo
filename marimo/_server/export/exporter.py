@@ -374,9 +374,9 @@ class Exporter:
                     PDFExporter,
                 )
 
-                exporter = PDFExporter()
+                exporter = PDFExporter()  # type: ignore[no-untyped-call]
                 exporter.exclude_input = not include_inputs
-                pdf_data, _resources = exporter.from_notebook_node(notebook)
+                pdf_data, _resources = exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
                 if isinstance(pdf_data, bytes):
                     return pdf_data
                 LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -389,10 +389,10 @@ class Exporter:
 
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
-        web_exporter = WebPDFExporter()
+        web_exporter = WebPDFExporter()  # type: ignore[no-untyped-call]
         web_exporter.exclude_input = not include_inputs
         web_exporter.allow_chromium_download = True
-        pdf_data, _resources = web_exporter.from_notebook_node(notebook)
+        pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -492,9 +492,9 @@ class Exporter:
             )
 
         # Convert to reveal.js HTML
-        slides_exporter = SlidesExporter()
+        slides_exporter = SlidesExporter()  # type: ignore[no-untyped-call]
         slides_exporter.exclude_input = not include_inputs
-        html_data, _resources = slides_exporter.from_notebook_node(notebook)
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
 
         # Write HTML to a temp file for Playwright to load
         with tempfile.NamedTemporaryFile(
