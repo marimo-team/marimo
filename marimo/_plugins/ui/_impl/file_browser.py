@@ -372,30 +372,27 @@ class file_browser(
                 if extension.lower() not in self._filetypes:
                     continue
 
-            # Apply file_pattern filter (regex or callback)
-            if not is_directory and (
-                self._file_pattern or self._file_pattern_callback
-            ):
-                should_include = True
+            # Apply file_pattern filter
+            should_include = True
 
-                # Check regex pattern
-                if self._file_pattern:
-                    should_include = bool(self._file_pattern.match(file.name))
+            # Regex patterns only apply to files, not directories
+            if self._file_pattern and not is_directory:
+                should_include = bool(self._file_pattern.match(file.name))
 
-                # Check callback function (can filter both files and directories)
-                if should_include and self._file_pattern_callback:
-                    try:
-                        should_include = self._file_pattern_callback(file)
-                    except Exception as e:
-                        # If callback fails for any reason (OSError, ValueError, etc.),
-                        # skip the file and log the error
-                        LOGGER.debug(
-                            f"file_pattern callback failed for {file}: {e}"
-                        )
-                        should_include = False
+            # Callback functions can filter both files and directories
+            if should_include and self._file_pattern_callback:
+                try:
+                    should_include = self._file_pattern_callback(file)
+                except Exception as e:
+                    # If callback fails for any reason (OSError, ValueError, etc.),
+                    # skip the entry and log the error
+                    LOGGER.debug(
+                        f"file_pattern callback failed for {file}: {e}"
+                    )
+                    should_include = False
 
-                if not should_include:
-                    continue
+            if not should_include:
+                continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
             if self._ignore_empty_dirs and is_directory:
