@@ -45,7 +45,8 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
     CommandMessage,
-    ExecuteCellsCommand,
+    DeleteCellCommand,
+    ExecuteCellCommand,
     InstallPackagesCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
@@ -622,27 +623,17 @@ class AsyncCodeModeContext:
         # Auto-format new/changed code.
         plan = await self._format_plan(plan)
 
-        # Reconcile plan against the graph.
+        # Diff the plan against the current graph.
         existing_id_set = set(self.graph.cells.keys())
         existing_code = {
             cid: self.graph.cells[cid].code for cid in existing_id_set
         }
         plan_ids = {e.cell_id for e in plan}
 
-        # We call Kernel._delete_cell / _deactivate_cell directly
-        # rather than going through DeleteCellCommand because we need
-        # synchronous graph manipulation (delete + re-register) within
-        # a single atomic batch.  DeleteCellCommand would also trigger
-        # _run_cells for descendants, which we handle ourselves via the
-        # ExecuteCellsCommand at the end.  These are internal kernel
-        # primitives that properly clean up globals, UI elements, and
-        # lifecycle hooks — the raw graph.delete_cell() does not.
-        for cid in existing_id_set - plan_ids:
-            self._kernel._delete_cell(cid)
-
-        # Insert/update cells.
-        cells_to_execute: list[tuple[CellId_t, str]] = []
-        code_notifications: list[_PlanEntry] = []
+        # Classify each entry.
+        code_entries: list[_PlanEntry] = []  # new or changed code
+        config_entries: list[_PlanEntry] = []  # config-only changes
+        draft_ids: set[CellId_t] = set()
 
         for entry in plan:
             is_new = entry.cell_id not in existing_id_set
@@ -650,45 +641,63 @@ class AsyncCodeModeContext:
                 entry.code is not None
                 and entry.code != existing_code.get(entry.cell_id)
             )
-
             if is_new or code_changed:
-                assert entry.code is not None
-                if is_new:
-                    cfg = entry.config or CellConfig(hide_code=True)
-                else:
-                    # Preserve existing config when none is explicitly
-                    # provided.
-                    existing_meta = self._kernel.cell_metadata.get(
-                        entry.cell_id
-                    )
-                    cfg = entry.config or (
-                        existing_meta.config
-                        if existing_meta
-                        else CellConfig()
-                    )
-                    self._kernel._deactivate_cell(entry.cell_id)
-                cell = compile_cell(entry.code, cell_id=entry.cell_id)
-                cell.configure(cfg.asdict())
-                self._kernel.cell_metadata[entry.cell_id] = CellMetadata(
-                    config=cfg
-                )
-                self.graph.register_cell(entry.cell_id, cell)
-                code_notifications.append(entry)
-                if not entry.draft:
-                    cells_to_execute.append((entry.cell_id, entry.code))
-
+                code_entries.append(entry)
+                if entry.draft:
+                    draft_ids.add(entry.cell_id)
             elif entry.config is not None:
-                await self.execute_command(
-                    UpdateCellConfigCommand(
-                        configs={entry.cell_id: entry.config.asdict()}
-                    )
+                config_entries.append(entry)
+
+        # Resolve configs before mutate_graph (which may delete metadata).
+        resolved_configs: dict[CellId_t, CellConfig] = {}
+        for entry in code_entries:
+            assert entry.code is not None
+            if entry.cell_id not in existing_id_set:
+                resolved_configs[entry.cell_id] = entry.config or CellConfig(
+                    hide_code=True
+                )
+            else:
+                existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
+                resolved_configs[entry.cell_id] = entry.config or (
+                    existing_meta.config if existing_meta else CellConfig()
                 )
 
-        # Notify frontend.
+        # Let mutate_graph handle all graph mutations: it properly
+        # cleans up globals, UI elements, and lifecycle hooks for
+        # deleted/replaced cells via _delete_cell / _deactivate_cell.
+        execution_requests: list[ExecuteCellCommand] = []
+        for e in code_entries:
+            assert e.code is not None
+            execution_requests.append(
+                ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
+            )
+        deletion_requests = [
+            DeleteCellCommand(cell_id=cid)
+            for cid in existing_id_set - plan_ids
+        ]
+        cells_to_run = self._kernel.mutate_graph(
+            execution_requests, deletion_requests
+        )
+
+        # Apply configs to newly registered cells.
+        for cell_id, cfg in resolved_configs.items():
+            if cell_id in self.graph.cells:
+                self.graph.cells[cell_id].configure(cfg.asdict())
+            self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
+
+        # Apply config-only changes.
+        for entry in config_entries:
+            await self.execute_command(
+                UpdateCellConfigCommand(
+                    configs={entry.cell_id: entry.config.asdict()}  # type: ignore[union-attr]
+                )
+            )
+
+        # Notify frontend of code changes.
         target_order = [e.cell_id for e in plan]
 
         by_stale: dict[bool, list[_PlanEntry]] = {}
-        for entry in code_notifications:
+        for entry in code_entries:
             by_stale.setdefault(entry.draft, []).append(entry)
 
         for is_stale, entries in by_stale.items():
@@ -697,20 +706,16 @@ class AsyncCodeModeContext:
                     cell_ids=[e.cell_id for e in entries],
                     codes=[e.code for e in entries],  # type: ignore[misc]
                     code_is_stale=is_stale,
-                    configs=[
-                        self._kernel.cell_metadata[e.cell_id].config
-                        for e in entries
-                    ],
+                    configs=[resolved_configs[e.cell_id] for e in entries],
                 )
             )
 
         self.notify(UpdateCellIdsNotification(cell_ids=target_order))
 
-        if cells_to_execute:
-            ids, codes = zip(*cells_to_execute)
-            await self.execute_command(
-                ExecuteCellsCommand(cell_ids=list(ids), codes=list(codes))
-            )
+        # Run cells, excluding drafts.
+        cells_to_run -= draft_ids
+        if cells_to_run:
+            await self._kernel._run_cells(cells_to_run)
 
     # ------------------------------------------------------------------
     # Formatting helpers
