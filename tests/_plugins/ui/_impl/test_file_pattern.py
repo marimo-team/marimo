@@ -95,7 +95,8 @@ def test_file_pattern_invalid_regex(tmp_path: Path) -> None:
 
 def test_file_pattern_invalid_type(tmp_path: Path) -> None:
     with pytest.raises(
-        ValueError, match="file_pattern must be a string \(regex\) or callable"
+        ValueError,
+        match=r"file_pattern must be a string \(regex\) or callable",
     ):
         file_browser(initial_path=tmp_path, file_pattern=123)  # type: ignore[arg-type]
 
@@ -174,7 +175,11 @@ def test_file_pattern_case_sensitivity(tmp_path: Path) -> None:
         file_pattern=r"(?i).*\.log$",
     )
     response_ci = fb_ci._list_directory(ListDirectoryArgs(path=str(tmp_path)))
-    assert set(_file_names(response_ci)) == {"Test.LOG", "test.log", "TEST.Log"}
+    assert set(_file_names(response_ci)) == {
+        "Test.LOG",
+        "test.log",
+        "TEST.Log",
+    }
 
 
 def test_file_pattern_only_files_not_directories(tmp_path: Path) -> None:
