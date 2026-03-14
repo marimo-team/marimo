@@ -39,12 +39,12 @@ class CodeCell:
     config: CellConfig = field(default_factory=CellConfig)
 
 
-# Regex to strip simple <p>...</p> wrapping from Jupyter markdown cells.
-# Many Jupyter notebooks wrap paragraph text in <p> tags which is redundant
-# in pure markdown and can interfere with LaTeX rendering.
-_PARAGRAPH_TAG_RE = re.compile(
-    r"<p(?:\s[^>]*)?>|</p>",
-    re.IGNORECASE,
+# Regex patterns for stripping <p>/<\/p> tags from Jupyter markdown cells.
+_OPEN_P_RE = re.compile(r"<p(?:\s[^>]*)?>", re.IGNORECASE)
+_CLOSE_P_RE = re.compile(r"</p>", re.IGNORECASE)
+_FENCED_BLOCK_RE = re.compile(
+    r"^(`{3,}|~{3,}).*?^\1[ \t]*$",
+    re.MULTILINE | re.DOTALL,
 )
 
 
@@ -53,10 +53,32 @@ def _strip_paragraph_tags(source: str) -> str:
 
     Jupyter markdown cells often wrap content in ``<p>…</p>`` tags which are
     redundant in plain markdown and can break LaTeX rendering inside
-    ``mo.md()``.  This helper removes them while preserving all other HTML
-    tags and the text content.
+    ``mo.md()``.
+
+    Closing ``</p>`` tags are replaced with a newline to preserve paragraph
+    separation.  Content inside fenced code blocks is left untouched.
     """
-    return _PARAGRAPH_TAG_RE.sub("", source)
+    # Collect fenced code block spans so we can skip them
+    protected: list[tuple[int, int]] = []
+    for m in _FENCED_BLOCK_RE.finditer(source):
+        protected.append((m.start(), m.end()))
+
+    def _in_protected(pos: int) -> bool:
+        return any(s <= pos < e for s, e in protected)
+
+    # Process from end to start so positions stay valid
+    # Handle closing tags first (replace with newline)
+    for m in reversed(list(_CLOSE_P_RE.finditer(source))):
+        if not _in_protected(m.start()):
+            source = source[: m.start()] + "\n" + source[m.end() :]
+    # Handle opening tags (remove entirely)
+    for m in reversed(list(_OPEN_P_RE.finditer(source))):
+        if not _in_protected(m.start()):
+            source = source[: m.start()] + source[m.end() :]
+
+    # Clean up excessive blank lines introduced by replacements
+    source = re.sub(r"\n{3,}", "\n\n", source)
+    return source.strip()
 
 
 CellsTransform = Callable[[list[CodeCell]], list[CodeCell]]
