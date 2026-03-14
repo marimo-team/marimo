@@ -2,10 +2,11 @@ r"""Tests for _strip_paragraph_tags in to_ir.py.
 
 Covers the reviewer suggestions from PR #8674:
 - Basic <p>/<\/p> removal
+- Preservation of styled <p> tags (with attributes)
 - Preservation of content inside fenced code blocks
 - Paragraph separation when adjacent </p><p> tags are removed
 - Case-insensitive matching
-- Tags with attributes
+- Inline code protection
 """
 
 from __future__ import annotations
@@ -17,9 +18,30 @@ class TestStripParagraphTags:
     def test_basic_removal(self) -> None:
         assert _strip_paragraph_tags("<p>Hello world</p>") == "Hello world"
 
-    def test_removes_opening_tag_with_attributes(self) -> None:
+    def test_preserves_styled_p_tag(self) -> None:
+        """Styled <p> tags carry semantic meaning and must be preserved."""
+        source = '<p style="color: red">Red text</p>'
+        result = _strip_paragraph_tags(source)
+        assert '<p style="color: red">' in result
+        assert "</p>" in result
+
+    def test_preserves_p_with_class(self) -> None:
         result = _strip_paragraph_tags('<p class="lead">Styled text</p>')
-        assert result == "Styled text"
+        assert '<p class="lead">' in result
+        assert "</p>" in result
+
+    def test_preserves_p_with_id(self) -> None:
+        result = _strip_paragraph_tags('<p id="intro">Intro text</p>')
+        assert '<p id="intro">' in result
+
+    def test_mixed_bare_and_styled(self) -> None:
+        """Bare <p> stripped, styled <p> preserved in same source."""
+        source = '<p>Plain text</p>\n<p style="color: blue">Blue text</p>'
+        result = _strip_paragraph_tags(source)
+        assert "<p>" not in result
+        assert "Plain text" in result
+        assert '<p style="color: blue">' in result
+        assert "Blue text" in result
 
     def test_case_insensitive(self) -> None:
         assert _strip_paragraph_tags("<P>UPPER</P>") == "UPPER"
@@ -91,3 +113,10 @@ class TestStripParagraphTags:
         source = '<p><div class="note">Important</div></p>'
         result = _strip_paragraph_tags(source)
         assert '<div class="note">Important</div>' in result
+
+    def test_adjacent_styled_paragraphs_fully_preserved(self) -> None:
+        """Adjacent styled <p> tags must keep both open and close."""
+        source = '<p style="color:red">A</p><p style="color:blue">B</p>'
+        result = _strip_paragraph_tags(source)
+        assert '<p style="color:red">A</p>' in result
+        assert '<p style="color:blue">B</p>' in result
