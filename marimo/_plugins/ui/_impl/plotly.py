@@ -625,11 +625,13 @@ def _append_scatter_points_to_selection(
 
         # Add existing points first
         for idx, point in enumerate(existing_points):
-            key = (
-                point.get("pointIndex"),
-                point.get("curveNumber"),
-            )
-            if key != (None, None):
+            point_index = point.get("pointIndex")
+            curve_number = point.get("curveNumber")
+            # Only de-duplicate when both pointIndex and curveNumber are present.
+            # Non-scatter points (e.g., bar/heatmap) may not have pointIndex and
+            # should not be collapsed down to a single item per trace.
+            if point_index is not None and curve_number is not None:
+                key = (point_index, curve_number)
                 if key in seen:
                     continue
                 seen.add(key)
@@ -639,16 +641,18 @@ def _append_scatter_points_to_selection(
 
         # Add new scatter points
         for point in scatter_points:
-            key = (
-                point.get("pointIndex"),
-                point.get("curveNumber"),
-            )
-            if key not in seen:
+            point_index = point.get("pointIndex")
+            curve_number = point.get("curveNumber")
+            # As above, only de-duplicate when both identifiers are available.
+            if point_index is not None and curve_number is not None:
+                key = (point_index, curve_number)
+                if key in seen:
+                    continue
                 seen.add(key)
-                merged_points.append(point)
-                # Indices for manually extracted points - use the point's original index
-                if "pointIndex" in point:
-                    merged_indices.append(point["pointIndex"])
+            merged_points.append(point)
+            # Indices for manually extracted points - use the point's original index
+            if "pointIndex" in point:
+                merged_indices.append(point["pointIndex"])
 
         selection_data["points"] = merged_points
         selection_data["indices"] = merged_indices
