@@ -148,23 +148,40 @@ class ThreadSafeStream(Stream):
 def _forward_os_stream(
     standard_stream: Stdout | Stderr, fd: int, should_exit: threading.Event
 ) -> None:
-    """Watch a file descriptor and forward it to a stream object."""
+    """Watch a file descriptor and forward it to a stream object.
 
-    # This coarse try/except block silences exceptions; a raised exception
-    # at this point could cause bad errors, such as an infinite stream of data
-    # to be written to the fd/routed through the stream.
-    #
-    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
-    # exceptions we actually want to pay attention to; then store the exception
-    # and print it to the terminal later (outside an execution context).
+    Reads raw bytes from fd and decodes them as UTF-8 before forwarding.
+    Uses an incremental decoder to correctly handle multi-byte characters
+    that may be split across read boundaries (e.g., from C libraries writing
+    output with non-ASCII or ANSI escape codes). Invalid bytes are replaced
+    with U+FFFD rather than raising an exception.
+
+    This function must not exit from transient errors, since a dead reader
+    thread causes the pipe to fill up and block all subsequent writes to the
+    fd, hanging cell execution. See https://github.com/marimo-team/marimo/issues/5536
+    """
+    import codecs
+
+    # Incremental decoder handles multi-byte chars split across reads.
+    # errors="replace" ensures invalid bytes produce U+FFFD instead of
+    # raising UnicodeDecodeError and killing this thread.
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
     try:
         while not should_exit.is_set():
-            data = os.read(fd, 1024)
+            data = os.read(fd, 4096)
             if not data:
                 break
-            standard_stream.write(data.decode())
-    except Exception:
-        ...
+            try:
+                text = decoder.decode(data)
+                if text:
+                    standard_stream.write(text)
+            except Exception:
+                # If write fails (e.g., cell_id is None between cells),
+                # discard the data but keep the thread alive
+                pass
+    except OSError:
+        # fd was closed — normal shutdown
+        pass
 
 
 class _NoOpWatcher:
