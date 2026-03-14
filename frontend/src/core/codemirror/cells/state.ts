@@ -11,6 +11,7 @@ export interface CodemirrorCellActions extends CellActions {
   onRun: () => void;
   deleteCell: () => void;
   afterToggleMarkdown: () => void;
+  afterToggleSQL: () => void;
   saveNotebook: () => void;
 }
 

@@ -45,6 +45,26 @@ export function formatKeymapExtension(hotkeys: HotkeyProvider) {
         return response !== false;
       },
     },
+    {
+      key: hotkeys.getHotkey("cell.viewAsSQL").key,
+      preventDefault: true,
+      run: (ev) => {
+        const currentLanguage = getCurrentLanguageAdapter(ev);
+        const destinationLanguage =
+          currentLanguage === "sql" ? "python" : "sql";
+
+        const response = toggleToLanguage(ev, destinationLanguage, {
+          force: true,
+        });
+
+        if (response === "sql") {
+          const actions = ev.state.facet(cellActionsState);
+          actions.afterToggleSQL();
+        }
+
+        return response !== false;
+      },
+    },
   ]);
 }
 
