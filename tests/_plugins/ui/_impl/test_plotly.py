@@ -1186,9 +1186,7 @@ def test_marker_selection_does_not_expand_to_shared_x_values() -> None:
 
     result = plot._convert_value(selection)
 
-    assert result == [
-        {"x": 10, "y": 50, "curveNumber": 0, "pointIndex": 1}
-    ]
+    assert result == [{"x": 10, "y": 50, "curveNumber": 0, "pointIndex": 1}]
     assert plot.indices == [1]
 
 
@@ -1226,7 +1224,9 @@ def test_line_markers_selection() -> None:
     assert result[1]["Value"] == 15
 
 
-def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> None:
+def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> (
+    None
+):
     """Test marker traces keep Plotly points while line traces use fallback."""
     fig = go.Figure()
     fig.add_trace(
@@ -1251,18 +1251,32 @@ def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> None:
     selection = {
         "range": {"x": [9, 11], "y": [45, 55]},
         "points": [
-            {"x": 10, "y": 50, "curveNumber": 0, "pointIndex": 1, "name": "Markers"}
+            {
+                "x": 10,
+                "y": 50,
+                "curveNumber": 0,
+                "pointIndex": 1,
+                "name": "Markers",
+            }
         ],
         "indices": [1],
     }
 
     result = plot._convert_value(selection)
 
-    marker_points = [point for point in result if point.get("curveNumber") == 0]
+    marker_points = [
+        point for point in result if point.get("curveNumber") == 0
+    ]
     line_points = [point for point in result if point.get("curveNumber") == 1]
 
     assert marker_points == [
-        {"x": 10, "y": 50, "curveNumber": 0, "pointIndex": 1, "name": "Markers"}
+        {
+            "x": 10,
+            "y": 50,
+            "curveNumber": 0,
+            "pointIndex": 1,
+            "name": "Markers",
+        }
     ]
     assert len(line_points) == 2
     assert line_points[0]["x"] == 10
