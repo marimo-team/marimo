@@ -11,7 +11,10 @@ from marimo._plugins.stateless.lazy import lazy as lazy_ui
 
 @mddoc
 def accordion(
-    items: dict[str, object], multiple: bool = False, lazy: bool = False
+    items: dict[str, object],
+    multiple: bool = False,
+    lazy: bool = False,
+    expanded: bool = False,
 ) -> Html:
     """Accordion of one or more items.
 
@@ -22,6 +25,7 @@ def accordion(
         lazy: a boolean, whether to lazily load the accordion content.
             This is a convenience that wraps each accordion in a `mo.lazy`
             component.
+        expanded: if True, all accordion items are expanded by default
 
     Returns:
         An `Html` object.
@@ -57,7 +61,11 @@ def accordion(
     return Html(
         build_stateless_plugin(
             component_name="marimo-accordion",
-            args={"labels": item_labels, "multiple": multiple},
+            args={
+                "labels": item_labels,
+                "multiple": multiple,
+                "expanded": expanded,
+            },
             slotted_html=item_content,
         )
     )

@@ -23,6 +23,11 @@ interface Data {
    * Whether to allow multiple tabs to be open.
    */
   multiple: boolean;
+
+  /**
+   * Whether to expand all items by default.
+   */
+  expanded: boolean;
 }
 
 export class AccordionPlugin implements IStatelessPlugin<Data> {
@@ -31,6 +36,7 @@ export class AccordionPlugin implements IStatelessPlugin<Data> {
   validator = z.object({
     labels: z.array(z.string()),
     multiple: z.boolean(),
+    expanded: z.boolean().default(false),
   });
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
@@ -43,11 +49,21 @@ export class AccordionPlugin implements IStatelessPlugin<Data> {
 const AccordionComponent = ({
   labels,
   multiple,
+  expanded,
   children,
 }: PropsWithChildren<Data>): JSX.Element => {
   const type = multiple ? "multiple" : "single";
+  // Build defaultValue array for expanded items
+  const defaultValue = expanded
+    ? labels.map((_, index) => index.toString())
+    : undefined;
   return (
-    <Accordion type={type} className="text-muted-foreground" collapsible={true}>
+    <Accordion
+      type={type}
+      className="text-muted-foreground"
+      collapsible={true}
+      defaultValue={defaultValue}
+    >
       {React.Children.map(children, (child, index) => {
         return (
           <AccordionItem key={index} value={index.toString()}>
