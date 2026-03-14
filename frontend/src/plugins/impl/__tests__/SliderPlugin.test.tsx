@@ -3,11 +3,11 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
+import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
 import { SliderPlugin } from "../SliderPlugin";
-import { SetupMocks } from "@/__mocks__/common";
 
 SetupMocks.resizeObserver();
 
