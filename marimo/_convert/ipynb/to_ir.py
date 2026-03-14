@@ -39,7 +39,26 @@ class CodeCell:
     config: CellConfig = field(default_factory=CellConfig)
 
 
-# Define a type for transforms that add/remove cells
+# Regex to strip simple <p>...</p> wrapping from Jupyter markdown cells.
+# Many Jupyter notebooks wrap paragraph text in <p> tags which is redundant
+# in pure markdown and can interfere with LaTeX rendering.
+_PARAGRAPH_TAG_RE = re.compile(
+    r"<p(?:\s[^>]*)?>|</p>",
+    re.IGNORECASE,
+)
+
+
+def _strip_paragraph_tags(source: str) -> str:
+    """Remove bare ``<p>`` / ``</p>`` HTML tags from markdown source.
+
+    Jupyter markdown cells often wrap content in ``<p>…</p>`` tags which are
+    redundant in plain markdown and can break LaTeX rendering inside
+    ``mo.md()``.  This helper removes them while preserving all other HTML
+    tags and the text content.
+    """
+    return _PARAGRAPH_TAG_RE.sub("", source)
+
+
 CellsTransform = Callable[[list[CodeCell]], list[CodeCell]]
 
 
@@ -1404,6 +1423,7 @@ def convert_from_ipynb_to_notebook_ir(
         )
         is_markdown: bool = cell["cell_type"] == "markdown"
         if is_markdown:
+            source = _strip_paragraph_tags(source)
             cell_meta = cell.get("metadata", {})
             md_prefix = cell_meta.get("marimo", {}).get(
                 "md_prefix", DEFAULT_MARKDOWN_PREFIX
