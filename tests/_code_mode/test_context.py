@@ -347,6 +347,75 @@ class TestCombined:
         assert len(k.graph.cells) == 1
 
 
+class TestSummary:
+    async def test_create_prints_summary(
+        self, k: Kernel, capsys: object
+    ) -> None:
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:
+            nb.create_cell("x = 1")
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert "created cell" in captured.out
+
+    async def test_edit_prints_summary(
+        self, k: Kernel, capsys: object
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:
+            nb.edit_cell("0", code="x = 2")
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert "edited code of cell" in captured.out
+
+    async def test_delete_prints_summary(
+        self, k: Kernel, capsys: object
+    ) -> None:
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:
+            nb.delete_cell("0")
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert "deleted cell" in captured.out
+
+    async def test_noop_prints_nothing(
+        self, k: Kernel, capsys: object
+    ) -> None:
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:  # noqa: B018
+            pass
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert captured.out == ""
+
+    async def test_mixed_ops_prints_all(
+        self, k: Kernel, capsys: object
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="a = 1"),
+                ExecuteCellCommand(cell_id="1", code="b = 2"),
+            ]
+        )
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:
+            nb.delete_cell("1")
+            nb.create_cell("c = 3")
+            nb.edit_cell("0", code="a = 10")
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        assert "deleted cell" in captured.out
+        assert "created cell" in captured.out
+        assert "edited code of cell" in captured.out
+
+
 class TestInstallPackages:
     async def test_install_single(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)

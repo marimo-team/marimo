@@ -292,6 +292,62 @@ class AsyncCodeModeContext:
                 )
             )
 
+        # Print a summary of what was applied.
+        self._print_summary(ops, packages, ui_updates)
+
+    # ------------------------------------------------------------------
+    # Summary
+    # ------------------------------------------------------------------
+
+    def _print_summary(
+        self,
+        ops: list[_Op],
+        packages: list[str],
+        ui_updates: list[tuple[UIElementId, Any]],
+    ) -> None:
+        """Print a human-readable summary of applied operations."""
+        lines: list[str] = []
+
+        for pkg in packages:
+            lines.append(f"installed {pkg}")
+
+        for op in ops:
+            cell_id = op.cell_id
+            label = self._cell_label(cell_id)
+            if isinstance(op, _AddOp):
+                lines.append(f"created cell {label}")
+            elif isinstance(op, _UpdateOp):
+                parts = []
+                if op.code is not None:
+                    parts.append("code")
+                if op.config is not None:
+                    parts.append("config")
+                detail = " and ".join(parts) if parts else "config"
+                lines.append(f"edited {detail} of cell {label}")
+            elif isinstance(op, _DeleteOp):
+                lines.append(f"deleted cell {label}")
+            elif isinstance(op, _MoveOp):
+                lines.append(f"moved cell {label}")
+
+        if ui_updates:
+            lines.append(f"updated {len(ui_updates)} UI element(s)")
+
+        if not lines:
+            return
+
+        for _line in lines:
+            pass
+
+    def _cell_label(self, cell_id: CellId_t) -> str:
+        """Return a display label for a cell: name if available, else short ID."""
+        cm = self._cell_manager
+        if cm is not None:
+            data = cm.get_cell_data(cell_id)
+            if data and data.name:
+                return repr(data.name)
+        short = str(cell_id)[:8]
+        return repr(short)
+
     # ------------------------------------------------------------------
     # Read-only attributes
     # ------------------------------------------------------------------
