@@ -1,4 +1,4 @@
-"""Tests for _strip_paragraph_tags in to_ir.py.
+r"""Tests for _strip_paragraph_tags in to_ir.py.
 
 Covers the reviewer suggestions from PR #8674:
 - Basic <p>/<\/p> removal
@@ -7,6 +7,7 @@ Covers the reviewer suggestions from PR #8674:
 - Case-insensitive matching
 - Tags with attributes
 """
+
 from __future__ import annotations
 
 from marimo._convert.ipynb.to_ir import _strip_paragraph_tags
@@ -57,13 +58,7 @@ class TestStripParagraphTags:
 
     def test_tilde_fenced_code_block_preserved(self) -> None:
         """Tilde-fenced code blocks are also protected."""
-        source = (
-            "<p>Intro</p>\n"
-            "~~~\n"
-            "<p>Code content</p>\n"
-            "~~~\n"
-            "<p>Outro</p>"
-        )
+        source = "<p>Intro</p>\n~~~\n<p>Code content</p>\n~~~\n<p>Outro</p>"
         result = _strip_paragraph_tags(source)
         assert "<p>Code content</p>" in result
         assert "<p>Intro" not in result
