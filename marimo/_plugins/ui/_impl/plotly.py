@@ -389,9 +389,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         if has_bar and value.get("range"):
             _append_bar_items_to_selection(self._figure, self._selection_data)
 
-        # For line/scatter charts with a range selection, extract all points in x-range
-        # This handles mode='lines', mode='lines+markers', and mode='markers'
-        # Plotly may not send point data for pure line charts, so we extract manually
+        # For scatter-like traces with a range selection, preserve Plotly's
+        # explicit point payload when available and only fall back to x-range
+        # extraction for traces that do not provide point-level selections.
         if has_scatter and value.get("range"):
             _append_scatter_points_to_selection(
                 self._figure, self._selection_data
@@ -568,31 +568,54 @@ def _extract_heatmap_cells_numpy(
 def _append_scatter_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:
-    """Append scatter/scattergl/line points within range to selection data.
+    """Append fallback scatter/scattergl/line points to selection data.
 
-    This modifies selection_data in place, appending any scatter/scattergl/line points
-    that fall within the x-range to the existing points and indices.
+    This modifies selection_data in place, appending x-range points only for
+    scatter-like traces that need fallback extraction.
 
-    For line charts, Plotly may not send point-level data in the selection event
-    (especially for mode='lines'). We manually extract all points where x is
-    within the selected range to match Altair's behavior.
+    Plotly box/lasso selections already include exact point payloads for marker
+    traces, so we keep those as-is. For traces that do not provide point-level
+    selections, such as pure lines, we manually extract all points where x is
+    within the selected range to preserve the existing line-chart behavior.
     """
     range_value = selection_data.get("range")
     if not isinstance(range_value, dict):
         return
 
+    # Filter out empty dicts from existing points (these come from line charts)
+    # where Plotly sends the structure but no data.
+    existing_points = [p for p in selection_data.get("points", []) if p]
+    existing_indices = selection_data.get("indices", [])
+
+    scatter_trace_indices = [
+        idx
+        for idx, trace in enumerate(figure.data)
+        if getattr(trace, "type", None) in {"scatter", "scattergl"}
+    ]
+
+    explicit_curve_numbers = {
+        curve_number
+        for point in existing_points
+        if isinstance((curve_number := point.get("curveNumber")), int)
+        and curve_number in scatter_trace_indices
+    }
+    if (
+        existing_points
+        and not explicit_curve_numbers
+        and not any("curveNumber" in point for point in existing_points)
+        and len(scatter_trace_indices) == 1
+    ):
+        explicit_curve_numbers.add(scatter_trace_indices[0])
+
     scatter_points = _extract_scatter_points_from_range(
-        figure, cast(dict[str, Any], range_value)
+        figure,
+        cast(dict[str, Any], range_value),
+        trace_filter=lambda trace_idx, trace: (
+            trace_idx not in explicit_curve_numbers
+            and _trace_needs_scatter_range_fallback(trace)
+        ),
     )
-    if scatter_points:
-        # Get existing points and indices
-        existing_points = selection_data.get("points", [])
-        existing_indices = selection_data.get("indices", [])
-
-        # Filter out empty dicts from existing points (these come from line charts)
-        # where Plotly sends the structure but no data
-        existing_points = [p for p in existing_points if p]
-
+    if scatter_points or existing_points:
         # Merge with scatter points, avoiding duplicates
         # Use pointIndex and curveNumber to track uniqueness
         # (can't use x/y values since field names vary: "x"/"y" vs "X"/"Y" etc.)
@@ -606,11 +629,13 @@ def _append_scatter_points_to_selection(
                 point.get("pointIndex"),
                 point.get("curveNumber"),
             )
-            if key not in seen and key != (None, None):
+            if key != (None, None):
+                if key in seen:
+                    continue
                 seen.add(key)
-                merged_points.append(point)
-                if idx < len(existing_indices):
-                    merged_indices.append(existing_indices[idx])
+            merged_points.append(point)
+            if idx < len(existing_indices):
+                merged_indices.append(existing_indices[idx])
 
         # Add new scatter points
         for point in scatter_points:
@@ -629,8 +654,22 @@ def _append_scatter_points_to_selection(
         selection_data["indices"] = merged_indices
 
 
+def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
+    """Return whether a scatter-like trace needs manual range extraction."""
+    if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
+        return False
+
+    mode = getattr(trace, "mode", None)
+    if isinstance(mode, str) and "markers" in mode:
+        return False
+
+    return True
+
+
 def _extract_scatter_points_from_range(
-    figure: go.Figure, range_data: dict[str, Any]
+    figure: go.Figure,
+    range_data: dict[str, Any],
+    trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points in a selection range.
 
@@ -645,15 +684,20 @@ def _extract_scatter_points_from_range(
 
     # Use numpy fast path if available for better performance
     if DependencyManager.numpy.has():
-        return _extract_scatter_points_numpy(figure, x_min, x_max)
+        return _extract_scatter_points_numpy(
+            figure, x_min, x_max, trace_filter=trace_filter
+        )
 
-    return _extract_scatter_points_fallback(figure, x_min, x_max)
+    return _extract_scatter_points_fallback(
+        figure, x_min, x_max, trace_filter=trace_filter
+    )
 
 
 def _extract_scatter_points_numpy(
     figure: go.Figure,
     x_min: float,
     x_max: float,
+    trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points using numpy."""
     import numpy as np
@@ -675,6 +719,8 @@ def _extract_scatter_points_numpy(
     for trace_idx, trace in enumerate(figure.data):
         # Process scatter-like traces (includes lines, markers, lines+markers)
         if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
+            continue
+        if trace_filter is not None and not trace_filter(trace_idx, trace):
             continue
 
         x_data = getattr(trace, "x", None)
@@ -743,6 +789,7 @@ def _extract_scatter_points_fallback(
     figure: go.Figure,
     x_min: float,
     x_max: float,
+    trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
@@ -762,6 +809,8 @@ def _extract_scatter_points_fallback(
     for trace_idx, trace in enumerate(figure.data):
         # Process scatter-like traces (includes lines, markers, lines+markers)
         if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
+            continue
+        if trace_filter is not None and not trace_filter(trace_idx, trace):
             continue
 
         x_data = getattr(trace, "x", None)
