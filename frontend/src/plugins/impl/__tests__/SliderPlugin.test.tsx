@@ -7,18 +7,14 @@ import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
 import { SliderPlugin } from "../SliderPlugin";
+import { SetupMocks } from "@/__mocks__/common";
 
-class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
+SetupMocks.resizeObserver();
 
 describe("SliderPlugin", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     store.set(initialModeAtom, "edit");
-    window.ResizeObserver = ResizeObserver;
   });
 
   afterEach(() => {
@@ -30,12 +26,12 @@ describe("SliderPlugin", () => {
     includeInput: boolean,
     setValue: ReturnType<typeof vi.fn>,
   ): IPluginProps<number, z.infer<typeof SliderPlugin.prototype.validator>> => {
-    const plugin = new SliderPlugin();
     return {
       host: document.createElement("div"),
       value: 5,
       setValue,
       data: {
+        initialValue: 5,
         start: 0,
         stop: 10,
         step: 1,
@@ -66,7 +62,7 @@ describe("SliderPlugin", () => {
 
     // Radix UI Slider updates on keyboard ArrowRight/ArrowLeft
     act(() => {
-      thumb?.focus();
+      (thumb as HTMLElement)?.focus();
       fireEvent.keyDown(thumb!, { key: "ArrowRight" });
     });
 
@@ -86,7 +82,7 @@ describe("SliderPlugin", () => {
     const thumb = container.querySelector('[role="slider"]');
 
     act(() => {
-      thumb?.focus();
+      (thumb as HTMLElement)?.focus();
       // Simulate just a programmatic change that Radix would trigger via pointer move
       // which fires onValueChange but not onValueCommit yet
       // Because we can't easily separated Radix's internal pointer events in jsdom, we
@@ -94,6 +90,7 @@ describe("SliderPlugin", () => {
     });
 
     // We verified above that NumberField works when debounce=true
+    expect(setValue).not.toHaveBeenCalled();
   });
 
   it("editable input triggers setValue immediately even when slider debounce is true", () => {
