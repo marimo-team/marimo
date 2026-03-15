@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from marimo._utils.inline_script_metadata import (
@@ -7,9 +9,13 @@ from marimo._utils.inline_script_metadata import (
     _pyproject_toml_to_requirements_txt,
     has_marimo_in_script_metadata,
     is_marimo_dependency,
+    script_metadata_hash_from_filename,
 )
 from marimo._utils.platform import is_windows
 from marimo._utils.scripts import read_pyproject_from_script
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_get_dependencies():
@@ -361,3 +367,68 @@ def test_has_marimo_in_script_metadata(tmp_path):
 
     # None: non-.py file
     assert has_marimo_in_script_metadata(str(tmp_path / "test.md")) is None
+
+
+def test_script_metadata_hash_from_filename_none_without_metadata(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "no_metadata.py"
+    notebook.write_text("import marimo\n", encoding="utf-8")
+    assert script_metadata_hash_from_filename(str(notebook)) is None
+
+
+def test_script_metadata_hash_from_filename_ignores_formatting(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.py"
+    first.write_text(
+        """
+# /// script
+# dependencies = [
+#   "numpy",
+#   "marimo>=0.20.0",
+# ]
+# requires-python = ">=3.11"
+# ///
+""",
+        encoding="utf-8",
+    )
+    second = tmp_path / "second.py"
+    second.write_text(
+        """
+# /// script
+# requires-python   =   ">=3.11"
+# dependencies = ["numpy", "marimo>=0.20.0"]
+# ///
+""",
+        encoding="utf-8",
+    )
+    assert script_metadata_hash_from_filename(
+        str(first)
+    ) == script_metadata_hash_from_filename(str(second))
+
+
+def test_script_metadata_hash_from_filename_changes_with_dependencies(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.py"
+    first.write_text(
+        """
+# /// script
+# dependencies = ["numpy"]
+# ///
+""",
+        encoding="utf-8",
+    )
+    second = tmp_path / "second.py"
+    second.write_text(
+        """
+# /// script
+# dependencies = ["pandas"]
+# ///
+""",
+        encoding="utf-8",
+    )
+    assert script_metadata_hash_from_filename(
+        str(first)
+    ) != script_metadata_hash_from_filename(str(second))

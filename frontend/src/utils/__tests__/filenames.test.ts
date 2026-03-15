@@ -23,6 +23,12 @@ describe("Filenames", () => {
     expect(Filenames.toPNG("test.foo.py")).toEqual("test.foo.png");
   });
 
+  it("should convert filename to ipynb", () => {
+    expect(Filenames.toIPYNB("test")).toEqual("test.ipynb");
+    expect(Filenames.toIPYNB("test.txt")).toEqual("test.ipynb");
+    expect(Filenames.toIPYNB("test.foo.py")).toEqual("test.foo.ipynb");
+  });
+
   it("should remove extension from filename", () => {
     expect(Filenames.withoutExtension("test")).toEqual("test");
     expect(Filenames.withoutExtension("test.txt")).toEqual("test");
@@ -39,6 +45,7 @@ describe("Filenames", () => {
     expect(Filenames.toHTML(filename)).toEqual(`${withoutExt}.html`);
     expect(Filenames.toPNG(filename)).toEqual(`${withoutExt}.png`);
     expect(Filenames.toPY(filename)).toEqual(`${withoutExt}.py`);
+    expect(Filenames.toIPYNB(filename)).toEqual(`${withoutExt}.ipynb`);
 
     // Ensure operations preserve unicode and special characters in base name
     expect(withoutExt).not.toEqual("");

@@ -167,7 +167,12 @@ class TopLevelStatus:
                 self.demote(HINT_HAS_REFS.format(self.dependencies))
             return
 
-        dependent_refs = self._cell.refs - (allowed_refs | toplevel)
+        # SQL refs are runtime dependencies, not definition-time dependencies.
+        # Exclude them from top-level resolution so SQL-using functions are not
+        # incorrectly demoted. General ref tracking in visitor.py is unchanged.
+        dependent_refs = (self._cell.refs - self._cell.sql_refs.keys()) - (
+            allowed_refs | toplevel
+        )
         if not dependent_refs:
             self.type = TopLevelType.TOPLEVEL
             self.hint = HINT_VALID

@@ -106,6 +106,37 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
     return item;
   };
 
+  const renderAction = (action: ActionButton) => {
+    if (action.hidden || action.redundant) {
+      return null;
+    }
+
+    if (action.dropdown) {
+      return (
+        <DropdownMenuSub key={action.label}>
+          <DropdownMenuSubTrigger
+            data-testid={`notebook-menu-dropdown-${action.label}`}
+            disabled={action.disabled}
+          >
+            {renderLabel(action)}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              {action.dropdown.map((childAction) => (
+                <React.Fragment key={childAction.label}>
+                  {childAction.divider && <DropdownMenuSeparator />}
+                  {renderAction(childAction)}
+                </React.Fragment>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      );
+    }
+
+    return renderLeafAction(action);
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true} disabled={disabled}>
@@ -113,38 +144,10 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="print:hidden w-[240px]">
         {actions.map((action) => {
-          if (action.hidden || action.redundant) {
-            return null;
-          }
-
-          if (action.dropdown) {
-            return (
-              <DropdownMenuSub key={action.label}>
-                <DropdownMenuSubTrigger
-                  data-testid={`notebook-menu-dropdown-${action.label}`}
-                >
-                  {renderLabel(action)}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent>
-                    {action.dropdown.map((action) => {
-                      return (
-                        <React.Fragment key={action.label}>
-                          {action.divider && <DropdownMenuSeparator />}
-                          {renderLeafAction(action)}
-                        </React.Fragment>
-                      );
-                    })}
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-            );
-          }
-
           return (
             <React.Fragment key={action.label}>
               {action.divider && <DropdownMenuSeparator />}
-              {renderLeafAction(action)}
+              {renderAction(action)}
             </React.Fragment>
           );
         })}

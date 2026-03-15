@@ -295,6 +295,18 @@ export default defineConfig({
   build: {
     minify: isDev ? false : "oxc", // default is "oxc"
     sourcemap: isDev,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (
+          warning.message?.includes(
+            "has been externalized for browser compatibility",
+          )
+        ) {
+          return;
+        }
+        warn(warning);
+      },
+    },
   },
   resolve: {
     tsconfigPaths: true,

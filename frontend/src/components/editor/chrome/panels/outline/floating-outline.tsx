@@ -105,21 +105,33 @@ export const OutlineList: React.FC<{
         const occurrences = seen.get(identifier) ?? 0;
         seen.set(identifier, occurrences + 1);
 
+        const key = `${identifier}-${idx}`;
+        const sharedProps = {
+          className: cn(
+            "px-2 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l",
+            item.level === 1 && "font-semibold",
+            item.level === 2 && "ml-3",
+            item.level === 3 && "ml-6",
+            item.level === 4 && "ml-9",
+            occurrences === activeOccurrences &&
+              activeHeaderId === identifier &&
+              "text-accent-foreground",
+          ),
+          onClick: () => scrollToOutlineItem(item, occurrences),
+        };
+
+        if (item.html) {
+          return (
+            <div
+              key={key}
+              {...sharedProps}
+              dangerouslySetInnerHTML={{ __html: item.html }}
+            />
+          );
+        }
+
         return (
-          <div
-            key={`${identifier}-${idx}`}
-            className={cn(
-              "px-2 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l",
-              item.level === 1 && "font-semibold",
-              item.level === 2 && "ml-3",
-              item.level === 3 && "ml-6",
-              item.level === 4 && "ml-9",
-              occurrences === activeOccurrences &&
-                activeHeaderId === identifier &&
-                "text-accent-foreground",
-            )}
-            onClick={() => scrollToOutlineItem(item, occurrences)}
-          >
+          <div key={key} {...sharedProps}>
             {item.name}
           </div>
         );

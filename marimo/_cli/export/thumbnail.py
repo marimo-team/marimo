@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -12,22 +10,23 @@ from typing import TYPE_CHECKING, Any, Optional
 import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._cli.export._common import (
+    SandboxVenvPool,
+    collect_notebooks,
+    is_multi_target,
+    run_python_subprocess,
+)
 from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.export import run_app_then_export_as_html
 from marimo._server.export._html_asset_server import HtmlAssetServer
-from marimo._server.file_router import flatten_files
-from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.utils import asyncio_run
-from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path, maybe_make_dirs
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from marimo._cli.sandbox import SandboxMode
 
 
@@ -51,34 +50,6 @@ def _split_paths_and_args(
             return paths, args[index + 1 :]
         paths.append(arg)
     return paths, ()
-
-
-def _collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
-    notebooks: dict[str, MarimoPath] = {}
-
-    for path in paths:
-        if path.is_dir():
-            scanner = DirectoryScanner(str(path), include_markdown=True)
-            try:
-                file_infos = scanner.scan()
-            except HTTPException as e:
-                if e.status_code != HTTPStatus.REQUEST_TIMEOUT:
-                    raise
-                # Match server behavior: use partial results on scan timeout.
-                file_infos = scanner.partial_results
-            for file_info in flatten_files(file_infos):
-                if not file_info.is_marimo_file or file_info.is_directory:
-                    continue
-                absolute_path = str(Path(path) / file_info.path)
-                notebooks[absolute_path] = MarimoPath(absolute_path)
-        else:
-            notebooks[str(path)] = MarimoPath(str(path))
-
-    return [notebooks[k] for k in sorted(notebooks)]
-
-
-def _is_multi_target(paths: list[Path]) -> bool:
-    return len(paths) > 1 or any(path.is_dir() for path in paths)
 
 
 def _sandbox_mode_from_env() -> SandboxMode | None:
@@ -111,7 +82,7 @@ def _resolve_thumbnail_sandbox_mode(
     if env_mode is not None:
         return env_mode
 
-    if _is_multi_target(path_targets):
+    if is_multi_target(path_targets):
         if sandbox is None:
             return None
         return SandboxMode.MULTI if sandbox else None
@@ -213,48 +184,12 @@ result = asyncio.run(
 sys.stdout.write(result.text)
 """
 
-    result = subprocess.run(
-        [venv_python, "-c", script, json.dumps(payload)],
-        capture_output=True,
-        text=True,
+    return run_python_subprocess(
+        venv_python=venv_python,
+        script=script,
+        payload=payload,
+        action="render notebook",
     )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        raise click.ClickException(
-            "Failed to render notebook in sandbox.\n\n"
-            f"Command:\n\n  {venv_python} -c <script>\n\n"
-            f"Stderr:\n\n{stderr}"
-        )
-    return result.stdout
-
-
-class _SandboxVenvPool:
-    def __init__(self) -> None:
-        self._envs: dict[tuple[str, ...], tuple[str, str]] = {}
-
-    def get_python(self, notebook_path: str) -> str:
-        """Return a venv python path for the notebook's sandbox requirements."""
-        from marimo._cli.sandbox import (
-            build_sandbox_venv,
-            get_sandbox_requirements,
-        )
-
-        requirements = tuple(get_sandbox_requirements(notebook_path))
-        existing = self._envs.get(requirements)
-        if existing is not None:
-            return existing[1]
-
-        sandbox_dir, venv_python = build_sandbox_venv(notebook_path)
-        self._envs[requirements] = (sandbox_dir, venv_python)
-        return venv_python
-
-    def close(self) -> None:
-        """Clean up any sandbox environments we created."""
-        from marimo._cli.sandbox import cleanup_sandbox_dir
-
-        for sandbox_dir, _ in self._envs.values():
-            cleanup_sandbox_dir(sandbox_dir)
-        self._envs.clear()
 
 
 async def _generate_thumbnails(
@@ -302,8 +237,8 @@ async def _generate_thumbnails(
 
     static_dir = marimo_package_path() / "_static"
 
-    sandbox_pool: _SandboxVenvPool | None = (
-        _SandboxVenvPool() if use_per_notebook_sandbox else None
+    sandbox_pool: SandboxVenvPool | None = (
+        SandboxVenvPool() if use_per_notebook_sandbox else None
     )
     try:
         with HtmlAssetServer(
@@ -507,7 +442,7 @@ def thumbnail(
     """Generate thumbnails for one or more notebooks (or directories)."""
     paths, notebook_args = _split_paths_and_args(str(name), args)
     path_targets = [Path(p) for p in paths]
-    notebooks = _collect_notebooks(path_targets)
+    notebooks = collect_notebooks(path_targets)
     if not notebooks:
         raise click.ClickException("No marimo notebooks found.")
     if output is not None and len(notebooks) > 1:

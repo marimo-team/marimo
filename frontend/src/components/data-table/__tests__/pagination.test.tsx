@@ -1,26 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render } from "@testing-library/react";
 import { expect, test } from "vitest";
-import { Functions } from "@/utils/functions";
-import { PageSelector } from "../pagination";
+import { getPageRanges } from "../pagination";
+import type { PageRange } from "../types";
 
-function getOptions(currentPage: number) {
-  const { container } = render(
-    <PageSelector
-      currentPage={currentPage}
-      totalPages={200}
-      onPageChange={Functions.NOOP}
-    />,
+function getLabels(currentPage: number): string[] {
+  const ranges = getPageRanges(currentPage, 200);
+  return ranges.map((item: PageRange) =>
+    item.type === "ellipsis" ? "..." : String(item.page),
   );
-
-  const options = container.querySelectorAll("option");
-  const optionValues = [...options].map((option) => option.textContent);
-  return optionValues;
 }
 
 test("pagination start / middle / end", () => {
-  expect(getOptions(1)).toMatchInlineSnapshot(`
+  expect(getLabels(1)).toMatchInlineSnapshot(`
     [
       "1",
       "2",
@@ -58,19 +50,19 @@ test("pagination start / middle / end", () => {
   `);
 
   // all fall in the top/middle/bottom 10
-  expect(getOptions(1)).toEqual(getOptions(10));
-  expect(getOptions(96)).toEqual(getOptions(105));
-  expect(getOptions(191)).toEqual(getOptions(200));
+  expect(getLabels(1)).toEqual(getLabels(10));
+  expect(getLabels(96)).toEqual(getLabels(105));
+  expect(getLabels(191)).toEqual(getLabels(200));
 
   // Check off by one
-  expect(getOptions(1)).not.toEqual(getOptions(11));
-  expect(getOptions(1)).not.toEqual(getOptions(95));
-  expect(getOptions(1)).not.toEqual(getOptions(106));
-  expect(getOptions(1)).not.toEqual(getOptions(190));
+  expect(getLabels(1)).not.toEqual(getLabels(11));
+  expect(getLabels(1)).not.toEqual(getLabels(95));
+  expect(getLabels(1)).not.toEqual(getLabels(106));
+  expect(getLabels(1)).not.toEqual(getLabels(190));
 });
 
 test("pagination lower middle", () => {
-  expect(getOptions(50)).toMatchInlineSnapshot(`
+  expect(getLabels(50)).toMatchInlineSnapshot(`
     [
       "1",
       "2",
@@ -111,7 +103,7 @@ test("pagination lower middle", () => {
 });
 
 test("pagination upper middle", () => {
-  expect(getOptions(150)).toMatchInlineSnapshot(`
+  expect(getLabels(150)).toMatchInlineSnapshot(`
     [
       "1",
       "2",

@@ -10,6 +10,13 @@ import { getFilenameFromDOM } from "../dom/htmlUtils";
 export const filenameAtom = atom<string | null>(getFilenameFromDOM());
 
 /**
+ * Atom for storing the notebook's working directory (absolute path).
+ * In directory mode, filenameAtom may be a relative display path;
+ * this atom holds the absolute directory containing the notebook.
+ */
+export const cwdAtom = atom<string | null>(null);
+
+/**
  * Set for static notebooks.
  */
 export const codeAtom = atom<string | undefined>(undefined);

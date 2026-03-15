@@ -42,6 +42,7 @@ from marimo._cli.utils import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
+from marimo._mcp.setup import McpType
 from marimo._server.file_router import (
     AppFileRouter,
     LazyListOfFilesAppFileRouter,
@@ -257,6 +258,24 @@ edit_help_msg = "\n".join(
 )
 
 
+class _OptionalValueOption(click.Option):
+    """A click Option that supports an optional value.
+
+    Works around a regression in click 8.3.x where the documented
+    ``is_flag=False, flag_value=...`` pattern is broken.
+    See: https://github.com/pallets/click/issues/3084
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        opt_flag_value = kwargs.pop("flag_value", None)
+        kwargs.setdefault("default", None)
+        kwargs["is_flag"] = False
+        super().__init__(*args, **kwargs)
+        self._flag_needs_value = True
+        if opt_flag_value is not None:
+            self.flag_value = opt_flag_value
+
+
 @main.command(help=edit_help_msg)
 @click.option(
     "-p",
@@ -368,11 +387,12 @@ edit_help_msg = "\n".join(
 )
 @click.option(
     "--mcp",
-    is_flag=True,
-    default=False,
-    type=bool,
+    cls=_OptionalValueOption,
+    flag_value="tools",
+    default=None,
+    type=click.Choice(["tools", "code-mode"]),
     hidden=True,
-    help="Enable MCP server endpoint at /mcp/server for LLM integration.",
+    help="Enable MCP server endpoint.",
 )
 @click.option(
     "--mcp-allow-remote",
@@ -433,7 +453,7 @@ def edit(
     skew_protection: bool,
     remote_url: Optional[str],
     convert: bool,
-    mcp: bool,
+    mcp: Optional[McpType],
     mcp_allow_remote: bool,
     server_startup_command: Optional[str],
     asset_url: Optional[str],

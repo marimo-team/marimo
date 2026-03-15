@@ -19,9 +19,9 @@ marimo automatically sends the selected data back to Python!
 
     Reactive plots currently require matplotlib, Altair, or Plotly. Matplotlib
     supports box and lasso selections (best suited for scatter plots);
-    selections in Plotly are limited to scatter plots, bar charts, heatmaps,
-    treemaps, and sunburst charts; Altair supports a larger class of plots
-    for selections.
+    selections in Plotly are limited to scatter/scattergl plots, bar charts,
+    histograms, heatmaps, treemaps, and sunburst charts; Altair supports a larger class
+    of plots for selections.
 
 ### matplotlib
 
@@ -41,7 +41,7 @@ points inside the selection. When nothing is selected, `fig.value` is falsy and
 
 #### Example
 
-<!-- TODO add a WASM version when shipped. -->
+/// tab | code
 
 ```python
 import matplotlib.pyplot as plt
@@ -61,6 +61,37 @@ ax
 mask = ax.value.get_mask(x, y)
 selected_x, selected_y = x[mask], y[mask]
 ```
+
+///
+
+/// tab | live example
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    x = np.random.randn(500)
+    y = np.random.randn(500)
+    plt.scatter(x, y)
+    ax = mo.ui.matplotlib(plt.gca())
+    ax
+    return
+
+@app.cell
+def __():
+    mask = ax.value.get_mask(x, y)
+    np.column_stack([x[mask], y[mask]])
+    return
+```
+
+///
+
+///
 
 #### Debouncing
 
@@ -273,9 +304,9 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 !!! warning "Supported charts"
 
     marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
-    supports reactive selections for scatter plots, bar charts, heatmaps,
-    treemaps, and sunburst charts. If you require other kinds of selection,
-    please [file an issue](https://github.com/marimo-team/marimo/issues).
+    supports reactive selections for scatter/scattergl plots, bar charts,
+    histograms, heatmaps, treemaps, and sunburst charts. If you require other kinds of
+    selection, please [file an issue](https://github.com/marimo-team/marimo/issues).
 
 /// marimo-embed
     size: large
@@ -284,7 +315,7 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 @app.cell(hide_code=True)
 async def __():
     import micropip
-    await micropip.install("plotly[express]")
+    await micropip.install(["plotly[express]", "pandas"])
     import plotly.express as px
     return px,
 

@@ -5,9 +5,15 @@
  */
 export interface OutlineItem {
   /**
-   * The human-readable heading name.
+   * The human-readable heading name (plain text).
    */
   name: string;
+  /**
+   * The heading's inner HTML, preserving rich content like LaTeX.
+   * When present and different from `name`, the outline should
+   * render this instead of the plain-text `name`.
+   */
+  html?: string;
   /**
    * Locator of the item.
    *

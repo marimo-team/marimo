@@ -15,6 +15,9 @@ export const Filenames = {
   toPY: (filename: string): string => {
     return Filenames.replace(filename, "py");
   },
+  toIPYNB: (filename: string): string => {
+    return Filenames.replace(filename, "ipynb");
+  },
   withoutExtension: (filename: string): string => {
     // Just remove the last extension
     const parts = filename.split(".");

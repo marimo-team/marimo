@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Mocks } from "@/__mocks__/common";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import {
+  downloadAsPDF,
   downloadByURL,
   downloadCellOutputAsImage,
   downloadHTMLAsImage,
@@ -10,37 +12,45 @@ import {
   withLoadingToast,
 } from "../download";
 
+const { mockExportAsPDF } = vi.hoisted(() => ({
+  mockExportAsPDF: vi.fn(),
+}));
+
 // Mock html-to-image
 vi.mock("html-to-image", () => ({
   toPng: vi.fn(),
 }));
 
-// Mock the toast module
-const mockDismiss = vi.fn();
-const mockUpdate = vi.fn();
-vi.mock("@/components/ui/use-toast", () => ({
-  toast: vi.fn(() => ({
-    dismiss: mockDismiss,
-    update: mockUpdate,
-  })),
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({
+    exportAsPDF: mockExportAsPDF,
+  }),
 }));
+
+// Mock the toast module
+const { mockDismiss, mockUpdate, toastMock } = vi.hoisted(() => {
+  const dismiss = vi.fn();
+  const update = vi.fn();
+  return {
+    mockDismiss: dismiss,
+    mockUpdate: update,
+    toastMock: { toast: vi.fn(() => ({ dismiss, update })) },
+  };
+});
+vi.mock("@/components/ui/use-toast", () => toastMock);
 
 // Mock the Spinner component
 vi.mock("@/components/icons/spinner", () => ({
   Spinner: () => "MockSpinner",
 }));
 
-// Mock Logger
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    error: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 // Mock Filenames
 vi.mock("@/utils/filenames", () => ({
   Filenames: {
     toPNG: (name: string) => `${name}.png`,
+    toPDF: (name: string) => `${name}.pdf`,
   },
 }));
 
@@ -171,6 +181,33 @@ describe("withLoadingToast", () => {
 
     expect(events).toEqual(["start", "end"]);
     expect(mockDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("downloadAsPDF", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should send the preset in export request payload", async () => {
+    mockExportAsPDF.mockRejectedValue(new Error("network"));
+
+    await expect(
+      downloadAsPDF({
+        filename: "path/to/notebook.py",
+        webpdf: false,
+        preset: "slides",
+      }),
+    ).rejects.toThrow("network");
+
+    expect(mockExportAsPDF).toHaveBeenCalledWith({
+      webpdf: false,
+      preset: "slides",
+      includeInputs: true,
+      rasterizeOutputs: true,
+      rasterScale: 4,
+      rasterServer: "static",
+    });
   });
 });
 

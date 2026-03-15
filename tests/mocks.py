@@ -189,6 +189,11 @@ def simplify_plotly(output: str) -> str:
         flags=re.DOTALL,
     )
 
+    # Normalize <script type="text/javascript"> to <script>
+    # (Plotly versions differ on whether they include the type attribute)
+    output = output.replace('<script type="text/javascript">', "<script>")
+    output = output.replace('<script type=\\"text/javascript\\">', "<script>")
+
     # Sanitize raw Plotly HTML output (from mo.ui.plotly())
     # Replace random UUID-like div IDs (handles both escaped and unescaped quotes)
     output = re.sub(

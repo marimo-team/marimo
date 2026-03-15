@@ -11,7 +11,6 @@ export interface ExperimentalFeatures {
   rtc_v2: boolean;
   cache_panel: boolean;
   external_agents: boolean;
-  server_side_pdf_export: boolean;
   storage_inspector: boolean;
   // Add new feature flags here
 }
@@ -22,7 +21,6 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
-  server_side_pdf_export: true,
   storage_inspector: false,
 };
 

@@ -23,6 +23,11 @@ import {
 } from "react-arborist";
 import { useLocale } from "react-aria";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import {
+  FILE_ICON as FILE_TYPE_ICONS,
+  type FileIconType as FileType,
+  guessFileIconType as guessFileType,
+} from "@/components/editor/file-tree/file-icons";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -47,11 +52,6 @@ import { newNotebookURL } from "@/utils/urls";
 import { ConfigButton } from "../app-config/app-config-button";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
-import {
-  FILE_TYPE_ICONS,
-  type FileType,
-  guessFileType,
-} from "../editor/file-tree/types";
 import {
   Header,
   OpenTutorialDropDown,

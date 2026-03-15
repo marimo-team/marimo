@@ -135,8 +135,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     Use `mo.ui.plotly` to make plotly plots reactive: select data with your
     cursor on the frontend, get them as a list of dicts in Python!
 
-    This function supports scatter plots, line charts, area charts, bar charts,
-    treemap charts, sunburst charts, and heatmaps.
+    This function supports scatter plots, scattergl plots, line charts, area
+    charts, bar charts, histograms, treemap charts, sunburst charts, and heatmaps.
 
     Examples:
         ```python
@@ -256,8 +256,12 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             [y_axis] = y_axes if len(y_axes) == 1 else [None]
 
             for trace in figure.data:
-                # Skip heatmap and bar traces - they're handled separately below
-                if getattr(trace, "type", None) in ("heatmap", "bar"):
+                # Skip trace types handled separately in _convert_value
+                if getattr(trace, "type", None) in (
+                    "heatmap",
+                    "bar",
+                    "histogram",
+                ):
                     continue
                 x_data = getattr(trace, "x", None)
                 y_data = getattr(trace, "y", None)
@@ -363,8 +367,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             for trace in self._figure.data
         )
 
+        scatter_trace_types = {"scatter", "scattergl"}
         has_scatter = any(
-            getattr(trace, "type", None) == "scatter"
+            getattr(trace, "type", None) in scatter_trace_types
             for trace in self._figure.data
         )
 
@@ -389,6 +394,18 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # Plotly may not send point data for pure line charts, so we extract manually
         if has_scatter and value.get("range"):
             _append_scatter_points_to_selection(
+                self._figure, self._selection_data
+            )
+
+        has_histogram = any(
+            getattr(trace, "type", None) == "histogram"
+            for trace in self._figure.data
+        )
+
+        # For histograms, convert selected bins/ranges to underlying sample rows.
+        # This enables row-level reactive workflows from histogram selections.
+        if has_histogram:
+            _append_histogram_points_to_selection(
                 self._figure, self._selection_data
             )
 
@@ -551,9 +568,9 @@ def _extract_heatmap_cells_numpy(
 def _append_scatter_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:
-    """Append scatter/line points within the selection range to the selection data.
+    """Append scatter/scattergl/line points within range to selection data.
 
-    This modifies selection_data in place, appending any scatter/line points
+    This modifies selection_data in place, appending any scatter/scattergl/line points
     that fall within the x-range to the existing points and indices.
 
     For line charts, Plotly may not send point-level data in the selection event
@@ -615,7 +632,7 @@ def _append_scatter_points_to_selection(
 def _extract_scatter_points_from_range(
     figure: go.Figure, range_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points that fall within a selection range.
+    """Extract scatter/scattergl/line points in a selection range.
 
     This follows Altair's behavior: returns all points where x is within
     the x-range, regardless of y value.
@@ -638,7 +655,7 @@ def _extract_scatter_points_numpy(
     x_min: float,
     x_max: float,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points using numpy for better performance."""
+    """Extract scatter/scattergl/line points using numpy."""
     import numpy as np
 
     selected_points: list[dict[str, Any]] = []
@@ -656,8 +673,8 @@ def _extract_scatter_points_numpy(
     y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
 
     for trace_idx, trace in enumerate(figure.data):
-        # Only process scatter traces (which includes lines, markers, lines+markers)
-        if getattr(trace, "type", None) != "scatter":
+        # Process scatter-like traces (includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
             continue
 
         x_data = getattr(trace, "x", None)
@@ -727,7 +744,7 @@ def _extract_scatter_points_fallback(
     x_min: float,
     x_max: float,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/line points using pure Python (fallback when numpy unavailable)."""
+    """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
 
     # Get axis titles for field naming
@@ -743,8 +760,8 @@ def _extract_scatter_points_fallback(
     y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
 
     for trace_idx, trace in enumerate(figure.data):
-        # Only process scatter traces (which includes lines, markers, lines+markers)
-        if getattr(trace, "type", None) != "scatter":
+        # Process scatter-like traces (includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
             continue
 
         x_data = getattr(trace, "x", None)
@@ -858,6 +875,309 @@ def _extract_heatmap_cells_fallback(
                     )
 
     return selected_cells
+
+
+def _append_histogram_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Append histogram sample rows to selection data.
+
+    Histogram selection events are bin-level on the frontend. This function
+    converts selected bins/ranges to underlying sample rows so .value behaves
+    like row-level selections from scatter plots.
+    """
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+    range_value = selection_data.get("range")
+
+    histogram_points: list[dict[str, Any]] = []
+
+    if isinstance(range_value, dict):
+        histogram_points = _extract_histogram_points_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+
+    # Lasso selections may not include a rectangular range. In that case, use
+    # the selected histogram bin payload (pointNumbers) to recover samples.
+    if not histogram_points:
+        histogram_points = _extract_histogram_points_from_bins(
+            figure, all_points
+        )
+
+    if not histogram_points:
+        return
+
+    histogram_curve_numbers = {
+        trace_idx
+        for trace_idx, trace in enumerate(figure.data)
+        if getattr(trace, "type", None) == "histogram"
+    }
+
+    # Drop existing histogram bin-level points, keep points from other traces.
+    filtered_points: list[dict[str, Any]] = []
+    filtered_indices: list[int] = []
+    seen = set()
+
+    for point_idx, point in enumerate(all_points):
+        if not point:
+            continue
+
+        curve_number = point.get("curveNumber")
+        if curve_number in histogram_curve_numbers:
+            continue
+
+        filtered_points.append(point)
+        if point_idx < len(all_indices) and isinstance(
+            all_indices[point_idx], int
+        ):
+            filtered_indices.append(all_indices[point_idx])
+        elif isinstance(point.get("pointIndex"), int):
+            filtered_indices.append(point["pointIndex"])
+
+        key = (point.get("pointIndex"), point.get("curveNumber"))
+        if key != (None, None):
+            seen.add(key)
+
+    # Merge histogram sample rows with deduplication by (curveNumber, pointIndex).
+    for point in histogram_points:
+        key = (point.get("pointIndex"), point.get("curveNumber"))
+        if key in seen:
+            continue
+        seen.add(key)
+        filtered_points.append(point)
+        if "pointIndex" in point:
+            filtered_indices.append(cast(int, point["pointIndex"]))
+
+    selection_data["points"] = filtered_points
+    selection_data["indices"] = filtered_indices
+
+
+def _extract_histogram_points_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract histogram sample rows that fall in a selection range."""
+    if DependencyManager.numpy.has():
+        return _extract_histogram_points_numpy(figure, range_data)
+    return _extract_histogram_points_fallback(figure, range_data)
+
+
+def _extract_histogram_points_numpy(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract histogram sample rows using numpy for better performance."""
+    import numpy as np
+
+    selected_points: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "histogram":
+            continue
+
+        orientation = getattr(trace, "orientation", "v")
+        if orientation is None:
+            orientation = "v"
+
+        axis_key = "y" if orientation == "h" else "x"
+        axis_range = range_data.get(axis_key)
+        axis_data = getattr(trace, axis_key, None)
+
+        if axis_data is None or not axis_range:
+            continue
+
+        axis_min, axis_max = min(axis_range), max(axis_range)
+        axis_arr = np.asarray(axis_data)
+
+        if axis_arr.size == 0:
+            continue
+
+        axis_is_orderable = _is_orderable_axis(axis_arr, axis_min)
+        axis_min_parsed = (
+            _parse_datetime_bound(axis_min) if axis_is_orderable else axis_min
+        )
+        axis_max_parsed = (
+            _parse_datetime_bound(axis_max) if axis_is_orderable else axis_max
+        )
+
+        if axis_is_orderable:
+            axis_mask = (axis_arr >= axis_min_parsed) & (
+                axis_arr <= axis_max_parsed
+            )
+        else:
+            category_positions = {
+                value: idx
+                for idx, value in enumerate(dict.fromkeys(axis_data))
+            }
+            position_arr = np.asarray(
+                [category_positions[value] for value in axis_data]
+            )
+            axis_mask = (axis_max > position_arr - 0.5) & (
+                axis_min < position_arr + 0.5
+            )
+
+        selected_indices = np.where(axis_mask)[0]
+        for point_idx in selected_indices:
+            point = _build_histogram_sample_point(
+                trace, trace_idx, int(point_idx)
+            )
+            if point is not None:
+                selected_points.append(point)
+
+    return selected_points
+
+
+def _extract_histogram_points_fallback(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract histogram sample rows using pure Python."""
+    selected_points: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "histogram":
+            continue
+
+        orientation = getattr(trace, "orientation", "v")
+        if orientation is None:
+            orientation = "v"
+
+        axis_key = "y" if orientation == "h" else "x"
+        axis_range = range_data.get(axis_key)
+        axis_data = getattr(trace, axis_key, None)
+
+        if axis_data is None or not axis_range:
+            continue
+
+        axis_min, axis_max = min(axis_range), max(axis_range)
+        category_positions = {
+            value: idx for idx, value in enumerate(dict.fromkeys(axis_data))
+        }
+
+        for point_idx, axis_value in enumerate(axis_data):
+            axis_in_range = False
+
+            if _is_orderable_value(axis_value) and _is_orderable_value(
+                axis_min
+            ):
+                axis_min_p = _parse_datetime_bound(axis_min)
+                axis_max_p = _parse_datetime_bound(axis_max)
+                axis_in_range = axis_min_p <= axis_value <= axis_max_p
+            else:
+                position = category_positions[axis_value]
+                bin_min = position - 0.5
+                bin_max = position + 0.5
+                axis_in_range = not (
+                    axis_max <= bin_min or axis_min >= bin_max
+                )
+
+            if axis_in_range:
+                point = _build_histogram_sample_point(
+                    trace, trace_idx, point_idx
+                )
+                if point is not None:
+                    selected_points.append(point)
+
+    return selected_points
+
+
+def _extract_histogram_points_from_bins(
+    figure: go.Figure, points: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Extract histogram sample rows from selected bin payloads."""
+    selected_points: list[dict[str, Any]] = []
+
+    for point in points:
+        curve_number = point.get("curveNumber")
+        if not isinstance(curve_number, int):
+            continue
+        if not (0 <= curve_number < len(figure.data)):
+            continue
+
+        trace = figure.data[curve_number]
+        if getattr(trace, "type", None) != "histogram":
+            continue
+
+        point_numbers = point.get("pointNumbers")
+        if not isinstance(point_numbers, list):
+            continue
+
+        for point_number in point_numbers:
+            if not isinstance(point_number, int):
+                continue
+            sample_point = _build_histogram_sample_point(
+                trace, curve_number, point_number
+            )
+            if sample_point is not None:
+                selected_points.append(sample_point)
+
+    return selected_points
+
+
+def _build_histogram_sample_point(
+    trace: Any, trace_idx: int, point_idx: int
+) -> Optional[dict[str, Any]]:
+    """Build a row-level selection payload point from a histogram trace."""
+    orientation = getattr(trace, "orientation", "v")
+    if orientation is None:
+        orientation = "v"
+
+    axis_key = "y" if orientation == "h" else "x"
+    paired_axis_key = "x" if orientation == "h" else "y"
+
+    axis_value = _get_indexed_value(getattr(trace, axis_key, None), point_idx)
+    if axis_value is None:
+        return None
+
+    point: dict[str, Any] = {
+        axis_key: axis_value,
+        "pointIndex": point_idx,
+        "curveNumber": trace_idx,
+    }
+
+    paired_axis_value = _get_indexed_value(
+        getattr(trace, paired_axis_key, None), point_idx
+    )
+    if paired_axis_value is not None:
+        point[paired_axis_key] = paired_axis_value
+
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    customdata = _get_indexed_value(
+        getattr(trace, "customdata", None), point_idx
+    )
+    if customdata is not None:
+        point["customdata"] = customdata
+
+    text = _get_indexed_value(getattr(trace, "text", None), point_idx)
+    if text is not None:
+        point["text"] = text
+
+    hovertext = _get_indexed_value(
+        getattr(trace, "hovertext", None), point_idx
+    )
+    if hovertext is not None:
+        point["hovertext"] = hovertext
+
+    return point
+
+
+def _get_indexed_value(data: Any, index: int) -> Any:
+    """Safely extract an indexed value from array-like or scalar data."""
+    if data is None:
+        return None
+
+    if isinstance(data, str):
+        return data
+
+    try:
+        if not (0 <= index < len(data)):
+            return None
+    except TypeError:
+        # Scalar value
+        return data
+
+    value = data[index]
+    return value.item() if hasattr(value, "item") else value
 
 
 def _append_bar_items_to_selection(

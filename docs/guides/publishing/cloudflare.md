@@ -23,7 +23,7 @@ marimo export html-wasm notebook.py -o output_dir --mode edit --include-cloudfla
 
 ///
 
-See our [exporting guide](../exporting.md#export-to-wasm-powered-html) for
+See our [exporting guide](../exporting/webassembly_html.md) for
 the full documentation.
 
 ## Publish to a Cloudflare Worker

@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import csv
+import io
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
@@ -94,17 +96,29 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def dataframe_to_csv(df: IntoFrame) -> str:
+def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
     """
     Convert a dataframe to a CSV string.
     """
     assert_can_narwhalify(df)
     df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
-    if is_narwhals_lazyframe(df):
-        return df.collect().write_csv()
-    else:
-        return df.write_csv()
+    resolved_separator = separator if separator is not None else ","
+
+    frame = df.collect() if is_narwhals_lazyframe(df) else df
+    if resolved_separator == ",":
+        return frame.write_csv()
+
+    # Narwhals inputs can map to different backends, and
+    # write_csv(separator=...) is not consistently reliable across them.
+    # For non-comma separators, use Python's csv writer for stable behavior.
+    buffer = io.StringIO()
+    writer = csv.writer(
+        buffer, delimiter=resolved_separator, lineterminator="\n"
+    )
+    writer.writerow(frame.columns)
+    writer.writerows(frame.iter_rows())
+    return buffer.getvalue()
 
 
 def is_narwhals_integer_type(

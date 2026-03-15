@@ -99,8 +99,8 @@ export class EventBuffer<T> {
   }
 
   getAndClear() {
-    const events = [...this.buffer];
-    this.clear();
+    const events = this.buffer;
+    this.buffer = [];
     return events;
   }
 }

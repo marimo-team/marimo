@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -43,6 +44,11 @@ if __name__ == "__main__":
 
 class TestASGIAppBuilder(unittest.TestCase):
     def setUp(self) -> None:
+        # Kernel threads running in RUN mode may modify sys.modules["__main__"]
+        # via patch_main_module.  Save it so tearDown can restore it and
+        # prevent contamination of later tests (e.g. multiprocessing.Process
+        # on Windows reads __main__.__file__ during spawn).
+        self._saved_main = sys.modules["__main__"]
         # Create a temporary directory for the tests
         self.temp_dir = tempfile.TemporaryDirectory()
         self.app1 = os.path.join(self.temp_dir.name, "app1.py")
@@ -55,6 +61,8 @@ class TestASGIAppBuilder(unittest.TestCase):
     def tearDown(self) -> None:
         # Clean up the temporary directory
         self.temp_dir.cleanup()
+        # Restore __main__ in case a kernel thread modified it
+        sys.modules["__main__"] = self._saved_main
 
     def test_create_asgi_app(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)

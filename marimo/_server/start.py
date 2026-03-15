@@ -9,14 +9,14 @@ from typing import Optional
 
 import uvicorn
 
-import marimo._server.api.lifespans as lifespans
 from marimo._cli.print import echo
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._mcp.server.main import setup_mcp_server
+from marimo._mcp.setup import McpType, setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
+from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
@@ -177,7 +177,7 @@ def start(
     redirect_console_to_browser: bool,
     skew_protection: bool,
     remote_url: Optional[str] = None,
-    mcp: bool = False,
+    mcp: McpType | None = None,
     mcp_allow_remote: bool = False,
     server_startup_command: Optional[str] = None,
     asset_url: Optional[str] = None,
@@ -274,15 +274,11 @@ def start(
         lifespans.logging,
         lifespans.open_browser,
         lifespans.tool_manager,
+        lifespans.server_registry,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 
-    mcp_enabled = mcp and mode == SessionMode.EDIT
-
-    if mcp_enabled:
-        from marimo._mcp.server.lifespan import mcp_server_lifespan
-
-        lifespans_list.append(mcp_server_lifespan)
+    mcp_enabled = mcp is not None and mode == SessionMode.EDIT
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
     enable_auth = not AuthToken.is_empty(session_manager.auth_token)
@@ -299,8 +295,13 @@ def start(
         timeout=timeout,
     )
 
-    if mcp_enabled:
-        setup_mcp_server(app, allow_remote=mcp_allow_remote)
+    if mcp_enabled and mcp is not None:
+        # setup_mcp_server returns the lifespan for the chosen mode;
+        # appending it to lifespans_list works because Lifespans stores
+        # a reference to the list and iterates it at startup time.
+        lifespans_list.append(
+            setup_mcp_server(app, mcp, allow_remote=mcp_allow_remote)
+        )
 
     init_state = StarletteServerStateInit(
         port=external_port,
@@ -312,7 +313,7 @@ def start(
         session_manager=session_manager,
         config_manager=config_reader,
         remote_url=remote_url,
-        mcp_server_enabled=mcp,
+        mcp_server_enabled=mcp_enabled,
         skew_protection=skew_protection,
         enable_auth=enable_auth,
     )
@@ -355,7 +356,9 @@ def start(
         uvicorn.Config(
             app,
             port=port,
-            host=host,
+            host=host.strip(
+                "[]"
+            ),  # uvicorn expects bare IPv6 without brackets
             log_level=log_level,
             # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
             # seconds by default; for some reason breaks the server in
