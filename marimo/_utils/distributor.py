@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import threading
 import time
 from typing import Any, Callable, Generic, Protocol, TypeVar, Union
@@ -114,10 +115,10 @@ class ConnectionDistributor(Distributor[T]):
 
 class QueueDistributor(Distributor[T]):
     def __init__(self, queue: QueueType[Union[T, None]]) -> None:
-        self.consumers: list[Consumer[T]] = []
+        self._consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
-        self.queue = queue
-        self.thread: threading.Thread | None = None
+        self._queue = queue
+        self._thread: threading.Thread | None = None
         self._stop = False
         # protects the consumers list
         self._lock = threading.Lock()
@@ -125,32 +126,71 @@ class QueueDistributor(Distributor[T]):
     def add_consumer(self, consumer: Consumer[T]) -> Disposable:
         """Add a consumer to the distributor."""
         with self._lock:
-            self.consumers.append(consumer)
+            self._consumers.append(consumer)
 
         def _remove() -> None:
             with self._lock:
-                if consumer in self.consumers:
-                    self.consumers.remove(consumer)
+                if consumer in self._consumers:
+                    self._consumers.remove(consumer)
 
         return Disposable(_remove)
 
     def _loop(self) -> None:
-        while not self._stop:
-            msg = self.queue.get()
-            if msg is None:
-                break
+        try:
+            while True:
+                msg = self._queue.get()
+                if msg is None:
+                    break
 
+                # If stop was requested while we were blocked on get(),
+                # discard this message and exit. This avoids delivering
+                # messages after stop() has been called.
+                if self._stop:
+                    break
+
+                with self._lock:
+                    for consumer in self._consumers:
+                        consumer(msg)
+        finally:
+            # Clear consumers to release any captured references (e.g.
+            # session closures) as soon as the loop exits, rather than
+            # waiting for GC of the distributor object.
             with self._lock:
-                for consumer in self.consumers:
-                    consumer(msg)
+                self._consumers.clear()
 
     def start(self) -> threading.Thread:
-        self.thread = threading.Thread(target=self._loop, daemon=True)
-        self.thread.start()
-        return self.thread
+        # Reset state so the distributor can be restarted on the same queue.
+        # Drain any leftover None sentinels from a previous stop().
+        self._stop = False
+        self._drain_sentinels()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        return self._thread
 
     def stop(self) -> None:
-        self.queue.put_nowait(None)
+        self._stop = True
+        self._queue.put_nowait(None)
+
+    def _drain_sentinels(self) -> None:
+        """Remove any leftover None sentinels from the queue.
+
+        After stop() puts a None sentinel on the queue, a race condition
+        can cause the loop to exit via the _stop flag before consuming the
+        sentinel. This method drains those stale sentinels so that a
+        subsequent start() won't immediately terminate.
+
+        Only None values are removed; real messages are put back.
+        """
+        recovered: list[T] = []
+        try:
+            while True:
+                item = self._queue.get_nowait()
+                if item is not None:
+                    recovered.append(item)
+        except queue.Empty:
+            pass
+        for item in recovered:
+            self._queue.put_nowait(item)
 
     def flush(self) -> None:
         """Flush the distributor."""
