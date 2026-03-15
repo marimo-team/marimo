@@ -17,6 +17,7 @@ from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.ai.mcp.config import is_mcp_config_empty
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
+from marimo._server.lsp import any_lsp_server_running
 from marimo._server.models.models import (
     SaveUserConfigurationRequest,
     SuccessResponse,
@@ -74,9 +75,10 @@ async def save_user_config(
     )
 
     async def handle_background_tasks() -> None:
-        # Update the server's view of the config
-        if config["completion"]["copilot"]:
-            LOGGER.debug("Starting copilot server")
+        # Start language servers before we return so websocket connections
+        # initiated right after this request are less likely to race startup.
+        if any_lsp_server_running(config):
+            LOGGER.debug("Starting language servers")
             await app_state.session_manager.start_lsp_server()
 
         # Reconfigure MCP servers if config changed
