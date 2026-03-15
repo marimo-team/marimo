@@ -1034,6 +1034,14 @@ class Kernel:
                 if name in self.globals:
                     del self.globals[name]
 
+                # Restore module-level __doc__ so it doesn't fall
+                # through to builtins.__doc__
+                if name == "__doc__":
+                    self.globals["__doc__"] = (
+                        self.app_metadata.docstring
+                        or "Created for the marimo kernel."
+                    )
+
                 if (
                     "__annotations__" in self.globals
                     and name in self.globals["__annotations__"]
@@ -3485,6 +3493,7 @@ def launch_kernel(
             file=app_metadata.filename,
             input_override=input_override,
             print_override=print_override,
+            doc=app_metadata.docstring,
         ),
         debugger_override=debugger,
         user_config=user_config,

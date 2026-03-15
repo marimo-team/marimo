@@ -94,6 +94,33 @@ class TestApp:
         assert defs["a"] == 2
 
     @staticmethod
+    def test_run_with_docstring() -> None:
+        """Test that __doc__ returns the notebook's docstring."""
+        app = App()
+        app._header = '"""This is a test"""'
+
+        @app.cell
+        def _() -> tuple[object]:
+            doc = __doc__  # noqa: F821
+            return (doc,)
+
+        _, defs = app.run()
+        assert defs["doc"] == "This is a test"
+
+    @staticmethod
+    def test_run_with_no_docstring() -> None:
+        """Test that __doc__ has a default when no header docstring."""
+        app = App()
+
+        @app.cell
+        def _() -> tuple[object]:
+            doc = __doc__  # noqa: F821
+            return (doc,)
+
+        _, defs = app.run()
+        assert defs["doc"] == "Created for the marimo kernel."
+
+    @staticmethod
     def test_run_with_refs() -> None:
         """Test that app.run() can override variables with provided defs."""
         app = App()
