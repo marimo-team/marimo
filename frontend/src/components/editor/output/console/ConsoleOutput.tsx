@@ -6,7 +6,7 @@ import {
   ChevronsUpDownIcon,
   WrapTextIcon,
 } from "lucide-react";
-import React, { useLayoutEffect } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -32,6 +32,55 @@ import { type OnRefactorWithAI, OutputRenderer } from "../../Output";
 import { useWrapText } from "../useWrapText";
 import { processOutput } from "./process-output";
 import { RenderTextWithLinks } from "./text-rendering";
+
+/**
+ * Delay in ms before clearing console outputs.
+ * This prevents flickering when a cell re-runs and outputs are briefly cleared
+ * before new outputs arrive (e.g., plt.show() with a slider).
+ */
+export const CONSOLE_CLEAR_DEBOUNCE_MS = 200;
+
+/**
+ * Debounces the clearing of console outputs.
+ * - Non-empty updates are applied immediately.
+ * - Transitions to empty are delayed by CONSOLE_CLEAR_DEBOUNCE_MS,
+ *   giving new outputs a chance to arrive and replace the old ones
+ *   without a visible flicker.
+ */
+function useDebouncedConsoleOutputs<T>(outputs: T[]): T[] {
+  const [debouncedOutputs, setDebouncedOutputs] = useState(outputs);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (outputs.length > 0) {
+      // Non-empty: apply immediately and cancel any pending clear
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setDebouncedOutputs(outputs);
+    } else {
+      // Empty: delay the clear
+      if (timerRef.current === null) {
+        timerRef.current = setTimeout(() => {
+          timerRef.current = null;
+          setDebouncedOutputs(outputs);
+        }, CONSOLE_CLEAR_DEBOUNCE_MS);
+      }
+    }
+  }, [outputs]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  return debouncedOutputs;
+}
 
 interface Props {
   cellId: CellId;
@@ -63,7 +112,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     setValue: setStdinValue,
   });
   const {
-    consoleOutputs,
+    consoleOutputs: rawConsoleOutputs,
     stale,
     cellName,
     cellId,
@@ -72,6 +121,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     onRefactorWithAI,
     className,
   } = props;
+
+  // Debounce clearing to prevent flickering when cells re-run
+  const consoleOutputs = useDebouncedConsoleOutputs(rawConsoleOutputs);
 
   /* The debugger UI needs some work. For now just use the regular
   /* console output. */
