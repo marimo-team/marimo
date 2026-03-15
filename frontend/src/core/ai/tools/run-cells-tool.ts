@@ -97,7 +97,7 @@ export class RunStaleCellsTool
 
     await runCells({
       cellIds: staleCells,
-      sendRun: sendRun,
+      sendRun,
       prepareForRun,
       notebook,
     });
@@ -121,8 +121,8 @@ export class RunStaleCellsTool
     const updatedNotebook = store.get(notebookAtom);
 
     const cellsToOutput = new Map<CellId, CellOutput | null>();
-    let resultMessage = "";
     let outputHasErrors = false;
+    let hasAnyConsoleOutput = false;
     let totalOutputChars = 0;
 
     for (const cellId of staleCells) {
@@ -135,12 +135,10 @@ export class RunStaleCellsTool
       const hasConsoleOutput = consoleOutputs && consoleOutputs.length > 0;
 
       // Track errors regardless of budget
-      if (cellOutput && this.outputHasErrors(cellOutput)) {
-        outputHasErrors = true;
-      }
       if (
-        hasConsoleOutput &&
-        consoleOutputs.some((output) => this.outputHasErrors(output))
+        (cellOutput && this.outputHasErrors(cellOutput)) ||
+        (hasConsoleOutput &&
+          consoleOutputs.some((output) => this.outputHasErrors(output)))
       ) {
         outputHasErrors = true;
       }
@@ -167,6 +165,7 @@ export class RunStaleCellsTool
       }
 
       if (hasConsoleOutput) {
+        hasAnyConsoleOutput = true;
         consoleOutputString = consoleOutputs
           .map((output) => this.formatOutputString(output))
           .join("\n");
@@ -175,8 +174,6 @@ export class RunStaleCellsTool
           MAX_TEXT_OUTPUT_CHARS,
         );
         totalOutputChars += consoleOutputString.length;
-        resultMessage +=
-          "Console output represents the stdout or stderr of the cell (eg. print statements).";
       }
 
       cellsToOutput.set(cellId, {
@@ -202,57 +199,50 @@ export class RunStaleCellsTool
     return {
       status: "success",
       cellsToOutput: Object.fromEntries(cellsToOutput),
-      message: resultMessage === "" ? undefined : resultMessage,
+      message: hasAnyConsoleOutput
+        ? "Console output represents the stdout or stderr of the cell (eg. print statements)."
+        : undefined,
       next_steps: nextSteps,
     };
   };
 
   private outputHasErrors(cellOutput: BaseOutput): boolean {
-    const { output } = cellOutput;
-    if (
-      output.mimetype === "application/vnd.marimo+error" ||
-      output.mimetype === "application/vnd.marimo+traceback"
-    ) {
-      return true;
-    }
-    return false;
+    return (
+      cellOutput.output.mimetype === "application/vnd.marimo+error" ||
+      cellOutput.output.mimetype === "application/vnd.marimo+traceback"
+    );
   }
 
   private formatOutputString(cellOutput: BaseOutput): string {
-    let outputString = "";
     const { outputType, processedContent, imageUrl, output } = cellOutput;
-    if (outputType === "text") {
-      if (output.mimetype === "text/html") {
-        // text/html (e.g. plotly figures, rich dataframes) can be millions of
-        // chars and is not interpretable by LLMs — summarize instead
-        const dataLength =
-          typeof output.data === "string"
-            ? output.data.length
-            : JSON.stringify(output.data).length;
-        outputString += `HTML Output: text/html content (${dataLength.toLocaleString()} chars). Full output visible in notebook UI.`;
-      } else {
-        const isError = this.outputHasErrors(cellOutput);
-        const maxChars = isError
-          ? MAX_ERROR_OUTPUT_CHARS
-          : MAX_TEXT_OUTPUT_CHARS;
-        outputString += "Output:\n";
-        let content: string;
-        if (processedContent) {
-          content = processedContent;
-        } else if (typeof output.data === "string") {
-          content = output.data;
-        } else {
-          content = JSON.stringify(output.data);
-        }
-        outputString += this.truncateString(content, maxChars);
-      }
-    } else if (outputType === "media") {
-      outputString += `Media Output: Contains ${output.mimetype} content`;
-      if (imageUrl) {
-        outputString += `\nImage URL: ${imageUrl}`;
-      }
+
+    if (outputType === "media") {
+      const base = `Media Output: Contains ${output.mimetype} content`;
+      return imageUrl ? `${base}\nImage URL: ${imageUrl}` : base;
     }
-    return outputString;
+
+    if (output.mimetype === "text/html") {
+      // text/html (e.g. plotly figures, rich dataframes) can be millions of
+      // chars and is not interpretable by LLMs — summarize instead
+      const dataLength =
+        typeof output.data === "string"
+          ? output.data.length
+          : JSON.stringify(output.data).length;
+      return `HTML Output: text/html content (${dataLength.toLocaleString()} chars). Full output visible in notebook UI.`;
+    }
+
+    const maxChars = this.outputHasErrors(cellOutput)
+      ? MAX_ERROR_OUTPUT_CHARS
+      : MAX_TEXT_OUTPUT_CHARS;
+
+    let content = processedContent;
+    if (!content) {
+      content =
+        typeof output.data === "string"
+          ? output.data
+          : JSON.stringify(output.data);
+    }
+    return `Output:\n${this.truncateString(content, maxChars)}`;
   }
 
   private truncateString(str: string, maxLength: number): string {
@@ -261,7 +251,6 @@ export class RunStaleCellsTool
     }
     return `${str.slice(0, maxLength)}\n\n[TRUNCATED: ${str.length.toLocaleString()} → ${maxLength.toLocaleString()} chars. Full output visible in the notebook UI.]`;
   }
-
   /**
    * Wait for cells to finish executing (status becomes "idle")
    * Returns true if all cells finished executing, false if the timeout was reached

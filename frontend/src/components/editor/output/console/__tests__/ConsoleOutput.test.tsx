@@ -2,24 +2,14 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SetupMocks } from "@/__mocks__/common";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
 
-// Mock ResizeObserver for tests
-global.ResizeObserver = class ResizeObserver {
-  observe() {
-    // noop
-  }
-  unobserve() {
-    // noop
-  }
-  disconnect() {
-    // noop
-  }
-};
+SetupMocks.resizeObserver();
 
 const renderWithProvider = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);

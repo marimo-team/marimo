@@ -317,6 +317,8 @@ export function useMarimoKernelConnection(opts: {
           codes: msg.data.codes,
           ids: msg.data.cell_ids as CellId[],
           codeIsStale: msg.data.code_is_stale,
+          names: msg.data.names,
+          configs: msg.data.configs,
         });
         return;
       case "update-cell-ids":

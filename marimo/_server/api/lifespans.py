@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
 import socket
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -207,6 +208,49 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def server_registry(app: Starlette) -> AsyncIterator[None]:
+    """Register this server in the local registry for discovery.
+
+    Only servers started **without** an auth token (``--no-token``)
+    **and** without skew protection (``--no-skew-protection``) are
+    registered.  This ensures only servers that have explicitly opted
+    into relaxed local access are discoverable.
+    """
+    from marimo._server.server_registry import (
+        ServerRegistryEntry,
+        ServerRegistryWriter,
+    )
+
+    state = AppState.from_app(app)
+
+    # Guard: only register when the user has opted into relaxed local
+    # access (no auth token, no skew protection).
+    if state.enable_auth or state.skew_protection:
+        LOGGER.debug(
+            "Skipping server registry: auth=%s, skew_protection=%s",
+            state.enable_auth,
+            state.skew_protection,
+        )
+        yield
+        return
+
+    entry = ServerRegistryEntry.from_server(
+        host=state.host,
+        port=state.port,
+        base_url=state.base_url,
+    )
+    writer = ServerRegistryWriter(entry)
+    try:
+        writer.register()
+    except Exception as e:
+        LOGGER.warning("Failed to register server: %s", e)
+
+    yield
+
+    writer.deregister()
+
+
+@contextlib.asynccontextmanager
 async def etc(app: Starlette) -> AsyncIterator[None]:
     del app
     # Mimetypes
@@ -214,28 +258,53 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
-def _startup_url(state: AppStateBase) -> str:
-    host = state.host
-    port = state.port
-    try:
-        # pretty printing:
-        # if the address maps to localhost, print "localhost" to stdout
-        if (
-            socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
-            == "localhost"
-        ):
-            host = "localhost"
-    except Exception:
-        # aggressive try/except in case of platform-specific quirks;
-        # nothing to handle, since the `try` logic is just for pretty
-        # printing the host name
-        ...
+def _pretty_host(host: str, port: int) -> str:
+    """Replace loopback addresses with 'localhost' for display.
 
-    url = f"http://{host}:{port}{state.base_url}"
+    Uses ipaddress for a reliable cross-platform loopback check (covers
+    127.0.0.1, ::1, and the full 127.0.0.0/8 range).  Falls back to
+    socket.getnameinfo only for non-IP hosts.  getnameinfo is skipped for
+    raw IP addresses because it can hang on Windows/CI for link-local IPv6.
+    """
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return "localhost"
+    except ValueError:
+        # Not a valid IP literal — might be a hostname; try getnameinfo
+        try:
+            if (
+                socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
+                == "localhost"
+            ):
+                return "localhost"
+        except Exception:
+            pass
+    return host
+
+
+def _startup_url(state: AppStateBase) -> str:
+    host = state.host.strip(
+        "[]"
+    )  # normalize: remove brackets if user passed [addr]
+    port = state.port
+
+    # Strip IPv6 zone ID (e.g. fe80::1%eth0 -> fe80::1); zone IDs are
+    # interface-specific and not valid in URLs.
+    # Must happen before _pretty_host — zone IDs can cause getnameinfo
+    # to hang on Windows/CI.
+    host = host.split("%")[0]
+
+    # pretty printing: show "localhost" for loopback addresses
+    host = _pretty_host(host, port)
+
+    url_host_bare = host
+    # IPv6 addresses must be wrapped in brackets in URLs (RFC 3986)
+    url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare
+    url = f"http://{url_host}:{port}{state.base_url}"
     if port == 80:
-        url = f"http://{host}{state.base_url}"
+        url = f"http://{url_host}{state.base_url}"
     elif port == 443:
-        url = f"https://{host}{state.base_url}"
+        url = f"https://{url_host}{state.base_url}"
 
     if AuthToken.is_empty(state.session_manager.auth_token):
         return url
@@ -243,29 +312,27 @@ def _startup_url(state: AppStateBase) -> str:
 
 
 def _mcp_startup_url(state: AppStateBase) -> str:
-    host = state.host
+    host = state.host.strip(
+        "[]"
+    )  # normalize: remove brackets if user passed [addr]
     port = state.port
     base_url = state.base_url
 
-    # Handle localhost pretty printing (same logic as _startup_url)
-    try:
-        if (
-            socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
-            == "localhost"
-        ):
-            host = "localhost"
-    except Exception:
-        ...
+    # Strip zone ID, then pretty-print loopback (same logic as _startup_url)
+    host = host.split("%")[0]
+    host = _pretty_host(host, port)
 
+    url_host_bare = host
+    url_host = f"[{url_host_bare}]" if ":" in url_host_bare else url_host_bare
     # Construct MCP endpoint URL
     mcp_prefix = "/mcp"
     mcp_name = "server"
     full_mcp_path = f"{mcp_prefix}/{mcp_name}"
-    url = f"http://{host}:{port}{base_url}{full_mcp_path}"
+    url = f"http://{url_host}:{port}{base_url}{full_mcp_path}"
     if port == 80:
-        url = f"http://{host}{base_url}{full_mcp_path}"
+        url = f"http://{url_host}{base_url}{full_mcp_path}"
     elif port == 443:
-        url = f"https://{host}{base_url}{full_mcp_path}"
+        url = f"https://{url_host}{base_url}{full_mcp_path}"
 
     # Add access token if not empty
     if AuthToken.is_empty(state.session_manager.auth_token):

@@ -425,13 +425,13 @@ Run tests:
 ---
 ```bash
 # Run all tool tests
-hatch run +py=3.12 test:test tests/_ai/tools
+uv run --python 3.12 --group test pytest tests/_ai/tools
 
 # Run your specific test
-hatch run +py=3.12 test:test tests/_ai/tools/tools/test_your_tool.py
+uv run --python 3.12 --group test pytest tests/_ai/tools/tools/test_your_tool.py
 
 # Run with verbose output
-hatch run +py=3.12 test:test tests/_ai/tools/tools/test_your_tool.py -v
+uv run --python 3.12 --group test pytest tests/_ai/tools/tools/test_your_tool.py -v
 ```
 ---
 

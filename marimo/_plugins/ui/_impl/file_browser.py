@@ -211,7 +211,7 @@ class file_browser(
             initial_value=[],
             label=label,
             args={
-                "initial-path": str(initial_path),
+                "initial-path": str(self._initial_path),
                 "selection-mode": selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
@@ -300,8 +300,7 @@ class file_browser(
 
         if self._restrict_navigation and path in self._initial_path.parents:
             raise RuntimeError(
-                "Navigation is restricted; navigating to a "
-                "parent of initial path is not allowed."
+                "Navigation is restricted; navigating to a parent of initial path is not allowed."
             )
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []

@@ -70,6 +70,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import FrameType, TracebackType
 
+    from typing_extensions import TypeGuard, TypeIs
+
     from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
@@ -386,6 +388,16 @@ class App:
                 func, column, disabled, hide_code, app=InternalApp(self)
             ),
         )
+
+    @overload
+    def function(  # type: ignore[overload-overlap]
+        self, func: Callable[P, TypeIs[R]]
+    ) -> Callable[P, TypeIs[R]]: ...
+
+    @overload
+    def function(
+        self, func: Callable[P, TypeGuard[R]]
+    ) -> Callable[P, TypeGuard[R]]: ...
 
     @overload
     def function(self, func: Fn[P, R]) -> Fn[P, R]: ...
