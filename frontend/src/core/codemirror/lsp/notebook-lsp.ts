@@ -1,18 +1,15 @@
+import type { ViewUpdate } from "@codemirror/view";
 import type {
   LanguageServerClient,
   ProcessNotification,
 } from "@open-rpc/client-js";
-import type { ViewUpdate } from "@codemirror/view";
+import { notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { Filenames } from "@/core/constants";
+import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { isUrl } from "@/utils/url";
-import {
-  getNotebookDocumentUri,
-  getCellDocumentUri,
-} from "./language-server";
-import type { CellId } from "@/core/cells/ids";
-import { store } from "@/core/state/jotai";
-import { notebookAtom } from "@/core/cells/cells";
-import { Filenames } from "@/core/constants";
+import { getCellDocumentUri, getNotebookDocumentUri } from "./language-server";
 
 const CELL_DOCUMENT_URI_PREFIX = "cell:///";
 
