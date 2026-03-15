@@ -1383,3 +1383,25 @@ def test_integration_mixed_packages_with_git_url():
     assert (
         '"package @ git+https://github.com/user/package.git"' in header_value
     )
+
+
+def test_convert_ipynb_markdown_unwraps_top_level_paragraph_html():
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "source": "<p>Hello $x$</p>\n<p>World</p>",
+                "metadata": {},
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    markdown_cell = next(cell for cell in result.cells if "mo.md(" in cell.code)
+    assert "<p>" not in markdown_cell.code
+    assert "</p>" not in markdown_cell.code
+    assert "Hello $x$\n\nWorld" in markdown_cell.code

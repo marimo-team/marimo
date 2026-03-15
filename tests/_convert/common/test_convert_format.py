@@ -41,6 +41,30 @@ mo.md(r"""
     assert format.markdown_to_marimo(markdown) == expected
 
 
+def test_markdown_to_marimo_unwraps_top_level_paragraph_html():
+    markdown = "<p>Hello $x$</p>\n<p>World</p>"
+    expected = (
+        '''\
+mo.md(r"""
+Hello $x$
+
+World
+""")'''
+    ).strip()
+    assert format.markdown_to_marimo(markdown) == expected
+
+
+def test_markdown_to_marimo_keeps_non_paragraph_html():
+    markdown = "<div><p>Hello $x$</p></div>"
+    expected = (
+        '''\
+mo.md(r"""
+<div><p>Hello $x$</p></div>
+""")'''
+    ).strip()
+    assert format.markdown_to_marimo(markdown) == expected
+
+
 def test_generate_from_sources():
     # Test with basic sources
     sources = ["print('Hello')", "x = 5"]
