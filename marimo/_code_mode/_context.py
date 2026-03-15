@@ -397,7 +397,8 @@ class AsyncCodeModeContext:
     def _resolve_target(self, target: str) -> CellId_t:
         """Resolve a cell ID or name to a ``CellId_t``.
 
-        Checks the live graph first, then pending adds.
+        Checks the live graph first, then pending adds (by ID and by
+        name), then queued renames from ``edit_cell``.
         """
         # Try the live graph.
         try:
@@ -409,6 +410,16 @@ class AsyncCodeModeContext:
         cid = CellId_t(target)
         if cid in self._pending_adds:
             return cid
+
+        # Try pending adds (by name).
+        for pending_id, add_op in self._pending_adds.items():
+            if add_op.name == target:
+                return pending_id
+
+        # Try queued renames from edit_cell ops.
+        for op in self._ops:
+            if isinstance(op, _UpdateOp) and op.name == target:
+                return op.new_cell_id or op.cell_id
 
         raise KeyError(
             f"Cell {target!r} not found in notebook or pending adds"

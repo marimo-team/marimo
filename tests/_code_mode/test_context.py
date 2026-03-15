@@ -416,6 +416,47 @@ class TestSummary:
         assert "edited code of cell" in captured.out
 
 
+class TestResolveTarget:
+    async def test_create_after_pending_add_by_name(self, k: Kernel) -> None:
+        """Can reference a just-added cell by name in a subsequent add."""
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:
+            nb.create_cell("x = 1", name="first")
+            nb.create_cell("y = x + 1", after="first")
+
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+
+        # "first" should come before the second cell in ordering.
+        ids_notifs = _ids_notifs(k)
+        cell_ids = ids_notifs[0].cell_ids
+        assert len(cell_ids) == 2
+
+    async def test_create_after_renamed_cell(self, k: Kernel) -> None:
+        """Can reference a cell by its new name after edit_cell renames it."""
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="a = 1"),
+                ExecuteCellCommand(cell_id="1", code="b = 2"),
+            ]
+        )
+        ctx = AsyncCodeModeContext(k)
+        _clear_messages(k)
+
+        async with ctx as nb:
+            nb.edit_cell("0", name="renamed")
+            nb.create_cell("c = a + b", after="renamed")
+
+        assert k.globals["c"] == 3
+
+        # New cell should be after "0" (renamed), before "1".
+        ids_notifs = _ids_notifs(k)
+        cell_ids = ids_notifs[0].cell_ids
+        assert cell_ids[0] == "0"
+        assert cell_ids[2] == "1"
+
+
 class TestInstallPackages:
     async def test_install_single(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
