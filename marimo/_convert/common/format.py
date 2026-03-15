@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Optional, Union
 
 from marimo._ast import codegen
@@ -10,6 +11,22 @@ if TYPE_CHECKING:
     from marimo._ast.cell import Cell, CellImpl
 
 DEFAULT_MARKDOWN_PREFIX = "r"
+_PARAGRAPH_BLOCK_RE = re.compile(r"^\s*(?:<p>.*?</p>\s*)+$", re.DOTALL)
+_PARAGRAPH_RE = re.compile(r"<p>(.*?)</p>", re.DOTALL)
+
+
+def _normalize_paragraph_html(source: str) -> str:
+    """Normalize notebooks that store markdown as top-level <p> blocks."""
+    stripped = source.strip()
+    if not stripped or _PARAGRAPH_BLOCK_RE.fullmatch(stripped) is None:
+        return source
+
+    paragraphs = [
+        paragraph.strip() for paragraph in _PARAGRAPH_RE.findall(stripped)
+    ]
+    if not paragraphs:
+        return source
+    return "\n\n".join(paragraphs)
 
 
 def markdown_to_marimo(
@@ -18,6 +35,7 @@ def markdown_to_marimo(
     # NB. This should be kept in sync with the logic in
     # frontend/src/core/codemirror/language/languages/markdown.ts
     # ::transformOut
+    source = _normalize_paragraph_html(source)
     source = source.replace('"""', '\\"\\"\\"')
 
     # 6 quotes in a row breaks
