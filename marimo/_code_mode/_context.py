@@ -20,13 +20,16 @@ Usage::
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, overload
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
+from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._code_mode._plan import (
     _AddOp,
     _build_plan,
@@ -83,6 +86,10 @@ class NotebookCellData:
 
 LOGGER = _loggers.marimo_logger()
 
+# Module-level store for cell names set via code_mode.
+# Persists across context manager invocations within the same kernel.
+_cell_names: dict[CellId_t, str] = {}
+
 
 # ------------------------------------------------------------------
 # Entry point
@@ -131,6 +138,11 @@ class _CellsView:
         return list(self._ctx.graph.cells.keys())
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
+        # Check code_mode's own name store first.
+        name = _cell_names.get(cell_id)
+        if name is not None:
+            return name
+        # Fall back to cell_manager if available.
         cm = self._ctx._cell_manager
         if cm is None:
             return None
@@ -223,6 +235,10 @@ class AsyncCodeModeContext:
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
         self._pending_adds: dict[CellId_t, _AddOp] = {}
+        # ID generator for new cells — seeded with existing IDs to
+        # avoid collisions.
+        self._id_generator = CellIdGenerator()
+        self._id_generator.seen_ids = set(kernel.graph.cells.keys())
         self._packages_to_install: list[str] = []
         self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._entered = False
@@ -335,8 +351,8 @@ class AsyncCodeModeContext:
         if not lines:
             return
 
-        for _line in lines:
-            pass
+        for line in lines:
+            sys.stdout.write(line + "\n")
 
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label for a cell: name if available, else short ID."""
@@ -398,6 +414,34 @@ class AsyncCodeModeContext:
             f"Cell {target!r} not found in notebook or pending adds"
         )
 
+    def _resolve_new_cell(
+        self, name: str | None
+    ) -> tuple[CellId_t, str | None]:
+        """Return ``(cell_id, resolved_name)`` for a new cell.
+
+        The ``"setup"`` name is special-cased to use the well-known setup
+        cell ID. Raises ``ValueError`` if a setup cell already exists.
+        """
+        if name == SETUP_CELL_NAME:
+            # Check if a setup cell already exists (by name or by ID).
+            try:
+                self.cells._resolve(SETUP_CELL_NAME)
+                raise ValueError(
+                    "A setup cell already exists. Use "
+                    'ctx.edit_cell("setup", code=...) to modify it.'
+                )
+            except KeyError:
+                pass
+            cell_id = (
+                self._cell_manager.setup_cell_id
+                if self._cell_manager is not None
+                else CellId_t(SETUP_CELL_NAME)
+            )
+            # Setup is identified by cell_id, not name — clear the name.
+            return cell_id, None
+        cell_id = self._id_generator.create_cell_id()
+        return cell_id, name
+
     def create_cell(
         self,
         code: str,
@@ -408,6 +452,7 @@ class AsyncCodeModeContext:
         disabled: bool = False,
         column: int | None = None,
         draft: bool = False,
+        name: str | None = None,
     ) -> CellId_t:
         """Queue a new cell. Returns the new cell's ID.
 
@@ -428,6 +473,10 @@ class AsyncCodeModeContext:
 
             # Stage without executing
             ctx.create_cell("expensive_computation()", draft=True)
+
+            # Create a setup cell with imports, then a cell that uses them
+            ctx.create_cell("import marimo as mo", name="setup")
+            ctx.create_cell("mo.md('# Hello')", name="greeting")
             ```
 
         Args:
@@ -443,12 +492,15 @@ class AsyncCodeModeContext:
             column (int, optional): Column index for multi-column layouts.
             draft (bool): Insert code without executing it.
                 Defaults to False.
+            name (str, optional): Name for the cell (e.g. ``"data_loader"``,
+                ``"setup"`` for a setup cell).
         """
         self._require_entered()
         if before is not None and after is not None:
             raise ValueError("Cannot specify both 'before' and 'after'")
 
-        cell_id = CellId_t(str(uuid4()))
+        cell_id, resolved_name = self._resolve_new_cell(name)
+
         config = CellConfig(
             hide_code=hide_code, disabled=disabled, column=column
         )
@@ -465,6 +517,7 @@ class AsyncCodeModeContext:
             draft=draft,
             before=before_id,
             after=after_id,
+            name=resolved_name,
         )
         self._ops.append(op)
         self._pending_adds[cell_id] = op
@@ -479,6 +532,7 @@ class AsyncCodeModeContext:
         disabled: bool | None = None,
         column: int | None = None,
         draft: bool = False,
+        name: str | None = None,
     ) -> None:
         """Queue an update to an existing cell's code and/or config.
 
@@ -500,6 +554,9 @@ class AsyncCodeModeContext:
 
             # Stage new code without executing
             ctx.edit_cell("my_cell", code="new_code()", draft=True)
+
+            # Rename a cell
+            ctx.edit_cell("old_name", name="new_name")
             ```
 
         Args:
@@ -509,9 +566,38 @@ class AsyncCodeModeContext:
             disabled (bool, optional): Prevent the cell from executing. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
             draft (bool): Update code without executing. Defaults to False.
+            name (str, optional): New name for the cell. None keeps existing.
         """
         self._require_entered()
         cell_id = self._resolve_target(target)
+
+        # Handle cell-id migration when converting to a setup cell.
+        # Setup is identified by cell_id, not name — clear the name
+        # and migrate to the well-known setup cell_id.
+        new_cell_id: CellId_t | None = None
+        if name == SETUP_CELL_NAME:
+            setup_id = (
+                self._cell_manager.setup_cell_id
+                if self._cell_manager is not None
+                else CellId_t(SETUP_CELL_NAME)
+            )
+            if cell_id != setup_id:
+                # Check that no setup cell already exists.
+                try:
+                    self.cells._resolve(SETUP_CELL_NAME)
+                    raise ValueError(
+                        "A setup cell already exists. Use "
+                        'ctx.edit_cell("setup", code=...) to modify it.'
+                    )
+                except KeyError:
+                    pass
+                new_cell_id = setup_id
+                # Ensure code is populated — the new cell_id won't
+                # exist in the graph, so _apply_ops needs the code.
+                if code is None and cell_id in self.graph.cells:
+                    code = self.graph.cells[cell_id].code
+            # Setup is identified by cell_id alone — don't store a name.
+            name = None
 
         # Build config only if any config kwarg was explicitly set.
         config: CellConfig | None = None
@@ -535,6 +621,8 @@ class AsyncCodeModeContext:
                 code=code,
                 config=config,
                 draft=draft,
+                name=name,
+                new_cell_id=new_cell_id,
             )
         )
 
@@ -765,6 +853,19 @@ class AsyncCodeModeContext:
                 self.graph.cells[cell_id].configure(cfg.asdict())
             self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
 
+        # Persist names from ops into the module-level store.
+        for op in ops:
+            op_name = getattr(op, "name", None)
+            if op_name is not None:
+                target_id = getattr(op, "new_cell_id", None) or op.cell_id
+                _cell_names[target_id] = op_name
+                # Clean up stale entry when cell_id was migrated.
+                if (
+                    getattr(op, "new_cell_id", None) is not None
+                    and op.cell_id in _cell_names
+                ):
+                    del _cell_names[op.cell_id]
+
         # Apply config-only changes.
         for entry in config_entries:
             await self.execute_command(
@@ -781,12 +882,39 @@ class AsyncCodeModeContext:
             by_stale.setdefault(entry.draft, []).append(entry)
 
         for is_stale, entries in by_stale.items():
+            names = [_cell_names.get(e.cell_id, "") for e in entries]
+            kwargs: dict[str, Any] = {}
+            if any(names):
+                kwargs["names"] = names
             self.notify(
                 UpdateCellCodesNotification(
                     cell_ids=[e.cell_id for e in entries],
                     codes=[e.code for e in entries],  # type: ignore[misc]
                     code_is_stale=is_stale,
                     configs=[resolved_configs[e.cell_id] for e in entries],
+                    **kwargs,
+                )
+            )
+
+        # For name-only updates (no code change), send a notification
+        # with existing code so the frontend picks up the new name.
+        name_only = {
+            cid: n
+            for cid, n in _cell_names.items()
+            if cid not in {e.cell_id for e in code_entries}
+            and cid in self.graph.cells
+            and any(
+                getattr(op, "name", None) is not None and op.cell_id == cid
+                for op in ops
+            )
+        }
+        if name_only:
+            self.notify(
+                UpdateCellCodesNotification(
+                    cell_ids=list(name_only.keys()),
+                    codes=[self.graph.cells[cid].code for cid in name_only],
+                    code_is_stale=False,
+                    names=list(name_only.values()),
                 )
             )
 

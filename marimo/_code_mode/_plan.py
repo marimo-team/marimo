@@ -21,6 +21,7 @@ class _AddOp:
     draft: bool = False
     before: CellId_t | None = None
     after: CellId_t | None = None
+    name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,8 @@ class _UpdateOp:
     code: str | None = None
     config: CellConfig | None = None
     draft: bool = False
+    name: str | None = None
+    new_cell_id: CellId_t | None = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +60,7 @@ class _PlanEntry:
     code: str | None = None
     config: CellConfig | None = None
     draft: bool = False
+    name: str | None = None
 
 
 # ------------------------------------------------------------------
@@ -90,6 +94,7 @@ def _build_plan(
                 code=op.code,
                 config=op.config,
                 draft=op.draft,
+                name=op.name,
             )
             if op.after is not None:
                 idx = _find_index(op.after)
@@ -104,10 +109,14 @@ def _build_plan(
         elif isinstance(op, _UpdateOp):
             idx = _find_index(op.cell_id)
             entry = plan[idx]
+            if op.new_cell_id is not None:
+                entry.cell_id = op.new_cell_id
             if op.code is not None:
                 entry.code = op.code
             if op.config is not None:
                 entry.config = op.config
+            if op.name is not None:
+                entry.name = op.name
             entry.draft = op.draft
 
         elif isinstance(op, _DeleteOp):
