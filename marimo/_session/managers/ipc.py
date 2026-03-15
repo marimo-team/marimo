@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import _loggers
@@ -260,6 +261,11 @@ class IPCKernelManagerImpl(KernelManager):
                 f"Running kernel in sandbox: {muted(venv_python)}",
                 err=True,
             )
+
+            # Override UV env vars so the kernel subprocess sees the sandbox
+            # venv as its environment, not the outer uv project.
+            env["VIRTUAL_ENV"] = str(Path(venv_python).parent.parent)
+            env.pop("UV_PROJECT_ENVIRONMENT", None)
 
         # Store the venv python for package manager targeting
         self._venv_python = venv_python

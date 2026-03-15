@@ -156,6 +156,7 @@ async def test_many_modules_not_found_error_in_edit_mode():
         exc = ManyModulesNotFoundError(
             ["numpy", "pandas", "scipy"],
             "No modules named: numpy, pandas, scipy",
+            source="kernel",
         )
         response = await handle_error(Request({"type": "http"}), exc)
 

@@ -114,6 +114,24 @@ def test_install_missing_packages(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
+def test_install_missing_packages_server_source(client: TestClient) -> None:
+    # source="server" routes the install to the server's Python env directly
+    # rather than dispatching to the kernel.
+    response = client.post(
+        "/api/kernel/install_missing_packages",
+        headers=HEADERS,
+        json={
+            "manager": "pip",
+            "versions": {"nbformat": ""},
+            "source": "server",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    assert "success" in response.json()
+
+
+@with_session(SESSION_ID)
 def test_set_cell_config(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/set_cell_config",

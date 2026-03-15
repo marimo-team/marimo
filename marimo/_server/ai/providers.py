@@ -96,7 +96,10 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             deps: The dependencies to require.
         """
         DependencyManager.require_many(
-            "for AI assistance", DependencyManager.pydantic_ai, *(deps or [])
+            "for AI assistance",
+            DependencyManager.pydantic_ai,
+            *(deps or []),
+            source="server",
         )
 
         self.model = model

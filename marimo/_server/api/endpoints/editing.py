@@ -8,7 +8,11 @@ from starlette.authentication import requires
 from marimo._cli.sandbox import SandboxMode
 from marimo._messaging.notification import UpdateCellIdsNotification
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import dispatch_control_request, parse_request
+from marimo._server.api.utils import (
+    dispatch_control_request,
+    notify_server_missing_packages,
+    parse_request,
+)
 from marimo._server.models.models import (
     BaseResponse,
     CodeCompletionRequest,
@@ -152,7 +156,16 @@ async def format_cell(request: Request) -> FormatResponse:
             raise ModuleNotFoundError(
                 "Server does not have a formatter. Please install ruff"
             ) from None
-        raise
+        notify_server_missing_packages(
+            app_state.get_current_session(),
+            app_state.get_current_session_id(),
+            ["ruff"],
+        )
+        # Re-raise without name so the error handler returns 500 without
+        # sending a second notification.
+        raise ModuleNotFoundError(
+            "Server does not have a formatter. Please install ruff"
+        ) from None
 
 
 @router.post("/set_cell_config")
@@ -234,4 +247,24 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, InstallPackagesRequest)
+    from marimo._runtime.packages.package_managers import (
+        create_package_manager,
+    )
+
+    body = await parse_request(request, cls=InstallPackagesRequest)
+    cmd = body.as_command()
+
+    if cmd.source == "server":
+        # Install into the server's own Python environment (sys.executable).
+        # Used when the server itself needs a package (e.g. nbformat for
+        # IPYNB auto-export when running with --sandbox).
+        pkg_manager = create_package_manager(cmd.manager, python_exe=None)
+        if not pkg_manager.is_manager_installed():
+            pkg_manager.alert_not_installed()
+        else:
+            for pkg, version in cmd.versions.items():
+                await pkg_manager.install(pkg, version=version or None)
+        return SuccessResponse()
+
+    # Default ("kernel"): dispatch to kernel via ZeroMQ control queue.
+    return await dispatch_control_request(request, cmd)

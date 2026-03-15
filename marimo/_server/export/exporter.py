@@ -346,6 +346,7 @@ class Exporter:
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
             DependencyManager.playwright,
+            source="server",
         )
 
         ipynb_json_str = self.export_as_ipynb(
@@ -431,6 +432,7 @@ class Exporter:
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
             DependencyManager.playwright,
+            source="server",
         )
 
         ipynb_json_str = self.export_as_ipynb(
