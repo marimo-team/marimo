@@ -18,7 +18,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.notification import CellNotification
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._session.events import SessionEventBus, SessionEventListener
+from marimo._session.extensions.types import EventAwareExtension
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -71,7 +71,7 @@ def _format_sse(event: str, data: Any) -> str:
 # -- Listeners ----------------------------------------------------------------
 
 
-class ScratchCellListener(SessionEventListener):
+class ScratchCellListener(EventAwareExtension):
     """Listens for scratch cell notifications via an asyncio.Queue.
 
     Supports both SSE streaming (via ``stream()``) and simple blocking
@@ -80,18 +80,9 @@ class ScratchCellListener(SessionEventListener):
     """
 
     def __init__(self) -> None:
+        super().__init__()
         self._queue: asyncio.Queue[CellNotification | None] = asyncio.Queue()
         self.timed_out = False
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
-        self._event_bus = event_bus
-        event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        if hasattr(self, "_event_bus"):
-            self._event_bus.unsubscribe(self)
-            del self._event_bus
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage

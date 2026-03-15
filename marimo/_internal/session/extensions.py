@@ -10,10 +10,16 @@ from marimo._session.extensions.extensions import (
     ReplayExtension,
     SessionViewExtension,
 )
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import (
+    EventAwareExtension,
+    ExtensionRegistry,
+    SessionExtension,
+)
 
 __all__ = [
     "CachingExtension",
+    "EventAwareExtension",
+    "ExtensionRegistry",
     "HeartbeatExtension",
     "LoggingExtension",
     "NotificationListenerExtension",
