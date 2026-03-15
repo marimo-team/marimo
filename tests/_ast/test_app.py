@@ -104,7 +104,7 @@ class TestApp:
             doc = __doc__  # noqa: F821
             return (doc,)
 
-        outputs, defs = app.run()
+        _, defs = app.run()
         assert defs["doc"] == "This is a test"
 
     @staticmethod
@@ -117,7 +117,7 @@ class TestApp:
             doc = __doc__  # noqa: F821
             return (doc,)
 
-        outputs, defs = app.run()
+        _, defs = app.run()
         assert defs["doc"] == "Created for the marimo kernel."
 
     @staticmethod
