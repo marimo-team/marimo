@@ -524,6 +524,38 @@ class TestObstore:
         backend = self._make_backend(store)
         assert backend.display_name == "In-memory"
 
+    def test_protocol_returns_unknown_when_config_panics(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("bucket", skip_signature=True)
+        backend = self._make_backend(store)
+
+        def _raise(_: Any) -> None:
+            raise BaseException("rust panic")  # noqa: TRY002
+
+        with patch.object(
+            type(store),
+            "config",
+            new_callable=lambda: property(_raise),
+        ):
+            assert backend.protocol == "unknown"
+
+    def test_root_path_returns_none_when_config_panics(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("bucket", skip_signature=True)
+        backend = self._make_backend(store)
+
+        def _raise(_: Any) -> None:
+            raise BaseException("rust panic")  # noqa: TRY002
+
+        with patch.object(
+            type(store),
+            "config",
+            new_callable=lambda: property(_raise),
+        ):
+            assert backend.root_path is None
+
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")
 class TestFsspecFilesystem:

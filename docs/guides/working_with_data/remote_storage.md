@@ -22,11 +22,26 @@ marimo auto-discovers variables that are instances of:
 | [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 
 
-## Quick start
+## Creating a storage connection
 
-Create a storage connection in any cell. marimo will pick it up automatically after the cell executes.
+You can either create a storage connection using the UI or code.
 
-### Obstore
+### 1. Using the UI
+
+From the Files panel in the sidebar, expand the **Remote Storage** section and click the **Add remote storage** button. The UI will guide you through entering your storage connection details.
+
+<div align="center">
+  <figure>
+    <img width="700" src="/_static/docs-add-remote-storage-ui.png" alt="Add a storage connection through the UI" />
+  </figure>
+</div>
+
+If you'd like to connect to a storage that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=Add%20new%20storage%20connection%20UI:&labels=enhancement&template=feature_request.yaml).
+
+
+### 2. Using code
+
+#### Obstore
 
 ```python
 from obstore.store import S3Store
@@ -38,7 +53,7 @@ store = S3Store.from_url(
 )
 ```
 
-### fsspec
+#### fsspec
 
 ```python
 from fsspec.implementations.github import GithubFileSystem
@@ -46,20 +61,13 @@ from fsspec.implementations.github import GithubFileSystem
 repo = GithubFileSystem(org="marimo-team", repo="marimo")
 ```
 
-After the cell runs, the **Remote Storage** section in the Files sidebar panel will show your connection with its detected protocol and root path.
+After the cell runs, the **Remote Storage** section will populate with your connection, its detected protocol, and root path.
 
-
-## Using the panel
-
-The storage inspector appears as a collapsible **Remote storage** section at the top of the **Files** sidebar panel.
-
-| Action | How |
-|--------|-----|
-| **Browse** | Click a directory to expand it. Entries are fetched lazily. |
-| **Search** | Type in the search box to filter loaded entries by name. Expand directories first to include their contents. |
-| **Copy URL** | Right-click or use the `⋮` menu on any entry to copy its full URL (e.g., `s3://bucket/path/to/file.parquet`). |
-| **Download** | Use the `⋮` menu on a file to download it through the marimo server. |
-| **Refresh** | Click the refresh icon on a namespace header to re-fetch its entries. |
+<div align="center">
+  <figure>
+    <img width="700" src="/_static/docs-remote-storage-panel.png" alt="Remote storage panel" />
+  </figure>
+</div>
 
 ## Multiple connections
 
