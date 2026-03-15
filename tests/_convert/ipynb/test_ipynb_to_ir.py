@@ -1401,7 +1401,9 @@ def test_convert_ipynb_markdown_unwraps_top_level_paragraph_html():
 
     result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
 
-    markdown_cell = next(cell for cell in result.cells if "mo.md(" in cell.code)
+    markdown_cell = next(
+        cell for cell in result.cells if "mo.md(" in cell.code
+    )
     assert "<p>" not in markdown_cell.code
     assert "</p>" not in markdown_cell.code
     assert "Hello $x$\n\nWorld" in markdown_cell.code

@@ -21,7 +21,9 @@ def _normalize_paragraph_html(source: str) -> str:
     if not stripped or _PARAGRAPH_BLOCK_RE.fullmatch(stripped) is None:
         return source
 
-    paragraphs = [paragraph.strip() for paragraph in _PARAGRAPH_RE.findall(stripped)]
+    paragraphs = [
+        paragraph.strip() for paragraph in _PARAGRAPH_RE.findall(stripped)
+    ]
     if not paragraphs:
         return source
     return "\n\n".join(paragraphs)
