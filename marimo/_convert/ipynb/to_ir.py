@@ -39,7 +39,86 @@ class CodeCell:
     config: CellConfig = field(default_factory=CellConfig)
 
 
-# Define a type for transforms that add/remove cells
+# Regex patterns for stripping bare <p>/<\/p> tags from Jupyter markdown cells.
+# Only match bare <p> (no attributes) — styled tags like <p style="color: red">
+# carry semantic meaning and must be preserved.
+_BARE_OPEN_P_RE = re.compile(r"<p\s*>", re.IGNORECASE)
+_ANY_OPEN_P_RE = re.compile(r"<p(?:\s[^>]*)?>", re.IGNORECASE)
+_CLOSE_P_RE = re.compile(r"</p>", re.IGNORECASE)
+_FENCED_BLOCK_RE = re.compile(
+    r"^(`{3,}|~{3,}).*?^\1[ \t]*$",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _strip_paragraph_tags(source: str) -> str:
+    """Remove bare ``<p>`` / ``</p>`` HTML tags from markdown source.
+
+    Jupyter markdown cells often wrap content in ``<p>…</p>`` tags which are
+    redundant in plain markdown and can break LaTeX rendering inside
+    ``mo.md()``.
+
+    Only bare ``<p>`` tags (without attributes) are removed.  Styled tags such
+    as ``<p style="color: red">`` are preserved because they carry semantic
+    meaning.  The matching ``</p>`` is only removed when it closes a bare
+    ``<p>``.
+
+    Closing ``</p>`` tags for bare opens are replaced with a newline to
+    preserve paragraph separation.  Content inside fenced code blocks is
+    left untouched.
+    """
+    # Collect fenced code block spans so we can skip them
+    protected: list[tuple[int, int]] = []
+    for m in _FENCED_BLOCK_RE.finditer(source):
+        protected.append((m.start(), m.end()))
+
+    def _in_protected(pos: int) -> bool:
+        return any(s <= pos < e for s, e in protected)
+
+    # Pair opening <p> tags with closing </p> using a simple stack.
+    # Only mark pairs for removal when the opening tag is bare (no attrs).
+    opens = list(_ANY_OPEN_P_RE.finditer(source))
+    closes = list(_CLOSE_P_RE.finditer(source))
+
+    remove_opens: list[re.Match[str]] = []
+    remove_closes: list[re.Match[str]] = []
+    stack: list[re.Match[str]] = []
+
+    # Walk all tags in document order
+    all_tags: list[tuple[int, str, re.Match[str]]] = []
+    for m in opens:
+        all_tags.append((m.start(), "open", m))
+    for m in closes:
+        all_tags.append((m.start(), "close", m))
+    all_tags.sort(key=lambda t: t[0])
+
+    for _pos, kind, match in all_tags:
+        if _in_protected(match.start()):
+            continue
+        if kind == "open":
+            stack.append(match)
+        elif kind == "close" and stack:
+            opener = stack.pop()
+            if _BARE_OPEN_P_RE.fullmatch(opener.group()):
+                remove_opens.append(opener)
+                remove_closes.append(match)
+
+    # Build set of (start, end) spans to remove, sorted end-to-start
+    removals: list[tuple[int, int, str]] = []
+    for m in remove_opens:
+        removals.append((m.start(), m.end(), ""))
+    for m in remove_closes:
+        removals.append((m.start(), m.end(), "\n"))
+    removals.sort(key=lambda t: t[0], reverse=True)
+
+    for start, end, replacement in removals:
+        source = source[:start] + replacement + source[end:]
+
+    # Clean up excessive blank lines introduced by replacements
+    source = re.sub(r"\n{3,}", "\n\n", source)
+    return source.strip()
+
+
 CellsTransform = Callable[[list[CodeCell]], list[CodeCell]]
 
 
@@ -1404,6 +1483,7 @@ def convert_from_ipynb_to_notebook_ir(
         )
         is_markdown: bool = cell["cell_type"] == "markdown"
         if is_markdown:
+            source = _strip_paragraph_tags(source)
             cell_meta = cell.get("metadata", {})
             md_prefix = cell_meta.get("marimo", {}).get(
                 "md_prefix", DEFAULT_MARKDOWN_PREFIX
