@@ -323,6 +323,31 @@ class TestParseSQLCell:
         assert not cell.variable_data
 
 
+class TestExtractMarkdown:
+    @staticmethod
+    def test_bare_md_expression() -> None:
+        cell = compile_cell('mo.md("# Hello World")')
+        assert cell.markdown == "# Hello World"
+
+    @staticmethod
+    def test_assignment_not_treated_as_markdown() -> None:
+        """Regression test for #7994: `title = mo.md(...)` was incorrectly
+        identified as a markdown cell, causing NameError in run mode."""
+        cell = compile_cell('title = mo.md("# Hello World")')
+        assert cell.markdown is None
+        assert cell.defs == {"title"}
+
+    @staticmethod
+    def test_annotated_assignment_not_treated_as_markdown() -> None:
+        cell = compile_cell('title: Any = mo.md("# Hello")')
+        assert cell.markdown is None
+
+    @staticmethod
+    def test_multi_statement_not_treated_as_markdown() -> None:
+        cell = compile_cell('x = 1\nmo.md("# Hello")')
+        assert cell.markdown is None
+
+
 class TestCellFactory:
     @staticmethod
     def test_defs() -> None:
