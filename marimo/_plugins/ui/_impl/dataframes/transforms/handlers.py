@@ -184,6 +184,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                                 value, datetime.time.fromisoformat
                             )
                         elif isinstance(sample[0], decimal.Decimal):
+                            # Cast to Float64 so Decimal values can be compared, minor precision loss
                             value = convert_value(value, float)
                             column = column.cast(nw.Float64)
                 except Exception:
@@ -201,9 +202,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             ):
                 value = convert_value(value, float)
             elif dtype is not None and dtype.is_decimal():
-                # Decimal is_in requires exact precision match (e.g.
-                # Decimal(38,2) != Decimal(18,2)). Casting both sides
-                # to Float64 avoids this at the cost of ~15-digit precision.
+                # Cast to Float64 so Decimal values can be compared, minor precision loss
                 value = convert_value(value, float)
                 column = column.cast(nw.Float64)
 

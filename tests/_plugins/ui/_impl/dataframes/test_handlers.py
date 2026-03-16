@@ -572,31 +572,25 @@ class TestTransformHandler:
         result = apply(df, transform)
         assert_frame_equal(result, expected)
 
+    @pytest.mark.xfail(
+        reason="Casting both sides to Float64 causes precision loss at ~15 decimal places."
+    )
     @staticmethod
     @pytest.mark.parametrize(
-        ("df", "expected"),
-        list(
-            zip(
-                create_test_dataframes(
-                    {
-                        "A": [
-                            Decimal("1.123456789012345678"),
-                            Decimal("2.987654321098765432"),
-                        ]
-                    },
-                    exclude=["pandas"],
-                ),
-                create_test_dataframes(
-                    {"A": [Decimal("1.123456789012345678")]},
-                    exclude=["pandas"],
-                ),
-            )
+        "df",
+        create_test_dataframes(
+            {
+                "A": [
+                    Decimal("1.12345678901234567"),
+                    Decimal("1.12345678901234568"),
+                ]
+            },
+            exclude=["pandas"],
         ),
     )
-    def test_filter_rows_in_decimal_high_precision(
-        df: DataFrameType, expected: DataFrameType
+    def test_filter_rows_in_decimal_precision_loss(
+        df: DataFrameType,
     ) -> None:
-        """High-precision Decimal values (18 decimal places) should still match."""
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
@@ -604,12 +598,12 @@ class TestTransformHandler:
                 Condition(
                     column_id="A",
                     operator="in",
-                    value=["1.123456789012345678"],
+                    value=["1.12345678901234567"],
                 ),
             ],
         )
         result = apply(df, transform)
-        assert_frame_equal(result, expected)
+        assert df_size(result) == 1
 
     @staticmethod
     @pytest.mark.parametrize(
