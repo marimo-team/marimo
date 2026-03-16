@@ -1003,7 +1003,9 @@ class AsyncCodeModeContext:
     # Package management
     # ------------------------------------------------------------------
 
-    def install_packages(self, *packages: str) -> None:
+    def install_packages(
+        self, *packages: str | list[str] | tuple[str, ...]
+    ) -> None:
         """Queue packages for installation on context exit.
 
         Installed before cell ops, so newly added cells can import them.
@@ -1012,13 +1014,19 @@ class AsyncCodeModeContext:
             ```python
             ctx.install_packages("pandas")
             ctx.install_packages("polars>=0.20", "numpy==1.26")
+            ctx.install_packages(["altair", "vega_datasets"])
             ```
 
         Args:
-            *packages (str): Pip-style package specifiers.
+            *packages: Pip-style package specifiers. Accepts individual
+                strings, or a list/tuple of strings.
         """
         self._require_entered()
-        self._packages_to_install.extend(packages)
+        for pkg in packages:
+            if isinstance(pkg, (list, tuple)):
+                self._packages_to_install.extend(pkg)
+            else:
+                self._packages_to_install.append(pkg)
 
     # ------------------------------------------------------------------
     # Low-level primitives
