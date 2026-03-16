@@ -1002,7 +1002,9 @@ class AsyncCodeModeContext:
     # Package management
     # ------------------------------------------------------------------
 
-    def install_packages(self, *packages: str | list[str] | tuple[str, ...]) -> None:
+    def install_packages(
+        self, *packages: str | list[str] | tuple[str, ...]
+    ) -> None:
         """Queue packages for installation on context exit.
 
         Installed before cell ops, so newly added cells can import them.
