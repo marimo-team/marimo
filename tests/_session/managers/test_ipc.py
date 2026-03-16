@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 
 import pytest
 
@@ -176,7 +177,9 @@ class TestConstructKernelEnv:
             writable=True,
         )
         # VIRTUAL_ENV points to the venv root (two parents above python)
-        assert env["VIRTUAL_ENV"] == "/tmp/sandbox/.venv"
+        assert (
+            Path(env["VIRTUAL_ENV"]) == Path(self.SANDBOX_PYTHON).parent.parent
+        )
         # UV_PROJECT_ENVIRONMENT must be removed so the kernel doesn't
         # inherit the outer uv project.
         assert "UV_PROJECT_ENVIRONMENT" not in env
