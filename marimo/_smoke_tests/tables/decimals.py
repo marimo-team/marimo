@@ -40,9 +40,7 @@ def _(Decimal, mo, pd):
     }
 
     df = pl.DataFrame(_data)
-    pl_table = mo.ui.table(
-        pl.DataFrame(_data), label="Polars table with decimal values"
-    )
+    pl_table = mo.ui.table(df, label="Polars table with decimal values")
     pd_table = mo.ui.table(
         pd.DataFrame(_data), label="Pandas table with decimal values"
     )

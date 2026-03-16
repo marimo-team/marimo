@@ -732,6 +732,23 @@ class TestTransformHandler:
         assert df_size(apply(df, in_transform)) == 2
 
     @staticmethod
+    def test_filter_rows_date_pandas_object_dtype_with_leading_nulls() -> None:
+        """Type detection should work even when the first rows are null."""
+        df = pd.DataFrame(
+            {"d": [None, None, date(2024, 1, 1), date(2024, 6, 15)]}
+        )
+        assert df["d"].dtype == object
+
+        eq_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(column_id="d", operator="==", value="2024-06-15")
+            ],
+        )
+        assert df_size(apply(df, eq_transform)) == 1
+
+    @staticmethod
     @pytest.mark.parametrize(
         ("df", "expected"),
         list(
