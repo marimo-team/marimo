@@ -248,10 +248,12 @@ async def test_progress_async_for_loop_without_collection_error():
         async for _ in progress_bar(total=1):
             pass
 
+
 @patch("marimo._runtime.output._output.flush")
 def test_spinner_done_updates_text(mock_flush: Any) -> None:
     """done() should update _text to show a checkmark and flush output."""
     from marimo._plugins.stateless.status._progress import Spinner
+
     s = Spinner(title="Loading", subtitle=None)
     original_text = s._text
     s.done(title="Complete!")
@@ -265,6 +267,7 @@ def test_spinner_done_updates_text(mock_flush: Any) -> None:
 def test_spinner_done_with_subtitle(mock_flush: Any) -> None:
     """done() with subtitle should include subtitle in output."""
     from marimo._plugins.stateless.status._progress import Spinner
+
     s = Spinner(title="Loading", subtitle=None)
     s.done(title="Done!", subtitle="All tasks completed")
     assert "All tasks completed" in s._text
@@ -275,6 +278,7 @@ def test_spinner_done_with_subtitle(mock_flush: Any) -> None:
 def test_spinner_done_raises_after_close(mock_flush: Any) -> None:
     """done() should raise RuntimeError if called after context manager exits."""
     from marimo._plugins.stateless.status._progress import Spinner
+
     s = Spinner(title="Loading", subtitle=None)
     s.close()
     with pytest.raises(RuntimeError, match="cannot be updated after exiting"):
@@ -285,6 +289,7 @@ def test_spinner_done_raises_after_close(mock_flush: Any) -> None:
 def test_spinner_done_default_title(mock_flush: Any) -> None:
     """done() with no args should use default title Done!"""
     from marimo._plugins.stateless.status._progress import Spinner
+
     s = Spinner(title="Loading", subtitle=None)
     s.done()
     assert "Done!" in s._text

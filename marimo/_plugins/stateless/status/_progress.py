@@ -249,6 +249,7 @@ class Spinner(_Progress):
             subtitle (str, optional): Optional subtitle. Defaults to None.
         """
         from marimo._plugins.stateless.icon import icon as _icon
+
         with self._lock:
             if self.closed:
                 raise RuntimeError(
@@ -258,13 +259,13 @@ class Spinner(_Progress):
             check = _icon("lucide:circle-check", color="green")
             title_str = f"{check} {title}" if title else str(check)
             subtitle_str = (
-                f"<div class=\'text-sm text-muted-foreground\'>{subtitle}</div>"
+                f"<div class='text-sm text-muted-foreground'>{subtitle}</div>"
                 if subtitle
                 else ""
             )
             self._text = (
-                f"<div class=\'flex flex-col items-center max-w-sm p-6 mx-auto gap-1\'>"
-                f"<div class=\'text-lg font-bold text-foreground/60\'>{title_str}</div>"
+                f"<div class='flex flex-col items-center max-w-sm p-6 mx-auto gap-1'>"
+                f"<div class='text-lg font-bold text-foreground/60'>{title_str}</div>"
                 f"{subtitle_str}"
                 f"</div>"
             )
