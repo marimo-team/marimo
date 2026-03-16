@@ -60,7 +60,11 @@ import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
-import { type CellId, findCellId } from "@/core/cells/ids";
+import { type CellId, findCellId, UIElementId } from "@/core/cells/ids";
+import {
+  OBJECT_ID_ATTR,
+  RANDOM_ID_ATTR,
+} from "@/core/dom/ui-element-constants";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -361,6 +365,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         <LazyDataTableComponent
           isLazy={props.data.lazy}
           preload={props.data.preload}
+          host={props.host}
         >
           <LoadingDataTableComponent
             {...props.data}
@@ -377,21 +382,66 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     );
   });
 
+/**
+ * Tracks which lazy tables have been previewed across remounts (e.g. tab switches).
+ * Keyed by uiElementId (stable across remounts) with randomId as value
+ * (changes on cell re-execution, so stale entries are naturally invalidated).
+ */
+const previewedTables = new Map<UIElementId, string>();
+
+function wasTablePreviewed(
+  uiElementId: UIElementId | null | undefined,
+  randomId: string | null | undefined,
+): boolean {
+  return (
+    uiElementId != null &&
+    randomId != null &&
+    previewedTables.get(uiElementId) === randomId
+  );
+}
+
+function markTablePreviewed(
+  uiElementId: UIElementId | null | undefined,
+  randomId: string | null | undefined,
+): void {
+  if (uiElementId != null && randomId != null) {
+    previewedTables.set(uiElementId, randomId);
+  }
+}
+
 const LazyDataTableComponent = ({
   isLazy: initialIsLazy,
   children,
   preload,
+  host,
 }: {
   isLazy: boolean;
   children: React.ReactNode;
   preload: boolean;
+  host: HTMLElement;
 }) => {
-  const [isLazy, setIsLazy] = useState(initialIsLazy && !preload);
+  const parentElement = host.closest(`[${OBJECT_ID_ATTR}]`);
+  const uiElementId = parentElement ? UIElementId.parse(parentElement) : null;
+
+  const randomId = host
+    .closest(`[${RANDOM_ID_ATTR}]`)
+    ?.getAttribute(RANDOM_ID_ATTR);
+
+  const [isLazy, setIsLazy] = useState(
+    initialIsLazy && !preload && !wasTablePreviewed(uiElementId, randomId),
+  );
 
   if (isLazy) {
     return (
       <div className="flex h-20 items-center justify-center">
-        <Button variant="outline" size="xs" onClick={() => setIsLazy(false)}>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => {
+            markTablePreviewed(uiElementId, randomId);
+            setIsLazy(false);
+          }}
+        >
           <Table2Icon className="mr-2 h-4 w-4" />
           Preview data
         </Button>

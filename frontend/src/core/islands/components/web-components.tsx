@@ -6,6 +6,7 @@ import ReactDOM, { type Root } from "react-dom/client";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
+import { OBJECT_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -60,7 +61,7 @@ export class MarimoIslandElement extends HTMLElement {
     const codeCallback: () => string = optionalEditor
       ? () =>
           `${UI_ELEMENT_REGISTRY.lookupValue(
-            optionalEditor.props["object-id"],
+            optionalEditor.props[OBJECT_ID_ATTR],
           )}`
       : () => code;
 
