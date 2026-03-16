@@ -52,6 +52,9 @@ class ListDirectoryResponse:
     is_truncated: bool = False  # Whether results were truncated due to limit
 
 
+PathFilter = Union[str, Callable[[Path], bool]]
+
+
 @mddoc
 class file_browser(
     UIElement[list[TypedFileBrowserFileInfo], Sequence[FileBrowserFileInfo]]
@@ -117,6 +120,12 @@ class file_browser(
         filetypes (Sequence[str], optional): The file types to display in each
             directory; for example, filetypes=[".txt", ".csv"]. If None, all
             files are displayed. Defaults to None.
+        path_filter (Union[str, Callable[[Path], bool]], optional): Additional
+            path-based filtering to apply. In file mode, this is applied to files;
+            in directory mode, this is applied to directories. If a string is
+            provided, it is treated as a glob pattern (for example, "data_*.csv").
+            If a callable is provided, it should return True for paths that should
+            be included. Defaults to None.
         selection_mode (Literal["file", "directory"], optional): Either "file" or "directory". Defaults to
             "file".
         multiple (bool, optional): If True, allow the user to select multiple
@@ -143,6 +152,7 @@ class file_browser(
         self,
         initial_path: Union[str, Path] = "",
         filetypes: Optional[Sequence[str]] = None,
+        path_filter: Optional[PathFilter] = None,
         selection_mode: Literal["file", "directory"] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
@@ -193,6 +203,15 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
+
+        if path_filter is not None and not (
+            isinstance(path_filter, str) or callable(path_filter)
+        ):
+            raise ValueError(
+                "path_filter must be a glob string or a callable that takes a Path and returns bool."
+            )
+        self._path_filter = path_filter
+
         self._restrict_navigation = restrict_navigation
         self._ignore_empty_dirs = ignore_empty_dirs
 
@@ -214,6 +233,9 @@ class file_browser(
                 "initial-path": str(self._initial_path),
                 "selection-mode": selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
+                "path-filter": path_filter
+                if isinstance(path_filter, str)
+                else "",
                 "multiple": multiple,
                 "restrict-navigation": restrict_navigation,
             },
@@ -238,6 +260,23 @@ class file_browser(
 
         path = self._path_cls(path_str, **kwargs)
         return path
+
+    def _matches_path_filter(self, path: Path) -> bool:
+        """Return True when path passes configured path_filter."""
+        if self._path_filter is None:
+            return True
+
+        if isinstance(self._path_filter, str):
+            return path.match(self._path_filter)
+
+        return bool(self._path_filter(path))
+
+    def _matches_file_filters(self, path: Path) -> bool:
+        """Return True when file passes extension and path filters."""
+        if self._filetypes and path.suffix.lower() not in self._filetypes:
+            return False
+
+        return self._matches_path_filter(path)
 
     def _has_files_recursive(
         self, directory: Path, max_depth: int = 100
@@ -269,11 +308,7 @@ class file_browser(
         try:
             for item in directory.iterdir():
                 if item.is_file():
-                    # Apply filetype filter if specified (case-insensitive)
-                    if (
-                        self._filetypes
-                        and item.suffix.lower() not in self._filetypes
-                    ):
+                    if not self._matches_file_filters(item):
                         continue
                     return True
                 elif item.is_dir() and not item.is_symlink():
@@ -312,17 +347,20 @@ class file_browser(
         is_truncated = False
 
         for files_examined, file in enumerate(all_file_paths, 1):
-            extension = file.suffix
             is_directory = file.is_dir()  # Expensive call for cloud paths
 
             # Skip non-directories if selection mode is directory
             if self._selection_mode == "directory" and not is_directory:
                 continue
 
-            # Skip non-matching file types (case-insensitive)
-            if self._filetypes and not is_directory:
-                if extension.lower() not in self._filetypes:
+            if is_directory:
+                if (
+                    self._selection_mode == "directory"
+                    and not self._matches_path_filter(file)
+                ):
                     continue
+            elif not self._matches_file_filters(file):
+                continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
             if self._ignore_empty_dirs and is_directory:
