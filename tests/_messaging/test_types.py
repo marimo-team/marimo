@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pytest
+
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import (
     KernelMessage,
@@ -117,6 +119,16 @@ class TestStdoutStderr:
         data, _ = stdout.written_data[0]
         # Plain str should pass through without creating a new object
         assert data is plain
+
+    def test_non_str_raises_type_error(self) -> None:
+        stdout = self.MockStdout()
+        stderr = self.MockStderr()
+
+        for stream in (stdout, stderr):
+            with pytest.raises(TypeError, match="must be a str"):
+                stream.write(b"bytes")  # pyright: ignore[reportArgumentType]
+            with pytest.raises(TypeError, match="must be a str"):
+                stream.write(123)  # pyright: ignore[reportArgumentType]
 
     def test_stdout_name(self) -> None:
         stdout = self.MockStdout()

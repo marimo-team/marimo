@@ -38,14 +38,21 @@ class NoopStream(Stream):
 def _ensure_plain_str(s: str) -> str:
     """Coerce str subclasses to plain ``str``.
 
-    Some libraries (e.g. loguru) emit str subclasses whose ``__dict__``
-    carries extra metadata (loguru's ``Message.record``).  When such an
+    Some libraries (e.g. loguru) emit str subclasses whose ``__slots__``
+    carry extra metadata (loguru's ``Message.record``).  When such an
     object reaches msgspec serialization the encoder may serialize the
-    ``__dict__`` instead of the string value, corrupting console output.
+    slots/attributes instead of the string value, corrupting console output.
     Converting to a bare ``str`` strips those attributes cheaply and is
     a no-op for regular strings (``type(s) is str`` fast-path).
+
+    Raises TypeError for non-str inputs to preserve io.TextIOBase.write()
+    semantics.
     """
     if type(s) is not str:
+        if not isinstance(s, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError(  # pyright: ignore[reportUnreachable]
+                f"write() argument must be a str, not {type(s).__name__}"
+            )
         return str(s)
     return s
 
