@@ -194,5 +194,7 @@ class Connection:
         if self._receiver_thread.is_alive():
             self._receiver_thread.join(timeout=1)
 
-        # Close all associated sockets (and finally terminate)
-        self.context.destroy()
+        # Close all sockets and terminate the context.
+        # linger=0 drops any unsent messages immediately, preventing
+        # hangs during shutdown when the remote end is already gone.
+        self.context.destroy(linger=0)

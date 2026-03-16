@@ -462,6 +462,13 @@ def create_asgi_app(
     else:
         auth_token = AuthToken(token)
 
+    # Check for pyzmq — required for per-app process isolation
+    from marimo._dependencies.dependencies import DependencyManager
+
+    DependencyManager.zmq.require(
+        "for running multiple notebooks with create_asgi_app()"
+    )
+
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
@@ -521,6 +528,7 @@ def create_asgi_app(
                 auth_token=auth_token,
                 redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
+                isolate_apps=True,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(

@@ -32,6 +32,7 @@ from marimo._server.resume_strategies import create_resume_strategy
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._session.app_host import AppHostPool
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.types import SessionExtension
@@ -83,6 +84,7 @@ class SessionManager:
         ttl_seconds: Optional[int],
         watch: bool = False,
         sandbox_mode: SandboxMode | None = None,
+        isolate_apps: bool = False,
     ) -> None:
         # Core configuration
         self.file_router = file_router
@@ -96,6 +98,15 @@ class SessionManager:
         self.redirect_console_to_browser = redirect_console_to_browser
         self._config_manager = config_manager
         self.sandbox_mode = sandbox_mode
+
+        # When running multiple apps, each app runs in an isolated  host
+        # process, to avoid collisions in sys.modules and other Python global
+        # structures. These processes are managed by an AppHostPool.
+        self._app_host_pool: AppHostPool | None = None
+        if isolate_apps and mode == SessionMode.RUN:
+            self._app_host_pool = AppHostPool(
+                sandbox=sandbox_mode is SandboxMode.MULTI,
+            )
 
         self._repository = SessionRepository()
 
@@ -218,6 +229,7 @@ class SessionManager:
             auto_instantiate=auto_instantiate,
             extensions=extensions,
             sandbox_mode=self.sandbox_mode,
+            app_host_pool=self._app_host_pool,
         )
 
         # Add to repository
@@ -389,6 +401,8 @@ class SessionManager:
         """Shutdown the session manager and stop all file watchers."""
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
+        if self._app_host_pool is not None:
+            self._app_host_pool.shutdown()
         self.lsp_server.stop()
         self._watcher_manager.stop_all()
 
