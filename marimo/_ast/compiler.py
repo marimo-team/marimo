@@ -170,7 +170,7 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
-def _extract_const_string(args: list[ast.stmt]) -> str:
+def _extract_const_string(args: list[ast.expr]) -> str:
     (inner,) = args
     # Various string types may need to be unpacked
     if isinstance(inner, ast.JoinedStr) or (
@@ -203,7 +203,9 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
             value = body.value  # type: ignore[attr-defined, union-attr]
         else:
             return None
-        assert value.func.value.id == "mo"
+        if not isinstance(value, ast.Call):
+            return None
+        assert value.func.value.id == "mo"  # type: ignore[attr-defined]
         if not value.args:  # Handle mo.md() with no arguments
             return None
         md_lines = _extract_const_string(value.args).split("\n")
