@@ -121,6 +121,58 @@ class TestStderr:
         assert mocked_kernel.stderr.messages == ["hello", "there"]
 
 
+class TestStrSubclassCoercion:
+    """Verify str subclasses (e.g. loguru Message) are coerced to plain str."""
+
+    @staticmethod
+    async def test_stdout_str_subclass(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        await mocked_kernel.k.run(
+            [
+                exec_req.get(
+                    """
+                    import sys
+
+                    class _TaggedStr(str):
+                        pass
+
+                    _msg = _TaggedStr("tagged hello")
+                    _msg.extra = {"key": "value"}
+                    sys.stdout.write(_msg)
+                    """
+                )
+            ]
+        )
+        assert mocked_kernel.stdout.messages == ["tagged hello"]
+        for m in mocked_kernel.stdout.messages:
+            assert type(m) is str
+
+    @staticmethod
+    async def test_stderr_str_subclass(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        await mocked_kernel.k.run(
+            [
+                exec_req.get(
+                    """
+                    import sys
+
+                    class _TaggedStr(str):
+                        pass
+
+                    _msg = _TaggedStr("tagged error")
+                    _msg.record = {"level": "ERROR"}
+                    sys.stderr.write(_msg)
+                    """
+                )
+            ]
+        )
+        assert mocked_kernel.stderr.messages == ["tagged error"]
+        for m in mocked_kernel.stderr.messages:
+            assert type(m) is str
+
+
 async def test_import_multiprocessing(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
