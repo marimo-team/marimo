@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from marimo._messaging.context import HTTP_REQUEST_CTX
+from marimo._messaging.context import HTTP_REQUEST_CTX, is_headless_request
 from marimo._messaging.tracebacks import (
-    _accepts_html,
     _highlight_traceback,
     _trim_traceback,
     is_code_highlighting,
@@ -131,9 +130,9 @@ class TestTracebacks:
             HTTP_REQUEST_CTX.reset(token)
 
 
-class TestAcceptsHtml:
+class TestIsHeadlessRequest:
     def test_no_request_context(self) -> None:
-        assert _accepts_html() is True
+        assert is_headless_request() is False
 
     def test_accept_event_stream(self) -> None:
         req = HTTPRequest(
@@ -148,7 +147,7 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is False
+            assert is_headless_request() is True
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
@@ -165,7 +164,7 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is True
+            assert is_headless_request() is False
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
@@ -182,7 +181,7 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is False
+            assert is_headless_request() is True
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
@@ -199,7 +198,7 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is False
+            assert is_headless_request() is True
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
