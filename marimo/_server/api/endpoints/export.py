@@ -45,6 +45,10 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Tracks (session_id, package) pairs that have already been alerted so
+# the missing-package notification fires at most once per session.
+_server_package_alerts_sent: set[tuple[str, str]] = set()
+
 # Router for export endpoints
 router = APIRouter()
 
@@ -460,14 +464,15 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    # Check nbformat before scheduling background task so the alert fires at
-    # most once per save cycle (mark_auto_export_ipynb prevents re-alerting
-    # until the notebook is saved again).
+    # Check nbformat before scheduling background task.  Alert at most once
+    # per session so the notification doesn't keep popping up on every save.
     if not DependencyManager.nbformat.has():
         LOGGER.warning("Cannot snapshot to IPYNB: nbformat not installed")
-        notify_server_missing_packages(
-            session, app_state.get_current_session_id(), ["nbformat"]
-        )
+        session_id = app_state.get_current_session_id()
+        alert_key = (session_id or "", "nbformat")
+        if alert_key not in _server_package_alerts_sent:
+            notify_server_missing_packages(session, session_id, ["nbformat"])
+            _server_package_alerts_sent.add(alert_key)
         session_view.mark_auto_export_ipynb()
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 

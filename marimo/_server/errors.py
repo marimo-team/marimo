@@ -96,6 +96,8 @@ async def handle_error(request: Request, response: Any) -> Any:
                         )
                     packages = [response.name]
                     source = "kernel"
+                # TODO(dmadisetti): Consider checking if the server is in a virtual environment
+                # and if so, set isolated to False.
                 isolated = True if source == "server" else is_python_isolated()
                 send_message_to_consumer(
                     session=session,
