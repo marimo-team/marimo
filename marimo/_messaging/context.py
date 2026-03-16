@@ -51,4 +51,5 @@ def is_code_mode_request() -> bool:
     request = HTTP_REQUEST_CTX.get(None)
     if request is None:
         return False
-    return request.url.get("path", "").endswith("/api/kernel/execute")
+    path: str = request.url.get("path", "")
+    return path.endswith("/api/kernel/execute")

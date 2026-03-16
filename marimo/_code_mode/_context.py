@@ -86,6 +86,7 @@ class NotebookCellData:
 
 LOGGER = _loggers.marimo_logger()
 
+
 # Module-level store for cell names set via code_mode.
 # Persists across context manager invocations within the same kernel.
 _cell_names: dict[CellId_t, str] = {}
