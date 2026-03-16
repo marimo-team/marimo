@@ -94,6 +94,7 @@ def test_patch_javascript() -> None:
 def test_non_interactive_mpl_mime_returns_data_uri() -> None:
     """Test that NonInteractiveMplHtml._mime_ returns a data URI."""
     import base64
+
     import matplotlib.pyplot as plt
 
     from marimo._plugins.stateless.mpl._mpl import NonInteractiveMplHtml
