@@ -9,6 +9,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable, Union
 
+from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
+
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
@@ -45,10 +47,6 @@ class CodeCell:
 _BARE_OPEN_P_RE = re.compile(r"<p\s*>", re.IGNORECASE)
 _ANY_OPEN_P_RE = re.compile(r"<p(?:\s[^>]*)?>", re.IGNORECASE)
 _CLOSE_P_RE = re.compile(r"</p>", re.IGNORECASE)
-_FENCED_BLOCK_RE = re.compile(
-    r"^(`{3,}|~{3,}).*?^\1[ \t]*$",
-    re.MULTILINE | re.DOTALL,
-)
 
 
 def _strip_paragraph_tags(source: str) -> str:
@@ -67,10 +65,28 @@ def _strip_paragraph_tags(source: str) -> str:
     preserve paragraph separation.  Content inside fenced code blocks is
     left untouched.
     """
-    # Collect fenced code block spans so we can skip them
+    # Collect fenced code block spans so we can skip them.
+    # Uses RE_NESTED_FENCE_START from pymdownx.superfences (already a marimo
+    # dependency) instead of a hand-rolled regex.
     protected: list[tuple[int, int]] = []
-    for m in _FENCED_BLOCK_RE.finditer(source):
-        protected.append((m.start(), m.end()))
+    fence_marker: str | None = None
+    block_start = 0
+    pos = 0
+    for line in source.split("\n"):
+        if fence_marker is None:
+            m = RE_NESTED_FENCE_START.match(line)
+            if m:
+                fence_marker = m.group("fence")
+                block_start = pos
+        else:
+            stripped = line.strip()
+            if stripped == fence_marker or (
+                stripped.startswith(fence_marker)
+                and stripped == stripped[0] * len(stripped)
+            ):
+                protected.append((block_start, pos + len(line)))
+                fence_marker = None
+        pos += len(line) + 1  # +1 for the newline
 
     def _in_protected(pos: int) -> bool:
         return any(s <= pos < e for s, e in protected)
