@@ -409,6 +409,10 @@ Watch for changes and regenerate the script on modification:
 
     marimo export ipynb notebook.py -o notebook.ipynb --watch
 
+Optionally pass CLI args to the notebook:
+
+    marimo export ipynb notebook.py -o notebook.ipynb --include-outputs -- -arg1 foo -arg2 bar
+
 Requires nbformat to be installed.
 """,
 )
@@ -459,6 +463,7 @@ Requires nbformat to be installed.
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def ipynb(
     name: str,
     output: Path,
@@ -467,6 +472,7 @@ def ipynb(
     include_outputs: bool,
     sandbox: Optional[bool],
     force: bool,
+    args: tuple[str],
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
@@ -498,14 +504,16 @@ def ipynb(
         package = getattr(e, "name", None) or "nbformat"
         raise MarimoCLIMissingDependencyError(str(e), package) from None
 
+    cli_args = parse_args(args) if include_outputs else {}
+
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
             return asyncio_run(
                 run_app_then_export_as_ipynb(
                     file_path,
                     sort_mode=sort,
-                    cli_args={},
-                    argv=None,
+                    cli_args=cli_args,
+                    argv=list(args),
                 )
             )
         return export_as_ipynb(file_path, sort_mode=sort)
