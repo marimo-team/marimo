@@ -72,10 +72,10 @@ class NonInteractiveMplHtml(Html):
         super().__init__(as_html(figure).text)
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        data_uri = build_data_url(
+        data_url = build_data_url(
             mimetype="image/png", data=png_bytes(self._figure)
         )
-        return ("image/png", data_uri)
+        return ("image/png", data_url)
 
 
 @mddoc
