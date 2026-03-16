@@ -259,7 +259,7 @@ def test_queue_manager_connection():
     host_manager.control_queue.put(test_request)
     assert client_manager.control_queue.get(timeout=1) == test_request
 
-    kernel_message = ("test-op", b'{"data": "test"}')
+    kernel_message = b'{"op": "test-op", "data": "test"}'
     client_manager.stream_queue.put(kernel_message)
     assert host_manager.stream_queue.get(timeout=1) == kernel_message
 
