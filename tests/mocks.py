@@ -163,6 +163,41 @@ def simplify_images(output: str) -> str:
     return output
 
 
+def _replace_braced_value(text: str, key: str, placeholder: str) -> str:
+    """Replace a JSON object value (the {...} after *key*) with a placeholder.
+
+    Uses brace-counting so it works with arbitrarily nested objects.
+    The quote style is inferred from *key* so the placeholder matches the
+    surrounding context (e.g. escaped ``\\"`` vs plain ``"``).
+    """
+    q = '\\"' if '\\"' in key else '"'
+    idx = 0
+    while True:
+        pos = text.find(key, idx)
+        if pos == -1:
+            break
+        brace_start = text.find("{", pos + len(key))
+        if brace_start == -1:
+            break
+        depth = 0
+        i = brace_start
+        while i < len(text):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    text = (
+                        text[: pos + len(key)]
+                        + f"{q}{placeholder}{q}"
+                        + text[i + 1 :]
+                    )
+                    break
+            i += 1
+        idx = pos + 1
+    return text
+
+
 def simplify_plotly(output: str) -> str:
     """Simplify plotly output for consistent snapshots."""
     # Replace any <marimo-plotly ...>...</marimo-plotly> (attributes or not, any whitespace, multiline)
@@ -250,6 +285,11 @@ def simplify_plotly(output: str) -> str:
         '"bdata":"PLOTLY_BINARY_DATA"',
         output,
     )
+
+    # Replace the Plotly template (theme) JSON object which varies by version.
+    # Uses brace-counting since the template is deeply nested.
+    for marker in (r"\"template\":", '"template":'):
+        output = _replace_braced_value(output, marker, "PLOTLY_TEMPLATE")
 
     return output
 

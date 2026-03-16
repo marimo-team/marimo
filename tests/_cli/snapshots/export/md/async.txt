@@ -1,5 +1,5 @@
 ---
-title: Notebook
+title: Notebook Async
 marimo-version: 0.0.0
 ---
 
