@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -158,14 +159,15 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             elif dtype == nw.Time:
                 value = convert_value(value, datetime.time.fromisoformat)
             elif dtype == nw.Object:
-                # Object dtype may contain date/datetime values
-                # (e.g., pandas with Python date objects)
+                # Object dtype may contain date/datetime/Decimal values
+                # (e.g., pandas stores these as Python objects)
                 try:
                     sample = (
-                        df.select(col(column_name).drop_nulls())
-                        .head(1)
+                        df.select(column_name)
+                        .head(10)
                         .collect()
                         .get_column(column_name)
+                        .drop_nulls()
                         .to_list()
                     )
                     if sample:
@@ -181,6 +183,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                             value = convert_value(
                                 value, datetime.time.fromisoformat
                             )
+                        elif isinstance(sample[0], decimal.Decimal):
+                            value = convert_value(value, float)
+                            # Use Float64 to ensure high-precision values compare correctly
+                            column = column.cast(nw.Float64)
                 except Exception:
                     pass
 
@@ -195,6 +201,11 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 and dtype.is_float()  # Note: this doesn't cover Object types for pandas
             ):
                 value = convert_value(value, float)
+            # Decimals fail to compare correctly with is_in, so we convert to float
+            # We use Float64 to ensure high-precision values compare correctly instead of mismatched Decimal types
+            elif dtype is not None and dtype.is_decimal():
+                value = convert_value(value, float)
+                column = column.cast(nw.Float64)
 
             # Build the expression based on the operator
             condition_expr: nw.Expr
