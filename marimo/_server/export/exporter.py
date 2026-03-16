@@ -367,6 +367,13 @@ class Exporter:
 
         # Try standard PDF export first (requires pandoc + TeX)
         # and fall back to webpdf if it fails
+        from nbconvert.utils.exceptions import (  # type: ignore[import-not-found]
+            ConversionException,
+        )
+        from nbconvert.utils.pandoc import (  # type: ignore[import-not-found]
+            PandocMissing,
+        )
+
         if not webpdf:
             try:
                 from nbconvert import (  # type: ignore[import-not-found]
@@ -381,9 +388,20 @@ class Exporter:
                 LOGGER.error("PDF data is not bytes: %s", pdf_data)
                 return None
             except OSError as e:
-                LOGGER.warning(
-                    "Standard PDF export failed, falling back to webpdf. Error: %s",
+                # LatexFailed (IOError) or xelatex not on PATH
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
                     e,
+                )
+            except (PandocMissing, ConversionException) as e:
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
+                    e,
+                )
+            except Exception as e:
+                LOGGER.error(
+                    "Standard PDF export failed, falling back to webpdf.",
+                    exc_info=e,
                 )
 
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
