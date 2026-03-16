@@ -460,14 +460,15 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    # Check nbformat before scheduling background task so the alert fires at
-    # most once per save cycle (mark_auto_export_ipynb prevents re-alerting
-    # until the notebook is saved again).
+    # Check nbformat before scheduling background task.  Alert at most once
+    # per session so the notification doesn't keep popping up on every save.
     if not DependencyManager.nbformat.has():
         LOGGER.warning("Cannot snapshot to IPYNB: nbformat not installed")
-        notify_server_missing_packages(
-            session, app_state.get_current_session_id(), ["nbformat"]
-        )
+        if "nbformat" not in session_view.notified_server_packages:
+            notify_server_missing_packages(
+                session, app_state.get_current_session_id(), ["nbformat"]
+            )
+            session_view.notified_server_packages.add("nbformat")
         session_view.mark_auto_export_ipynb()
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 

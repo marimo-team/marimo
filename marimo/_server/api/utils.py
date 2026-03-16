@@ -108,6 +108,29 @@ def open_url_in_browser(browser: str, url: str) -> None:
 T = TypeVar("T")
 
 
+async def install_packages_on_server(
+    manager: str,
+    versions: dict[str, str],
+) -> None:
+    """Install packages into the server's own Python environment.
+
+    Used when the server itself needs a package (e.g. nbformat for
+    IPYNB auto-export when running with --sandbox).
+    """
+    import sys
+
+    from marimo._runtime.packages.package_managers import (
+        create_package_manager,
+    )
+
+    pkg_manager = create_package_manager(manager, python_exe=sys.executable)
+    if not pkg_manager.is_manager_installed():
+        pkg_manager.alert_not_installed()
+        return
+    for pkg, version in versions.items():
+        await pkg_manager.install(pkg, version=version or None)
+
+
 def notify_server_missing_packages(
     session: Session | None,
     session_id: str | None,

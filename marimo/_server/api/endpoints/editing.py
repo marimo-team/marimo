@@ -10,6 +10,7 @@ from marimo._messaging.notification import UpdateCellIdsNotification
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
     dispatch_control_request,
+    install_packages_on_server,
     notify_server_missing_packages,
     parse_request,
 )
@@ -150,19 +151,22 @@ async def format_cell(request: Request) -> FormatResponse:
             )
         )
     except ModuleNotFoundError:
-        # Installation occurs in the kernel which is not useful for multi mode.
+        # In multi-sandbox mode each kernel has its own venv, so installing
+        # ruff into the server wouldn't help the kernel.  Just surface the
+        # error without an install prompt.
         if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
-            # Re-raise without name so error handler won't send install notification
             raise ModuleNotFoundError(
                 "Server does not have a formatter. Please install ruff"
             ) from None
+        # For single-sandbox and non-sandbox modes the server *is* the
+        # formatting environment, so offer to install ruff there.
         notify_server_missing_packages(
             app_state.get_current_session(),
             app_state.get_current_session_id(),
             ["ruff"],
         )
-        # Re-raise without name so the error handler returns 500 without
-        # sending a second notification.
+        # Re-raise without .name so the error handler returns 500 without
+        # sending a duplicate notification.
         raise ModuleNotFoundError(
             "Server does not have a formatter. Please install ruff"
         ) from None
@@ -247,10 +251,6 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    from marimo._runtime.packages.package_managers import (
-        create_package_manager,
-    )
-
     body = await parse_request(request, cls=InstallPackagesRequest)
     cmd = body.as_command()
 
@@ -258,12 +258,9 @@ async def install_missing_packages(request: Request) -> BaseResponse:
         # Install into the server's own Python environment (sys.executable).
         # Used when the server itself needs a package (e.g. nbformat for
         # IPYNB auto-export when running with --sandbox).
-        pkg_manager = create_package_manager(cmd.manager, python_exe=None)
-        if not pkg_manager.is_manager_installed():
-            pkg_manager.alert_not_installed()
-        else:
-            for pkg, version in cmd.versions.items():
-                await pkg_manager.install(pkg, version=version or None)
+        app_state = AppState(request)
+        app_state.require_current_session()
+        await install_packages_on_server(cmd.manager, cmd.versions)
         return SuccessResponse()
 
     # Default ("kernel"): dispatch to kernel via ZeroMQ control queue.
