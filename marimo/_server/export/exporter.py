@@ -380,9 +380,10 @@ class Exporter:
                     return pdf_data
                 LOGGER.error("PDF data is not bytes: %s", pdf_data)
                 return None
-            except OSError as e:
+            except Exception as e:
                 LOGGER.warning(
-                    "Standard PDF export failed, falling back to webpdf. Error: %s",
+                    "Standard PDF export failed (unexpected %s), falling back to webpdf. Error: %s",
+                    type(e).__name__,
                     e,
                 )
 

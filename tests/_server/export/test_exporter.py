@@ -1176,6 +1176,55 @@ class TestPDFExport:
             )
 
     @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_falls_back_to_webpdf_on_conversion_error(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export falls back to webpdf when pandoc is missing."""
+        from nbconvert.utils.pandoc import (
+            PandocMissing,  # type: ignore[import-not-found]
+        )
+
+        app = App()
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        mock_pdf_exporter_instance = MagicMock()
+        mock_pdf_exporter_instance.from_notebook_node.side_effect = (  # pyright: ignore[reportAny]
+            PandocMissing()
+        )
+
+        mock_webpdf_exporter_instance = MagicMock()
+        mock_webpdf_exporter_instance.from_notebook_node.return_value = (  # pyright: ignore[reportAny]
+            b"fallback_webpdf_data",
+            {},
+        )
+
+        with (
+            patch("nbconvert.PDFExporter") as mock_pdf_exporter,
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_pdf_exporter.return_value = mock_pdf_exporter_instance
+            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,
+            )
+
+            assert result == b"fallback_webpdf_data"
+            mock_pdf_exporter.assert_called_once()
+            mock_pdf_exporter_instance.from_notebook_node.assert_called_once()  # pyright: ignore[reportAny]
+            mock_webpdf_exporter.assert_called_once()
+            mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()  # pyright: ignore[reportAny]
+
+    @pytest.mark.skipif(
         not DependencyManager.nbformat.has(),
         reason="nbformat not installed",
     )
