@@ -263,8 +263,7 @@ def test_spinner_done_updates_text(mock_flush: Any) -> None:
     mock_flush.assert_called()
 
 
-@patch("marimo._runtime.output._output.flush")
-def test_spinner_done_with_subtitle(_mock_flush: Any) -> None:
+def test_spinner_done_with_subtitle() -> None:
     """done() with subtitle should include subtitle in output."""
     from marimo._plugins.stateless.status._progress import Spinner
 
@@ -274,8 +273,7 @@ def test_spinner_done_with_subtitle(_mock_flush: Any) -> None:
     assert "Done!" in s._text
 
 
-@patch("marimo._runtime.output._output.flush")
-def test_spinner_done_raises_after_close(_mock_flush: Any) -> None:
+def test_spinner_done_raises_after_close() -> None:
     """done() should raise RuntimeError if called after context manager exits."""
     from marimo._plugins.stateless.status._progress import Spinner
 
@@ -285,8 +283,7 @@ def test_spinner_done_raises_after_close(_mock_flush: Any) -> None:
         s.done()
 
 
-@patch("marimo._runtime.output._output.flush")
-def test_spinner_done_default_title(_mock_flush: Any) -> None:
+def test_spinner_done_default_title() -> None:
     """done() with no args should use default title Done!"""
     from marimo._plugins.stateless.status._progress import Spinner
 
