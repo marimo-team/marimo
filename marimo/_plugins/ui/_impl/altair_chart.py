@@ -657,7 +657,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @staticmethod
     def _get_dataframe_from_chart(
-        chart: Union[altair.Chart, altair.LayerChart],
+        chart: AltairChartType,
     ) -> Optional[ChartDataType]:
         if not isinstance(chart.data, str):
             return cast(ChartDataType, chart.data)
