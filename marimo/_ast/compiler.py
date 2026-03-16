@@ -194,6 +194,11 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
     try:
         (body,) = tree.body
+        # Only match bare expressions like `mo.md("...")`, not assignments
+        # like `title = mo.md("...")` — both ast.Expr and ast.Assign have a
+        # `.value` attribute, so we must check the node type explicitly.
+        if not isinstance(body, ast.Expr):
+            return None
         if body.value.func.attr == "md":  # type: ignore[attr-defined, union-attr]
             value = body.value  # type: ignore[attr-defined, union-attr]
         else:

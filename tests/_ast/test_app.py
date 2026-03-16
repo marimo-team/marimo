@@ -966,6 +966,37 @@ class TestApp:
         assert "cell_one" in python_code
         assert "cell_two" in python_code
 
+    @staticmethod
+    def test_run_md_object_passed_between_cells() -> None:
+        """Regression test for #7994: passing mo.md() object between cells
+        should work in script/run mode."""
+        app = App()
+
+        @app.cell
+        def _():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def _(mo):
+            title = mo.md("# Hello World")
+            return (title,)
+
+        @app.cell
+        def _(mo, title):
+            mo.vstack(
+                [
+                    title,
+                    mo.md("This should display above this text."),
+                ]
+            )
+            return
+
+        outputs, defs = app.run()
+        assert "title" in defs
+        assert defs["title"] is not None
+
 
 class TestInvalidSetup:
     @staticmethod
