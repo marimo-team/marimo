@@ -62,6 +62,7 @@ jobs:
 
       - name: 📢 Notify release result
         if: always()
+        continue-on-error: true
         uses: marimo-team/internal-gh-actions/release-notification@main
         with:
           status: ${{ job.status }}

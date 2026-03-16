@@ -126,6 +126,7 @@ jobs:
           exit 1
 
       - name: 📦 Build and push Docker images (slim)
+        id: build_slim
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -143,6 +144,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 📦 Build and push Docker images (data)
+        id: build_data
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -160,6 +162,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 📦 Build and push Docker images (sql)
+        id: build_sql
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -176,10 +179,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: 🔍 Determine Docker publish status
+        if: always()
+        id: docker_publish_status
+        run: |
+          status="success"
+          if [ "${{ steps.build_slim.outcome }}" = "failure" ] || \
+             [ "${{ steps.build_data.outcome }}" = "failure" ] || \
+             [ "${{ steps.build_sql.outcome }}" = "failure" ]; then
+            status="failure"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
       - name: 📢 Notify release result
         if: always()
+        continue-on-error: true
         uses: marimo-team/internal-gh-actions/release-notification@main
         with:
-          status: ${{ job.status }}
+          status: ${{ steps.docker_publish_status.outputs.status }}
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}
           artifact-url: "https://ghcr.io/marimo-team/marimo"
