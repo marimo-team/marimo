@@ -141,7 +141,7 @@ export const DataExplorerComponent = ({
     const augmentedSpec = augmentSpecWithData(responsiveSpec, chartData);
 
     return (
-      <div className="flex overflow-y-auto justify-center items-center flex-1 w-[90%]">
+      <div className="flex overflow-y-auto justify-center items-center flex-1 w-[90%] vega-container-width">
         <VegaEmbed spec={augmentedSpec} options={chartOptions(theme)} />
       </div>
     );
