@@ -11,6 +11,7 @@ export interface MissingPackageAlert {
   kind: "missing";
   packages: string[];
   isolated: boolean;
+  source?: "kernel" | "server";
 }
 
 export interface InstallingPackageAlert {

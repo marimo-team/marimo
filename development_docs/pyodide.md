@@ -11,7 +11,7 @@ PYODIDE=true VITE_WASM_MARIMO_PREBUILT_WHEEL=true pnpm dev
 
 ```bash
 # build once
-hatch build
+uv build
 # server and watch for changes
 uv run pyodide/build_and_serve.py
 # in another terminal

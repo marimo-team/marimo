@@ -25,7 +25,9 @@ from marimo._types.ids import WidgetModelId
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = (
-    DependencyManager.anywidget.has() and DependencyManager.traitlets.has()
+    DependencyManager.anywidget.has()
+    and DependencyManager.traitlets.has()
+    and hasattr(__import__("anywidget"), "AnyWidget")
 )
 HAS_PLOTLY = DependencyManager.plotly.has()
 

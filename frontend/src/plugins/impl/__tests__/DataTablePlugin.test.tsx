@@ -4,6 +4,7 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { SetupMocks } from "@/__mocks__/common";
 import type { DownloadAsArgs } from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { store } from "@/core/state/jotai";
@@ -14,17 +15,7 @@ import {
 } from "../DataTablePlugin";
 
 beforeAll(() => {
-  global.ResizeObserver = class ResizeObserver {
-    observe() {
-      // do nothing
-    }
-    unobserve() {
-      // do nothing
-    }
-    disconnect() {
-      // do nothing
-    }
-  };
+  SetupMocks.resizeObserver();
 });
 
 describe("LoadingDataTableComponent", () => {

@@ -3703,15 +3703,14 @@ export interface components {
      *
      *         Attributes:
      *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook (unused for now).
+     *             cell_ids: Initial cell IDs in the notebook.
      *             set_ui_element_value_request: Initial UI element values.
      *             auto_run: Whether to automatically execute cells on instantiation.
      *             request: HTTP request context if available.
      */
     CreateNotebookCommand: {
       autoRun: boolean;
-      /** @default null */
-      cellIds?: string[] | null;
+      cellIds: string[];
       executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4420,9 +4419,18 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             source: Where to install. "kernel" (default) dispatches to the kernel
+     *                     subprocess; "server" installs directly into the server's Python
+     *                     environment (sys.executable), used when the server itself needs
+     *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       /** @enum {unknown} */
       type: "install-packages";
       versions: {
@@ -4432,6 +4440,11 @@ export interface components {
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       versions: {
         [key: string]: string;
       };
@@ -5007,13 +5020,21 @@ export interface components {
      *
      *         Attributes:
      *             packages: Missing package names.
-     *             isolated: Whether in isolated environment.
+     *             isolated: Whether auto-install is possible in this environment.
+     *             source: Which Python environment to install into. "kernel" (default)
+     *                     installs in the kernel's venv; "server" installs in the
+     *                     server's own Python env (e.g. for formatter tools like ruff).
      */
     MissingPackageAlertNotification: {
       isolated: boolean;
       /** @enum {unknown} */
       op: "missing-package-alert";
       packages: string[];
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /**
      * ModelClose
@@ -5461,6 +5482,8 @@ export interface components {
      *             affected cells as stale, `"autorun"` automatically runs affected cells.
      *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
      *             values may affect frontend performance
+     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
+     *             The default is `False`.
      *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
      *           larger values may affect frontend performance
      *         - `pythonpath`: a list of directories to add to the Python search path.
@@ -5498,6 +5521,7 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
+      serve_cached_sessions_in_apps?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -5909,9 +5933,12 @@ export interface components {
      *             display_name: The display name of the storage namespace.
      *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
      *             root_path: The root path of the storage namespace.
+     *             backend_type: The type of the storage backend (fsspec or obstore)
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
+      /** @enum {unknown} */
+      backendType: "fsspec" | "obstore";
       displayName: string;
       name: string;
       protocol: string;
@@ -6016,17 +6043,23 @@ export interface components {
     };
     /**
      * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode).
+     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
      *
      *         Attributes:
      *             cell_ids: Cells to update.
      *             codes: New code for each cell.
      *             code_is_stale: If True, code was not executed on backend (output may not match).
+     *             names: Cell names for each cell (optional, for file reload).
+     *             configs: Cell configs for each cell (optional, for file reload).
      */
     UpdateCellCodesNotification: {
       cell_ids: string[];
       code_is_stale: boolean;
       codes: string[];
+      /** @default [] */
+      configs?: components["schemas"]["CellConfig"][];
+      /** @default [] */
+      names?: string[];
       /** @enum {unknown} */
       op: "update-cell-codes";
     };

@@ -14,8 +14,7 @@ import pytest
 from marimo._server.file_router import AppFileRouter
 from marimo._server.models.home import MarimoFile
 from marimo._session.model import SessionMode
-from tests._server.conftest import get_session_manager
-from tests._server.mocks import token_header, with_session
+from tests._server.mocks import get_session_manager, token_header, with_session
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient

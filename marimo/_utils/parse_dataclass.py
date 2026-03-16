@@ -5,6 +5,7 @@ import dataclasses
 import datetime
 import json
 import sys
+import types
 from enum import Enum
 from typing import (
     Any,
@@ -28,6 +29,8 @@ else:
     from typing import NotRequired
 
 T = TypeVar("T")
+
+_UNION_ORIGINS = (Union, types.UnionType)
 
 
 def to_snake(string: str) -> str:
@@ -120,7 +123,7 @@ class _DataclassParser:
                     for k, v in value.items()
                 }
             )
-        elif origin_cls == Union:
+        elif origin_cls in _UNION_ORIGINS:
             arg_types = get_args(cls)
             for arg_type in arg_types:
                 try:

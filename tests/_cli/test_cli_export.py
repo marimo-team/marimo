@@ -11,15 +11,18 @@ import time
 from os import path
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 import click
 import pytest
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 
+from marimo._cli.cli import main
 from marimo._cli.export.commands import pdf
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
+from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import (
@@ -36,34 +39,83 @@ if TYPE_CHECKING:
 HAS_UV = DependencyManager.which("uv")
 snapshot = snapshotter(__file__)
 
+# The in-process CliRunner imports marimo from whatever location Python
+# resolves (source tree locally, installed wheel in CI).  The exporter reads
+# index.html from marimo_package_path() / "_static", so ensure it exists
+# there.  Copy the test-fixture index.html if it's missing.
+_STATIC_INDEX = (marimo_package_path() / "_static" / "index.html").resolve()
+if not _STATIC_INDEX.exists():
+    _STATIC_INDEX.parent.mkdir(parents=True, exist_ok=True)
+    _test_index = (
+        Path(__file__).resolve().parents[1]
+        / "_server"
+        / "templates"
+        / "data"
+        / "index.html"
+    )
+    shutil.copy(_test_index, _STATIC_INDEX)
+
 
 def _is_win32() -> bool:
     return sys.platform == "win32"
+
+
+def _playwright_browsers_installed() -> bool:
+    """Check if Playwright Chromium browser binary is actually installed."""
+    try:
+        import os
+
+        # Playwright stores browsers in PLAYWRIGHT_BROWSERS_PATH or
+        # the default cache: ~/.cache/ms-playwright (Linux),
+        # ~/Library/Caches/ms-playwright (macOS)
+        browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+        if not browsers_path:
+            if sys.platform == "darwin":
+                browsers_path = str(
+                    Path.home() / "Library" / "Caches" / "ms-playwright"
+                )
+            elif sys.platform == "win32":
+                local = os.environ.get("LOCALAPPDATA", "")
+                browsers_path = (
+                    str(Path(local) / "ms-playwright") if local else ""
+                )
+            else:
+                browsers_path = str(Path.home() / ".cache" / "ms-playwright")
+        p = Path(browsers_path)
+        if not p.exists():
+            return False
+        # Check if any chromium directory exists
+        return any(d.name.startswith("chromium") for d in p.iterdir())
+    except Exception:
+        return False
+
+
+_runner = CliRunner()
 
 
 def _run_export(
     export_format: str,
     file: str,
     *extra_args: str,
-    capture_output: bool = True,
-    input_data: bytes | None = None,
-) -> subprocess.CompletedProcess[bytes]:
-    """Helper to run marimo export commands."""
-    cmd = ["marimo", "export", export_format, file, *extra_args]
-    return subprocess.run(
-        cmd,
-        check=False,
-        capture_output=capture_output,
-        input=input_data,
+    stdin: str | None = None,
+) -> Result:
+    """Helper to run marimo export commands via CliRunner."""
+    return _runner.invoke(
+        main,
+        ["export", export_format, file, *extra_args],
+        input=stdin,
     )
 
 
-def _assert_success(p: subprocess.CompletedProcess[bytes]) -> None:
-    assert p.returncode == 0, p.stderr.decode()
+def _assert_success(r: Result) -> None:
+    # Re-raise unexpected exceptions so failures are clearly surfaced
+    if r.exception and not isinstance(r.exception, SystemExit):
+        raise r.exception
+    assert r.exit_code == 0, r.output
 
 
-def _assert_failure(p: subprocess.CompletedProcess[bytes]) -> None:
-    assert p.returncode != 0, p.stderr.decode()
+def _assert_failure(r: Result) -> None:
+    assert r.exit_code != 0, r.output
 
 
 def _get_snapshot_path(export_format: str, name: str) -> str:
@@ -82,7 +134,7 @@ class TestExportHTML:
     def test_cli_export_html(temp_marimo_file: str) -> None:
         p = _run_export("html", temp_marimo_file)
         _assert_success(p)
-        html = normalize_index_html(p.stdout.decode())
+        html = normalize_index_html(p.output)
         html = _normalize_html_path(html, temp_marimo_file)
         assert '<marimo-code hidden=""></marimo-code>' not in html
 
@@ -90,7 +142,7 @@ class TestExportHTML:
     def test_cli_export_html_no_code(temp_marimo_file: str) -> None:
         p = _run_export("html", temp_marimo_file, "--no-include-code")
         _assert_success(p)
-        html = normalize_index_html(p.stdout.decode())
+        html = normalize_index_html(p.output)
         html = _normalize_html_path(html, temp_marimo_file)
         assert '<marimo-code hidden=""></marimo-code>' in html
 
@@ -113,6 +165,48 @@ class TestExportHTML:
         assert "<marimo-wasm" in html
         assert '"showAppCode": false' in html
         assert Path(out_dir / ".nojekyll").exists()
+
+    @staticmethod
+    def test_cli_export_html_wasm_no_override(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        out_dir.mkdir()
+        Path(out_dir / "index.html").touch()
+        with mock.patch(
+            "marimo._cli.export.commands.prompt_to_overwrite",
+            return_value=False,
+        ):
+            p = _run_export(
+                "html-wasm",
+                temp_marimo_file,
+                "--mode",
+                "edit",
+                "--output",
+                str(out_dir),
+            )
+            _assert_success(p)
+            html = Path(out_dir / "index.html").read_text()
+            assert "" == html
+
+    @staticmethod
+    def test_cli_export_html_wasm_override(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "out"
+        out_dir.mkdir()
+        Path(out_dir / "index.html").touch()
+        with mock.patch(
+            "marimo._cli.export.commands.prompt_to_overwrite",
+            return_value=True,
+        ):
+            p = _run_export(
+                "html-wasm",
+                temp_marimo_file,
+                "--mode",
+                "edit",
+                "--output",
+                str(out_dir),
+            )
+            _assert_success(p)
+            html = Path(out_dir / "index.html").read_text()
+            assert "" != html
 
     @staticmethod
     def test_cli_export_html_wasm_public_folder(temp_marimo_file: str) -> None:
@@ -245,10 +339,10 @@ class TestExportHTML:
     def test_cli_export_async(temp_async_marimo_file: str) -> None:
         p = _run_export("html", temp_async_marimo_file)
         _assert_success(p)
-        stderr = p.stderr.decode()
+        stderr = p.stderr or ""
         assert "ValueError" not in stderr
         assert "Traceback" not in stderr
-        html = normalize_index_html(p.stdout.decode())
+        html = normalize_index_html(p.output)
         html = _normalize_html_path(html, temp_async_marimo_file)
         assert '<marimo-code hidden=""></marimo-code>' not in html
 
@@ -258,9 +352,9 @@ class TestExportHTML:
     ) -> None:
         p = _run_export("html", temp_marimo_file_with_errors)
         _assert_failure(p)
-        html = normalize_index_html(p.stdout.decode())
+        html = normalize_index_html(p.output)
         # Errors but still produces HTML
-        assert " division by zero" in p.stderr.decode()
+        assert " division by zero" in p.stderr
         assert "<marimo-code" in html
 
     @staticmethod
@@ -270,8 +364,8 @@ class TestExportHTML:
         p = _run_export("html", temp_marimo_file_with_multiple_definitions)
         _assert_failure(p)
         # Errors but still produces HTML
-        assert "MultipleDefinitionError" in p.stderr.decode()
-        assert "<marimo-code" in p.stdout.decode()
+        assert "MultipleDefinitionError" in p.stderr
+        assert "<marimo-code" in p.output
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),
@@ -345,8 +439,13 @@ class TestExportHTML:
     @staticmethod
     @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
     def test_cli_export_html_sandbox(temp_marimo_file: str) -> None:
-        p = _run_export("html", temp_marimo_file, "--sandbox")
-        _assert_success(p)
+        # Must use subprocess: sandbox re-invokes via uv using sys.argv[1:]
+        p = subprocess.run(
+            ["marimo", "export", "html", temp_marimo_file, "--sandbox"],
+            check=False,
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
@@ -366,18 +465,21 @@ class TestExportHTML:
         Test that the --force/-f flag allows overwriting an existing file
         using a simple, error-free notebook.
         """
-        p1 = _run_export("html", temp_marimo_file)
-        _assert_success(p1)
-        html = normalize_index_html(p1.stdout.decode())
-        html = _normalize_html_path(html, temp_marimo_file)
-        assert '<marimo-code hidden=""></marimo-code>' not in html
         output_path = Path(temp_marimo_file).parent / "output.html"
 
-        p2 = _run_export(
-            "html", temp_marimo_file, "-o", str(output_path), input_data=b"n\n"
-        )
-        assert p2.returncode == 0, "Expected a graceful exit with no errors"
+        # First export creates the file
+        p1 = _run_export("html", temp_marimo_file, "-o", str(output_path))
+        _assert_success(p1)
 
+        # With TTY simulated, "n\n" on stdin causes graceful exit (no overwrite)
+        with mock.patch("marimo._cli.utils.stdout") as mock_stdout:
+            mock_stdout.isatty.return_value = True
+            p2 = _run_export(
+                "html", temp_marimo_file, "-o", str(output_path), stdin="n\n"
+            )
+        assert p2.exit_code == 0, "Expected graceful exit when user answers no"
+
+        # --force skips the prompt entirely
         p3 = _run_export(
             "html", temp_marimo_file, "-o", str(output_path), "--force"
         )
@@ -385,33 +487,25 @@ class TestExportHTML:
 
 
 class TestExportHtmlSmokeTests:
-    def _assert_no_traceback(
-        self, p: subprocess.CompletedProcess[bytes]
-    ) -> None:
+    def _assert_no_traceback(self, p: Result) -> None:
         """Assert no traceback in stdout or stderr."""
         assert not any(
-            line.startswith("Traceback")
-            for line in p.stderr.decode().splitlines()
+            line.startswith("Traceback") for line in p.stderr.splitlines()
         )
         assert not any(
-            line.startswith("Traceback")
-            for line in p.stdout.decode().splitlines()
+            line.startswith("Traceback") for line in p.output.splitlines()
         )
 
-    def _assert_not_errored(
-        self, p: subprocess.CompletedProcess[bytes]
-    ) -> None:
+    def _assert_not_errored(self, p: Result) -> None:
         _assert_success(p)
         self._assert_no_traceback(p)
 
-    def _assert_has_errors(
-        self, p: subprocess.CompletedProcess[bytes]
-    ) -> None:
+    def _assert_has_errors(self, p: Result) -> None:
         _assert_failure(p)
         assert any(
             "Export was successful, but some cells failed to execute" in line
-            for line in p.stderr.decode().splitlines()
-        ), p.stderr.decode()
+            for line in p.stderr.splitlines()
+        ), p.output
         self._assert_no_traceback(p)
 
     def _export_tutorial(
@@ -420,7 +514,7 @@ class TestExportHtmlSmokeTests:
         module_import: str,
         filename: str = "mod.py",
         extra_args: tuple[str, ...] = (),
-    ) -> subprocess.CompletedProcess[bytes]:
+    ) -> Result:
         """Helper to export a tutorial module to HTML."""
         module = __import__(
             f"marimo._tutorials.{module_import}",
@@ -473,15 +567,14 @@ class TestExportScript:
     def test_export_script(temp_marimo_file: str) -> None:
         p = _run_export("script", temp_marimo_file)
         _assert_success(p)
-        snapshot(_get_snapshot_path("script", "script"), p.stdout.decode())
+        snapshot(_get_snapshot_path("script", "script"), p.output)
 
     @staticmethod
     def test_export_script_async(temp_async_marimo_file: str) -> None:
         p = _run_export("script", temp_async_marimo_file)
-        assert p.returncode == 1, p.stderr.decode()
-        assert (
-            "Cannot export a notebook with async code to a flat script"
-            in p.stderr.decode()
+        assert p.exit_code == 1, p.output
+        assert "Cannot export a notebook with async code to a flat script" in (
+            p.output
         )
 
     @staticmethod
@@ -490,11 +583,9 @@ class TestExportScript:
     ) -> None:
         p = _run_export("script", temp_marimo_file_with_multiple_definitions)
         _assert_failure(p)
-        error_message = p.stderr.decode()
-        assert (
-            "MultipleDefinitionError: This app can't be run because it has multiple definitions of the name x"
-            in error_message
-        )
+        # MultipleDefinitionError is uncaught; CliRunner stores it in exception
+        error_message = str(p.exception) if p.exception else p.output
+        assert "multiple definitions of the name x" in error_message
 
     @staticmethod
     def test_export_script_with_errors(
@@ -504,7 +595,7 @@ class TestExportScript:
         _assert_success(p)
         snapshot(
             _get_snapshot_path("script", "script_with_errors"),
-            p.stdout.decode(),
+            p.output,
         )
 
     @staticmethod
@@ -597,19 +688,19 @@ class TestExportMarkdown:
     def test_export_markdown(temp_marimo_file: str) -> None:
         p = _run_export("md", temp_marimo_file)
         _assert_success(p)
-        snapshot(_get_snapshot_path("md", "markdown"), p.stdout.decode())
+        snapshot(_get_snapshot_path("md", "markdown"), p.output)
 
     @staticmethod
     def test_export_markdown_async(temp_async_marimo_file: str) -> None:
         p = _run_export("md", temp_async_marimo_file)
         _assert_success(p)
-        snapshot(_get_snapshot_path("md", "async"), p.stdout.decode())
+        snapshot(_get_snapshot_path("md", "async"), p.output)
 
     @staticmethod
     def test_export_markdown_broken(temp_unparsable_marimo_file: str) -> None:
         p = _run_export("md", temp_unparsable_marimo_file)
         _assert_success(p)
-        snapshot(_get_snapshot_path("md", "broken"), p.stdout.decode())
+        snapshot(_get_snapshot_path("md", "broken"), p.output)
 
     @staticmethod
     def test_export_markdown_with_errors(
@@ -619,7 +710,7 @@ class TestExportMarkdown:
         _assert_success(p)
         snapshot(
             _get_snapshot_path("md", "export_markdown_with_errors"),
-            p.stdout.decode(),
+            p.output,
         )
 
     @pytest.mark.skipif(
@@ -705,7 +796,7 @@ class TestExportIpynb:
         p = _run_export("ipynb", temp_marimo_file_with_md)
         _assert_success(p)
         # ipynb has non-deterministic ids
-        snapshot(_get_snapshot_path("ipynb", "ipynb"), p.stdout.decode())
+        snapshot(_get_snapshot_path("ipynb", "ipynb"), p.output)
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has(),
@@ -717,14 +808,14 @@ class TestExportIpynb:
         # Test topological sort (default)
         p = _run_export("ipynb", temp_marimo_file_with_md)
         _assert_success(p)
-        topo_output = p.stdout.decode()
+        topo_output = p.output
 
         # Test top-down sort
         p = _run_export(
             "ipynb", temp_marimo_file_with_md, "--sort", "top-down"
         )
         _assert_success(p)
-        topdown_output = p.stdout.decode()
+        topdown_output = p.output
         snapshot(_get_snapshot_path("ipynb", "ipynb_topdown"), topdown_output)
 
         # Outputs should be different since sorting is different
@@ -740,12 +831,12 @@ class TestExportIpynb:
         # Test without outputs (default)
         p = _run_export("ipynb", temp_marimo_file_with_md)
         _assert_success(p)
-        no_outputs = p.stdout.decode()
+        no_outputs = p.output
 
         # Test with outputs
         p = _run_export("ipynb", temp_marimo_file_with_md, "--include-outputs")
         _assert_success(p)
-        with_outputs = p.stdout.decode()
+        with_outputs = p.output
         snapshot(
             _get_snapshot_path("ipynb", "ipynb_with_outputs"), with_outputs
         )
@@ -768,7 +859,7 @@ class TestExportIpynb:
             "--no-sandbox",
         )
         _assert_success(p)
-        with_outputs = p.stdout.decode()
+        with_outputs = p.output
         with_outputs = simplify_images(with_outputs)
         with_outputs = simplify_plotly(with_outputs)
         with_outputs = _sanitize_version(with_outputs)
@@ -791,7 +882,7 @@ class TestExportIpynb:
         )
         _assert_failure(p)
         # Error is now captured in the ipynb output as a proper Jupyter error
-        output = p.stdout.decode()
+        output = p.output
         assert "multiple-defs" in output
         assert "was defined by another cell" in output
 
@@ -808,10 +899,75 @@ class TestExportIpynb:
         _assert_failure(p)
         # Error is now captured in the ipynb output (stdout) as a proper
         # Jupyter error output, not printed to stderr
-        output = p.stdout.decode()
+        output = p.output
         assert "division by zero" in output
         output = delete_lines_with_files(output)
         snapshot(_get_snapshot_path("ipynb", "ipynb_with_errors"), output)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_with_cli_args(
+        self, temp_marimo_file_with_md: str
+    ) -> None:
+        p = _run_export(
+            "ipynb",
+            temp_marimo_file_with_md,
+            "--include-outputs",
+            "--",
+            "--arg1",
+            "foo",
+            "--arg2",
+            "bar",
+        )
+        _assert_success(p)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_cli_args_passed_to_export(
+        self, temp_marimo_file_with_md: str
+    ) -> None:
+        from marimo._server.export import ExportResult
+
+        fake_result = ExportResult(
+            contents="{}", download_filename="test.ipynb", did_error=False
+        )
+
+        async def fake_export(*args: Any, **kwargs: Any) -> ExportResult:
+            del args, kwargs
+            return fake_result
+
+        with mock.patch(
+            "marimo._cli.export.commands.run_app_then_export_as_ipynb",
+            side_effect=fake_export,
+        ) as mock_export:
+            p = _run_export(
+                "ipynb",
+                temp_marimo_file_with_md,
+                "--include-outputs",
+                "--",
+                "--arg1",
+                "foo",
+                "--arg2",
+                "bar",
+            )
+            _assert_success(p)
+
+            mock_export.assert_called_once()
+            call_kwargs = mock_export.call_args
+            assert call_kwargs.kwargs["cli_args"] == {
+                "arg1": "foo",
+                "arg2": "bar",
+            }
+            assert call_kwargs.kwargs["argv"] == [
+                "--arg1",
+                "foo",
+                "--arg2",
+                "bar",
+            ]
 
     @staticmethod
     @pytest.mark.skipif(
@@ -820,15 +976,22 @@ class TestExportIpynb:
     )
     def test_cli_export_ipynb_sandbox(temp_marimo_file: str) -> None:
         output_file = temp_marimo_file.replace(".py", "_sandbox.ipynb")
-        p = _run_export(
-            "ipynb",
-            temp_marimo_file,
-            "--sandbox",
-            "--include-outputs",
-            "--output",
-            output_file,
+        # Must use subprocess: sandbox re-invokes via uv using sys.argv[1:]
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "ipynb",
+                temp_marimo_file,
+                "--sandbox",
+                "--include-outputs",
+                "--output",
+                output_file,
+            ],
+            check=False,
+            capture_output=True,
         )
-        _assert_success(p)
+        assert p.returncode == 0, p.stderr.decode()
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
@@ -850,7 +1013,7 @@ class TestExportIpynb:
             "--no-include-outputs",
         )
         _assert_success(p)
-        output = p.stdout.decode()
+        output = p.output
         # Should be valid JSON since sandbox is not used
         notebook = json.loads(output)
         assert "cells" in notebook
@@ -896,7 +1059,7 @@ class TestExportPDF:
             "--no-include-inputs",
         )
         _assert_failure(p)
-        stderr = p.stderr.decode()
+        stderr = p.output
         assert "nbconvert" in stderr
         assert "pip install" in stderr
 
@@ -915,7 +1078,7 @@ class TestExportPDF:
             "--no-sandbox",
         )
         _assert_failure(p)
-        stderr = p.stderr.decode()
+        stderr = p.output
         assert "Rasterization options require --include-outputs." in stderr
 
     @staticmethod
@@ -934,7 +1097,7 @@ class TestExportPDF:
             "--no-sandbox",
         )
         _assert_failure(p)
-        stderr = p.stderr.decode()
+        stderr = p.output
         assert "Rasterization options require --include-outputs." in stderr
 
     @staticmethod
@@ -953,7 +1116,7 @@ class TestExportPDF:
             "--no-sandbox",
         )
         _assert_failure(p)
-        stderr = p.stderr.decode()
+        stderr = p.output
         assert "Rasterization options require --include-outputs." in stderr
 
     @staticmethod
@@ -1088,6 +1251,11 @@ class TestExportPDF:
     not DependencyManager.playwright.has(),
     reason="This test requires playwright.",
 )
+@pytest.mark.skipif(
+    DependencyManager.playwright.has()
+    and not _playwright_browsers_installed(),
+    reason="Playwright browsers are not installed.",
+)
 class TestExportThumbnail:
     def test_export_thumbnail(self, temp_marimo_file: str) -> None:
         p = _run_export("thumbnail", temp_marimo_file)
@@ -1137,7 +1305,7 @@ class TestExportSession:
 
         unchanged = json.loads(session_file.read_text(encoding="utf-8"))
         assert unchanged.get("custom") == "keep-me"
-        assert b"skip" in p.stdout
+        assert "skip" in p.output
 
     @staticmethod
     def test_export_session_force_overwrite_rewrites_up_to_date(
@@ -1292,7 +1460,7 @@ class TestExportSession:
 
         second = _run_export("session", temp_marimo_file_with_errors)
         _assert_success(second)
-        assert b"skip" in second.stdout
+        assert "skip" in second.output
         unchanged = json.loads(session_file.read_text(encoding="utf-8"))
         assert unchanged.get("custom") == "should-be-overwritten"
 

@@ -8,7 +8,7 @@ import { type StorageConnection, StorageConnectionSchema } from "./schemas";
 export type StorageLibrary = "obstore" | "fsspec";
 
 export const StorageLibraryDisplayNames: Record<StorageLibrary, string> = {
-  obstore: "Obstore",
+  obstore: "obstore",
   fsspec: "fsspec",
 };
 

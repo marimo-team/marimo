@@ -21,7 +21,7 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
-  storage_inspector: false,
+  storage_inspector: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

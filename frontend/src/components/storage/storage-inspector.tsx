@@ -15,6 +15,7 @@ import {
 import React, { useCallback, useState } from "react";
 import { useLocale } from "react-aria";
 import { EngineVariable } from "@/components/databases/engine-variable";
+import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { AddConnectionDialog } from "@/components/editor/connections/add-connection-dialog";
 import {
@@ -32,6 +33,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -47,7 +49,7 @@ import type {
   StorageNamespace,
   StoragePathKey,
 } from "@/core/storage/types";
-import { storagePathKey, storageUrl } from "@/core/storage/types";
+import { storagePathKey } from "@/core/storage/types";
 import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -58,6 +60,7 @@ import { ErrorState } from "../datasources/components";
 import { Button } from "../ui/button";
 import { ProtocolIcon } from "./components";
 import { StorageFileViewer } from "./storage-file-viewer";
+import { STORAGE_SNIPPETS } from "./storage-snippets";
 
 interface OpenFileInfo {
   entry: StorageEntry;
@@ -145,6 +148,7 @@ const StorageEntryChildren: React.FC<{
   namespace: string;
   protocol: string;
   rootPath: string;
+  backendType: StorageNamespace["backendType"];
   prefix: string;
   depth: number;
   locale: string;
@@ -154,6 +158,7 @@ const StorageEntryChildren: React.FC<{
   namespace,
   protocol,
   rootPath,
+  backendType,
   prefix,
   depth,
   locale,
@@ -214,6 +219,7 @@ const StorageEntryChildren: React.FC<{
           namespace={namespace}
           protocol={protocol}
           rootPath={rootPath}
+          backendType={backendType}
           depth={depth}
           locale={locale}
           searchValue={searchValue}
@@ -229,6 +235,7 @@ const StorageEntryRow: React.FC<{
   namespace: string;
   protocol: string;
   rootPath: string;
+  backendType: StorageNamespace["backendType"];
   depth: number;
   locale: string;
   searchValue: string;
@@ -238,6 +245,7 @@ const StorageEntryRow: React.FC<{
   namespace,
   protocol,
   rootPath,
+  backendType,
   depth,
   locale,
   searchValue,
@@ -245,6 +253,7 @@ const StorageEntryRow: React.FC<{
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { entriesByPath } = useStorage();
+  const addCodeToNewCell = useAddCodeToNewCell();
   const isDir = entry.kind === "directory";
   const name = displayName(entry.path);
   const hasSearch = !!searchValue.trim();
@@ -361,13 +370,12 @@ const StorageEntryRow: React.FC<{
               )}
               <DropdownMenuItem
                 onSelect={async () => {
-                  const url = storageUrl(protocol, rootPath, entry.path);
-                  await copyToClipboard(url.toString());
+                  await copyToClipboard(entry.path);
                   toast({ title: "Copied to clipboard" });
                 }}
               >
                 <CopyIcon className={MENU_ITEM_ICON_CLASS} />
-                Copy URL
+                Copy path
               </DropdownMenuItem>
               {!isDir && (
                 <DropdownMenuItem onSelect={() => handleDownload()}>
@@ -375,6 +383,28 @@ const StorageEntryRow: React.FC<{
                   Download
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              {STORAGE_SNIPPETS.map((snippet) => {
+                const code = snippet.getCode({
+                  variableName: namespace,
+                  protocol,
+                  entry,
+                  backendType,
+                });
+                if (code === null) {
+                  return null;
+                }
+                const Icon = snippet.icon;
+                return (
+                  <DropdownMenuItem
+                    key={snippet.id}
+                    onSelect={() => addCodeToNewCell(code)}
+                  >
+                    <Icon className={MENU_ITEM_ICON_CLASS} />
+                    {snippet.label}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -384,6 +414,7 @@ const StorageEntryRow: React.FC<{
           namespace={namespace}
           protocol={protocol}
           rootPath={rootPath}
+          backendType={backendType}
           prefix={entry.path}
           depth={depth + 1}
           locale={locale}
@@ -471,7 +502,7 @@ const StorageNamespaceSection: React.FC<{
             <ErrorState
               error={error}
               style={indentStyle(1)}
-              className="py-1 text-xs h-auto"
+              className="py-1 text-xs h-auto overflow-auto max-h-32 items-start"
               showIcon={false}
             />
           )}
@@ -498,6 +529,7 @@ const StorageNamespaceSection: React.FC<{
               namespace={namespaceName}
               protocol={namespace.protocol}
               rootPath={namespace.rootPath}
+              backendType={namespace.backendType}
               depth={1}
               locale={locale}
               searchValue={searchValue}
@@ -523,7 +555,7 @@ export const StorageInspector: React.FC = () => {
         title="No storage connected"
         description={
           <span>
-            Create an Obstore or fsspec connection in your notebook. See the{" "}
+            Create an obstore or fsspec connection in your notebook. See the{" "}
             <a
               className="text-link"
               href="https://docs.marimo.io/guides/working_with_data/remote_storage/#quick-start"

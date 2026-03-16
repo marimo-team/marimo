@@ -170,7 +170,7 @@ class DeleteCellRequest(DeleteCellCommand, tag=False):
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):
     def as_command(self) -> InstallPackagesCommand:
         return InstallPackagesCommand(
-            manager=self.manager, versions=self.versions
+            manager=self.manager, versions=self.versions, source=self.source
         )
 
 

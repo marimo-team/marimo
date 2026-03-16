@@ -53,7 +53,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
-    from marimo._version import __version__
 
     MODELS = [
         # Base
@@ -278,7 +277,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     schemas_generator = SchemaGenerator(
         {
             "openapi": "3.1.0",
-            "info": {"title": "marimo API", "version": __version__},
+            "info": {"title": "marimo API"},
             "components": {
                 "schemas": component_schemas,
             },

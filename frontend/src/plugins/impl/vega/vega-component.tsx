@@ -16,6 +16,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -304,7 +305,12 @@ const LoadedVegaComponent = ({
         </Alert>
       )}
       <div
-        className="relative"
+        className={cn(
+          "relative",
+          "width" in selectableSpec &&
+            selectableSpec.width === "container" &&
+            "vega-container-width",
+        )}
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
