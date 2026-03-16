@@ -93,9 +93,9 @@ describe("copyImageToClipboard", () => {
 
     expect(writeMock).toHaveBeenCalledOnce();
     // Non-Safari path: awaits blob, uses blob.type as key
-    expect(clipboardItemSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ "image/jpeg": expect.any(Blob) }),
-    );
+    const arg = clipboardItemSpy.mock.calls[0][0];
+    expect(arg).toHaveProperty("image/jpeg");
+    expect(arg["image/jpeg"].type).toBe("image/jpeg");
   });
 
   it("uses image/png on Safari", async () => {
