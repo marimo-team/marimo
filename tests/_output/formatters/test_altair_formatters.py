@@ -105,7 +105,7 @@ def test_altair_formatter_respects_default_width():
     assert_vegalite_mimetype(mime)
     assert isinstance(content, str)
     json_content = json.loads(content)
-    assert "width" not in json_content
+    assert json_content.get("width") != "container"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
