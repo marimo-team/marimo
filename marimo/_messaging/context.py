@@ -47,13 +47,8 @@ class http_request_context:
 
 
 def is_code_mode_request() -> bool:
-    """True when the current request comes from a code-mode client.
-
-    Code-mode clients set the ``Marimo-Code-Mode`` header to signal
-    that package-missing notifications should be suppressed (the
-    caller handles installation itself).
-    """
+    """True when the current request originated from the /api/kernel/execute endpoint."""
     request = HTTP_REQUEST_CTX.get(None)
     if request is None:
         return False
-    return request.headers.get("marimo-code-mode", "") == "true"
+    return request.url.get("path", "").endswith("/api/kernel/execute")

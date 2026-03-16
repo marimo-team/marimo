@@ -84,12 +84,12 @@ class TestTracebacks:
         assert is_code_highlighting('class="not-codehilite"') is False
 
     def test_write_traceback_plain_text_in_code_mode(self) -> None:
-        """When request has Marimo-Code-Mode header, use plain text."""
+        """When request is from /api/kernel/execute, use plain text."""
         mock_stderr = MagicMock(spec=Stderr)
         req = HTTPRequest(
-            url={},
+            url={"path": "/api/kernel/execute"},
             base_url={},
-            headers={"marimo-code-mode": "true"},
+            headers={},
             query_params={},
             path_params={},
             cookies={},
@@ -134,11 +134,11 @@ class TestIsCodeModeRequest:
     def test_no_request_context(self) -> None:
         assert is_code_mode_request() is False
 
-    def test_with_code_mode_header(self) -> None:
+    def test_execute_endpoint(self) -> None:
         req = HTTPRequest(
-            url={},
+            url={"path": "/api/kernel/execute"},
             base_url={},
-            headers={"marimo-code-mode": "true"},
+            headers={},
             query_params={},
             path_params={},
             cookies={},
@@ -151,11 +151,11 @@ class TestIsCodeModeRequest:
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
-    def test_without_code_mode_header(self) -> None:
+    def test_run_endpoint(self) -> None:
         req = HTTPRequest(
-            url={},
+            url={"path": "/api/kernel/run"},
             base_url={},
-            headers={"accept": "application/json"},
+            headers={},
             query_params={},
             path_params={},
             cookies={},
@@ -168,7 +168,7 @@ class TestIsCodeModeRequest:
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
-    def test_empty_headers(self) -> None:
+    def test_empty_url(self) -> None:
         req = HTTPRequest(
             url={},
             base_url={},
