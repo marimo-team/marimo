@@ -46,15 +46,10 @@ class http_request_context:
         HTTP_REQUEST_CTX.reset(self.token)
 
 
-def is_headless_request() -> bool:
-    """True when the current request comes from a non-browser client.
-
-    Returns False (not headless) when there is no request context
-    (e.g. websocket/browser) or when the Accept header includes
-    text/html. Returns True for programmatic clients like the
-    ``/execute`` SSE endpoint.
-    """
+def is_code_mode_request() -> bool:
+    """True when the current request originated from the /api/kernel/execute endpoint."""
     request = HTTP_REQUEST_CTX.get(None)
     if request is None:
         return False
-    return "text/html" not in request.headers.get("accept", "")
+    path: str = request.url.get("path", "")
+    return path.endswith("/api/kernel/execute")

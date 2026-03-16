@@ -52,7 +52,7 @@ from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import (
     http_request_context,
-    is_headless_request,
+    is_code_mode_request,
     run_id_context,
 )
 from marimo._messaging.errors import (
@@ -3121,7 +3121,7 @@ class PackagesCallbacks:
                 )
             )
         else:
-            if is_headless_request():
+            if is_code_mode_request():
                 return
 
             broadcast_notification(
