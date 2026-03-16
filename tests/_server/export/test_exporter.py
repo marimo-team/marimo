@@ -985,9 +985,8 @@ class TestPDFExport:
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has()
-        or not DependencyManager.playwright.has(),
-        reason="nbformat or nbconvert or playwright not installed",
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
     )
     def test_export_as_pdf_webpdf_mode(
         self,
@@ -1034,9 +1033,8 @@ class TestPDFExport:
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has()
-        or not DependencyManager.playwright.has(),
-        reason="nbformat or nbconvert or playwright not installed",
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
     )
     def test_export_as_pdf_webpdf_mode_without_inputs(
         self,
@@ -1081,9 +1079,8 @@ class TestPDFExport:
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has()
-        or not DependencyManager.playwright.has(),
-        reason="nbformat or nbconvert or playwright not installed",
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
     )
     def test_export_as_pdf_returns_none_on_invalid_data(
         self,
@@ -1118,9 +1115,8 @@ class TestPDFExport:
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has()
-        or not DependencyManager.playwright.has(),
-        reason="nbformat or nbconvert or playwright not installed",
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
     )
     def test_export_as_pdf_falls_back_to_webpdf_on_oserror(
         self,
