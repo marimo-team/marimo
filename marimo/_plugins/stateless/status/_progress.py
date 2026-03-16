@@ -188,7 +188,6 @@ class ProgressBar(_Progress):
         )
 
 
-# TODO(akshayka): Add a `done()` method that turns the spinner into a checkmark
 class Spinner(_Progress):
     """A spinner output representing a loading state"""
 
@@ -227,6 +226,49 @@ class Spinner(_Progress):
             subtitle (str, optional): New subtitle. Defaults to None.
         """
         super().update_progress(increment=1, title=title, subtitle=subtitle)
+
+    def done(
+        self,
+        title: str | None = "Done!",
+        subtitle: str | None = None,
+    ) -> None:
+        """Transition the spinner to a completed checkmark state.
+
+        This method updates the spinner in-place to show a checkmark,
+        indicating successful completion.
+
+        Examples:
+            ```python
+            with mo.status.spinner("Processing...") as _spinner:
+                do_work()
+                _spinner.done(title="Complete!")
+            ```
+
+        Args:
+            title (str, optional): Title to show next to checkmark. Defaults to "Done!".
+            subtitle (str, optional): Optional subtitle. Defaults to None.
+        """
+        from marimo._plugins.stateless.icon import icon as _icon
+        with self._lock:
+            if self.closed:
+                raise RuntimeError(
+                    "Progress indicators cannot be updated after exiting "
+                    "the context manager that created them."
+                )
+            check = _icon("lucide:circle-check", color="green")
+            title_str = f"{check} {title}" if title else str(check)
+            subtitle_str = (
+                f"<div class=\'text-sm text-muted-foreground\'>{subtitle}</div>"
+                if subtitle
+                else ""
+            )
+            self._text = (
+                f"<div class=\'flex flex-col items-center max-w-sm p-6 mx-auto gap-1\'>"
+                f"<div class=\'text-lg font-bold text-foreground/60\'>{title_str}</div>"
+                f"{subtitle_str}"
+                f"</div>"
+            )
+        output.flush()
 
 
 @mddoc
@@ -276,7 +318,9 @@ class spinner:
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self.remove_on_exit:
             self.spinner.clear()
-        # TODO(akshayka): else consider transitioning to a done state
+        elif exc_type is None:
+            # No exception — transition to done state
+            self.spinner.done()
         self.spinner.close()
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
