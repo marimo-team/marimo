@@ -46,15 +46,14 @@ class http_request_context:
         HTTP_REQUEST_CTX.reset(self.token)
 
 
-def is_headless_request() -> bool:
-    """True when the current request comes from a non-browser client.
+def is_code_mode_request() -> bool:
+    """True when the current request comes from a code-mode client.
 
-    Returns False (not headless) when there is no request context
-    (e.g. websocket/browser) or when the Accept header includes
-    text/html. Returns True for programmatic clients like the
-    ``/execute`` SSE endpoint.
+    Code-mode clients set the ``Marimo-Code-Mode`` header to signal
+    that package-missing notifications should be suppressed (the
+    caller handles installation itself).
     """
     request = HTTP_REQUEST_CTX.get(None)
     if request is None:
         return False
-    return "text/html" not in request.headers.get("accept", "")
+    return request.headers.get("marimo-code-mode", "") == "true"
