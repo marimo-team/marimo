@@ -598,6 +598,17 @@ class TestExportScript:
             p.output,
         )
 
+    @staticmethod
+    def test_export_script_with_inline_deps(
+        temp_sandboxed_marimo_file: str,
+    ) -> None:
+        p = _run_export("script", temp_sandboxed_marimo_file)
+        _assert_success(p)
+        output = p.stdout.decode()
+        assert "# /// script" in output
+        assert "polars" in output
+        snapshot(_get_snapshot_path("script", "script_sandboxed"), output)
+
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has() or _is_win32(),
         reason="hangs when watchdog is installed, flaky on Windows",
