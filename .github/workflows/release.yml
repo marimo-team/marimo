@@ -26,7 +26,6 @@ jobs:
     secrets: inherit
     permissions:
       contents: read # Required for checkout
-      packages: write # Required for Docker image publishing
       id-token: write # Required for nodejs OIDC
 
   publish_prod_pypi:
@@ -46,6 +45,26 @@ jobs:
           path: dist/
       - name: 📤 Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: 📢 Notify release result
+        if: always()
+        uses: marimo-team/internal-gh-actions/release-notification@main
+        with:
+          status: ${{ job.status }}
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}
+          artifact-url: "https://pypi.org/project/marimo/"
+
+  publish_docker:
+    name: 🐋 Publish Docker images
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build_prod, publish_prod_pypi]
+    uses: ./.github/workflows/publish-docker.yml
+    with:
+      marimo_version: ${{ needs.build_prod.outputs.marimo_version }}
+    secrets: inherit
+    permissions:
+      contents: read # Required for checkout
+      packages: write # Required for Docker image publishing
 
   # ── Development Release (push to main) ─────────────────────────
 
