@@ -554,7 +554,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         try:
             vega_spec = _parse_spec(chart)
         except Exception:
-            # Sometimes the changes to width and autosize (above) can cause `.to_dict()` to throw an error
+            # Parsing the chart spec (via Altair's `.to_dict()`) can fail for some charts,
             # similarly to the issue described in https://github.com/marimo-team/marimo/issues/6244
             # so we fallback to the original chart.
             LOGGER.info("Failed to parse spec, using original chart")
