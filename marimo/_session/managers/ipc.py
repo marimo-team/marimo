@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import _loggers
@@ -128,6 +129,52 @@ class IPCQueueManagerImpl(QueueManager):
         self.input_queue.put(text)
 
 
+def construct_kernel_env(
+    base_env: dict[str, str],
+    venv_python: str,
+    *,
+    is_ephemeral_sandbox: bool,
+    writable: bool,
+    kernel_pythonpath: str | None = None,
+) -> dict[str, str]:
+    """Build environment variables for a kernel subprocess.
+
+    Args:
+        base_env: Starting environment (typically ``os.environ.copy()``).
+        venv_python: Path to the Python executable in the target venv.
+        is_ephemeral_sandbox: Whether this is an ephemeral sandbox venv
+            built by ``build_sandbox_venv``.
+        writable: Whether the kernel venv supports package installs.
+        kernel_pythonpath: Extra PYTHONPATH entries for read-only
+            configured venvs that don't have marimo installed.
+
+    Returns:
+        A **new** dict with the appropriate overrides applied.
+    """
+    env = dict(base_env)
+
+    if kernel_pythonpath is not None:
+        existing = env.get("PYTHONPATH", "")
+        if existing:
+            env["PYTHONPATH"] = f"{kernel_pythonpath}{os.pathsep}{existing}"
+        else:
+            env["PYTHONPATH"] = kernel_pythonpath
+
+    if is_ephemeral_sandbox:
+        # Override UV env vars so the kernel subprocess sees the sandbox
+        # venv as its environment, not the outer uv project.
+        env["VIRTUAL_ENV"] = str(Path(venv_python).parent.parent)
+        env.pop("UV_PROJECT_ENVIRONMENT", None)
+
+    if writable:
+        # Setting this attempts to make auto-installations work even if
+        # other normally detected criteria are not true.
+        # IPC by itself does not seem to trigger them.
+        env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+
+    return env
+
+
 class IPCKernelManagerImpl(KernelManager):
     """IPC-based kernel manager to spawn sandboxed kernels.
 
@@ -177,8 +224,6 @@ class IPCKernelManagerImpl(KernelManager):
             redirect_console_to_browser=self.redirect_console_to_browser,
         )
 
-        env = os.environ.copy()
-
         venv_config = _get_venv_config(self.config_manager)
         try:
             configured_python = get_configured_venv_python(
@@ -190,6 +235,8 @@ class IPCKernelManagerImpl(KernelManager):
         # Ephemeral sandboxes are always writable; configured venvs respect the
         # flag.
         writable = True
+        is_ephemeral_sandbox = False
+        kernel_pythonpath: str | None = None
 
         # An explicitly configured venv takes precedence over an ephemeral
         # sandbox.
@@ -233,18 +280,14 @@ class IPCKernelManagerImpl(KernelManager):
                 # Inject PYTHONPATH for marimo and dependencies from the
                 # current runtime as a last chance effort to expose marimo
                 # to the kernel.
-                kernel_path = get_kernel_pythonpath()
-                existing = env.get("PYTHONPATH", "")
-                if existing:
-                    env["PYTHONPATH"] = f"{kernel_path}{os.pathsep}{existing}"
-                else:
-                    env["PYTHONPATH"] = kernel_path
+                kernel_pythonpath = get_kernel_pythonpath()
         else:
             # Fall back to building ephemeral sandbox venv
             # with IPC dependencies.
             # NB. "Ephemeral" sandboxes (or rather tmp sandboxes built by uv)
             # are always writable, and as such install marimo as a default,
             # making them much easier than a configured venv we cannot manage.
+            is_ephemeral_sandbox = True
             try:
                 self._sandbox_dir, venv_python = build_sandbox_venv(
                     self.app_metadata.filename,
@@ -264,12 +307,15 @@ class IPCKernelManagerImpl(KernelManager):
         # Store the venv python for package manager targeting
         self._venv_python = venv_python
 
+        env = construct_kernel_env(
+            base_env=os.environ.copy(),
+            venv_python=venv_python,
+            is_ephemeral_sandbox=is_ephemeral_sandbox,
+            writable=writable,
+            kernel_pythonpath=kernel_pythonpath,
+        )
+
         cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
-        if writable:
-            # Setting this attempts to make auto-installations work even if
-            # other normally detected criteria are not true.
-            # IPC by itself does not seem to trigger them.
-            env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
 

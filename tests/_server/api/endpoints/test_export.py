@@ -444,6 +444,47 @@ def test_auto_export_ipynb(
     )
 
 
+@with_session(SESSION_ID)
+def test_auto_export_ipynb_missing_nbformat_notifies_once(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    """Missing-nbformat alert fires at most once per session."""
+    from unittest.mock import patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.export.DependencyManager"
+        ) as mock_dm,
+        patch(
+            "marimo._server.api.endpoints.export.notify_server_missing_packages"
+        ) as mock_notify,
+    ):
+        mock_dm.nbformat.has.return_value = False
+
+        # First call — should notify
+        response = client.post(
+            "/api/export/auto_export/ipynb",
+            headers=HEADERS,
+            json={"download": False},
+        )
+        assert response.status_code == 304
+        assert mock_notify.call_count == 1
+
+        # Second call in same session — should NOT notify again
+        session.session_view.needs_export = lambda _: True  # reset guard
+        response = client.post(
+            "/api/export/auto_export/ipynb",
+            headers=HEADERS,
+            json={"download": False},
+        )
+        assert response.status_code == 304
+        assert mock_notify.call_count == 1  # still 1, not 2
+
+
 @pytest.mark.skipif(
     not DependencyManager.nbformat.has() or is_windows(),
     reason="nbformat not installed or on Windows",
