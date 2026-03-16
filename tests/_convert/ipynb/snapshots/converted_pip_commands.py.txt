@@ -33,7 +33,6 @@ def _():
     import numpy as np
 
     # packages added via marimo's package management: seaborn !pip install seaborn
-    return
 
 
 @app.cell
@@ -43,7 +42,6 @@ def _(subprocess):
     subprocess.call(['ls', '-la'])
     #! echo 'Hello World'
     subprocess.call(['echo', 'Hello World'])
-    return
 
 
 @app.cell

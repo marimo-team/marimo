@@ -499,8 +499,6 @@ def test_to_code(app_file_manager: AppFileManager) -> None:
             "def _():",
             "    import marimo as mo",
             "",
-            "    return",
-            "",
             "",
             'if __name__ == "__main__":',
             "    app.run()",

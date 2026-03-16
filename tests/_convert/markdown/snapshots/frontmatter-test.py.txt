@@ -12,13 +12,11 @@ def _(mo):
     mo.md(r"""
     # Notebook
     """)
-    return
 
 
 @app.cell
 def _():
     print("Hello, World!")
-    return
 
 
 if __name__ == "__main__":
