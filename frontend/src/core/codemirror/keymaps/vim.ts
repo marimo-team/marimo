@@ -247,21 +247,26 @@ function applyVimCommands(vimCommands: VimCommand[]) {
   }
 }
 
-type VimWithGlobalState = typeof Vim & {
-  getVimGlobalState_?: () => {
+interface ExtendedVim {
+  getVimGlobalState_: () => {
     macroModeState?: {
       isRecording: boolean;
       isPlaying: boolean;
     };
   };
-};
+}
+
+function isExtendedVim(vim: typeof Vim): vim is typeof Vim & ExtendedVim {
+  return (
+    "getVimGlobalState_" in vim && typeof vim.getVimGlobalState_ === "function"
+  );
+}
 
 function isMacroActive() {
-  const getGlobalState = (Vim as VimWithGlobalState).getVimGlobalState_;
-  if (typeof getGlobalState !== "function") {
+  if (!isExtendedVim(Vim)) {
     return false;
   }
-  const macroModeState = getGlobalState()?.macroModeState;
+  const macroModeState = Vim.getVimGlobalState_()?.macroModeState;
   if (!macroModeState) {
     return false;
   }
