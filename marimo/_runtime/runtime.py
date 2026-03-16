@@ -33,7 +33,12 @@ from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.config import (
+    STORAGE_INSPECTOR_DEFAULT,
+    ExecutionType,
+    MarimoConfig,
+    OnCellChangeType,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data._external_storage.models import StorageBackend, StorageEntry
 from marimo._data.preview_column import (
@@ -3485,7 +3490,9 @@ def launch_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-    if user_config.get("experimental", {}).get("storage_inspector", False):
+    if user_config.get("experimental", {}).get(
+        "storage_inspector", STORAGE_INSPECTOR_DEFAULT
+    ):
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(
