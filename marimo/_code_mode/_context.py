@@ -449,8 +449,7 @@ class AsyncCodeModeContext:
                 if self._cell_manager is not None
                 else CellId_t(SETUP_CELL_NAME)
             )
-            # Setup is identified by cell_id, not name — clear the name.
-            return cell_id, None
+            return cell_id, SETUP_CELL_NAME
         cell_id = self._id_generator.create_cell_id()
         return cell_id, name
 
