@@ -51,33 +51,30 @@ function useDebouncedConsoleOutputs<T>(outputs: T[]): T[] {
   const [debouncedOutputs, setDebouncedOutputs] = useState(outputs);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Non-empty outputs: apply immediately and cancel any pending clear
+  if (outputs.length > 0 && debouncedOutputs !== outputs) {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setDebouncedOutputs(outputs);
+  }
+
+  // Empty outputs: delay the clear so new outputs can arrive first
   useEffect(() => {
-    if (outputs.length > 0) {
-      // Non-empty: apply immediately and cancel any pending clear
+    if (outputs.length === 0 && timerRef.current === null) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setDebouncedOutputs([]);
+      }, CONSOLE_CLEAR_DEBOUNCE_MS);
+    }
+    return () => {
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      setDebouncedOutputs(outputs);
-    } else {
-      // Empty: delay the clear
-      if (timerRef.current === null) {
-        timerRef.current = setTimeout(() => {
-          timerRef.current = null;
-          setDebouncedOutputs(outputs);
-        }, CONSOLE_CLEAR_DEBOUNCE_MS);
-      }
-    }
-  }, [outputs]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-      }
     };
-  }, []);
+  }, [outputs]);
 
   return debouncedOutputs;
 }
