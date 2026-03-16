@@ -451,8 +451,6 @@ def test_auto_export_ipynb_missing_nbformat_notifies_once(
     """Missing-nbformat alert fires at most once per session."""
     from unittest.mock import patch
 
-    from marimo._server.api.utils import notify_server_missing_packages
-
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = temp_marimo_file
