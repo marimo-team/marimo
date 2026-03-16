@@ -242,6 +242,10 @@ class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
     cell_ids: list[CellId_t]
 
 
+class FocusCellRequest(msgspec.Struct, rename="camel"):
+    cell_id: CellId_t
+
+
 class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
     # ids of cells to run
     cell_ids: list[CellId_t]
