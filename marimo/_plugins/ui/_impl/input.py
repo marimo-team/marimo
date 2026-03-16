@@ -189,7 +189,7 @@ class slider(UIElement[Numeric, Numeric]):
         debounce (bool): Whether to debounce the slider to only send the value
             on mouse-up or drag-end. Defaults to False.
         disabled (bool, optional): Whether the slider is disabled. Defaults to False.
-        
+
         orientation (Literal["horizontal", "vertical"]): The orientation of the
             slider, either "horizontal" or "vertical". Defaults to "horizontal".
         show_value (bool): Whether to display the current value of the slider.
