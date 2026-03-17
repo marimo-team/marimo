@@ -197,6 +197,7 @@ test-optional = [
     "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat>=5.10.4",
+    "nbconvert>=7.17.0",
     "sympy>=1.13.3",
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
