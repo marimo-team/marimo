@@ -182,7 +182,12 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {renderUIMessage({ message, isStreamingReasoning, isLast, isLoading })}
+          {renderUIMessage({
+            message,
+            isStreamingReasoning,
+            isLast,
+            isLoading,
+          })}
         </div>
       );
     };

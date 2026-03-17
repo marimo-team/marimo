@@ -218,13 +218,7 @@ const ANIMATED = {
 };
 
 export const MarkdownRenderer = memo(
-  ({
-    content,
-    isStreaming,
-  }: {
-    content: string;
-    isStreaming?: boolean;
-  }) => {
+  ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
     const buffered = useWordBuffer(content, isStreaming ?? false);
 
     return (
