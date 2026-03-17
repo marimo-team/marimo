@@ -5,13 +5,6 @@ from unittest.mock import Mock, PropertyMock
 
 import pytest
 
-from marimo._runtime.commands import (
-    CodeCompletionCommand,
-    ModelCommand,
-    ModelUpdateMessage,
-    StopKernelCommand,
-    UpdateUIElementCommand,
-)
 from marimo._session.app_host.commands import KernelCreatedResponse
 from marimo._session.managers.app_host import (
     AppHostKernelManager,
@@ -56,55 +49,22 @@ class TestAppHostPushQueue:
 
 
 @pytest.mark.requires("zmq")
-class TestPutControlRequestRouting:
-    def _make_queue_manager(self) -> AppHostQueueManager:
+class TestPutControlRequestDelegation:
+    """Verify AppHostQueueManager.put_control_request delegates correctly.
+
+    Detailed routing logic is tested in tests/_session/test_queue.py.
+    """
+
+    def test_delegates_to_route_control_request(self) -> None:
+        from marimo._runtime.commands import StopKernelCommand
+
         app_host = Mock()
         qm = AppHostQueueManager(app_host, "s1")
-        # Replace push queues with mocks so we can track calls
         qm.control_queue = Mock()
-        qm.set_ui_element_queue = Mock()
         qm.completion_queue = Mock()
-        qm.input_queue = Mock()
-        return qm
+        qm.set_ui_element_queue = Mock()
 
-    def test_completion_goes_to_completion_queue_only(self) -> None:
-        qm = self._make_queue_manager()
-        cmd = CodeCompletionCommand(id="r1", document="x.", cell_id="c1")
-
-        qm.put_control_request(cmd)
-
-        qm.completion_queue.put.assert_called_once_with(cmd)
-        qm.control_queue.put.assert_not_called()
-        qm.set_ui_element_queue.put.assert_not_called()
-
-    def test_ui_element_goes_to_both_queues(self) -> None:
-        qm = self._make_queue_manager()
-        cmd = UpdateUIElementCommand(object_ids=["ui1"], values=[42])
-
-        qm.put_control_request(cmd)
-
-        qm.control_queue.put.assert_called_once_with(cmd)
-        qm.set_ui_element_queue.put.assert_called_once_with(cmd)
-        qm.completion_queue.put.assert_not_called()
-
-    def test_model_command_goes_to_both_queues(self) -> None:
-        qm = self._make_queue_manager()
-        cmd = ModelCommand(
-            model_id="m1",
-            message=ModelUpdateMessage(state={}, buffer_paths=[]),
-            buffers=[],
-        )
-
-        qm.put_control_request(cmd)
-
-        qm.control_queue.put.assert_called_once_with(cmd)
-        qm.set_ui_element_queue.put.assert_called_once_with(cmd)
-        qm.completion_queue.put.assert_not_called()
-
-    def test_regular_command_goes_to_control_queue_only(self) -> None:
-        qm = self._make_queue_manager()
         cmd = StopKernelCommand()
-
         qm.put_control_request(cmd)
 
         qm.control_queue.put.assert_called_once_with(cmd)
@@ -120,12 +80,12 @@ class TestAppHostLike:
         like = _AppHostLike(app_host, "s1")
         assert like.pid == 1234
 
-    def test_is_alive_delegates_to_is_session_ids(self) -> None:
+    def test_is_alive_delegates_to_has_active_session(self) -> None:
         app_host = Mock()
-        app_host.is_session_ids.return_value = True
+        app_host.has_active_session.return_value = True
         like = _AppHostLike(app_host, "s1")
         assert like.is_alive() is True
-        app_host.is_session_ids.assert_called_once_with("s1")
+        app_host.has_active_session.assert_called_once_with("s1")
 
     def test_terminate_is_noop(self) -> None:
         like = _AppHostLike(Mock(), "s1")

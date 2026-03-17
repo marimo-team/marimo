@@ -32,7 +32,7 @@ from marimo._session._venv import (
     install_marimo_into_venv,
 )
 from marimo._session.model import SessionMode
-from marimo._session.queue import ProcessLike, QueueType
+from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.typed_connection import TypedConnection
 
@@ -114,15 +114,12 @@ class IPCQueueManagerImpl(QueueManager):
         self._ipc.close_queues()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
-        # Completions are on their own queue
-        if isinstance(request, commands.CodeCompletionCommand):
-            self.completion_queue.put(request)
-            return
-
-        self.control_queue.put(request)
-        # Update UI elements are on both queues so they can be batched
-        if isinstance(request, commands.UpdateUIElementCommand):
-            self.set_ui_element_queue.put(request)
+        route_control_request(
+            request,
+            self.control_queue,
+            self.completion_queue,
+            self.set_ui_element_queue,
+        )
 
     def put_input(self, text: str) -> None:
         self.input_queue.put(text)

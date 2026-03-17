@@ -1,9 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Commands for app host management channel.
-
-These structs are serialized as JSON and sent over ZeroMQ between the main
-process and app host subprocesses.
-"""
+"""Commands for the app host management channel."""
 
 from __future__ import annotations
 
@@ -23,6 +19,7 @@ CHANNEL_CONTROL = "control"
 CHANNEL_UI_ELEMENT = "ui_element"
 CHANNEL_COMPLETION = "completion"
 CHANNEL_INPUT = "input"
+
 
 # Commands (main -> app host)
 class CreateKernelCmd(msgspec.Struct, tag=True):

@@ -20,7 +20,7 @@ from marimo._session.app_host.commands import (
     CHANNEL_UI_ELEMENT,
 )
 from marimo._session.model import SessionMode
-from marimo._session.queue import ProcessLike, QueueType
+from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import (
     KernelManager,
     QueueManager as QueueManagerProto,
@@ -107,19 +107,12 @@ class AppHostQueueManager(QueueManagerProto):
         app_host.register_stream(session_id, self.stream_queue)
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
-        # Completions are on their own queue
-        if isinstance(request, commands.CodeCompletionCommand):
-            self.completion_queue.put(request)
-            return
-
-        self.control_queue.put(request)
-        # UI element updates and model commands are on both queues
-        # so they can be batched
-        if isinstance(
+        route_control_request(
             request,
-            (commands.UpdateUIElementCommand, commands.ModelCommand),
-        ):
-            self.set_ui_element_queue.put(request)
+            self.control_queue,
+            self.completion_queue,
+            self.set_ui_element_queue,
+        )
 
     def put_input(self, text: str) -> None:
         self.input_queue.put(text)
@@ -141,7 +134,7 @@ class _AppHostLike(ProcessLike):
         return self._app_host.pid
 
     def is_alive(self) -> bool:
-        return self._app_host.is_session_ids(self._session_id)
+        return self._app_host.has_active_session(self._session_id)
 
     def terminate(self) -> None:
         # We can't forcibly terminate a kernel thread
@@ -216,7 +209,7 @@ class AppHostKernelManager(KernelManager):
         return None
 
     def is_alive(self) -> bool:
-        return self._app_host.is_session_ids(self._session_id)
+        return self._app_host.has_active_session(self._session_id)
 
     def interrupt_kernel(self) -> None:
         # Run-mode threads can't be interrupted

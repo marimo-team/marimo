@@ -1,13 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""AppHost: wraps a subprocess for a single notebook file.
-
-Manages four ZeroMQ channels to the subprocess:
-- mgmt (PUSH): management commands (create/stop kernel, shutdown)
-- response (PULL): management responses
-- cmd (PUSH): kernel commands (control, UI, completion, input),
-    multiplexed by client session
-- stream (PULL): kernel output, multiplexed by session
-"""
+"""A container for a single notebook supporting multiple client sessions."""
 
 from __future__ import annotations
 
@@ -18,10 +10,8 @@ import threading
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._session.app_host.commands import (
-    AppHostArgs,
     AppHostReadyResponse,
     CreateKernelCmd,
     KernelCreatedResponse,
@@ -31,12 +21,11 @@ from marimo._session.app_host.commands import (
     decode_response,
     encode_command,
 )
+from marimo._session.app_host.connection import AppHostConnection
 
 if TYPE_CHECKING:
     import queue
     from collections.abc import Callable
-
-    import zmq
 
     from marimo._ast.cell import CellConfig
     from marimo._config.config import MarimoConfig
@@ -45,19 +34,19 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-_RESPONSE_TIMEOUT = 30_000  # milliseconds
-_BIND_ADDR = "tcp://127.0.0.1"
-
 
 class AppHost:
-    """Wraps a subprocess for a single notebook file.
+    """Encapsulates an app with multiple client sessions.
 
-    Manages four ZeroMQ channels to the subprocess:
-    - mgmt (PUSH): management commands (create/stop kernel, shutdown)
-    - response (PULL): management responses
-    - cmd (PUSH): kernel commands (control, UI, completion, input),
-        multiplexed by client session
-    - stream (PULL): kernel output, multiplexed by session
+    The AppHost runs client kernels for a single app in a separate process,
+    coordinating communication between the server and client sessions and
+    multiplexing by session ID.
+
+    Args:
+        file_path: the notebook's absolute path, for debugging
+        python: absolute path to the Python executable
+        sandbox_dir: where to store the temporary venv if the notebook is sandboxed
+        on_empty: callable invoked when the AppHost spins down to zero sessions
     """
 
     def __init__(
@@ -71,54 +60,76 @@ class AppHost:
         self._python = python or sys.executable
         self._sandbox_dir = sandbox_dir
         self._on_empty = on_empty
+
+        # The process hosting client kernels.
         self._process: subprocess.Popen[bytes] | None = None
-        self._zmq_context: zmq.Context[zmq.Socket[bytes]] | None = None
-        # Management commands and responses
-        self._mgmt_socket: zmq.Socket[bytes] | None = None
-        self._response_socket: zmq.Socket[bytes] | None = None
-        # Multiplexed data channels
-        self._cmd_socket: zmq.Socket[bytes] | None = None
-        self._stream_socket: zmq.Socket[bytes] | None = None
-        # Maps each client session to a unique queue for kernel outputs
+        self._conn: AppHostConnection | None = None
+
+        # A map from each client session to a unique queue for its kernel's outputs
+        # This map is protected by a lock, because a receiver thread drains its
+        # outputs.
+        self._stream_lock = threading.Lock()
         self._stream_receivers: dict[
             str, queue.Queue[KernelMessage | None]
         ] = {}
-        # Protects the iterate-then-clear in shutdown() from racing
-        # with the receiver loop's dict reads.
-        self._stream_lock = threading.Lock()
-        # Active session IDs with a live kernel thread in the subprocess.
+
+        # IDs for running sessions.
         self._session_ids: set[str] = set()
 
-    def start(self) -> None:
+    def _stream_receiver_loop(self) -> None:
+        """Read stream messages from the app host and route to sessions."""
         import zmq
 
-        context = zmq.Context()
-        self._zmq_context = context
+        while True:
+            try:
+                if self._conn is None:
+                    break
 
-        mgmt_socket = context.socket(zmq.PUSH)
-        mgmt_port = mgmt_socket.bind_to_random_port(_BIND_ADDR)
-        self._mgmt_socket = mgmt_socket
+                frames = self._conn.stream.recv_multipart()
+                session_id = frames[0].decode()
+                payload = pickle.loads(frames[1])
 
-        response_socket = context.socket(zmq.PULL)
-        response_port = response_socket.bind_to_random_port(_BIND_ADDR)
-        self._response_socket = response_socket
+                if isinstance(payload, KernelExited):
+                    self._session_ids.discard(session_id)
+                    LOGGER.debug(
+                        "Kernel thread exited for session %s", session_id
+                    )
+                    if not self._session_ids:
+                        # Grab and clear callback to prevent double-fire
+                        callback = self._on_empty
+                        self._on_empty = None
+                        if callback is not None:
+                            # Run on a separate thread — calling shutdown()
+                            # here would close the ZMQ socket we're reading
+                            # from.
+                            LOGGER.debug(
+                                "AppHost for %s is empty, invoking cleanup",
+                                self._file_path,
+                            )
+                            threading.Thread(
+                                target=callback, daemon=True
+                            ).start()
+                            break
+                    continue
 
-        cmd_socket = context.socket(zmq.PUSH)
-        cmd_port = cmd_socket.bind_to_random_port(_BIND_ADDR)
-        self._cmd_socket = cmd_socket
+                with self._stream_lock:
+                    q = self._stream_receivers.get(session_id)
 
-        stream_socket = context.socket(zmq.PULL)
-        stream_port = stream_socket.bind_to_random_port(_BIND_ADDR)
-        self._stream_socket = stream_socket
+                if q is not None:
+                    q.put(payload)
+                else:
+                    LOGGER.debug(
+                        "Dropping stream message for unknown session %s",
+                        session_id,
+                    )
+            except zmq.ZMQError:
+                break
+            except Exception:
+                LOGGER.warning("Error in stream receiver", exc_info=True)
 
-        args = AppHostArgs(
-            mgmt_addr=f"{_BIND_ADDR}:{mgmt_port}",
-            response_addr=f"{_BIND_ADDR}:{response_port}",
-            cmd_addr=f"{_BIND_ADDR}:{cmd_port}",
-            stream_addr=f"{_BIND_ADDR}:{stream_port}",
-            file_path=self._file_path,
-            log_level=GLOBAL_SETTINGS.LOG_LEVEL,
-        )
+    def start(self) -> None:
+        conn, args = AppHostConnection.create(self._file_path)
+        self._conn = conn
 
         cmd = [
             self._python,
@@ -128,14 +139,13 @@ class AppHost:
         LOGGER.debug("Launching app host: %s", " ".join(cmd))
 
         # stdin is piped to send startup args; stdout/stderr inherit the
-        # parent's fds so subprocess output (logging, print) appears in
-        # the terminal — same as running without process isolation.
+        # parent's file descriptors to make sure we don't interfere
+        # with kernels' console outputs.
         self._process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
         )
 
-        # Send startup args via stdin
         proc_stdin = self._process.stdin
         if proc_stdin is None:
             raise RuntimeError("Failed to open stdin for app host")
@@ -143,14 +153,14 @@ class AppHost:
         proc_stdin.flush()
         proc_stdin.close()
 
-        # Wait for ready signal over the ZMQ response channel.
-        _READY_TIMEOUT_MS = 30_000  # milliseconds
-        if not response_socket.poll(timeout=_READY_TIMEOUT_MS):
+        ready_timeout_ms = 30_000
+        if not conn.response.poll(timeout=ready_timeout_ms):
             raise RuntimeError(
-                f"App host timed out ({_READY_TIMEOUT_MS // 1000}s) "
+                f"App host timed out ({ready_timeout_ms // 1000}s) "
                 f"for {self._file_path}"
             )
-        data = response_socket.recv()
+
+        data = conn.response.recv()
         ready_response = decode_response(data)
         if not isinstance(ready_response, AppHostReadyResponse):
             raise RuntimeError(
@@ -168,55 +178,12 @@ class AppHost:
             self._process.pid,
         )
 
-    def _stream_receiver_loop(self) -> None:
-        """Read stream messages from app host and route to sessions."""
-        import zmq
-
-        while True:
-            try:
-                if self._stream_socket is None:
-                    break
-                frames = self._stream_socket.recv_multipart()
-                session_id = frames[0].decode()
-                payload = pickle.loads(frames[1])
-                if isinstance(payload, KernelExited):
-                    self._session_ids.discard(session_id)
-                    LOGGER.debug(
-                        "Kernel thread exited for session %s",
-                        session_id,
-                    )
-                    if not self._session_ids:
-                        # Grab and clear callback to prevent double-fire
-                        callback = self._on_empty
-                        self._on_empty = None
-                        if callback is not None:
-                            # Run on a separate thread — calling
-                            # shutdown() here would close the ZMQ
-                            # socket we're reading from.
-                            threading.Thread(
-                                target=callback, daemon=True
-                            ).start()
-                    continue
-                with self._stream_lock:
-                    q = self._stream_receivers.get(session_id)
-                if q is not None:
-                    q.put(payload)
-                else:
-                    LOGGER.debug(
-                        "Dropping stream message for unknown session %s",
-                        session_id,
-                    )
-            except zmq.ZMQError:
-                break
-            except Exception:
-                LOGGER.warning("Error in stream receiver", exc_info=True)
-
     def send_command(
         self, session_id: str, channel: str, payload: object
     ) -> None:
         """Send a command to a kernel in the app host."""
-        if self._cmd_socket is not None:
-            self._cmd_socket.send_multipart(
+        if self._conn is not None:
+            self._conn.cmd.send_multipart(
                 [
                     session_id.encode(),
                     channel.encode(),
@@ -246,7 +213,7 @@ class AppHost:
         redirect_console_to_browser: bool,
         log_level: int,
     ) -> KernelCreatedResponse:
-        if self._mgmt_socket is None or self._response_socket is None:
+        if self._conn is None:
             raise RuntimeError("App host not started")
 
         cmd = CreateKernelCmd(
@@ -258,10 +225,11 @@ class AppHost:
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
         )
-        self._mgmt_socket.send(encode_command(cmd))
+        self._conn.mgmt.send(encode_command(cmd))
 
-        if self._response_socket.poll(timeout=_RESPONSE_TIMEOUT):
-            data = self._response_socket.recv()
+        response_timeout_ms = 30_000
+        if self._conn.response.poll(timeout=response_timeout_ms):
+            data = self._conn.response.recv()
             response = decode_response(data)
             if not isinstance(response, KernelCreatedResponse):
                 raise RuntimeError(
@@ -275,12 +243,12 @@ class AppHost:
         )
 
     def stop_kernel(self, session_id: str) -> None:
-        if self._mgmt_socket is not None:
-            self._mgmt_socket.send(
+        if self._conn is not None:
+            self._conn.mgmt.send(
                 encode_command(StopKernelCmd(session_id=session_id))
             )
 
-    def is_session_ids(self, session_id: str) -> bool:
+    def has_active_session(self, session_id: str) -> bool:
         """Check if a specific kernel thread is alive in this host."""
         return (
             session_id in self._session_ids
@@ -308,9 +276,9 @@ class AppHost:
                     pass
             self._stream_receivers.clear()
 
-        if self._mgmt_socket is not None:
+        if self._conn is not None:
             try:
-                self._mgmt_socket.send(encode_command(ShutdownAppHostCmd()))
+                self._conn.mgmt.send(encode_command(ShutdownAppHostCmd()))
             except zmq.ZMQError:
                 pass
 
@@ -324,26 +292,13 @@ class AppHost:
                 except subprocess.TimeoutExpired:
                     self._process.kill()
 
-        if self._mgmt_socket is not None:
-            self._mgmt_socket.close(linger=0)
-        if self._response_socket is not None:
-            self._response_socket.close(linger=0)
-        if self._cmd_socket is not None:
-            self._cmd_socket.close(linger=0)
-        if self._stream_socket is not None:
-            self._stream_socket.close(linger=0)
-        if self._zmq_context is not None:
-            self._zmq_context.destroy(linger=0)
-
-        # Null out sockets so that any stale references from
-        # AppHostQueueManager / AppHostKernelManager instances that
-        # still point to this (now-dead) AppHost will silently
-        # no-op instead of raising ZMQError on closed sockets.
-        self._mgmt_socket = None
-        self._response_socket = None
-        self._cmd_socket = None
-        self._stream_socket = None
-        self._zmq_context = None
+        if self._conn is not None:
+            self._conn.close()
+            # Null out so that any stale references from
+            # AppHostQueueManager / AppHostKernelManager instances that
+            # still point to this (now-dead) AppHost will silently
+            # no-op instead of raising ZMQError on closed sockets.
+            self._conn = None
 
         if self._sandbox_dir is not None:
             from marimo._cli.sandbox import cleanup_sandbox_dir

@@ -1,12 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Per-app process isolation for running multiple notebooks.
+"""App isolation for serving multiple notebooks.
 
-Each notebook gets its own OS process to avoid collisions in sys.modules
-and other Python global data structures. Multiple client sessions for the
-same notebook share a single host process.
+Each notebook is hosted in an AppHost, which isolates the notebook from other
+running notebooks. Sessions for the same notebook are routed to a single
+AppHost.
 
-AppHost: wraps a subprocess for one notebook, managing ZeroMQ channels.
-AppHostPool: manages host processes keyed by absolute file path.
+AppHosts are created and managed by an AppHostPool.
 """
 
 from marimo._session.app_host.host import AppHost
