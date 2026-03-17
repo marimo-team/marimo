@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -111,6 +112,54 @@ def test_install_missing_packages(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
+
+
+def _mock_server_install(
+    client: TestClient, *, manager_installed: bool = True
+) -> tuple[MagicMock, MagicMock]:
+    """POST install_missing_packages with source="server" using a mocked
+    package manager.  Returns (mock_create, mock_pkg_manager)."""
+    mock_pkg_manager = MagicMock()
+    mock_pkg_manager.is_manager_installed.return_value = manager_installed
+    mock_pkg_manager.install = AsyncMock()
+
+    with patch(
+        "marimo._runtime.packages.package_managers.create_package_manager",
+        return_value=mock_pkg_manager,
+    ) as mock_create:
+        response = client.post(
+            "/api/kernel/install_missing_packages",
+            headers=HEADERS,
+            json={
+                "manager": "pip",
+                "versions": {"nbformat": ""},
+                "source": "server",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert "success" in response.json()
+
+    return mock_create, mock_pkg_manager
+
+
+@with_session(SESSION_ID)
+def test_install_missing_packages_server_source(client: TestClient) -> None:
+    # source="server" routes the install to the server's Python env directly
+    # rather than dispatching to the kernel.
+    mock_create, mock_pkg_manager = _mock_server_install(client)
+    mock_create.assert_called_once_with("pip", python_exe=sys.executable)
+    mock_pkg_manager.install.assert_awaited_once_with("nbformat", version=None)
+
+
+@with_session(SESSION_ID)
+def test_install_missing_packages_server_source_manager_not_installed(
+    client: TestClient,
+) -> None:
+    # When the package manager is not installed, alert_not_installed is called
+    # and no packages are installed.
+    _, mock_pkg_manager = _mock_server_install(client, manager_installed=False)
+    mock_pkg_manager.alert_not_installed.assert_called_once()
+    mock_pkg_manager.install.assert_not_awaited()
 
 
 @with_session(SESSION_ID)

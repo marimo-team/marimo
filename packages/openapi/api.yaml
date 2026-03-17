@@ -2020,10 +2020,20 @@ components:
         \ the specified package manager. Triggered\n    automatically on import errors\
         \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
         \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
-        \ to version specifiers. Empty version\n                  means install latest."
+        \ to version specifiers. Empty version\n                  means install latest.\n\
+        \        source: Where to install. \"kernel\" (default) dispatches to the\
+        \ kernel\n                subprocess; \"server\" installs directly into the\
+        \ server's Python\n                environment (sys.executable), used when\
+        \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
+        \ auto-export in sandbox mode)."
       properties:
         manager:
           type: string
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
         type:
           enum:
           - install-packages
@@ -2041,6 +2051,11 @@ components:
       properties:
         manager:
           type: string
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
         versions:
           additionalProperties:
             type: string
@@ -3053,8 +3068,11 @@ components:
       type: object
     MissingPackageAlertNotification:
       description: "Alert for missing packages with install option.\n\n    Attributes:\n\
-        \        packages: Missing package names.\n        isolated: Whether in isolated\
-        \ environment."
+        \        packages: Missing package names.\n        isolated: Whether auto-install\
+        \ is possible in this environment.\n        source: Which Python environment\
+        \ to install into. \"kernel\" (default)\n                installs in the kernel's\
+        \ venv; \"server\" installs in the\n                server's own Python env\
+        \ (e.g. for formatter tools like ruff)."
       properties:
         isolated:
           type: boolean
@@ -3065,6 +3083,11 @@ components:
           items:
             type: string
           type: array
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
       required:
       - op
       - packages

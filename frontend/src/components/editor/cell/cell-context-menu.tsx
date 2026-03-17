@@ -25,7 +25,7 @@ import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
-import { copyToClipboard } from "@/utils/copy";
+import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
 import { getImageExtension } from "@/utils/filenames";
 import { Logger } from "@/utils/Logger";
 import type { ActionButton } from "../actions/types";
@@ -127,11 +127,7 @@ export const CellActionsContextMenu = ({
       icon: <ClipboardCopyIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
         if (imageRightClicked) {
-          const response = await fetch(imageRightClicked.src);
-          const blob = await response.blob();
-          const item = new ClipboardItem({ [blob.type]: blob });
-          await navigator.clipboard
-            .write([item])
+          await copyImageToClipboard(imageRightClicked.src)
             .then(() => {
               toast({
                 title: "Copied image to clipboard",

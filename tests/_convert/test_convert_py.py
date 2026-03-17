@@ -5,6 +5,7 @@ from textwrap import dedent
 
 from marimo import __version__
 from marimo._convert.converters import MarimoConvert
+from marimo._convert.script import _header_for_script
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -124,3 +125,71 @@ def test_unparsable_cell_with_escaped_quotes():
     snapshot(
         "unparsable_cell_with_escaped_quotes.py.txt", identity(marimo_script)
     )
+
+
+def test_inline_deps_preserved_in_script_export() -> None:
+    """PEP 723 inline deps in Python notebooks are preserved when exporting to script."""
+    marimo_py = dedent("""\
+        # /// script
+        # requires-python = ">=3.11"
+        # dependencies = [
+        #     "pandas",
+        # ]
+        # ///
+
+        import marimo
+
+        __generated_with = "0.0.0"
+        app = marimo.App()
+
+
+        @app.cell
+        def _():
+            import pandas as pd
+            return (pd,)
+
+
+        if __name__ == "__main__":
+            app.run()
+    """)
+
+    ir = MarimoConvert.from_py(marimo_py).ir
+    header = _header_for_script(ir)
+    assert "# /// script" in header
+    assert "pandas" in header
+
+
+def test_inline_deps_preserved_via_markdown_roundtrip() -> None:
+    """PEP 723 inline deps survive Python → markdown → script conversion."""
+    marimo_py = dedent("""\
+        # /// script
+        # requires-python = ">=3.11"
+        # dependencies = [
+        #     "pandas",
+        # ]
+        # ///
+
+        import marimo
+
+        __generated_with = "0.0.0"
+        app = marimo.App()
+
+
+        @app.cell
+        def _():
+            import pandas as pd
+            return (pd,)
+
+
+        if __name__ == "__main__":
+            app.run()
+    """)
+
+    # Python → markdown
+    md = MarimoConvert.from_py(marimo_py).to_markdown()
+
+    # markdown → script IR
+    ir = MarimoConvert.from_md(md).ir
+    header = _header_for_script(ir)
+    assert "# /// script" in header
+    assert "pandas" in header

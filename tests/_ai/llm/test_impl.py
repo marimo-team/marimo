@@ -25,44 +25,40 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
 
 
-@pytest.fixture
-def mock_openai_client():
-    """Fixture for mocking the OpenAI client."""
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+def _make_chat_client_fixture(patch_path: str, *, streaming: bool = False):
+    @pytest.fixture
+    def _fixture():
+        with patch(patch_path) as mock_class:
+            mock_client = MagicMock()
+            mock_class.return_value = mock_client
+            if streaming:
+                mock_chunk = MagicMock()
+                mock_choice = MagicMock()
+                mock_delta = MagicMock()
+                mock_delta.content = "Test response"
+                mock_choice.delta = mock_delta
+                mock_chunk.choices = [mock_choice]
+                mock_client.chat.completions.create.return_value = [mock_chunk]
+            else:
+                mock_response = MagicMock()
+                mock_choice = MagicMock()
+                mock_message = MagicMock()
+                mock_message.content = "Test response"
+                mock_choice.message = mock_message
+                mock_response.choices = [mock_choice]
+                mock_client.chat.completions.create.return_value = (
+                    mock_response
+                )
+            yield mock_client, mock_class
 
-        # Setup the streaming response structure
-        mock_chunk = MagicMock()
-        mock_choice = MagicMock()
-        mock_delta = MagicMock()
-        mock_delta.content = "Test response"
-        mock_choice.delta = mock_delta
-        mock_chunk.choices = [mock_choice]
-
-        # Return an iterable for streaming
-        mock_client.chat.completions.create.return_value = [mock_chunk]
-
-        yield mock_client, mock_openai_class
+    return _fixture
 
 
-@pytest.fixture
-def mock_groq_client():
-    """Fixture for mocking the Groq client."""
-    with patch("groq.Groq") as mock_groq_class:
-        mock_client = MagicMock()
-        mock_groq_class.return_value = mock_client
-
-        # Setup the response structure
-        mock_response = MagicMock()
-        mock_choice = MagicMock()
-        mock_message = MagicMock()
-        mock_message.content = "Test response"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
-
-        yield mock_client, mock_groq_class
+mock_openai_client = _make_chat_client_fixture("openai.OpenAI", streaming=True)
+mock_groq_client = _make_chat_client_fixture("groq.Groq")
+mock_azure_openai_client = _make_chat_client_fixture(
+    "openai.AzureOpenAI", streaming=True
+)
 
 
 @pytest.fixture
@@ -98,29 +94,8 @@ def mock_google_client():
 
 
 @pytest.fixture
-def mock_azure_openai_client():
-    """Fixture for mocking the Azure OpenAI client."""
-    with patch("openai.AzureOpenAI") as mock_azure_openai_class:
-        mock_client = MagicMock()
-        mock_azure_openai_class.return_value = mock_client
-
-        # Setup the streaming response structure
-        mock_chunk = MagicMock()
-        mock_choice = MagicMock()
-        mock_delta = MagicMock()
-        mock_delta.content = "Test response"
-        mock_choice.delta = mock_delta
-        mock_chunk.choices = [mock_choice]
-
-        # Return an iterable for streaming
-        mock_client.chat.completions.create.return_value = [mock_chunk]
-
-        yield mock_client, mock_azure_openai_class
-
-
-@pytest.fixture
 def mock_litellm_completion():
-    """Fixture for mocking the OpenAI client."""
+    """Fixture for mocking the litellm completion function."""
     with patch("litellm.completion") as mock_litellm_completion:
         # Setup the response structure
         mock_response = MagicMock()

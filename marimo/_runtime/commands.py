@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -557,6 +558,10 @@ class InstallPackagesCommand(Command):
         manager: Package manager to use ('pip', 'conda', 'uv', etc.).
         versions: Package names mapped to version specifiers. Empty version
                   means install latest.
+        source: Where to install. "kernel" (default) dispatches to the kernel
+                subprocess; "server" installs directly into the server's Python
+                environment (sys.executable), used when the server itself needs
+                a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
     """
 
     # TODO: index URL (index/channel/...)
@@ -566,6 +571,8 @@ class InstallPackagesCommand(Command):
     # If the package name is not in the map, the latest version
     # will be installed
     versions: dict[str, str]
+
+    source: Literal["kernel", "server"] = "kernel"
 
 
 class PreviewDatasetColumnCommand(Command):
