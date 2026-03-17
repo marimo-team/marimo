@@ -8,10 +8,6 @@
   width: 100%;
 }
 
-.vega-container-height .vega-embed {
-  height: 100%;
-}
-
 .vega-embed > .chart-wrapper {
   overflow-x: auto;
 }
