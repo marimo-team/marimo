@@ -23,7 +23,7 @@ async function globalSetup(_config: FullConfig) {
       while (retries > 0) {
         try {
           await page.goto(url, {
-            waitUntil: "networkidle",
+            waitUntil: "load",
             timeout: 15_000,
           });
           console.log(`✅ ${app} ready`);
