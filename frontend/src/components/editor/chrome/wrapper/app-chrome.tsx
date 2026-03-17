@@ -150,7 +150,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   }, [panelLayout.sidebar, capabilities]);
 
   const emitResizeEvent = useEvent(() => {
-    // HACK: Unfortunately, we have to do this twice to make sure it the
+    // HACK: Unfortunately, we have to do this twice to make sure the
     // panel is fully expanded before we dispatch the resize event
     raf2(() => {
       window.dispatchEvent(new Event("resize"));
