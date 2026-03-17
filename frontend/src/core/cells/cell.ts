@@ -3,15 +3,20 @@ import { logNever } from "@/utils/assertNever";
 import { invariant } from "@/utils/invariant";
 import { type Seconds, Time } from "@/utils/time";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
-import { parseOutline } from "../dom/outline";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import type { RuntimeState } from "../network/types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
+import type { Outline } from "./outline";
 import type { CellRuntimeState } from "./types";
+
+interface TransitionCellOptions {
+  parseOutline?: (output: OutputMessage | null) => Outline | null;
+}
 
 export function transitionCell(
   cell: CellRuntimeState,
   message: CellMessage,
+  options?: TransitionCellOptions,
 ): CellRuntimeState {
   const nextCell = { ...cell };
 
@@ -137,7 +142,9 @@ export function transitionCell(
   }
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output
-  nextCell.outline = parseOutline(nextCell.output);
+  if (options?.parseOutline) {
+    nextCell.outline = options.parseOutline(nextCell.output);
+  }
 
   // Transition PDB
   const newConsoleOutputs = [message.console].flat().filter(Boolean);

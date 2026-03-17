@@ -22,7 +22,7 @@ import {
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
-import { findCollapseRange, mergeOutlines } from "../dom/outline";
+import { findCollapseRange, mergeOutlines, parseOutline } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
@@ -760,7 +760,7 @@ const {
       state,
       cellId,
       cellReducer: (cell) => {
-        return transitionCell(cell, message);
+        return transitionCell(cell, message, { parseOutline });
       },
     });
     return {
