@@ -249,6 +249,9 @@ def start(
         )
 
     is_multi = file_router.get_unique_file_key() is None
+    isolate_apps = is_multi and config_reader.experimental.get(
+        "isolate_apps", False
+    )
 
     session_manager = SessionManager(
         file_router=file_router,
@@ -264,7 +267,7 @@ def start(
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
         sandbox_mode=sandbox_mode,
-        isolate_apps=is_multi,
+        isolate_apps=isolate_apps,
     )
 
     log_level = "info" if development_mode else "error"
