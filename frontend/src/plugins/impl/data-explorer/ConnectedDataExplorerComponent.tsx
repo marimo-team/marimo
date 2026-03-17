@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useOnMount } from "@/hooks/useLifecycle";
+import { vegaContainerClasses } from "@/plugins/impl/vega/container-size";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { Objects } from "@/utils/objects";
@@ -140,13 +141,11 @@ export const DataExplorerComponent = ({
     const responsiveSpec = makeResponsive(spec);
     // TODO: We can optimize by updating the data dynamically. https://github.com/vega/react-vega?tab=readme-ov-file#recipes
     const augmentedSpec = augmentSpecWithData(responsiveSpec, chartData);
-    const isContainerWidth = responsiveSpec.width === "container";
-
     return (
       <div
         className={cn(
           "flex overflow-y-auto justify-center items-center flex-1 w-[90%]",
-          isContainerWidth && "vega-container-width",
+          vegaContainerClasses(responsiveSpec),
         )}
       >
         <VegaEmbed spec={augmentedSpec} options={chartOptions(theme)} />

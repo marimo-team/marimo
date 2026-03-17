@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { memo, Suspense, useMemo, useRef } from "react";
+import React, { memo, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -19,7 +19,6 @@ import {
   ChevronsUpDownIcon,
   ExpandIcon,
 } from "lucide-react";
-import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
@@ -32,8 +31,7 @@ import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { processMimeBundle } from "@/utils/mime-types";
 import { Objects } from "@/utils/objects";
-import { LazyVegaEmbed } from "../charts/lazy";
-import { ChartLoadingState } from "../data-table/charts/components/chart-states";
+import { VegaEmbedOutput } from "../charts/lazy";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
@@ -202,17 +200,10 @@ export const OutputRenderer: React.FC<{
     case "application/vnd.vegalite.v6+json":
     case "application/vnd.vega.v6+json":
       return (
-        <Suspense fallback={<ChartLoadingState />}>
-          <LazyVegaEmbed
-            spec={parsedJsonData as TopLevelFacetedUnitSpec}
-            options={{
-              theme: theme === "dark" ? "dark" : undefined,
-              mode: "vega-lite",
-              tooltip: tooltipHandler.call,
-              renderer: "canvas",
-            }}
-          />
-        </Suspense>
+        <VegaEmbedOutput
+          spec={parsedJsonData as TopLevelFacetedUnitSpec}
+          theme={theme}
+        />
       );
     case "application/vnd.marimo+mimebundle":
       return (

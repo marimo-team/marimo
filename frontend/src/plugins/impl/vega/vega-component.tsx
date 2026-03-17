@@ -21,6 +21,7 @@ import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
+import { vegaContainerClasses } from "./container-size";
 import { fixRelativeUrl } from "./fix-relative-url";
 import { arrow } from "./formats";
 import { makeSelectable } from "./make-selectable";
@@ -305,12 +306,7 @@ const LoadedVegaComponent = ({
         </Alert>
       )}
       <div
-        className={cn(
-          "relative",
-          "width" in selectableSpec &&
-            selectableSpec.width === "container" &&
-            "vega-container-width",
-        )}
+        className={cn("relative", vegaContainerClasses(selectableSpec))}
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
