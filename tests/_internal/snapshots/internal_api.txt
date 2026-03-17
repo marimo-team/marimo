@@ -123,6 +123,8 @@ session
   SessionView
   extensions
     CachingExtension
+    EventAwareExtension
+    ExtensionRegistry
     HeartbeatExtension
     LoggingExtension
     NotificationListenerExtension
