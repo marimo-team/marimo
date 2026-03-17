@@ -10,14 +10,11 @@ import pytest
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.commands import AppMetadata, StopKernelCommand
 from marimo._session.app_host.commands import (
-    CHANNEL_COMPLETION,
-    CHANNEL_CONTROL,
-    CHANNEL_INPUT,
-    CHANNEL_UI_ELEMENT,
+    Channel,
     CreateKernelCmd,
     KernelCreatedResponse,
     StopKernelCmd,
-    decode_response,
+    decode_mgmt_response,
 )
 from marimo._session.app_host.main import (
     _handle_command,
@@ -77,54 +74,56 @@ class TestHandleCommand:
         return info, queues
 
     def _make_cmd_socket(
-        self, session_id: str, channel: str, payload: object
+        self, session_id: str, channel: Channel, payload: object
     ) -> Mock:
         sock = Mock()
         sock.recv_multipart.return_value = [
             session_id.encode(),
-            channel.encode(),
+            channel.value,
             pickle.dumps(payload),
         ]
         return sock
 
     def test_routes_to_control_queue(self) -> None:
         info, queues = self._make_kernel_info()
-        sock = self._make_cmd_socket("s1", CHANNEL_CONTROL, "ctrl_payload")
+        sock = self._make_cmd_socket("s1", Channel.CONTROL, "ctrl_payload")
         _handle_command(sock, {"s1": info})
         assert queues.control.get_nowait() == "ctrl_payload"
 
     def test_routes_to_ui_element_queue(self) -> None:
         info, queues = self._make_kernel_info()
-        sock = self._make_cmd_socket("s1", CHANNEL_UI_ELEMENT, "ui_payload")
+        sock = self._make_cmd_socket("s1", Channel.UI_ELEMENT, "ui_payload")
         _handle_command(sock, {"s1": info})
         assert queues.ui_element.get_nowait() == "ui_payload"
 
     def test_routes_to_completion_queue(self) -> None:
         info, queues = self._make_kernel_info()
-        sock = self._make_cmd_socket("s1", CHANNEL_COMPLETION, "comp_payload")
+        sock = self._make_cmd_socket("s1", Channel.COMPLETION, "comp_payload")
         _handle_command(sock, {"s1": info})
         assert queues.completion.get_nowait() == "comp_payload"
 
     def test_routes_to_input_queue(self) -> None:
         info, queues = self._make_kernel_info()
-        sock = self._make_cmd_socket("s1", CHANNEL_INPUT, "input_payload")
+        sock = self._make_cmd_socket("s1", Channel.INPUT, "input_payload")
         _handle_command(sock, {"s1": info})
         assert queues.input.get_nowait() == "input_payload"
 
     def test_drops_command_for_unknown_session(self) -> None:
         """No error when session_id is not in the registry."""
-        sock = self._make_cmd_socket("unknown", CHANNEL_CONTROL, "payload")
+        sock = self._make_cmd_socket("unknown", Channel.CONTROL, "payload")
         _handle_command(sock, {})  # empty registry
 
-    def test_unknown_channel_does_not_enqueue(self) -> None:
-        """Payload is not routed to any queue for an unknown channel."""
-        info, queues = self._make_kernel_info()
-        sock = self._make_cmd_socket("s1", "bogus", "payload")
-        _handle_command(sock, {"s1": info})
-        assert queues.control.empty()
-        assert queues.ui_element.empty()
-        assert queues.completion.empty()
-        assert queues.input.empty()
+    def test_unknown_channel_raises_value_error(self) -> None:
+        """Unknown channel bytes raise ValueError from Channel enum."""
+        info, _ = self._make_kernel_info()
+        sock = Mock()
+        sock.recv_multipart.return_value = [
+            b"s1",
+            b"bogus",
+            pickle.dumps("payload"),
+        ]
+        with pytest.raises(ValueError):
+            _handle_command(sock, {"s1": info})
 
 
 @pytest.mark.requires("zmq")
@@ -176,7 +175,7 @@ class TestHandleCreateKernelFailure:
 
         assert len(kernels) == 0
         response_socket.send.assert_called_once()
-        resp = decode_response(response_socket.send.call_args[0][0])
+        resp = decode_mgmt_response(response_socket.send.call_args[0][0])
         assert isinstance(resp, KernelCreatedResponse)
         assert resp.success is False
         assert resp.session_id == "s1"

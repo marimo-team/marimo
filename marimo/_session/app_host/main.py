@@ -167,24 +167,21 @@ def _handle_create_kernel(
     response_socket: typing.Any,
 ) -> None:
     try:
-        # Create per-kernel threading queues
-        queues = _KernelQueues(
+        command_queues = _KernelQueues(
             control=queue.Queue(),
             ui_element=queue.Queue(),
             completion=queue.Queue(),
             input=queue.Queue(maxsize=1),
         )
-
-        # Stream output tagged with session_id, routed through shared outbox
         stream_queue = _TaggedStreamQueue(cmd.session_id, stream_outbox)
 
         def launch_kernel_with_cleanup() -> None:
             try:
                 runtime.launch_kernel(
-                    control_queue=queues.control,
-                    set_ui_element_queue=queues.ui_element,
-                    completion_queue=queues.completion,
-                    input_queue=queues.input,
+                    control_queue=command_queues.control,
+                    set_ui_element_queue=command_queues.ui_element,
+                    completion_queue=command_queues.completion,
+                    input_queue=command_queues.input,
                     stream_queue=stream_queue,
                     socket_addr=None,
                     is_edit_mode=False,
@@ -212,7 +209,7 @@ def _handle_create_kernel(
 
         kernels[cmd.session_id] = _KernelInfo(
             thread=thread,
-            queues=queues,
+            queues=command_queues,
             session_id=cmd.session_id,
         )
 
@@ -246,7 +243,7 @@ def app_host_main(args: AppHostArgs) -> None:
     """
     import zmq
 
-    # Ignore SIGINT in app host processes — the main process handles Ctrl-C
+    # Ignore SIGINT in app host processes. The main process handles Ctrl-C
     # and sends ShutdownAppHostCmd via the management channel.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -258,43 +255,39 @@ def app_host_main(args: AppHostArgs) -> None:
     # Register formatters once, shared by all kernel threads in this app host.
     register_formatters()
 
-    # Install thread-local stream proxies once at process startup,
-    # shared by all kernel threads (not per-kernel).
+    # Install thread-local stream proxies once at process startup, shared by
+    # all kernel threads (not per-kernel).
     install_thread_local_proxies()
 
     context = zmq.Context()
 
-    # Management channel (commands from main process)
+    # Management channel
     mgmt_socket = context.socket(zmq.PULL)
     mgmt_socket.connect(args.mgmt_addr)
-
     response_socket = context.socket(zmq.PUSH)
     response_socket.connect(args.response_addr)
 
-    # Multiplexed data channels
+    # Multiplexed command and output channels
     cmd_socket = context.socket(zmq.PULL)
     cmd_socket.connect(args.cmd_addr)
-
     stream_socket = context.socket(zmq.PUSH)
     stream_socket.connect(args.stream_addr)
 
-    # Signal the parent that we're ready to accept commands.
-    response_socket.send(encode_mgmt_response(AppHostReadyResponse()))
-
-    kernels: dict[str, _KernelInfo] = {}
+    # A separate thread collects outputs from kernels and forwards them to the
+    # AppHost that started this process.
     stream_outbox: queue.Queue[typing.Any] = queue.Queue()
-
     collector_thread = threading.Thread(
         target=_stream_collector_loop,
         args=(stream_outbox, stream_socket),
         daemon=True,
     )
     collector_thread.start()
+    response_socket.send(encode_mgmt_response(AppHostReadyResponse()))
 
+    kernels: dict[str, _KernelInfo] = {}
     poller = zmq.Poller()
     poller.register(mgmt_socket, zmq.POLLIN)
     poller.register(cmd_socket, zmq.POLLIN)
-
     while True:
         events = dict(poller.poll())
 
@@ -328,20 +321,16 @@ def app_host_main(args: AppHostArgs) -> None:
     context.destroy(linger=0)
 
 
-_STDIN_TIMEOUT = 30  # seconds
-
-
 def main() -> None:
-    """Entry point when run as a module."""
-    # Read startup args with a timeout — if the parent process crashes
-    # before closing stdin, read() would block forever.
+    # Read startup args with a timeout. If the parent process crashes before
+    # closing stdin, read() would block forever.
     result: list[bytes] = []
     reader = threading.Thread(
         target=lambda: result.append(sys.stdin.buffer.read()),
         daemon=True,
     )
     reader.start()
-    reader.join(timeout=_STDIN_TIMEOUT)
+    reader.join(timeout=30)
     if not result:
         sys.stderr.write(
             "Timed out reading startup args from parent process\n"

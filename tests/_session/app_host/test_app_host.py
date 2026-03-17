@@ -15,10 +15,10 @@ class TestAppHostCommands:
             KernelCreatedResponse,
             ShutdownAppHostCmd,
             StopKernelCmd,
-            decode_command,
-            decode_response,
-            encode_command,
-            encode_response,
+            decode_mgmt_command,
+            decode_mgmt_response,
+            encode_mgmt_command,
+            encode_mgmt_response,
         )
 
         app_metadata = AppMetadata(
@@ -44,8 +44,8 @@ class TestAppHostCommands:
         ]
 
         for cmd in commands:
-            data = encode_command(cmd)
-            restored = decode_command(data)
+            data = encode_mgmt_command(cmd)
+            restored = decode_mgmt_command(data)
             assert type(restored) is type(cmd)
 
         # Test responses
@@ -57,8 +57,8 @@ class TestAppHostCommands:
         ]
 
         for resp in responses:
-            data = encode_response(resp)
-            restored = decode_response(data)
+            data = encode_mgmt_response(resp)
+            restored = decode_mgmt_response(data)
             assert type(restored) is type(resp)
 
 
@@ -277,14 +277,14 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._cli.sandbox.build_sandbox_venv",
+                "marimo._session.app_host.pool.build_sandbox_venv",
                 return_value=(
                     "/tmp/sandbox-xyz",
                     "/tmp/sandbox-xyz/bin/python",
                 ),
             ) as mock_build,
             patch(
-                "marimo._session._venv.get_ipc_kernel_deps",
+                "marimo._session.app_host.pool.get_ipc_kernel_deps",
                 return_value=["pyzmq==26.0.0"],
             ),
             patch(
@@ -318,7 +318,7 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._cli.sandbox.build_sandbox_venv",
+                "marimo._session.app_host.pool.build_sandbox_venv",
             ) as mock_build,
             patch(
                 "marimo._session.app_host.pool.AppHost",
@@ -363,15 +363,15 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._cli.sandbox.build_sandbox_venv",
+                "marimo._session.app_host.pool.build_sandbox_venv",
                 side_effect=build_and_inject,
             ),
             patch(
-                "marimo._session._venv.get_ipc_kernel_deps",
+                "marimo._session.app_host.pool.get_ipc_kernel_deps",
                 return_value=[],
             ),
             patch(
-                "marimo._cli.sandbox.cleanup_sandbox_dir",
+                "marimo._session.app_host.pool.cleanup_sandbox_dir",
             ) as mock_cleanup,
         ):
             result = pool.get_or_create("/tmp/test_app.py")

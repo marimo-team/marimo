@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""QueueManager and KernelManager adapters for app host processes.
+"""QueueManager and KernelManager adapters for an AppHost.
 
 These adapt AppHost's multiplexed ZMQ channels to the session manager
 protocols (QueueManager, KernelManager).
@@ -212,9 +212,6 @@ class AppHostKernelManager(KernelManager):
 
     def close_kernel(self) -> None:
         self.queue_manager.close_queues()
-        # StopKernelCmd on the mgmt channel both sends StopKernelCommand
-        # to the kernel's control queue and removes it from the kernel
-        # registry in the subprocess.
         self._app_host.stop_kernel(self._session_id)
 
     @property

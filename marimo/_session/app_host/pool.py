@@ -1,8 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""AppHostPool: manages app host processes keyed by absolute file path.
+"""Provides AppHosts for notebooks.
 
-Each app is run in its own process to avoid collisions
-in sys.modules and other Python global data structures.
+Each app is run in its own AppHost, providing isolation.
 """
 
 from __future__ import annotations
@@ -11,18 +10,14 @@ import os
 import threading
 
 from marimo import _loggers
+from marimo._cli.sandbox import build_sandbox_venv, cleanup_sandbox_dir
+from marimo._session._venv import get_ipc_kernel_deps
 from marimo._session.app_host.host import AppHost
 
 LOGGER = _loggers.marimo_logger()
 
 
 class AppHostPool:
-    """Manages app host processes keyed by absolute file path.
-
-    Each app is run in its own process to avoid collisions
-    in sys.modules and other Python global data structures.
-    """
-
     def __init__(self, sandbox: bool = False) -> None:
         self._workers: dict[str, AppHost] = {}
         self._lock = threading.Lock()
@@ -35,9 +30,10 @@ class AppHostPool:
         """
         with self._lock:
             worker = self._workers.pop(abs_path, None)
+
         if worker is not None:
             LOGGER.debug(
-                "Auto-shutting down app host for %s (no active kernels)",
+                "Shutting down app host for %s (no active kernels)",
                 abs_path,
             )
             worker.shutdown()
@@ -52,7 +48,7 @@ class AppHostPool:
             return self._create_locked(abs_path)
 
     def _get_or_create_sandboxed(self, abs_path: str) -> AppHost:
-        """Get or create an app host with a sandboxed venv.
+        """Get or create an AppHost with a sandboxed venv.
 
         Uses double-check locking: the venv build (which can take many
         seconds) runs outside the lock to avoid blocking other threads.
@@ -63,20 +59,15 @@ class AppHostPool:
                 return worker
 
         # Build sandbox venv outside lock (can take many seconds)
-        from marimo._cli.sandbox import build_sandbox_venv
-        from marimo._session._venv import get_ipc_kernel_deps
-
         sandbox_dir, python = build_sandbox_venv(
             abs_path, additional_deps=get_ipc_kernel_deps()
         )
 
         with self._lock:
-            # Re-check — another thread may have created it while
-            # we were building the venv
+            # Re-check. Another thread may have created it while we were
+            # building the venv
             worker = self._workers.get(abs_path)
             if worker is not None and worker.is_alive():
-                from marimo._cli.sandbox import cleanup_sandbox_dir
-
                 cleanup_sandbox_dir(sandbox_dir)
                 return worker
 
@@ -90,7 +81,7 @@ class AppHostPool:
         python: str | None = None,
         sandbox_dir: str | None = None,
     ) -> AppHost:
-        """Create a new app host, replacing a dead one if present.
+        """Create a new AppHost, replacing a dead one if present.
 
         Must be called while holding self._lock.
         """
