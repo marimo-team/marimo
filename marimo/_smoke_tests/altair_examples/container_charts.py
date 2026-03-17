@@ -17,7 +17,6 @@ def _():
 def _(alt, data):
     cars = data.cars()
 
-    # make the chart
     chart = (
         alt.Chart(cars)
         .mark_point()
