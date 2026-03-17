@@ -1059,6 +1059,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="MiniMax"
+          provider="minimax"
+          isConfigured={hasValue("ai.minimax.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.minimax.api_key"
+            placeholder="sk-..."
+            testId="ai-minimax-api-key-input"
+            description={
+              <>
+                Your MiniMax API key from{" "}
+                <ExternalLink href="https://platform.minimaxi.com/user-center/basic-information/interface-key">
+                  platform.minimaxi.com
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.minimax.base_url"
+            placeholder="https://api.minimax.io/v1"
+            testId="ai-minimax-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Azure"
           provider="azure"
           isConfigured={

@@ -30,6 +30,9 @@ from marimo._server.ai.providers import (
             id="bedrock",
         ),
         pytest.param("openrouter/gpt-4", "openrouter", id="openrouter"),
+        pytest.param(
+            "minimax/MiniMax-M2.5", "minimax", id="minimax"
+        ),
     ],
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
@@ -50,6 +53,9 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
         },
         openrouter={
             "api_key": "openrouter-key",
+        },
+        minimax={
+            "api_key": "minimax-key",
         },
     )
     config = AnyProviderConfig.for_model(model_name, ai_config)
@@ -84,6 +90,9 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
         ),
         pytest.param(
             "openrouter/gpt-4", CustomProvider, None, id="openrouter"
+        ),
+        pytest.param(
+            "minimax/MiniMax-M2.5", CustomProvider, None, id="minimax"
         ),
     ],
 )

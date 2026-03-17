@@ -307,6 +307,7 @@ class AiConfig(TypedDict, total=False):
     - `github`: the GitHub config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
+    - `minimax`: the MiniMax config
     - `custom_providers`: a dict of custom OpenAI-compatible providers
     - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
     """
@@ -327,6 +328,7 @@ class AiConfig(TypedDict, total=False):
     github: GitHubConfig
     openrouter: OpenAiConfig
     wandb: OpenAiConfig
+    minimax: OpenAiConfig
     custom_providers: NotRequired[dict[str, OpenAiConfig]]
     # @deprecated: use `custom_providers` instead
     open_ai_compatible: OpenAiConfig

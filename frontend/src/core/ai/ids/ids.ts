@@ -13,6 +13,7 @@ export const KNOWN_PROVIDERS = [
   "github",
   "openrouter",
   "wandb",
+  "minimax",
   "marimo",
 ] as const;
 export type KnownProviderId = (typeof KNOWN_PROVIDERS)[number];

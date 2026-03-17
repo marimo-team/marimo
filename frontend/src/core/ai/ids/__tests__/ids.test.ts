@@ -74,6 +74,12 @@ describe("AiModelId", () => {
         expect(modelId.shortModelId).toBe("gpt-4o");
       });
 
+      it("should parse minimax qualified id", () => {
+        const modelId = AiModelId.parse("minimax/MiniMax-M2.5");
+        expect(modelId.providerId).toBe("minimax");
+        expect(modelId.shortModelId).toBe("MiniMax-M2.5");
+      });
+
       it("should handle multiple slashes", () => {
         const modelId = AiModelId.parse("openai/gpt-4/turbo");
         expect(modelId.providerId).toBe("openai");

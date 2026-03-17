@@ -77,6 +77,7 @@ You can configure the following providers:
 * Weights & Biases
 * Together AI
 * Vercel v0
+* MiniMax
 * and any OpenAI-compatible provider
 
 Below we describe how to connect marimo to your AI provider.
@@ -302,6 +303,28 @@ base_url = "https://api.inference.wandb.ai/v1/"  # Optional, this is the default
 ```
 
 See available models at the [Weights & Biases documentation](https://docs.wandb.ai/inference). Make sure to prepend `wandb/` to the model name.
+
+### MiniMax
+
+Use MiniMax models via the OpenAI‑compatible API.
+
+**Requirements**
+
+* MiniMax API key from [platform.minimaxi.com](https://platform.minimaxi.com/user-center/basic-information/interface-key)
+* `pip install openai` or `uv add openai`
+
+**Configuration**
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "minimax/MiniMax-M2.5"  # or "MiniMax-M2.5-highspeed" for faster responses
+
+[ai.minimax]
+api_key = "sk-..."
+base_url = "https://api.minimax.io/v1"  # Optional, this is the default
+```
+
+Available models include `MiniMax-M2.5` (204K context) and `MiniMax-M2.5-highspeed`. See the [MiniMax documentation](https://platform.minimaxi.com/document/introduction) for the full model list.
 
 ### Local models with Ollama { #using-ollama }
 

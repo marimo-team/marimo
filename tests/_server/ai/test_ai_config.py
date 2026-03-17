@@ -434,6 +434,17 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-wandb-key"
         assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
 
+    def test_for_model_minimax(self) -> None:
+        """Test for_model with MiniMax model."""
+        config: AiConfig = {"minimax": {"api_key": "test-minimax-key"}}
+
+        provider_config = AnyProviderConfig.for_model(
+            "minimax/MiniMax-M2.5", config
+        )
+
+        assert provider_config.api_key == "test-minimax-key"
+        assert provider_config.base_url == "https://api.minimax.io/v1"
+
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
         config: AiConfig = {"ollama": {"api_key": "test-key"}}
