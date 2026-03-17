@@ -51,7 +51,6 @@ from marimo._runtime.commands import (
     DeleteCellCommand,
     ExecuteCellCommand,
     InstallPackagesCommand,
-    UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import get_context as _get_runtime_context
@@ -822,29 +821,27 @@ class AsyncCodeModeContext:
             elif entry.config is not None:
                 config_entries.append(entry)
 
-        # Resolve configs before mutate_graph (which may delete metadata).
+        # Resolve configs for all entries (code and config-only).
         resolved_configs: dict[CellId_t, CellConfig] = {}
-        for entry in code_entries:
-            assert entry.code is not None
-            if entry.cell_id not in existing_id_set:
-                resolved_configs[entry.cell_id] = entry.config or CellConfig(
-                    hide_code=True
-                )
+        for entry in code_entries + config_entries:
+            if entry.config is not None:
+                resolved_configs[entry.cell_id] = entry.config
+            elif entry.cell_id not in existing_id_set:
+                resolved_configs[entry.cell_id] = CellConfig(hide_code=True)
             else:
                 existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
-                resolved_configs[entry.cell_id] = entry.config or (
+                resolved_configs[entry.cell_id] = (
                     existing_meta.config if existing_meta else CellConfig()
                 )
 
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for
         # deleted/replaced cells via _delete_cell / _deactivate_cell.
-        execution_requests: list[ExecuteCellCommand] = []
-        for e in code_entries:
-            assert e.code is not None
-            execution_requests.append(
-                ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
-            )
+        execution_requests = [
+            ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
+            for e in code_entries
+            if e.code is not None
+        ]
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -859,7 +856,7 @@ class AsyncCodeModeContext:
         target_order = [e.cell_id for e in plan]
         self.graph.topology.reorder_nodes(target_order)
 
-        # Apply configs to newly registered cells.
+        # Apply configs to all affected cells.
         for cell_id, cfg in resolved_configs.items():
             if cell_id in self.graph.cells:
                 self.graph.cells[cell_id].configure(cfg.asdict())
@@ -878,30 +875,27 @@ class AsyncCodeModeContext:
                 ):
                     del _cell_names[op.cell_id]
 
-        # Apply config-only changes.
-        for entry in config_entries:
-            await self.execute_command(
-                UpdateCellConfigCommand(
-                    configs={entry.cell_id: entry.config.asdict()}  # type: ignore[union-attr]
-                )
-            )
-
-        # Notify frontend of code changes.
-        target_order = [e.cell_id for e in plan]
-
+        # Notify frontend of all changes (code and config-only).
+        all_entries = code_entries + config_entries
         by_stale: dict[bool, list[_PlanEntry]] = {}
-        for entry in code_entries:
+        for entry in all_entries:
             by_stale.setdefault(entry.draft, []).append(entry)
 
         for is_stale, entries in by_stale.items():
             names = [_cell_names.get(e.cell_id, "") for e in entries]
+            codes = [
+                e.code
+                if e.code is not None
+                else self.graph.cells[e.cell_id].code
+                for e in entries
+            ]
             kwargs: dict[str, Any] = {}
             if any(names):
                 kwargs["names"] = names
             self.notify(
                 UpdateCellCodesNotification(
                     cell_ids=[e.cell_id for e in entries],
-                    codes=[e.code for e in entries],  # type: ignore[misc]
+                    codes=codes,
                     code_is_stale=is_stale,
                     configs=[resolved_configs[e.cell_id] for e in entries],
                     **kwargs,

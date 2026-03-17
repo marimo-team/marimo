@@ -273,7 +273,24 @@ class TestUpdateCell:
 
         assert k.globals["x"] == 1
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
-        assert msgspec.to_builtins(_code_notifs(k)) == snapshot([])
+        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
+            [
+                {
+                    "op": "update-cell-codes",
+                    "cell_ids": ["0"],
+                    "codes": ["x = 1"],
+                    "code_is_stale": False,
+                    "names": [],
+                    "configs": [
+                        {
+                            "column": None,
+                            "disabled": False,
+                            "hide_code": True,
+                        }
+                    ],
+                }
+            ]
+        )
 
 
 class TestCombined:
