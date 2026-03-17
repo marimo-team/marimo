@@ -17,6 +17,7 @@ import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
+import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,6 +27,7 @@ import { capabilitiesAtom } from "@/core/config/capabilities";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
+import { raf2 } from "../../navigation/focus-utils";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { PanelSectionProvider } from "../panels/panel-context";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
@@ -147,6 +149,14 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     });
   }, [panelLayout.sidebar, capabilities]);
 
+  const emitResizeEvent = useEvent(() => {
+    // HACK: Unfortunately, we have to do this twice to make sure it the
+    // panel is fully expanded before we dispatch the resize event
+    raf2(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+  });
+
   // sync sidebar
   useEffect(() => {
     if (!sidebarRef.current) {
@@ -162,13 +172,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     // Dispatch a resize event so widgets know to resize
-    requestAnimationFrame(() => {
-      // HACK: Unfortunately, we have to do this twice to make sure it the
-      // panel is fully expanded before we dispatch the resize event
-      requestAnimationFrame(() => {
-        window.dispatchEvent(new Event("resize"));
-      });
-    });
+    emitResizeEvent();
   }, [isSidebarOpen]);
 
   // sync panel
@@ -186,13 +190,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     // Dispatch a resize event so widgets know to resize
-    requestAnimationFrame(() => {
-      // HACK: Unfortunately, we have to do this twice to make sure it the
-      // panel is fully expanded before we dispatch the resize event
-      requestAnimationFrame(() => {
-        window.dispatchEvent(new Event("resize"));
-      });
-    });
+    emitResizeEvent();
   }, [isDeveloperPanelOpen]);
 
   // Auto-correct developer panel selection when the selected tab is no longer available

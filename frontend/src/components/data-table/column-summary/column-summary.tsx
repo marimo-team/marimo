@@ -45,6 +45,7 @@ export const TableColumnSummary = <TData, TValue>({
         <Suspense fallback={skeleton}>
           <LazyVegaEmbed
             spec={spec}
+            data-container-width="container"
             options={{
               width: 80,
               height: 30,
