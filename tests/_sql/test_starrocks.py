@@ -15,11 +15,6 @@ from marimo._sql.engines.starrocks import (
 from marimo._sql.sql_quoting import quote_sql_identifier
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
 @pytest.fixture(autouse=True)
 def _mock_sqlalchemy_if_missing():
     """Patch sys.modules with a lightweight sqlalchemy stub when the real
@@ -29,16 +24,9 @@ def _mock_sqlalchemy_if_missing():
         return
 
     mock_sa = MagicMock()
-    # `text()` is used as a pass-through wrapper; the result is fed into the
-    # mocked conn.execute, so its exact return value doesn't matter.
     mock_sa.text = MagicMock(side_effect=lambda q: q)
     with patch.dict(sys.modules, {"sqlalchemy": mock_sa}):
         yield
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_mock_engine(dialect_name: str = "starrocks") -> MagicMock:
@@ -73,11 +61,6 @@ def _mock_connection_ctx(engine: StarRocksEngine, side_effects: list[Any]):
     return conn
 
 
-# ---------------------------------------------------------------------------
-# is_compatible
-# ---------------------------------------------------------------------------
-
-
 class TestIsCompatible:
     @pytest.mark.requires("sqlalchemy", "starrocks")
     def test_compatible_with_starrocks_dialect(self) -> None:
@@ -103,11 +86,6 @@ class TestIsCompatible:
         assert not StarRocksEngine.is_compatible(None)
 
 
-# ---------------------------------------------------------------------------
-# source / dialect
-# ---------------------------------------------------------------------------
-
-
 class TestSourceAndDialect:
     def test_source(self) -> None:
         engine = _make_engine()
@@ -116,11 +94,6 @@ class TestSourceAndDialect:
     def test_dialect(self) -> None:
         engine = _make_engine()
         assert engine.dialect == "starrocks"
-
-
-# ---------------------------------------------------------------------------
-# get_default_database / get_default_schema
-# ---------------------------------------------------------------------------
 
 
 class TestDefaults:
@@ -151,11 +124,6 @@ class TestDefaults:
         engine.inspector = None
         engine._connection.connect.side_effect = Exception("connection failed")
         assert engine.get_default_schema() is None
-
-
-# ---------------------------------------------------------------------------
-# _list_catalogs / _list_databases_in_catalog
-# ---------------------------------------------------------------------------
 
 
 class TestListCatalogs:
@@ -202,11 +170,6 @@ class TestExternalSchemas:
             include_tables=False,
             include_table_details=False,
         ) == []
-
-
-# ---------------------------------------------------------------------------
-# get_databases
-# ---------------------------------------------------------------------------
 
 
 class TestGetDatabases:
@@ -298,11 +261,6 @@ class TestGetDatabases:
         assert databases[0].schemas[0].tables == []
 
 
-# ---------------------------------------------------------------------------
-# get_tables_in_schema
-# ---------------------------------------------------------------------------
-
-
 class TestGetTablesInSchema:
     def test_returns_tables_and_views(self) -> None:
         engine = _make_engine()
@@ -339,12 +297,6 @@ class TestGetTablesInSchema:
             schema="tpch", database="default_catalog", include_table_details=False
         )
         assert result == []
-
-
-# ---------------------------------------------------------------------------
-# get_table_details
-# ---------------------------------------------------------------------------
-
 
 class TestGetTableDetails:
     def test_returns_columns(self) -> None:
@@ -388,11 +340,6 @@ class TestGetTableDetails:
         assert result is None
 
 
-# ---------------------------------------------------------------------------
-# SQL quoting integration
-# ---------------------------------------------------------------------------
-
-
 class TestStarRocksQuoting:
     def test_starrocks_uses_backtick_style(self) -> None:
         assert quote_sql_identifier("my_catalog", dialect="starrocks") == "`my_catalog`"
@@ -404,11 +351,6 @@ class TestStarRocksQuoting:
             quote_sql_identifier("catalog with spaces", dialect="starrocks")
             == "`catalog with spaces`"
         )
-
-
-# ---------------------------------------------------------------------------
-# _resolve_auto
-# ---------------------------------------------------------------------------
 
 
 class TestResolveAuto:
@@ -424,11 +366,6 @@ class TestResolveAuto:
         # StarRocks is not in CHEAP_DISCOVERY_DATABASES, so "auto" → False.
         engine = _make_engine()
         assert engine._resolve_should_auto_discover("auto") is False
-
-
-# ---------------------------------------------------------------------------
-# System catalog / database constants
-# ---------------------------------------------------------------------------
 
 
 class TestSystemConstants:
