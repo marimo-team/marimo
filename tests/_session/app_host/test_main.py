@@ -20,14 +20,14 @@ from marimo._session.app_host.commands import (
     decode_response,
 )
 from marimo._session.app_host.main import (
-    _KernelInfo,
-    _KernelQueues,
-    _TaggedStreamQueue,
     _handle_command,
     _handle_create_kernel,
     _handle_stop_kernel,
+    _KernelInfo,
+    _KernelQueues,
     _shutdown_all_kernels,
     _stream_collector_loop,
+    _TaggedStreamQueue,
 )
 
 
@@ -73,9 +73,7 @@ class TestHandleCommand:
             completion=queue.Queue(),
             input=queue.Queue(),
         )
-        info = _KernelInfo(
-            thread=Mock(), queues=queues, session_id=session_id
-        )
+        info = _KernelInfo(thread=Mock(), queues=queues, session_id=session_id)
         return info, queues
 
     def _make_cmd_socket(
@@ -103,9 +101,7 @@ class TestHandleCommand:
 
     def test_routes_to_completion_queue(self) -> None:
         info, queues = self._make_kernel_info()
-        sock = self._make_cmd_socket(
-            "s1", CHANNEL_COMPLETION, "comp_payload"
-        )
+        sock = self._make_cmd_socket("s1", CHANNEL_COMPLETION, "comp_payload")
         _handle_command(sock, {"s1": info})
         assert queues.completion.get_nowait() == "comp_payload"
 
@@ -159,7 +155,9 @@ class TestHandleCreateKernelFailure:
             session_id="s1",
             configs={},
             app_metadata=AppMetadata(
-                query_params={}, cli_args={}, app_config={}  # type: ignore[arg-type]
+                query_params={},
+                cli_args={},
+                app_config={},  # type: ignore[arg-type]
             ),
             user_config=DEFAULT_CONFIG,
             virtual_files_supported=True,
@@ -248,12 +246,8 @@ class TestShutdownAllKernels:
             input=queue.Queue(),
         )
         kernels = {
-            "s1": _KernelInfo(
-                thread=Mock(), queues=queues1, session_id="s1"
-            ),
-            "s2": _KernelInfo(
-                thread=Mock(), queues=queues2, session_id="s2"
-            ),
+            "s1": _KernelInfo(thread=Mock(), queues=queues1, session_id="s1"),
+            "s2": _KernelInfo(thread=Mock(), queues=queues2, session_id="s2"),
         }
 
         _shutdown_all_kernels(kernels)
@@ -278,12 +272,8 @@ class TestShutdownAllKernels:
             input=queue.Queue(),
         )
         kernels = {
-            "s1": _KernelInfo(
-                thread=Mock(), queues=queues1, session_id="s1"
-            ),
-            "s2": _KernelInfo(
-                thread=Mock(), queues=queues2, session_id="s2"
-            ),
+            "s1": _KernelInfo(thread=Mock(), queues=queues1, session_id="s1"),
+            "s2": _KernelInfo(thread=Mock(), queues=queues2, session_id="s2"),
         }
 
         _shutdown_all_kernels(kernels)

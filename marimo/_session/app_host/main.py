@@ -1,19 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""App host entry point for per-app process isolation.
+"""The entry point for the app host process, which serves multiple clients.
 
-Launched via subprocess.Popen as:
-
-    python -m marimo._session.app_host.main
-
-Reads startup args (management channel ports, file path, log level) from
-stdin as JSON, then enters a loop processing management commands over ZeroMQ.
-Each app host manages kernel threads for a single notebook file, providing
-OS-level isolation of sys.modules between different apps.
-
-Communication uses multiplexed ZeroMQ channels:
-- mgmt channel: management commands (create/stop kernel, shutdown)
-- cmd channel: kernel commands (control, UI element, completion, input)
-- stream channel: kernel output (stream messages back to main process)
+Each app host manages kernel threads for a single notebook file (one thread per
+client session).
 """
 
 from __future__ import annotations
@@ -50,8 +39,6 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclasses.dataclass
 class _KernelQueues:
-    """Per-kernel threading queues."""
-
     control: queue.Queue[typing.Any]
     ui_element: queue.Queue[typing.Any]
     completion: queue.Queue[typing.Any]

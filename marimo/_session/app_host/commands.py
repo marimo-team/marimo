@@ -64,7 +64,8 @@ def encode_mgmt_command(cmd: MgmtCommand) -> bytes:
 
 
 def decode_mgmt_command(data: bytes) -> MgmtCommand:
-    return _cmd_decoder.decode(data)
+    result: MgmtCommand = _cmd_decoder.decode(data)
+    return result
 
 
 def encode_mgmt_response(resp: MgmtResponse) -> bytes:
@@ -72,7 +73,8 @@ def encode_mgmt_response(resp: MgmtResponse) -> bytes:
 
 
 def decode_mgmt_response(data: bytes) -> MgmtResponse:
-    return _resp_decoder.decode(data)
+    result: MgmtResponse = _resp_decoder.decode(data)
+    return result
 
 
 # ---------------- AppHost initialization ----------------

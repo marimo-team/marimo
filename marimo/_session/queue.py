@@ -34,10 +34,10 @@ class QueueType(Protocol[T]):
 
 
 def route_control_request(
-    request: "commands.CommandMessage",
-    control_queue: QueueType["commands.CommandMessage"],
-    completion_queue: QueueType["commands.CodeCompletionCommand"],
-    ui_element_queue: QueueType["commands.BatchableCommand"],
+    request: commands.CommandMessage,
+    control_queue: QueueType[commands.CommandMessage],
+    completion_queue: QueueType[commands.CodeCompletionCommand],
+    ui_element_queue: QueueType[commands.BatchableCommand],
 ) -> None:
     """Route a control request to the appropriate queue(s).
 

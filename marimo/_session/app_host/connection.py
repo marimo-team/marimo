@@ -17,7 +17,7 @@ _BIND_ADDR = "tcp://127.0.0.1"
 
 @dataclasses.dataclass
 class AppHostConnection:
-    """Manages all ZeroMQ sockets for an AppHost subprocess."""
+    """Manages all ZeroMQ sockets for an AppHost."""
 
     context: zmq.Context[zmq.Socket[bytes]]
 
