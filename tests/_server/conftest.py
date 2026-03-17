@@ -20,9 +20,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
 from marimo._session.queue import ProcessLike
 from marimo._session.session import SessionImpl
-from marimo._session.state.session_view import SessionView
 from tests._server.mocks import get_mock_session_manager
-from tests.utils import assert_serialize_roundtrip
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -124,10 +122,6 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
         sys.modules["__main__"] = main
 
 
-def get_session_manager(client: TestClient) -> SessionManager:
-    return client.app.state.session_manager  # type: ignore
-
-
 def get_session_config_manager(client: TestClient) -> UserConfigManager:
     """Assumes only one active session."""
     sessions = list(
@@ -139,14 +133,3 @@ def get_session_config_manager(client: TestClient) -> UserConfigManager:
 
 def get_user_config_manager(client: TestClient) -> UserConfigManager:
     return client.app.state.config_manager  # type: ignore
-
-
-@pytest.fixture
-def session_view() -> Generator[SessionView, None, None]:
-    sv = SessionView()
-
-    yield sv
-
-    # Test all operations can be serialized/deserialized
-    for operation in sv.notifications:
-        assert_serialize_roundtrip(operation)

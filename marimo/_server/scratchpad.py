@@ -199,6 +199,14 @@ def build_done_event(session: Session) -> str:
         )
         if hasattr(err, "exception_type"):
             error_data["exception_type"] = err.exception_type
+            if err.exception_type in (
+                "ModuleNotFoundError",
+                "ImportError",
+            ):
+                error_data["msg"] += (
+                    "\n\nHint: Use ctx.install_packages(...)"
+                    " to install missing packages."
+                )
         return _format_sse("done", DoneError(success=False, error=error_data))
 
     # Success case

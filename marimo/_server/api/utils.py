@@ -23,6 +23,8 @@ from marimo._utils.parse_dataclass import parse_raw
 if TYPE_CHECKING:
     from starlette.requests import Request
 
+    from marimo._session.session import Session
+
 
 async def parse_request(
     request: Request, cls: type[T], allow_unknown_keys: bool = False
@@ -104,3 +106,52 @@ def open_url_in_browser(browser: str, url: str) -> None:
 
 
 T = TypeVar("T")
+
+
+async def install_packages_on_server(
+    manager: str,
+    versions: dict[str, str],
+) -> None:
+    """Install packages into the server's own Python environment.
+
+    Used when the server itself needs a package (e.g. nbformat for
+    IPYNB auto-export when running with --sandbox).
+    """
+    import sys
+
+    from marimo._runtime.packages.package_managers import (
+        create_package_manager,
+    )
+
+    pkg_manager = create_package_manager(manager, python_exe=sys.executable)
+    if not pkg_manager.is_manager_installed():
+        pkg_manager.alert_not_installed()
+        return
+    for pkg, version in versions.items():
+        await pkg_manager.install(pkg, version=version or None)
+
+
+def notify_server_missing_packages(
+    session: Session | None,
+    session_id: str | None,
+    packages: list[str],
+) -> None:
+    """Send a missing-package alert for a server-side package.
+
+    Uses isolated=True so the install button always appears regardless of
+    whether the server is in a virtual environment.
+    """
+    if session_id is None or session is None:
+        return
+    from marimo._messaging.notification import MissingPackageAlertNotification
+    from marimo._session.utils import send_message_to_consumer
+
+    send_message_to_consumer(
+        session=session,
+        operation=MissingPackageAlertNotification(
+            packages=packages,
+            isolated=True,
+            source="server",
+        ),
+        consumer_id=ConsumerId(session_id),
+    )

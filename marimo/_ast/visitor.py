@@ -129,7 +129,7 @@ class Block:
     is_comprehension: bool = False
 
     def is_defined(self, name: str) -> bool:
-        return any(name == defn for defn in self.defs)
+        return name in self.defs
 
 
 @dataclass

@@ -17,7 +17,6 @@ from marimo._plugins.ui._impl.altair_chart import (
     chart_to_json,
     get_chart_mimetype,
     maybe_fix_vegafusion_background,
-    maybe_make_full_width,
 )
 from marimo._utils.data_uri import build_data_url
 
@@ -85,7 +84,6 @@ class AltairFormatter(FormatterFactory):
                     return mime_type, json.dumps(mime_response)
 
             chart = _apply_embed_options(chart)
-            chart = maybe_make_full_width(chart)
             chart = maybe_fix_vegafusion_background(chart)
 
             # If vegafusion is enabled, just wrap in altair_chart

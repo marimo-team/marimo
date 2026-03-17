@@ -8,7 +8,7 @@ import signal
 import sys
 import threading
 import time
-from multiprocessing import Process, connection
+from multiprocessing import connection, get_context
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
 
@@ -71,7 +71,7 @@ class KernelManagerImpl(KernelManager):
         if is_edit_mode:
             # Need to use a socket for windows compatibility
             listener = connection.Listener(family="AF_INET")
-            self.kernel_task = Process(
+            self.kernel_task = get_context("spawn").Process(
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,

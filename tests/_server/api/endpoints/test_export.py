@@ -18,8 +18,8 @@ from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
-from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
+    get_session_manager,
     token_header,
     with_read_session,
     with_session,
@@ -442,6 +442,47 @@ def test_auto_export_ipynb(
     assert os.path.exists(
         os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
+
+
+@with_session(SESSION_ID)
+def test_auto_export_ipynb_missing_nbformat_notifies_once(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    """Missing-nbformat alert fires at most once per session."""
+    from unittest.mock import patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.export.DependencyManager"
+        ) as mock_dm,
+        patch(
+            "marimo._server.api.endpoints.export.notify_server_missing_packages"
+        ) as mock_notify,
+    ):
+        mock_dm.nbformat.has.return_value = False
+
+        # First call — should notify
+        response = client.post(
+            "/api/export/auto_export/ipynb",
+            headers=HEADERS,
+            json={"download": False},
+        )
+        assert response.status_code == 304
+        assert mock_notify.call_count == 1
+
+        # Second call in same session — should NOT notify again
+        session.session_view.needs_export = lambda _: True  # reset guard
+        response = client.post(
+            "/api/export/auto_export/ipynb",
+            headers=HEADERS,
+            json={"download": False},
+        )
+        assert response.status_code == 304
+        assert mock_notify.call_count == 1  # still 1, not 2
 
 
 @pytest.mark.skipif(

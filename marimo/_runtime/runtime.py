@@ -33,7 +33,12 @@ from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.config import (
+    STORAGE_INSPECTOR_DEFAULT,
+    ExecutionType,
+    MarimoConfig,
+    OnCellChangeType,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data._external_storage.models import StorageBackend, StorageEntry
 from marimo._data.preview_column import (
@@ -45,7 +50,11 @@ from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.context import http_request_context, run_id_context
+from marimo._messaging.context import (
+    http_request_context,
+    is_code_mode_request,
+    run_id_context,
+)
 from marimo._messaging.errors import (
     Error,
     ImportStarError as MarimoImportStarError,
@@ -1745,6 +1754,13 @@ class Kernel:
 
         await runner.run_all()
 
+        # Flush any state updates queued during scratchpad execution
+        # (e.g., from widget .observe() callbacks that call mo.state
+        # setters). Without this, state updates are queued but never
+        # processed, so downstream cells don't re-run.
+        if self.state_updates:
+            await self._run_cells(set())
+
     @kernel_tracer.start_as_current_span("run_stale_cells")
     async def run_stale_cells(self) -> None:
         cells_to_run: set[CellId_t] = set()
@@ -3105,6 +3121,9 @@ class PackagesCallbacks:
                 )
             )
         else:
+            if is_code_mode_request():
+                return
+
             broadcast_notification(
                 MissingPackageAlertNotification(
                     packages=packages,
@@ -3471,7 +3490,9 @@ def launch_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-    if user_config.get("experimental", {}).get("storage_inspector", False):
+    if user_config.get("experimental", {}).get(
+        "storage_inspector", STORAGE_INSPECTOR_DEFAULT
+    ):
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(
@@ -3573,7 +3594,13 @@ def launch_kernel(
                 continue
 
             if request is not None:
-                await kernel.handle_message(request)
+                try:
+                    await kernel.handle_message(request)
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to handle control request: %s",
+                        type(request).__name__,
+                    )
 
     # The control loop is asynchronous only because we allow user code to use
     # top-level await; nothing else is awaited. Don't introduce async

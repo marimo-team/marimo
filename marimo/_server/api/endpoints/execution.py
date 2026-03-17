@@ -273,6 +273,14 @@ async def execute_code(
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
     session = app_state.require_current_session()
 
+    # Auto-instantiate so headless /api/execute works without a prior
+    # /api/instantiate call. The kernel no-ops if already instantiated,
+    # and queue ordering guarantees it completes before the scratchpad runs.
+    session.instantiate(
+        InstantiateNotebookRequest(object_ids=[], values=[], auto_run=True),
+        http_request=HTTPRequest.from_request(request),
+    )
+
     async def sse_generator() -> AsyncGenerator[str, None]:
         listener = ScratchCellListener()
         with session.scoped(listener):
