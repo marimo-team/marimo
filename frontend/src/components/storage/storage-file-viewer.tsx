@@ -4,27 +4,32 @@ import { FileIcon, LoaderCircle, RefreshCwIcon } from "lucide-react";
 import type React from "react";
 import { useCallback } from "react";
 import { useLocale } from "react-aria";
+import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { FilePreviewHeader } from "@/components/editor/file-tree/file-header";
 import { renderFileIcon } from "@/components/editor/file-tree/file-icons";
 import {
   FileContentRenderer,
   isMediaMime,
 } from "@/components/editor/file-tree/renderers";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { DownloadStorage } from "@/core/storage/request-registry";
-import type { StorageEntry } from "@/core/storage/types";
+import type { StorageEntry, StorageNamespace } from "@/core/storage/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { downloadByURL } from "@/utils/download";
 import { formatBytes } from "@/utils/formatting";
 import { Logger } from "@/utils/Logger";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
+import { STORAGE_SNIPPETS } from "./storage-snippets";
 
 const MAX_MEDIA_PREVIEW_SIZE = 100 * 1024 * 1024; // 100 MB
 
 interface Props {
   entry: StorageEntry;
   namespace: string;
+  protocol: string;
+  backendType: StorageNamespace["backendType"];
   onBack: () => void;
 }
 
@@ -41,9 +46,12 @@ type PreviewData =
 export const StorageFileViewer: React.FC<Props> = ({
   entry,
   namespace,
+  protocol,
+  backendType,
   onBack,
 }) => {
   const { locale } = useLocale();
+  const addCodeToNewCell = useAddCodeToNewCell();
   const name = displayName(entry.path);
   const mime = entry.mimeType || "text/plain";
   const isMedia = isMediaMime(mime);
@@ -111,12 +119,33 @@ export const StorageFileViewer: React.FC<Props> = ({
     }
   }, [namespace, entry.path, name]);
 
+  const snippetActions = STORAGE_SNIPPETS.map((snippet) => {
+    const code = snippet.getCode({
+      variableName: namespace,
+      protocol,
+      entry,
+      backendType,
+    });
+    if (code === null) {
+      return null;
+    }
+    const Icon = snippet.icon;
+    return (
+      <Tooltip key={snippet.id} content={snippet.label}>
+        <Button variant="text" size="xs" onClick={() => addCodeToNewCell(code)}>
+          <Icon className="h-3.5 w-3.5" />
+        </Button>
+      </Tooltip>
+    );
+  });
+
   const header = (
     <FilePreviewHeader
       filename={name}
       filenameIcon={renderFileIcon(name)}
       onBack={onBack}
       onDownload={handleDownload}
+      actions={snippetActions}
     />
   );
 
