@@ -14,10 +14,12 @@ export const renderUIMessage = ({
   message,
   isStreamingReasoning,
   isLast,
+  isLoading,
 }: {
   message: UIMessage;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  isLoading: boolean;
 }) => {
   return (
     <>{message.parts.map((part, index) => renderUIMessagePart(part, index))}</>
@@ -59,7 +61,13 @@ export const renderUIMessage = ({
             </React.Fragment>
           );
         }
-        return <MarkdownRenderer key={index} content={part.text} />;
+        return (
+          <MarkdownRenderer
+            key={index}
+            content={part.text}
+            isStreaming={isLast && isLoading}
+          />
+        );
       case "reasoning":
         return (
           <ReasoningAccordion
