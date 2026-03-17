@@ -1,5 +1,5 @@
 ---
-title: Notebook
+title: Notebook With Errors
 marimo-version: 0.0.0
 ---
 

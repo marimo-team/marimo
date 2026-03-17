@@ -64,8 +64,12 @@ components:
         marimo_version:
           nullable: true
           type: string
+        script_metadata_hash:
+          nullable: true
+          type: string
       required:
       - marimo_version
+      - script_metadata_hash
       type: object
     NotebookSessionV1:
       properties:

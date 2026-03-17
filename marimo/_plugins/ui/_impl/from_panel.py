@@ -15,16 +15,12 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
 from marimo._runtime.functions import Function
-from marimo._types.ids import WidgetModelId
 
 if TYPE_CHECKING:
     from panel.viewable import Viewable
 
 LOGGER = _loggers.marimo_logger()
-
-COMM_MANAGER = MarimoCommManager()
 
 comm_class: Optional[type[Any]] = None
 loaded_extension: int = 0
@@ -47,16 +43,25 @@ def _get_comm_class() -> type[Any]:
 
     from pyviz_comms import Comm  # type: ignore
 
+    from marimo._messaging.notification import (
+        UIElementMessageNotification,
+    )
+    from marimo._messaging.notification_utils import (
+        broadcast_notification,
+    )
+    from marimo._plugins.ui._impl.comm import _ensure_bytes
+    from marimo._types.ids import UIElementId
+
     class MarimoPanelComm(Comm):  # type: ignore
         def __init__(self, *args: Any, **kwargs: Any):
             super().__init__(*args, **kwargs)
-            self._comm = MarimoComm(
-                comm_id=WidgetModelId(str(self.id)),
-                target_name="panel.comms",
-                data={},
-                comm_manager=COMM_MANAGER,
-            )
-            self._comm.on_msg(self._handle_msg)
+            self._ui_element_id: Optional[str] = None
+            # Panel's push() checks `comm._comm` before sending
+            # document updates to the frontend. Without a truthy
+            # value, backend changes (e.g. DynamicMap overlays) are
+            # silently dropped. Setting a sentinel makes push() call
+            # send(comm, msg) which routes through our send() override.
+            self._comm = True  # type: ignore[assignment]
             if self._on_open:
                 self._on_open({})
 
@@ -69,11 +74,21 @@ def _get_comm_class() -> type[Any]:
             return dict(msg.message, _buffers=buffers)
 
         def send(
-            self, data: Any = None, metadata: Any = None, buffers: Any = None
+            self,
+            data: Any = None,
+            metadata: Any = None,
+            buffers: Any = None,  # noqa: ARG002
         ) -> None:
-            buffers = buffers or []
-            self.comm.send(
-                {"content": data}, metadata=metadata, buffers=buffers
+            del metadata
+            if self._ui_element_id is None:
+                return
+            raw_buffers = buffers or []
+            broadcast_notification(
+                UIElementMessageNotification(
+                    ui_element=UIElementId(self._ui_element_id),
+                    message={"content": data},
+                    buffers=[_ensure_bytes(b) for b in raw_buffers],
+                )
             )
 
     comm_class = MarimoPanelComm
@@ -313,8 +328,13 @@ class panel(UIElement[T, T]):
     def _handle_msg(self, msg: SendToWidgetArgs) -> None:
         ref = self._ref
         comm = self.obj._comms[ref][0]  # type: ignore[attr-defined]
-        msg = comm.decode(msg)
-        self.obj._on_msg(ref, self._manager, msg)  # type: ignore[attr-defined]
+        decoded = comm.decode(msg)
+        try:
+            self.obj._on_msg(ref, self._manager, decoded)  # type: ignore[attr-defined]
+        except Exception as e:
+            # Deserialization or buffer errors from echo/stale patches
+            LOGGER.debug("Panel _on_msg error (likely harmless echo): %s", e)
+            return
         comm.send(data={"type": "ACK"})
 
     def _initialize(
@@ -323,8 +343,7 @@ class panel(UIElement[T, T]):
     ) -> None:
         super()._initialize(initialization_args)
         for comm, _ in self.obj._comms.values():  # type: ignore[attr-defined]
-            if isinstance(comm.comm, MarimoComm):
-                comm.comm.ui_element_id = self._id
+            comm._ui_element_id = self._id
 
     def _convert_value(self, value: T) -> T:
         return value

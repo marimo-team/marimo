@@ -19,7 +19,55 @@ class _FlexContainerHtml(Html):
     When this is a child of another stack with widths/heights, the wrapper
     is made a flex container so the nested stack's flex and justify work.
     Non-flex children use a block wrapper so they fill the space.
+
+    Children are stored as live references so that mutable Html elements
+    (e.g. mo.status.spinner) are re-rendered on every flush rather than
+    being frozen at construction time.
     """
+
+    def __init__(
+        self,
+        style: Optional[str],
+        live_children: list[Html],
+        child_flexes: Optional[Sequence[Optional[float]]],
+    ) -> None:
+        self._style = style
+        self._live_children = live_children
+        self._child_flexes = child_flexes
+        super().__init__(self._build_text())
+
+    def _build_text(self) -> str:
+        def _item_style(idx: int) -> Optional[str]:
+            if self._child_flexes is None:
+                return ""
+            child_flex = self._child_flexes[idx]
+            if child_flex is None:
+                return ""
+            item_style: dict[str, str | int | float | None] = {
+                "flex": f"{child_flex}"
+            }
+            # Only make the wrapper a flex container for nested stacks so their
+            # flex: 1 and justify work. Leaf content (e.g. mo.stat) fills the
+            # wrapper when it is a block.
+            if isinstance(self._live_children[idx], _FlexContainerHtml):
+                item_style["display"] = "flex"
+                item_style["min-width"] = "0"
+                item_style["min-height"] = "0"
+            return create_style(item_style)
+
+        if self._child_flexes is None:
+            grid_items = [c.text for c in self._live_children]
+        else:
+            grid_items = [
+                h.div(c.text, style=_item_style(i))
+                for i, c in enumerate(self._live_children)
+            ]
+        return h.div(grid_items, style=self._style or "")
+
+    @property
+    def text(self) -> str:  # type: ignore[override]
+        """Re-render children live on every access."""
+        return self._build_text()
 
 
 def _flex(
@@ -60,32 +108,12 @@ def _flex(
         }
     )
 
-    def create_style_for_item(idx: int) -> Optional[str]:
-        if child_flexes is None:
-            return ""
-        child_flex = child_flexes[idx]
-        if child_flex is None:
-            return ""
-        style: dict[str, str | int | float | None] = {"flex": f"{child_flex}"}
-        # Only make the wrapper a flex container for nested stacks so their
-        # flex: 1 and justify work. Leaf content (e.g. mo.stat) fills the
-        # wrapper when it is a block.
-        if isinstance(items[idx], _FlexContainerHtml):
-            style["display"] = "flex"
-            style["min-width"] = "0"
-            style["min-height"] = "0"
-        return create_style(style)
-
-    # If there are no child flexes, don't wrap them in an additional <div>
-    if child_flexes is None:
-        grid_items = [as_html(item).text for item in items]
-    else:
-        grid_items = [
-            h.div(as_html(item).text, style=create_style_for_item(i))
-            for i, item in enumerate(items)
-        ]
-
-    return _FlexContainerHtml(h.div(grid_items, style=style))
+    live_children = [as_html(item) for item in items]
+    return _FlexContainerHtml(
+        style=style,
+        live_children=live_children,
+        child_flexes=child_flexes,
+    )
 
 
 @mddoc

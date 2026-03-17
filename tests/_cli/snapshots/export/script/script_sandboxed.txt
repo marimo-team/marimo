@@ -1,0 +1,19 @@
+# Copyright 2026 Marimo. All rights reserved.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "polars",
+#     "marimo>=0.8.0",
+#     "quak",
+#     "vega-datasets",
+# ]
+# ///
+
+
+__generated_with = "0.0.0"
+
+# %%
+import marimo as mo
+
+# %%
+slider = mo.ui.slider(0, 10)

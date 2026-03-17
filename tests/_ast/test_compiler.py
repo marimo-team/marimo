@@ -323,6 +323,31 @@ class TestParseSQLCell:
         assert not cell.variable_data
 
 
+class TestExtractMarkdown:
+    @staticmethod
+    def test_bare_md_expression() -> None:
+        cell = compile_cell('mo.md("# Hello World")')
+        assert cell.markdown == "# Hello World"
+
+    @staticmethod
+    def test_assignment_not_treated_as_markdown() -> None:
+        """Regression test for #7994: `title = mo.md(...)` was incorrectly
+        identified as a markdown cell, causing NameError in run mode."""
+        cell = compile_cell('title = mo.md("# Hello World")')
+        assert cell.markdown is None
+        assert cell.defs == {"title"}
+
+    @staticmethod
+    def test_annotated_assignment_not_treated_as_markdown() -> None:
+        cell = compile_cell('title: Any = mo.md("# Hello")')
+        assert cell.markdown is None
+
+    @staticmethod
+    def test_multi_statement_not_treated_as_markdown() -> None:
+        cell = compile_cell('x = 1\nmo.md("# Hello")')
+        assert cell.markdown is None
+
+
 class TestCellFactory:
     @staticmethod
     def test_defs() -> None:
@@ -442,6 +467,57 @@ class TestSemicolon:
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert eval(cell._cell.last_expr) is None
+
+
+class TestEndsWithSemicolon:
+    @staticmethod
+    def test_simple_semicolon() -> None:
+        assert compiler.ends_with_semicolon("x = 1;") is True
+
+    @staticmethod
+    def test_no_semicolon() -> None:
+        assert compiler.ends_with_semicolon("x = 1") is False
+
+    @staticmethod
+    def test_semicolon_with_trailing_whitespace() -> None:
+        assert compiler.ends_with_semicolon("x = 1;  ") is True
+
+    @staticmethod
+    def test_semicolon_before_comment() -> None:
+        assert compiler.ends_with_semicolon("x = 1; # comment") is True
+
+    @staticmethod
+    def test_no_semicolon_with_comment() -> None:
+        assert compiler.ends_with_semicolon("x = 1  # comment") is False
+
+    @staticmethod
+    def test_semicolon_in_string_not_counted() -> None:
+        assert compiler.ends_with_semicolon('"hello;"') is False
+
+    @staticmethod
+    def test_empty_code() -> None:
+        assert compiler.ends_with_semicolon("") is False
+
+    @staticmethod
+    def test_whitespace_only() -> None:
+        assert compiler.ends_with_semicolon("   ") is False
+
+    @staticmethod
+    def test_token_error_unterminated_string() -> None:
+        # Unterminated string causes TokenError; fallback should handle it
+        assert compiler.ends_with_semicolon('x = "unterminated') is False
+
+    @staticmethod
+    def test_token_error_unterminated_string_with_semicolon() -> None:
+        assert compiler.ends_with_semicolon('x = "unterminated;') is True
+
+    @staticmethod
+    def test_token_error_unterminated_triple_quote() -> None:
+        assert compiler.ends_with_semicolon('x = """unterminated') is False
+
+    @staticmethod
+    def test_token_error_unterminated_triple_quote_with_semicolon() -> None:
+        assert compiler.ends_with_semicolon('x = """unterminated;') is True
 
 
 class TestCompileCellFilename:

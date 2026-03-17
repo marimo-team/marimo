@@ -8,18 +8,21 @@ implementations.
 
 from __future__ import annotations
 
+import contextlib
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
 if TYPE_CHECKING:
+    import asyncio
     import threading
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
+    from marimo._session.extensions.types import SessionExtension
     from marimo._session.model import (
         ConnectionState,
         SessionMode,
@@ -108,6 +111,7 @@ class Session(Protocol):
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
+    scratchpad_lock: asyncio.Lock
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
@@ -179,6 +183,14 @@ class Session(Protocol):
         http_request: Optional[commands.HTTPRequest],
     ) -> None:
         """Instantiate the app."""
+        ...
+
+    @contextlib.contextmanager
+    def scoped(
+        self,
+        extension: SessionExtension,
+    ) -> Iterator[SessionExtension]:
+        """Attach an extension for the duration of the context."""
         ...
 
     def close(self) -> None:

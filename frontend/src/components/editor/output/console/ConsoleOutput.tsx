@@ -6,7 +6,7 @@ import {
   ChevronsUpDownIcon,
   WrapTextIcon,
 } from "lucide-react";
-import React, { useLayoutEffect } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -18,7 +18,10 @@ import { isInternalCellName } from "@/core/cells/names";
 import { useExpandedConsoleOutput } from "@/core/cells/outputs";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { useInputHistory } from "@/hooks/useInputHistory";
+import {
+  type UseInputHistoryReturn,
+  useInputHistory,
+} from "@/hooks/useInputHistory";
 import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
@@ -29,6 +32,52 @@ import { type OnRefactorWithAI, OutputRenderer } from "../../Output";
 import { useWrapText } from "../useWrapText";
 import { processOutput } from "./process-output";
 import { RenderTextWithLinks } from "./text-rendering";
+
+/**
+ * Delay in ms before clearing console outputs.
+ * This prevents flickering when a cell re-runs and outputs are briefly cleared
+ * before new outputs arrive (e.g., plt.show() with a slider).
+ */
+export const CONSOLE_CLEAR_DEBOUNCE_MS = 200;
+
+/**
+ * Debounces the clearing of console outputs.
+ * - Non-empty updates are applied immediately.
+ * - Transitions to empty are delayed by CONSOLE_CLEAR_DEBOUNCE_MS,
+ *   giving new outputs a chance to arrive and replace the old ones
+ *   without a visible flicker.
+ */
+function useDebouncedConsoleOutputs<T>(outputs: T[]): T[] {
+  const [debouncedOutputs, setDebouncedOutputs] = useState(outputs);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Non-empty outputs: apply immediately and cancel any pending clear
+  if (outputs.length > 0 && debouncedOutputs !== outputs) {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setDebouncedOutputs(outputs);
+  }
+
+  // Empty outputs: delay the clear so new outputs can arrive first
+  useEffect(() => {
+    if (outputs.length === 0 && timerRef.current === null) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setDebouncedOutputs([]);
+      }, CONSOLE_CLEAR_DEBOUNCE_MS);
+    }
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [outputs]);
+
+  return debouncedOutputs;
+}
 
 interface Props {
   cellId: CellId;
@@ -54,8 +103,13 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const { wrapText, setWrapText } = useWrapText();
   const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
+  const [stdinValue, setStdinValue] = React.useState("");
+  const inputHistory = useInputHistory({
+    value: stdinValue,
+    setValue: setStdinValue,
+  });
   const {
-    consoleOutputs,
+    consoleOutputs: rawConsoleOutputs,
     stale,
     cellName,
     cellId,
@@ -64,6 +118,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     onRefactorWithAI,
     className,
   } = props;
+
+  // Debounce clearing to prevent flickering when cells re-run
+  const consoleOutputs = useDebouncedConsoleOutputs(rawConsoleOutputs);
 
   /* The debugger UI needs some work. For now just use the regular
   /* console output. */
@@ -210,6 +267,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                   isPassword={isPassword}
                   onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
                   onClear={onClear}
+                  value={stdinValue}
+                  setValue={setStdinValue}
+                  inputHistory={inputHistory}
                 />
               );
             }
@@ -249,25 +309,32 @@ const StdInput = (props: {
   onSubmit: (text: string) => void;
   onClear?: () => void;
   output: string;
-  response?: string;
   isPdb: boolean;
   isPassword?: boolean;
+  value: string;
+  setValue: (value: string) => void;
+  inputHistory: UseInputHistoryReturn;
 }) => {
-  const [value, setValue] = React.useState("");
-
-  const { navigateUp, navigateDown, addToHistory } = useInputHistory({
+  const {
     value,
     setValue,
-  });
+    inputHistory,
+    output,
+    isPassword,
+    isPdb,
+    onSubmit,
+    onClear,
+  } = props;
+  const { navigateUp, navigateDown, addToHistory } = inputHistory;
 
   return (
     <div className="flex gap-2 items-center pt-2">
-      {renderText(props.output)}
+      {renderText(output)}
       <Input
         data-testid="console-input"
         // This is used in <StdinBlockingAlert> to find the input
         data-stdin-blocking={true}
-        type={props.isPassword ? "password" : "text"}
+        type={isPassword ? "password" : "text"}
         autoComplete="off"
         autoFocus={true}
         value={value}
@@ -292,7 +359,7 @@ const StdInput = (props: {
           if (e.key === "Enter" && !e.shiftKey) {
             if (value) {
               addToHistory(value);
-              props.onSubmit(value);
+              onSubmit(value);
               setValue("");
             }
             e.preventDefault();
@@ -306,9 +373,7 @@ const StdInput = (props: {
           }
         }}
       />
-      {props.isPdb && (
-        <DebuggerControls onSubmit={props.onSubmit} onClear={props.onClear} />
-      )}
+      {isPdb && <DebuggerControls onSubmit={onSubmit} onClear={onClear} />}
     </div>
   );
 };

@@ -337,7 +337,7 @@ def create_asgi_app(
     include_code: bool = False,
     token: Optional[str] = None,
     skew_protection: bool = False,
-    session_ttl: Optional[int] = None,
+    session_ttl: int = 120,
     asset_url: Optional[str] = None,
     redirect_console_to_browser: bool = False,
     html_head: Optional[str] = None,
@@ -352,7 +352,7 @@ def create_asgi_app(
             If not provided, an empty token is used.
         skew_protection (bool, optional): Enable skew protection middleware to prevent version mismatch issues.
             e.g. if the server is updated, the client will be prompted to reload.
-        session_ttl (int, optional): Time-to-live in seconds for sessions. If not provided, uses default TTL (2 minutes).
+        session_ttl (int): Time-to-live in seconds for sessions. Defaults to 120 (2 minutes).
         asset_url (str, optional): Custom asset URL for loading static resources. Can include {version} placeholder.
             e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
         redirect_console_to_browser (bool, optional): Whether to redirect console output (stdout/stderr) to the browser.

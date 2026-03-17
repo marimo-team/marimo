@@ -3,6 +3,7 @@
 import type * as api from "@marimo-team/marimo-api";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Mocks } from "@/__mocks__/common";
 import { parseOutline } from "@/core/dom/outline";
 import { MultiColumn, visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
@@ -11,13 +12,7 @@ import { type CellId, SETUP_CELL_ID } from "../ids";
 import { notebookStateFromSession } from "../session";
 
 // Mock dependencies
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 vi.mock("@/core/dom/outline", () => ({
   parseOutline: vi.fn(),
@@ -70,7 +65,7 @@ describe("notebookStateFromSession", () => {
     cells: SessionCell[],
   ): api.Session["NotebookSessionV1"] => ({
     version: "1",
-    metadata: { marimo_version: "1" },
+    metadata: { marimo_version: "1", script_metadata_hash: null },
     cells,
   });
 

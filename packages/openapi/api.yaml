@@ -826,20 +826,16 @@ components:
       description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
         \ is first loaded. Contains all cells and initial UI element values.\n\n \
         \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
-        \ cell.\n        cell_ids: Initial cell IDs in the notebook (unused for now).\n\
-        \        set_ui_element_value_request: Initial UI element values.\n      \
-        \  auto_run: Whether to automatically execute cells on instantiation.\n  \
-        \      request: HTTP request context if available."
+        \ cell.\n        cell_ids: Initial cell IDs in the notebook.\n        set_ui_element_value_request:\
+        \ Initial UI element values.\n        auto_run: Whether to automatically execute\
+        \ cells on instantiation.\n        request: HTTP request context if available."
       properties:
         autoRun:
           type: boolean
         cellIds:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
+          items:
+            type: string
+          type: array
         executionRequests:
           items:
             $ref: '#/components/schemas/ExecuteCellCommand'
@@ -857,6 +853,7 @@ components:
       required:
       - type
       - executionRequests
+      - cellIds
       - setUiElementValueRequest
       - autoRun
       title: CreateNotebookCommand
@@ -1533,6 +1530,25 @@ components:
       type: object
     ExportAsPDFRequest:
       properties:
+        includeInputs:
+          default: false
+          type: boolean
+        preset:
+          default: document
+          enum:
+          - document
+          - slides
+        rasterScale:
+          default: 4.0
+          type: number
+        rasterServer:
+          default: static
+          enum:
+          - live
+          - static
+        rasterizeOutputs:
+          default: true
+          type: boolean
         webpdf:
           type: boolean
       required:
@@ -2012,10 +2028,20 @@ components:
         \ the specified package manager. Triggered\n    automatically on import errors\
         \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
         \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
-        \ to version specifiers. Empty version\n                  means install latest."
+        \ to version specifiers. Empty version\n                  means install latest.\n\
+        \        source: Where to install. \"kernel\" (default) dispatches to the\
+        \ kernel\n                subprocess; \"server\" installs directly into the\
+        \ server's Python\n                environment (sys.executable), used when\
+        \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
+        \ auto-export in sandbox mode)."
       properties:
         manager:
           type: string
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
         type:
           enum:
           - install-packages
@@ -2033,6 +2059,11 @@ components:
       properties:
         manager:
           type: string
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
         versions:
           additionalProperties:
             type: string
@@ -3045,8 +3076,11 @@ components:
       type: object
     MissingPackageAlertNotification:
       description: "Alert for missing packages with install option.\n\n    Attributes:\n\
-        \        packages: Missing package names.\n        isolated: Whether in isolated\
-        \ environment."
+        \        packages: Missing package names.\n        isolated: Whether auto-install\
+        \ is possible in this environment.\n        source: Which Python environment\
+        \ to install into. \"kernel\" (default)\n                installs in the kernel's\
+        \ venv; \"server\" installs in the\n                server's own Python env\
+        \ (e.g. for formatter tools like ruff)."
       properties:
         isolated:
           type: boolean
@@ -3057,6 +3091,11 @@ components:
           items:
             type: string
           type: array
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
       required:
       - op
       - packages
@@ -3750,14 +3789,16 @@ components:
         \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
         \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
         \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
-        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
-        \    - `pythonpath`: a list of directories to add to the Python search path.\n\
-        \        Directories will be added to the head of sys.path. Similar to the\n\
-        \        `PYTHONPATH` environment variable, the directories will be included\
-        \ in\n        where Python will look for imported modules.\n    - `dotenv`:\
-        \ a list of paths to `.env` files to load.\n        If the file does not exist,\
-        \ it will be silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
+        \ frontend performance\n    - `serve_cached_sessions_in_apps`: if `True`,\
+        \ initialize applications with session cache.\n        The default is `False`.\n\
+        \    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;\n\
+        \      larger values may affect frontend performance\n    - `pythonpath`:\
+        \ a list of directories to add to the Python search path.\n        Directories\
+        \ will be added to the head of sys.path. Similar to the\n        `PYTHONPATH`\
+        \ environment variable, the directories will be included in\n        where\
+        \ Python will look for imported modules.\n    - `dotenv`: a list of paths\
+        \ to `.env` files to load.\n        If the file does not exist, it will be\
+        \ silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
         \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
         \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
@@ -3804,6 +3845,8 @@ components:
             type: string
           type: array
         reactive_tests:
+          type: boolean
+        serve_cached_sessions_in_apps:
           type: boolean
         std_stream_max_bytes:
           type: integer
@@ -4265,16 +4308,21 @@ components:
       title: StopKernelCommand
       type: object
     StorageDownloadCommand:
-      description: "Download a storage entry.\n\n    Downloads file bytes from storage\
-        \ and creates a virtual file\n    so the frontend can fetch the contents.\n\
-        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
-        \        namespace: Variable name identifying the storage backend.\n     \
-        \   path: Full path of the entry to download."
+      description: "Download a storage entry.\n\n    Obtains a pre-signed URL or downloads\
+        \ the file locally and returns a virtual file URL\n    so the frontend can\
+        \ fetch the contents.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request.\n        namespace: Variable name identifying the storage\
+        \ backend.\n        path: Full path of the entry to download.\n        preview:\
+        \ If true, a local preview of the file is returned.\n            This is useful\
+        \ if you need to bypass CORS."
       properties:
         namespace:
           type: string
         path:
           type: string
+        preview:
+          default: false
+          type: boolean
         requestId:
           type: string
         type:
@@ -4326,6 +4374,9 @@ components:
           type: string
         path:
           type: string
+        preview:
+          default: false
+          type: boolean
         requestId:
           type: string
       required:
@@ -4380,7 +4431,8 @@ components:
         \ systems\n\n    Attributes:\n        path: The path of the storage entry.\n\
         \        kind: The kind of the storage entry.\n        size: The size of the\
         \ storage entry.\n        last_modified: The last modified time of the storage\
-        \ entry.\n        metadata: The metadata of the storage entry."
+        \ entry.\n        metadata: The metadata of the storage entry.\n        mime_type:\
+        \ The MIME type of the storage entry, or None for directories."
       properties:
         kind:
           enum:
@@ -4394,6 +4446,11 @@ components:
         metadata:
           default: {}
           type: object
+        mimeType:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         path:
           type: string
         size:
@@ -4459,8 +4516,13 @@ components:
         \        display_name: The display name of the storage namespace.\n      \
         \  protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http,\
         \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
+        \        backend_type: The type of the storage backend (fsspec or obstore)\n\
         \        storage_entries: The storage entries in the storage namespace."
       properties:
+        backendType:
+          enum:
+          - fsspec
+          - obstore
         displayName:
           type: string
         name:
@@ -4478,6 +4540,7 @@ components:
       - displayName
       - protocol
       - rootPath
+      - backendType
       - storageEntries
       title: StorageNamespace
       type: object
@@ -4638,10 +4701,12 @@ components:
       title: UnknownError
       type: object
     UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode).\n\n    Attributes:\n\
-        \        cell_ids: Cells to update.\n        codes: New code for each cell.\n\
-        \        code_is_stale: If True, code was not executed on backend (output\
-        \ may not match)."
+      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
+        \n    Attributes:\n        cell_ids: Cells to update.\n        codes: New\
+        \ code for each cell.\n        code_is_stale: If True, code was not executed\
+        \ on backend (output may not match).\n        names: Cell names for each cell\
+        \ (optional, for file reload).\n        configs: Cell configs for each cell\
+        \ (optional, for file reload)."
       properties:
         cell_ids:
           items:
@@ -4650,6 +4715,16 @@ components:
         code_is_stale:
           type: boolean
         codes:
+          items:
+            type: string
+          type: array
+        configs:
+          default: []
+          items:
+            $ref: '#/components/schemas/CellConfig'
+          type: array
+        names:
+          default: []
           items:
             type: string
           type: array
@@ -5114,7 +5189,6 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.20.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5462,6 +5536,28 @@ paths:
               schema:
                 type: string
           description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/ipynb:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Export the notebook as IPYNB
         400:
           description: File must be saved before downloading
   /api/export/markdown:

@@ -81,9 +81,9 @@ export const MarimoIcon = ({
       width={width ?? size}
       height={height ?? size}
       viewBox={viewBox}
+      aria-hidden={true}
       {...props}
     >
-      <title>marimo icon</title>
       <MarimoCirclePaths
         fill={fill}
         stroke={stroke ?? "currentColor"}
@@ -119,9 +119,9 @@ const MarimoMultiIcon = ({
       width={width ?? size}
       height={height ?? size}
       viewBox={viewBox}
+      aria-hidden={true}
       {...props}
     >
-      <title>marimo multi icon</title>
       <defs>
         <mask id={maskId}>
           <rect width="100%" height="100%" fill="white" />

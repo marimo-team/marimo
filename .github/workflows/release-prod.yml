@@ -1,20 +1,24 @@
 name: Publish prod release
 
 on:
-  workflow_call: {}
+  workflow_call:
+    outputs:
+      marimo_version:
+        description: "The release version that was built"
+        value: ${{ jobs.publish_release.outputs.marimo_version }}
 
 permissions:
   contents: read
 
 env:
   TURBO_TEAM: marimo
-  REGISTRY: ghcr.io
-  IMAGE_NAME: marimo-team/marimo
 
 jobs:
   publish_release:
-    name: 📤 Publish release
+    name: 📤 Build release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash
@@ -35,19 +39,23 @@ jobs:
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
 
-      - name: 📦 Build marimo
-        run: hatch build
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
 
-      - name: 📤 Upload to PyPI
-        env:
-          HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_PASSWORD }}
-        run: hatch publish
+      - name: 📦 Build marimo
+        run: uv build
+
+      - name: 📦 Upload marimo dist artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: pypi-marimo
+          path: dist/
+          retention-days: 1
 
       - name: 🔨 Get version
         id: get_version
         run: |
-          echo "marimo_version=$(hatch version)" >> $GITHUB_OUTPUT
+          echo "marimo_version=$(uv version --short)" >> $GITHUB_OUTPUT
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
@@ -106,12 +114,3 @@ jobs:
       id-token: write  # Required for OIDC
       contents: read
 
-  publish_docker:
-    name: 🐋 Publish Docker images
-    needs: publish_release
-    uses: ./.github/workflows/publish-docker.yml
-    with:
-      marimo_version: ${{ needs.publish_release.outputs.marimo_version }}
-    permissions:
-      contents: read
-      packages: write

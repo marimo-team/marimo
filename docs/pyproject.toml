@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [project]
-dependencies = []
+dependencies = ["lzstring>=1.0.4"]
 name = "marimo_docs"
 version = "0.1.0"
 

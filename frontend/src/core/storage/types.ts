@@ -54,4 +54,6 @@ export type KnownStorageProtocol =
   | "cloudflare"
   | "http"
   | "file"
-  | "in-memory";
+  | "gdrive"
+  | "in-memory"
+  | "github";

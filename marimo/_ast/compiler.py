@@ -11,7 +11,7 @@ import sys
 import textwrap
 import token as token_types
 import warnings
-from tokenize import tokenize
+from tokenize import TokenError, tokenize
 from types import CodeType, FrameType
 from typing import Any, Callable, Optional, TypeAlias, cast
 
@@ -85,8 +85,14 @@ def ends_with_semicolon(code: str) -> bool:
         bool: True if the last non-comment line ends with a semicolon
     """
     # Tokenize to check for semicolon
-    tokens = tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
-    for token in reversed(list(tokens)):
+    try:
+        tokens = list(
+            tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
+        )
+    except TokenError:
+        # Fallback for code with syntax errors (e.g., unterminated strings)
+        return code.rstrip().endswith(";")
+    for token in reversed(tokens):
         if token.type in (
             token_types.ENDMARKER,
             token_types.NEWLINE,
@@ -164,7 +170,7 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
-def _extract_const_string(args: list[ast.stmt]) -> str:
+def _extract_const_string(args: list[ast.expr]) -> str:
     (inner,) = args
     # Various string types may need to be unpacked
     if isinstance(inner, ast.JoinedStr) or (
@@ -188,11 +194,18 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
     try:
         (body,) = tree.body
+        # Only match bare expressions like `mo.md("...")`, not assignments
+        # like `title = mo.md("...")` — both ast.Expr and ast.Assign have a
+        # `.value` attribute, so we must check the node type explicitly.
+        if not isinstance(body, ast.Expr):
+            return None
         if body.value.func.attr == "md":  # type: ignore[attr-defined, union-attr]
             value = body.value  # type: ignore[attr-defined, union-attr]
         else:
             return None
-        assert value.func.value.id == "mo"
+        if not isinstance(value, ast.Call):
+            return None
+        assert value.func.value.id == "mo"  # type: ignore[attr-defined]
         if not value.args:  # Handle mo.md() with no arguments
             return None
         md_lines = _extract_const_string(value.args).split("\n")

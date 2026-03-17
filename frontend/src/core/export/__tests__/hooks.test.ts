@@ -5,6 +5,7 @@ import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockModules, Mocks } from "@/__mocks__/common";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
@@ -20,17 +21,9 @@ vi.mock("html-to-image", () => ({
   toPng: vi.fn(),
 }));
 
-// Mock Logger
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    error: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
-// Mock toast
-vi.mock("@/components/ui/use-toast", () => ({
-  toast: vi.fn(),
-}));
+vi.mock("@/components/ui/use-toast", () => MockModules.toast());
 
 // Mock cellsRuntimeAtom - must be defined inline in the factory function
 vi.mock("@/core/cells/cells", async () => {

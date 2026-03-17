@@ -330,9 +330,14 @@ class WebSocketHandler(SessionConsumer):
         # When the websocket is closed, we wait session.ttl_seconds before
         # closing the session. This prevents the session from being closed
         # during intermittent network issues.
-        # In RUN mode, this always applies.
+        # In RUN mode, this always applies (sessions always have a default
+        # TTL even if the manager's ttl_seconds is None).
         # In EDIT mode, this only applies when --session-ttl is explicitly set.
-        if self.manager.ttl_seconds is not None:
+        should_ttl_close = (
+            self.manager.ttl_seconds is not None
+            or self.mode == SessionMode.RUN
+        )
+        if should_ttl_close:
 
             def _close() -> None:
                 if self.status != ConnectionState.OPEN:
@@ -357,7 +362,6 @@ class WebSocketHandler(SessionConsumer):
                     cleanup_fn()
                     self.manager.close_session(self.params.session_id)
 
-            session = self.manager.get_session(self.params.session_id)
             if session is not None:
                 cancellation_handle = asyncio.get_event_loop().call_later(
                     session.ttl_seconds, _close

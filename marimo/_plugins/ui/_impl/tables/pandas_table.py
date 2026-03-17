@@ -109,12 +109,19 @@ class PandasTableManagerFactory(TableManagerFactory):
             # We override narwhals's to_csv_str to handle pandas
             # headers
             def to_csv_str(
-                self, format_mapping: Optional[FormatMapping] = None
+                self,
+                format_mapping: Optional[FormatMapping] = None,
+                separator: str | None = None,
             ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
+                resolved_separator = (
+                    separator if separator is not None else ","
+                )
                 return self.apply_formatting(
                     format_mapping
-                )._original_data.to_csv(index=has_headers)
+                )._original_data.to_csv(
+                    index=has_headers, sep=resolved_separator
+                )
 
             def to_json_str(
                 self,
@@ -409,7 +416,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("date", dtype)
                 if lower_dtype == "time":
                     return ("time", dtype)
-                if lower_dtype == "timedelta64[ns]":
+                if lower_dtype.startswith("timedelta"):
                     return ("string", dtype)
                 if lower_dtype == "category":
                     return ("string", dtype)

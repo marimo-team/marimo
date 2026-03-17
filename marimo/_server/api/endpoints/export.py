@@ -23,10 +23,14 @@ from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import (
+    notify_server_missing_packages,
+    parse_request,
+)
 from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
+    ExportAsIPYNBRequest,
     ExportAsMarkdownRequest,
     ExportAsPDFRequest,
     ExportAsScriptRequest,
@@ -290,6 +294,65 @@ async def export_as_markdown(
     )
 
 
+@router.post("/ipynb")
+@requires("edit")
+async def export_as_ipynb(
+    *,
+    request: Request,
+) -> PlainTextResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsIPYNBRequest"
+    responses:
+        200:
+            description: Export the notebook as IPYNB
+            content:
+                text/plain:
+                    schema:
+                        type: string
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ExportAsIPYNBRequest)
+    session = app_state.require_current_session()
+
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
+    ipynb = Exporter().export_as_ipynb(
+        app=session.app_file_manager.app,
+        sort_mode="top-down",
+        session_view=session.session_view,
+    )
+
+    if body.download:
+        filename = get_download_filename(
+            session.app_file_manager.filename, "ipynb"
+        )
+        headers = make_download_headers(filename)
+    else:
+        headers = {}
+
+    # Download the IPYNB
+    return PlainTextResponse(
+        content=ipynb,
+        headers=headers,
+    )
+
+
 @router.post("/auto_export/markdown")
 @requires("edit")
 async def auto_export_as_markdown(
@@ -397,12 +460,19 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    async def _background_export() -> None:
-        # Check has nbformat installed
-        if not DependencyManager.nbformat.has():
-            LOGGER.error("Cannot snapshot to IPYNB: nbformat not installed")
-            return
+    # Check nbformat before scheduling background task.  Alert at most once
+    # per session so the notification doesn't keep popping up on every save.
+    if not DependencyManager.nbformat.has():
+        LOGGER.warning("Cannot snapshot to IPYNB: nbformat not installed")
+        if "nbformat" not in session_view.notified_server_packages:
+            notify_server_missing_packages(
+                session, app_state.get_current_session_id(), ["nbformat"]
+            )
+            session_view.notified_server_packages.add("nbformat")
+        session_view.mark_auto_export_ipynb()
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    async def _background_export() -> None:
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
 
@@ -463,11 +533,20 @@ async def export_as_pdf(*, request: Request) -> Response:
             detail="File must have a name before exporting",
         )
 
-    pdf_data = Exporter().export_as_pdf(
-        app=session.app_file_manager.app,
-        session_view=session.session_view,
-        webpdf=body.webpdf,
-    )
+    exporter = Exporter()
+    if body.preset == "slides":
+        pdf_data = await exporter.export_as_slides_pdf(
+            app=session.app_file_manager.app,
+            session_view=session.session_view,
+            include_inputs=body.include_inputs,
+        )
+    else:
+        pdf_data = exporter.export_as_pdf(
+            app=session.app_file_manager.app,
+            session_view=session.session_view,
+            webpdf=body.webpdf,
+            include_inputs=body.include_inputs,
+        )
     if pdf_data is None:
         raise HTTPException(
             status_code=HTTPStatus.SERVER_ERROR, detail="Failed to export PDF"

@@ -89,8 +89,8 @@ def test_edit_mode_reload_strategy_lazy(
 
     strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 
-    # Should send UpdateCellIdsRequest
-    assert mock_session.notify.call_count >= 1
+    # Should send at least UpdateCellIdsNotification and UpdateCellCodesNotification
+    assert mock_session.notify.call_count >= 2
     update_ids_calls = [
         call
         for call in mock_session.notify.call_args_list
@@ -105,7 +105,13 @@ def test_edit_mode_reload_strategy_lazy(
         if isinstance(call[0][0], UpdateCellCodesNotification)
     ]
     assert len(update_codes_calls) == 1
-    assert update_codes_calls[0][0][0].code_is_stale is True
+    notification = update_codes_calls[0][0][0]
+    assert notification.code_is_stale is True
+
+    # Names and configs should always be forwarded
+    assert notification.names == ["cell1"]
+    assert len(notification.configs) == 1
+    assert notification.configs[0] == CellConfig()
 
     # Should not send execution requests
     mock_session.put_control_request.assert_not_called()
@@ -130,12 +136,14 @@ def test_edit_mode_reload_strategy_autorun(
     mock_session.app_file_manager = app_file_manager
 
     strategy = EditModeReloadStrategy(config_manager_autorun)
-    changed_cell_ids = {CellId_t("cell1")}
+    # Get actual cell IDs from the app
+    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
+    changed_cell_ids = set(cell_ids)
 
     strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 
-    # Should send UpdateCellIdsRequest
-    assert mock_session.notify.call_count >= 1
+    # Should send at least UpdateCellIdsNotification and UpdateCellCodesNotification
+    assert mock_session.notify.call_count >= 2
     update_ids_calls = [
         call
         for call in mock_session.notify.call_args_list
@@ -143,7 +151,20 @@ def test_edit_mode_reload_strategy_autorun(
     ]
     assert len(update_ids_calls) == 1
 
-    # Should send SyncGraphRequest for execution
+    # Should send UpdateCellCodesNotification with names/configs
+    update_codes_calls = [
+        call
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellCodesNotification)
+    ]
+    assert len(update_codes_calls) == 1
+    notification = update_codes_calls[0][0][0]
+    assert notification.code_is_stale is False
+    assert notification.names == ["cell1"]
+    assert len(notification.configs) == 1
+    assert notification.configs[0] == CellConfig()
+
+    # Should send SyncGraphCommand for execution
     assert mock_session.put_control_request.call_count >= 1
     sync_calls = [
         call
@@ -187,6 +208,17 @@ def test_edit_mode_reload_strategy_with_deleted_cells(
     ]
     assert len(delete_calls) == 1
     assert delete_calls[0][0][0].cell_id == CellId_t("cell2")
+
+    # Should still send names and configs for the remaining cell
+    update_codes_calls = [
+        call
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellCodesNotification)
+    ]
+    assert len(update_codes_calls) == 1
+    notification = update_codes_calls[0][0][0]
+    assert notification.names == ["cell1"]
+    assert len(notification.configs) == 1
 
 
 def test_run_mode_reload_strategy(mock_session: MagicMock) -> None:
@@ -407,3 +439,427 @@ async def test_file_change_coordinator_path_mismatch(
     # Should not handle due to path mismatch
     assert not result.handled
     assert "mismatch" in result.error.lower()
+
+
+def test_edit_mode_reload_sends_names_and_configs_lazy(
+    tmp_path: Path, mock_session: MagicMock, config_manager_lazy
+) -> None:
+    """Test that cell names and configs are forwarded during lazy reload."""
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell(hide_code=True)
+        def my_named_cell():
+            x = 1
+            return x
+        """
+    )
+    app_file_manager = create_test_app_file_manager(tmp_path, content)
+    mock_session.app_file_manager = app_file_manager
+
+    strategy = EditModeReloadStrategy(config_manager_lazy)
+    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
+    changed_cell_ids = set(cell_ids)
+
+    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
+
+    # Find the UpdateCellCodesNotification
+    update_codes_calls = [
+        call
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellCodesNotification)
+    ]
+    assert len(update_codes_calls) == 1
+    notification = update_codes_calls[0][0][0]
+
+    # Verify names and configs are included
+    assert notification.names == ["my_named_cell"]
+    assert len(notification.configs) == 1
+    assert notification.configs[0].hide_code is True
+    assert notification.configs[0].disabled is False
+    assert notification.code_is_stale is True
+
+
+def test_edit_mode_reload_sends_names_and_configs_autorun(
+    tmp_path: Path, mock_session: MagicMock, config_manager_autorun
+) -> None:
+    """Test that cell names and configs are forwarded during autorun reload."""
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell(hide_code=True)
+        def my_named_cell():
+            x = 1
+            return x
+        """
+    )
+    app_file_manager = create_test_app_file_manager(tmp_path, content)
+    mock_session.app_file_manager = app_file_manager
+
+    strategy = EditModeReloadStrategy(config_manager_autorun)
+    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
+    changed_cell_ids = set(cell_ids)
+
+    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
+
+    # Find the UpdateCellCodesNotification (also sent in autorun path)
+    update_codes_calls = [
+        call
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellCodesNotification)
+    ]
+    assert len(update_codes_calls) == 1
+    notification = update_codes_calls[0][0][0]
+
+    # Verify names and configs are included
+    assert notification.names == ["my_named_cell"]
+    assert notification.configs[0].hide_code is True
+    # In autorun mode, code should not be stale
+    assert notification.code_is_stale is False
+
+    # SyncGraphCommand should still be sent for execution
+    sync_calls = [
+        call
+        for call in mock_session.put_control_request.call_args_list
+        if isinstance(call[0][0], SyncGraphCommand)
+    ]
+    assert len(sync_calls) == 1
+
+
+def test_edit_mode_reload_multiple_cells_mixed_configs(
+    tmp_path: Path, mock_session: MagicMock, config_manager_lazy
+) -> None:
+    """Test reload with multiple cells having different configs."""
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell(hide_code=True)
+        def setup():
+            import pandas as pd
+            return (pd,)
+
+        @app.cell(disabled=True)
+        def disabled_cell():
+            x = 1
+            return x
+
+        @app.cell
+        def _():
+            y = 2
+            return y
+        """
+    )
+    app_file_manager = create_test_app_file_manager(tmp_path, content)
+    mock_session.app_file_manager = app_file_manager
+
+    strategy = EditModeReloadStrategy(config_manager_lazy)
+    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
+    changed_cell_ids = set(cell_ids)
+
+    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
+
+    update_codes_calls = [
+        call
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellCodesNotification)
+    ]
+    assert len(update_codes_calls) == 1
+    notification = update_codes_calls[0][0][0]
+
+    # Verify all 3 cells have names and configs
+    assert len(notification.names) == 3
+    assert len(notification.configs) == 3
+    assert len(notification.codes) == 3
+    assert len(notification.cell_ids) == 3
+
+    assert notification.names[0] == "setup"
+    assert notification.configs[0].hide_code is True
+    assert notification.configs[0].disabled is False
+
+    assert notification.names[1] == "disabled_cell"
+    assert notification.configs[1].hide_code is False
+    assert notification.configs[1].disabled is True
+
+    # Anonymous cell gets underscore name
+    assert notification.names[2] == "_"
+    assert notification.configs[2].hide_code is False
+    assert notification.configs[2].disabled is False
+
+
+def test_reload_detects_config_only_changes(
+    tmp_path: Path,
+) -> None:
+    """Test that reload() detects config-only changes (e.g., hide_code added)."""
+    initial_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def my_cell():
+            x = 1
+            return x
+        """
+    )
+    test_file = tmp_path / "test.py"
+    test_file.write_text(initial_content)
+    app_file_manager = AppFileManager(filename=str(test_file))
+
+    # Confirm initial state: no hide_code
+    cell_ids_before = list(app_file_manager.app.cell_manager.cell_ids())
+    configs_before = list(app_file_manager.app.cell_manager.configs())
+    assert len(cell_ids_before) == 1
+    assert configs_before[0].hide_code is False
+
+    # Now externally modify to add hide_code=True (code stays the same)
+    modified_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell(hide_code=True)
+        def my_cell():
+            x = 1
+            return x
+        """
+    )
+    test_file.write_text(modified_content)
+
+    changed = app_file_manager.reload()
+
+    # Should detect the config change even though code is identical
+    assert len(changed) == 1
+
+    # Verify the new config is loaded
+    configs_after = list(app_file_manager.app.cell_manager.configs())
+    assert configs_after[0].hide_code is True
+
+
+def test_reload_detects_disabled_config_change(
+    tmp_path: Path,
+) -> None:
+    """Test that reload() detects disabled config change."""
+    initial_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def my_cell():
+            x = 1
+            return x
+        """
+    )
+    test_file = tmp_path / "test.py"
+    test_file.write_text(initial_content)
+    app_file_manager = AppFileManager(filename=str(test_file))
+
+    modified_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell(disabled=True)
+        def my_cell():
+            x = 1
+            return x
+        """
+    )
+    test_file.write_text(modified_content)
+
+    changed = app_file_manager.reload()
+    assert len(changed) == 1
+
+    configs_after = list(app_file_manager.app.cell_manager.configs())
+    assert configs_after[0].disabled is True
+
+
+def test_reload_detects_name_only_changes(
+    tmp_path: Path,
+) -> None:
+    """Test that reload() detects name-only changes (cell function renamed)."""
+    initial_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def old_name():
+            x = 1
+            return x
+        """
+    )
+    test_file = tmp_path / "test.py"
+    test_file.write_text(initial_content)
+    app_file_manager = AppFileManager(filename=str(test_file))
+
+    names_before = list(app_file_manager.app.cell_manager.names())
+    assert names_before[0] == "old_name"
+
+    # Now externally rename the cell function (code stays the same)
+    modified_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def new_name():
+            x = 1
+            return x
+        """
+    )
+    test_file.write_text(modified_content)
+
+    changed = app_file_manager.reload()
+
+    # Should detect the name change
+    assert len(changed) == 1
+
+    names_after = list(app_file_manager.app.cell_manager.names())
+    assert names_after[0] == "new_name"
+
+
+def test_reload_no_changes_returns_empty(
+    tmp_path: Path,
+) -> None:
+    """Test that reload() returns empty set when nothing changed."""
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def my_cell():
+            x = 1
+            return x
+        """
+    )
+    test_file = tmp_path / "test.py"
+    test_file.write_text(content)
+    app_file_manager = AppFileManager(filename=str(test_file))
+
+    # Reload without modifying the file
+    changed = app_file_manager.reload()
+
+    assert len(changed) == 0
+
+
+def test_reload_detects_only_changed_cell_in_multi_cell(
+    tmp_path: Path,
+) -> None:
+    """Test that reload only flags the cell whose config changed."""
+    initial_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def cell_a():
+            x = 1
+            return x
+
+        @app.cell
+        def cell_b():
+            y = 2
+            return y
+        """
+    )
+    test_file = tmp_path / "test.py"
+    test_file.write_text(initial_content)
+    app_file_manager = AppFileManager(filename=str(test_file))
+
+    cell_ids_before = list(app_file_manager.app.cell_manager.cell_ids())
+    assert len(cell_ids_before) == 2
+
+    # Only change the config of the second cell
+    modified_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def cell_a():
+            x = 1
+            return x
+
+        @app.cell(hide_code=True)
+        def cell_b():
+            y = 2
+            return y
+        """
+    )
+    test_file.write_text(modified_content)
+
+    changed = app_file_manager.reload()
+
+    # Only the second cell should be flagged as changed
+    assert len(changed) == 1
+
+    cell_ids_after = list(app_file_manager.app.cell_manager.cell_ids())
+    names_after = list(app_file_manager.app.cell_manager.names())
+    configs_after = list(app_file_manager.app.cell_manager.configs())
+
+    # First cell unchanged
+    assert names_after[0] == "cell_a"
+    assert configs_after[0].hide_code is False
+
+    # Second cell has new config
+    assert names_after[1] == "cell_b"
+    assert configs_after[1].hide_code is True
+
+    # The changed cell ID should be cell_b's ID
+    assert changed == {cell_ids_after[1]}
+
+
+async def test_file_change_coordinator_config_only_change(
+    tmp_path: Path, mock_session: MagicMock
+) -> None:
+    """Test end-to-end: coordinator detects and handles config-only changes."""
+    initial_content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def my_cell():
+            x = 1
+            return x
+        """
+    )
+    test_file = tmp_path / "test.py"
+    test_file.write_text(initial_content)
+
+    app_file_manager = AppFileManager(filename=str(test_file))
+    mock_session.app_file_manager = app_file_manager
+
+    strategy = MagicMock()
+    coordinator = FileChangeCoordinator(strategy)
+
+    # Externally add hide_code=True only (same code)
+    test_file.write_text(
+        dedent(
+            """\
+            import marimo
+            app = marimo.App()
+
+            @app.cell(hide_code=True)
+            def my_cell():
+                x = 1
+                return x
+            """
+        )
+    )
+
+    result = await coordinator.handle_change(test_file, mock_session)
+
+    assert result.handled
+    assert result.error is None
+    assert result.changed_cell_ids is not None
+    assert len(result.changed_cell_ids) == 1
+    strategy.handle_reload.assert_called_once()

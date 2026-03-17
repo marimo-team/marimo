@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import sys
+import types
 from collections.abc import Mapping, Sequence as CollectionSequence
 from decimal import Decimal
 from enum import Enum
@@ -30,6 +31,8 @@ from typing import Sequence  # noqa: UP035
 
 import msgspec
 import msgspec.json
+
+_UNION_ORIGINS = (Union, types.UnionType)
 
 
 class PythonTypeToOpenAPI:
@@ -64,7 +67,7 @@ class PythonTypeToOpenAPI:
         if hasattr(py_type, "__supertype__"):  # NewType check
             return self.convert(py_type.__supertype__, processed_classes)
 
-        if origin is Union:
+        if origin in _UNION_ORIGINS:
             args = get_args(py_type)
             if py_type in processed_classes:
                 ref = processed_classes[py_type]
@@ -324,9 +327,9 @@ def _is_optional(field: dataclasses.Field[Any]) -> bool:
     """
     Check if a field is Optional
     """
-    return (get_origin(field) is Union and type(None) in get_args(field)) or (
-        get_origin(field) is NotRequired
-    )
+    return (
+        get_origin(field) in _UNION_ORIGINS and type(None) in get_args(field)
+    ) or (get_origin(field) is NotRequired)
 
 
 def is_typeddict_subclass(cls: Any) -> bool:

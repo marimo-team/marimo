@@ -108,7 +108,11 @@ def _colorized_url(url_string: str) -> str:
     else:
         query = ""
 
-    url_string = f"{url.scheme}://{url.hostname}"
+    hostname = url.hostname or ""
+    # IPv6 addresses need brackets when embedded in a URL (RFC 3986)
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    url_string = f"{url.scheme}://{hostname}"
     # raw https and http urls do not have a port to parse
     try:
         if url.port:
@@ -152,6 +156,7 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "sql_mode",
         "performant_table_charts",
         "chat_modes",
+        "server_side_pdf_export",
     }
     keys = keys - finished_experiments
 

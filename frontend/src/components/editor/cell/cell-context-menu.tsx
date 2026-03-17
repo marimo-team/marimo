@@ -25,7 +25,7 @@ import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
-import { copyToClipboard } from "@/utils/copy";
+import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
 import { getImageExtension } from "@/utils/filenames";
 import { Logger } from "@/utils/Logger";
 import type { ActionButton } from "../actions/types";
@@ -127,11 +127,7 @@ export const CellActionsContextMenu = ({
       icon: <ClipboardCopyIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
         if (imageRightClicked) {
-          const response = await fetch(imageRightClicked.src);
-          const blob = await response.blob();
-          const item = new ClipboardItem({ [blob.type]: blob });
-          await navigator.clipboard
-            .write([item])
+          await copyImageToClipboard(imageRightClicked.src)
             .then(() => {
               toast({
                 title: "Copied image to clipboard",
@@ -176,6 +172,12 @@ export const CellActionsContextMenu = ({
 
   const allActions: ActionButton[][] = [DEFAULT_CONTEXT_MENU_ITEMS, ...actions];
 
+  const visibleActions = allActions
+    .map((group) =>
+      group.filter((action) => !action.hidden && !action.redundant),
+    )
+    .filter((group) => group.length > 0);
+
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -191,13 +193,9 @@ export const CellActionsContextMenu = ({
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-[300px]" scrollable={true}>
-        {allActions.map((group, i) => (
+        {visibleActions.map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {
-              if (action.hidden || action.redundant) {
-                return null;
-              }
-
               let body = (
                 <div className="flex items-center flex-1">
                   {action.icon && (
@@ -258,7 +256,7 @@ export const CellActionsContextMenu = ({
                 </Fragment>
               );
             })}
-            {i < allActions.length - 1 && <ContextMenuSeparator />}
+            {i < visibleActions.length - 1 && <ContextMenuSeparator />}
           </Fragment>
         ))}
       </ContextMenuContent>

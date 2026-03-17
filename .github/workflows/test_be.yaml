@@ -44,19 +44,19 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - name: ⬇️ Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
 
       - name: 📚 Build docs
         id: docs
-        run: hatch run docs:build --strict
+        run: uv run --group docs mkdocs build --strict
 
       - name: Comment on docs failure
         if: failure() && steps.docs.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "docs build"
-          command: "hatch run docs:build --strict"
+          command: "uv run --group docs mkdocs build --strict"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test_check:
@@ -68,23 +68,23 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
 
       - name: 🧹 Lint
         id: lint
-        run: hatch run lint
+        run: uv run ruff check --fix
 
       - name: 🔍 Typecheck
         id: typecheck
-        run: hatch run typecheck:check
+        run: uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/
 
       - name: Comment on lint failure
         if: failure() && steps.lint.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "lint"
-          command: "hatch run lint"
+          command: "uv run ruff check --fix"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Comment on typecheck failure
@@ -92,7 +92,7 @@ jobs:
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "typecheck"
-          command: "hatch run typecheck:check"
+          command: "uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # For PRs, we only run the tests for the changed files.
@@ -146,8 +146,8 @@ jobs:
         with:
           fetch-depth: 0 # Fetch all history for git diff
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
@@ -182,30 +182,34 @@ jobs:
           fi
 
       # Test with base dependencies
+      # Exit code 5 = no tests collected (e.g. only CLI test files changed);
+      # treat that as success since CLI tests run in a separate workflow.
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test tests/ \
+          uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first
+            --picked=first \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with optional dependencies
       - name: Test changed with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test-optional:test tests/ \
+          uv run --python ${{ matrix.python-version }} --group test-optional pytest tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first
+            --picked=first \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
 
       # Test with minimal dependencies using lowest resolution
       # https://docs.astral.sh/uv/concepts/resolution/#lowest-resolution
@@ -213,16 +217,17 @@ jobs:
       - name: Test with minimal dependencies (lowest resolution)
         if: ${{ matrix.dependencies == 'minimal' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test tests/ \
+          uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
             -k "not test_cli" \
             --durations=10 \
             -p packages.pytest_changed \
             --changed-from=${{ steps.setup-flags.outputs.changed_from }} \
             --include-unchanged=${{ steps.setup-flags.outputs.include_unchanged }} \
-            --picked=first
+            --picked=first \
+          || { ec=$?; [ $ec -eq 5 ] && exit 0 || exit $ec; }
         env:
-          UV_RESOLUTION: lowest
+          UV_RESOLUTION: lowest-direct
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:
@@ -234,8 +239,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
@@ -246,7 +251,7 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          hatch run +py=3.13 test-optional:test \
+          uv run --group test-optional pytest \
             -v \
             tests/ \
             -k "not test_cli" \

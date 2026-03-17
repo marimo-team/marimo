@@ -17,6 +17,8 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
     _extract_heatmap_cells_numpy,
+    _extract_histogram_points_fallback,
+    _extract_histogram_points_numpy,
     _extract_scatter_points_fallback,
     _extract_scatter_points_numpy,
     plotly,
@@ -339,14 +341,9 @@ def test_value_returns_points() -> None:
         "indices": [0],
     }
 
-    # _convert_value returns the points
-    # With the new line chart support, it now extracts ALL points in the x-range
+    # _convert_value should preserve Plotly's explicit point payload.
     result = plot._convert_value(selection)
-    assert len(result) == 2  # Points at x=1 and x=2
-    assert result[0]["x"] == 1
-    assert result[0]["y"] == 4
-    assert result[1]["x"] == 2
-    assert result[1]["y"] == 5
+    assert result == [{"x": 1, "y": 4}]
 
 
 def test_plotly_name() -> None:
@@ -1030,6 +1027,169 @@ def test_line_chart_selection() -> None:
     assert result[2]["Y"] == 25
 
 
+def test_scattergl_line_selection() -> None:
+    """Test box selection on pure scattergl line chart."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 30]},
+        "points": [],  # Empty for pure lines
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return points at x=2, 3, 4
+    assert len(result) == 3
+    assert result[0]["X"] == 2
+    assert result[0]["Y"] == 20
+    assert result[1]["X"] == 3
+    assert result[1]["Y"] == 15
+    assert result[2]["X"] == 4
+    assert result[2]["Y"] == 25
+
+
+def test_scattergl_line_filters_by_x_range_only() -> None:
+    """Test scattergl line selection uses x-range only."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 50, 15, 60, 30],  # y values outside narrow selection
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 20]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should include all points with x in [2, 4], regardless of y.
+    assert len(result) == 3
+    assert result[0]["x"] == 2
+    assert result[0]["y"] == 50
+    assert result[1]["x"] == 3
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == 4
+    assert result[2]["y"] == 60
+
+
+def test_scattergl_selection_datetime_x_axis() -> None:
+    """Test scattergl line selection with datetime x-axis from frontend ISO strings."""
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Scattergl(x=dates, y=values, mode="lines"))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {
+            "x": [dates[1].isoformat(), dates[3].isoformat()],
+            "y": [0, 50],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 3
+    assert result[0]["x"] == dates[1]
+    assert result[0]["y"] == 20
+    assert result[1]["x"] == dates[2]
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == dates[3]
+    assert result[2]["y"] == 25
+
+
+def test_scattergl_multiple_line_traces_selection() -> None:
+    """Test box selection on multiple scattergl line traces."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattergl(
+            x=[1, 2, 3, 4],
+            y=[10, 20, 15, 25],
+            mode="lines",
+            name="Series A",
+        )
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=[1, 2, 3, 4],
+            y=[15, 10, 20, 18],
+            mode="lines",
+            name="Series B",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return 6 points total: 3 from each trace
+    assert len(result) == 6
+
+    # Check Series A points
+    series_a_points = [p for p in result if p.get("name") == "Series A"]
+    assert len(series_a_points) == 3
+    assert series_a_points[0]["X"] == 2
+    assert series_a_points[1]["X"] == 3
+    assert series_a_points[2]["X"] == 4
+
+    # Check Series B points
+    series_b_points = [p for p in result if p.get("name") == "Series B"]
+    assert len(series_b_points) == 3
+    assert series_b_points[0]["X"] == 2
+    assert series_b_points[1]["X"] == 3
+    assert series_b_points[2]["X"] == 4
+
+
+def test_marker_selection_does_not_expand_to_shared_x_values() -> None:
+    """Test marker selection preserves Plotly points for repeated x-values."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[10, 10, 10, 30],
+            y=[10, 50, 90, 30],
+            mode="markers",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [9, 11], "y": [45, 55]},
+        "points": [{"x": 10, "y": 50, "curveNumber": 0, "pointIndex": 1}],
+        "indices": [1],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [{"x": 10, "y": 50, "curveNumber": 0, "pointIndex": 1}]
+    assert plot.indices == [1]
+
+
 def test_line_markers_selection() -> None:
     """Test box selection on line chart with markers."""
     fig = go.Figure(
@@ -1044,11 +1204,14 @@ def test_line_markers_selection() -> None:
 
     plot = plotly(fig)
 
-    # Simulate box selection from x=1.5 to x=3.5
+    # Plotly should provide exact point payloads for marker-bearing traces.
     selection = {
         "range": {"x": [1.5, 3.5], "y": [10, 25]},
-        "points": [],
-        "indices": [],
+        "points": [
+            {"Time": 2, "Value": 20, "curveNumber": 0, "pointIndex": 1},
+            {"Time": 3, "Value": 15, "curveNumber": 0, "pointIndex": 2},
+        ],
+        "indices": [1, 2],
     }
 
     result = plot._convert_value(selection)
@@ -1059,6 +1222,67 @@ def test_line_markers_selection() -> None:
     assert result[0]["Value"] == 20
     assert result[1]["Time"] == 3
     assert result[1]["Value"] == 15
+
+
+def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> (
+    None
+):
+    """Test marker traces keep Plotly points while line traces use fallback."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=[10, 10, 10],
+            y=[10, 50, 90],
+            mode="markers",
+            name="Markers",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[10, 11, 12],
+            y=[0, 100, 0],
+            mode="lines",
+            name="Line",
+        )
+    )
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [9, 11], "y": [45, 55]},
+        "points": [
+            {
+                "x": 10,
+                "y": 50,
+                "curveNumber": 0,
+                "pointIndex": 1,
+                "name": "Markers",
+            }
+        ],
+        "indices": [1],
+    }
+
+    result = plot._convert_value(selection)
+
+    marker_points = [
+        point for point in result if point.get("curveNumber") == 0
+    ]
+    line_points = [point for point in result if point.get("curveNumber") == 1]
+
+    assert marker_points == [
+        {
+            "x": 10,
+            "y": 50,
+            "curveNumber": 0,
+            "pointIndex": 1,
+            "name": "Markers",
+        }
+    ]
+    assert len(line_points) == 2
+    assert line_points[0]["x"] == 10
+    assert line_points[0]["y"] == 0
+    assert line_points[1]["x"] == 11
+    assert line_points[1]["y"] == 100
 
 
 def test_line_chart_with_axis_titles() -> None:
@@ -1310,6 +1534,34 @@ def test_scatter_points_numpy_and_fallback() -> None:
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
     # Compare each point
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+        assert np_point["x"] == fb_point["x"]
+        assert np_point["y"] == fb_point["y"]
+        assert np_point["curveNumber"] == fb_point["curveNumber"]
+
+
+def test_scattergl_points_numpy_and_fallback() -> None:
+    """Test numpy/fallback parity for scattergl extraction."""
+    fig = go.Figure(
+        data=go.Scattergl(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+
+    x_min, x_max = 2, 4
+    numpy_result = _extract_scatter_points_numpy(fig, x_min, x_max)
+    fallback_result = _extract_scatter_points_fallback(fig, x_min, x_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(point: dict[str, Any]) -> tuple[Any, ...]:
+        return (point["x"], point["y"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
     for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]
@@ -1940,19 +2192,209 @@ def test_bar_chart_mixed_with_scatter() -> None:
     # Select range that includes scatter points and bars
     selection = {
         "range": {"x": [-0.5, 2.5], "y": [5, 25]},
+        "points": [{"x": 1, "y": 10, "curveNumber": 0, "pointIndex": 1}],
+        "indices": [1],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should include both the selected scatter point and bar(s).
+    assert len(result) >= 2
+    # Should have at least one bar
+    assert any(r.get("x") in ["A", "B", "C"] for r in result)
+    # Should preserve the explicit scatter point from Plotly
+    assert {"x": 1, "y": 10, "curveNumber": 0, "pointIndex": 1} in result
+
+
+# ============================================================================
+# Histogram Tests
+# ============================================================================
+
+
+def test_histogram_basic() -> None:
+    """Test that histograms can be created (supported chart type)."""
+    fig = go.Figure(data=go.Histogram(x=[0.1, 0.2, 0.3, 0.4]))
+    plot = plotly(fig)
+
+    assert plot is not None
+    assert plot.value == []
+
+
+def test_histogram_selection_vertical_row_level() -> None:
+    """Test histogram vertical selection returns underlying sample rows."""
+    x_values = [-1.2, -0.4, 0.1, 0.6, 1.4]
+    fig = go.Figure(data=go.Histogram(x=x_values))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 0.7], "y": [0, 50]},
         "points": [],
         "indices": [],
     }
 
     result = plot._convert_value(selection)
 
-    # Should include both scatter points and bar(s)
-    # The exact count depends on the x-range mapping to categorical bar positions
-    assert len(result) >= 2
-    # Should have at least one bar
-    assert any(r.get("x") in ["A", "B", "C"] for r in result)
-    # Should have scatter points
-    assert any(isinstance(r.get("x"), int) for r in result)
+    assert len(result) == 3
+    assert [point["x"] for point in result] == [-0.4, 0.1, 0.6]
+    assert [point["pointIndex"] for point in result] == [1, 2, 3]
+    assert all(point["curveNumber"] == 0 for point in result)
+
+
+def test_histogram_selection_horizontal_row_level() -> None:
+    """Test horizontal histogram selection uses y-range for row extraction."""
+    y_values = [5, 10, 15, 20]
+    fig = go.Figure(data=go.Histogram(y=y_values, orientation="h"))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [0, 50], "y": [9, 18]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert [point["y"] for point in result] == [10, 15]
+    assert [point["pointIndex"] for point in result] == [1, 2]
+
+
+def test_histogram_selection_preserves_optional_fields() -> None:
+    """Test histogram row extraction includes y/customdata/text when present."""
+    fig = go.Figure(
+        data=go.Histogram(
+            x=[0, 1, 2, 3],
+            y=[10, 20, 30, 40],
+            text=["a", "b", "c", "d"],
+            customdata=[["id0"], ["id1"], ["id2"], ["id3"]],
+            histfunc="sum",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [0.5, 2.5], "y": [0, 100]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert result[0] == {
+        "x": 1,
+        "y": 20,
+        "pointIndex": 1,
+        "curveNumber": 0,
+        "customdata": ["id1"],
+        "text": "b",
+    }
+    assert result[1] == {
+        "x": 2,
+        "y": 30,
+        "pointIndex": 2,
+        "curveNumber": 0,
+        "customdata": ["id2"],
+        "text": "c",
+    }
+
+
+def test_histogram_selection_from_point_numbers() -> None:
+    """Test histogram extraction from pointNumbers (lasso/no-range events)."""
+    fig = go.Figure(data=go.Histogram(x=[0.1, 0.2, 0.3, 0.4, 0.5]))
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {
+                "curveNumber": 0,
+                "pointNumber": 0,
+                "pointNumbers": [1, 3],
+            }
+        ],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [
+        {"x": 0.2, "pointIndex": 1, "curveNumber": 0},
+        {"x": 0.4, "pointIndex": 3, "curveNumber": 0},
+    ]
+    assert plot.indices == [1, 3]
+
+
+def test_histogram_initial_selection() -> None:
+    """Test that initial selection works with histograms."""
+    fig = go.Figure(data=go.Histogram(x=[0.1, 0.9, 1.1, 2.0]))
+    fig.add_selection(x0=0, x1=1, y0=0, y1=100, xref="x", yref="y")
+
+    plot = plotly(fig)
+    initial_value = plot._args.initial_value
+
+    assert initial_value["range"]["x"] == [0, 1]
+    assert initial_value["range"]["y"] == [0, 100]
+    assert initial_value["points"] == [
+        {"x": 0.1, "pointIndex": 0, "curveNumber": 0},
+        {"x": 0.9, "pointIndex": 1, "curveNumber": 0},
+    ]
+    assert initial_value["indices"] == [0, 1]
+
+
+def test_histogram_mixed_with_scatter_drops_bin_payload() -> None:
+    """Test histogram bins are replaced with row-level points in mixed charts."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0.1, 0.4], y=[10, 20], mode="markers"))
+    fig.add_trace(go.Histogram(x=[0.1, 0.2, 0.7]))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [0.0, 0.3], "y": [0, 50]},
+        "points": [
+            {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0},
+            {"x": 0.2, "y": 2, "curveNumber": 1, "pointNumber": 0},
+        ],
+        "indices": [0, 0],
+    }
+
+    result = plot._convert_value(selection)
+
+    scatter_points = [p for p in result if p.get("curveNumber") == 0]
+    histogram_points = [p for p in result if p.get("curveNumber") == 1]
+
+    assert scatter_points == [
+        {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0}
+    ]
+    assert histogram_points == [
+        {"x": 0.1, "pointIndex": 0, "curveNumber": 1},
+        {"x": 0.2, "pointIndex": 1, "curveNumber": 1},
+    ]
+
+
+def test_histogram_preserves_indices_when_empty_points_exist() -> None:
+    """Test index alignment when frontend emits empty point dicts."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0.1, 0.4], y=[10, 20], mode="markers"))
+    fig.add_trace(go.Histogram(x=[0.1, 0.2, 0.7]))
+    plot = plotly(fig)
+
+    # The first empty dict simulates frontend payload entries with dropped fields.
+    selection = {
+        "points": [
+            {},
+            {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0},
+            {"curveNumber": 1, "pointNumbers": [1]},
+        ],
+        "indices": [999, 0, 0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [
+        {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0},
+        {"x": 0.2, "pointIndex": 1, "curveNumber": 1},
+    ]
+    assert plot.indices == [0, 1]
 
 
 # Test numpy vs fallback implementations
@@ -2048,6 +2490,46 @@ def test_bar_numpy_and_fallback_match_horizontal() -> None:
         assert np_bar["x"] == fb_bar["x"]
         assert np_bar["y"] == fb_bar["y"]
         assert np_bar["curveNumber"] == fb_bar["curveNumber"]
+
+
+def test_histogram_numpy_and_fallback_match_numeric() -> None:
+    """Test histogram numpy and fallback extraction match on numeric data."""
+    fig = go.Figure(data=go.Histogram(x=[-1.0, -0.5, 0.0, 0.5, 1.0]))
+    range_data = {"x": [-0.5, 0.6], "y": [0, 50]}
+
+    numpy_result = _extract_histogram_points_numpy(fig, range_data)
+    fallback_result = _extract_histogram_points_fallback(fig, range_data)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(point: dict[str, Any]) -> tuple[Any, ...]:
+        return (point["pointIndex"], point["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+        assert np_point == fb_point
+
+
+def test_histogram_numpy_and_fallback_match_categorical() -> None:
+    """Test histogram numpy and fallback extraction match on categories."""
+    fig = go.Figure(data=go.Histogram(x=["A", "B", "A", "C", "B"]))
+    range_data = {"x": [0.5, 1.5], "y": [0, 50]}
+
+    numpy_result = _extract_histogram_points_numpy(fig, range_data)
+    fallback_result = _extract_histogram_points_fallback(fig, range_data)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(point: dict[str, Any]) -> tuple[Any, ...]:
+        return (point["pointIndex"], point["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+        assert np_point == fb_point
 
 
 def test_heatmap_numpy_and_fallback_numeric_axes() -> None:

@@ -9,6 +9,9 @@ import string
 import threading
 from typing import TYPE_CHECKING, Optional, cast
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
@@ -299,6 +302,25 @@ def _without_leading_dot(ext: str) -> str:
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
     try:
         return VirtualFileStorageManager().read(filename, byte_length)
+    except KeyError as err:
+        raise HTTPException(
+            HTTPStatus.NOT_FOUND,
+            detail="File not found",
+        ) from err
+
+
+def read_virtual_file_chunked(
+    filename: str, byte_length: int
+) -> Iterator[bytes]:
+    """Read a virtual file in chunks for streaming responses.
+
+    Yields chunks of bytes, avoiding holding the entire file in memory
+    as a single bytes object.
+    """
+    try:
+        yield from VirtualFileStorageManager().read_chunked(
+            filename, byte_length
+        )
     except KeyError as err:
         raise HTTPException(
             HTTPStatus.NOT_FOUND,

@@ -153,6 +153,7 @@ class StorageDownloadRequest(StorageDownloadCommand, tag=False):
             request_id=self.request_id,
             namespace=self.namespace,
             path=self.path,
+            preview=self.preview,
         )
 
 
@@ -169,7 +170,7 @@ class DeleteCellRequest(DeleteCellCommand, tag=False):
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):
     def as_command(self) -> InstallPackagesCommand:
         return InstallPackagesCommand(
-            manager=self.manager, versions=self.versions
+            manager=self.manager, versions=self.versions, source=self.source
         )
 
 
