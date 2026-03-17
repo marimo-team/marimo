@@ -28,7 +28,8 @@ const RangeSlider = React.forwardRef<
   const dragStartX = React.useRef(0);
   const dragStartY = React.useRef(0);
   const dragStartValue = React.useRef<number[]>([]);
-  const rootRef = React.useRef<React.ElementRef<typeof SliderPrimitive.Root>>(null);
+  const rootRef =
+    React.useRef<React.ElementRef<typeof SliderPrimitive.Root>>(null);
 
   const mergedRef = (node: React.ElementRef<typeof SliderPrimitive.Root>) => {
     rootRef.current = node;
@@ -106,7 +107,7 @@ const RangeSlider = React.forwardRef<
     }
   };
 
-  const handleRangePointerUp= (e: React.PointerEvent<HTMLSpanElement>) => {
+  const handleRangePointerUp = (e: React.PointerEvent<HTMLSpanElement>) => {
     if (!isDraggingRange.current) {
       return;
     }

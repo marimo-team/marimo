@@ -23,7 +23,6 @@ interface Data {
   showValue: boolean;
   fullWidth: boolean;
   disabled?: boolean;
-
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
@@ -41,7 +40,6 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
     disabled: z.boolean().optional(),
-
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -125,7 +123,6 @@ const RangeSliderComponent = ({
           step={step}
           orientation={orientation}
           disabled={disabled}
-
           onValueChange={(nextValue: number[]) => {
             setInternalValue(nextValue);
             if (!debounce) {
