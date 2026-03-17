@@ -146,10 +146,10 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 if dtype.is_time():
                     col_agg = (
-                        col.hour() * 3600000
-                        + col.minute() * 60000
-                        + col.second() * 1000
-                        + col.microsecond() // 1000
+                        col.hour().cast("int64") * 3600000
+                        + col.minute().cast("int64") * 60000
+                        + col.second().cast("int64") * 1000
+                        + col.millisecond().cast("int64")
                     )
                 else:
                     col_agg = col.epoch_seconds()

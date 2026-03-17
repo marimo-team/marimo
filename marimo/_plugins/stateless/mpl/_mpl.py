@@ -19,6 +19,7 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._utils.data_uri import build_data_url
 
 LOGGER = _loggers.marimo_logger()
 
@@ -71,7 +72,10 @@ class NonInteractiveMplHtml(Html):
         super().__init__(as_html(figure).text)
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        return ("image/png", png_bytes(self._figure).decode())
+        data_url = build_data_url(
+            mimetype="image/png", data=png_bytes(self._figure)
+        )
+        return ("image/png", data_url)
 
 
 @mddoc

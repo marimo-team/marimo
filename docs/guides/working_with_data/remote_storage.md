@@ -1,10 +1,10 @@
 # Remote Storage
 
-marimo makes it easy to work with cloud storage and remote filesystems by automatically detecting [Obstore](https://developmentseed.org/obstore/) and [fsspec](https://filesystem-spec.readthedocs.io/) storage connections in your notebook. From the Files panel, you can browse directories, search entries, copy URLs, and download files—all without leaving the editor.
+marimo makes it easy to work with cloud storage and remote filesystems by automatically detecting [obstore](https://developmentseed.org/obstore/) and [fsspec](https://filesystem-spec.readthedocs.io/) storage connections in your notebook. From the Files panel, you can browse directories, search entries, copy URLs, and download files—all without leaving the editor.
 
 !!! example "Experimental"
 
-    Remote storage is an experimental feature. Enable it in **Settings > Experimental > Storage Inspector**.
+    Remote storage is an experimental feature. It is enabled by default; you can turn it off in **Settings > Experimental > Storage Inspector** if needed.
 
 <div align="center">
 <video autoplay muted loop playsinline width="100%" height="100%" align="center">
@@ -18,7 +18,7 @@ marimo auto-discovers variables that are instances of:
 
 | Library | Base class | Example stores |
 |---------|-----------|----------------|
-| [Obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
+| [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
 | [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 
 
@@ -41,7 +41,7 @@ If you'd like to connect to a storage that isn't supported by the UI, you can us
 
 ### 2. Using code
 
-#### Obstore
+#### obstore
 
 ```python
 from obstore.store import S3Store

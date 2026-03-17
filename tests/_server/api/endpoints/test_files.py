@@ -13,8 +13,8 @@ import msgspec
 import pytest
 
 from marimo._utils.platform import is_windows
-from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
+    get_session_manager,
     token_header,
     with_read_session,
     with_session,

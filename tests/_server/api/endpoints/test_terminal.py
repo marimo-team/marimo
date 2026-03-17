@@ -22,7 +22,7 @@ from marimo._server.api.endpoints.terminal import (
 )
 from marimo._server.session_manager import SessionManager
 from marimo._session.model import SessionMode
-from tests._server.conftest import get_session_manager
+from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient

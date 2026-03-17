@@ -187,7 +187,8 @@ class Session(Protocol):
 
     @contextlib.contextmanager
     def scoped(
-        self, extension: SessionExtension
+        self,
+        extension: SessionExtension,
     ) -> Iterator[SessionExtension]:
         """Attach an extension for the duration of the context."""
         ...

@@ -156,6 +156,7 @@ async def test_many_modules_not_found_error_in_edit_mode():
         exc = ManyModulesNotFoundError(
             ["numpy", "pandas", "scipy"],
             "No modules named: numpy, pandas, scipy",
+            source="kernel",
         )
         response = await handle_error(Request({"type": "http"}), exc)
 
@@ -380,6 +381,40 @@ async def test_http_exception_various_status_codes(
 
     assert response.status_code == status_code
     assert response.body == f'{{"detail":"{detail}"}}'.encode()
+
+
+async def test_module_not_found_error_source_is_server():
+    """ModuleNotFoundError should use source='server' and isolated=True"""
+    mock_app_state = MagicMock()
+    mock_app_state.mode = SessionMode.EDIT
+    mock_app_state.get_current_session_id.return_value = "test_session"
+    mock_app_state.get_current_session.return_value = MagicMock()
+
+    with (
+        patch("marimo._server.errors.AppState", return_value=mock_app_state),
+        patch(
+            "marimo._server.errors.send_message_to_consumer"
+        ) as mock_send_message,
+        # is_python_isolated should NOT be consulted for server-sourced errors
+        patch(
+            "marimo._server.errors.is_python_isolated", return_value=False
+        ) as mock_is_isolated,
+    ):
+        exc = ModuleNotFoundError(
+            "No module named 'missing_package'", name="missing_package"
+        )
+        response = await handle_error(Request({"type": "http"}), exc)
+
+        assert response.status_code == 500
+        mock_send_message.assert_called_once()
+        call_args = mock_send_message.call_args
+        notification = call_args.kwargs["operation"]
+        assert notification.packages == ["missing_package"]
+        assert notification.source == "server"
+        # Server-sourced errors are always isolated
+        assert notification.isolated is True
+        # is_python_isolated should not be called when source is "server"
+        mock_is_isolated.assert_not_called()
 
 
 async def test_appstate_initialization_failure():

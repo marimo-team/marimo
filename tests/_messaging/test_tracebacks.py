@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from marimo._messaging.context import HTTP_REQUEST_CTX
+from marimo._messaging.context import HTTP_REQUEST_CTX, is_code_mode_request
 from marimo._messaging.tracebacks import (
-    _accepts_html,
     _highlight_traceback,
     _trim_traceback,
     is_code_highlighting,
@@ -84,13 +83,13 @@ class TestTracebacks:
         assert is_code_highlighting("") is False
         assert is_code_highlighting('class="not-codehilite"') is False
 
-    def test_write_traceback_plain_text_when_accept_not_html(self) -> None:
-        """When HTTP request has Accept without text/html, use plain text."""
+    def test_write_traceback_plain_text_in_code_mode(self) -> None:
+        """When request is from /api/kernel/execute, use plain text."""
         mock_stderr = MagicMock(spec=Stderr)
         req = HTTPRequest(
-            url={},
+            url={"path": "/api/kernel/execute"},
             base_url={},
-            headers={"accept": "text/event-stream"},
+            headers={},
             query_params={},
             path_params={},
             cookies={},
@@ -107,13 +106,13 @@ class TestTracebacks:
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
-    def test_write_traceback_html_when_accept_includes_html(self) -> None:
-        """When HTTP request has Accept with text/html, use HTML formatting."""
+    def test_write_traceback_html_for_regular_http_request(self) -> None:
+        """Regular HTTP requests (no code-mode header) get HTML tracebacks."""
         mock_stderr = MagicMock(spec=Stderr)
         req = HTTPRequest(
             url={},
             base_url={},
-            headers={"accept": "text/html, application/json"},
+            headers={"accept": "application/json"},
             query_params={},
             path_params={},
             cookies={},
@@ -131,15 +130,15 @@ class TestTracebacks:
             HTTP_REQUEST_CTX.reset(token)
 
 
-class TestAcceptsHtml:
+class TestIsCodeModeRequest:
     def test_no_request_context(self) -> None:
-        assert _accepts_html() is True
+        assert is_code_mode_request() is False
 
-    def test_accept_event_stream(self) -> None:
+    def test_execute_endpoint(self) -> None:
         req = HTTPRequest(
-            url={},
+            url={"path": "/api/kernel/execute"},
             base_url={},
-            headers={"accept": "text/event-stream"},
+            headers={},
             query_params={},
             path_params={},
             cookies={},
@@ -148,15 +147,15 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is False
+            assert is_code_mode_request() is True
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
-    def test_accept_html(self) -> None:
+    def test_run_endpoint(self) -> None:
         req = HTTPRequest(
-            url={},
+            url={"path": "/api/kernel/run"},
             base_url={},
-            headers={"accept": "text/html"},
+            headers={},
             query_params={},
             path_params={},
             cookies={},
@@ -165,28 +164,11 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is True
+            assert is_code_mode_request() is False
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
-    def test_accept_wildcard(self) -> None:
-        req = HTTPRequest(
-            url={},
-            base_url={},
-            headers={"accept": "*/*"},
-            query_params={},
-            path_params={},
-            cookies={},
-            meta={},
-            user=None,
-        )
-        token = HTTP_REQUEST_CTX.set(req)
-        try:
-            assert _accepts_html() is False
-        finally:
-            HTTP_REQUEST_CTX.reset(token)
-
-    def test_no_accept_header(self) -> None:
+    def test_empty_url(self) -> None:
         req = HTTPRequest(
             url={},
             base_url={},
@@ -199,7 +181,7 @@ class TestAcceptsHtml:
         )
         token = HTTP_REQUEST_CTX.set(req)
         try:
-            assert _accepts_html() is False
+            assert is_code_mode_request() is False
         finally:
             HTTP_REQUEST_CTX.reset(token)
 

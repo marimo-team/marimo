@@ -51,6 +51,12 @@ if [[ ! "$VERSION_TYPE" =~ ^(minor|patch)$ ]]; then
   exit 1
 fi
 
+# Check gh CLI is available
+if ! command -v gh &> /dev/null; then
+  print_error "gh CLI is required but not installed. See https://cli.github.com/"
+  exit 1
+fi
+
 # Check if on main branch
 print_step "Checking git branch"
 BRANCH=$(git branch --show-current)
@@ -82,34 +88,52 @@ NEW_VERSION=$(NO_COLOR=1 uv version --short) # re-run to get the version
 # Summary and confirmation
 echo -e "\n${BOLD}Release Summary:${NC}"
 echo "  • New Version: $NEW_VERSION"
-echo "  • Files to be committed:"
-echo "    - pyproject.toml"
+echo "  • A PR will be created: release/$NEW_VERSION -> main"
+echo "  • After merge, a tag will be created automatically"
 
 if ! confirm "Proceed with release?"; then
   print_warning "Release cancelled"
+  git checkout pyproject.toml
   exit 1
 fi
 
-# Commit version change
-print_step "Committing version change"
+# Create release branch and commit
+RELEASE_BRANCH="release/$NEW_VERSION"
+print_step "Creating release branch: $RELEASE_BRANCH"
+git checkout -b "$RELEASE_BRANCH"
 git add pyproject.toml
 git commit -m "release: $NEW_VERSION"
 
-# Push changes
-if confirm "Push changes to remote?"; then
-  git push origin main
-  echo -e "${GREEN}✓ Changes pushed successfully${NC}"
-fi
+# Push branch and create PR
+print_step "Pushing branch and creating PR"
+git push origin "$RELEASE_BRANCH"
 
-# Create and push tag
-if confirm "Create and push tag $NEW_VERSION?"; then
-  git tag -a "$NEW_VERSION" -m "release: $NEW_VERSION"
-  git push origin --tags
-  echo -e "${GREEN}✓ Tag pushed successfully${NC}"
-fi
+PR_URL=$(gh pr create \
+  --title "release: $NEW_VERSION" \
+  --label "internal" \
+  --body "$(cat <<EOF
+## Release $NEW_VERSION
+
+Bumps version to \`$NEW_VERSION\` ($VERSION_TYPE release).
+
+### After merge
+1. Push to \`main\` triggers a **dev release** (pre-release to PyPI)
+2. The \`release-tag\` workflow detects this merged release PR and creates tag \`$NEW_VERSION\`
+3. Tag push triggers the **production release** (publish to PyPI, Docker, etc.)
+
+### Checklist
+- [ ] CI passes
+- [ ] Version in \`pyproject.toml\` is correct (\`$NEW_VERSION\`)
+EOF
+)")
+
+# Switch back to main
+git checkout main
 
 # Final success message
-echo -e "\n${BOLD}${GREEN}🎉 Release $NEW_VERSION completed successfully! 🎉${NC}\n"
-echo -e "${YELLOW}Don't forget to:${NC}"
-echo "  1. Monitor the release: https://github.com/marimo-team/marimo/actions/workflows/release.yml"
-echo "  2. Draft the release notes: https://github.com/marimo-team/marimo/releases/new?tag=$NEW_VERSION"
+echo -e "\n${BOLD}${GREEN}Release PR created successfully!${NC}\n"
+echo -e "  PR: $PR_URL"
+echo -e "\n${YELLOW}Next steps:${NC}"
+echo "  1. Get the PR reviewed and merged"
+echo "  2. After merge, the tag will be created automatically"
+echo "  3. Monitor the release: https://github.com/marimo-team/marimo/actions/workflows/release.yml"

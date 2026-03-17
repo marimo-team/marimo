@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -158,11 +159,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             elif dtype == nw.Time:
                 value = convert_value(value, datetime.time.fromisoformat)
             elif dtype == nw.Object:
-                # Object dtype may contain date/datetime values
-                # (e.g., pandas with Python date objects)
+                # Object dtype may contain date/datetime/Decimal values
+                # (e.g., pandas stores these as Python objects)
                 try:
                     sample = (
-                        df.select(col(column_name).drop_nulls())
+                        df.select(column_name)
+                        .filter(~col(column_name).is_null())
                         .head(1)
                         .collect()
                         .get_column(column_name)
@@ -181,6 +183,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                             value = convert_value(
                                 value, datetime.time.fromisoformat
                             )
+                        elif isinstance(sample[0], decimal.Decimal):
+                            # Cast to Float64 so Decimal values can be compared, minor precision loss
+                            value = convert_value(value, float)
+                            column = column.cast(nw.Float64)
                 except Exception:
                     pass
 
@@ -195,6 +201,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 and dtype.is_float()  # Note: this doesn't cover Object types for pandas
             ):
                 value = convert_value(value, float)
+            elif dtype is not None and dtype.is_decimal():
+                # Cast to Float64 so Decimal values can be compared, minor precision loss
+                value = convert_value(value, float)
+                column = column.cast(nw.Float64)
 
             # Build the expression based on the operator
             condition_expr: nw.Expr

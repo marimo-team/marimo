@@ -244,7 +244,8 @@ class SessionImpl(Session):
 
     @contextlib.contextmanager
     def scoped(
-        self, extension: SessionExtension
+        self,
+        extension: SessionExtension,
     ) -> Iterator[SessionExtension]:
         """Attach an extension for the duration of the context."""
         self.extensions.append(extension)

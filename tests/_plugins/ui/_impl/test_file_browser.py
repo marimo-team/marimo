@@ -968,11 +968,10 @@ def test_file_browser_relative_path_sent_to_frontend_as_absolute(
         for rel_path in ["subdir", "./subdir", Path("subdir")]:
             fb = file_browser(initial_path=rel_path)
             initial_path_arg = str(fb._component_args["initial-path"])  # pyright: ignore[reportPrivateUsage]
-            assert "/" in initial_path_arg, (
-                f"initial-path sent to frontend must contain '/' "
-                f"(be absolute), got: {initial_path_arg!r}"
+            assert Path(initial_path_arg).is_absolute(), (
+                f"initial-path sent to frontend must be absolute, "
+                f"got: {initial_path_arg!r}"
             )
-            assert Path(initial_path_arg).is_absolute()
 
             # Navigating up from the initial path should work
             parent = str(Path(initial_path_arg).parent)

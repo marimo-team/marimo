@@ -1,9 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import time
+from pathlib import Path
 
 import pytest
+
+from marimo._session.managers.ipc import construct_kernel_env
 
 
 @pytest.mark.requires("zmq")
@@ -146,3 +150,85 @@ class TestIPCQueueManagerImpl:
 
         # Clean up
         via_factory.close_queues()
+
+
+class TestConstructKernelEnv:
+    """Tests for construct_kernel_env, the pure-function that builds the
+    environment dict for a kernel subprocess.
+
+    Three scenarios are covered matching the real call-sites in
+    IPCKernelManagerImpl.start_kernel():
+      1. Ephemeral sandbox  (is_ephemeral_sandbox=True, writable=True)
+      2. Configured writable venv  (is_ephemeral_sandbox=False, writable=True)
+      3. Configured read-only venv with PYTHONPATH injection
+    """
+
+    BASE_ENV: dict[str, str] = {"PATH": "/usr/bin"}
+    SANDBOX_PYTHON = "/tmp/sandbox/.venv/bin/python"
+    CONFIGURED_PYTHON = "/home/user/.venvs/nb/bin/python"
+
+    # -- ephemeral sandbox -------------------------------------------------
+
+    def test_ephemeral_sandbox(self) -> None:
+        env = construct_kernel_env(
+            base_env={**self.BASE_ENV, "UV_PROJECT_ENVIRONMENT": "/old"},
+            venv_python=self.SANDBOX_PYTHON,
+            is_ephemeral_sandbox=True,
+            writable=True,
+        )
+        # VIRTUAL_ENV points to the venv root (two parents above python)
+        assert (
+            Path(env["VIRTUAL_ENV"]) == Path(self.SANDBOX_PYTHON).parent.parent
+        )
+        # UV_PROJECT_ENVIRONMENT must be removed so the kernel doesn't
+        # inherit the outer uv project.
+        assert "UV_PROJECT_ENVIRONMENT" not in env
+        # Ephemeral sandboxes are always writable.
+        assert env["MARIMO_MANAGE_SCRIPT_METADATA"] == "true"
+
+    # -- configured venvs --------------------------------------------------
+
+    def test_configured_readonly_venv_with_pythonpath(self) -> None:
+        env = construct_kernel_env(
+            base_env=self.BASE_ENV,
+            venv_python=self.CONFIGURED_PYTHON,
+            is_ephemeral_sandbox=False,
+            writable=False,
+            kernel_pythonpath="/usr/lib/python3.11/site-packages",
+        )
+        assert env["PYTHONPATH"] == "/usr/lib/python3.11/site-packages"
+        # Should NOT touch sandbox-only vars.
+        assert "VIRTUAL_ENV" not in env
+        assert "MARIMO_MANAGE_SCRIPT_METADATA" not in env
+
+    def test_pythonpath_merges_with_existing(self) -> None:
+        env = construct_kernel_env(
+            base_env={**self.BASE_ENV, "PYTHONPATH": "/existing"},
+            venv_python=self.CONFIGURED_PYTHON,
+            is_ephemeral_sandbox=False,
+            writable=False,
+            kernel_pythonpath="/new",
+        )
+        assert env["PYTHONPATH"] == f"/new{os.pathsep}/existing"
+
+    def test_writable_sets_manage_script_metadata(self) -> None:
+        env = construct_kernel_env(
+            base_env=self.BASE_ENV,
+            venv_python=self.CONFIGURED_PYTHON,
+            is_ephemeral_sandbox=False,
+            writable=True,
+        )
+        assert env["MARIMO_MANAGE_SCRIPT_METADATA"] == "true"
+
+    # -- safety ------------------------------------------------------------
+
+    def test_does_not_mutate_base_env(self) -> None:
+        base = {**self.BASE_ENV, "UV_PROJECT_ENVIRONMENT": "/old"}
+        construct_kernel_env(
+            base_env=base,
+            venv_python=self.SANDBOX_PYTHON,
+            is_ephemeral_sandbox=True,
+            writable=True,
+        )
+        assert "UV_PROJECT_ENVIRONMENT" in base
+        assert "VIRTUAL_ENV" not in base

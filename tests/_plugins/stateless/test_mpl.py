@@ -91,6 +91,31 @@ def test_patch_javascript() -> None:
 
 
 @pytest.mark.requires("matplotlib")
+def test_non_interactive_mpl_mime_returns_data_uri() -> None:
+    """Test that NonInteractiveMplHtml._mime_ returns a data URI."""
+    import base64
+
+    import matplotlib.pyplot as plt
+
+    from marimo._plugins.stateless.mpl._mpl import NonInteractiveMplHtml
+
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+
+    html = NonInteractiveMplHtml(fig)
+    mime_type, data = html._mime_()
+    assert mime_type == "image/png"
+    assert data.startswith("data:image/png;base64,")
+
+    # Decode the base64 payload and verify it's a valid PNG.
+    b64_payload = data.split(",", 1)[1]
+    raw_png = base64.b64decode(b64_payload)
+    assert raw_png.startswith(b"\x89PNG")
+
+    plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
 def test_mpl_interactive_fallback_when_virtual_files_not_supported() -> None:
     """Test that mpl.interactive falls back to PNG when virtual_files_supported=False."""
     import matplotlib.pyplot as plt

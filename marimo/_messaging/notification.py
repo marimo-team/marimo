@@ -336,12 +336,16 @@ class MissingPackageAlertNotification(
 
     Attributes:
         packages: Missing package names.
-        isolated: Whether in isolated environment.
+        isolated: Whether auto-install is possible in this environment.
+        source: Which Python environment to install into. "kernel" (default)
+                installs in the kernel's venv; "server" installs in the
+                server's own Python env (e.g. for formatter tools like ruff).
     """
 
     name: ClassVar[str] = "missing-package-alert"
     packages: list[str]
     isolated: bool
+    source: Literal["kernel", "server"] = "kernel"
 
 
 # package name => installation status
