@@ -13,13 +13,14 @@ from marimo import _loggers
 from marimo._messaging.types import KernelMessage
 from marimo._session.app_host.commands import (
     AppHostReadyResponse,
+    Channel,
     CreateKernelCmd,
     KernelCreatedResponse,
     KernelExited,
     ShutdownAppHostCmd,
     StopKernelCmd,
-    decode_response,
-    encode_command,
+    decode_mgmt_response,
+    encode_mgmt_command,
 )
 from marimo._session.app_host.connection import AppHostConnection
 
@@ -161,7 +162,7 @@ class AppHost:
             )
 
         data = conn.response.recv()
-        ready_response = decode_response(data)
+        ready_response = decode_mgmt_response(data)
         if not isinstance(ready_response, AppHostReadyResponse):
             raise RuntimeError(
                 f"Unexpected response during startup: {type(ready_response)}"
@@ -179,14 +180,14 @@ class AppHost:
         )
 
     def send_command(
-        self, session_id: str, channel: str, payload: object
+        self, session_id: str, channel: Channel, payload: object
     ) -> None:
         """Send a command to a kernel in the app host."""
         if self._conn is not None:
             self._conn.cmd.send_multipart(
                 [
                     session_id.encode(),
-                    channel.encode(),
+                    channel.value,
                     pickle.dumps(payload),
                 ]
             )
@@ -225,12 +226,12 @@ class AppHost:
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
         )
-        self._conn.mgmt.send(encode_command(cmd))
+        self._conn.mgmt.send(encode_mgmt_command(cmd))
 
         response_timeout_ms = 30_000
         if self._conn.response.poll(timeout=response_timeout_ms):
             data = self._conn.response.recv()
-            response = decode_response(data)
+            response = decode_mgmt_response(data)
             if not isinstance(response, KernelCreatedResponse):
                 raise RuntimeError(
                     f"Unexpected response type: {type(response)}"
@@ -245,7 +246,7 @@ class AppHost:
     def stop_kernel(self, session_id: str) -> None:
         if self._conn is not None:
             self._conn.mgmt.send(
-                encode_command(StopKernelCmd(session_id=session_id))
+                encode_mgmt_command(StopKernelCmd(session_id=session_id))
             )
 
     def has_active_session(self, session_id: str) -> bool:
@@ -278,7 +279,7 @@ class AppHost:
 
         if self._conn is not None:
             try:
-                self._conn.mgmt.send(encode_command(ShutdownAppHostCmd()))
+                self._conn.mgmt.send(encode_mgmt_command(ShutdownAppHostCmd()))
             except zmq.ZMQError:
                 pass
 

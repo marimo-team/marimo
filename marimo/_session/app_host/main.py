@@ -33,19 +33,16 @@ from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
 from marimo._runtime.commands import StopKernelCommand
 from marimo._session.app_host.commands import (
-    CHANNEL_COMPLETION,
-    CHANNEL_CONTROL,
-    CHANNEL_INPUT,
-    CHANNEL_UI_ELEMENT,
     AppHostArgs,
     AppHostReadyResponse,
+    Channel,
     CreateKernelCmd,
     KernelCreatedResponse,
     KernelExited,
     ShutdownAppHostCmd,
     StopKernelCmd,
-    decode_command,
-    encode_response,
+    decode_mgmt_command,
+    encode_mgmt_response,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -108,12 +105,6 @@ class _TaggedStreamQueue:
         return True
 
 
-_CHANNEL_CONTROL = CHANNEL_CONTROL.encode()
-_CHANNEL_UI_ELEMENT = CHANNEL_UI_ELEMENT.encode()
-_CHANNEL_COMPLETION = CHANNEL_COMPLETION.encode()
-_CHANNEL_INPUT = CHANNEL_INPUT.encode()
-
-
 def _handle_command(
     cmd_socket: typing.Any,
     kernels: dict[str, _KernelInfo],
@@ -121,7 +112,7 @@ def _handle_command(
     """Read one multiplexed command from ZMQ and route to the kernel queue."""
     frames = cmd_socket.recv_multipart()
     session_id = frames[0].decode()
-    channel = frames[1]
+    channel = Channel(frames[1])
     payload = pickle.loads(frames[2])
 
     info = kernels.get(session_id)
@@ -129,16 +120,14 @@ def _handle_command(
         LOGGER.debug("Dropping command for unknown session %s", session_id)
         return
 
-    if channel == _CHANNEL_CONTROL:
+    if channel is Channel.CONTROL:
         info.queues.control.put(payload)
-    elif channel == _CHANNEL_UI_ELEMENT:
+    elif channel is Channel.UI_ELEMENT:
         info.queues.ui_element.put(payload)
-    elif channel == _CHANNEL_COMPLETION:
+    elif channel is Channel.COMPLETION:
         info.queues.completion.put(payload)
-    elif channel == _CHANNEL_INPUT:
+    elif channel is Channel.INPUT:
         info.queues.input.put(payload)
-    else:
-        LOGGER.warning("Unknown channel: %s", channel)
 
 
 def _stream_collector_loop(
@@ -241,7 +230,7 @@ def _handle_create_kernel(
         )
 
         response_socket.send(
-            encode_response(
+            encode_mgmt_response(
                 KernelCreatedResponse(session_id=cmd.session_id, success=True)
             )
         )
@@ -252,7 +241,7 @@ def _handle_create_kernel(
             "Failed to create kernel for session %s", cmd.session_id
         )
         response_socket.send(
-            encode_response(
+            encode_mgmt_response(
                 KernelCreatedResponse(
                     session_id=cmd.session_id, success=False, error=str(e)
                 )
@@ -303,7 +292,7 @@ def app_host_main(args: AppHostArgs) -> None:
     stream_socket.connect(args.stream_addr)
 
     # Signal the parent that we're ready to accept commands.
-    response_socket.send(encode_response(AppHostReadyResponse()))
+    response_socket.send(encode_mgmt_response(AppHostReadyResponse()))
 
     kernels: dict[str, _KernelInfo] = {}
     stream_outbox: queue.Queue[typing.Any] = queue.Queue()
@@ -327,7 +316,7 @@ def app_host_main(args: AppHostArgs) -> None:
 
         if mgmt_socket in events:
             data = mgmt_socket.recv()
-            cmd = decode_command(data)
+            cmd = decode_mgmt_command(data)
 
             if isinstance(cmd, CreateKernelCmd):
                 _handle_create_kernel(

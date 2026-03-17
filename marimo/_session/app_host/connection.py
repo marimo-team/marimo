@@ -20,15 +20,16 @@ class AppHostConnection:
     """Manages all ZeroMQ sockets for an AppHost subprocess."""
 
     context: zmq.Context[zmq.Socket[bytes]]
-    # PUSH
-    # management commands, such as create kernel and stop kernel
+
+    # PUSH — single frame: encode_mgmt_command(MgmtCommand)
     mgmt: zmq.Socket[bytes]
-    # kernel commands multiplexed by session, such as control, UI, ...
-    cmd: zmq.Socket[bytes]
-    # PULL
-    # management command responses
+    # PULL — single frame: decode_mgmt_response(bytes) -> MgmtResponse
     response: zmq.Socket[bytes]
-    # kernel output, multiplexed by session
+
+    # TODO(akshayka): Consider moving to something less fragile than pickle
+    # PUSH — 3-frame multipart: [session_id, channel, pickle(payload)]
+    cmd: zmq.Socket[bytes]
+    # PULL — 2-frame multipart: [session_id, pickle(KernelMessage | KernelExited)]
     stream: zmq.Socket[bytes]
 
     @classmethod

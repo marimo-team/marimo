@@ -499,7 +499,9 @@ banned-module-level-imports = [
     "typing_extensions",
     "pyiceberg",
     "redshift_connector",
-    "pydantic_ai"
+    "pydantic_ai",
+    # a top-level import of zmq may break WASM
+    "zmq"
 ]
 
 [tool.ruff.lint.flake8-pytest-style]

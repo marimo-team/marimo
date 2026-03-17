@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Commands for the app host management channel."""
+"""Commands and responses."""
 
 from __future__ import annotations
 
+import enum
 import typing
 
 import msgspec
@@ -13,15 +14,8 @@ from marimo._config.config import MarimoConfig
 from marimo._runtime.commands import AppMetadata
 from marimo._types.ids import CellId_t
 
-# Channel names for multiplexed command routing.
-# Shared between host.py (main process) and main.py (subprocess).
-CHANNEL_CONTROL = "control"
-CHANNEL_UI_ELEMENT = "ui_element"
-CHANNEL_COMPLETION = "completion"
-CHANNEL_INPUT = "input"
 
-
-# Commands (main -> app host)
+# ---------------- Management commands ---------------------
 class CreateKernelCmd(msgspec.Struct, tag=True):
     """Request the app host to create a new kernel thread."""
 
@@ -44,7 +38,7 @@ class ShutdownAppHostCmd(msgspec.Struct, tag=True):
     """Request the app host to shut down entirely."""
 
 
-# Responses (app host -> main)
+# ---------------- Management responses ---------------------
 class AppHostReadyResponse(msgspec.Struct, tag=True):
     """Signals that the app host has started and is ready."""
 
@@ -57,46 +51,43 @@ class KernelCreatedResponse(msgspec.Struct, tag=True):
     error: str | None = None
 
 
-# Sentinel sent on the stream channel when a kernel thread exits.
-class KernelExited:
-    """Signals that a kernel thread has exited (normally or via crash)."""
-
-
-# Union types for tagged deserialization
+# ---------------- Management encoders and decoders ---------------------
 MgmtCommand = typing.Union[CreateKernelCmd, StopKernelCmd, ShutdownAppHostCmd]
 MgmtResponse = typing.Union[AppHostReadyResponse, KernelCreatedResponse]
 
-_cmd_encoder = msgspec.json.Encoder()
 _cmd_decoder = msgspec.json.Decoder(MgmtCommand)
-_resp_encoder = msgspec.json.Encoder()
 _resp_decoder = msgspec.json.Decoder(MgmtResponse)
 
 
-def encode_command(cmd: MgmtCommand) -> bytes:
-    return _cmd_encoder.encode(cmd)
+def encode_mgmt_command(cmd: MgmtCommand) -> bytes:
+    return msgspec.json.encode(cmd)
 
 
-def decode_command(data: bytes) -> MgmtCommand:
-    result: MgmtCommand = _cmd_decoder.decode(data)
-    return result
+def decode_mgmt_command(data: bytes) -> MgmtCommand:
+    return _cmd_decoder.decode(data)
 
 
-def encode_response(resp: MgmtResponse) -> bytes:
-    return _resp_encoder.encode(resp)
+def encode_mgmt_response(resp: MgmtResponse) -> bytes:
+    return msgspec.json.encode(resp)
 
 
-def decode_response(data: bytes) -> MgmtResponse:
-    result: MgmtResponse = _resp_decoder.decode(data)
-    return result
+def decode_mgmt_response(data: bytes) -> MgmtResponse:
+    return _resp_decoder.decode(data)
 
 
+# ---------------- AppHost initialization ----------------
 class AppHostArgs(msgspec.Struct):
     """Args sent to the AppHost process."""
 
-    mgmt_addr: str  # ZMQ PULL address for receiving management commands
-    response_addr: str  # ZMQ PUSH address for sending management responses
-    cmd_addr: str  # ZMQ PULL address for receiving kernel commands
-    stream_addr: str  # ZMQ PUSH address for sending kernel output
+    # ZMQ PULL address for receiving management commands
+    mgmt_addr: str
+    # ZMQ PUSH address for sending management responses
+    response_addr: str
+    # ZMQ PULL address for receiving kernel commands
+    cmd_addr: str
+    # ZMQ PUSH address for sending kernel output
+    stream_addr: str
+    # Notebook file path, for debug logs
     file_path: str
     log_level: int
 
@@ -106,3 +97,18 @@ class AppHostArgs(msgspec.Struct):
     @classmethod
     def decode_json(cls, buf: bytes) -> AppHostArgs:
         return msgspec.json.decode(buf, type=cls)
+
+
+# ---------------- Kernel ----------------
+class Channel(enum.Enum):
+    """Command channels."""
+
+    CONTROL = b"control"
+    UI_ELEMENT = b"ui_element"
+    COMPLETION = b"completion"
+    INPUT = b"input"
+
+
+# Sentinel sent on the stream channel when a kernel thread exits.
+class KernelExited:
+    """Signals that a kernel thread has exited."""

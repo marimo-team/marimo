@@ -13,12 +13,7 @@ from typing import TYPE_CHECKING, TypeVar
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
-from marimo._session.app_host.commands import (
-    CHANNEL_COMPLETION,
-    CHANNEL_CONTROL,
-    CHANNEL_INPUT,
-    CHANNEL_UI_ELEMENT,
-)
+from marimo._session.app_host.commands import Channel
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import (
@@ -48,7 +43,7 @@ class _AppHostPushQueue(QueueType[_T]):
     """
 
     def __init__(
-        self, app_host: AppHost, session_id: str, channel: str
+        self, app_host: AppHost, session_id: str, channel: Channel
     ) -> None:
         self._app_host = app_host
         self._session_id = session_id
@@ -90,16 +85,16 @@ class AppHostQueueManager(QueueManagerProto):
         self._session_id = session_id
 
         self.control_queue: QueueType[commands.CommandMessage] = (
-            _AppHostPushQueue(app_host, session_id, CHANNEL_CONTROL)
+            _AppHostPushQueue(app_host, session_id, Channel.CONTROL)
         )
         self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
-            _AppHostPushQueue(app_host, session_id, CHANNEL_UI_ELEMENT)
+            _AppHostPushQueue(app_host, session_id, Channel.UI_ELEMENT)
         )
         self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
-            _AppHostPushQueue(app_host, session_id, CHANNEL_COMPLETION)
+            _AppHostPushQueue(app_host, session_id, Channel.COMPLETION)
         )
         self.input_queue: QueueType[str] = _AppHostPushQueue(
-            app_host, session_id, CHANNEL_INPUT
+            app_host, session_id, Channel.INPUT
         )
         self.win32_interrupt_queue: None = None
 
