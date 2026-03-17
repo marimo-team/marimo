@@ -418,7 +418,11 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         on_change (Optional[Callable[[Sequence[Numeric]], None]]): Optional callback to run when this element's value changes.
         full_width (bool): Whether the input should take up the full width of its container.
         disabled (bool, optional): Whether the slider is disabled. Defaults to False.
-        fixed_range (bool, optional): Whether to keep the range width constant when dragging. Defaults to False.
+        Notes:
+        Dragging the filled track (the colored bar between the two handles)
+        moves both handles together while preserving the selected range width.
+        Individual handles can still be dragged independently to adjust the range.
+
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
@@ -443,7 +447,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
         disabled: bool = False,
-        fixed_range: bool = False,
+
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
@@ -510,7 +514,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "show-value": show_value,
                     "full-width": full_width,
                     "disabled": disabled,
-                    "fixed-range": fixed_range,
+
                 },
                 on_change=on_change,
             )
@@ -552,7 +556,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "show-value": show_value,
                     "full-width": full_width,
                     "disabled": disabled,
-                    "fixed-range": fixed_range,
+
                 },
                 on_change=on_change,
             )

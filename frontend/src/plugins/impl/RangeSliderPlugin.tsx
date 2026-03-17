@@ -23,7 +23,7 @@ interface Data {
   showValue: boolean;
   fullWidth: boolean;
   disabled?: boolean;
-  fixedRange: boolean;
+
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
@@ -41,7 +41,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
     disabled: z.boolean().optional(),
-    fixedRange: z.boolean().default(false),
+
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -82,7 +82,7 @@ const RangeSliderComponent = ({
   showValue,
   fullWidth,
   disabled,
-  fixedRange,
+
   valueMap,
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
@@ -125,22 +125,11 @@ const RangeSliderComponent = ({
           step={step}
           orientation={orientation}
           disabled={disabled}
-          // Triggered on all value changes
+
           onValueChange={(nextValue: number[]) => {
-            let finalValue = nextValue;
-            if (fixedRange) {
-              const rangeWidth = internalValue[1] - internalValue[0];
-              if (nextValue[0] !== internalValue[0]) {
-                const newLeft = Math.max(start, nextValue[0]);
-                finalValue = [newLeft, Math.min(stop, newLeft + rangeWidth)];
-              } else {
-                const newRight = Math.min(stop, nextValue[1]);
-                finalValue = [Math.max(start, newRight - rangeWidth), newRight];
-              }
-            }
-            setInternalValue(finalValue);
+            setInternalValue(nextValue);
             if (!debounce) {
-              setValue(finalValue);
+              setValue(nextValue);
             }
           }}
           // Triggered on mouse up

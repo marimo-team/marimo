@@ -23,9 +23,102 @@ const RangeSlider = React.forwardRef<
   const [open, openActions] = useBoolean(false);
   const { locale } = useLocale();
 
+  // Refs for middle-drag (range bar drag) support
+  const isDraggingRange = React.useRef(false);
+  const dragStartX = React.useRef(0);
+  const dragStartY = React.useRef(0);
+  const dragStartValue = React.useRef<number[]>([]);
+  const rootRef = React.useRef<React.ElementRef<typeof SliderPrimitive.Root>>(null);
+
+  const mergedRef = (node: React.ElementRef<typeof SliderPrimitive.Root>) => {
+    rootRef.current = node;
+    if (typeof ref === "function") {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  };
+
+  const handleRangePointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+    // Only handle middle-drag when we have exactly 2 thumbs (range slider)
+    if (!props.value || props.value.length !== 2) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDraggingRange.current = true;
+    dragStartX.current = e.clientX;
+    dragStartY.current = e.clientY;
+    dragStartValue.current = [...props.value];
+
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleRangePointerMove = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!isDraggingRange.current || !props.value || props.value.length !== 2) {
+      return;
+    }
+
+    const rootEl = rootRef.current;
+    if (!rootEl) {
+      return;
+    }
+
+    const rect = rootEl.getBoundingClientRect();
+    const isVertical = props.orientation === "vertical";
+
+    const min = props.min ?? 0;
+    const max = props.max ?? 100;
+    const totalRange = max - min;
+
+    // Delta is always from the ORIGINAL drag start position
+    // so the movement stays proportional and doesn't drift
+    let delta: number;
+    if (isVertical) {
+      const trackLength = rect.height;
+      delta = -((e.clientY - dragStartY.current) / trackLength) * totalRange;
+    } else {
+      const trackLength = rect.width;
+      delta = ((e.clientX - dragStartX.current) / trackLength) * totalRange;
+    }
+
+    // Always use the ORIGINAL values from when drag started — never current props.value
+    const [origLeft, origRight] = dragStartValue.current;
+    const rangeWidth = origRight - origLeft;
+
+    // Snap delta to step
+    const step = props.step ?? 1;
+    const snappedDelta = Math.round(delta / step) * step;
+
+    // Clamp so neither thumb exceeds min/max
+    const clampedDelta = Math.max(
+      min - origLeft,
+      Math.min(max - origRight, snappedDelta),
+    );
+
+    const newLeft = origLeft + clampedDelta;
+    const newRight = newLeft + rangeWidth;
+
+    // Only fire if value actually changed
+    if (newLeft !== props.value[0] || newRight !== props.value[1]) {
+      props.onValueChange?.([newLeft, newRight]);
+    }
+  };
+
+  const handleRangePointerUp= (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!isDraggingRange.current) {
+      return;
+    }
+    isDraggingRange.current = false;
+    if (props.value && props.value.length === 2) {
+      props.onValueCommit?.(props.value);
+    }
+  };
+
   return (
     <SliderPrimitive.Root
-      ref={ref}
+      ref={mergedRef}
       className={cn(
         "relative flex touch-none select-none hover:cursor-pointer",
         "data-[orientation=horizontal]:w-full data-[orientation=horizontal]:items-center",
@@ -50,7 +143,11 @@ const RangeSlider = React.forwardRef<
             "data-[orientation=horizontal]:h-full",
             "data-[orientation=vertical]:w-full",
             "data-disabled:opacity-50",
+            "hover:cursor-grab active:cursor-grabbing",
           )}
+          onPointerDown={handleRangePointerDown}
+          onPointerMove={handleRangePointerMove}
+          onPointerUp={handleRangePointerUp}
         />
       </SliderPrimitive.Track>
       <TooltipProvider>
