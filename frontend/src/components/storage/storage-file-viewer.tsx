@@ -132,7 +132,12 @@ export const StorageFileViewer: React.FC<Props> = ({
     const Icon = snippet.icon;
     return (
       <Tooltip key={snippet.id} content={snippet.label}>
-        <Button variant="text" size="xs" onClick={() => addCodeToNewCell(code)}>
+        <Button
+          variant="text"
+          size="xs"
+          onClick={() => addCodeToNewCell(code)}
+          aria-label={snippet.label}
+        >
           <Icon className="h-3.5 w-3.5" />
         </Button>
       </Tooltip>
