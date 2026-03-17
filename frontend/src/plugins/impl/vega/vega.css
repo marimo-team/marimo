@@ -4,7 +4,7 @@
   max-width: 100%;
 }
 
-.vega-container-width .vega-embed {
+.vega-embed[data-container-width="container"] {
   width: 100%;
 }
 

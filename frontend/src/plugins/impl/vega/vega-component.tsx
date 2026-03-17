@@ -27,6 +27,7 @@ import { makeSelectable } from "./make-selectable";
 import { getSelectionParamNames, ParamNames } from "./params";
 import { resolveVegaSpecData } from "./resolve-data";
 import type { VegaLiteSpec } from "./types";
+import { getContainerWidth } from "./utils";
 
 // register arrow reader under type 'arrow'
 formats("arrow", arrow);
@@ -305,16 +306,14 @@ const LoadedVegaComponent = ({
         </Alert>
       )}
       <div
-        className={cn(
-          "relative",
-          "width" in selectableSpec &&
-            selectableSpec.width === "container" &&
-            "vega-container-width",
-        )}
+        className={cn("relative")}
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
-        <div ref={vegaRef} />
+        <div
+          ref={vegaRef}
+          data-container-width={getContainerWidth(selectableSpec)}
+        />
         {renderHelpContent()}
       </div>
     </>
