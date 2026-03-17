@@ -4,8 +4,9 @@ import { EditorView } from "@codemirror/view";
 import { math } from "@streamdown/math";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
-import { memo, Suspense, useState } from "react";
+import { memo, Suspense, useEffect, useRef, useState } from "react";
 import { Streamdown, type StreamdownProps } from "streamdown";
+import "streamdown/styles.css";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
@@ -166,15 +167,78 @@ const COMPONENTS: Components = {
   },
 };
 
-export const MarkdownRenderer = memo(({ content }: { content: string }) => {
-  return (
-    <Streamdown
-      components={COMPONENTS}
-      plugins={{ math }}
-      className="mo-markdown-renderer"
-    >
-      {content}
-    </Streamdown>
-  );
-});
+/**
+ * Drip-feeds content word-by-word during streaming so each React commit
+ * adds roughly one word, giving the Streamdown animate plugin a smooth
+ * per-word reveal instead of dumping entire token batches at once.
+ */
+function useWordBuffer(content: string, isStreaming: boolean): string {
+  const [displayLen, setDisplayLen] = useState(content.length);
+  const contentRef = useRef(content);
+  contentRef.current = content;
+
+  useEffect(() => {
+    if (!isStreaming) {
+      // Flush everything when streaming stops
+      setDisplayLen(contentRef.current.length);
+      return;
+    }
+
+    // Snapshot the already-visible length so we only drip new words
+    setDisplayLen(contentRef.current.length);
+
+    const timer = setInterval(() => {
+      setDisplayLen((prev) => {
+        const target = contentRef.current;
+        if (prev >= target.length) {
+          return prev;
+        }
+        // Advance past the next word (non-whitespace then whitespace)
+        const remaining = target.slice(prev);
+        const match = remaining.match(/^\S*\s*/);
+        return prev + (match ? match[0].length : remaining.length);
+      });
+    }, 25);
+
+    return () => clearInterval(timer);
+  }, [isStreaming]);
+
+  if (!isStreaming) {
+    return content;
+  }
+
+  return content.slice(0, Math.min(displayLen, content.length));
+}
+
+const ANIMATED = {
+  animation: "blurIn" as const,
+  duration: 200,
+  easing: "ease-out",
+  sep: "word" as const,
+};
+
+export const MarkdownRenderer = memo(
+  ({
+    content,
+    isStreaming,
+  }: {
+    content: string;
+    isStreaming?: boolean;
+  }) => {
+    const buffered = useWordBuffer(content, isStreaming ?? false);
+
+    return (
+      <Streamdown
+        components={COMPONENTS}
+        plugins={{ math }}
+        className="mo-markdown-renderer"
+        animated={ANIMATED}
+        isAnimating={isStreaming}
+        caret={isStreaming ? "block" : undefined}
+      >
+        {buffered}
+      </Streamdown>
+    );
+  },
+);
 MarkdownRenderer.displayName = "MarkdownRenderer";

@@ -470,8 +470,8 @@ importers:
         specifier: ^15.7.0
         version: 15.7.0
       streamdown:
-        specifier: ^2.1.0
-        version: 2.1.0(react@19.2.4)
+        specifier: ^2.2.0
+        version: 2.4.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       string-dedent:
         specifier: ^3.0.2
         version: 3.0.2
@@ -8644,8 +8644,8 @@ packages:
   regl@2.1.1:
     resolution: {integrity: sha512-+IOGrxl3FZ8ZM9ixCWQZzFRiRn7Rzn9bu3iFHwg/yz4tlOUQgbO4PHLgG+1ZT60zcIV8tief6Qrmyl8qcoJP0g==}
 
-  rehype-harden@1.1.7:
-    resolution: {integrity: sha512-j5DY0YSK2YavvNGV+qBHma15J9m0WZmRe8posT5AtKDS6TNWtMVTo6RiqF8SidfcASYz8f3k2J/1RWmq5zTXUw==}
+  rehype-harden@1.1.8:
+    resolution: {integrity: sha512-Qn7vR1xrf6fZCrkm9TDWi/AB4ylrHy+jqsNm1EHOAmbARYA6gsnVJBq/sdBh6kmT4NEZxH5vgIjrscefJAOXcw==}
 
   rehype-katex@7.0.1:
     resolution: {integrity: sha512-OiM2wrZ/wuhKkigASodFoo8wimG3H12LWQaH8qSPVJn9apWKFSH3YOCtbKpBorTVw/eI7cuT21XBbvwEswbIOA==}
@@ -8671,8 +8671,8 @@ packages:
   remark-stringify@11.0.0:
     resolution: {integrity: sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==}
 
-  remend@1.1.0:
-    resolution: {integrity: sha512-JENGyuIhTwzUfCarW43X4r9cehoqTo9QyYxfNDZSud2AmqeuWjZ5pfybasTa4q0dxTJAj5m8NB+wR+YueAFpxQ==}
+  remend@1.2.2:
+    resolution: {integrity: sha512-4ZJgIB9EG9fQE41mOJCRHMmnxDTKHWawQoJWZyUbZuj680wVyogu2ihnj8Edqm7vh2mo/TWHyEZpn2kqeDvS7w==}
 
   request@2.88.2:
     resolution: {integrity: sha512-MsvtOrfG9ZcrOwAW+Qi+F6HbD0CWXEh9ou77uOb7FM2WPhwT7smM833PzanhJLsgXjN89Ir6V2PczXNnMpwKhw==}
@@ -9034,10 +9034,11 @@ packages:
   stream-shift@1.0.3:
     resolution: {integrity: sha512-76ORR0DO1o1hlKwTbi/DM3EXWGf3ZJYO8cXX5RJwnul2DEg2oyoZyjLNoQM8WsvZiFKCRfC1O0J7iCvie3RZmQ==}
 
-  streamdown@2.1.0:
-    resolution: {integrity: sha512-u9gWd0AmjKg1d+74P44XaPlGrMeC21oDOSIhjGNEYMAttDMzCzlJO6lpTyJ9JkSinQQF65YcK4eOd3q9iTvULw==}
+  streamdown@2.4.0:
+    resolution: {integrity: sha512-fRk4HEYNznRLmxoVeT8wsGBwHF6/Yrdey6k+ZrE1Qtp4NyKwm7G/6e2Iw8penY4yLx31TlAHWT5Bsg1weZ9FZg==}
     peerDependencies:
       react: ^19.2.4
+      react-dom: ^19.2.4
 
   strict-event-emitter-types@2.0.0:
     resolution: {integrity: sha512-Nk/brWYpD85WlOgzw5h173aci0Teyv8YdIAEtV+N88nDB0dLlazZyJMIsN6eo1/AR61l+p6CJTG1JIyFaoNEEA==}
@@ -20009,7 +20010,7 @@ snapshots:
 
   regl@2.1.1: {}
 
-  rehype-harden@1.1.7:
+  rehype-harden@1.1.8:
     dependencies:
       unist-util-visit: 5.0.0
 
@@ -20077,7 +20078,7 @@ snapshots:
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
 
-  remend@1.1.0: {}
+  remend@1.2.2: {}
 
   request@2.88.2:
     dependencies:
@@ -20536,23 +20537,25 @@ snapshots:
 
   stream-shift@1.0.3: {}
 
-  streamdown@2.1.0(react@19.2.4):
+  streamdown@2.4.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       clsx: 2.1.1
       hast-util-to-jsx-runtime: 2.3.6
       html-url-attributes: 3.0.1
       marked: 17.0.1
       react: 19.2.4
-      rehype-harden: 1.1.7
+      react-dom: 19.2.4(react@19.2.4)
+      rehype-harden: 1.1.8
       rehype-raw: 7.0.0
       rehype-sanitize: 6.0.0
       remark-gfm: 4.0.1
       remark-parse: 11.0.0
       remark-rehype: 11.1.2
-      remend: 1.1.0
+      remend: 1.2.2
       tailwind-merge: 3.4.0
       unified: 11.0.5
       unist-util-visit: 5.0.0
+      unist-util-visit-parents: 6.0.1
     transitivePeerDependencies:
       - supports-color
 

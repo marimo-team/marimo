@@ -131,10 +131,11 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  isLoading: boolean;
 }
 
 const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
-  ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
+  ({ message, index, onEdit, isStreamingReasoning, isLast, isLoading }) => {
     const renderUserMessage = (message: UIMessage) => {
       const textParts = message.parts?.filter(
         (p): p is TextUIPart => p.type === "text",
@@ -181,7 +182,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {renderUIMessage({ message, isStreamingReasoning, isLast })}
+          {renderUIMessage({ message, isStreamingReasoning, isLast, isLoading })}
         </div>
       );
     };
@@ -711,6 +712,7 @@ const ChatPanelBody = () => {
             onEdit={handleMessageEdit}
             isStreamingReasoning={isStreamingReasoning}
             isLast={idx === messages.length - 1}
+            isLoading={isLoading}
           />
         ))}
 

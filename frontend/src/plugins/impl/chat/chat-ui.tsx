@@ -405,6 +405,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                   message,
                   isStreamingReasoning: status === "streaming",
                   isLast,
+                  isLoading: false,
                 })}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
