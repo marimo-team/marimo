@@ -968,10 +968,19 @@ class ScopedVisitor(ast.NodeVisitor):
                 node.id, ignore_scope=True
             )
             for block in reversed(self.block_stack):
-                if block == self.block_stack[0] and block.is_defined(
-                    mangled_name
-                ):
-                    node.id = mangled_name
+                if block == self.block_stack[0]:
+                    # At top-level scope: mangle only if the mangled name is
+                    # already defined. When called from a nested scope
+                    # (len > 1), also mangle even if the top-level block
+                    # doesn't define it yet — this handles recursive calls to
+                    # underscore-prefixed functions, where the function name
+                    # isn't registered in the top-level block until after its
+                    # body is visited.
+                    if (
+                        block.is_defined(mangled_name)
+                        or len(self.block_stack) > 1
+                    ):
+                        node.id = mangled_name
                 elif block.is_defined(node.id):
                     break
         else:
