@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import { CrosshairIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { Panel, PanelResizeHandle } from "react-resizable-panels";
+import { raf2 } from "@/components/editor/navigation/focus-utils";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -151,6 +152,11 @@ const ResizableComponent = ({ children }: ResizableComponentProps) => {
     startingWidth: 400,
     minWidth: 300,
     maxWidth: 1500,
+    onResize: () => {
+      raf2(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    },
   });
 
   return (

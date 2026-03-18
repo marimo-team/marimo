@@ -4,6 +4,7 @@ import React from "react";
 import type { TopLevelSpec } from "vega-lite";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { tooltipHandler } from "@/components/charts/tooltip";
+import { getContainerWidth } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
 import type { ErrorMessage } from "./chart-spec/spec";
 import { augmentSpecWithData } from "./chart-spec/spec";
@@ -30,6 +31,7 @@ export const LazyChart: React.FC<{
       <React.Suspense fallback={<LoadingChart />}>
         <LazyVegaEmbed
           spec={spec}
+          data-container-width={getContainerWidth(spec)}
           options={{
             theme: theme === "dark" ? "dark" : undefined,
             height: height,

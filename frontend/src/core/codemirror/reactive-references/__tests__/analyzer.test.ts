@@ -1115,6 +1115,60 @@ class Foo:
     `);
   });
 
+  test("should not highlight attribute access matching a for-loop variable", () => {
+    // When `tool` is used as a for-loop variable, `mcp.tool` (attribute access)
+    // should NOT have `tool` highlighted — it's a property, not a variable reference.
+    expect(
+      runHighlight(
+        ["mcp", "client"],
+        `
+@mcp.tool
+def roll_dice():
+    pass
+
+async with client:
+    for tool in await client.list_tools():
+        print(tool)
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      @mcp.tool
+       ^^^
+      def roll_dice():
+          pass
+
+      async with client:
+                 ^^^^^^
+          for tool in await client.list_tools():
+                            ^^^^^^
+              print(tool)
+      "
+    `);
+  });
+
+  test("should not highlight property name matching a global variable", () => {
+    // `tool` is a global variable, but `mcp.tool` should not highlight `tool`
+    // because it's a property access, not a variable reference.
+    expect(
+      runHighlight(
+        ["mcp", "tool"],
+        `
+@mcp.tool
+def roll_dice():
+    pass
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      @mcp.tool
+       ^^^
+      def roll_dice():
+          pass
+      "
+    `);
+  });
+
   test("class property self-reference", () => {
     expect(
       runHighlight(

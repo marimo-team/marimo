@@ -45,6 +45,7 @@ function getOpts() {
       onRun: namedFunction("onRun"),
       deleteCell: namedFunction("deleteCell"),
       afterToggleMarkdown: namedFunction("afterToggleMarkdown"),
+      afterToggleSQL: namedFunction("afterToggleSQL"),
     } as unknown as CodemirrorCellActions,
     completionConfig: {
       activate_on_typing: false,

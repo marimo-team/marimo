@@ -221,4 +221,8 @@ class batch(_batch_base):
         )
 
     def _clone(self) -> batch:
-        return batch(html=self._html, elements=self.elements)
+        return batch(
+            html=self._html,
+            elements=self.elements,
+            on_change=self._on_change,
+        )
