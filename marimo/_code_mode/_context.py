@@ -82,7 +82,7 @@ class NotebookCellData:
 
     code: str | None = None
     config: CellConfig | None = None
-    cell_id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
+    id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
     name: str | None = field(default=None, repr=True, compare=False)
 
 
@@ -124,7 +124,7 @@ def get_context(*, check: bool = True) -> AsyncCodeModeContext:
 
 
 class _CellsView:
-    """Read-only view over notebook cells as ``NotebookCellData`` objects.
+    """Read-only, ordered-dict-like view over notebook cells.
 
     Supports lookup by integer index, cell ID, or cell name::
 
@@ -132,6 +132,14 @@ class _CellsView:
         ctx.cells[-1]  # negative index
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
+
+    Dict-like iteration::
+
+        for cid, cell in ctx.cells.items():
+            ...
+        ctx.cells.keys()  # list of CellId_t
+        ctx.cells.values()  # list of NotebookCellData
+        "my_cell" in ctx.cells  # membership test
     """
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
@@ -159,7 +167,7 @@ class _CellsView:
             code=cell_impl.code,
             config=meta.config if meta else CellConfig(),
             name=self._cell_name(cell_id),
-            cell_id=cell_id,
+            id=cell_id,
         )
 
     def _resolve(self, target: str) -> CellId_t:
@@ -199,9 +207,31 @@ class _CellsView:
 
         return self._build_at(self._resolve(key))
 
-    def __iter__(self) -> Iterator[NotebookCellData]:
-        for cid in self._cell_ids():
-            yield self._build_at(cid)
+    def __iter__(self) -> Iterator[CellId_t]:
+        yield from self._cell_ids()
+
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, int):
+            return 0 <= key < len(self)
+        if isinstance(key, str):
+            try:
+                self._resolve(key)
+                return True
+            except KeyError:
+                return False
+        return False
+
+    def keys(self) -> list[CellId_t]:
+        """Return cell IDs in notebook order."""
+        return self._cell_ids()
+
+    def values(self) -> list[NotebookCellData]:
+        """Return cell data in notebook order."""
+        return [self._build_at(cid) for cid in self._cell_ids()]
+
+    def items(self) -> list[tuple[CellId_t, NotebookCellData]]:
+        """Return (cell_id, cell_data) pairs in notebook order."""
+        return [(cid, self._build_at(cid)) for cid in self._cell_ids()]
 
 
 # ------------------------------------------------------------------
