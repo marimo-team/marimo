@@ -360,7 +360,7 @@ importers:
         version: 5.2.15(@types/react@19.2.10)(react@19.2.4)
       html-to-image:
         specifier: 1.11.13
-        version: 1.11.13(patch_hash=5fdb1de4a857e2fda0956b7e05a1b32817de8e7008009e71c0120ef02b886219)
+        version: 1.11.13(patch_hash=2a24dedb1e1edcc796771d5fd35f0f76647fba933988d22d21aa5965373ceb96)
       humanize-duration:
         specifier: ^3.33.2
         version: 3.33.2
@@ -17467,7 +17467,7 @@ snapshots:
 
   html-tags@3.3.1: {}
 
-  html-to-image@1.11.13(patch_hash=5fdb1de4a857e2fda0956b7e05a1b32817de8e7008009e71c0120ef02b886219): {}
+  html-to-image@1.11.13(patch_hash=2a24dedb1e1edcc796771d5fd35f0f76647fba933988d22d21aa5965373ceb96): {}
 
   html-url-attributes@3.0.1: {}
 
