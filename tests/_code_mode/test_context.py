@@ -45,7 +45,8 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 1")
+            cid = nb.create_cell("x = 1")
+            nb.run_cell(cid)
 
         assert len(k.graph.cells) == 1
         cell = list(k.graph.cells.values())[0]
@@ -72,7 +73,8 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.create_cell("c = a + b")
+            cid = nb.create_cell("c = a + b")
+            nb.run_cell(cid)
 
         assert len(k.graph.cells) == 3
         assert k.globals["c"] == 30
@@ -103,12 +105,12 @@ class TestAddCell:
         # New cell should be after "0", before "1".
         assert cell_ids[2] == "1"
 
-    async def test_add_draft_does_not_execute(self, k: Kernel) -> None:
+    async def test_add_without_run_does_not_execute(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 999", draft=True)
+            nb.create_cell("x = 999")
 
         assert len(k.graph.cells) == 1
         assert "x" not in k.globals
@@ -132,7 +134,9 @@ class TestAddCell:
 
         async with ctx as nb:
             cid1 = nb.create_cell("x = 1")
-            nb.create_cell("y = 2", after=cid1)
+            cid2 = nb.create_cell("y = 2", after=cid1)
+            nb.run_cell(cid1)
+            nb.run_cell(cid2)
 
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
@@ -207,6 +211,7 @@ class TestUpdateCell:
 
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
+            nb.run_cell("0")
 
         assert k.globals["x"] == 42
         assert _graph_codes(k) == snapshot({"0": "x = 42"})
@@ -239,6 +244,7 @@ class TestUpdateCell:
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
+            nb.run_cell("0")
 
         assert k.globals["x"] == 42
         assert "y" not in k.globals
@@ -258,6 +264,7 @@ class TestUpdateCell:
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
+            nb.run_cell("0")
 
         assert k.globals["x"] == 42
         assert k.cell_metadata["0"].config.hide_code is True
@@ -308,7 +315,8 @@ class TestCombined:
 
         async with ctx as nb:
             nb.delete_cell("1")
-            nb.create_cell("d = a + c", after="0")
+            cid = nb.create_cell("d = a + c", after="0")
+            nb.run_cell(cid)
 
         assert k.globals["d"] == 4
         codes = _graph_codes(k)
@@ -331,7 +339,8 @@ class TestCombined:
         # This must not raise a multiply-defined error.
         async with ctx as nb:
             nb.delete_cell("1")
-            nb.create_cell("b = a + 100")
+            cid = nb.create_cell("b = a + 100")
+            nb.run_cell(cid)
 
         assert k.globals["b"] == 101
         assert "1" not in _graph_codes(k)
@@ -439,8 +448,10 @@ class TestResolveTarget:
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 1", name="first")
-            nb.create_cell("y = x + 1", after="first")
+            cid1 = nb.create_cell("x = 1", name="first")
+            cid2 = nb.create_cell("y = x + 1", after="first")
+            nb.run_cell(cid1)
+            nb.run_cell(cid2)
 
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
@@ -463,7 +474,8 @@ class TestResolveTarget:
 
         async with ctx as nb:
             nb.edit_cell("0", name="renamed")
-            nb.create_cell("c = a + b", after="renamed")
+            cid = nb.create_cell("c = a + b", after="renamed")
+            nb.run_cell(cid)
 
         assert k.globals["c"] == 3
 
