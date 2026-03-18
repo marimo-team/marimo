@@ -976,9 +976,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     # underscore-prefixed functions, where the function name
                     # isn't registered in the top-level block until after its
                     # body is visited.
-                    if block.is_defined(mangled_name) or len(
-                        self.block_stack
-                    ) > 1:
+                    if (
+                        block.is_defined(mangled_name)
+                        or len(self.block_stack) > 1
+                    ):
                         node.id = mangled_name
                 elif block.is_defined(node.id):
                     break
