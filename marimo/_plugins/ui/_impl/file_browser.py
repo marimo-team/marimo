@@ -57,7 +57,7 @@ class ListDirectoryResponse:
 class file_browser(
     UIElement[list[TypedFileBrowserFileInfo], Sequence[FileBrowserFileInfo]]
 ):
-    """File browser for browsing and selecting server-side files.
+    r"""File browser for browsing and selecting server-side files.
     This element supports local files, S3, GCS, and Azure.
 
     Examples:
@@ -78,14 +78,12 @@ class file_browser(
         ```python
         # Only show Python files
         file_browser = mo.ui.file_browser(
-            initial_path=Path("."),
-            filter=r".*\.py$"
+            initial_path=Path("."), filter=r".*\.py$"
         )
 
         # Only show files starting with "test_"
         file_browser = mo.ui.file_browser(
-            initial_path=Path("."),
-            filter=r"^test_.*"
+            initial_path=Path("."), filter=r"^test_.*"
         )
         ```
 
@@ -95,9 +93,9 @@ class file_browser(
         def large_files(path: Path) -> bool:
             return path.is_file() and path.stat().st_size > 1_000_000
 
+
         file_browser = mo.ui.file_browser(
-            initial_path=Path("."),
-            filter=large_files
+            initial_path=Path("."), filter=large_files
         )
         ```
 
@@ -227,10 +225,10 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
-        
+
         # Store filter parameter
         self._filter = filter
-        
+
         self._restrict_navigation = restrict_navigation
         self._ignore_empty_dirs = ignore_empty_dirs
 
@@ -279,11 +277,11 @@ class file_browser(
 
     def _should_include_file(self, file: Path, is_directory: bool) -> bool:
         """Determine if a file should be included based on filter/filetypes.
-        
+
         Args:
             file: The file path to check
             is_directory: Whether the path is a directory
-            
+
         Returns:
             bool: True if the file should be included, False otherwise
         """
@@ -310,11 +308,11 @@ class file_browser(
                         f"Filter callback raised exception for {file}: {e}"
                     )
                     return False
-        
+
         # Fall back to filetypes
         if self._filetypes and not is_directory:
             return file.suffix.lower() in self._filetypes
-        
+
         return True
 
     def _has_files_recursive(
