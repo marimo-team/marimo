@@ -74,7 +74,13 @@ class AppHost:
             str, queue.Queue[KernelMessage | None]
         ] = {}
 
-        # IDs for running sessions.
+        # Serializes mgmt send and response recv so concurrent create_kernel
+        # calls don't interleave on the shared ZMQ sockets.
+        self._mgmt_lock = threading.Lock()
+
+        # Session IDs are accessed on kernel creation but also on
+        # session removal.
+        self._session_lock = threading.Lock()
         self._session_ids: set[str] = set()
 
     def _stream_receiver_loop(self) -> None:
@@ -91,26 +97,30 @@ class AppHost:
                 payload = pickle.loads(frames[1])
 
                 if isinstance(payload, KernelExited):
-                    self._session_ids.discard(session_id)
-                    LOGGER.debug(
-                        "Kernel thread exited for session %s", session_id
-                    )
-                    if not self._session_ids:
-                        # Grab and clear callback to prevent double-fire
-                        callback = self._on_empty
-                        self._on_empty = None
-                        if callback is not None:
-                            # Run on a separate thread — calling shutdown()
-                            # here would close the ZMQ socket we're reading
-                            # from.
-                            LOGGER.debug(
-                                "AppHost for %s is empty, invoking cleanup",
-                                self._file_path,
-                            )
-                            threading.Thread(
-                                target=callback, daemon=True
-                            ).start()
-                            break
+                    callback = None
+                    with self._session_lock:
+                        self._session_ids.discard(session_id)
+                        LOGGER.debug(
+                            "Kernel thread exited for session %s",
+                            session_id,
+                        )
+                        if not self._session_ids:
+                            # Grab and clear callback to prevent
+                            # double-fire
+                            callback = self._on_empty
+                            self._on_empty = None
+                    if callback is not None:
+                        # Run on a separate thread — calling shutdown()
+                        # here would close the ZMQ socket we're reading
+                        # from.
+                        LOGGER.debug(
+                            "AppHost for %s is empty, invoking cleanup",
+                            self._file_path,
+                        )
+                        threading.Thread(
+                            target=callback, daemon=True
+                        ).start()
+                        break
                     continue
 
                 with self._stream_lock:
@@ -226,22 +236,27 @@ class AppHost:
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
         )
-        self._conn.mgmt.send(encode_mgmt_command(cmd))
 
-        response_timeout_ms = 30_000
-        if self._conn.response.poll(timeout=response_timeout_ms):
-            data = self._conn.response.recv()
-            response = decode_mgmt_response(data)
-            if not isinstance(response, KernelCreatedResponse):
-                raise RuntimeError(
-                    f"Unexpected response type: {type(response)}"
-                )
-            if response.success:
-                self._session_ids.add(session_id)
-            return response
-        raise TimeoutError(
-            f"Timed out waiting for kernel creation in {self._file_path}"
-        )
+        # Serialize send+recv so concurrent create_kernel calls don't
+        # interleave on the shared mgmt/response ZMQ sockets.
+        with self._mgmt_lock:
+            self._conn.mgmt.send(encode_mgmt_command(cmd))
+
+            response_timeout_ms = 30_000
+            if self._conn.response.poll(timeout=response_timeout_ms):
+                data = self._conn.response.recv()
+                response = decode_mgmt_response(data)
+                if not isinstance(response, KernelCreatedResponse):
+                    raise RuntimeError(
+                        f"Unexpected response type: {type(response)}"
+                    )
+                if response.success:
+                    with self._session_lock:
+                        self._session_ids.add(session_id)
+                return response
+            raise TimeoutError(
+                f"Timed out waiting for kernel creation in {self._file_path}"
+            )
 
     def stop_kernel(self, session_id: str) -> None:
         if self._conn is not None:
@@ -251,8 +266,10 @@ class AppHost:
 
     def has_active_session(self, session_id: str) -> bool:
         """Check if a specific kernel thread is alive in this host."""
+        with self._session_lock:
+            has_session = session_id in self._session_ids
         return (
-            session_id in self._session_ids
+            has_session
             and self._process is not None
             and self._process.poll() is None
         )
