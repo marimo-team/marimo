@@ -42,8 +42,7 @@
 }
 
 .markdown hr {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  margin-block: 0.5rem;
 }
 
 .markdown a {
