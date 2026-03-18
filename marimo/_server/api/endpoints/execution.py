@@ -263,10 +263,8 @@ async def execute_code(
     """  # noqa: E501
     from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.scratchpad import (
-        EXECUTION_TIMEOUT,
         ScratchCellListener,
         build_done_event,
-        build_timeout_event,
     )
 
     app_state = AppState(request)
@@ -281,24 +279,33 @@ async def execute_code(
         http_request=HTTPRequest.from_request(request),
     )
 
-    async def sse_generator() -> AsyncGenerator[str, None]:
-        listener = ScratchCellListener()
-        with session.scoped(listener):
-            async with session.scratchpad_lock:
-                session.put_control_request(
-                    ExecuteScratchpadCommand(
-                        code=body.code,
-                        request=HTTPRequest.from_request(request),
-                    ),
-                    from_consumer_id=None,
-                )
-                async for event in listener.stream(timeout=EXECUTION_TIMEOUT):
-                    yield event
+    async def _watch_disconnect() -> None:
+        """Wait for client disconnect and interrupt the kernel."""
+        while True:
+            message = await request._receive()
+            if message.get("type") == "http.disconnect":
+                session.try_interrupt()
+                return
 
-            if listener.timed_out:
-                yield build_timeout_event(EXECUTION_TIMEOUT)
-            else:
+    async def sse_generator() -> AsyncGenerator[str, None]:
+        disconnect_task = asyncio.create_task(_watch_disconnect())
+        try:
+            listener = ScratchCellListener()
+            with session.scoped(listener):
+                async with session.scratchpad_lock:
+                    session.put_control_request(
+                        ExecuteScratchpadCommand(
+                            code=body.code,
+                            request=HTTPRequest.from_request(request),
+                        ),
+                        from_consumer_id=None,
+                    )
+                    async for event in listener.stream():
+                        yield event
+
                 yield build_done_event(session)
+        finally:
+            disconnect_task.cancel()
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
 
