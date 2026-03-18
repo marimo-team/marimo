@@ -373,6 +373,18 @@ class TestCombined:
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
         assert len(k.graph.cells) == 1
 
+    async def test_rerun_without_structural_ops(self, k: Kernel) -> None:
+        """run_cell without any create/edit/delete still executes."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        # Mutate the global so we can detect re-execution.
+        k.globals["x"] = 0
+        async with ctx as nb:
+            nb.run_cell("0")
+
+        assert k.globals["x"] == 1
+
     async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
         """Calling run_cell on a cell queued for deletion raises."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
