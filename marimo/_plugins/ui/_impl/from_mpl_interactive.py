@@ -299,7 +299,7 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
 
 
 class _MplCleanupHandle(CellLifecycleItem):
-    """Cleans up the matplotlib figure manager and MarimoComm on cell re-run."""
+    """Cleans up the matplotlib figure manager and MarimoComm on cell re-run or deletion."""
 
     def __init__(
         self,

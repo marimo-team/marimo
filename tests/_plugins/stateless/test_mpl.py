@@ -169,10 +169,13 @@ def test_new_figure_manager_suppresses_thread_warning() -> None:
 
     captured: list[warnings.WarningMessage] = []
 
+    manager = None
+
     def run_in_thread() -> None:
+        nonlocal manager
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            new_figure_manager_given_figure(id(fig), fig)
+            manager = new_figure_manager_given_figure(id(fig), fig)
             captured.extend(w)
 
     t = threading.Thread(target=run_in_thread)
@@ -186,4 +189,6 @@ def test_new_figure_manager_suppresses_thread_warning() -> None:
         f"Expected no thread warning, got: {thread_warnings}"
     )
 
+    if manager is not None:
+        manager.canvas.close()
     plt.close(fig)
