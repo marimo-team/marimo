@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._cli.sandbox import SandboxMode
-from marimo._messaging.notification import UpdateCellIdsNotification
+from marimo._messaging.notification import (
+    FocusCellNotification,
+    UpdateCellIdsNotification,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
     dispatch_control_request,
@@ -18,6 +21,7 @@ from marimo._server.models.models import (
     BaseResponse,
     CodeCompletionRequest,
     DeleteCellRequest,
+    FocusCellRequest,
     FormatCellsRequest,
     FormatResponse,
     InstallPackagesRequest,
@@ -118,6 +122,38 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
     app_state.require_current_session().notify(
         UpdateCellIdsNotification(cell_ids=body.cell_ids),
         from_consumer_id=ConsumerId(session_id),
+    )
+    return SuccessResponse()
+
+
+@router.post("/focus_cell")
+@requires("edit")
+async def focus_cell(request: Request) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FocusCellRequest"
+    responses:
+        200:
+            description: Focus a cell in kiosk-mode consumers
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=FocusCellRequest)
+    app_state.require_current_session().notify(
+        FocusCellNotification(cell_id=body.cell_id),
+        from_consumer_id=None,
     )
     return SuccessResponse()
 

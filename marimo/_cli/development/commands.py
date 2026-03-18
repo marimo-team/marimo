@@ -255,6 +255,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.UpdateCellConfigRequest,
         models.UpdateCellIdsRequest,
+        models.FocusCellRequest,
         models.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,
