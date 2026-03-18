@@ -51,7 +51,8 @@ class SessionFileWatcherExtension(EventAwareExtension):
 
         # Register with the watcher manager
         self._watcher_manager.add_callback(
-            Path(session.app_file_manager.path), self._handle_file_change
+            self._canonicalize_path(session.app_file_manager.path),
+            self._handle_file_change,
         )
 
         LOGGER.info(
