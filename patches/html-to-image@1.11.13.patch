@@ -79,22 +79,30 @@ index a832baf45e95d7b3bb076ecacd46e73493f3e9ef..b487b064337bf75cb74dd530b54b7c6a
       * A boolean to turn off auto scaling for truly massive images..
       */
 diff --git a/lib/clone-node.js b/lib/clone-node.js
-index 214f4d30a50baae7f007d2399eeac298366538c7..a81d0e313ace6c50ce1652c4deb0dc8df3e073a8 100644
+index 214f4d30a50baae7f007d2399eeac298366538c7..74d67830cf549c05c533904123a9482c2cf5314f 100644
 --- a/lib/clone-node.js
 +++ b/lib/clone-node.js
-@@ -134,10 +134,6 @@ function cloneChildren(nativeNode, clonedNode, options) {
+@@ -134,9 +134,15 @@ function cloneChildren(nativeNode, clonedNode, options) {
                      if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
                          children = (0, util_1.toArray)(nativeNode.assignedNodes());
                      }
 -                    else if ((0, util_1.isInstanceOfElement)(nativeNode, HTMLIFrameElement) &&
 -                        ((_a = nativeNode.contentDocument) === null || _a === void 0 ? void 0 : _a.body)) {
 -                        children = (0, util_1.toArray)(nativeNode.contentDocument.body.childNodes);
--                    }
++                    else if ((0, util_1.isInstanceOfElement)(nativeNode, HTMLIFrameElement)) {
++                        try {
++                            if ((_a = nativeNode.contentDocument) === null || _a === void 0 ? void 0 : _a.body) {
++                                children = (0, util_1.toArray)(nativeNode.contentDocument.body.childNodes);
++                            }
++                        }
++                        catch (_e) {
++                            // Cross-origin iframes cannot be accessed; fall through to clone as-is
++                        }
+                     }
                      else {
                          children = (0, util_1.toArray)(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
-                     }
 diff --git a/lib/embed-webfonts.js b/lib/embed-webfonts.js
-index c91538bd9c3afa63326a91267fb7b5b9c999cccd..bc2a5ec773de20baf5e3cb31399abade949130de 100644
+index c91538bd9c3afa63326a91267fb7b5b9c999cccd..ca5fdedfd7904b6d99ad201d739300d4a50f451c 100644
 --- a/lib/embed-webfonts.js
 +++ b/lib/embed-webfonts.js
 @@ -300,9 +300,12 @@ function embedWebFonts(clonedNode, options) {
@@ -103,7 +111,7 @@ index c91538bd9c3afa63326a91267fb7b5b9c999cccd..bc2a5ec773de20baf5e3cb31399abade
                      cssText = _a;
 -                    if (cssText) {
 +                    const finalCssText = options.extraStyleContent != null
-+                        ? options.extraStyleContent.concat(cssText || '')
++                        ? (cssText || '').concat(options.extraStyleContent)
 +                        : cssText
 +                    if (finalCssText) {
                          styleNode = document.createElement('style');
