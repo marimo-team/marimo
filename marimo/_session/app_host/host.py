@@ -159,24 +159,30 @@ class AppHost:
 
         proc_stdin = self._process.stdin
         if proc_stdin is None:
+            self.shutdown()
             raise RuntimeError("Failed to open stdin for app host")
         proc_stdin.write(args.encode_json())
         proc_stdin.flush()
         proc_stdin.close()
 
         ready_timeout_ms = 30_000
-        if not conn.response.poll(timeout=ready_timeout_ms):
-            raise RuntimeError(
-                f"App host timed out ({ready_timeout_ms // 1000}s) "
-                f"for {self._file_path}"
-            )
+        try:
+            if not conn.response.poll(timeout=ready_timeout_ms):
+                raise RuntimeError(
+                    f"App host timed out ({ready_timeout_ms // 1000}s) "
+                    f"for {self._file_path}"
+                )
 
-        data = conn.response.recv()
-        ready_response = decode_mgmt_response(data)
-        if not isinstance(ready_response, AppHostReadyResponse):
-            raise RuntimeError(
-                f"Unexpected response during startup: {type(ready_response)}"
-            )
+            data = conn.response.recv()
+            ready_response = decode_mgmt_response(data)
+            if not isinstance(ready_response, AppHostReadyResponse):
+                raise RuntimeError(
+                    f"Unexpected response during startup: "
+                    f"{type(ready_response)}"
+                )
+        except Exception:
+            self.shutdown()
+            raise
 
         stream_thread = threading.Thread(
             target=self._stream_receiver_loop, daemon=True
