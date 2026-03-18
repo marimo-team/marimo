@@ -11,6 +11,7 @@ export function notebookIsRunning(state: NotebookState) {
     (cell) => cell.status === "running",
   );
 }
+
 export function notebookQueueOrRunningCount(state: NotebookState) {
   return Object.values(state.cellRuntime).filter(
     (cell) => cell.status === "running" || cell.status === "queued",
