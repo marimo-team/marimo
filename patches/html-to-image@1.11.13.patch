@@ -1,5 +1,5 @@
 diff --git a/es/clone-node.js b/es/clone-node.js
-index 114cbf214f65cda237dbba67458c2b68fadf421e..2f31795bdb0f81b6a435b630a475b1ffe9f1d666 100644
+index 114cbf214f65cda237dbba67458c2b68fadf421e..f6194624c9fcb8b57eb72f445277b6cd14d31c6d 100644
 --- a/es/clone-node.js
 +++ b/es/clone-node.js
 @@ -59,10 +59,6 @@ async function cloneChildren(nativeNode, clonedNode, options) {
@@ -14,10 +14,32 @@ index 114cbf214f65cda237dbba67458c2b68fadf421e..2f31795bdb0f81b6a435b630a475b1ff
          children = toArray(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
      }
 diff --git a/es/embed-webfonts.js b/es/embed-webfonts.js
-index f6b0d96829c8a3301c142cacd07079e85b1f64fd..f5bfa86bc18c8314ad565c73c7dfab87728f3428 100644
+index f6b0d96829c8a3301c142cacd07079e85b1f64fd..341ec2d091a65bbac14c8ef66beafa41513651a2 100644
 --- a/es/embed-webfonts.js
 +++ b/es/embed-webfonts.js
-@@ -190,9 +190,12 @@ export async function embedWebFonts(clonedNode, options) {
+@@ -153,15 +153,17 @@ async function parseWebFontRules(node, options) {
+     return getWebFontRules(cssRules);
+ }
+ function normalizeFontFamily(font) {
+-    return font.trim().replace(/["']/g, '');
++    return (font || '').trim().replace(/["']/g, '');
+ }
+ function getUsedFonts(node) {
+     const fonts = new Set();
+     function traverse(node) {
+         const fontFamily = node.style.fontFamily || getComputedStyle(node).fontFamily;
+-        fontFamily.split(',').forEach((font) => {
+-            fonts.add(normalizeFontFamily(font));
+-        });
++        if (fontFamily) {
++            fontFamily.split(',').forEach((font) => {
++                fonts.add(normalizeFontFamily(font));
++            });
++        }
+         Array.from(node.children).forEach((child) => {
+             if (child instanceof HTMLElement) {
+                 traverse(child);
+@@ -190,9 +192,12 @@ export async function embedWebFonts(clonedNode, options) {
          : options.skipFonts
              ? null
              : await getWebFontCSS(clonedNode, options);
@@ -49,7 +71,7 @@ index a832baf45e95d7b3bb076ecacd46e73493f3e9ef..b487b064337bf75cb74dd530b54b7c6a
       * A boolean to turn off auto scaling for truly massive images..
       */
 diff --git a/lib/clone-node.js b/lib/clone-node.js
-index 214f4d30a50baae7f007d2399eeac298366538c7..4de9de97b39a620ebe8ba16e5feb9e552eb95bc6 100644
+index 214f4d30a50baae7f007d2399eeac298366538c7..a81d0e313ace6c50ce1652c4deb0dc8df3e073a8 100644
 --- a/lib/clone-node.js
 +++ b/lib/clone-node.js
 @@ -134,10 +134,6 @@ function cloneChildren(nativeNode, clonedNode, options) {
@@ -64,7 +86,7 @@ index 214f4d30a50baae7f007d2399eeac298366538c7..4de9de97b39a620ebe8ba16e5feb9e55
                          children = (0, util_1.toArray)(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
                      }
 diff --git a/lib/embed-webfonts.js b/lib/embed-webfonts.js
-index c91538bd9c3afa63326a91267fb7b5b9c999cccd..f3e3bc8f0e9e254b3c10e3c317d804e3c83f769e 100644
+index c91538bd9c3afa63326a91267fb7b5b9c999cccd..bc2a5ec773de20baf5e3cb31399abade949130de 100644
 --- a/lib/embed-webfonts.js
 +++ b/lib/embed-webfonts.js
 @@ -300,9 +300,12 @@ function embedWebFonts(clonedNode, options) {
@@ -103,7 +125,7 @@ index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21
 --- a/src/clone-node.ts
 +++ b/src/clone-node.ts
 @@ -88,11 +88,6 @@ async function cloneChildren<T extends HTMLElement>(
-
+ 
    if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
      children = toArray<T>(nativeNode.assignedNodes())
 -  } else if (
@@ -115,13 +137,37 @@ index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21
      children = toArray<T>((nativeNode.shadowRoot ?? nativeNode).childNodes)
    }
 diff --git a/src/embed-webfonts.ts b/src/embed-webfonts.ts
-index a84a699d37aeaaea19b9b31e0e98710f1e30da3c..6835efb8a2431aa8f066cd5ed0b47234b55f347a 100644
+index a84a699d37aeaaea19b9b31e0e98710f1e30da3c..c62fd717217f9d47c059bd477295b31e8fb77560 100644
 --- a/src/embed-webfonts.ts
 +++ b/src/embed-webfonts.ts
-@@ -258,9 +258,13 @@ export async function embedWebFonts<T extends HTMLElement>(
+@@ -203,7 +203,7 @@ async function parseWebFontRules<T extends HTMLElement>(
+ }
+ 
+ function normalizeFontFamily(font: string) {
+-  return font.trim().replace(/["']/g, '')
++  return (font || '').trim().replace(/["']/g, '')
+ }
+ 
+ function getUsedFonts(node: HTMLElement) {
+@@ -211,9 +211,11 @@ function getUsedFonts(node: HTMLElement) {
+   function traverse(node: HTMLElement) {
+     const fontFamily =
+       node.style.fontFamily || getComputedStyle(node).fontFamily
+-    fontFamily.split(',').forEach((font) => {
+-      fonts.add(normalizeFontFamily(font))
+-    })
++    if (fontFamily) {
++      fontFamily.split(',').forEach((font) => {
++        fonts.add(normalizeFontFamily(font))
++      })
++    }
+ 
+     Array.from(node.children).forEach((child) => {
+       if (child instanceof HTMLElement) {
+@@ -258,9 +260,13 @@ export async function embedWebFonts<T extends HTMLElement>(
        ? null
        : await getWebFontCSS(clonedNode, options)
-
+ 
 -  if (cssText) {
 +  const finalCssText = options.extraStyleContent != null
 +    ? options.extraStyleContent.concat(cssText || '')
@@ -131,9 +177,9 @@ index a84a699d37aeaaea19b9b31e0e98710f1e30da3c..6835efb8a2431aa8f066cd5ed0b47234
      const styleNode = document.createElement('style')
 -    const sytleContent = document.createTextNode(cssText)
 +    const sytleContent = document.createTextNode(finalCssText)
-
+ 
      styleNode.appendChild(sytleContent)
-
+ 
 diff --git a/src/types.ts b/src/types.ts
 index 6023c3c2def1cb3ce83112c4c902997617582f59..ef40283ab6e47c98c7f8ea477c3ae29671682d98 100644
 --- a/src/types.ts

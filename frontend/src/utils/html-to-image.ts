@@ -140,6 +140,11 @@ export const necessaryStyleProperties = [
   "cursor",
 ];
 
+// 1x1 transparent PNG as a fallback for images that fail to embed (e.g., cross-origin).
+// Without this, failed embeds leave external URLs in the cloned DOM, which taints the canvas.
+const TRANSPARENT_PIXEL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAAA0lEQVQI12P4z8BQDwAEgAF/QualIQAAAABJRU5ErkJggg==";
+
 /**
  * Default options for html-to-image conversions.
  * These handle common edge cases like filtering out toolbars and logging errors.
@@ -162,6 +167,7 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
       return true;
     }
   },
+  imagePlaceholder: TRANSPARENT_PIXEL,
   onImageErrorHandler: (event) => {
     Logger.error("Error loading image:", event);
   },
