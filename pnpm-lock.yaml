@@ -12,7 +12,7 @@ overrides:
 
 patchedDependencies:
   html-to-image@1.11.13:
-    hash: 5fdb1de4a857e2fda0956b7e05a1b32817de8e7008009e71c0120ef02b886219
+    hash: 2a24dedb1e1edcc796771d5fd35f0f76647fba933988d22d21aa5965373ceb96
     path: patches/html-to-image@1.11.13.patch
 
 importers:
