@@ -53,6 +53,7 @@ import {
 } from "@/components/data-table/types";
 import {
   getPageIndexForRow,
+  loadTableAndRawData,
   loadTableData,
 } from "@/components/data-table/utils";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
@@ -602,13 +603,14 @@ export const LoadingDataTableComponent = memo(
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
-      tableData = await loadTableData(tableData);
-      const rawRows = rawTableData
-        ? await loadTableData(rawTableData)
-        : undefined;
+      const [data, rawData] = await loadTableAndRawData(
+        tableData,
+        rawTableData,
+      );
+      tableData = data;
       return {
         rows: tableData,
-        rawRows,
+        rawRows: rawData,
         totalRows: totalRows,
         cellStyles,
         cellHoverTexts,

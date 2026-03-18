@@ -1,12 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Cell, Column, Row, Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import { describe, expect, it } from "vitest";
 import {
   getClipboardContent,
   getPageIndexForRow,
-  getRawCellValue,
-  getRawRowValue,
+  getRawValue,
   stringifyUnknownValue,
 } from "../utils";
 
@@ -187,64 +186,6 @@ describe("getClipboardContent", () => {
   });
 });
 
-function createMockCellWithMeta<TData>(opts: {
-  value: unknown;
-  rowIndex: number;
-  columnId: string;
-  rawData?: TData[];
-}): Cell<TData, unknown> {
-  const table = {
-    options: {
-      meta: { rawData: opts.rawData },
-    },
-  } as unknown as Table<TData>;
-
-  return {
-    getValue: () => opts.value,
-    row: { index: opts.rowIndex } as Row<TData>,
-    column: { id: opts.columnId } as Column<TData>,
-    getContext: () =>
-      ({ table }) as ReturnType<Cell<TData, unknown>["getContext"]>,
-  } as unknown as Cell<TData, unknown>;
-}
-
-describe("getRawCellValue", () => {
-  it("should return raw value when rawData is available", () => {
-    const cell = createMockCellWithMeta({
-      value: {
-        _serialized_mime_bundle: {
-          mimetype: "text/html",
-          data: "<b>formatted</b>",
-        },
-      },
-      rowIndex: 0,
-      columnId: "score",
-      rawData: [{ score: 42 }],
-    });
-    expect(getRawCellValue(cell)).toBe(42);
-  });
-
-  it("should fall back to cell.getValue() when rawData is undefined", () => {
-    const cell = createMockCellWithMeta({
-      value: "displayed",
-      rowIndex: 0,
-      columnId: "name",
-      rawData: undefined,
-    });
-    expect(getRawCellValue(cell)).toBe("displayed");
-  });
-
-  it("should fall back to cell.getValue() when raw row is missing", () => {
-    const cell = createMockCellWithMeta({
-      value: "displayed",
-      rowIndex: 5,
-      columnId: "name",
-      rawData: [{ name: "only-row-0" }],
-    });
-    expect(getRawCellValue(cell)).toBe("displayed");
-  });
-});
-
 function createMockTableWithMeta<TData>(rawData?: TData[]): Table<TData> {
   return {
     options: {
@@ -253,23 +194,23 @@ function createMockTableWithMeta<TData>(rawData?: TData[]): Table<TData> {
   } as unknown as Table<TData>;
 }
 
-describe("getRawRowValue", () => {
+describe("getRawValue", () => {
   it("should return raw value when rawData is available", () => {
     const table = createMockTableWithMeta([
       { a: 10, b: 20 },
       { a: 30, b: 40 },
     ]);
-    expect(getRawRowValue(table, 0, "a")).toBe(10);
-    expect(getRawRowValue(table, 1, "b")).toBe(40);
+    expect(getRawValue(table, 0, "a")).toBe(10);
+    expect(getRawValue(table, 1, "b")).toBe(40);
   });
 
   it("should return undefined when rawData is not set", () => {
     const table = createMockTableWithMeta(undefined);
-    expect(getRawRowValue(table, 0, "a")).toBeUndefined();
+    expect(getRawValue(table, 0, "a")).toBeUndefined();
   });
 
   it("should return undefined when row index is out of bounds", () => {
     const table = createMockTableWithMeta([{ a: 1 }]);
-    expect(getRawRowValue(table, 5, "a")).toBeUndefined();
+    expect(getRawValue(table, 5, "a")).toBeUndefined();
   });
 });

@@ -2,7 +2,7 @@
 
 import type { Table } from "@tanstack/react-table";
 import { SELECT_COLUMN_ID } from "../types";
-import { getClipboardContent, getRawRowValue } from "../utils";
+import { getClipboardContent, getRawValue } from "../utils";
 import type { SelectedCell } from "./atoms";
 
 export interface CellValuesResult {
@@ -34,7 +34,7 @@ export function getCellValues<TData>(
       continue;
     }
 
-    const rawValue = getRawRowValue(table, row.index, columnId);
+    const rawValue = getRawValue(table, row.index, columnId);
     const { text, html } = getClipboardContent(
       rawValue,
       row.getValue(columnId),
@@ -112,7 +112,7 @@ export function getNumericValuesFromSelectedCells<TData>(
     }
 
     const value =
-      getRawRowValue(table, row.index, columnId) ?? row.getValue(columnId);
+      getRawValue(table, row.index, columnId) ?? row.getValue(columnId);
 
     // Only accept numbers and strings
     // Skip booleans, null, etc.

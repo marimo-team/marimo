@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.20.4"
+__generated_with = "0.21.0"
 app = marimo.App(width="medium")
 
 
@@ -13,7 +13,7 @@ def _():
     return mo, pl, random
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     # Copy Rich Content from Tables
@@ -27,7 +27,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## Table with `format_mapping` (hyperlinks)

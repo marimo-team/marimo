@@ -18,7 +18,7 @@ import {
 import { DATA_CELL_ID } from "./cell-utils";
 import { Filter } from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
-import { getClipboardContent, getRawCellValue } from "./utils";
+import { getClipboardContent, getRawValue } from "./utils";
 
 export const DataTableContextMenu = <TData,>({
   contextMenuRef,
@@ -82,8 +82,10 @@ export const CellContextMenu = <TData,>({
     return;
   }
 
-  const rawValue = getRawCellValue(cell);
+  const table = cell.getContext().table;
   const displayedValue = cell.getValue();
+  const rawValue =
+    getRawValue(table, cell.row.index, cell.column.id) ?? displayedValue;
 
   const handleCopyCell = () => {
     try {

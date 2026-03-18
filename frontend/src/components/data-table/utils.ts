@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Cell, Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
@@ -32,6 +32,21 @@ export async function loadTableData<T = object>(
     { handleBigIntAndNumberLike: true },
   );
   return tableData;
+}
+
+/**
+ * Load both table and raw table data. Raw table data is typically when
+ * there is formatting applied to the table data.
+ */
+export async function loadTableAndRawData<T>(
+  tableData: TableData<T>,
+  rawTableData?: TableData<T> | null,
+): Promise<[TableData<T>, TableData<T> | undefined]> {
+  if (rawTableData) {
+    return Promise.all([loadTableData(tableData), loadTableData(rawTableData)]);
+  }
+
+  return [await loadTableData(tableData), undefined];
 }
 
 /**
@@ -142,25 +157,10 @@ export function getClipboardContent(
 }
 
 /**
- * Get the raw (unformatted) value for a cell, falling back to
- * the displayed value if raw data is not available.
- */
-export function getRawCellValue<TData>(cell: Cell<TData, unknown>): unknown {
-  const rawData = cell.getContext().table.options.meta?.rawData;
-  if (rawData) {
-    const rawRow = rawData[cell.row.index];
-    if (isRecord(rawRow)) {
-      return rawRow[cell.column.id];
-    }
-  }
-  return cell.getValue();
-}
-
-/**
  * Get the raw (unformatted) value for a row/column from the table,
  * or undefined if raw data is not available.
  */
-export function getRawRowValue<TData>(
+export function getRawValue<TData>(
   table: Table<TData>,
   rowIndex: number,
   columnId: string,
