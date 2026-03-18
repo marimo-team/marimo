@@ -3,17 +3,18 @@
 
 This module owns the conversion of Python objects (primitives, tensors,
 containers, arbitrary picklable objects) into canonical byte sequences.
-``hash.py`` is responsible for graph traversal, cell hashing, and the
-``BlockHasher``; it delegates all value → bytes work here.
 """
 
 from __future__ import annotations
 
 import struct
 from typing import TYPE_CHECKING, Any, Optional
+import hashlib
+import io
+import pickle
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.primitives import is_primitive
+from marimo._runtime.primitives import is_data_primitive, is_primitive
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -150,3 +151,22 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
     # Fallback to raw state for eval in content hash.
     except (TypeError, ValueError):
         return value
+
+
+def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
+    """``pickle.dumps`` replacement that produces more deterministic bytes."""
+    from marimo._save.stubs import maybe_get_custom_stub
+
+    class _ContentHashPickler(pickle.Pickler):
+        def reducer_override(self, obj: Any) -> Any:
+            if stub := maybe_get_custom_stub(obj):
+                return (bytes, (stub.to_bytes(),))
+            if not is_primitive(obj) and is_data_primitive(obj):
+                h = hashlib.new(hash_type, usedforsecurity=False)
+                h.update(_contiguous_tensor_bytes(obj))
+                return (bytes, (h.digest(),))
+            return NotImplemented
+
+    buf = io.BytesIO()
+    _ContentHashPickler(buf).dump(obj)
+    return buf.getvalue()

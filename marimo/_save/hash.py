@@ -38,6 +38,7 @@ from marimo._save.encode import (
     attempt_signed_bytes,
     common_container_to_bytes,
     data_to_buffer,
+    deterministic_dumps,
     primitive_to_bytes,
     type_sign,
 )
@@ -491,7 +492,9 @@ class BlockHasher:
 
             for ref in unhashable:
                 try:
-                    _hashed = pickle.dumps(scope[ref])
+                    _hashed = deterministic_dumps(
+                        scope[ref], self.hash_alg.name
+                    )
                     content_serialization[ref] = type_sign(_hashed, "pickle")
                     refs.remove(ref)
                 except (pickle.PicklingError, TypeError) as e:
