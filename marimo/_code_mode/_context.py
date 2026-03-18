@@ -379,17 +379,19 @@ class AsyncCodeModeContext:
             sys.stdout.write(line + "\n")
 
     def _cell_label(self, cell_id: CellId_t) -> str:
-        """Return a display label for a cell: name if available, else short ID."""
+        """Return a display label: ``'id' (name)`` or ``'id'``."""
+        short = repr(str(cell_id)[:8])
+        name: str | None = None
         cm = self._cell_manager
         if cm is not None:
             data = cm.get_cell_data(cell_id)
             if data and data.name:
-                return repr(data.name)
-        name = _cell_names.get(cell_id)
+                name = data.name
+        if name is None:
+            name = _cell_names.get(cell_id)
         if name:
-            return repr(name)
-        short = str(cell_id)[:8]
-        return repr(short)
+            return f"{short} ({name})"
+        return short
 
     # ------------------------------------------------------------------
     # Read-only attributes

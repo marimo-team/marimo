@@ -378,9 +378,9 @@ class TestCombined:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
         ctx = AsyncCodeModeContext(k)
 
-        with pytest.raises(ValueError, match="queued for deletion"):
-            async with ctx as nb:
-                nb.delete_cell("0")
+        async with ctx as nb:
+            nb.delete_cell("0")
+            with pytest.raises(ValueError, match="queued for deletion"):
                 nb.run_cell("0")
 
 
@@ -394,7 +394,7 @@ class TestSummary:
             nb.create_cell("x = 1")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "created cell" in captured.out
+        assert captured.out == snapshot("created cell 'Hbol'\n")
 
     async def test_edit_prints_summary(
         self, k: Kernel, capsys: object
@@ -406,7 +406,7 @@ class TestSummary:
             nb.edit_cell("0", code="x = 2")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "edited code of cell" in captured.out
+        assert captured.out == snapshot("edited code of cell '0'\n")
 
     async def test_delete_prints_summary(
         self, k: Kernel, capsys: object
@@ -418,7 +418,7 @@ class TestSummary:
             nb.delete_cell("0")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "deleted cell" in captured.out
+        assert captured.out == snapshot("deleted cell '0'\n")
 
     async def test_noop_prints_nothing(
         self, k: Kernel, capsys: object
@@ -431,9 +431,7 @@ class TestSummary:
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         assert captured.out == ""
 
-    async def test_batch_summary(
-        self, k: Kernel, capsys: object
-    ) -> None:
+    async def test_batch_summary(self, k: Kernel, capsys: object) -> None:
         """Full batch: create+run, edit+run, delete, create (staged), re-run."""
         await k.run(
             [
@@ -461,8 +459,8 @@ class TestSummary:
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         assert captured.out == snapshot("""\
 deleted cell '1'
-created and ran cell 'new_cell'
-created cell 'staged'
+created and ran cell 'Hbol' (new_cell)
+created cell 'MJUe' (staged)
 edited code of cell '0' and ran
 re-ran cell '2'
 """)
