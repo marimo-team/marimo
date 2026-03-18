@@ -117,9 +117,7 @@ class AppHost:
                             "AppHost for %s is empty, invoking cleanup",
                             self._file_path,
                         )
-                        threading.Thread(
-                            target=callback, daemon=True
-                        ).start()
+                        threading.Thread(target=callback, daemon=True).start()
                         break
                     continue
 
