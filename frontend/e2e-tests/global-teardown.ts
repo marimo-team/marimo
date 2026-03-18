@@ -10,23 +10,24 @@ async function globalTeardown() {
   console.log("🧹 Cleaning up test environment...");
 
   try {
-    // Kill marimo processes and their parent uv processes.
+    // Kill marimo processes, kernel workers, and parent uv processes.
     // uv doesn't forward SIGTERM to children, so Playwright's
-    // webServer termination hangs waiting for the uv process to exit.
+    // webServer termination hangs waiting for the process to exit.
     // Using SIGKILL (-9) ensures processes die immediately.
     //
-    // The [m] and [u] character-class trick prevents pkill from matching
-    // its own shell wrapper process. Without it, `pkill -f 'marimo...'`
-    // matches `sh -c "pkill -f 'marimo...'"` and kills the wrapper,
-    // causing execAsync to reject before the second pkill can run.
-    await execAsync("pkill -9 -f '[m]arimo.*--headless' || true").catch(
+    // The character-class trick (e.g. [m]arimo) prevents pkill from
+    // matching its own shell wrapper process.
+    //
+    // We kill broadly — any process with "marimo" in its command line —
+    // to catch orphan kernel workers that survive the parent being killed.
+    const killCmds = [
+      "pkill -9 -f '[m]arimo' || true",
+      "pkill -9 -f '[u]v.*run.*[m]arimo' || true",
+    ];
+    for (const cmd of killCmds) {
       // eslint-disable-next-line @typescript-eslint/no-empty-function
-      () => {},
-    );
-    await execAsync("pkill -9 -f '[u]v.*run.*[m]arimo' || true").catch(
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      () => {},
-    );
+      await execAsync(cmd).catch(() => {});
+    }
     console.log("✅ Cleaned up marimo/uv processes");
 
     // Small delay to ensure cleanup completes
