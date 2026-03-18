@@ -399,14 +399,15 @@ class TestScratchCellListener:
         )
 
         events: list[str] = []
+        got_first_event = asyncio.Event()
 
         async def consume() -> None:
             async for event in listener.stream():
                 events.append(event)
+                got_first_event.set()
 
         task = asyncio.create_task(consume())
-        # Let the task pick up the queued event
-        await asyncio.sleep(0.05)
+        await got_first_event.wait()
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task

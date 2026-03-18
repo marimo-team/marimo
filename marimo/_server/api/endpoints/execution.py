@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
@@ -282,6 +283,10 @@ async def execute_code(
     async def _watch_disconnect() -> None:
         """Wait for client disconnect and interrupt the kernel."""
         while True:
+            # request._receive is the ASGI `receive` callable. Although
+            # it's a private Starlette attribute, it's the standard way to
+            # detect disconnects and doesn't race with StreamingResponse
+            # (which only writes to the send channel, never reads receive).
             message = await request._receive()
             if message.get("type") == "http.disconnect":
                 session.try_interrupt()
@@ -306,6 +311,8 @@ async def execute_code(
                 yield build_done_event(session)
         finally:
             disconnect_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await disconnect_task
 
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
 
