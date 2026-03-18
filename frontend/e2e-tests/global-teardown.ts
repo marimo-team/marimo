@@ -10,10 +10,14 @@ async function globalTeardown() {
   console.log("🧹 Cleaning up test environment...");
 
   try {
-    // Kill any remaining marimo processes
+    // Kill marimo processes and their parent uv processes.
+    // On macOS, uv doesn't forward SIGTERM to children, so Playwright's
+    // webServer termination hangs waiting for the uv process to exit.
+    // Using SIGKILL (-9) ensures processes die immediately.
     try {
-      await execAsync("pkill -f 'marimo.*--headless' || true");
-      console.log("✅ Cleaned up marimo processes");
+      await execAsync("pkill -9 -f 'marimo.*--headless' || true");
+      await execAsync("pkill -9 -f 'uv.*marimo' || true");
+      console.log("✅ Cleaned up marimo/uv processes");
     } catch {
       // Ignore errors - processes might not exist
       console.log("⚠️  No marimo processes to clean up");

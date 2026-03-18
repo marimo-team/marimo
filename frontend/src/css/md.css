@@ -41,6 +41,10 @@
   font-family: var(--heading-font);
 }
 
+.markdown hr {
+  margin-block: 0.5rem;
+}
+
 .markdown a {
   cursor: pointer;
   text-decoration: inherit;

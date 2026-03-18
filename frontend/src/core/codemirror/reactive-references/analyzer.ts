@@ -462,6 +462,7 @@ export function findReactiveVariables(options: {
   ): boolean {
     return (
       allVariableNames.has(varName) &&
+      !isPropertyAccess(cursor) &&
       !isKeywordArgumentName(cursor) &&
       !isAssignmentTarget(cursor)
     );
@@ -526,6 +527,19 @@ function isAssignmentTarget(cursor: TreeCursor): boolean {
     return assignOpPosition !== -1 && cursor.from < assignOpPosition;
   }
 
+  return false;
+}
+
+/** Checks whether a `VariableName` is a property access (e.g. `tool` in `mcp.tool`). */
+function isPropertyAccess(cursor: TreeCursor): boolean {
+  // Check if the previous sibling is a "." node, which means this
+  // VariableName is a property access rather than a standalone variable.
+  // This handles both MemberExpression (e.g. `obj.attr`) and Decorator
+  // (e.g. `@mcp.tool`) where the parser emits flat sibling nodes.
+  const temp = cursor.node.cursor();
+  if (temp.prevSibling() && temp.name === ".") {
+    return true;
+  }
   return false;
 }
 
