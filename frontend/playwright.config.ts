@@ -210,9 +210,11 @@ const config: PlaywrightTestConfig = {
         reuseExistingServer: true,
         timeout: 30 * 1000,
         ignoreHTTPSErrors: true,
-        // Add stdout/stderr for debugging
-        stdout: "pipe" as const,
-        stderr: "pipe" as const,
+        // Use "ignore" to prevent child processes from inheriting pipe FDs.
+        // With "pipe", orphan kernel workers keep the FDs open after the
+        // parent is killed, causing Playwright's webServer teardown to hang.
+        stdout: "ignore" as const,
+        stderr: "ignore" as const,
       };
     }),
     {
@@ -221,9 +223,8 @@ const config: PlaywrightTestConfig = {
       reuseExistingServer: true,
       timeout: 30 * 1000,
       ignoreHTTPSErrors: true,
-      // Add stdout/stderr for debugging
-      stdout: "pipe" as const,
-      stderr: "pipe" as const,
+      stdout: "ignore" as const,
+      stderr: "ignore" as const,
     },
     // WASM_SERVER,
   ],
