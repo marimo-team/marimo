@@ -41,7 +41,7 @@ export async function loadTableData<T = object>(
 export async function loadTableAndRawData<T>(
   tableData: TableData<T>,
   rawTableData?: TableData<T> | null,
-): Promise<[TableData<T>, TableData<T> | undefined]> {
+): Promise<[T[], T[] | undefined]> {
   if (rawTableData) {
     return Promise.all([loadTableData(tableData), loadTableData(rawTableData)]);
   }
