@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,6 +74,33 @@ class file_browser(
         file_browser.name(index=0)
         ```
 
+        Filtering files by regex pattern:
+        ```python
+        # Only show Python files
+        file_browser = mo.ui.file_browser(
+            initial_path=Path("."),
+            filter=r".*\.py$"
+        )
+
+        # Only show files starting with "test_"
+        file_browser = mo.ui.file_browser(
+            initial_path=Path("."),
+            filter=r"^test_.*"
+        )
+        ```
+
+        Filtering files with a custom function:
+        ```python
+        # Only show files larger than 1MB
+        def large_files(path: Path) -> bool:
+            return path.is_file() and path.stat().st_size > 1_000_000
+
+        file_browser = mo.ui.file_browser(
+            initial_path=Path("."),
+            filter=large_files
+        )
+        ```
+
         Connecting to an S3 (or GCS, Azure) bucket:
         ```python
         from cloudpathlib import S3Path
@@ -117,6 +145,11 @@ class file_browser(
         filetypes (Sequence[str], optional): The file types to display in each
             directory; for example, filetypes=[".txt", ".csv"]. If None, all
             files are displayed. Defaults to None.
+        filter (Union[str, Callable[[Path], bool]], optional): A filter to
+            apply to files. Can be either:
+            - A regex pattern string (matched against file.name using re.match)
+            - A callable that takes a Path and returns True if the file should be included
+            If provided, this takes precedence over filetypes. Defaults to None.
         selection_mode (Literal["file", "directory"], optional): Either "file" or "directory". Defaults to
             "file".
         multiple (bool, optional): If True, allow the user to select multiple
@@ -143,6 +176,7 @@ class file_browser(
         self,
         initial_path: Union[str, Path] = "",
         filetypes: Optional[Sequence[str]] = None,
+        filter: Optional[Union[str, Callable[[Path], bool]]] = None,
         selection_mode: Literal["file", "directory"] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
@@ -193,6 +227,10 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
+        
+        # Store filter parameter
+        self._filter = filter
+        
         self._restrict_navigation = restrict_navigation
         self._ignore_empty_dirs = ignore_empty_dirs
 
@@ -239,6 +277,46 @@ class file_browser(
         path = self._path_cls(path_str, **kwargs)
         return path
 
+    def _should_include_file(self, file: Path, is_directory: bool) -> bool:
+        """Determine if a file should be included based on filter/filetypes.
+        
+        Args:
+            file: The file path to check
+            is_directory: Whether the path is a directory
+            
+        Returns:
+            bool: True if the file should be included, False otherwise
+        """
+        # Priority: filter > filetypes
+        if self._filter is not None:
+            # Apply custom filter
+            if isinstance(self._filter, str):
+                # Regex filter (match against file.name)
+                try:
+                    return bool(re.match(self._filter, file.name))
+                except re.error:
+                    # Invalid regex pattern, treat as no match
+                    LOGGER.warning(
+                        f"Invalid regex pattern in filter: {self._filter}"
+                    )
+                    return False
+            else:
+                # Callback filter
+                try:
+                    return self._filter(file)
+                except Exception as e:
+                    # Callback raised exception, log and exclude file
+                    LOGGER.warning(
+                        f"Filter callback raised exception for {file}: {e}"
+                    )
+                    return False
+        
+        # Fall back to filetypes
+        if self._filetypes and not is_directory:
+            return file.suffix.lower() in self._filetypes
+        
+        return True
+
     def _has_files_recursive(
         self, directory: Path, max_depth: int = 100
     ) -> bool:
@@ -270,6 +348,7 @@ class file_browser(
             for item in directory.iterdir():
                 if item.is_file():
                     # Apply filetype filter if specified (case-insensitive)
+                    # Note: recursive check doesn't use filter parameter, only filetypes
                     if (
                         self._filetypes
                         and item.suffix.lower() not in self._filetypes
@@ -312,17 +391,15 @@ class file_browser(
         is_truncated = False
 
         for files_examined, file in enumerate(all_file_paths, 1):
-            extension = file.suffix
             is_directory = file.is_dir()  # Expensive call for cloud paths
 
             # Skip non-directories if selection mode is directory
             if self._selection_mode == "directory" and not is_directory:
                 continue
 
-            # Skip non-matching file types (case-insensitive)
-            if self._filetypes and not is_directory:
-                if extension.lower() not in self._filetypes:
-                    continue
+            # Apply filter/filetypes using the unified method
+            if not self._should_include_file(file, is_directory):
+                continue
 
             # Skip empty directories if ignore_empty_dirs is enabled
             if self._ignore_empty_dirs and is_directory:
