@@ -12,7 +12,7 @@ overrides:
 
 patchedDependencies:
   html-to-image@1.11.13:
-    hash: 281b53974430aa61106469d6c8e35e6c32db4deea3823e8a0c5d52fdd1de26ae
+    hash: 405d43fd603ed64fdfdd4e3572f22a2b0eab5c8bd36a0dbd88f28ab1f311893f
     path: patches/html-to-image@1.11.13.patch
 
 importers:
@@ -360,7 +360,7 @@ importers:
         version: 5.2.15(@types/react@19.2.10)(react@19.2.4)
       html-to-image:
         specifier: 1.11.13
-        version: 1.11.13(patch_hash=281b53974430aa61106469d6c8e35e6c32db4deea3823e8a0c5d52fdd1de26ae)
+        version: 1.11.13(patch_hash=405d43fd603ed64fdfdd4e3572f22a2b0eab5c8bd36a0dbd88f28ab1f311893f)
       humanize-duration:
         specifier: ^3.33.2
         version: 3.33.2
@@ -17467,7 +17467,7 @@ snapshots:
 
   html-tags@3.3.1: {}
 
-  html-to-image@1.11.13(patch_hash=281b53974430aa61106469d6c8e35e6c32db4deea3823e8a0c5d52fdd1de26ae): {}
+  html-to-image@1.11.13(patch_hash=405d43fd603ed64fdfdd4e3572f22a2b0eab5c8bd36a0dbd88f28ab1f311893f): {}
 
   html-url-attributes@3.0.1: {}
 
