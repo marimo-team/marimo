@@ -385,6 +385,24 @@ class TestCombined:
 
         assert k.globals["x"] == 1
 
+    async def test_rerun_alongside_structural_ops(self, k: Kernel) -> None:
+        """run_cell on an unchanged cell works even with other structural ops."""
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+            ]
+        )
+        ctx = AsyncCodeModeContext(k)
+
+        # Mutate so we can detect re-execution of "0".
+        k.globals["x"] = 0
+        async with ctx as nb:
+            nb.create_cell("z = 99", name="new")
+            nb.run_cell("0")
+
+        assert k.globals["x"] == 1
+
     async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
         """Calling run_cell on a cell queued for deletion raises."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
@@ -403,10 +421,10 @@ class TestSummary:
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 1")
+            nb.create_cell("x = 1", name="my_cell")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert captured.out == snapshot("created cell 'Hbol'\n")
+        assert captured.out == snapshot("created cell 'Hbol' (my_cell)\n")
 
     async def test_edit_prints_summary(
         self, k: Kernel, capsys: object

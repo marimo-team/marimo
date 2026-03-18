@@ -1006,9 +1006,10 @@ class AsyncCodeModeContext:
 
         self.notify(UpdateCellIdsNotification(cell_ids=target_order))
 
-        # Only run cells explicitly queued via run_cell().
+        # Only run cells explicitly queued via run_cell(), filtered to
+        # cells that still exist after structural ops have been applied.
         if _run_set:
-            cells_to_run &= _run_set
+            cells_to_run = _run_set & set(self.graph.cells.keys())
             if cells_to_run:
                 await self._kernel._run_cells(cells_to_run)
 
