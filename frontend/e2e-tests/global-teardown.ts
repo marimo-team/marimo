@@ -20,9 +20,11 @@ async function globalTeardown() {
     // matches `sh -c "pkill -f 'marimo...'"` and kills the wrapper,
     // causing execAsync to reject before the second pkill can run.
     await execAsync("pkill -9 -f '[m]arimo.*--headless' || true").catch(
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       () => {},
     );
     await execAsync("pkill -9 -f '[u]v.*run.*[m]arimo' || true").catch(
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       () => {},
     );
     console.log("✅ Cleaned up marimo/uv processes");
