@@ -7,11 +7,11 @@ containers, arbitrary picklable objects) into canonical byte sequences.
 
 from __future__ import annotations
 
-import struct
-from typing import TYPE_CHECKING, Any
 import hashlib
 import io
 import pickle
+import struct
+from typing import TYPE_CHECKING, Any
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.primitives import is_data_primitive, is_primitive
@@ -51,7 +51,7 @@ def iterable_sign(value: Iterable[Any], label: str) -> bytes:
     )
 
 
-def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
+def standardize_tensor(tensor: Tensor) -> Tensor:
     if (
         hasattr(tensor, "__array__")
         or hasattr(tensor, "toarray")
