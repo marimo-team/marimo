@@ -4,6 +4,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import msgspec
+import pytest
 from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
@@ -372,6 +373,16 @@ class TestCombined:
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
         assert len(k.graph.cells) == 1
 
+    async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
+        """Calling run_cell on a cell queued for deletion raises."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        with pytest.raises(ValueError, match="queued for deletion"):
+            async with ctx as nb:
+                nb.delete_cell("0")
+                nb.run_cell("0")
+
 
 class TestSummary:
     async def test_create_prints_summary(
@@ -420,26 +431,41 @@ class TestSummary:
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         assert captured.out == ""
 
-    async def test_mixed_ops_prints_all(
+    async def test_batch_summary(
         self, k: Kernel, capsys: object
     ) -> None:
+        """Full batch: create+run, edit+run, delete, create (staged), re-run."""
         await k.run(
             [
                 ExecuteCellCommand(cell_id="0", code="a = 1"),
                 ExecuteCellCommand(cell_id="1", code="b = 2"),
+                ExecuteCellCommand(cell_id="2", code="c = 3"),
             ]
         )
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
+            # delete
             nb.delete_cell("1")
-            nb.create_cell("c = 3")
+            # create + run
+            nb.create_cell("d = 4", name="new_cell")
+            nb.run_cell("new_cell")
+            # create without run (staged)
+            nb.create_cell("e = 5", name="staged")
+            # edit + run
             nb.edit_cell("0", code="a = 10")
+            nb.run_cell("0")
+            # re-run existing cell without editing
+            nb.run_cell("2")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "deleted cell" in captured.out
-        assert "created cell" in captured.out
-        assert "edited code of cell" in captured.out
+        assert captured.out == snapshot("""\
+deleted cell '1'
+created and ran cell 'new_cell'
+created cell 'staged'
+edited code of cell '0' and ran
+re-ran cell '2'
+""")
 
 
 class TestResolveTarget:

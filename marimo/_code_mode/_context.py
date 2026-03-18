@@ -338,11 +338,16 @@ class AsyncCodeModeContext:
         for pkg in packages:
             lines.append(f"installed {pkg}")
 
+        _run = cells_to_run or set()
+        op_cell_ids: set[CellId_t] = set()
         for op in ops:
             cell_id = op.cell_id
+            op_cell_ids.add(cell_id)
             label = self._cell_label(cell_id)
+            ran = cell_id in _run
             if isinstance(op, _AddOp):
-                lines.append(f"created cell {label}")
+                verb = "created and ran" if ran else "created"
+                lines.append(f"{verb} cell {label}")
             elif isinstance(op, _UpdateOp):
                 parts = []
                 if op.code is not None:
@@ -350,16 +355,16 @@ class AsyncCodeModeContext:
                 if op.config is not None:
                     parts.append("config")
                 detail = " and ".join(parts) if parts else "config"
-                lines.append(f"edited {detail} of cell {label}")
+                suffix = " and ran" if ran else ""
+                lines.append(f"edited {detail} of cell {label}{suffix}")
             elif isinstance(op, _DeleteOp):
                 lines.append(f"deleted cell {label}")
             elif isinstance(op, _MoveOp):
                 lines.append(f"moved cell {label}")
 
-        # Report cells queued for execution (including re-runs).
-        op_cell_ids = {op.cell_id for op in ops}
-        if cells_to_run:
-            for cell_id in cells_to_run:
+        # Report cells queued for execution that had no structural op.
+        if _run:
+            for cell_id in _run:
                 if cell_id not in op_cell_ids:
                     label = self._cell_label(cell_id)
                     lines.append(f"re-ran cell {label}")
@@ -380,6 +385,9 @@ class AsyncCodeModeContext:
             data = cm.get_cell_data(cell_id)
             if data and data.name:
                 return repr(data.name)
+        name = _cell_names.get(cell_id)
+        if name:
+            return repr(name)
         short = str(cell_id)[:8]
         return repr(short)
 
@@ -750,6 +758,15 @@ class AsyncCodeModeContext:
         """
         self._require_entered()
         cell_id = self._resolve_target(target)
+        # Guard against running a cell that is queued for deletion.
+        deleted_ids = {
+            op.cell_id for op in self._ops if isinstance(op, _DeleteOp)
+        }
+        if cell_id in deleted_ids:
+            raise ValueError(
+                f"Cannot run cell {target!r} because it is queued "
+                "for deletion in this batch"
+            )
         self._cells_to_run.add(cell_id)
 
     # ------------------------------------------------------------------
