@@ -152,9 +152,9 @@ const SliderComponent = ({
                 nextValue = Number(start);
               }
               setInternalValue(nextValue);
-              if (!debounce) {
-                setValue(nextValue);
-              }
+              // Always update value on explicit NumberField input;
+              // debounce only applies to slider drag events (onValueCommit).
+              setValue(nextValue);
             }}
             minValue={start}
             maxValue={stop}
