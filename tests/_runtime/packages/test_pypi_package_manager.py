@@ -76,7 +76,7 @@ async def test_install(mock_run: MagicMock):
         )
 
     mock_run.assert_called_once_with(
-        ["pip", "--python", PY_EXE, "install", "package1", "package2"],
+        [PY_EXE, "-m", "pip", "install", "package1", "package2"],
     )
     assert result is True
 
@@ -101,9 +101,9 @@ async def test_uninstall(mock_run: MagicMock):
 
     mock_run.assert_called_once_with(
         [
-            "pip",
-            "--python",
             PY_EXE,
+            "-m",
+            "pip",
             "uninstall",
             "-y",
             "package1",
@@ -127,7 +127,7 @@ def test_list_packages(mock_run: MagicMock):
         packages = manager.list_packages()
 
     mock_run.assert_called_once_with(
-        ["pip", "--python", PY_EXE, "list", "--format=json"],
+        [PY_EXE, "-m", "pip", "list", "--format=json"],
         capture_output=True,
         text=True,
         encoding="utf-8",
