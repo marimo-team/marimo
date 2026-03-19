@@ -91,9 +91,10 @@ const RangeSlider = React.forwardRef<
     const [origLeft, origRight] = dragStartValue.current;
     const rangeWidth = origRight - origLeft;
 
+    const steps = props.steps;
     const step: number =
-      props.steps && props.steps.length > 1
-        ? Math.min(...props.steps.slice(1).map((s, i) => s - props.steps[i]))
+      steps && steps.length > 1
+        ? Math.min(...steps.slice(1).map((s, i) => s - steps[i]))
         : (props.step ?? 1);
     const snappedDelta = Math.round(delta / step) * step;
 
