@@ -419,11 +419,6 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         full_width (bool): Whether the input should take up the full width of its container.
         disabled (bool, optional): Whether the slider is disabled. Defaults to False.
 
-    Notes:
-        Dragging the filled track (the colored bar between the two handles)
-        moves both handles together while preserving the selected range width.
-        Individual handles can still be dragged independently to adjust the range.
-
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
