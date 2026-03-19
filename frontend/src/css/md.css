@@ -19,11 +19,7 @@
 
 /* Restore browser default bullet cycling that Tailwind Typography overrides */
 .markdown ul ul {
-  list-style-type: circle;
-}
-
-.markdown ul ul ul {
-  list-style-type: square;
+  list-style-type: revert;
 }
 
 .markdown h1 {

@@ -246,22 +246,21 @@ def test_md_nested_list_no_paragraph_wrapper() -> None:
 
 
 def test_md_nested_list_preserves_multi_paragraph() -> None:
-    # Multi-paragraph list items should keep their <p> wrappers
     input_text = """- Paragraph one
 
-  Paragraph two
+    Paragraph two
 
-  - Nested item"""
+- Item 2"""
 
     result = _md(input_text, apply_markdown_class=False).text
     assert result == snapshot(
         """\
 <ul>
-<li>Paragraph one</li>
-</ul>
+<li>
+<span class="paragraph">Paragraph one</span>
 <span class="paragraph">Paragraph two</span>
-<ul>
-<li>Nested item</li>
+</li>
+<li>Item 2</li>
 </ul>\
 """
     )
