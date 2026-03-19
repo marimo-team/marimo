@@ -12,6 +12,21 @@
   margin-block-end: 0;
 }
 
+.markdown ul li,
+.markdown ol li {
+  margin-block-start: 0;
+  margin-block-end: 0;
+}
+
+/* Restore browser default bullet cycling that Tailwind Typography overrides */
+.markdown ul ul {
+  list-style-type: circle;
+}
+
+.markdown ul ul ul {
+  list-style-type: square;
+}
+
 .markdown h1 {
   text-align: start;
 }
