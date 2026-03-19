@@ -126,12 +126,13 @@ class PipPackageManager(PypiPackageManager):
         """Check if pip is available.
 
         On some platforms (e.g. macOS with pip-installed Python from python.org),
-        only `pip3` is available in PATH, not `pip`. We fall back to checking
-        via `python -m pip` to handle these cases.
+        only `pip3` is available in PATH, not `pip`. We first try the method we
+        actually use to invoke pip (`python -m pip`), then fall back to a PATH
+        check for compatibility.
         """
-        if DependencyManager.which(self.name):
-            return True
-        # Fallback: check if `python -m pip` works
+        # Primary check: use the same invocation method we actually use
+        # (python -m pip) rather than relying on PATH pip, which could be
+        # a different Python's pip than self._python_exe
         try:
             proc = subprocess.run(
                 [self._python_exe, "-m", "pip", "--version"],
@@ -141,8 +142,12 @@ class PipPackageManager(PypiPackageManager):
             )
             if proc.returncode == 0:
                 return True
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             pass
+        # Fallback: check if pip is on PATH (handles cases where pip is
+        # available but python -m pip is not desired/needed)
+        if DependencyManager.which(self.name):
+            return True
         LOGGER.error(
             f"{self.name} is not available. "
             f"Check out the docs for installation instructions: {self.docs_url}"
