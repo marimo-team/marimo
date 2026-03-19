@@ -1659,6 +1659,32 @@ class TestTransformHandler:
         )
 
     @staticmethod
+    def test_pivot_count_preserves_boolean_index_dtype() -> None:
+        """fill_null(0) on value columns must not alter boolean index dtypes."""
+        import polars as pl
+
+        df = pl.DataFrame(
+            {
+                "category": ["x", "x", "y"],
+                "id": [1, 2, 1],
+                "flag": [True, False, True],
+                "value": [10, 20, 30],
+            }
+        )
+
+        transform = PivotTransform(
+            type=TransformType.PIVOT,
+            column_ids=["category"],
+            index_column_ids=["id", "flag"],
+            value_column_ids=["value"],
+            aggregation="count",
+        )
+
+        result = apply(df, transform)
+        nw_result = nw.from_native(result)
+        assert nw_result.schema["flag"] == nw.Boolean
+
+    @staticmethod
     @pytest.mark.parametrize(
         ("df", "expected", "expected2"),
         list(
