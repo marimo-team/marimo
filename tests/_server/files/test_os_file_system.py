@@ -29,8 +29,14 @@ def test_create_file(test_dir: Path, fs: OSFileSystem) -> None:
     assert expected_path.exists()
 
 
-def test_create_notebook(test_dir: Path, fs: OSFileSystem) -> None:
-    test_notebook_name = "test_notebook.py"
+@pytest.mark.parametrize(
+    ("ext", "expected"),
+    [("py", "__generated_with"), ("md", "marimo-version"), ("qmd", "filters")],
+)
+def test_create_notebook(
+    test_dir: Path, fs: OSFileSystem, ext: str, expected: str
+) -> None:
+    test_notebook_name = f"test_notebook.{ext}"
     fs.create_file_or_directory(
         str(test_dir),
         "notebook",
@@ -40,8 +46,7 @@ def test_create_notebook(test_dir: Path, fs: OSFileSystem) -> None:
     expected_path = test_dir / test_notebook_name
     assert expected_path.exists()
     notebook_code = expected_path.read_text("utf-8")
-    assert "import marimo" in notebook_code
-    assert "app.run()" in notebook_code
+    assert expected in notebook_code
 
 
 def test_create_notebook_with_contents(

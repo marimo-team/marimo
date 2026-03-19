@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 
 from marimo import _loggers
+from marimo._convert.converters import MarimoConvert
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._session.notebook.file_manager import AppFileManager
@@ -158,7 +159,12 @@ class OSFileSystem(FileSystem):
             full_path.parent.mkdir(parents=True, exist_ok=True)
             # Create a new AppFileManager to get the default notebook code
             # We pass None as filename to get the empty notebook template
-            notebook_code = AppFileManager(None).to_code()
+            ir = AppFileManager(None).app.to_ir()
+            converter = MarimoConvert.from_ir(ir)
+            if full_path.suffix in (".md", ".qmd"):
+                notebook_code = converter.to_markdown(full_path.name)
+            else:
+                notebook_code = converter.to_py()
             full_path.write_text(notebook_code, encoding="utf-8")
             contents = notebook_code.encode("utf-8")
         else:
@@ -352,7 +358,6 @@ class OSFileSystem(FileSystem):
                     return True
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")
-                    pass
 
             # Use system default if no editor specified
             if platform.system() == "Darwin":  # macOS
