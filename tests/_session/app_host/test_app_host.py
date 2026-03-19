@@ -446,9 +446,7 @@ class TestAppHostMultipleClients:
                     config_manager=Mock(
                         with_overrides=Mock(
                             return_value=Mock(
-                                get_config=Mock(
-                                    return_value=DEFAULT_CONFIG
-                                )
+                                get_config=Mock(return_value=DEFAULT_CONFIG)
                             )
                         )
                     ),
