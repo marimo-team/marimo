@@ -43,18 +43,21 @@ class AppHostConnection:
             log_level = GLOBAL_SETTINGS.LOG_LEVEL
 
         context = zmq.Context()
+        try:
+            mgmt = context.socket(zmq.PUSH)
+            mgmt_port = mgmt.bind_to_random_port(_BIND_ADDR)
 
-        mgmt = context.socket(zmq.PUSH)
-        mgmt_port = mgmt.bind_to_random_port(_BIND_ADDR)
+            response = context.socket(zmq.PULL)
+            response_port = response.bind_to_random_port(_BIND_ADDR)
 
-        response = context.socket(zmq.PULL)
-        response_port = response.bind_to_random_port(_BIND_ADDR)
+            cmd = context.socket(zmq.PUSH)
+            cmd_port = cmd.bind_to_random_port(_BIND_ADDR)
 
-        cmd = context.socket(zmq.PUSH)
-        cmd_port = cmd.bind_to_random_port(_BIND_ADDR)
-
-        stream = context.socket(zmq.PULL)
-        stream_port = stream.bind_to_random_port(_BIND_ADDR)
+            stream = context.socket(zmq.PULL)
+            stream_port = stream.bind_to_random_port(_BIND_ADDR)
+        except Exception:
+            context.destroy(linger=0)
+            raise
 
         conn = cls(
             context=context,
