@@ -181,12 +181,12 @@ class AppHost:
         if proc_stdin is None:
             self.shutdown()
             raise RuntimeError("Failed to open stdin for app host")
-        proc_stdin.write(args.encode_json())
-        proc_stdin.flush()
-        proc_stdin.close()
 
         ready_timeout_ms = 30_000
         try:
+            proc_stdin.write(args.encode_json())
+            proc_stdin.flush()
+            proc_stdin.close()
             if not conn.response.poll(timeout=ready_timeout_ms):
                 raise RuntimeError(
                     f"App host timed out ({ready_timeout_ms // 1000}s) "
