@@ -50,6 +50,9 @@ const RangeSlider = React.forwardRef<
     if (!props.value || props.value.length !== 2) {
       return;
     }
+    if (props.disabled) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
 
