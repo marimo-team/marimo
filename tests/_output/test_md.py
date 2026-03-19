@@ -268,10 +268,10 @@ def test_md_nested_list_preserves_multi_paragraph() -> None:
 
 
 def test_md_nested_list_with_inline_elements() -> None:
-    # Inline elements like bold/italic should be preserved when unwrapping
+    # Inline elements like bold/italic/code should survive p-unwrapping
     input_text = """- **Bold item**
-  - *Nested italic*
-    - `code item`"""
+    - *Nested italic*
+        - `code item`"""
 
     result = _md(input_text, apply_markdown_class=False).text
     assert result == snapshot(

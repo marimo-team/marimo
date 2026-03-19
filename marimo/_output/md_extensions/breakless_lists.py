@@ -93,7 +93,9 @@ class BreaklessListsTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore
         if not all(c.tag in self.LIST_TAGS for c in others):
             return
 
-        # Lift p's text onto the li, preserving tail and children
+        # Lift p's text onto the li, preserving children.
+        # p.tail (whitespace between </p> and the next sibling) is
+        # intentionally dropped — markdown output only puts newlines there.
         li.text = p.text
         idx = list(li).index(p)
         for i, child in enumerate(p):
