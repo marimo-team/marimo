@@ -189,6 +189,4 @@ def test_new_figure_manager_suppresses_thread_warning() -> None:
         f"Expected no thread warning, got: {thread_warnings}"
     )
 
-    if manager is not None:
-        manager.canvas.close()
     plt.close(fig)
