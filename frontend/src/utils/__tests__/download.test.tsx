@@ -437,8 +437,8 @@ describe("downloadHTMLAsImage", () => {
     await downloadHTMLAsImage({ element: mockElement, filename: "test" });
 
     expect(toast).toHaveBeenCalledWith({
-      title: "Error",
-      description: "Failed to download as PNG.",
+      title: "Failed to download as PNG",
+      description: "Failed",
       variant: "danger",
     });
   });
