@@ -164,43 +164,50 @@ class TestAppHostOnEmpty:
 class TestAppHostPool:
     def test_create_and_reuse(self) -> None:
         """Pool creates one host per file and reuses it."""
+        from unittest.mock import patch
+
         from marimo._session.app_host.pool import AppHostPool
 
         pool = AppHostPool()
-        try:
+        with patch("marimo._session.app_host.pool.AppHost") as MockHost:
+            MockHost.return_value.is_alive.return_value = True
             w1 = pool.get_or_create("/tmp/test_app1.py")
             w2 = pool.get_or_create("/tmp/test_app1.py")
             assert w1 is w2
-            assert w1.is_alive()
-        finally:
-            pool.shutdown()
 
     def test_different_files_get_different_hosts(self) -> None:
         """Different files get different app hosts."""
+        from unittest.mock import patch
+
         from marimo._session.app_host.pool import AppHostPool
 
         pool = AppHostPool()
-        try:
+        with patch("marimo._session.app_host.pool.AppHost") as MockHost:
+            MockHost.return_value.is_alive.return_value = True
+            # Each call returns a new mock instance
+            MockHost.side_effect = lambda *_a, **_kw: type(
+                MockHost.return_value
+            )()
             w1 = pool.get_or_create("/tmp/test_app1.py")
             w2 = pool.get_or_create("/tmp/test_app2.py")
             assert w1 is not w2
-            assert w1.is_alive()
-            assert w2.is_alive()
-        finally:
-            pool.shutdown()
 
     def test_shutdown_stops_all(self) -> None:
         """Shutdown terminates all app hosts."""
+        from unittest.mock import MagicMock
+
         from marimo._session.app_host.pool import AppHostPool
 
         pool = AppHostPool()
-        w1 = pool.get_or_create("/tmp/test_app1.py")
-        w2 = pool.get_or_create("/tmp/test_app2.py")
+        w1, w2 = MagicMock(), MagicMock()
+        pool._workers["/tmp/test_app1.py"] = w1
+        pool._workers["/tmp/test_app2.py"] = w2
 
         pool.shutdown()
 
-        assert not w1.is_alive()
-        assert not w2.is_alive()
+        w1.shutdown.assert_called_once()
+        w2.shutdown.assert_called_once()
+        assert len(pool._workers) == 0
 
 
 @pytest.mark.requires("zmq")

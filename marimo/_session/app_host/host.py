@@ -83,16 +83,25 @@ class AppHost:
         self._session_lock = threading.Lock()
         self._session_ids: set[str] = set()
 
+
     def _stream_receiver_loop(self) -> None:
         """Read stream messages from the app host and route to sessions."""
         import zmq
 
         while True:
             try:
-                if self._conn is None:
+                conn = self._conn
+                if conn is None:
                     break
 
-                frames = self._conn.stream.recv_multipart()
+                # Poll with a timeout so we periodically re-check
+                # self._conn; shutdown() sets it to None to signal
+                # this loop to exit.  A blocking recv_multipart()
+                # would prevent context.destroy() from completing.
+                if not conn.stream.poll(timeout=1000):
+                    continue
+
+                frames = conn.stream.recv_multipart()
                 session_id = frames[0].decode()
                 payload = pickle.loads(frames[1])
 
@@ -314,12 +323,15 @@ class AppHost:
                     self._process.kill()
 
         if self._conn is not None:
-            self._conn.close()
-            # Null out so that any stale references from
-            # AppHostQueueManager / AppHostKernelManager instances that
-            # still point to this (now-dead) AppHost will silently
-            # no-op instead of raising ZMQError on closed sockets.
+            # Null out so stale references from AppHostQueueManager /
+            # AppHostKernelManager silently no-op instead of raising
+            # ZMQError on closed sockets.  conn.close() then closes
+            # all sockets (with linger=0), which interrupts any
+            # pending poll()/recv() in _stream_receiver_loop with
+            # ETERM, causing it to exit cleanly.
+            conn = self._conn
             self._conn = None
+            conn.close()
 
         if self._sandbox_dir is not None:
             from marimo._cli.sandbox import cleanup_sandbox_dir

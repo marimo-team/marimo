@@ -108,10 +108,16 @@ class AppHostPool:
         return worker
 
     def shutdown(self) -> None:
+        # Collect and clear under the lock, then shut down outside
+        # it. worker.shutdown() can trigger _on_empty callbacks that
+        # call _remove_and_shutdown, which also acquires self._lock;
+        # Holding the lock here would deadlock.
         with self._lock:
-            for worker in self._workers.values():
-                worker.shutdown()
+            workers = list(self._workers.values())
             self._workers.clear()
+
+        for worker in workers:
+            worker.shutdown()
 
 
 @dataclass(frozen=True)
