@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 
 from marimo import _loggers
-from marimo._convert.converters import MarimoConvert
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._session.notebook.file_manager import AppFileManager
@@ -156,6 +155,8 @@ class OSFileSystem(FileSystem):
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
         elif file_type == "notebook" and not contents:
+            from marimo._convert.converters import MarimoConvert
+
             full_path.parent.mkdir(parents=True, exist_ok=True)
             # Create a new AppFileManager to get the default notebook code
             # We pass None as filename to get the empty notebook template
