@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import threading
+from dataclasses import dataclass
 
 from marimo import _loggers
 from marimo._cli.sandbox import build_sandbox_venv, cleanup_sandbox_dir
@@ -111,3 +112,13 @@ class AppHostPool:
             for worker in self._workers.values():
                 worker.shutdown()
             self._workers.clear()
+
+
+@dataclass(frozen=True)
+class AppHostContext:
+    """Everything a session needs to create its kernel inside an AppHost."""
+
+    # The pool that provides the app host for a notebook
+    pool: AppHostPool
+    # The session ID corresponding to the kernel to create
+    session_id: str

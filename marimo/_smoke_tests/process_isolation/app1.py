@@ -150,5 +150,17 @@ def _():
     return
 
 
+@app.cell
+def _(mo):
+    slider = mo.ui.slider(1, 20)
+    slider
+    return slider,
+
+
+@app.cell
+def _(slider):
+    slider.value
+
+
 if __name__ == "__main__":
     app.run()

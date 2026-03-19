@@ -32,7 +32,7 @@ from marimo._server.resume_strategies import create_resume_strategy
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
-from marimo._session.app_host import AppHostPool
+from marimo._session.app_host import AppHostContext, AppHostPool
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.types import SessionExtension
@@ -229,7 +229,11 @@ class SessionManager:
             auto_instantiate=auto_instantiate,
             extensions=extensions,
             sandbox_mode=self.sandbox_mode,
-            app_host_pool=self._app_host_pool,
+            app_host_context=AppHostContext(
+                pool=self._app_host_pool, session_id=session_id
+            )
+            if self._app_host_pool
+            else None,
         )
 
         # Add to repository

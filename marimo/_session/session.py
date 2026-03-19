@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._server.models.models import InstantiateNotebookRequest
-    from marimo._session.app_host import AppHostPool
+    from marimo._session.app_host import AppHostContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -91,7 +91,7 @@ class SessionImpl(Session):
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
         sandbox_mode: SandboxMode | None = None,
-        app_host_pool: AppHostPool | None = None,
+        app_host_context: AppHostContext | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -109,7 +109,7 @@ class SessionImpl(Session):
         # SandboxMode.MULTI falls through to IPC kernels only in edit mode.
         queue_manager: QueueManager
         kernel_manager: KernelManager
-        if app_host_pool is not None and mode == SessionMode.RUN:
+        if app_host_context is not None and mode == SessionMode.RUN:
             from marimo._session.managers.app_host import (
                 AppHostKernelManager,
                 AppHostQueueManager,
@@ -120,11 +120,13 @@ class SessionImpl(Session):
                 raise ValueError(
                     "App host isolation requires a file-backed notebook"
                 )
-            app_host = app_host_pool.get_or_create(file_path)
-            queue_manager = AppHostQueueManager(app_host, initialization_id)
+            app_host = app_host_context.pool.get_or_create(file_path)
+            queue_manager = AppHostQueueManager(
+                app_host, app_host_context.session_id
+            )
             kernel_manager = AppHostKernelManager(
                 app_host=app_host,
-                session_id=initialization_id,
+                session_id=app_host_context.session_id,
                 queue_manager=queue_manager,
                 mode=mode,
                 configs=configs,

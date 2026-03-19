@@ -110,16 +110,13 @@ class AppHost:
                             callback = self._on_empty
                             self._on_empty = None
                     if callback is not None:
-                        # Run on a separate thread — calling shutdown()
-                        # here would close the ZMQ socket we're reading
-                        # from.
+                        # Run on a separate thread; calling shutdown here would
+                        # close the ZMQ socket we're reading from.
                         LOGGER.debug(
                             "AppHost for %s is empty, invoking cleanup",
                             self._file_path,
                         )
-                        threading.Thread(
-                            target=callback, daemon=True
-                        ).start()
+                        threading.Thread(target=callback, daemon=True).start()
                         break
                     continue
 

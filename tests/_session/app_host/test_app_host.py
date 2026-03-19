@@ -401,6 +401,63 @@ class TestAppHostQueueManager:
 
 
 @pytest.mark.requires("zmq")
+class TestAppHostMultipleClients:
+    def test_create_session_uses_per_client_session_id(self) -> None:
+        """SessionImpl.create() must pass the per-client session_id — not
+        the shared initialization_id (file_key) — to the AppHost managers.
+
+        Regression test: previously initialization_id was used as the
+        multiplexing key, so two clients of the same notebook would share
+        a key and the second register_stream call would overwrite the
+        first's queue.
+        """
+        from unittest.mock import Mock, patch
+
+        from marimo._session.app_host import AppHostContext
+        from marimo._session.app_host.host import AppHost
+        from marimo._session.model import SessionMode
+        from marimo._session.session import SessionImpl
+
+        app_host = AppHost("/tmp/test_app.py")
+        pool = Mock()
+        pool.get_or_create.return_value = app_host
+
+        file_key = "/tmp/test_app.py"
+
+        with patch(
+            "marimo._session.managers.app_host."
+            "AppHostKernelManager.start_kernel"
+        ):
+            for sid in ("session-1", "session-2"):
+                SessionImpl.create(
+                    initialization_id=file_key,
+                    session_consumer=Mock(),
+                    mode=SessionMode.RUN,
+                    app_metadata=Mock(),
+                    app_file_manager=Mock(path="/tmp/test_app.py"),
+                    config_manager=Mock(
+                        with_overrides=Mock(
+                            return_value=Mock(get_config=Mock(return_value={}))
+                        )
+                    ),
+                    virtual_files_supported=True,
+                    redirect_console_to_browser=False,
+                    ttl_seconds=None,
+                    auto_instantiate=False,
+                    app_host_context=AppHostContext(pool=pool, session_id=sid),
+                )
+
+        # Both session IDs must be registered independently.
+        with app_host._stream_lock:
+            assert "session-1" in app_host._stream_receivers
+            assert "session-2" in app_host._stream_receivers
+            assert (
+                app_host._stream_receivers["session-1"]
+                is not app_host._stream_receivers["session-2"]
+            )
+
+
+@pytest.mark.requires("zmq")
 class TestAppHostKernelManager:
     def test_satisfies_kernel_manager_protocol(self) -> None:
         """AppHostKernelManager has all required KernelManager attributes."""

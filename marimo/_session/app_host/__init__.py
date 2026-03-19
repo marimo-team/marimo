@@ -9,9 +9,10 @@ AppHosts are created and managed by an AppHostPool.
 """
 
 from marimo._session.app_host.host import AppHost
-from marimo._session.app_host.pool import AppHostPool
+from marimo._session.app_host.pool import AppHostContext, AppHostPool
 
 __all__ = [
     "AppHost",
+    "AppHostContext",
     "AppHostPool",
 ]
