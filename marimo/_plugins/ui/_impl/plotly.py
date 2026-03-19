@@ -136,21 +136,54 @@ def _to_numeric_coord(value: Any) -> Optional[float]:
     """Convert a numeric/datetime-like value to a float for geometry tests."""
     import datetime
 
+    def _to_utc_timestamp(dt: datetime.datetime) -> float:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        else:
+            dt = dt.astimezone(datetime.timezone.utc)
+        return dt.timestamp()
+
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, datetime.datetime):
-        return value.timestamp()
+        return _to_utc_timestamp(value)
     if isinstance(value, datetime.date):
-        return datetime.datetime.combine(value, datetime.time()).timestamp()
+        return _to_utc_timestamp(
+            datetime.datetime.combine(
+                value,
+                datetime.time(),
+                tzinfo=datetime.timezone.utc,
+            )
+        )
     if isinstance(value, str):
         parsed = _parse_datetime_bound(value)
         if isinstance(parsed, datetime.datetime):
-            return parsed.timestamp()
+            return _to_utc_timestamp(parsed)
         if isinstance(parsed, datetime.date):
-            return datetime.datetime.combine(
-                parsed, datetime.time()
-            ).timestamp()
+            return _to_utc_timestamp(
+                datetime.datetime.combine(
+                    parsed,
+                    datetime.time(),
+                    tzinfo=datetime.timezone.utc,
+                )
+            )
     return None
+
+
+def _category_position_map(values: Any) -> dict[Any, float]:
+    """Map categorical axis values to their first-seen axis positions."""
+    positions: dict[Any, float] = {}
+    next_position = 0.0
+
+    for value in values:
+        try:
+            if value not in positions:
+                positions[value] = next_position
+                next_position += 1.0
+        except TypeError:
+            continue
+
+    return positions
 
 
 @mddoc
@@ -600,16 +633,6 @@ def _append_scatter_points_to_selection(
     range_value = selection_data.get("range")
     lasso_value = selection_data.get("lasso")
 
-    scatter_points: list[dict[str, Any]] = []
-    if isinstance(range_value, dict):
-        scatter_points = _extract_scatter_points_from_range(
-            figure, cast(dict[str, Any], range_value)
-        )
-    elif isinstance(lasso_value, dict):
-        scatter_points = _extract_scatter_points_from_lasso(
-            figure, cast(dict[str, Any], lasso_value)
-        )
-
     # Filter out empty dicts from existing points (these come from line charts)
     # where Plotly sends the structure but no data.
     existing_points = [p for p in selection_data.get("points", []) if p]
@@ -626,23 +649,39 @@ def _append_scatter_points_to_selection(
         for point in existing_points
         if isinstance((curve_number := point.get("curveNumber")), int)
         and curve_number in scatter_trace_indices
+        and not _trace_needs_scatter_range_fallback(figure.data[curve_number])
     }
     if (
         existing_points
         and not explicit_curve_numbers
         and not any("curveNumber" in point for point in existing_points)
         and len(scatter_trace_indices) == 1
+        and not _trace_needs_scatter_range_fallback(
+            figure.data[scatter_trace_indices[0]]
+        )
     ):
         explicit_curve_numbers.add(scatter_trace_indices[0])
 
-    scatter_points = _extract_scatter_points_from_range(
-        figure,
-        cast(dict[str, Any], range_value),
-        trace_filter=lambda trace_idx, trace: (
+    def trace_filter(trace_idx: int, trace: Any) -> bool:
+        return (
             trace_idx not in explicit_curve_numbers
             and _trace_needs_scatter_range_fallback(trace)
-        ),
-    )
+        )
+
+    scatter_points: list[dict[str, Any]] = []
+    if isinstance(range_value, dict):
+        scatter_points = _extract_scatter_points_from_range(
+            figure,
+            cast(dict[str, Any], range_value),
+            trace_filter=trace_filter,
+        )
+    elif isinstance(lasso_value, dict):
+        scatter_points = _extract_scatter_points_from_lasso(
+            figure,
+            cast(dict[str, Any], lasso_value),
+            trace_filter=trace_filter,
+        )
+
     if scatter_points or existing_points:
         # Merge with scatter points, avoiding duplicates
         # Use pointIndex and curveNumber to track uniqueness
@@ -692,6 +731,19 @@ def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
         return False
 
     mode = getattr(trace, "mode", None)
+    fill = getattr(trace, "fill", None)
+    stackgroup = getattr(trace, "stackgroup", None)
+
+    # Filled/stacked scatter traces behave like area charts and still need
+    # manual extraction when a selection shape is drawn.
+    if fill not in (None, "none") or stackgroup:
+        return True
+
+    # Unspecified mode should defer to Plotly's native point payload instead of
+    # forcing line-style fallback extraction.
+    if mode is None:
+        return False
+
     if isinstance(mode, str) and "markers" in mode:
         return False
 
@@ -722,11 +774,21 @@ def _extract_scatter_points_from_range(
     # Use numpy fast path if available for better performance
     if DependencyManager.numpy.has():
         return _extract_scatter_points_numpy(
-            figure, x_min, x_max, trace_filter=trace_filter
+            figure,
+            x_min,
+            x_max,
+            y_min=y_min,
+            y_max=y_max,
+            trace_filter=trace_filter,
         )
 
     return _extract_scatter_points_fallback(
-        figure, x_min, x_max, trace_filter=trace_filter
+        figure,
+        x_min,
+        x_max,
+        y_min=y_min,
+        y_max=y_max,
+        trace_filter=trace_filter,
     )
 
 
@@ -734,6 +796,8 @@ def _extract_scatter_points_numpy(
     figure: go.Figure,
     x_min: float,
     x_max: float,
+    y_min: Any = None,
+    y_max: Any = None,
     trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points from selection bounds using numpy."""
@@ -793,17 +857,31 @@ def _extract_scatter_points_numpy(
         if x_is_orderable:
             x_mask = (x_arr >= x_min_parsed) & (x_arr <= x_max_parsed)
         else:
-            # Categorical: use index-based filtering
-            x_indices = np.arange(len(x_arr))
-            x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
+            # Categorical: compare against axis category positions, not point
+            # indices, so repeated categories map to the same coordinate.
+            x_category_positions = _category_position_map(x_data)
+            x_positions = np.asarray(
+                [x_category_positions.get(value, np.nan) for value in x_data],
+                dtype=float,
+            )
+            x_mask = (x_max > x_positions - 0.5) & (x_min < x_positions + 0.5)
 
         # Filter by y-range when present
         if has_y_range:
             if y_is_orderable:
                 y_mask = (y_arr >= y_min_parsed) & (y_arr <= y_max_parsed)
             else:
-                y_indices = np.arange(len(y_arr))
-                y_mask = (y_max > y_indices - 0.5) & (y_min < y_indices + 0.5)
+                y_category_positions = _category_position_map(y_data)
+                y_positions = np.asarray(
+                    [
+                        y_category_positions.get(value, np.nan)
+                        for value in y_data
+                    ],
+                    dtype=float,
+                )
+                y_mask = (y_max > y_positions - 0.5) & (
+                    y_min < y_positions + 0.5
+                )
             in_box_mask = x_mask & y_mask
         else:
             in_box_mask = x_mask
@@ -844,6 +922,8 @@ def _extract_scatter_points_fallback(
     figure: go.Figure,
     x_min: float,
     x_max: float,
+    y_min: Any = None,
+    y_max: Any = None,
     trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points with pure Python."""
@@ -882,6 +962,8 @@ def _extract_scatter_points_fallback(
         y_max_p = _parse_datetime_bound(y_max) if has_y_range else None
 
         points = list(zip(x_data, y_data))
+        x_category_positions = _category_position_map(x_data)
+        y_category_positions = _category_position_map(y_data)
 
         # First pass: include points directly inside current selection bounds.
         for point_idx, (x_val, y_val) in enumerate(points):
@@ -890,9 +972,11 @@ def _extract_scatter_points_fallback(
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
                 x_in_range = x_min_p <= x_val <= x_max_p
             else:
-                # Categorical - use index-based filtering
-                cell_x_min = point_idx - 0.5
-                cell_x_max = point_idx + 0.5
+                x_position = x_category_positions.get(x_val)
+                if x_position is None:
+                    continue
+                cell_x_min = x_position - 0.5
+                cell_x_max = x_position + 0.5
                 x_in_range = not (x_max <= cell_x_min or x_min >= cell_x_max)
 
             y_in_range = True
@@ -902,8 +986,11 @@ def _extract_scatter_points_fallback(
                         cast(Any, y_min_p) <= y_val <= cast(Any, y_max_p)
                     )
                 else:
-                    cell_y_min = point_idx - 0.5
-                    cell_y_max = point_idx + 0.5
+                    y_position = y_category_positions.get(y_val)
+                    if y_position is None:
+                        continue
+                    cell_y_min = y_position - 0.5
+                    cell_y_max = y_position + 0.5
                     y_in_range = not (
                         y_max <= cell_y_min or y_min >= cell_y_max
                     )
@@ -982,7 +1069,9 @@ def _point_in_polygon(
 
 
 def _extract_scatter_points_from_lasso(
-    figure: go.Figure, lasso_data: dict[str, Any]
+    figure: go.Figure,
+    lasso_data: dict[str, Any],
+    trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points that fall inside a lasso polygon."""
     lasso_x = lasso_data.get("x")
@@ -1010,6 +1099,8 @@ def _extract_scatter_points_from_lasso(
 
     for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
+            continue
+        if trace_filter is not None and not trace_filter(trace_idx, trace):
             continue
 
         x_data = getattr(trace, "x", None)

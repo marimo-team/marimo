@@ -1,7 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import os
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -21,6 +23,7 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_histogram_points_numpy,
     _extract_scatter_points_fallback,
     _extract_scatter_points_numpy,
+    _to_numeric_coord,
     plotly,
 )
 
@@ -569,8 +572,8 @@ def test_heatmap_curve_number() -> None:
 
     selection = {
         "range": {"x": [-0.5, 1.5], "y": [-0.5, 2.5]},
-        "points": [],
-        "indices": [],
+        "points": [{"x": 1, "y": 1, "curveNumber": 0, "pointIndex": 0}],
+        "indices": [0],
     }
 
     result = plot._convert_value(selection)
@@ -918,6 +921,30 @@ def test_scatter_numpy_and_fallback_datetime_x_axis() -> None:
         assert np_p["y"] == fb_p["y"]
 
 
+def test_to_numeric_coord_normalizes_naive_datetimes_to_utc() -> None:
+    """Test naive datetimes align with UTC ISO strings for geometry checks."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("tzset unavailable on this platform")
+
+    original_tz = os.environ.get("TZ")
+    try:
+        os.environ["TZ"] = "America/Los_Angeles"
+        time.tzset()
+
+        naive_dt = datetime(2024, 1, 2, 3, 4, 5)
+        utc_string = "2024-01-02T03:04:05Z"
+        aware_dt = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+
+        assert _to_numeric_coord(naive_dt) == _to_numeric_coord(utc_string)
+        assert _to_numeric_coord(naive_dt) == _to_numeric_coord(aware_dt)
+    finally:
+        if original_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = original_tz
+        time.tzset()
+
+
 def test_bar_selection_datetime_x_axis() -> None:
     """Test bar chart with datetime x-axis."""
     base_date = datetime(2024, 1, 1)
@@ -1250,7 +1277,7 @@ def test_line_markers_selection() -> None:
 def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> (
     None
 ):
-    """Test marker traces keep Plotly points while line traces use fallback."""
+    """Test marker traces keep Plotly points while pure lines use box filtering."""
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
@@ -1301,11 +1328,7 @@ def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> (
             "name": "Markers",
         }
     ]
-    assert len(line_points) == 2
-    assert line_points[0]["x"] == 10
-    assert line_points[0]["y"] == 0
-    assert line_points[1]["x"] == 11
-    assert line_points[1]["y"] == 100
+    assert line_points == []
 
 
 def test_line_chart_with_axis_titles() -> None:
@@ -1592,6 +1615,40 @@ def test_scatter_points_numpy_and_fallback_with_y_range() -> None:
     fallback_result = _extract_scatter_points_fallback(fig, 0.4, 0.6, 4, 6)
 
     assert len(numpy_result) == len(fallback_result) == 0
+
+
+def test_scatter_points_categorical_y_uses_category_positions() -> None:
+    """Test repeated categorical y values share the same y-axis position."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1, 2, 3],
+            y=["A", "B", "B", "C"],
+            mode="lines",
+        )
+    )
+
+    numpy_result = _extract_scatter_points_numpy(fig, 0, 3, 0.5, 1.5)
+    fallback_result = _extract_scatter_points_fallback(fig, 0, 3, 0.5, 1.5)
+
+    assert [point["pointIndex"] for point in numpy_result] == [1, 2]
+    assert [point["pointIndex"] for point in fallback_result] == [1, 2]
+
+
+def test_scatter_points_categorical_x_uses_category_positions() -> None:
+    """Test repeated categorical x values share the same x-axis position."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=["A", "B", "B", "C"],
+            y=[10, 20, 30, 40],
+            mode="lines",
+        )
+    )
+
+    numpy_result = _extract_scatter_points_numpy(fig, 0.5, 1.5, 0, 100)
+    fallback_result = _extract_scatter_points_fallback(fig, 0.5, 1.5, 0, 100)
+
+    assert [point["pointIndex"] for point in numpy_result] == [1, 2]
+    assert [point["pointIndex"] for point in fallback_result] == [1, 2]
 
 
 def test_line_chart_lasso_selection_extracts_inside_points() -> None:
