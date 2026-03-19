@@ -420,7 +420,6 @@ class TestAppHostMultipleClients:
         """
         from unittest.mock import Mock, patch
 
-        from marimo._config.config import DEFAULT_CONFIG
         from marimo._session.app_host import AppHostContext
         from marimo._session.app_host.host import AppHost
         from marimo._session.model import SessionMode
@@ -445,11 +444,7 @@ class TestAppHostMultipleClients:
                     app_file_manager=Mock(path="/tmp/test_app.py"),
                     config_manager=Mock(
                         with_overrides=Mock(
-                            return_value=Mock(
-                                get_config=Mock(
-                                    return_value=DEFAULT_CONFIG
-                                )
-                            )
+                            return_value=Mock(get_config=Mock(return_value={}))
                         )
                     ),
                     virtual_files_supported=True,
