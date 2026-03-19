@@ -535,6 +535,8 @@ class ProxyMiddleware:
                             started = await self._try_start_lsp_server(scope)
                             if started:
                                 await asyncio.sleep(retry_delay)
+                                if attempt < max_retries - 1:
+                                    continue
 
                         if attempt < max_retries - 1:
                             await asyncio.sleep(retry_delay)

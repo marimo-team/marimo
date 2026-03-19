@@ -120,10 +120,8 @@ class BaseLspServer(LspServer):
                 and self.process.returncode != 0
             ):
                 # Process failed immediately - read stderr to diagnose
-                stderr_output = (
-                    self.process.stderr.read()
-                    if self.process.stderr
-                    else "No error output available"
+                stderr_output = await self._read_stderr_output(
+                    fallback="No error output available"
                 )
                 LOGGER.error(
                     f"{self.id} LSP server failed to start with return code {self.process.returncode}"
@@ -146,10 +144,8 @@ class BaseLspServer(LspServer):
             is_ready = await self._wait_until_ready()
             if not is_ready:
                 if not self.is_running():
-                    stderr_output = (
-                        self.process.stderr.read()
-                        if self.process and self.process.stderr
-                        else "No error output available"
+                    stderr_output = await self._read_stderr_output(
+                        fallback="No error output available"
                     )
                     LOGGER.error(
                         f"{self.id} LSP server exited before becoming ready."
@@ -187,6 +183,15 @@ class BaseLspServer(LspServer):
             self.process = None
 
         return None
+
+    async def _read_stderr_output(self, fallback: str = "") -> str:
+        process = self.process
+        if process is None or process.stderr is None:
+            return fallback
+        try:
+            return await asyncio.to_thread(process.stderr.read)
+        except Exception:
+            return fallback
 
     async def _wait_until_ready(
         self, timeout_seconds: float = 5.0, poll_seconds: float = 0.1
@@ -340,14 +345,9 @@ class BaseLspServer(LspServer):
 
             # Process has exited - check if it was expected
             if self.process and self.process.returncode is not None:
-                stderr_output = ""
-                if self.process.stderr:
-                    try:
-                        # Try to read any remaining stderr
-                        # Note: stderr might be empty if already consumed during wait()
-                        stderr_output = self.process.stderr.read()
-                    except Exception:
-                        pass
+                # Try to read any remaining stderr.
+                # Note: stderr might be empty if already consumed during wait().
+                stderr_output = await self._read_stderr_output()
 
                 LOGGER.error(
                     f"{self.id} LSP server crashed unexpectedly with exit code {self.process.returncode}. Check {self.log_file} for details."
