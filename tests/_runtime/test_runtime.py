@@ -149,6 +149,22 @@ class TestExecution:
         assert "y" not in k.globals
         assert "z" not in k.globals
 
+    async def test_delete_cell_restores_doc(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        # Simulate a notebook with a docstring in its header
+        k.app_metadata.docstring = "Notebook docstring"
+        k.globals["__doc__"] = "Notebook docstring"
+
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code='__doc__ = "cell doc"'),
+            ]
+        )
+        assert k.globals["__doc__"] == "cell doc"
+
+        await k.delete_cell(DeleteCellCommand(cell_id="0"))
+        assert k.globals["__doc__"] == "Notebook docstring"
+
     async def test_run_referrers_not_stale(self, any_kernel: Kernel) -> None:
         k = any_kernel
         graph = k.graph

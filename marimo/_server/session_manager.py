@@ -189,6 +189,7 @@ class SessionManager:
 
         # Create the session
         from marimo._runtime.commands import AppMetadata
+        from marimo._runtime.patches import extract_docstring_from_header
 
         extensions: list[SessionExtension] = []
         if self.watch:
@@ -209,6 +210,9 @@ class SessionManager:
                 cli_args=self.cli_args,
                 argv=self.argv,
                 app_config=app_file_manager.app.config,
+                docstring=extract_docstring_from_header(
+                    app_file_manager.app._app._header
+                ),
             ),
             app_file_manager=app_file_manager,
             config_manager=self._config_manager,
