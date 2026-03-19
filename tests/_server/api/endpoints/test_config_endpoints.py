@@ -4,10 +4,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from tests._server.conftest import (
-    get_session_manager,
     get_user_config_manager,
 )
-from tests._server.mocks import token_header, with_session
+from tests._server.mocks import get_session_manager, token_header, with_session
 
 if TYPE_CHECKING:
     import pytest
