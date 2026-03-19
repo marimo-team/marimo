@@ -152,7 +152,9 @@ const SliderComponent = ({
                 nextValue = Number(start);
               }
               setInternalValue(nextValue);
-              setValue(nextValue);
+              if (!debounce) {
+                setValue(nextValue);
+              }
             }}
             minValue={start}
             maxValue={stop}
