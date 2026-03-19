@@ -47,7 +47,9 @@ class MarimoCommManager:
             The caller can use this to trigger a cell re-run.
         """
         if command.model_id not in self.comms:
-            LOGGER.warning(
+            # Expected race: the frontend may send messages to a comm
+            # that was already closed (cell re-run, server shutdown).
+            LOGGER.debug(
                 "Received message for unknown comm: %s", command.model_id
             )
             return (None, None)

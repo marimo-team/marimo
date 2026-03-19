@@ -145,3 +145,48 @@ def test_mpl_interactive_fallback_when_virtual_files_not_supported() -> None:
         assert result._mime_()[0] == "image/png"
 
     plt.close(fig)
+
+
+@pytest.mark.requires("matplotlib")
+def test_new_figure_manager_suppresses_thread_warning() -> None:
+    """Regression test for https://github.com/marimo-team/marimo/issues/8747.
+
+    new_figure_manager_given_figure should not emit the
+    'Starting a Matplotlib GUI outside of the main thread' warning
+    because WebAgg only uses software rendering.
+    """
+    import threading
+    import warnings
+
+    import matplotlib.pyplot as plt
+
+    from marimo._plugins.stateless.mpl._mpl import (
+        new_figure_manager_given_figure,
+    )
+
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3])
+
+    captured: list[warnings.WarningMessage] = []
+
+    manager = None
+
+    def run_in_thread() -> None:
+        nonlocal manager
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            manager = new_figure_manager_given_figure(id(fig), fig)
+            captured.extend(w)
+
+    t = threading.Thread(target=run_in_thread)
+    t.start()
+    t.join()
+
+    thread_warnings = [
+        w for w in captured if "outside of the main thread" in str(w.message)
+    ]
+    assert thread_warnings == [], (
+        f"Expected no thread warning, got: {thread_warnings}"
+    )
+
+    plt.close(fig)
