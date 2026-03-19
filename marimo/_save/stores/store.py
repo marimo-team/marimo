@@ -23,5 +23,11 @@ class Store(ABC):
         del key
         return False
 
+    def flush(self) -> None:  # noqa: B027
+        """Wait for any pending async writes to complete.
+
+        No-op by default. Stores with async writes should override.
+        """
+
 
 StoreType = type[Store]

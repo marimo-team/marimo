@@ -16,6 +16,7 @@ from marimo._save.stubs import (
     CustomStub,
     FunctionStub,
     ModuleStub,
+    ReferenceStub,
     UIElementStub,
     maybe_register_stub,
 )
@@ -172,6 +173,8 @@ class Cache:
             value.clear()
             value.update(result)
             result = value
+        elif isinstance(value, ReferenceStub):
+            result = value.load(scope)
         elif isinstance(value, CustomStub):
             # CustomStub is a placeholder for a custom type, which cannot be
             # restored directly.
@@ -218,7 +221,7 @@ class Cache:
             if isinstance(value, SetFunctor):
                 self.defs[ref] = value._state()
             elif isinstance(value, UIElement):
-                self.defs[ref] = value.value
+                self.defs[ref] = value
             else:
                 raise CacheException(
                     "Failure while saving cached values. "
