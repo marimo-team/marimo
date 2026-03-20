@@ -1,4 +1,4 @@
-name: "PR Comment on Failure"
+name: "Job Summary on Failure"
 description: "Adds a job summary when checks fail, helping contributors fix issues"
 inputs:
   check-name:

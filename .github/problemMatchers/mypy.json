@@ -5,7 +5,7 @@
       "severity": "error",
       "pattern": [
         {
-          "regexp": "^([^:]+):(\\d+): (error|warning|note): (.+)$",
+          "regexp": "^([^:]+):(\\d+): (error|warning): (.+)$",
           "file": 1,
           "line": 2,
           "severity": 3,

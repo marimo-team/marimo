@@ -113,7 +113,7 @@ jobs:
         uses: ./.github/actions/install
 
       - name: 📋 Register tsc problem matcher
-        run: echo "::add-matcher::.github/problemMatchers/tsc.json"
+        run: echo "::add-matcher::${{ github.workspace }}/.github/problemMatchers/tsc.json"
 
       - name: 🔎 Type check
         id: typecheck
