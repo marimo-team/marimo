@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from marimo._runtime.params import CLIArgs, QueryParams
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
-    from marimo._save.stores import Store
+    from marimo._save.cache import CacheState
     from marimo._types.ids import CellId_t
 
 
@@ -90,7 +90,7 @@ class RuntimeContext(abc.ABC):
     virtual_file_registry: VirtualFileRegistry
     virtual_files_supported: bool
     app_kernel_runner_registry: AppKernelRunnerRegistry
-    cache_store: Store
+    cache: CacheState
     # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None
