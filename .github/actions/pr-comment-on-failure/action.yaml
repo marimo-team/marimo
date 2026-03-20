@@ -17,12 +17,4 @@ runs:
         CHECK_NAME: ${{ inputs.check-name }}
         COMMAND: ${{ inputs.command }}
       run: |
-        cat >> "$GITHUB_STEP_SUMMARY" << EOF
-        ### 👋 The **${CHECK_NAME}** check failed
-
-        To fix this locally, please run:
-
-        \`\`\`bash
-        ${COMMAND}
-        \`\`\`
-        EOF
+        printf '### 👋 The **%s** check failed\n\nTo fix this locally, please run:\n\n```bash\n%s\n```\n' "$CHECK_NAME" "$COMMAND" >> "$GITHUB_STEP_SUMMARY"

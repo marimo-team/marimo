@@ -50,7 +50,7 @@ jobs:
         id: docs
         run: uv run --group docs mkdocs build --strict
 
-      - name: Comment on docs failure
+      - name: Summarize docs failure
         if: failure() && steps.docs.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         continue-on-error: true
@@ -81,7 +81,7 @@ jobs:
         id: typecheck
         run: uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/
 
-      - name: Comment on lint failure
+      - name: Summarize lint failure
         if: failure() && steps.lint.outcome == 'failure'
         continue-on-error: true
         uses: ./.github/actions/pr-comment-on-failure
@@ -89,7 +89,7 @@ jobs:
           check-name: "lint"
           command: "uv run ruff check --fix"
 
-      - name: Comment on typecheck failure
+      - name: Summarize typecheck failure
         if: failure() && steps.typecheck.outcome == 'failure'
         continue-on-error: true
         uses: ./.github/actions/pr-comment-on-failure
