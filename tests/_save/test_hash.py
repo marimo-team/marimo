@@ -52,7 +52,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "haIqC9yzlTaNo-ClmY11Kvtiv08oQPz3-SlnOLfhJYM"
+            expected_hash = "RSccsMCC0dBqvdcnBN1mdxlvKUr4zzR_qupKBW_P_qE"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -538,6 +538,207 @@ class TestHash:
             assert direct() == module(), "direct() != module()"
 
 
+class TestHashMemo:
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
+    def test_data_primitive_memoized_across_cells(app) -> None:
+        """Data primitives should be memoized — same array used in two cells
+        should only be serialized once."""
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import numpy as np
+
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            arr = np.ones((64, 64))
+            return MockLoader, persistent_cache, arr, np
+
+        @app.cell
+        def one(MockLoader, persistent_cache, arr, np) -> tuple[Any]:
+            from marimo._runtime.context.types import get_context
+
+            ctx = get_context()
+            with persistent_cache(name="one", _loader=MockLoader()) as c1:
+                _v = np.sum(arr)
+            # After hashing, arr should be memoized
+            assert len(ctx.cache.hash_memo) > 0
+            return c1, ctx
+
+        @app.cell
+        def two(MockLoader, persistent_cache, arr, np, c1, ctx) -> None:
+            memo_before = dict(ctx.cache.hash_memo)
+            with persistent_cache(name="two", _loader=MockLoader()) as c2:
+                _v = np.sum(arr)
+            # Same arr, so memo should have been used (same entry)
+            assert c1._cache.hash == c2._cache.hash
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
+    def test_same_cell_def_not_memoized(app) -> None:
+        """Variables defined by the current cell should not use memo
+        (values can mutate within a cell)."""
+
+        @app.cell
+        def one() -> tuple[Any]:
+            import numpy as np
+
+            from marimo._runtime.context.types import get_context
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            arr = np.ones((4, 4))
+            with persistent_cache(name="one", _loader=MockLoader()) as c:
+                _v = np.sum(arr)
+            ctx = get_context()
+            # arr is defined in this cell, so should NOT be memoized
+            assert len(ctx.cache.hash_memo) == 0
+            return c, ctx
+
+    @staticmethod
+    def test_list_mutation_not_stale(app) -> None:
+        """Lists are not memoized, so in-place mutation produces different
+        hashes."""
+
+        @app.cell
+        def one() -> tuple[Any]:
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            data = [1, 2, 3]
+            with persistent_cache(name="one", _loader=MockLoader()) as c1:
+                _v = sum(data)
+            data.append(4)
+            with persistent_cache(name="two", _loader=MockLoader()) as c2:
+                _v = sum(data)
+            assert c1._cache.hash != c2._cache.hash
+
+    @staticmethod
+    def test_dict_mutation_not_stale(app) -> None:
+        """Dicts are not memoized, so mutation produces different hashes."""
+
+        @app.cell
+        def one() -> tuple[Any]:
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            data = {"a": 1}
+            with persistent_cache(name="one", _loader=MockLoader()) as c1:
+                _v = sum(data.values())
+            data["b"] = 2
+            with persistent_cache(name="two", _loader=MockLoader()) as c2:
+                _v = sum(data.values())
+            assert c1._cache.hash != c2._cache.hash
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
+    def test_memo_with_cached_function(app) -> None:
+        """Memoization works with @mo.cache deferred hashing."""
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import marimo as mo
+            import numpy as np
+
+            arr = np.ones((32, 32))
+            return mo, np, arr
+
+        @app.cell
+        def one(mo, np, arr) -> tuple[Any]:
+            @mo.cache
+            def compute(x):
+                return np.sum(x)
+
+            r1 = compute(arr)
+            r2 = compute(arr)
+            assert r1 == r2
+            assert compute.hits == 1
+            return (compute,)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
+    def test_lifecycle_cleanup(app) -> None:
+        """HashMemoCleanup clears memo when defining cell is disposed."""
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import numpy as np
+
+            from marimo._runtime.context.types import get_context
+            from marimo._save.cache import HashMemoCleanup
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            arr = np.ones((4, 4))
+            return (
+                MockLoader,
+                persistent_cache,
+                arr,
+                np,
+                get_context,
+                HashMemoCleanup,
+            )
+
+        @app.cell
+        def one(
+            MockLoader, persistent_cache, arr, np, get_context, HashMemoCleanup
+        ) -> tuple[Any]:
+            with persistent_cache(name="one", _loader=MockLoader()) as c:
+                _v = np.sum(arr)
+            ctx = get_context()
+            assert len(ctx.cache.hash_memo) > 0
+            # Simulate lifecycle disposal — should clear memo
+            cleanup = HashMemoCleanup()
+            cleanup.dispose(ctx, deletion=False)
+            assert len(ctx.cache.hash_memo) == 0
+
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="optional dependencies not installed",
+    )
+    def test_globals_mutation_stale_memo(app) -> None:
+        """Known limitation: mutating a data primitive via globals() bypasses
+        lifecycle cleanup, producing a stale memo hit. This is expected —
+        globals() sidesteps marimo's reactivity — but we capture the behavior
+        so it doesn't silently change."""
+
+        @app.cell
+        def load() -> tuple[Any]:
+            import numpy as np
+
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            arr = np.ones((4, 4))
+            return MockLoader, persistent_cache, arr, np
+
+        @app.cell
+        def one(MockLoader, persistent_cache, arr, np) -> tuple[Any]:
+            with persistent_cache(name="one", _loader=MockLoader()) as c1:
+                _v = np.sum(arr)
+            # Mutate via globals — no lifecycle disposal triggered
+            globals()["arr"] = np.zeros((4, 4))
+            with persistent_cache(name="two", _loader=MockLoader()) as c2:
+                _v = np.sum(arr)
+            # Stale memo: hashes match even though arr changed
+            assert c1._cache.hash == c2._cache.hash
+
+
 class TestDataHash:
     @staticmethod
     @pytest.mark.skipif(
@@ -557,7 +758,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "w_Bjhpz2xMVQC6Y61GgqB8O80u_UyoJ-1xQmJU3j0Gg"
+            expected_hash = "zLpFb6ANG99kP-4yWoH4zdV_FfrUodnEom1tILpF55c"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
