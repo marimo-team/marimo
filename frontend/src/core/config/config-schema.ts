@@ -84,6 +84,7 @@ export const UserConfigSchema = z
             }
             return copilot;
           }),
+        accept_completion_on_enter: z.boolean().prefault(true),
         codeium_api_key: z.string().nullish(),
       })
       .prefault({}),
