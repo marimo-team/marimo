@@ -88,14 +88,14 @@ server, app_names = setup_apps()
 
 
 @app.get("/")
-async def home(request: Request):
+def home(request: Request):
     return templates.TemplateResponse(
         "home.html", {"request": request, "app_names": app_names}
     )
 
 
 @app.get("/ping")
-async def root():
+def root():
     return {"message": "pong"}
 
 
