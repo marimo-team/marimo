@@ -99,7 +99,7 @@ _cell_names: dict[CellId_t, str] = {}
 # ------------------------------------------------------------------
 
 
-def get_context(*, check: bool = True) -> AsyncCodeModeContext:
+def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     """Return an ``AsyncCodeModeContext`` for the running kernel.
 
     Use as an async context manager::
@@ -107,19 +107,24 @@ def get_context(*, check: bool = True) -> AsyncCodeModeContext:
         async with cm.get_context() as ctx:
             ctx.create_cell("x = 1")
 
-    By default, a dry-run compile check is performed on exit to catch
-    syntax errors, multiply-defined names, and cycles before any graph
-    mutations.  Pass ``check=False`` to skip this validation::
-
-        async with cm.get_context(check=False) as ctx:
-            ...
+    Parameters
+    ----------
+    skip_validation : bool, default False
+        When False (the default), a dry-run compile check runs on exit
+        to catch syntax errors, multiply-defined names, and cycles
+        *before* any graph mutations are applied. The check is cheap
+        and should almost never be disabled. Only set to True when you
+        intentionally need to insert code that would fail validation
+        (e.g. incomplete stubs the user plans to fix by hand).
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
-        runtime_ctx._kernel, cell_manager=cell_manager, check=check
+        runtime_ctx._kernel,
+        cell_manager=cell_manager,
+        skip_validation=skip_validation,
     )
 
 
@@ -259,11 +264,11 @@ class AsyncCodeModeContext:
         kernel: Kernel,
         cell_manager: CellManager | None = None,
         *,
-        check: bool = True,
+        skip_validation: bool = False,
     ) -> None:
         self._kernel = kernel
         self._cell_manager = cell_manager
-        self._check = check
+        self._skip_validation = skip_validation
         self._ops: list[_Op] = []
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
@@ -331,7 +336,7 @@ class AsyncCodeModeContext:
 
         if ops:
             _validate_ops(ops)
-            if self._check:
+            if not self._skip_validation:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
@@ -870,19 +875,19 @@ class AsyncCodeModeContext:
             )
             new_cycles = set(graph.cycles) - existing_cycles
 
-            _check_false_hint = (
+            _skip_hint = (
                 "\n\nTo skip validation, use: "
-                "async with cm.get_context(check=False) as ctx"
+                "async with cm.get_context(skip_validation=True) as ctx"
             )
             if new_multiply_defined:
                 raise RuntimeError(
                     "Multiply-defined names: "
                     f"{sorted(new_multiply_defined)}"
-                    f"{_check_false_hint}"
+                    f"{_skip_hint}"
                 )
             if new_cycles:
                 raise RuntimeError(
-                    f"Cycles detected: {new_cycles}{_check_false_hint}"
+                    f"Cycles detected: {new_cycles}{_skip_hint}"
                 )
         finally:
             # Always clean up: remove dry-run cells, restore evicted ones.
