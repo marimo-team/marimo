@@ -2075,3 +2075,39 @@ class TestPandasTableManager(unittest.TestCase):
         assert result.get_num_rows() == 1
         # MultiIndex should be preserved with original names
         assert list(result._original_data.index.names) == ["x", "level"]
+
+    def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
+        self,
+    ) -> None:
+        """to_arrow_ipc falls back when a column has an extension dtype
+        that PyArrow cannot convert (e.g. pint-pandas)."""
+        from unittest.mock import patch
+
+        import pyarrow as pa
+
+        df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})
+        manager = self.factory.create()(df)
+
+        # Make the first to_feather call raise, simulating an
+        # unsupported extension dtype.
+        original_to_feather = pd.DataFrame.to_feather
+
+        call_count = 0
+
+        def patched_to_feather(self_df, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise pa.lib.ArrowTypeError("unsupported extension type")
+            return original_to_feather(self_df, *args, **kwargs)
+
+        with patch.object(pd.DataFrame, "to_feather", patched_to_feather):
+            result = manager.to_arrow_ipc()
+
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+        # Verify the result is valid IPC/feather data by reading it back
+        buf = pa.BufferReader(result)
+        table = pa.ipc.open_file(buf).read_all()
+        assert table.num_rows == 3
+        assert set(table.column_names) == {"a", "b"}

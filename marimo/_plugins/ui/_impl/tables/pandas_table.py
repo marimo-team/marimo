@@ -238,7 +238,24 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def to_arrow_ipc(self) -> bytes:
                 out = io.BytesIO()
-                self._original_data.to_feather(out, compression="uncompressed")
+                try:
+                    self._original_data.to_feather(
+                        out, compression="uncompressed"
+                    )
+                except Exception:
+                    # Fall back: convert extension-type columns that
+                    # PyArrow cannot handle (e.g. pint-pandas) to plain
+                    # values so the feather write can succeed.
+                    import pyarrow as pa
+
+                    out = io.BytesIO()
+                    df = self._original_data.copy()
+                    for col in df.columns:
+                        try:
+                            pa.Array.from_pandas(df[col])
+                        except Exception:
+                            df[col] = df[col].astype(object).infer_objects()
+                    df.to_feather(out, compression="uncompressed")
                 return out.getvalue()
 
             def apply_formatting(
