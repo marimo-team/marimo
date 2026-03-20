@@ -442,17 +442,11 @@ class BlockHasher:
         self,
         local_ref: Name,
         value: Any,
-        ctx: Optional[RuntimeContext],
+        ctx: RuntimeContext,
     ) -> bool:
-        """Check if a variable's content hash can be memoized.
-
-        Delegates value-type eligibility to ``CacheState.is_memoizable``
-        (swappable for cached execution), then applies contextual guards:
-        not stateful, not defined by the current cell (in-cell mutation).
-        """
+        """Check if a variable's content hash can be memoized."""
         return (
-            ctx is not None
-            and ctx.cache.is_memoizable(value)
+            ctx.cache.is_memoizable(value)
             and local_ref not in self.stateful_refs
             and self.cell_id
             not in self.graph.definitions.get(local_ref, set())
@@ -728,7 +722,8 @@ class BlockHasher:
 
             # Check memo before expensive serialization
             if (
-                self._is_memoizable(local_ref, value, ctx)
+                ctx is not None
+                and self._is_memoizable(local_ref, value, ctx)
                 and local_ref in ctx.cache.hash_memo
             ):
                 content_serialization[ref] = ctx.cache.hash_memo[local_ref]
@@ -764,13 +759,16 @@ class BlockHasher:
                 continue
 
             if serial_value is not None:
-                _hash = hashlib.new(
-                    self.hash_alg.name, usedforsecurity=False
-                )
+                _hash = hashlib.new(self.hash_alg.name, usedforsecurity=False)
                 _hash.update(serial_value)
                 hash_digest = _hash.digest()
                 content_serialization[ref] = hash_digest
-                if self._is_memoizable(local_ref, value, ctx):
+                if ctx is not None and self._is_memoizable(
+                    local_ref, value, ctx
+                ):
+                    # Local ref as a key is sufficent, because values defined in
+                    # cell are not memoizable and rebinds will clean up the
+                    # cache via cell life cycle.
                     ctx.cache.hash_memo[local_ref] = hash_digest
                     defining_cells |= self.graph.definitions.get(
                         local_ref, set()

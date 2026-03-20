@@ -576,6 +576,7 @@ class TestHashMemo:
                 _v = np.sum(arr)
             # Same arr, so memo should have been used (same entry)
             assert c1._cache.hash == c2._cache.hash
+            assert memo_before == dict(ctx.cache.hash_memo)
 
     @staticmethod
     @pytest.mark.skipif(
@@ -647,8 +648,9 @@ class TestHashMemo:
 
         @app.cell
         def load() -> tuple[Any]:
-            import marimo as mo
             import numpy as np
+
+            import marimo as mo
 
             arr = np.ones((32, 32))
             return mo, np, arr
@@ -705,7 +707,6 @@ class TestHashMemo:
             cleanup.dispose(ctx, deletion=False)
             assert len(ctx.cache.hash_memo) == 0
 
-
     @staticmethod
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(),
@@ -713,9 +714,9 @@ class TestHashMemo:
     )
     def test_globals_mutation_stale_memo(app) -> None:
         """Known limitation: mutating a data primitive via globals() bypasses
-        lifecycle cleanup, producing a stale memo hit. This is expected —
-        globals() sidesteps marimo's reactivity — but we capture the behavior
-        so it doesn't silently change."""
+        lifecycle cleanup, producing a stale memo hit. This is expected (but
+        highly discouraged) since globals() sidesteps marimo's reactivity — but
+        we capture the behavior so it doesn't silently change."""
 
         @app.cell
         def load() -> tuple[Any]:
