@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 import msgspec
 
 from marimo import _loggers
-from marimo._utils.paths import MARIMO_DIR_NAME, get_marimo_dir
+from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
 from marimo._utils.scripts import read_pyproject_from_script
 
 LOGGER = _loggers.marimo_logger()
@@ -160,8 +160,11 @@ def derive_title_from_path(filepath: str) -> str:
 def default_opengraph_image(filepath: str) -> str:
     """Return the default relative image path for a given notebook."""
     stem = Path(filepath).stem
-    return (
-        f"{MARIMO_DIR_NAME}/assets/{stem}/{DEFAULT_OPENGRAPH_IMAGE_FILENAME}"
+    return str(
+        Path(MARIMO_DIR_NAME)
+        / "assets"
+        / stem
+        / DEFAULT_OPENGRAPH_IMAGE_FILENAME
     )
 
 
@@ -169,7 +172,7 @@ def default_opengraph_image_abs(filepath: str) -> Path:
     """Return the absolute image path for a given notebook."""
     stem = Path(filepath).stem
     return (
-        get_marimo_dir(filepath)
+        notebook_output_dir(filepath)
         / "assets"
         / stem
         / DEFAULT_OPENGRAPH_IMAGE_FILENAME

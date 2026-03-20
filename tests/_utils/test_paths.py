@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from marimo._utils.paths import get_marimo_dir, normalize_path, pretty_path
+from marimo._utils.paths import (
+    normalize_path,
+    notebook_output_dir,
+    pretty_path,
+)
 
 
 def test_normalize_path_makes_absolute() -> None:
@@ -115,19 +119,19 @@ def test_normalize_path_does_not_skip_regular_paths() -> None:
 
 
 class TestGetMarimoDir:
-    """Tests for get_marimo_dir function."""
+    """Tests for notebook_output_dir function."""
 
     def test_none_returns_cwd_relative(self) -> None:
-        assert get_marimo_dir(None) == Path("__marimo__")
+        assert notebook_output_dir(None) == Path("__marimo__")
 
     def test_file_path_returns_sibling_dir(self, tmp_path: Path) -> None:
         notebook = tmp_path / "notebook.py"
         notebook.touch()
-        result = get_marimo_dir(str(notebook))
+        result = notebook_output_dir(str(notebook))
         assert result == tmp_path / "__marimo__"
 
     def test_directory_path(self, tmp_path: Path) -> None:
-        result = get_marimo_dir(tmp_path)
+        result = notebook_output_dir(tmp_path)
         assert result == tmp_path / "__marimo__"
 
     def test_pycache_prefix_mirrors_tree(
@@ -137,7 +141,7 @@ class TestGetMarimoDir:
         monkeypatch.setattr("sys.pycache_prefix", str(prefix))
 
         notebook = tmp_path / "app" / "notebooks" / "example" / "foo.py"
-        result = get_marimo_dir(str(notebook))
+        result = notebook_output_dir(str(notebook))
         # The notebook's absolute parent tree is mirrored under the prefix.
         relative_parent = Path(
             *notebook.parent.parts[1:]
@@ -149,21 +153,21 @@ class TestGetMarimoDir:
     ) -> None:
         monkeypatch.setattr("sys.pycache_prefix", None)
         notebook = tmp_path / "app" / "notebooks" / "foo.py"
-        result = get_marimo_dir(str(notebook))
+        result = notebook_output_dir(str(notebook))
         assert result == notebook.parent / "__marimo__"
 
     def test_pycache_prefix_ignored_for_none_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr("sys.pycache_prefix", str(tmp_path / "prefix"))
-        assert get_marimo_dir(None) == Path("__marimo__")
+        assert notebook_output_dir(None) == Path("__marimo__")
 
     def test_pycache_prefix_ignored_for_relative_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Relative paths stay notebook-relative, not relocated under prefix."""
         monkeypatch.setattr("sys.pycache_prefix", str(tmp_path / "prefix"))
-        result = get_marimo_dir("notebook.py")
+        result = notebook_output_dir("notebook.py")
         # Should resolve relative to CWD, not under the prefix.
         assert (
             result == normalize_path(Path("notebook.py")).parent / "__marimo__"
@@ -178,7 +182,7 @@ class TestGetMarimoDir:
         monkeypatch.setattr("sys.pycache_prefix", str(prefix))
 
         notebook = tmp_path / "project" / "notebook.py"
-        marimo_dir = get_marimo_dir(str(notebook))
+        marimo_dir = notebook_output_dir(str(notebook))
         # The full tree doesn't exist yet — mkdir should still work.
         marimo_dir.mkdir(parents=True, exist_ok=True)
         assert marimo_dir.is_dir()

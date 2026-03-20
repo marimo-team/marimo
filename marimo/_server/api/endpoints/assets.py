@@ -37,9 +37,9 @@ from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import (
     MARIMO_DIR_NAME,
-    get_marimo_dir,
     marimo_package_path,
     normalize_path,
+    notebook_output_dir,
 )
 
 if TYPE_CHECKING:
@@ -142,7 +142,7 @@ def og_thumbnail(*, request: Request) -> Response:
         )
 
     notebook_dir = normalize_path(Path(notebook_path)).parent
-    marimo_dir = get_marimo_dir(notebook_path)
+    marimo_dir = notebook_output_dir(notebook_path)
 
     # User-defined OpenGraph generators receive this context (file key, base URL, mode)
     # so they can compute metadata dynamically for gallery cards, social previews, and other modes.

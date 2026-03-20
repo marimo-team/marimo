@@ -55,7 +55,7 @@ def maybe_make_dirs(filepath: Path) -> None:
 MARIMO_DIR_NAME = "__marimo__"
 
 
-def get_marimo_dir(notebook_path: Path | str | None) -> Path:
+def notebook_output_dir(notebook_path: Path | str | None) -> Path:
     """Compute the __marimo__ output directory for a given notebook.
 
     When ``sys.pycache_prefix`` is set and the notebook path is absolute, the

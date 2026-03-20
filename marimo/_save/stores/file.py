@@ -6,7 +6,7 @@ from typing import Optional
 
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.stores.store import Store
-from marimo._utils.paths import get_marimo_dir
+from marimo._utils.paths import notebook_output_dir
 
 
 def _valid_path(path: Path) -> bool:
@@ -30,7 +30,7 @@ class FileStore(Store):
 
     def _default_save_path(self) -> Path:
         if (root := notebook_dir()) is not None:
-            return get_marimo_dir(root) / "cache"
+            return notebook_output_dir(root) / "cache"
         # This can happen if the notebook file is unnamed.
         return Path("__marimo__", "cache")
 

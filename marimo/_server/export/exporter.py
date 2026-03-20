@@ -47,7 +47,7 @@ from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import get_marimo_dir, marimo_package_path
+from marimo._utils.paths import marimo_package_path, notebook_output_dir
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -635,7 +635,7 @@ class AutoExporter:
     ) -> None:
         notebook_path = get_filename(filename)
         download_name = get_download_filename(filename, extension)
-        export_dir = get_marimo_dir(notebook_path)
+        export_dir = notebook_output_dir(notebook_path)
 
         await self._ensure_export_dir_async(export_dir)
         filepath = export_dir / download_name
