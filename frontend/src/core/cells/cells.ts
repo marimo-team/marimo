@@ -763,6 +763,36 @@ const {
         return transitionCell(cell, message);
       },
     });
+
+    // When a cell transitions to idle after running, sync CellData so
+    // edited/lastCodeRun reflect the completed execution. This handles
+    // cells auto-executed by the backend (e.g. autorun reactivity after
+    // code_mode creates them) where the frontend never called
+    // prepareForRun.
+    //
+    // We use prevRuntime.runStartTimestamp as the "just finished a run"
+    // signal — there may be a more precise indicator, but idle +
+    // runStartTimestamp means the cell was recently executing and has
+    // now completed, so its output matches the current code.
+    const prevRuntime = state.cellRuntime[cellId];
+    const justFinishedRun =
+      message.status === "idle" && prevRuntime?.runStartTimestamp != null;
+
+    if (justFinishedRun && nextState.cellData[cellId]?.edited) {
+      return {
+        ...nextState,
+        cellData: {
+          ...nextState.cellData,
+          [cellId]: {
+            ...nextState.cellData[cellId],
+            edited: false,
+            lastCodeRun: nextState.cellData[cellId].code.trim(),
+          },
+        },
+        cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
+      };
+    }
+
     return {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
