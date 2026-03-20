@@ -315,10 +315,6 @@ class BlockHasher:
         # Default type, means that there are no references at all.
         cache_type: CacheType = "Pure"
 
-        # TODO: Consider memoizing the serialized contents and hashed cells,
-        # such that a parent cell's BlockHasher can be used to speed up the
-        # hashing of child.
-
         # Collect references that will be utilized for a content hash.
         content_serialization: dict[Name, bytes] = {}
         if refs:
