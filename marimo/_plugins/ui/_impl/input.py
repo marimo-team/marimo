@@ -189,7 +189,6 @@ class slider(UIElement[Numeric, Numeric]):
         debounce (bool): Whether to debounce the slider to only send the value
             on mouse-up or drag-end. Defaults to False.
         disabled (bool, optional): Whether the slider is disabled. Defaults to False.
-
         orientation (Literal["horizontal", "vertical"]): The orientation of the
             slider, either "horizontal" or "vertical". Defaults to "horizontal".
         show_value (bool): Whether to display the current value of the slider.
@@ -418,7 +417,6 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         on_change (Optional[Callable[[Sequence[Numeric]], None]]): Optional callback to run when this element's value changes.
         full_width (bool): Whether the input should take up the full width of its container.
         disabled (bool, optional): Whether the slider is disabled. Defaults to False.
-
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:

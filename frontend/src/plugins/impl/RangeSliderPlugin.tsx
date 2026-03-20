@@ -80,7 +80,6 @@ const RangeSliderComponent = ({
   showValue,
   fullWidth,
   disabled,
-
   valueMap,
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
@@ -123,6 +122,7 @@ const RangeSliderComponent = ({
           step={step}
           orientation={orientation}
           disabled={disabled}
+          // Triggered on all value changes
           onValueChange={(nextValue: number[]) => {
             setInternalValue(nextValue);
             if (!debounce) {
