@@ -555,10 +555,6 @@ class AsyncCodeModeContext:
             # Create and run
             cid = ctx.create_cell("x = 1")
             ctx.run_cell(cid)
-
-            # Create a setup cell with imports, then a cell that uses them
-            ctx.create_cell("import marimo as mo", name="setup")
-            ctx.create_cell("mo.md('# Hello')", name="greeting")
             ```
 
         Args:
@@ -572,8 +568,10 @@ class AsyncCodeModeContext:
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            name (str, optional): Name for the cell (e.g. ``"data_loader"``,
-                ``"setup"`` for a setup cell).
+            name (str, optional): Cell names are a human-facing label,
+                reserved for special cases (e.g. ``"setup"``). Prefer
+                referencing cells by the returned cell ID unless
+                naming is important for the user.
         """
         self._require_entered()
         if before is not None and after is not None:
