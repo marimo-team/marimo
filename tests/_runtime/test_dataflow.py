@@ -1613,8 +1613,8 @@ def test_is_any_ancestor_errored() -> None:
     # Set cell 0 to exception state
     graph.cells["0"].set_run_result_status("exception")
     assert not graph.is_any_ancestor_errored("0")  # no ancestors
-    assert graph.is_any_ancestor_errored("1")       # parent 0 has error
-    assert graph.is_any_ancestor_errored("2")       # grandparent 0 has error
+    assert graph.is_any_ancestor_errored("1")  # parent 0 has error
+    assert graph.is_any_ancestor_errored("2")  # grandparent 0 has error
 
     # Fix cell 0 - clear the error
     graph.cells["0"].set_run_result_status("success")
