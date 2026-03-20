@@ -53,7 +53,7 @@ jobs:
           mkdir -p .vercel/output/functions/_middleware.func
           cp docs/scripts/middleware.js .vercel/output/functions/_middleware.func/index.js
           echo '{"runtime":"edge","entrypoint":"index.js"}' > .vercel/output/functions/_middleware.func/.vc-config.json
-          uv run python docs/scripts/patch_vercel_config.py .vercel/output/config.json
+          uv run --group docs python docs/scripts/patch_vercel_config.py .vercel/output/config.json
 
       - name: 📚 llms.txt
         # This is technically off by 1 commit, but generating the llms.txt file is easiest from a

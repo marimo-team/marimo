@@ -69,14 +69,17 @@ export default async function middleware(request) {
     return;
   }
 
+  const headers = new Headers(response.headers);
+  headers.set("content-type", "text/markdown; charset=utf-8");
+  if (!headers.has("cache-control")) {
+    headers.set("cache-control", "public, max-age=3600");
+  }
+  headers.set("access-control-allow-origin", "*");
+  headers.set("vary", "Accept");
+
   return new Response(response.body, {
     status: 200,
-    headers: {
-      "content-type": "text/markdown; charset=utf-8",
-      "cache-control":
-        response.headers.get("cache-control") || "public, max-age=3600",
-      "access-control-allow-origin": "*",
-    },
+    headers,
   });
 }
 

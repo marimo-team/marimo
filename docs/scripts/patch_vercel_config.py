@@ -26,7 +26,7 @@ def main():
 
     # Add middleware route at the beginning if not already present
     middleware_route = {
-        "src": "/(.*)",
+        "src": "/(?!_static/|assets/|stylesheets/|favicon\\.ico)(.*)",
         "middlewarePath": "_middleware",
         "continue": True,
     }
