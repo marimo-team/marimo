@@ -90,27 +90,36 @@ def test_format_cell(client: TestClient) -> None:
 def test_format_cell_passes_notebook_path_to_formatter(
     client: TestClient,
 ) -> None:
-    with patch(
-        "marimo._server.api.endpoints.editing.DefaultFormatter.format",
-        new=AsyncMock(return_value={"cell-123": "x = 1"}),
-    ) as mock_format:
-        response = client.post(
-            "/api/kernel/format",
-            headers=HEADERS,
-            json={
-                "codes": {"cell-123": "x=1"},
-                "lineLength": 80,
-            },
-        )
+    # pytest.mark.parametrize doesn't work with @with_session
+    for suffix, filename in (
+        (".py", "notebook.py"),
+        (".md", "notebook.md.py"),
+        (".qmd", "notebook.qmd.py"),
+    ):
+        with (
+            patch(
+                "marimo._server.api.endpoints.editing.DefaultFormatter.format",
+                new=AsyncMock(return_value={"cell-123": "x = 1"}),
+            ) as mock_format,
+            patch(
+                "marimo._server.api.endpoints.editing.AppState.require_current_session"
+            ) as mock_require_session,
+        ):
+            mock_session = MagicMock()
+            mock_session.app_file_manager.path = f"notebook{suffix}"
+            mock_require_session.return_value = mock_session
+            response = client.post(
+                "/api/kernel/format",
+                headers=HEADERS,
+                json={
+                    "codes": {"cell-123": "x=1"},
+                    "lineLength": 80,
+                },
+            )
 
-    assert response.status_code == 200, response.text
-    assert response.json() == {"codes": {"cell-123": "x = 1"}}
-    assert mock_format.await_count == 1
-
-    args, kwargs = mock_format.await_args
-    assert {"cell-123": "x=1"} in args
-    assert isinstance(kwargs["stdin_filename"], str)
-    assert kwargs["stdin_filename"].endswith(".py")
+            assert response.status_code == 200, response.text
+            assert response.json() == {"codes": {"cell-123": "x = 1"}}
+            mock_format.assert_awaited_once_with({"cell-123": "x=1"}, filename)
 
 
 @with_session(SESSION_ID)
