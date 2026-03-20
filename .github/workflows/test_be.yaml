@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 env:
   MARIMO_SKIP_UPDATE_CHECK: 1
@@ -54,10 +53,10 @@ jobs:
       - name: Comment on docs failure
         if: failure() && steps.docs.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
+        continue-on-error: true
         with:
           check-name: "docs build"
           command: "uv run --group docs mkdocs build --strict"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test_check:
     needs: changes
@@ -73,7 +72,10 @@ jobs:
 
       - name: 🧹 Lint
         id: lint
-        run: uv run ruff check --fix
+        run: uv run ruff check --fix --output-format=github
+
+      - name: 📋 Register mypy problem matcher
+        run: echo "::add-matcher::.github/problemMatchers/mypy.json"
 
       - name: 🔍 Typecheck
         id: typecheck
@@ -81,19 +83,19 @@ jobs:
 
       - name: Comment on lint failure
         if: failure() && steps.lint.outcome == 'failure'
+        continue-on-error: true
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "lint"
           command: "uv run ruff check --fix"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Comment on typecheck failure
         if: failure() && steps.typecheck.outcome == 'failure'
+        continue-on-error: true
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "typecheck"
           command: "uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # For PRs, we only run the tests for the changed files.
   # If there is a `test-all` label, we run the tests across unchanged files as well.
