@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: VS Code Extension Issues
+    url: https://github.com/marimo-team/marimo-lsp/issues/new
+    about: For issues with the marimo VS Code extension, please open an issue in the marimo-lsp repository.
   - name: Discord Chat
     url: https://marimo.io/discord?ref=issues
     about: Ask questions and discuss with other marimo users.
