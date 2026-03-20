@@ -178,14 +178,13 @@ async def format_cell(request: Request) -> FormatResponse:
     app_state = AppState(request)
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
+    filename = app_state.require_current_session().app_file_manager.path
+    if filename and filename.endswith((".md", ".qmd")):
+        filename = f"{filename}.py"
 
     try:
-        return FormatResponse(
-            codes=await formatter.format(
-                body.codes,
-                stdin_filename=app_state.require_current_session().app_file_manager.path,
-            )
-        )
+        codes = await formatter.format(body.codes, filename)
+        return FormatResponse(codes)
     except ModuleNotFoundError:
         # In multi-sandbox mode each kernel has its own venv, so installing
         # ruff into the server wouldn't help the kernel.  Just surface the
