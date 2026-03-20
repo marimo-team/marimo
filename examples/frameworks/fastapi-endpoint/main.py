@@ -25,7 +25,7 @@ app = FastAPI()
 
 
 @app.get("/add/{a}/{b}")
-async def add_endpoint(request: Request, a: int, b: int) -> int:
+def add_endpoint(request: Request, a: int, b: int) -> int:
     from notebook import add
 
     # We grab the function from the definition
@@ -34,7 +34,7 @@ async def add_endpoint(request: Request, a: int, b: int) -> int:
 
 
 @app.get("/greet")
-async def greet(request: Request):
+def greet(request: Request):
     from notebook import greet
 
     name = request.query_params.get("name")
@@ -45,7 +45,7 @@ async def greet(request: Request):
 
 
 @app.get("/plot")
-async def plot(request: Request):
+def plot(request: Request):
     from notebook import plot
     import json
     from PIL import Image
@@ -82,7 +82,7 @@ async def plot(request: Request):
 
 
 @app.get("/")
-async def home(request: Request):
+def home(request: Request):
     return HTMLResponse(
         f"""
         This example shows how to use marimo notebooks as API endpoints in a FastAPI app.
