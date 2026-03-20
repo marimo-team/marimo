@@ -211,6 +211,48 @@ class DocsMarkdownConverter(MarkdownConverter):
 
         return f"![{alt}]({src})"
 
+    def _resolve_url(self, url: str) -> str:
+        """Resolve a relative URL to an absolute URL."""
+        if url and not url.startswith(("http://", "https://", "data:")):
+            page_url = f"{self.base_url}/{self.page_path}"
+            return urljoin(page_url, url)
+        return url
+
+    def convert_video(self, el: Tag, text: str, **kwargs) -> str:
+        """Convert <video> elements to a markdown link."""
+        src = el.get("src", "")
+        # Also check for <source> child
+        if not src:
+            source = el.find("source")
+            if source:
+                src = source.get("src", "")
+        if not src:
+            return ""
+        src = self._resolve_url(src)
+        return f"\n[Video: {src}]({src})\n"
+
+    def convert_figure(self, el: Tag, text: str, **kwargs) -> str:
+        """Convert <figure> elements, preserving caption."""
+        parts = []
+        for child in el.children:
+            if isinstance(child, Tag):
+                if child.name == "figcaption":
+                    caption = child.get_text(strip=True)
+                    if caption:
+                        parts.append(f"*{caption}*")
+                else:
+                    converted = self.convert(str(child)).strip()
+                    if converted:
+                        parts.append(converted)
+        return "\n" + "\n\n".join(parts) + "\n\n"
+
+    def convert_figcaption(self, el: Tag, text: str, **kwargs) -> str:
+        """Convert <figcaption> to italicized text (standalone, outside figure)."""
+        caption = el.get_text(strip=True)
+        if caption:
+            return f"\n*{caption}*\n"
+        return ""
+
     def convert_table(self, el: Tag, text: str, **kwargs) -> str:
         """Convert tables to markdown tables."""
         rows = el.find_all("tr")
@@ -277,6 +319,8 @@ def clean_markdown(md: str) -> str:
     md = "\n".join(line.rstrip() for line in md.split("\n"))
     # Remove the pilcrow sign that appears in headerlinks
     md = md.replace("\u00b6", "")
+    # Unescape Jinja2-escaped braces (\{\{ -> {{, \}\} -> }})
+    md = md.replace("\\{\\{", "{{").replace("\\}\\}", "}}")
     # Strip leading/trailing whitespace
     md = md.strip()
     return md
