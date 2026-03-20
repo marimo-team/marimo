@@ -434,7 +434,12 @@ class AsyncCodeModeContext:
 
     @property
     def globals(self) -> dict[str, Any]:
-        """The kernel's global namespace (all variables defined by cells)."""
+        """The kernel's global namespace (all variables defined by cells).
+
+        Mutations via :meth:`run_cell` update the kernel globals but
+        *not* the scratchpad's copy. Read values through this property
+        (``ctx.globals["x"]``) rather than bare variable names.
+        """
         return self._kernel.globals
 
     @property
