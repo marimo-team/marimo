@@ -47,7 +47,7 @@ from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import marimo_package_path
+from marimo._utils.paths import get_marimo_dir, marimo_package_path
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -622,8 +622,6 @@ class Exporter:
 
 
 class AutoExporter:
-    EXPORT_DIR = "__marimo__"
-
     def __init__(self) -> None:
         # Cache directories we've already created to avoid redundant checks
         self._created_dirs: set[Path] = set()
@@ -635,11 +633,12 @@ class AutoExporter:
     async def _save_file(
         self, filename: Optional[str], content: str, extension: str
     ) -> None:
-        directory = Path(get_filename(filename)).parent
-        filename = get_download_filename(filename, extension)
+        notebook_path = get_filename(filename)
+        download_name = get_download_filename(filename, extension)
+        export_dir = get_marimo_dir(notebook_path)
 
-        await self._ensure_export_dir_async(directory)
-        filepath = directory / self.EXPORT_DIR / filename
+        await self._ensure_export_dir_async(export_dir)
+        filepath = export_dir / download_name
 
         # Run blocking file I/O in thread pool
         loop = asyncio.get_event_loop()
@@ -662,16 +661,11 @@ class AutoExporter:
             return
         filepath.write_text(content, encoding="utf-8")
 
-    async def _ensure_export_dir_async(self, directory: Path) -> None:
+    async def _ensure_export_dir_async(self, export_dir: Path) -> None:
         """Async directory creation with caching to avoid redundant checks"""
-        export_dir = directory / self.EXPORT_DIR
-
         # Fast path: already created this directory
         if export_dir in self._created_dirs:
             return
-
-        if not await async_path.exists(directory):
-            raise FileNotFoundError(f"Directory {directory} does not exist")
 
         await async_path.mkdir(export_dir, parents=True, exist_ok=True)
 

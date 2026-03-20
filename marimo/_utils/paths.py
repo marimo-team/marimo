@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -49,6 +50,49 @@ def maybe_make_dirs(filepath: Path) -> None:
     Create directories if they don't exist.
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
+
+
+MARIMO_DIR_NAME = "__marimo__"
+
+
+def get_marimo_dir(notebook_path: Path | str | None) -> Path:
+    """Compute the __marimo__ output directory for a given notebook.
+
+    When ``sys.pycache_prefix`` is set and the notebook path is absolute, the
+    directory tree is mirrored under the prefix (similar to how Python mirrors
+    ``__pycache__`` directories).  Otherwise the ``__marimo__`` directory is
+    placed next to the notebook file.
+
+    Resolution order:
+        1. ``sys.pycache_prefix`` (if set and path is absolute): mirror tree
+        2. Default: ``<notebook_parent>/__marimo__``
+        3. Fallback (``None`` path): ``__marimo__`` relative to CWD
+    """
+    if notebook_path is None:
+        return Path(MARIMO_DIR_NAME)
+
+    raw = Path(notebook_path)
+    originally_absolute = raw.is_absolute()
+
+    path = normalize_path(raw)
+    # Determine the notebook's parent directory.
+    if path.is_dir():
+        parent = path
+    elif path.suffix:
+        parent = path.parent
+    else:
+        # Ambiguous (non-existing path without extension): assume directory.
+        # marimo notebooks are expected to have a file extension.
+        parent = path
+
+    prefix = getattr(sys, "pycache_prefix", None)
+    if prefix is not None and originally_absolute:
+        # Strip the filesystem root so we can graft onto the prefix.
+        # On Unix "/" -> parts[1:], on Windows "C:\\" -> parts[1:].
+        relative = Path(*parent.parts[1:]) if len(parent.parts) > 1 else Path()
+        return Path(prefix) / relative / MARIMO_DIR_NAME
+
+    return parent / MARIMO_DIR_NAME
 
 
 def normalize_path(path: Path) -> Path:
