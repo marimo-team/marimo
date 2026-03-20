@@ -35,7 +35,12 @@ from marimo._server.templates.templates import (
 )
 from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
-from marimo._utils.paths import marimo_package_path, normalize_path
+from marimo._utils.paths import (
+    MARIMO_DIR_NAME,
+    get_marimo_dir,
+    marimo_package_path,
+    normalize_path,
+)
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -137,7 +142,7 @@ def og_thumbnail(*, request: Request) -> Response:
         )
 
     notebook_dir = normalize_path(Path(notebook_path)).parent
-    marimo_dir = notebook_dir / "__marimo__"
+    marimo_dir = get_marimo_dir(notebook_path)
 
     # User-defined OpenGraph generators receive this context (file key, base URL, mode)
     # so they can compute metadata dynamically for gallery cards, social previews, and other modes.
@@ -164,7 +169,13 @@ def og_thumbnail(*, request: Request) -> Response:
 
         rel_path = Path(image)
         if not rel_path.is_absolute():
-            file_path = normalize_path(notebook_dir / rel_path)
+            # Resolve __marimo__/ relative paths against the
+            # (potentially relocated) marimo output directory.
+            parts = rel_path.parts
+            if parts and parts[0] == MARIMO_DIR_NAME:
+                file_path = normalize_path(marimo_dir / Path(*parts[1:]))
+            else:
+                file_path = normalize_path(notebook_dir / rel_path)
             # Only allow serving from the notebook's __marimo__ directory.
             try:
                 if file_path.is_file():
