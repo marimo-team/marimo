@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import textwrap
+from typing import TYPE_CHECKING
 
 from marimo._runtime.commands import (
     ExecuteCellCommand,
@@ -13,6 +14,11 @@ from marimo._runtime.commands import (
 from marimo._runtime.runtime import Kernel
 from marimo._utils import async_path
 from tests._messaging.mocks import MockStderr, MockStream
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tests.conftest import MockedKernel
 
 
 class TestScriptTrace:
@@ -286,6 +292,79 @@ class TestAppTrace:
             )
             assert "NameError" in stderr_messages.messages[0]
             assert "NameError" in stderr_messages.messages[-1]
+
+
+class TestRunModeTrace:
+    @staticmethod
+    async def test_run_mode_trace_references_real_file(
+        run_mode_kernel: MockedKernel,
+        tmp_path: Path,
+    ) -> None:
+        """In run mode, tracebacks should reference the real notebook file."""
+        # Create a real notebook file so solve_source_position can match
+        notebook_code = textwrap.dedent("""\
+            import marimo
+
+            __generated_with = "0.0.0"
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+
+            @app.cell
+            def _(x):
+                y = x + 1
+                raise ValueError("boom")
+                return (y,)
+
+
+            if __name__ == "__main__":
+                app.run()
+        """)
+        notebook_file = tmp_path / "test_notebook.py"
+        notebook_file.write_text(notebook_code)
+
+        k = run_mode_kernel.k
+        k.app_metadata.filename = str(notebook_file)
+
+        cell_code = textwrap.dedent(
+            """
+            x = 1
+        """
+        )
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code=cell_code),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                        y = x + 1
+                        raise ValueError("boom")
+                    """
+                    ),
+                ),
+            ]
+        )
+
+        tag_re = re.compile(r"(<!--.*?-->|<[^>]*>)")
+
+        # Collect all output: stderr messages and stream operations
+        all_output = "\n".join(k.stderr.messages)
+        stream_messages = MockStream(k.stream)
+        for op in stream_messages.operations:
+            all_output += "\n" + str(op)
+
+        result = tag_re.sub("", all_output)
+
+        assert "ValueError" in result or "boom" in result
+        # Should reference the real notebook file, NOT __marimo__cell_
+        assert "__marimo__cell_" not in result
+        assert "test_notebook.py" in result
 
 
 class TestEmbedTrace:
