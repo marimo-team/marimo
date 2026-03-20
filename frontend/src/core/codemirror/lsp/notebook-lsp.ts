@@ -832,6 +832,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
               method: "textDocument/publishDiagnostics",
               params: {
                 uri: cellDocumentUri,
+                version: cellVersion,
                 diagnostics: [],
               },
             });
