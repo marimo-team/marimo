@@ -1383,3 +1383,44 @@ def test_integration_mixed_packages_with_git_url():
     assert (
         '"package @ git+https://github.com/user/package.git"' in header_value
     )
+
+
+def test_transform_duplicate_definitions_with_star_import():
+    """Star imports should not crash the transform — cells are kept as-is."""
+    sources = dd(
+        [
+            "from os.path import *",
+            "x = 1",
+            "x = 2",
+        ]
+    )
+    result = transform_duplicate_definitions(sources)
+    # Should not raise — star import cell is preserved unchanged
+    assert result[0] == sources[0]
+    assert len(result) == 3
+
+
+def test_convert_from_ipynb_with_star_import():
+    """End-to-end: a notebook with star imports should convert successfully."""
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": ["from os.path import *"],
+                "metadata": {},
+            },
+            {
+                "cell_type": "code",
+                "source": ["x = join('a', 'b')"],
+                "metadata": {},
+            },
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+    assert len(result.cells) >= 1
+    # The star import cell should be present in the output
+    assert any("from os.path import *" in c.code for c in result.cells)

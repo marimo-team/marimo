@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 import re
 import sys
 from collections import defaultdict
@@ -1233,7 +1234,13 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
         visitor = ScopedVisitor(
             ignore_local=True, on_def=on_def, on_ref=on_ref
         )
-        new_tree = visitor.visit(tree)
+        try:
+            new_tree = visitor.visit(tree)
+        except SyntaxError:
+            # Cell contains constructs like `import *` that marimo
+            # doesn't support — skip renaming but keep the cell as-is
+            new_sources[cell_idx] = source
+            continue
 
         # Don't unparse if no changes were made
         if not renamer.made_changes:
@@ -1424,6 +1431,8 @@ def _transform_sources(
     """
     from marimo._convert.common.comment_preserver import CommentPreserver
 
+    logger = logging.getLogger(__name__)
+
     # Define transforms that don't need comment preservation
     simple_transforms = [
         transform_strip_whitespace,
@@ -1437,13 +1446,45 @@ def _transform_sources(
         transform_duplicate_definitions,
     ]
 
+    _REPORT_URL = "https://github.com/marimo-team/marimo/issues"
+
+    def _run_transform(
+        name: str,
+        fn: Callable[[list[str]], list[str]],
+        sources: list[str],
+    ) -> list[str]:
+        try:
+            new_sources = fn(sources)
+        except Exception:
+            logger.warning(
+                "Notebook conversion transform '%s' failed; "
+                "skipping this optimization. "
+                "Please report this at %s",
+                name,
+                _REPORT_URL,
+                exc_info=True,
+            )
+            return sources
+
+        if len(new_sources) != len(sources):
+            logger.warning(
+                "Notebook conversion transform '%s' changed cell count "
+                "(%d -> %d); skipping this optimization. "
+                "Please report this at %s",
+                name,
+                len(sources),
+                len(new_sources),
+                _REPORT_URL,
+            )
+            return sources
+
+        return new_sources
+
     # Run simple transforms first (no comment preservation needed)
     for source_transform in simple_transforms:
-        new_sources = source_transform(sources)
-        assert len(new_sources) == len(sources), (
-            f"{source_transform.__name__} changed cell count"
+        sources = _run_transform(
+            source_transform.__name__, source_transform, sources
         )
-        sources = new_sources
 
     # Create comment preserver from the simplified sources
     comment_preserver = CommentPreserver(sources)
@@ -1451,11 +1492,7 @@ def _transform_sources(
     # Run comment-preserving transforms
     for base_transform in comment_preserving_transforms:
         transform = comment_preserver(base_transform)
-        new_sources = transform(sources)
-        assert len(new_sources) == len(sources), (
-            f"{base_transform.__name__} changed cell count"
-        )
-        sources = new_sources
+        sources = _run_transform(base_transform.__name__, transform, sources)
 
     # Handle exclamation_mark specially since it returns ExclamationMarkResult
     exclamation_result = transform_exclamation_mark(sources)
