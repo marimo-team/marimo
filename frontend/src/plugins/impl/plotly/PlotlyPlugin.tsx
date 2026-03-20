@@ -92,6 +92,7 @@ const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
   "value",
 ] as const;
 const TREE_MAP_DATA_KEYS = SUNBURST_DATA_KEYS;
+const CLICK_SELECTABLE_TRACE_TYPES = new Set(["heatmap", "bar"]);
 
 export const PlotlyComponent = memo(
   ({ figure: originalFigure, value, setValue, config }: PlotlyPluginProps) => {
@@ -202,18 +203,18 @@ export const PlotlyComponent = memo(
           if (!evt) {
             return;
           }
-          // Only handle clicks for chart types where box/lasso selection
-          // (onSelected) doesn't work, such as heatmaps.
-          const isHeatmap = evt.points.some(
-            (point) => point.data?.type === "heatmap",
+          const isClickSelectable = evt.points.some((point) =>
+            CLICK_SELECTABLE_TRACE_TYPES.has(point.data?.type ?? ""),
           );
-          if (!isHeatmap) {
+          if (!isClickSelectable) {
             return;
           }
           setValue((prev) => ({
             ...prev,
+            selections: Arrays.EMPTY,
             points: extractPoints(evt.points),
-            indices: evt.points.map((point) => point.pointIndex),
+            indices: evt.points.map(getPointIndex).filter(isDefined),
+            range: undefined,
           }));
         })}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
@@ -226,7 +227,7 @@ export const PlotlyComponent = memo(
             selections:
               "selections" in evt ? (evt.selections as unknown[]) : [],
             points: extractPoints(evt.points),
-            indices: evt.points.map((point) => point.pointIndex),
+            indices: evt.points.map(getPointIndex).filter(isDefined),
             range: evt.range,
           }));
         })}
@@ -241,6 +242,14 @@ export const PlotlyComponent = memo(
   },
 );
 PlotlyComponent.displayName = "PlotlyComponent";
+
+function getPointIndex(point: Plotly.PlotDatum): number | undefined {
+  return point.pointIndex ?? point.pointNumber;
+}
+
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
 
 /**
  * This is a hack to extract the points with their original keys,
