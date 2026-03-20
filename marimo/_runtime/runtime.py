@@ -1808,6 +1808,18 @@ class Kernel:
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
 
+        # Clear stale error state from disabled-transitively cells whose
+        # ancestor has recovered from an error. Without this, the disabled
+        # cell permanently shows the ancestor error even after it is fixed.
+        for cid, cell_impl in self.graph.cells.items():
+            if (
+                self.graph.is_disabled(cid)
+                and not cell_impl.config.disabled
+                and cell_impl.run_result_status == "exception"
+                and not self.graph.is_any_ancestor_errored(cid)
+            ):
+                cell_impl.set_run_result_status("disabled")
+
         await self._run_cells(
             dataflow.transitive_closure(
                 self.graph,
