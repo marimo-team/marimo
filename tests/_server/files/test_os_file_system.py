@@ -31,7 +31,11 @@ def test_create_file(test_dir: Path, fs: OSFileSystem) -> None:
 
 @pytest.mark.parametrize(
     ("ext", "expected"),
-    [("py", "__generated_with"), ("md", "marimo-version"), ("qmd", "filters")],
+    [
+        ("py", "__generated_with"),
+        ("md", "marimo-version:"),
+        ("qmd", "marimo-team/marimo"),
+    ],
 )
 def test_create_notebook(
     test_dir: Path, fs: OSFileSystem, ext: str, expected: str
