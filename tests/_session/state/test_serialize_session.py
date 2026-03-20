@@ -588,12 +588,12 @@ def test_get_session_cache_file_with_pycache_prefix(
     prefix = tmp_path / "prefix"
     monkeypatch.setattr("sys.pycache_prefix", str(prefix))
 
-    path = Path("/app/notebooks/notebook.py")
+    path = tmp_path / "app" / "notebooks" / "notebook.py"
     cache_file = get_session_cache_file(path)
+    relative_parent = Path(*path.parent.parts[1:])  # strip root
     assert cache_file == (
         prefix
-        / "app"
-        / "notebooks"
+        / relative_parent
         / "__marimo__"
         / "session"
         / "notebook.py.json"

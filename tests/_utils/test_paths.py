@@ -136,19 +136,21 @@ class TestGetMarimoDir:
         prefix = tmp_path / "prefix"
         monkeypatch.setattr("sys.pycache_prefix", str(prefix))
 
-        notebook = Path("/app/notebooks/example/foo.py")
+        notebook = tmp_path / "app" / "notebooks" / "example" / "foo.py"
         result = get_marimo_dir(str(notebook))
-        assert (
-            result == prefix / "app" / "notebooks" / "example" / "__marimo__"
-        )
+        # The notebook's absolute parent tree is mirrored under the prefix.
+        relative_parent = Path(
+            *notebook.parent.parts[1:]
+        )  # strip root (/ or C:\)
+        assert result == prefix / relative_parent / "__marimo__"
 
     def test_pycache_prefix_not_applied_when_none(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr("sys.pycache_prefix", None)
-        notebook = Path("/app/notebooks/foo.py")
+        notebook = tmp_path / "app" / "notebooks" / "foo.py"
         result = get_marimo_dir(str(notebook))
-        assert result == Path("/app/notebooks/__marimo__")
+        assert result == notebook.parent / "__marimo__"
 
     def test_pycache_prefix_ignored_for_none_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
