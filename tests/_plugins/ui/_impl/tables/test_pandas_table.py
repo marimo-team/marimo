@@ -2094,7 +2094,7 @@ class TestPandasTableManager(unittest.TestCase):
 
         call_count = 0
 
-        def patched_to_feather(self_df, *args, **kwargs):
+        def patched_to_feather(self_df, *args: Any, **kwargs: Any):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
