@@ -778,15 +778,22 @@ const {
     const justFinishedRun =
       message.status === "idle" && prevRuntime?.runStartTimestamp != null;
 
-    if (justFinishedRun && nextState.cellData[cellId]?.edited) {
+    const cellData = nextState.cellData[cellId];
+
+    // Only sync for cells that have never had lastCodeRun set (i.e.
+    // created as stale by the backend). This avoids overwriting
+    // lastCodeRun / edited for cells where the frontend already
+    // captured the run snapshot via prepareForRun and the user may
+    // have edited the cell mid-run.
+    if (justFinishedRun && cellData?.edited && cellData.lastCodeRun == null) {
       return {
         ...nextState,
         cellData: {
           ...nextState.cellData,
           [cellId]: {
-            ...nextState.cellData[cellId],
+            ...cellData,
             edited: false,
-            lastCodeRun: nextState.cellData[cellId].code.trim(),
+            lastCodeRun: cellData.code.trim(),
           },
         },
         cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],

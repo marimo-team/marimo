@@ -1390,6 +1390,104 @@ describe("cell reducer", () => {
     expect(state.cellData["9" as CellId].lastCodeRun).toBe(null);
   });
 
+  it("clears edited when a stale cell completes backend-initiated execution", () => {
+    // Simulate code_mode creating a cell as stale (lastCodeRun=null, edited=true)
+    const cellId = "9" as CellId;
+    actions.setCellIds({ cellIds: [firstCellId, cellId] });
+    actions.setCellCodes({
+      codes: ["x = 42"],
+      ids: [cellId],
+      codeIsStale: true,
+    });
+    expect(state.cellData[cellId].edited).toBe(true);
+    expect(state.cellData[cellId].lastCodeRun).toBe(null);
+
+    // Backend auto-runs the cell: running → idle, without prepareForRun
+    actions.handleCellMessage({
+      cell_id: cellId,
+      output: undefined,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
+    });
+    expect(state.cellRuntime[cellId].runStartTimestamp).toBe(
+      new Date(10).getTime(),
+    );
+
+    actions.handleCellMessage({
+      cell_id: cellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "42",
+        timestamp: 0,
+      },
+      console: null,
+      status: "idle",
+      stale_inputs: false,
+      timestamp: new Date(20).getTime() as Seconds,
+    });
+
+    // edited should now be cleared, lastCodeRun synced
+    expect(state.cellData[cellId].edited).toBe(false);
+    expect(state.cellData[cellId].lastCodeRun).toBe("x = 42");
+    expect(state.cellRuntime[cellId].status).toBe("idle");
+    expect(state.cellRuntime[cellId].staleInputs).toBe(false);
+  });
+
+  it("does not clear edited when user edits cell mid-run", () => {
+    // Set up cell with code
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "import marimo as mo",
+      formattingChange: false,
+    });
+
+    // Normal frontend-initiated run
+    actions.prepareForRun({ cellId: firstCellId });
+    expect(state.cellData[firstCellId].edited).toBe(false);
+    expect(state.cellData[firstCellId].lastCodeRun).toBe("import marimo as mo");
+
+    // Cell starts running
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
+    });
+
+    // User edits the cell while it's running
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "import marimo as mo\nx = 1",
+      formattingChange: false,
+    });
+    expect(state.cellData[firstCellId].edited).toBe(true);
+    expect(state.cellData[firstCellId].lastCodeRun).toBe("import marimo as mo");
+
+    // Cell finishes running
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "ok",
+        timestamp: 0,
+      },
+      console: null,
+      status: "idle",
+      stale_inputs: false,
+      timestamp: new Date(20).getTime() as Seconds,
+    });
+
+    // edited should still be true — the user's mid-run edit hasn't been executed
+    expect(state.cellData[firstCellId].edited).toBe(true);
+    expect(state.cellData[firstCellId].lastCodeRun).toBe("import marimo as mo");
+  });
+
   it("can partial update cell codes", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({ cellId: "1" as CellId, before: false });
