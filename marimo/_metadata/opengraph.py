@@ -160,7 +160,9 @@ def derive_title_from_path(filepath: str) -> str:
 def default_opengraph_image(filepath: str) -> str:
     """Return the default relative image path for a given notebook."""
     stem = Path(filepath).stem
-    return f"{MARIMO_DIR_NAME}/assets/{stem}/{DEFAULT_OPENGRAPH_IMAGE_FILENAME}"
+    return (
+        f"{MARIMO_DIR_NAME}/assets/{stem}/{DEFAULT_OPENGRAPH_IMAGE_FILENAME}"
+    )
 
 
 def default_opengraph_image_abs(filepath: str) -> Path:
