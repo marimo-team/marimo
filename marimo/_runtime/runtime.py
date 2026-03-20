@@ -158,6 +158,7 @@ from marimo._runtime.context.kernel_context import (
     initialize_kernel_context,
 )
 from marimo._runtime.context.types import teardown_context
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
@@ -850,10 +851,16 @@ class Kernel:
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
+            # In run mode, pass the notebook filename so tracebacks
+            # reference the real file instead of synthetic cell files.
+            filename = None
+            if get_mode() == "run":
+                filename = self.app_metadata.filename
             cell = compile_cell(
                 code,
                 cell_id=cell_id,
                 carried_imports=carried_imports,
+                filename=filename,
             )
         except Exception as e:
             cell = None
