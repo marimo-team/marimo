@@ -13,6 +13,7 @@ from marimo._messaging.thread_local_streams import (
     set_thread_local_streams,
 )
 from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -60,12 +61,17 @@ def redirect_streams(
 ) -> Iterator[None]:
     cell_id_old = stream.cell_id
 
-    # In a nested context; NOOP so messages still reach the top-level cell.
+    # In a nested context, generally NOOP so messages reach the top-level
+    # cell.  The exception is the scratchpad: when code_mode runs cells
+    # from within __scratch__, we must swap cell_id so console output
+    # routes to the real cell, not the scratchpad.
     if cell_id_old is not None:
+        if cell_id_old == SCRATCH_CELL_ID:
+            stream.cell_id = cell_id
         try:
             yield
         finally:
-            ...
+            stream.cell_id = cell_id_old
         return
 
     stream.cell_id = cell_id
