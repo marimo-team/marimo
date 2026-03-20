@@ -2,28 +2,35 @@
 import DOMPurify, { type Config } from "dompurify";
 
 // preserve target=_blank https://github.com/cure53/DOMPurify/issues/317#issuecomment-912474068
-const TEMPORARY_ATTRIBUTE = "data-temp-href-target";
-DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
-  if (node.tagName === "A") {
-    if (!node.hasAttribute("target")) {
-      node.setAttribute("target", "_self");
-    }
+// Guard for non-browser environments (e.g. Node.js in the marimo-lsp extension)
+// where `document` is not available.
+if (typeof document !== "undefined") {
+  const TEMPORARY_ATTRIBUTE = "data-temp-href-target";
+  DOMPurify.addHook("beforeSanitizeAttributes", (node) => {
+    if (node.tagName === "A") {
+      if (!node.hasAttribute("target")) {
+        node.setAttribute("target", "_self");
+      }
 
-    if (node.hasAttribute("target")) {
-      node.setAttribute(TEMPORARY_ATTRIBUTE, node.getAttribute("target") || "");
+      if (node.hasAttribute("target")) {
+        node.setAttribute(
+          TEMPORARY_ATTRIBUTE,
+          node.getAttribute("target") || "",
+        );
+      }
     }
-  }
-});
+  });
 
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A" && node.hasAttribute(TEMPORARY_ATTRIBUTE)) {
-    node.setAttribute("target", node.getAttribute(TEMPORARY_ATTRIBUTE) || "");
-    node.removeAttribute(TEMPORARY_ATTRIBUTE);
-    if (node.getAttribute("target") === "_blank") {
-      node.setAttribute("rel", "noopener noreferrer");
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "A" && node.hasAttribute(TEMPORARY_ATTRIBUTE)) {
+      node.setAttribute("target", node.getAttribute(TEMPORARY_ATTRIBUTE) || "");
+      node.removeAttribute(TEMPORARY_ATTRIBUTE);
+      if (node.getAttribute("target") === "_blank") {
+        node.setAttribute("rel", "noopener noreferrer");
+      }
     }
-  }
-});
+  });
+}
 
 /**
  * This removes script tags, form tags, iframe tags, and other potentially dangerous tags
