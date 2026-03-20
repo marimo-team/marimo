@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import pickle
+import queue
 import threading
 from pathlib import Path
 from typing import Any, Optional
 
 import msgspec
 
+from marimo import _loggers
 from marimo._save.cache import (
     MARIMO_CACHE_VERSION,
     Cache,
@@ -29,6 +31,8 @@ from marimo._save.stubs.lazy_stub import (
     ReferenceStub,
 )
 
+LOGGER = _loggers.marimo_logger()
+
 
 def to_item(
     path: Path,
@@ -49,46 +53,33 @@ def to_item(
         )
     if loader == "ui":
         return Item(reference=(path / "ui.pickle").as_posix())
-
     if isinstance(value, FunctionStub):
         return Item(function=value.dump())
     if isinstance(value, ModuleStub):
         return Item(module=value.name)
-
-    # Primitive values stored directly
     if isinstance(value, (int, str, float, bool, bytes, type(None))):
         return Item(primitive=value)
 
-    # Default to per-variable pickle reference
-    return Item(
-        reference=(path / f"{var_name}.pickle").as_posix(), hash=hash
-    )
+    return Item(reference=(path / f"{var_name}.pickle").as_posix(), hash=hash)
 
 
 def from_item(item: Item) -> Any:
     if item.reference is not None:
-        return ImmediateReferenceStub(
-            ReferenceStub(item.reference, item.hash)
-        )
-    elif item.module is not None:
-        module_stub = ModuleStub.__new__(ModuleStub)
-        module_stub.name = item.module
-        return module_stub
-    elif item.function is not None:
-        function_stub = FunctionStub.__new__(FunctionStub)
-        (
-            function_stub.code,
-            function_stub.filename,
-            function_stub.lineno,
-        ) = item.function
-        return function_stub
-    elif item.primitive is not None:
+        return ImmediateReferenceStub(ReferenceStub(item.reference, item.hash))
+    if item.module is not None:
+        stub = ModuleStub.__new__(ModuleStub)
+        stub.name = item.module
+        return stub
+    if item.function is not None:
+        stub = FunctionStub.__new__(FunctionStub)
+        stub.code, stub.filename, stub.lineno = item.function
+        return stub
+    if item.primitive is not None:
         return item.primitive
     return None
 
 
-class LazyStore(FileStore):
-    ...
+class LazyStore(FileStore): ...
 
 
 class LazyLoader(BasePersistenceLoader):
@@ -100,28 +91,69 @@ class LazyLoader(BasePersistenceLoader):
         if store is None:
             store = LazyStore()
         super().__init__(name, "jsonl", store)
+        self._pending: list[threading.Thread] = []
+
+    def flush(self) -> None:
+        """Wait for all pending background writes to complete."""
+        for t in self._pending:
+            t.join()
+        self._pending.clear()
 
     def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
-        defs = {}
-        variable_hashes = {}
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
+        base = Path(self.name) / cache_data.hash
 
-        # Eagerly load shared UI blob once
-        ui_blob = self.store.get(
-            (Path(self.name) / cache_data.hash / "ui.pickle").as_posix()
-        )
-        ui_data = {}
-        if cache_data.ui_defs and ui_blob is not None:
-            ui_data = pickle.loads(ui_blob)
-
+        # Collect references to load
+        ref_vars: dict[str, str] = {}
+        variable_hashes: dict[str, str] = {}
         for var_name, item in cache_data.defs.items():
             if var_name in cache_data.ui_defs:
-                defs[var_name] = ui_data[var_name]
-            else:
-                defs[var_name] = from_item(item)
-
+                ref_vars[var_name] = (base / "ui.pickle").as_posix()
+            elif item.reference is not None:
+                ref_vars[var_name] = item.reference
             if item.hash:
                 variable_hashes[var_name] = item.hash
+
+        # Read + unpickle in parallel, stream results via queue
+        results: queue.Queue[tuple[str, Any]] = queue.Queue()
+        unique_keys = set(ref_vars.values())
+
+        def _load_and_unpickle(key: str) -> None:
+            data = self.store.get(key)
+            if data:
+                results.put((key, pickle.loads(data)))
+
+        threads = [
+            threading.Thread(target=_load_and_unpickle, args=(key,))
+            for key in unique_keys
+        ]
+        for t in threads:
+            t.start()
+
+        # Stream results as they arrive
+        unpickled: dict[str, Any] = {}
+        for _ in unique_keys:
+            try:
+                key, val = results.get(timeout=30)
+                unpickled[key] = val
+            except queue.Empty:
+                break
+
+        for t in threads:
+            t.join()
+
+        # Distribute to defs
+        defs: dict[str, Any] = {}
+        for var_name, item in cache_data.defs.items():
+            if var_name in ref_vars:
+                ref_key = ref_vars[var_name]
+                val = unpickled.get(ref_key)
+                if var_name in cache_data.ui_defs and isinstance(val, dict):
+                    defs[var_name] = val[var_name]
+                else:
+                    defs[var_name] = val
+            else:
+                defs[var_name] = from_item(item)
 
         return_item = (
             from_item(cache_data.meta.return_value)
@@ -156,7 +188,6 @@ class LazyLoader(BasePersistenceLoader):
         except ValueError:
             cache_type_enum = CacheType.UNKNOWN
 
-        # Per-variable pickle items
         pickle_vars: dict[str, Any] = {}
         ui_vars: dict[str, Any] = {}
         defs_dict: dict[str, Item] = {}
@@ -177,57 +208,44 @@ class LazyLoader(BasePersistenceLoader):
                 hash=variable_hashes.get(var, ""),
             )
 
-        schema = CacheSchema(
-            hash=cache.hash,
-            cache_type=cache_type_enum,
-            stateful_refs=list(cache.stateful_refs),
-            defs=defs_dict,
-            meta=Meta(
-                version=cache.meta.get("version", MARIMO_CACHE_VERSION),
-                return_value=return_item,
-            ),
-            ui_defs=ui_defs_list,
+        manifest = msgspec.json.encode(
+            CacheSchema(
+                hash=cache.hash,
+                cache_type=cache_type_enum,
+                stateful_refs=list(cache.stateful_refs),
+                defs=defs_dict,
+                meta=Meta(
+                    version=cache.meta.get("version", MARIMO_CACHE_VERSION),
+                    return_value=return_item,
+                ),
+                ui_defs=ui_defs_list,
+            )
         )
-        manifest = msgspec.json.encode(schema)
 
-        # Capture references for the background thread
+        # Capture values for the background thread
+        store = self.store
         return_ref = return_item.reference
         return_value = cache.meta.get("return", None)
         manifest_key = str(self.build_path(cache.key))
 
         def _serialize_and_write() -> None:
-            """Serialize and write all blobs + manifest.
-
-            Writes directly (not via store.put) since we're already
-            in a background thread — avoids spawning nested threads.
-            """
-            save = self.store.save_path
-
-            def _write(key: str, data: bytes) -> None:
-                p = save / key
-                p.parent.mkdir(parents=True, exist_ok=True)
-                FileStore._do_write(p, data)
-
+            """Serialize and write all blobs + manifest in background."""
             if return_ref:
-                _write(return_ref, pickle.dumps(return_value))
+                store.put(return_ref, pickle.dumps(return_value))
             if ui_vars:
-                _write((path / "ui.pickle").as_posix(), pickle.dumps(ui_vars))
-            # Per-variable pickle files
+                store.put(
+                    (path / "ui.pickle").as_posix(), pickle.dumps(ui_vars)
+                )
             for var, obj in pickle_vars.items():
-                _write((path / f"{var}.pickle").as_posix(), pickle.dumps(obj))
-            _write(manifest_key, manifest)
+                store.put(
+                    (path / f"{var}.pickle").as_posix(), pickle.dumps(obj)
+                )
+            # Manifest last — readers check for it to detect complete writes
+            store.put(manifest_key, manifest)
 
-        # Run serialization + writes in a background thread
-        if isinstance(self.store, FileStore):
-            t = threading.Thread(
-                target=_serialize_and_write,
-                daemon=False,
-            )
-            t.start()
-            self.store._pending.append(t)
-        else:
-            _serialize_and_write()
-
+        t = threading.Thread(target=_serialize_and_write, daemon=False)
+        t.start()
+        self._pending.append(t)
         return True
 
     def to_blob(self, cache: Cache) -> Optional[bytes]:
