@@ -349,9 +349,7 @@ class AsyncCodeModeContext:
                 self.notify(
                     UpdateCellCodesNotification(
                         cell_ids=list(valid),
-                        codes=[
-                            self.graph.cells[cid].code for cid in valid
-                        ],
+                        codes=[self.graph.cells[cid].code for cid in valid],
                         code_is_stale=False,
                     )
                 )
@@ -1002,7 +1000,17 @@ class AsyncCodeModeContext:
         # Notify frontend of all changes (code and config-only).
         # Cells not queued for execution are marked as stale.
         # Config-only changes are never stale (the code didn't change).
+        #
+        # In autorun mode, when the caller explicitly ran at least one
+        # cell, also include cells_to_run from mutate_graph (reactive
+        # descendants) so the agent sees their execution synchronously
+        # and the frontend isn't left showing stale for cells that are
+        # about to execute.  We only expand when explicit_run is
+        # non-empty to preserve the "suggestion" behavior: creating
+        # cells without run_cell leaves them stale/unexecuted.
         _run_set = explicit_run or set()
+        if _run_set and self._kernel.reactive_execution_mode == "autorun":
+            _run_set = _run_set | cells_to_run
         _code_entry_ids = {e.cell_id for e in code_entries}
         all_entries = code_entries + config_entries
         by_stale: dict[bool, list[_PlanEntry]] = {}
@@ -1058,8 +1066,8 @@ class AsyncCodeModeContext:
 
         self.notify(UpdateCellIdsNotification(cell_ids=target_order))
 
-        # Only run cells explicitly queued via run_cell(), filtered to
-        # cells that still exist after structural ops have been applied.
+        # Run queued cells (explicit run_cell + autorun descendants),
+        # filtered to cells that still exist after structural ops.
         if _run_set:
             cells_to_run = _run_set & set(self.graph.cells.keys())
             if cells_to_run:
