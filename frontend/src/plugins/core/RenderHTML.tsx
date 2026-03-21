@@ -13,6 +13,7 @@ import React, {
   useRef,
 } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { Tooltip } from "@/components/ui/tooltip";
 import { QueryParamPreservingLink } from "@/components/ui/query-param-preserving-link";
 import { DocHoverTarget } from "@/core/documentation/DocHoverTarget";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
@@ -160,6 +161,23 @@ const wrapDocHoverTargets: TransformFn = (
   }
 };
 
+// Wrap elements with data-tooltip attribute in a Tooltip component.
+// This renders the tooltip in a portal (top layer), fixing clipping inside
+// containers with overflow:hidden (e.g. grid cells).
+const wrapTooltipTargets: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+): JSX.Element | undefined => {
+  if (domNode instanceof Element && domNode.attribs?.["data-tooltip"]) {
+    const tooltipContent = domNode.attribs["data-tooltip"];
+    return (
+      <Tooltip content={tooltipContent}>
+        {reactNode as JSX.Element}
+      </Tooltip>
+    );
+  }
+};
+
 const CopyableCode = ({ children }: { children: ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null);
   return (
@@ -239,6 +257,7 @@ function parseHtml({
     addCopyButtonToCodehilite,
     preserveQueryParamsInAnchorLinks,
     wrapDocHoverTargets,
+    wrapTooltipTargets,
     removeWrappingBodyTags,
     removeWrappingHtmlTags,
   ];
