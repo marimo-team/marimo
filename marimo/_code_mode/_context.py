@@ -151,7 +151,7 @@ class _CellsView:
         self._ctx = ctx
 
     def _cell_ids(self) -> list[CellId_t]:
-        return list(self._ctx.graph.cells.keys())
+        return list(self._ctx._document)
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
         # Check code_mode's own name store first.
@@ -266,7 +266,14 @@ class AsyncCodeModeContext:
         *,
         skip_validation: bool = False,
     ) -> None:
+        if kernel._document is None:
+            raise RuntimeError(
+                "NotebookDocument not available — code_mode must be invoked "
+                "via the /api/execute endpoint which attaches the document "
+                "snapshot"
+            )
         self._kernel = kernel
+        self._document = kernel._document
         self._cell_manager = cell_manager
         self._skip_validation = skip_validation
         self._ops: list[_Op] = []
@@ -913,7 +920,7 @@ class AsyncCodeModeContext:
         self, ops: list[_Op], explicit_run: set[CellId_t] | None = None
     ) -> None:
         """Validate, plan, format, and apply a batch of operations."""
-        existing_ids = list(self.graph.cells.keys())
+        existing_ids = list(self._document)
         plan = _build_plan(existing_ids, ops)
 
         # Auto-format new/changed code.

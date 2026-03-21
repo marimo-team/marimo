@@ -197,6 +197,7 @@ from marimo._secrets.load_dotenv import (
 from marimo._secrets.secrets import get_secret_keys
 from marimo._session.model import SessionMode
 from marimo._session.queue import QueueType
+from marimo._session.state.document import NotebookDocument
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.types import (
     EngineCatalog,
@@ -569,6 +570,10 @@ class Kernel:
         self.debugger = debugger_override
         if self.debugger is not None:
             patches.patch_pdb(self.debugger)
+
+        # Document snapshot from session, set before scratchpad execution
+        # so code_mode can read cell ordering/code/names/configs.
+        self._document: NotebookDocument | None = None
 
         self._module = module
         if self.app_metadata.filename is not None:
@@ -2275,8 +2280,13 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            with http_request_context(request.request):
-                await self.run_scratchpad(request.code)
+            if request.document_cells is not None:
+                self._document = NotebookDocument(list(request.document_cells))
+            try:
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
+            finally:
+                self._document = None
             broadcast_notification(CompletedRunNotification())
 
         async def handle_execute_stale(

@@ -302,6 +302,9 @@ async def execute_code(
                         ExecuteScratchpadCommand(
                             code=body.code,
                             request=HTTPRequest.from_request(request),
+                            document_cells=tuple(
+                                session.session_view.document.values()
+                            ),
                         ),
                         from_consumer_id=None,
                     )

@@ -22,6 +22,7 @@ from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
+from marimo._session.state.document import DocumentCell
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 LOGGER = _loggers.marimo_logger()
@@ -325,11 +326,16 @@ class ExecuteScratchpadCommand(Command):
     Attributes:
         code: Python code to execute.
         request: HTTP request context if available.
+        document_cells: Snapshot of the notebook document for code_mode reads.
     """
 
     code: str
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
+    # Snapshot of notebook document state, attached by the session so
+    # code_mode can read cell ordering/code/names/configs.
+    # Only populated via /api/execute (code_mode entry point).
+    document_cells: tuple[DocumentCell, ...] | None = None
 
 
 class RenameNotebookCommand(Command):

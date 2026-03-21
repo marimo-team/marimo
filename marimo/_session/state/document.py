@@ -19,6 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union
 
+import msgspec
+
 from marimo._ast.cell import CellConfig
 from marimo._types.ids import CellId_t
 
@@ -27,19 +29,19 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell_manager import CellManager
 
+
 # ------------------------------------------------------------------
 # Document cell
 # ------------------------------------------------------------------
 
 
-@dataclass(slots=True)
-class DocumentCell:
+class DocumentCell(msgspec.Struct):
     """A cell in the notebook document."""
 
     id: CellId_t
     code: str
     name: str = ""
-    config: CellConfig = field(default_factory=CellConfig)
+    config: CellConfig = msgspec.field(default_factory=CellConfig)
 
 
 # ------------------------------------------------------------------
