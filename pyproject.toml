@@ -269,6 +269,8 @@ docs = [
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
     "lzstring>=1.0.4",
+    "beautifulsoup4>=4.12.0",
+    "markdownify>=0.13.0",
 ]
 
 
