@@ -58,6 +58,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendDocumentEvents: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/document/events", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     sendRename: (request) => {
       return getClient()
         .POST("/api/kernel/rename", {

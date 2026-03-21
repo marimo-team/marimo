@@ -119,6 +119,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
 
   // Sync operations that wait for connection
   syncCellIds: "waitForConnectionOpen",
+  sendDocumentEvents: "waitForConnectionOpen",
   sendCodeCompletionRequest: "waitForConnectionOpen",
 };
 

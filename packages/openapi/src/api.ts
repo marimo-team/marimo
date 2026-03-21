@@ -527,6 +527,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/document/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["DocumentEventsRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply document events */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -3478,6 +3519,43 @@ export interface components {
       hide_code?: boolean;
     };
     /**
+     * CellCreated
+     * @description A new cell was added to the notebook.
+     */
+    CellCreated: {
+      /** @default null */
+      after?: string | null;
+      code: string;
+      config?: components["schemas"]["CellConfig"];
+      id: string;
+      /** @default  */
+      name?: string;
+      /** @enum {unknown} */
+      type: "cell-created";
+    };
+    /**
+     * CellDeleted
+     * @description A cell was removed from the notebook.
+     */
+    CellDeleted: {
+      id: string;
+      /** @enum {unknown} */
+      type: "cell-deleted";
+    };
+    /**
+     * CellMoved
+     * @description A cell was moved to a new position.
+     *
+     *         ``after=None`` means move to the very beginning.
+     */
+    CellMoved: {
+      /** @default null */
+      after?: string | null;
+      id: string;
+      /** @enum {unknown} */
+      type: "cell-moved";
+    };
+    /**
      * CellNotification
      * @description Updates a cell's state in the frontend.
      *
@@ -3564,6 +3642,19 @@ export interface components {
         | "video/mpeg";
       timestamp?: number;
     };
+    /**
+     * CellsReordered
+     * @description Full cell ordering was set.
+     *
+     *         Replaces the entire cell order. Cell IDs that exist in the document
+     *         but not in the list are left in place at the end. IDs not in the
+     *         document are ignored.
+     */
+    CellsReordered: {
+      cell_ids: string[];
+      /** @enum {unknown} */
+      type: "cells-reordered";
+    };
     /** ChatAttachment */
     ChatAttachment: {
       /** @default null */
@@ -3618,6 +3709,16 @@ export interface components {
     };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
+    /**
+     * CodeChanged
+     * @description A cell's code was changed (but not yet executed).
+     */
+    CodeChanged: {
+      code: string;
+      id: string;
+      /** @enum {unknown} */
+      type: "code-changed";
+    };
     /**
      * CodeCompletionCommand
      * @description Request code completion suggestions.
@@ -3730,6 +3831,16 @@ export interface components {
       op: "completion-result";
       options: components["schemas"]["CompletionOption"][];
       prefix_length: number;
+    };
+    /**
+     * ConfigChanged
+     * @description A cell's configuration was changed.
+     */
+    ConfigChanged: {
+      config: components["schemas"]["CellConfig"];
+      id: string;
+      /** @enum {unknown} */
+      type: "config-changed";
     };
     /** CopyNotebookRequest */
     CopyNotebookRequest: {
@@ -4051,6 +4162,18 @@ export interface components {
       reference_highlighting?: boolean;
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
+    };
+    /** DocumentEventsRequest */
+    DocumentEventsRequest: {
+      events: (
+        | components["schemas"]["CellCreated"]
+        | components["schemas"]["CellDeleted"]
+        | components["schemas"]["CellMoved"]
+        | components["schemas"]["CellsReordered"]
+        | components["schemas"]["CodeChanged"]
+        | components["schemas"]["NameChanged"]
+        | components["schemas"]["ConfigChanged"]
+      )[];
     };
     /**
      * ExecuteCellCommand
@@ -5209,6 +5332,16 @@ export interface components {
       name: string;
       /** @enum {unknown} */
       type: "multiple-defs";
+    };
+    /**
+     * NameChanged
+     * @description A cell was renamed.
+     */
+    NameChanged: {
+      id: string;
+      name: string;
+      /** @enum {unknown} */
+      type: "name-changed";
     };
     /**
      * NotebookCell

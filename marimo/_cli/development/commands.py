@@ -253,6 +253,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.StdinRequest,
         models.SuccessResponse,
         models.SuccessResponse,
+        models.DocumentEventsRequest,
         models.UpdateCellConfigRequest,
         models.UpdateCellIdsRequest,
         models.FocusCellRequest,

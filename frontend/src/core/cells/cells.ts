@@ -17,6 +17,7 @@ import { clamp } from "@/utils/math";
 import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
+import { documentEventsMiddleware } from "./document-events-middleware";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import {
   splitEditor,
@@ -177,7 +178,8 @@ const {
   createActions,
   useActions,
   valueAtom: notebookAtom,
-} = createReducerAndAtoms(initialNotebookState, {
+} = // biome-ignore format: keep diff minimal for review, can remove
+createReducerAndAtoms(initialNotebookState, {
   createNewCell: (state, action: CreateNewCellAction) => {
     const {
       cellId,
@@ -1403,7 +1405,7 @@ const {
       scrollKey: SETUP_CELL_ID,
     };
   },
-});
+}, [documentEventsMiddleware]);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (

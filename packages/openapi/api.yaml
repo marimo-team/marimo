@@ -366,6 +366,64 @@ components:
       required: []
       title: CellConfig
       type: object
+    CellCreated:
+      description: A new cell was added to the notebook.
+      properties:
+        after:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        id:
+          type: string
+        name:
+          default: ''
+          type: string
+        type:
+          enum:
+          - cell-created
+      required:
+      - type
+      - id
+      - code
+      title: CellCreated
+      type: object
+    CellDeleted:
+      description: A cell was removed from the notebook.
+      properties:
+        id:
+          type: string
+        type:
+          enum:
+          - cell-deleted
+      required:
+      - type
+      - id
+      title: CellDeleted
+      type: object
+    CellMoved:
+      description: "A cell was moved to a new position.\n\n    ``after=None`` means\
+        \ move to the very beginning."
+      properties:
+        after:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        id:
+          type: string
+        type:
+          enum:
+          - cell-moved
+      required:
+      - type
+      - id
+      title: CellMoved
+      type: object
     CellNotification:
       description: "Updates a cell's state in the frontend.\n\n    Only fields that\
         \ are set (not None) will update the cell state.\n    Omitting a field leaves\
@@ -501,6 +559,23 @@ components:
       - data
       title: CellOutput
       type: object
+    CellsReordered:
+      description: "Full cell ordering was set.\n\n    Replaces the entire cell order.\
+        \ Cell IDs that exist in the document\n    but not in the list are left in\
+        \ place at the end. IDs not in the\n    document are ignored."
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        type:
+          enum:
+          - cells-reordered
+      required:
+      - type
+      - cell_ids
+      title: CellsReordered
+      type: object
     ChatAttachment:
       properties:
         content_type:
@@ -606,6 +681,22 @@ components:
       properties: {}
       required: []
       title: ClearCacheRequest
+      type: object
+    CodeChanged:
+      description: A cell's code was changed (but not yet executed).
+      properties:
+        code:
+          type: string
+        id:
+          type: string
+        type:
+          enum:
+          - code-changed
+      required:
+      - type
+      - id
+      - code
+      title: CodeChanged
       type: object
     CodeCompletionCommand:
       description: "Request code completion suggestions.\n\n    Sent when the user\
@@ -810,6 +901,22 @@ components:
       - prefix_length
       - options
       title: CompletionResultNotification
+      type: object
+    ConfigChanged:
+      description: A cell's configuration was changed.
+      properties:
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        id:
+          type: string
+        type:
+          enum:
+          - config-changed
+      required:
+      - type
+      - id
+      - config
+      title: ConfigChanged
       type: object
     CopyNotebookRequest:
       properties:
@@ -1358,6 +1465,34 @@ components:
       - default_width
       - theme
       title: DisplayConfig
+      type: object
+    DocumentEventsRequest:
+      properties:
+        events:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/CellCreated'
+            - $ref: '#/components/schemas/CellDeleted'
+            - $ref: '#/components/schemas/CellMoved'
+            - $ref: '#/components/schemas/CellsReordered'
+            - $ref: '#/components/schemas/CodeChanged'
+            - $ref: '#/components/schemas/NameChanged'
+            - $ref: '#/components/schemas/ConfigChanged'
+            discriminator:
+              mapping:
+                cell-created: '#/components/schemas/CellCreated'
+                cell-deleted: '#/components/schemas/CellDeleted'
+                cell-moved: '#/components/schemas/CellMoved'
+                cells-reordered: '#/components/schemas/CellsReordered'
+                code-changed: '#/components/schemas/CodeChanged'
+                config-changed: '#/components/schemas/ConfigChanged'
+                name-changed: '#/components/schemas/NameChanged'
+              propertyName: type
+            title: DocumentEvent
+          type: array
+      required:
+      - events
+      title: DocumentEventsRequest
       type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
@@ -3345,6 +3480,22 @@ components:
       - name
       - cells
       title: MultipleDefinitionError
+      type: object
+    NameChanged:
+      description: A cell was renamed.
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          enum:
+          - name-changed
+      required:
+      - type
+      - id
+      - name
+      title: NameChanged
       type: object
     NotebookCell:
       description: A cell in the notebook document.
@@ -5467,6 +5618,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a list of tables in an SQL schema
+  /api/document/events:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentEventsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Apply document events
   /api/documentation/snippets:
     get:
       parameters:
