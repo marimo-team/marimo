@@ -615,8 +615,8 @@ class AsyncCodeModeContext:
     def edit_cell(
         self,
         target: str,
-        *,
         code: str | None = None,
+        *,
         hide_code: bool | None = None,
         disabled: bool | None = None,
         column: int | None = None,
@@ -630,24 +630,22 @@ class AsyncCodeModeContext:
         Editing a cell does not automatically execute it. Use ``run_cell``
         to queue it for execution::
 
-            ctx.edit_cell("my_cell", code="x = 42")
+            ctx.edit_cell("my_cell", "x = 42")
             ctx.run_cell("my_cell")
 
         Examples:
             ```python
             # Update only code (config like hide_code is preserved)
-            ctx.edit_cell(
-                "data_loader", code="df = pd.read_parquet('new.parquet')"
-            )
+            ctx.edit_cell("data_loader", "df = pd.read_parquet('new.parquet')")
 
             # Update only config (code is preserved)
             ctx.edit_cell("data_loader", hide_code=False)
 
             # Update both code and config
-            ctx.edit_cell("data_loader", code="df = load()", disabled=True)
+            ctx.edit_cell("data_loader", "df = load()", disabled=True)
 
             # Edit and run
-            ctx.edit_cell("my_cell", code="new_code()")
+            ctx.edit_cell("my_cell", "new_code()")
             ctx.run_cell("my_cell")
 
             # Rename a cell
