@@ -11,6 +11,7 @@ from typing import Optional, Union
 
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
+from marimo._session.queue import route_control_request
 from marimo._session.types import QueueManager
 
 
@@ -95,19 +96,12 @@ class QueueManagerImpl(QueueManager):
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
-        # Completions are on their own queue
-        if isinstance(request, commands.CodeCompletionCommand):
-            self.completion_queue.put(request)
-            return
-
-        self.control_queue.put(request)
-        # UI element updates and model commands are on both queues
-        # so they can be batched
-        if isinstance(
+        route_control_request(
             request,
-            (commands.UpdateUIElementCommand, commands.ModelCommand),
-        ):
-            self.set_ui_element_queue.put(request)
+            self.control_queue,
+            self.completion_queue,
+            self.set_ui_element_queue,
+        )
 
     def put_input(self, text: str) -> None:
         """Put an input request in the input queue."""
