@@ -162,10 +162,10 @@ class _CellsView:
 
     def _build_at(self, cell_id: CellId_t) -> NotebookCellData:
         cell_impl = self._ctx.graph.cells[cell_id]
-        meta = self._ctx._kernel.cell_metadata.get(cell_id)
+        doc_cell = self._ctx._document.get(cell_id)
         return NotebookCellData(
             code=cell_impl.code,
-            config=meta.config if meta else CellConfig(),
+            config=doc_cell.config if doc_cell else CellConfig(),
             name=self._cell_name(cell_id),
             id=cell_id,
         )
@@ -691,8 +691,8 @@ class AsyncCodeModeContext:
         config: CellConfig | None = None
         if hide_code is not None or disabled is not None or column is not None:
             # Start from existing config and override provided fields.
-            meta = self._kernel.cell_metadata.get(cell_id)
-            existing = meta.config if meta else CellConfig()
+            doc_cell = self._document.get(cell_id)
+            existing = doc_cell.config if doc_cell else CellConfig()
             config = CellConfig(
                 hide_code=hide_code
                 if hide_code is not None
@@ -947,9 +947,9 @@ class AsyncCodeModeContext:
             elif entry.cell_id not in existing_id_set:
                 resolved_configs[entry.cell_id] = CellConfig(hide_code=True)
             else:
-                existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
+                doc_cell = self._document.get(entry.cell_id)
                 resolved_configs[entry.cell_id] = (
-                    existing_meta.config if existing_meta else CellConfig()
+                    doc_cell.config if doc_cell else CellConfig()
                 )
 
         # Let mutate_graph handle all graph mutations: it properly

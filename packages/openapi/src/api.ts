@@ -4053,6 +4053,17 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
+     * DocumentCell
+     * @description A cell in the notebook document.
+     */
+    DocumentCell: {
+      code: string;
+      config?: components["schemas"]["CellConfig"];
+      id: string;
+      /** @default  */
+      name?: string;
+    };
+    /**
      * ExecuteCellCommand
      * @description Execute a single cell.
      *
@@ -4114,9 +4125,12 @@ export interface components {
      *         Attributes:
      *             code: Python code to execute.
      *             request: HTTP request context if available.
+     *             document_cells: Snapshot of the notebook document for code_mode reads.
      */
     ExecuteScratchpadCommand: {
       code: string;
+      /** @default null */
+      documentCells?: components["schemas"]["DocumentCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -4125,6 +4139,8 @@ export interface components {
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
+      /** @default null */
+      documentCells?: components["schemas"]["DocumentCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
