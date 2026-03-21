@@ -59,6 +59,13 @@ from marimo._runtime.commands import (
 from marimo._runtime.context import get_context as _get_runtime_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.runtime import CellMetadata
+from marimo._session.state.document import (
+    CellCreated,
+    CellDeleted,
+    CellsReordered,
+    CodeChanged,
+    NameChanged,
+)
 from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
@@ -87,11 +94,6 @@ class NotebookCellData:
 
 
 LOGGER = _loggers.marimo_logger()
-
-
-# Module-level store for cell names set via code_mode.
-# Persists across context manager invocations within the same kernel.
-_cell_names: dict[CellId_t, str] = {}
 
 
 # ------------------------------------------------------------------
@@ -154,16 +156,9 @@ class _CellsView:
         return list(self._ctx._document)
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
-        # Check code_mode's own name store first.
-        name = _cell_names.get(cell_id)
-        if name is not None:
-            return name
-        # Fall back to cell_manager if available.
-        cm = self._ctx._cell_manager
-        if cm is None:
-            return None
-        data = cm.get_cell_data(cell_id)
-        return data.name if data else None
+        if cell_id in self._ctx._document:
+            return self._ctx._document[cell_id].name or None
+        return None
 
     def _build_at(self, cell_id: CellId_t) -> NotebookCellData:
         cell_impl = self._ctx.graph.cells[cell_id]
@@ -435,16 +430,10 @@ class AsyncCodeModeContext:
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: ``'id' (name)`` or ``'id'``."""
         short = repr(str(cell_id)[:8])
-        name: str | None = None
-        cm = self._cell_manager
-        if cm is not None:
-            data = cm.get_cell_data(cell_id)
-            if data and data.name:
-                name = data.name
-        if name is None:
-            name = _cell_names.get(cell_id)
-        if name:
-            return f"{short} ({name})"
+        if cell_id in self._document:
+            name = self._document[cell_id].name
+            if name:
+                return f"{short} ({name})"
         return short
 
     # ------------------------------------------------------------------
@@ -868,7 +857,9 @@ class AsyncCodeModeContext:
                         graph.delete_cell(cell_id)
                     continue
 
-                code: str | None = getattr(op, "code", None)
+                if not isinstance(op, (_AddOp, _UpdateOp)):
+                    continue
+                code = op.code
                 if code is None:
                     continue
 
@@ -989,18 +980,33 @@ class AsyncCodeModeContext:
                 self.graph.cells[cell_id].configure(cfg.asdict())
             self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
 
-        # Persist names from ops into the module-level store.
+        # Sync the document with the plan: add new cells, remove deleted
+        # ones, update code/names, and reorder to match.
+        existing_doc_ids = set(list(self._document))
+        for entry in plan:
+            if entry.cell_id not in existing_doc_ids:
+                self._document.apply(
+                    CellCreated(id=entry.cell_id, code=entry.code or "")
+                )
+            elif entry.code is not None:
+                self._document.apply(
+                    CodeChanged(id=entry.cell_id, code=entry.code)
+                )
+        for cid in existing_doc_ids - plan_ids:
+            self._document.apply(CellDeleted(id=cid))
+        # Apply names from ops.
         for op in ops:
-            op_name = getattr(op, "name", None)
-            if op_name is not None:
-                target_id = getattr(op, "new_cell_id", None) or op.cell_id
-                _cell_names[target_id] = op_name
-                # Clean up stale entry when cell_id was migrated.
-                if (
-                    getattr(op, "new_cell_id", None) is not None
-                    and op.cell_id in _cell_names
-                ):
-                    del _cell_names[op.cell_id]
+            if not isinstance(op, (_AddOp, _UpdateOp)) or op.name is None:
+                continue
+            target_id = (
+                op.new_cell_id
+                if isinstance(op, _UpdateOp) and op.new_cell_id is not None
+                else op.cell_id
+            )
+            if target_id in self._document:
+                self._document.apply(NameChanged(id=target_id, name=op.name))
+        # Reorder to match the plan.
+        self._document.apply(CellsReordered(cell_ids=target_order))
 
         # Notify frontend of all changes (code and config-only).
         # Cells not queued for execution are marked as stale.
@@ -1027,7 +1033,10 @@ class AsyncCodeModeContext:
             by_stale.setdefault(is_stale, []).append(entry)
 
         for is_stale, entries in by_stale.items():
-            names = [_cell_names.get(e.cell_id, "") for e in entries]
+            names = [
+                dc.name if (dc := self._document.get(e.cell_id)) else ""
+                for e in entries
+            ]
             codes = [
                 e.code
                 if e.code is not None
@@ -1049,15 +1058,14 @@ class AsyncCodeModeContext:
 
         # For name-only updates (no code change), send a notification
         # with existing code so the frontend picks up the new name.
+        code_entry_id_set = {e.cell_id for e in code_entries}
         name_only = {
-            cid: n
-            for cid, n in _cell_names.items()
-            if cid not in {e.cell_id for e in code_entries}
-            and cid in self.graph.cells
-            and any(
-                getattr(op, "name", None) is not None and op.cell_id == cid
-                for op in ops
-            )
+            op.cell_id: op.name or ""
+            for op in ops
+            if isinstance(op, (_AddOp, _UpdateOp))
+            and op.name is not None
+            and op.cell_id not in code_entry_id_set
+            and op.cell_id in self.graph.cells
         }
         if name_only:
             self.notify(
