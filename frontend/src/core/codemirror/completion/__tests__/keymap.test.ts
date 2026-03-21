@@ -41,4 +41,32 @@ describe("completionKeymap", () => {
 
     view.destroy();
   });
+
+  it("should include Enter key in keymap by default (acceptOnEnter=true)", () => {
+    const ext = completionKeymap(true);
+    // The extension should be a keymap containing Enter
+    const keymapExt = ext as { key?: string }[];
+    const hasEnter = keymapExt.some(
+      (e) =>
+        e &&
+        typeof e === "object" &&
+        "key" in e &&
+        (e as { key: string }).key === "Enter",
+    );
+    expect(hasEnter).toBe(true);
+  });
+
+  it("should exclude Enter key from keymap when acceptOnEnter=false", () => {
+    const ext = completionKeymap(false);
+    // The extension should NOT contain an Enter binding
+    const keymapExt = ext as { key?: string }[];
+    const hasEnter = keymapExt.some(
+      (e) =>
+        e &&
+        typeof e === "object" &&
+        "key" in e &&
+        (e as { key: string }).key === "Enter",
+    );
+    expect(hasEnter).toBe(false);
+  });
 });

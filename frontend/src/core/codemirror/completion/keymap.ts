@@ -22,9 +22,15 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   "Alt-`",
 ]);
 
-export function completionKeymap(): Extension {
+export function completionKeymap(acceptOnEnter = true): Extension {
+  const keysToRemove = new Set(KEYS_TO_REMOVE);
+  if (!acceptOnEnter) {
+    // Allow users to disable completion acceptance on Enter, similar to VS Code.
+    // Issue: https://github.com/marimo-team/marimo/issues/7435
+    keysToRemove.add("Enter");
+  }
   const withoutKeysToRemove = defaultCompletionKeymap.filter(
-    (binding) => !KEYS_TO_REMOVE.has(binding.key),
+    (binding) => !keysToRemove.has(binding.key),
   );
 
   return Prec.highest(
