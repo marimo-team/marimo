@@ -74,3 +74,31 @@ for interactive elements](../guides/interactivity.md).
 Write cells whose outputs and behavior are the same
 when given the same inputs (references); such cells are called idempotent. This
 will help you avoid bugs and cache expensive intermediate computations.
+
+## Version control
+
+**Configure `.gitignore` properly.** marimo creates files and folders that
+should not be committed to version control. Here's a recommended `.gitignore`
+configuration for marimo projects:
+
+```gitignore
+# marimo-generated files and folders
+__marimo__/
+```
+
+The `__marimo__` folder contains:
+
+- **Cache files** (`__marimo__/cache/`): Cached outputs from [`mo.cache`][marimo.cache]
+- **Session data**: Temporary session state and metadata
+- **Auto-saved notebooks**: Recovery data from unsaved changes
+
+!!! note "Why ignore `__marimo__`?"
+    These files are automatically generated and specific to your local
+    environment. Committing them could lead to:
+    
+    - Merge conflicts from cached data
+    - Repository bloat from binary cache files
+    - Exposure of temporary session data
+
+If you need to version control specific outputs, export them explicitly
+using marimo's [export functionality](../guides/exporting/index.md).
