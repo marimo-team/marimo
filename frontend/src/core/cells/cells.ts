@@ -17,7 +17,6 @@ import { clamp } from "@/utils/math";
 import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
-import { documentEventsMiddleware } from "./document-events-middleware";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import {
   splitEditor,
@@ -30,6 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
+import { documentEventsMiddleware } from "./document-events-middleware";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {

@@ -10,12 +10,12 @@
  */
 
 import { debounce } from "lodash-es";
-import type { CellId } from "./ids";
-import type { NotebookState } from "./cells";
 import { kioskModeAtom } from "../mode";
 import { getRequestClient } from "../network/requests";
 import type { DocumentEventsRequest } from "../network/types";
 import { store } from "../state/jotai";
+import type { NotebookState } from "./cells";
+import type { CellId } from "./ids";
 
 type DocumentEvent = DocumentEventsRequest["events"][number];
 
@@ -39,16 +39,6 @@ function enqueue(event: DocumentEvent) {
 }
 
 /**
- * Find which cell ID is immediately before `cellId` in the new state,
- * or null if it's first.
- */
-function findAfter(state: NotebookState, cellId: CellId): CellId | null {
-  const ids = state.cellIds.inOrderIds;
-  const idx = ids.indexOf(cellId);
-  return idx > 0 ? ids[idx - 1] : null;
-}
-
-/**
  * Middleware for the notebook reducer. Intercepts actions that modify
  * document structure and queues document events.
  */
@@ -64,12 +54,14 @@ export function documentEventsMiddleware(
       const cellId = p.cellId as CellId;
       const cell = newState.cellData[cellId];
       if (cell) {
+        const ids = newState.cellIds.inOrderIds;
+        const idx = ids.indexOf(cellId);
         enqueue({
           type: "cell-created",
           id: cellId,
           code: cell.code,
           name: cell.name,
-          after: findAfter(newState, cellId),
+          after: idx > 0 ? ids[idx - 1] : null,
         });
       }
       break;
@@ -84,15 +76,25 @@ export function documentEventsMiddleware(
     }
 
     case "moveCell":
-    case "dropCellOverCell":
-    case "dropCellOverColumn":
     case "sendToTop":
     case "sendToBottom": {
       const cellId = p.cellId as CellId;
+      const ids = newState.cellIds.inOrderIds;
+      const idx = ids.indexOf(cellId);
       enqueue({
         type: "cell-moved",
         id: cellId,
-        after: findAfter(newState, cellId),
+        after: idx > 0 ? ids[idx - 1] : null,
+      });
+      break;
+    }
+
+    // Bulk reorders — send the full ordering
+    case "dropCellOverCell":
+    case "dropCellOverColumn": {
+      enqueue({
+        type: "cells-reordered",
+        cell_ids: newState.cellIds.inOrderIds,
       });
       break;
     }
@@ -118,3 +120,10 @@ export function documentEventsMiddleware(
     // No default — most actions don't map to document events.
   }
 }
+
+export const exportedForTesting = {
+  cancelPendingEvents: () => {
+    flushEvents.cancel();
+    pendingEvents = [];
+  },
+};
