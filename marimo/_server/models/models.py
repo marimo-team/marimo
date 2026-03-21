@@ -30,6 +30,7 @@ from marimo._runtime.commands import (
     UpdateUserConfigCommand,
     ValidateSQLCommand,
 )
+from marimo._session.state.document import DocumentEvent
 from marimo._types.ids import CellId_t, UIElementId
 
 
@@ -240,6 +241,10 @@ class RenameNotebookRequest(msgspec.Struct, rename="camel"):
 
 class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
     cell_ids: list[CellId_t]
+
+
+class DocumentEventsRequest(msgspec.Struct, rename="camel"):
+    events: list[DocumentEvent]
 
 
 class FocusCellRequest(msgspec.Struct, rename="camel"):

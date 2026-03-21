@@ -16,8 +16,7 @@ order they arrive. There is no merging.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Annotated, Union
 
 import msgspec
 
@@ -49,26 +48,23 @@ class NotebookCell(msgspec.Struct):
 # ------------------------------------------------------------------
 
 
-@dataclass(frozen=True, slots=True)
-class CellCreated:
+class CellCreated(msgspec.Struct, tag="cell-created"):
     """A new cell was added to the notebook."""
 
     id: CellId_t
     code: str
     name: str = ""
-    config: CellConfig = field(default_factory=CellConfig)
+    config: CellConfig = msgspec.field(default_factory=CellConfig)
     after: CellId_t | None = None
 
 
-@dataclass(frozen=True, slots=True)
-class CellDeleted:
+class CellDeleted(msgspec.Struct, tag="cell-deleted"):
     """A cell was removed from the notebook."""
 
     id: CellId_t
 
 
-@dataclass(frozen=True, slots=True)
-class CellMoved:
+class CellMoved(msgspec.Struct, tag="cell-moved"):
     """A cell was moved to a new position.
 
     ``after=None`` means move to the very beginning.
@@ -78,8 +74,7 @@ class CellMoved:
     after: CellId_t | None = None
 
 
-@dataclass(frozen=True, slots=True)
-class CellsReordered:
+class CellsReordered(msgspec.Struct, tag="cells-reordered"):
     """Full cell ordering was set.
 
     Replaces the entire cell order. Cell IDs that exist in the document
@@ -90,38 +85,38 @@ class CellsReordered:
     cell_ids: list[CellId_t]
 
 
-@dataclass(frozen=True, slots=True)
-class CodeChanged:
+class CodeChanged(msgspec.Struct, tag="code-changed"):
     """A cell's code was changed (but not yet executed)."""
 
     id: CellId_t
     code: str
 
 
-@dataclass(frozen=True, slots=True)
-class NameChanged:
+class NameChanged(msgspec.Struct, tag="name-changed"):
     """A cell was renamed."""
 
     id: CellId_t
     name: str
 
 
-@dataclass(frozen=True, slots=True)
-class ConfigChanged:
+class ConfigChanged(msgspec.Struct, tag="config-changed"):
     """A cell's configuration was changed."""
 
     id: CellId_t
     config: CellConfig
 
 
-DocumentEvent = Union[
-    CellCreated,
-    CellDeleted,
-    CellMoved,
-    CellsReordered,
-    CodeChanged,
-    NameChanged,
-    ConfigChanged,
+DocumentEvent = Annotated[
+    Union[
+        CellCreated,
+        CellDeleted,
+        CellMoved,
+        CellsReordered,
+        CodeChanged,
+        NameChanged,
+        ConfigChanged,
+    ],
+    msgspec.Meta(title="DocumentEvent"),
 ]
 
 
