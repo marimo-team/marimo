@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     )
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._session.queue import ProcessLike, QueueType
+    from marimo._session.state.document import NotebookDocument
     from marimo._session.state.session_view import SessionView
     from marimo._types.ids import ConsumerId
     from marimo._utils.typed_connection import TypedConnection
@@ -108,6 +109,7 @@ class Session(Protocol):
 
     initialization_id: str
     app_file_manager: AppFileManager
+    document: NotebookDocument
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int

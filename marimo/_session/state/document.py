@@ -16,6 +16,7 @@ order they arrive. There is no merging.
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Annotated, Union
 
 import msgspec
@@ -86,7 +87,7 @@ class CellsReordered(msgspec.Struct, tag="cells-reordered"):
 
 
 class CodeChanged(msgspec.Struct, tag="code-changed"):
-    """A cell's code was changed (but not yet executed)."""
+    """A cell's code was changed."""
 
     id: CellId_t
     code: str
@@ -269,16 +270,13 @@ class NotebookDocument:
         self._rebuild_index()
 
     def _apply_code_changed(self, event: CodeChanged) -> None:
-        cell = self._cells[self._require_index(event.id)]
-        cell.code = event.code
+        self._cells[self._require_index(event.id)].code = event.code
 
     def _apply_name_changed(self, event: NameChanged) -> None:
-        cell = self._cells[self._require_index(event.id)]
-        cell.name = event.name
+        self._cells[self._require_index(event.id)].name = event.name
 
     def _apply_config_changed(self, event: ConfigChanged) -> None:
-        cell = self._cells[self._require_index(event.id)]
-        cell.config = event.config
+        self._cells[self._require_index(event.id)].config = event.config
 
     # -- Display ----------------------------------------------------
 
@@ -288,3 +286,21 @@ class NotebookDocument:
             code_preview = c.code[:40].replace("\n", "\\n")
             lines.append(f"  {i}: {c.id} {code_preview!r}")
         return "\n".join(lines)
+
+
+# ------------------------------------------------------------------
+# Context variable
+# ------------------------------------------------------------------
+
+#: Document snapshot for the current scratchpad execution.  Set by
+#: the kernel before running code_mode so that ``AsyncCodeModeContext``
+#: can read cell ordering, code, names, and configs without the kernel
+#: carrying mutable document state.
+_current_document: ContextVar[NotebookDocument | None] = ContextVar(
+    "_current_document", default=None
+)
+
+
+def get_current_document() -> NotebookDocument | None:
+    """Return the document for the current execution, if any."""
+    return _current_document.get()

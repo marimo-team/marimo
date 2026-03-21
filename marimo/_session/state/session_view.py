@@ -41,7 +41,6 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
-from marimo._session.state.document import NotebookDocument
 from marimo._sql.connection_utils import (
     update_table_in_connection,
     update_table_list_in_connection,
@@ -143,8 +142,6 @@ class SessionView:
     """
 
     def __init__(self) -> None:
-        # Canonical notebook structure — ordering, codes, names, configs.
-        self.document = NotebookDocument()
         # Last seen notebook-order of cell IDs
         self.cell_ids: Optional[UpdateCellIdsNotification] = None
         # A mapping from cell (IDs) to their last seen notification

@@ -9,25 +9,32 @@ from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
 from marimo._messaging.notification import (
+    DocumentEventsNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
-from marimo._session.state.document import NotebookCell, NotebookDocument
+from marimo._session.state.document import (
+    NotebookCell,
+    NotebookDocument,
+    _current_document,
+)
 
 
 def _ctx(k: Kernel) -> AsyncCodeModeContext:
     """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
-    k._document = NotebookDocument(
-        [
-            NotebookCell(
-                id=cid,
-                code=cell.code,
-                config=cell.config,
-            )
-            for cid, cell in k.graph.cells.items()
-        ]
+    _current_document.set(
+        NotebookDocument(
+            [
+                NotebookCell(
+                    id=cid,
+                    code=cell.code,
+                    config=cell.config,
+                )
+                for cid, cell in k.graph.cells.items()
+            ]
+        )
     )
     return AsyncCodeModeContext(k)
 
@@ -46,6 +53,15 @@ def _ids_notifs(k: Kernel) -> list[UpdateCellIdsNotification]:
         for op in k.stream.operations
         if isinstance(op, UpdateCellIdsNotification)
     ]
+
+
+def _doc_events(k: Kernel) -> list[dict[str, object]]:
+    """Serialize all document events for snapshot comparison."""
+    events = []
+    for op in k.stream.operations:
+        if isinstance(op, DocumentEventsNotification):
+            events.extend(msgspec.to_builtins(op.events))
+    return events
 
 
 def _clear_messages(k: Kernel) -> None:
@@ -70,14 +86,23 @@ class TestAddCell:
         assert cell.code == "x = 1"
         assert k.globals["x"] == 1
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["codes"] == ["x = 1"]
-        assert code_notifs[0]["code_is_stale"] is False
-
-        ids_notifs = msgspec.to_builtins(_ids_notifs(k))
-        assert len(ids_notifs) == 1
-        assert len(ids_notifs[0]["cell_ids"]) == 1
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "x = 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "cells-reordered", "cell_ids": ["Hbol"]},
+            ]
+        )
 
     async def test_add_appends_by_default(self, k: Kernel) -> None:
         await k.run(
@@ -96,12 +121,23 @@ class TestAddCell:
         assert len(k.graph.cells) == 3
         assert k.globals["c"] == 30
 
-        # New cell should be last in the ordering notification.
-        ids_notifs = _ids_notifs(k)
-        assert len(ids_notifs) == 1
-        cell_ids = ids_notifs[0].cell_ids
-        assert cell_ids[:2] == ["0", "1"]
-        assert len(cell_ids) == 3
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "c = a + b",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "cells-reordered", "cell_ids": ["0", "1", "Hbol"]},
+            ]
+        )
 
     async def test_add_with_after(self, k: Kernel) -> None:
         await k.run(
@@ -116,11 +152,23 @@ class TestAddCell:
         async with ctx as nb:
             nb.create_cell("c = a + b", after="0")
 
-        ids_notifs = _ids_notifs(k)
-        cell_ids = ids_notifs[0].cell_ids
-        assert cell_ids[0] == "0"
-        # New cell should be after "0", before "1".
-        assert cell_ids[2] == "1"
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "c = a + b",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "cells-reordered", "cell_ids": ["0", "Hbol", "1"]},
+            ]
+        )
 
     async def test_add_without_run_does_not_execute(self, k: Kernel) -> None:
         ctx = _ctx(k)
@@ -132,10 +180,23 @@ class TestAddCell:
         assert len(k.graph.cells) == 1
         assert "x" not in k.globals
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["codes"] == ["x = 999"]
-        assert code_notifs[0]["code_is_stale"] is True
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "x = 999",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "cells-reordered", "cell_ids": ["Hbol"]},
+            ]
+        )
 
     async def test_add_returns_cell_id(self, k: Kernel) -> None:
         ctx = _ctx(k)
@@ -178,8 +239,11 @@ class TestDeleteCell:
 
         assert _graph_codes(k) == snapshot({"0": "a = 1", "2": "c = 3"})
 
-        assert msgspec.to_builtins(_ids_notifs(k)) == snapshot(
-            [{"op": "update-cell-ids", "cell_ids": ["0", "2"]}]
+        assert _doc_events(k) == snapshot(
+            [
+                {"type": "cell-deleted", "id": "1"},
+                {"type": "cells-reordered", "cell_ids": ["0", "2"]},
+            ]
         )
 
     async def test_delete_cleans_globals(self, k: Kernel) -> None:
@@ -233,22 +297,10 @@ class TestUpdateCell:
         assert k.globals["x"] == 42
         assert _graph_codes(k) == snapshot({"0": "x = 42"})
 
-        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
+        assert _doc_events(k) == snapshot(
             [
-                {
-                    "op": "update-cell-codes",
-                    "cell_ids": ["0"],
-                    "codes": ["x = 42"],
-                    "code_is_stale": False,
-                    "names": [],
-                    "configs": [
-                        {
-                            "column": None,
-                            "disabled": False,
-                            "hide_code": False,
-                        }
-                    ],
-                }
+                {"type": "code-changed", "id": "0", "code": "x = 42"},
+                {"type": "cells-reordered", "cell_ids": ["0"]},
             ]
         )
 
@@ -297,23 +349,8 @@ class TestUpdateCell:
 
         assert k.globals["x"] == 1
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
-        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
-            [
-                {
-                    "op": "update-cell-codes",
-                    "cell_ids": ["0"],
-                    "codes": ["x = 1"],
-                    "code_is_stale": False,
-                    "names": [],
-                    "configs": [
-                        {
-                            "column": None,
-                            "disabled": False,
-                            "hide_code": True,
-                        }
-                    ],
-                }
-            ]
+        assert _doc_events(k) == snapshot(
+            [{"type": "cells-reordered", "cell_ids": ["0"]}]
         )
 
 
@@ -527,9 +564,36 @@ class TestResolveTarget:
         assert k.globals["y"] == 2
 
         # "first" should come before the second cell in ordering.
-        ids_notifs = _ids_notifs(k)
-        cell_ids = ids_notifs[0].cell_ids
-        assert len(cell_ids) == 2
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "x = 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {
+                    "type": "cell-created",
+                    "id": "MJUe",
+                    "code": "y = x + 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "name-changed", "id": "Hbol", "name": "first"},
+                {"type": "cells-reordered", "cell_ids": ["Hbol", "MJUe"]},
+            ]
+        )
 
     async def test_create_after_renamed_cell(self, k: Kernel) -> None:
         """Can reference a cell by its new name after edit_cell renames it."""
@@ -550,10 +614,24 @@ class TestResolveTarget:
         assert k.globals["c"] == 3
 
         # New cell should be after "0" (renamed), before "1".
-        ids_notifs = _ids_notifs(k)
-        cell_ids = ids_notifs[0].cell_ids
-        assert cell_ids[0] == "0"
-        assert cell_ids[2] == "1"
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "c = a + b",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "name-changed", "id": "0", "name": "renamed"},
+                {"type": "cells-reordered", "cell_ids": ["0", "Hbol", "1"]},
+            ]
+        )
 
 
 class TestInstallPackages:
@@ -614,18 +692,36 @@ class TestAutorunStaleState:
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
 
-        # The notification for b should be code_is_stale=False because
-        # autorun will execute it.
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        stale_flags = {
-            cid: n["code_is_stale"]
-            for n in code_notifs
-            for cid in n["cell_ids"]
-        }
-        a_id = list(k.graph.cells.keys())[0]
-        b_id = list(k.graph.cells.keys())[1]
-        assert stale_flags[str(a_id)] is False
-        assert stale_flags[str(b_id)] is False
+        # Both cells should have been created in document events.
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "x = 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {
+                    "type": "cell-created",
+                    "id": "MJUe",
+                    "code": "y = x + 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "cells-reordered", "cell_ids": ["Hbol", "MJUe"]},
+            ]
+        )
 
     async def test_dependent_chain_lazy_mode(
         self, lazy_kernel: Kernel
@@ -645,16 +741,35 @@ class TestAutorunStaleState:
         # b should NOT have executed in lazy mode.
         assert "y" not in k.globals
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        stale_flags = {
-            cid: n["code_is_stale"]
-            for n in code_notifs
-            for cid in n["cell_ids"]
-        }
-        a_id = list(k.graph.cells.keys())[0]
-        b_id = list(k.graph.cells.keys())[1]
-        assert stale_flags[str(a_id)] is False
-        assert stale_flags[str(b_id)] is True
+        assert _doc_events(k) == snapshot(
+            [
+                {
+                    "type": "cell-created",
+                    "id": "Hbol",
+                    "code": "x = 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {
+                    "type": "cell-created",
+                    "id": "MJUe",
+                    "code": "y = x + 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "after": None,
+                },
+                {"type": "cells-reordered", "cell_ids": ["Hbol", "MJUe"]},
+            ]
+        )
 
     async def test_two_step_edit_then_run(self, k: Kernel) -> None:
         """edit_cell in one flush, run_cell in a separate flush should
@@ -675,6 +790,5 @@ class TestAutorunStaleState:
 
         assert k.globals["x"] == 42
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["code_is_stale"] is False
+        # The run-only flush sends a CodeChanged event to clear stale state.
+        assert _doc_events(k) == snapshot([])

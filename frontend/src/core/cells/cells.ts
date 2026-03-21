@@ -758,13 +758,28 @@ createReducerAndAtoms(initialNotebookState, {
   },
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id as CellId;
-    const nextState = updateCellRuntimeState({
+    let nextState = updateCellRuntimeState({
       state,
       cellId,
       cellReducer: (cell) => {
         return transitionCell(cell, message);
       },
     });
+    // When a cell starts execution (queued), snapshot the current code
+    // as lastCodeRun. This clears staleness if the code hasn't changed
+    // by the time execution completes. If the user edits during
+    // execution, code !== lastCodeRun and the cell stays stale.
+    if (message.status === "queued") {
+      nextState = updateCellData({
+        state: nextState,
+        cellId,
+        cellReducer: (cell) => ({
+          ...cell,
+          lastCodeRun: cell.code.trim(),
+          edited: false,
+        }),
+      });
+    }
     return {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],

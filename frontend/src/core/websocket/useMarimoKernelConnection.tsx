@@ -5,8 +5,12 @@ import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { suppressDocumentEvents } from "@/core/cells/document-events-middleware";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import type { NotificationPayload } from "@/core/kernel/messages";
+import type {
+  NotificationMessageData,
+  NotificationPayload,
+} from "@/core/kernel/messages";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -92,7 +96,64 @@ export function useMarimoKernelConnection(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const {
+    handleCellMessage,
+    setCellCodes,
+    setCellIds,
+    deleteCell,
+    updateCellName,
+  } = useCellActions();
+
+  const handleDocumentEvents = (
+    events: NotificationMessageData<"document-events">["events"],
+  ) => {
+    suppressDocumentEvents(() => {
+      // Collect created/changed cells for a batch setCellCodes call.
+      const codesToSync: { id: CellId; code: string; name: string }[] = [];
+
+      for (const event of events) {
+        switch (event.type) {
+          case "cell-created":
+            codesToSync.push({
+              id: event.id as CellId,
+              code: event.code,
+              name: event.name ?? "",
+            });
+            break;
+          case "cell-deleted":
+            deleteCell({ cellId: event.id as CellId });
+            break;
+          case "cells-reordered":
+            setCellIds({ cellIds: event.cell_ids as CellId[] });
+            break;
+          case "code-changed":
+            codesToSync.push({
+              id: event.id as CellId,
+              code: event.code,
+              name: "",
+            });
+            break;
+          case "name-changed":
+            updateCellName({
+              cellId: event.id as CellId,
+              name: event.name,
+            });
+            break;
+        }
+      }
+
+      // Code changes are always stale — execution results clear
+      // staleness naturally via CellNotification.
+      if (codesToSync.length > 0) {
+        setCellCodes({
+          ids: codesToSync.map((c) => c.id),
+          codes: codesToSync.map((c) => c.code),
+          names: codesToSync.filter((c) => c.name).map((c) => c.name),
+          codeIsStale: true,
+        });
+      }
+    });
+  };
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setAppConfig = useSetAppConfig();
@@ -323,6 +384,9 @@ export function useMarimoKernelConnection(opts: {
         return;
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
+        return;
+      case "document-events":
+        handleDocumentEvents(msg.data.events);
         return;
       default:
         logNever(msg.data);

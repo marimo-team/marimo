@@ -683,7 +683,7 @@ components:
       title: ClearCacheRequest
       type: object
     CodeChanged:
-      description: A cell's code was changed (but not yet executed).
+      description: A cell's code was changed.
       properties:
         code:
           type: string
@@ -1465,6 +1465,42 @@ components:
       - default_width
       - theme
       title: DisplayConfig
+      type: object
+    DocumentEventsNotification:
+      description: "Broadcasts document events to the frontend.\n\n    Sent by the\
+        \ session or kernel when document structure changes.\n    The frontend applies\
+        \ these to update its local state.\n\n    Attributes:\n        events: List\
+        \ of document events to apply."
+      properties:
+        events:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/CellCreated'
+            - $ref: '#/components/schemas/CellDeleted'
+            - $ref: '#/components/schemas/CellMoved'
+            - $ref: '#/components/schemas/CellsReordered'
+            - $ref: '#/components/schemas/CodeChanged'
+            - $ref: '#/components/schemas/NameChanged'
+            - $ref: '#/components/schemas/ConfigChanged'
+            discriminator:
+              mapping:
+                cell-created: '#/components/schemas/CellCreated'
+                cell-deleted: '#/components/schemas/CellDeleted'
+                cell-moved: '#/components/schemas/CellMoved'
+                cells-reordered: '#/components/schemas/CellsReordered'
+                code-changed: '#/components/schemas/CodeChanged'
+                config-changed: '#/components/schemas/ConfigChanged'
+                name-changed: '#/components/schemas/NameChanged'
+              propertyName: type
+            title: DocumentEvent
+          type: array
+        op:
+          enum:
+          - document-events
+      required:
+      - op
+      - events
+      title: DocumentEventsNotification
       type: object
     DocumentEventsRequest:
       properties:
@@ -2650,6 +2686,7 @@ components:
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/UpdateCellCodesNotification'
           - $ref: '#/components/schemas/UpdateCellIdsNotification'
+          - $ref: '#/components/schemas/DocumentEventsNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2662,6 +2699,7 @@ components:
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
               datasets: '#/components/schemas/DatasetsNotification'
+              document-events: '#/components/schemas/DocumentEventsNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
               installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'

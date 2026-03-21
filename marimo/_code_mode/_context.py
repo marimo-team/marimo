@@ -44,9 +44,8 @@ from marimo._code_mode._plan import (
     _validate_ops,
 )
 from marimo._messaging.notification import (
+    DocumentEventsNotification,
     Notification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
@@ -64,7 +63,9 @@ from marimo._session.state.document import (
     CellDeleted,
     CellsReordered,
     CodeChanged,
+    DocumentEvent,
     NameChanged,
+    get_current_document,
 )
 from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
@@ -156,15 +157,13 @@ class _CellsView:
         return list(self._ctx._document)
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
-        if cell_id in self._ctx._document:
-            return self._ctx._document[cell_id].name or None
-        return None
+        doc_cell = self._ctx._document.get(cell_id)
+        return doc_cell.name or None if doc_cell else None
 
     def _build_at(self, cell_id: CellId_t) -> NotebookCellData:
-        cell_impl = self._ctx.graph.cells[cell_id]
         doc_cell = self._ctx._document.get(cell_id)
         return NotebookCellData(
-            code=cell_impl.code,
+            code=doc_cell.code if doc_cell else "",
             config=doc_cell.config if doc_cell else CellConfig(),
             name=self._cell_name(cell_id),
             id=cell_id,
@@ -261,14 +260,15 @@ class AsyncCodeModeContext:
         *,
         skip_validation: bool = False,
     ) -> None:
-        if kernel._document is None:
+        document = get_current_document()
+        if document is None:
             raise RuntimeError(
                 "NotebookDocument not available — code_mode must be invoked "
-                "via the /api/execute endpoint which attaches the document "
-                "snapshot"
+                "via the /api/execute endpoint which sets the document "
+                "context variable"
             )
         self._kernel = kernel
-        self._document = kernel._document
+        self._document = document
         self._cell_manager = cell_manager
         self._skip_validation = skip_validation
         self._ops: list[_Op] = []
@@ -342,18 +342,25 @@ class AsyncCodeModeContext:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
-            # run_cell was called without any structural ops — just re-run.
-            # Notify the frontend that these cells are no longer stale so
-            # it clears edited/lastCodeRun (covers the two-step pattern:
-            # edit_cell in one flush, run_cell in a separate flush).
-            valid = cells_to_run & set(self.graph.cells.keys())
-            if valid:
-                self.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=list(valid),
-                        codes=[self.graph.cells[cid].code for cid in valid],
-                        code_is_stale=False,
-                    )
+            # run_cell was called without any structural ops.
+            # If any cells have document code that differs from the graph,
+            # sync them via mutate_graph first so the kernel runs the
+            # latest code.
+            sync_requests = []
+            for cid in cells_to_run:
+                doc_cell = self._document.get(cid)
+                if doc_cell is not None:
+                    doc_code = doc_cell.code
+                    graph_cell = self.graph.cells.get(cid)
+                    graph_code = graph_cell.code if graph_cell else ""
+                    if doc_code != graph_code:
+                        sync_requests.append(
+                            ExecuteCellCommand(cell_id=cid, code=doc_code)
+                        )
+            if sync_requests:
+                cells_to_run = cells_to_run | self._kernel.mutate_graph(
+                    execution_requests=sync_requests,
+                    deletion_requests=[],
                 )
             await self._kernel._run_cells(cells_to_run)
 
@@ -430,8 +437,9 @@ class AsyncCodeModeContext:
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: ``'id' (name)`` or ``'id'``."""
         short = repr(str(cell_id)[:8])
-        if cell_id in self._document:
-            name = self._document[cell_id].name
+        doc_cell = self._document.get(cell_id)
+        if doc_cell is not None:
+            name = doc_cell.name
             if name:
                 return f"{short} ({name})"
         return short
@@ -980,21 +988,37 @@ class AsyncCodeModeContext:
                 self.graph.cells[cell_id].configure(cfg.asdict())
             self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
 
-        # Sync the document with the plan: add new cells, remove deleted
-        # ones, update code/names, and reorder to match.
-        existing_doc_ids = set(list(self._document))
+        # Build document events from the plan, apply them to the local
+        # document, and broadcast to the frontend + session.
+        _run_set = explicit_run or set()
+        if _run_set and self._kernel.reactive_execution_mode == "autorun":
+            _run_set = _run_set | cells_to_run
+
+        doc_events: list[DocumentEvent] = []
+        existing_doc_ids = set(self._document)
+
+        # Creates and code changes.
         for entry in plan:
             if entry.cell_id not in existing_doc_ids:
-                self._document.apply(
-                    CellCreated(id=entry.cell_id, code=entry.code or "")
+                doc_events.append(
+                    CellCreated(
+                        id=entry.cell_id,
+                        code=entry.code or "",
+                        config=resolved_configs.get(
+                            entry.cell_id, CellConfig()
+                        ),
+                    )
                 )
             elif entry.code is not None:
-                self._document.apply(
+                doc_events.append(
                     CodeChanged(id=entry.cell_id, code=entry.code)
                 )
+
+        # Deletes.
         for cid in existing_doc_ids - plan_ids:
-            self._document.apply(CellDeleted(id=cid))
-        # Apply names from ops.
+            doc_events.append(CellDeleted(id=cid))
+
+        # Names from ops.
         for op in ops:
             if not isinstance(op, (_AddOp, _UpdateOp)) or op.name is None:
                 continue
@@ -1003,81 +1027,17 @@ class AsyncCodeModeContext:
                 if isinstance(op, _UpdateOp) and op.new_cell_id is not None
                 else op.cell_id
             )
-            if target_id in self._document:
-                self._document.apply(NameChanged(id=target_id, name=op.name))
+            doc_events.append(NameChanged(id=target_id, name=op.name))
+
         # Reorder to match the plan.
-        self._document.apply(CellsReordered(cell_ids=target_order))
+        doc_events.append(CellsReordered(cell_ids=target_order))
 
-        # Notify frontend of all changes (code and config-only).
-        # Cells not queued for execution are marked as stale.
-        # Config-only changes are never stale (the code didn't change).
-        #
-        # In autorun mode, when the caller explicitly ran at least one
-        # cell, also include cells_to_run from mutate_graph (reactive
-        # descendants) so the agent sees their execution synchronously
-        # and the frontend isn't left showing stale for cells that are
-        # about to execute.  We only expand when explicit_run is
-        # non-empty to preserve the "suggestion" behavior: creating
-        # cells without run_cell leaves them stale/unexecuted.
-        _run_set = explicit_run or set()
-        if _run_set and self._kernel.reactive_execution_mode == "autorun":
-            _run_set = _run_set | cells_to_run
-        _code_entry_ids = {e.cell_id for e in code_entries}
-        all_entries = code_entries + config_entries
-        by_stale: dict[bool, list[_PlanEntry]] = {}
-        for entry in all_entries:
-            is_stale = (
-                entry.cell_id in _code_entry_ids
-                and entry.cell_id not in _run_set
-            )
-            by_stale.setdefault(is_stale, []).append(entry)
+        # Apply locally.
+        for event in doc_events:
+            self._document.apply(event)
 
-        for is_stale, entries in by_stale.items():
-            names = [
-                dc.name if (dc := self._document.get(e.cell_id)) else ""
-                for e in entries
-            ]
-            codes = [
-                e.code
-                if e.code is not None
-                else self.graph.cells[e.cell_id].code
-                for e in entries
-            ]
-            kwargs: dict[str, Any] = {}
-            if any(names):
-                kwargs["names"] = names
-            self.notify(
-                UpdateCellCodesNotification(
-                    cell_ids=[e.cell_id for e in entries],
-                    codes=codes,
-                    code_is_stale=is_stale,
-                    configs=[resolved_configs[e.cell_id] for e in entries],
-                    **kwargs,
-                )
-            )
-
-        # For name-only updates (no code change), send a notification
-        # with existing code so the frontend picks up the new name.
-        code_entry_id_set = {e.cell_id for e in code_entries}
-        name_only = {
-            op.cell_id: op.name or ""
-            for op in ops
-            if isinstance(op, (_AddOp, _UpdateOp))
-            and op.name is not None
-            and op.cell_id not in code_entry_id_set
-            and op.cell_id in self.graph.cells
-        }
-        if name_only:
-            self.notify(
-                UpdateCellCodesNotification(
-                    cell_ids=list(name_only.keys()),
-                    codes=[self.graph.cells[cid].code for cid in name_only],
-                    code_is_stale=False,
-                    names=list(name_only.values()),
-                )
-            )
-
-        self.notify(UpdateCellIdsNotification(cell_ids=target_order))
+        # Broadcast to frontend + session.
+        self.notify(DocumentEventsNotification(events=doc_events))
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.

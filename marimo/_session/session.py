@@ -16,6 +16,7 @@ from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notification import (
+    DocumentEventsNotification,
     NotificationMessage,
 )
 from marimo._messaging.serde import serialize_kernel_message
@@ -232,7 +233,10 @@ class SessionImpl(Session):
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
         self.session_view = SessionView()
-        self.session_view.document = NotebookDocument.from_cell_manager(
+        # Document lives on the session (not SessionView) because
+        # SessionView may be replaced across reconnections while the
+        # session persists for the lifetime of the kernel.
+        self.document = NotebookDocument.from_cell_manager(
             app_file_manager.app.cell_manager
         )
         self.config_manager = config_manager
@@ -392,6 +396,10 @@ class SessionImpl(Session):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""
+        # Apply document events to the session's document.
+        if isinstance(operation, DocumentEventsNotification):
+            for event in operation.events:
+                self.document.apply(event)
         if isinstance(operation, bytes):
             notification = operation
         else:

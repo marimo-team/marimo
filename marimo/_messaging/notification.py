@@ -34,6 +34,7 @@ from marimo._messaging.context import RUN_ID_CTX, RunId_t
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._session.state.document import DocumentEvent
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 from marimo._utils.msgspec_basestruct import BaseStruct
@@ -785,6 +786,20 @@ class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
     cell_ids: list[CellId_t]
 
 
+class DocumentEventsNotification(Notification, tag="document-events"):
+    """Broadcasts document events to the frontend.
+
+    Sent by the session or kernel when document structure changes.
+    The frontend applies these to update its local state.
+
+    Attributes:
+        events: List of document events to apply.
+    """
+
+    name: ClassVar[str] = "document-events"
+    events: list[DocumentEvent]
+
+
 NotificationMessage = Union[
     # Cell operations
     CellNotification,
@@ -835,4 +850,6 @@ NotificationMessage = Union[
     FocusCellNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
+    # Document
+    DocumentEventsNotification,
 ]

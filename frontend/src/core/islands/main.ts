@@ -117,6 +117,7 @@ export async function initialize() {
       case "reload":
       case "update-cell-codes":
       case "update-cell-ids":
+      case "document-events":
       case "focus-cell":
       case "variables":
       case "variable-values":

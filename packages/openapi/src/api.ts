@@ -3711,7 +3711,7 @@ export interface components {
     ClearCacheRequest: Record<string, any>;
     /**
      * CodeChanged
-     * @description A cell's code was changed (but not yet executed).
+     * @description A cell's code was changed.
      */
     CodeChanged: {
       code: string;
@@ -4162,6 +4162,29 @@ export interface components {
       reference_highlighting?: boolean;
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * DocumentEventsNotification
+     * @description Broadcasts document events to the frontend.
+     *
+     *         Sent by the session or kernel when document structure changes.
+     *         The frontend applies these to update its local state.
+     *
+     *         Attributes:
+     *             events: List of document events to apply.
+     */
+    DocumentEventsNotification: {
+      events: (
+        | components["schemas"]["CellCreated"]
+        | components["schemas"]["CellDeleted"]
+        | components["schemas"]["CellMoved"]
+        | components["schemas"]["CellsReordered"]
+        | components["schemas"]["CodeChanged"]
+        | components["schemas"]["NameChanged"]
+        | components["schemas"]["ConfigChanged"]
+      )[];
+      /** @enum {unknown} */
+      op: "document-events";
     };
     /** DocumentEventsRequest */
     DocumentEventsRequest: {
@@ -4892,7 +4915,8 @@ export interface components {
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["UpdateCellCodesNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"];
+        | components["schemas"]["UpdateCellIdsNotification"]
+        | components["schemas"]["DocumentEventsNotification"];
     };
     /**
      * LanguageServersConfig

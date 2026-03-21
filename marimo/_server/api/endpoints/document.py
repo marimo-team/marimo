@@ -49,6 +49,6 @@ async def document_events(request: Request) -> BaseResponse:
     session = app_state.require_current_session()
 
     for event in body.events:
-        session.session_view.document.apply(event)
+        session.document.apply(event)
 
     return SuccessResponse()

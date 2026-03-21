@@ -19,6 +19,22 @@ import type { CellId } from "./ids";
 
 type DocumentEvent = DocumentEventsRequest["events"][number];
 
+/**
+ * Depth counter for suppression. Incremented when applying
+ * server-originated events so the middleware doesn't echo them back.
+ * A counter (not a boolean) so nested calls are safe.
+ */
+let _suppressDepth = 0;
+
+export function suppressDocumentEvents<T>(fn: () => T): T {
+  _suppressDepth++;
+  try {
+    return fn();
+  } finally {
+    _suppressDepth--;
+  }
+}
+
 let pendingEvents: DocumentEvent[] = [];
 
 const flushEvents = debounce(() => {
@@ -31,7 +47,7 @@ const flushEvents = debounce(() => {
 }, 400);
 
 function enqueue(event: DocumentEvent) {
-  if (store.get(kioskModeAtom)) {
+  if (_suppressDepth > 0 || store.get(kioskModeAtom)) {
     return;
   }
   pendingEvents.push(event);
