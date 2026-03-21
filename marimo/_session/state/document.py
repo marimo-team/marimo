@@ -19,11 +19,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union
 
+from marimo._ast.cell import CellConfig
+from marimo._types.ids import CellId_t
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-from marimo._ast.cell import CellConfig
-from marimo._types.ids import CellId_t
+    from marimo._ast.cell_manager import CellManager
 
 # ------------------------------------------------------------------
 # Document cell
@@ -141,6 +143,20 @@ class NotebookDocument:
         self._index: dict[CellId_t, int] = {
             c.id: i for i, c in enumerate(self._cells)
         }
+
+    @classmethod
+    def from_cell_manager(cls, cell_manager: CellManager) -> NotebookDocument:
+        """Build a document from a CellManager's current state."""
+        cells = [
+            DocumentCell(
+                id=cd.cell_id,
+                code=cd.code,
+                name=cd.name,
+                config=cd.config,
+            )
+            for cd in cell_manager.cell_data()
+        ]
+        return cls(cells)
 
     # -- Mapping-style reads ----------------------------------------
     #

@@ -48,6 +48,7 @@ from marimo._session.managers import (
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._session.room import Room
+from marimo._session.state.document import NotebookDocument
 from marimo._session.state.session_view import SessionView
 from marimo._session.types import (
     KernelManager,
@@ -231,6 +232,9 @@ class SessionImpl(Session):
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
         self.session_view = SessionView()
+        self.session_view.document = NotebookDocument.from_cell_manager(
+            app_file_manager.app.cell_manager
+        )
         self.config_manager = config_manager
         self.extensions = extensions
         self.scratchpad_lock = asyncio.Lock()
