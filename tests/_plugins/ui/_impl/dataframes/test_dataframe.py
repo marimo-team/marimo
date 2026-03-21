@@ -498,6 +498,29 @@ class TestDataframes:
         assert type(subject.value) is type(df)
 
     @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_uses_bound_variable_name() -> None:
+        my_dataframe = pd.DataFrame({"A": [1, 2, 3], "B": ["x", "y", "z"]})
+        subject = ui.dataframe(my_dataframe)
+
+        mock_registry = Mock()
+        mock_registry.bound_names.return_value = ["my_dataframe"]
+
+        mock_ctx = Mock()
+        mock_ctx.ui_element_registry = mock_registry
+
+        with patch(
+            "marimo._runtime.context.get_context",
+            return_value=mock_ctx,
+        ):
+            download_url = subject._download_as(DownloadAsArgs(format="csv"))
+            assert "my_dataframe.csv" in download_url or (
+                download_url.startswith("data:")
+            )
+
+    @staticmethod
     @pytest.mark.parametrize(
         "df",
         create_dataframes(

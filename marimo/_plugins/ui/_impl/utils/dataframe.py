@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from typing import Any, TypeVar, Union
 
 from narwhals.typing import IntoDataFrame
@@ -19,6 +20,36 @@ from marimo._runtime.context.types import (
 LOGGER = _loggers.marimo_logger()
 
 DEFAULT_CSV_ENCODING = "utf-8"
+
+
+def _create_download_virtual_file(
+    data: Union[str, bytes, io.BytesIO],
+    ext: str,
+    filename: str,
+) -> str:
+    """Create a virtual file with a custom filename for download."""
+    from marimo._runtime.virtual_file import VirtualFile
+
+    if isinstance(data, str):
+        buffer = data.encode("utf-8")
+    elif isinstance(data, io.BytesIO):
+        buffer = data.getvalue()
+    else:
+        buffer = data
+
+    try:
+        ctx = get_context()
+        if ctx.virtual_files_supported:
+            vfile = VirtualFile(filename=f"{filename}.{ext}", buffer=buffer)
+            ctx.virtual_file_registry.add(vfile, ctx)
+            return vfile.url
+    except ContextNotInitializedError:
+        pass
+
+    vfile = VirtualFile(
+        filename=f"{filename}.{ext}", buffer=buffer, as_data_url=True
+    )
+    return vfile.url
 
 
 def get_default_csv_encoding() -> str:
@@ -58,6 +89,7 @@ def download_as(
     csv_encoding: str | None = None,
     csv_separator: str | None = None,
     json_ensure_ascii: bool = True,
+    filename: str | None = None,
 ) -> str:
     """Download the table data in the specified format.
 
@@ -73,6 +105,8 @@ def download_as(
             Defaults to "," when not configured.
         json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON output. Defaults to True.
+        filename (str | None, optional): The filename to use for the downloaded file.
+            Defaults to None, which uses a random filename.
 
     Raises:
         ValueError: If unrecognized format.
@@ -82,8 +116,27 @@ def download_as(
         str: The URL to download the table data.
     """
     if drop_marimo_index:
-        # Remove the selection column if exists
         manager = manager.drop_columns([INDEX_COLUMN_NAME])
+
+    if filename is not None:
+        if ext == "csv":
+            encoding = (
+                csv_encoding
+                if csv_encoding is not None
+                else get_default_csv_encoding()
+            )
+            data = manager.to_csv(encoding=encoding, separator=csv_separator)
+        elif ext == "json":
+            data = manager.to_json(
+                encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
+            )
+        elif ext == "parquet":
+            data = manager.to_parquet()
+        else:
+            raise ValueError(
+                "format must be one of 'csv', 'json', or 'parquet'."
+            )
+        return _create_download_virtual_file(data, ext, filename)
 
     if ext == "csv":
         encoding = (
@@ -95,7 +148,6 @@ def download_as(
             manager.to_csv(encoding=encoding, separator=csv_separator)
         ).url
     elif ext == "json":
-        # Use strict JSON to ensure compliance with JSON spec
         return mo_data.json(
             manager.to_json(
                 encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True

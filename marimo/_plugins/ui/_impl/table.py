@@ -866,10 +866,23 @@ class table(
                 else self._searched_manager
             )
 
-        # Remove the selection column before downloading
         if isinstance(manager_candidate, TableManager):
+            bound_filename: str | None = None
+            try:
+                from marimo._runtime.context import get_context
+
+                ctx = get_context()
+                bound = list(ctx.ui_element_registry.bound_names(self._id))
+                if bound:
+                    bound_filename = bound[0]
+            except Exception:
+                LOGGER.debug("Error getting bound names for download filename")
+
             return download_as(
-                manager_candidate, args.format, drop_marimo_index=True
+                manager_candidate,
+                args.format,
+                drop_marimo_index=True,
+                filename=bound_filename,
             )
         else:
             raise NotImplementedError(

@@ -13,6 +13,7 @@ from typing import (
     cast,
 )
 
+from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
@@ -51,6 +52,8 @@ from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
 from marimo._utils.variable_name import infer_variable_name
+
+LOGGER = _loggers.marimo_logger()
 
 TOO_MANY_ROWS = 100_000
 
@@ -345,17 +348,27 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         Raises:
             ValueError: If format is not supported.
         """
-        # Get transformed dataframe
         df = self._value
-
-        # Get the table manager for the transformed data
         manager = self._get_cached_table_manager(df, self._limit)
+
+        bound_filename: str | None = None
+        try:
+            from marimo._runtime.context import get_context
+
+            ctx = get_context()
+            bound = list(ctx.ui_element_registry.bound_names(self._id))
+            if bound:
+                bound_filename = bound[0]
+        except Exception:
+            LOGGER.debug("Error getting bound names for download filename")
+
         return download_as(
             manager,
             args.format,
             csv_encoding=self._download_csv_encoding,
             csv_separator=self._download_csv_separator,
             json_ensure_ascii=self._download_json_ensure_ascii,
+            filename=bound_filename,
         )
 
     def _apply_filters_query_sort(
