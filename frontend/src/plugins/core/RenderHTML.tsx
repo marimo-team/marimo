@@ -13,8 +13,8 @@ import React, {
   useRef,
 } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { Tooltip } from "@/components/ui/tooltip";
 import { QueryParamPreservingLink } from "@/components/ui/query-param-preserving-link";
+import { Tooltip } from "@/components/ui/tooltip";
 import { DocHoverTarget } from "@/core/documentation/DocHoverTarget";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 
@@ -171,9 +171,7 @@ const wrapTooltipTargets: TransformFn = (
   if (domNode instanceof Element && domNode.attribs?.["data-tooltip"]) {
     const tooltipContent = domNode.attribs["data-tooltip"];
     return (
-      <Tooltip content={tooltipContent}>
-        {reactNode as JSX.Element}
-      </Tooltip>
+      <Tooltip content={tooltipContent}>{reactNode as JSX.Element}</Tooltip>
     );
   }
 };
