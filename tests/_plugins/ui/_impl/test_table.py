@@ -2691,3 +2691,120 @@ def test_search_raw_data_with_query_and_format_mapping() -> None:
     assert json.loads(result.raw_data) == [
         {"name": "bob", "score": 20},
     ]
+
+
+def test_default_sort_single_column_ascending() -> None:
+    """Test default_sort with single column ascending."""
+    data = [
+        {"name": "Charlie", "age": 35},
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+    ]
+    table = ui.table(data, default_sort="age")
+
+    # Verify data is sorted by age ascending
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+    parsed_data = json.loads(result.data)
+    assert parsed_data[0]["name"] == "Bob"  # age 25
+    assert parsed_data[1]["name"] == "Alice"  # age 30
+    assert parsed_data[2]["name"] == "Charlie"  # age 35
+
+
+def test_default_sort_single_column_descending() -> None:
+    """Test default_sort with single column descending (Django-style prefix)."""
+    data = [
+        {"name": "Charlie", "age": 35},
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+    ]
+    table = ui.table(data, default_sort="-age")
+
+    # Verify data is sorted by age descending
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+    parsed_data = json.loads(result.data)
+    assert parsed_data[0]["name"] == "Charlie"  # age 35
+    assert parsed_data[1]["name"] == "Alice"  # age 30
+    assert parsed_data[2]["name"] == "Bob"  # age 25
+
+
+def test_default_sort_multiple_columns() -> None:
+    """Test default_sort with multiple columns."""
+    data = [
+        {"category": "A", "score": 100},
+        {"category": "B", "score": 50},
+        {"category": "A", "score": 50},
+        {"category": "B", "score": 100},
+    ]
+    table = ui.table(data, default_sort=["category", "-score"])
+
+    # Verify data is sorted by category ascending, then score descending
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+    parsed_data = json.loads(result.data)
+    assert parsed_data[0] == {"category": "A", "score": 100}
+    assert parsed_data[1] == {"category": "A", "score": 50}
+    assert parsed_data[2] == {"category": "B", "score": 100}
+    assert parsed_data[3] == {"category": "B", "score": 50}
+
+
+def test_default_sort_parse_error() -> None:
+    """Test that invalid default_sort format raises ValueError."""
+    data = [{"name": "Alice"}]
+
+    # Empty column name after minus sign
+    with pytest.raises(ValueError, match="Invalid default_sort format"):
+        ui.table._parse_default_sort("-")
+
+    # Whitespace-only column name
+    with pytest.raises(ValueError, match="Invalid default_sort format"):
+        ui.table._parse_default_sort("  -  ")
+
+
+def test_default_sort_with_pagination() -> None:
+    """Test that default_sort works with pagination."""
+    data = [{"value": i} for i in range(100)]
+    table = ui.table(data, default_sort="-value", page_size=10)
+
+    # First page should have highest values
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+    parsed_data = json.loads(result.data)
+    assert len(parsed_data) == 10
+    assert parsed_data[0]["value"] == 99
+    assert parsed_data[9]["value"] == 90
+
+    # Second page
+    result = table._search(SearchTableArgs(page_size=10, page_number=1))
+    parsed_data = json.loads(result.data)
+    assert parsed_data[0]["value"] == 89
+    assert parsed_data[9]["value"] == 80
+
+
+def test_default_sort_with_dict_data() -> None:
+    """Test default_sort with dict-style data."""
+    data = {
+        "name": ["Charlie", "Alice", "Bob"],
+        "score": [30, 50, 20],
+    }
+    table = ui.table(data, default_sort="-score")
+
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+    parsed_data = json.loads(result.data)
+    assert parsed_data[0]["name"] == "Alice"  # score 50
+    assert parsed_data[1]["name"] == "Charlie"  # score 30
+    assert parsed_data[2]["name"] == "Bob"  # score 20
+
+
+def test_default_sort_none() -> None:
+    """Test that default_sort=None doesn't apply any sorting."""
+    data = [
+        {"name": "Charlie", "age": 35},
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+    ]
+    table = ui.table(data, default_sort=None)
+
+    # Data should remain in original order
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+    parsed_data = json.loads(result.data)
+    assert parsed_data[0]["name"] == "Charlie"
+    assert parsed_data[1]["name"] == "Alice"
+    assert parsed_data[2]["name"] == "Bob"

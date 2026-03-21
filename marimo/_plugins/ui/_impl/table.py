@@ -326,6 +326,21 @@ class table(
         table
         ```
 
+        Create a table with default sorting:
+
+        ```python
+        table = mo.ui.table(
+            data=[
+                {"name": "Alice", "age": 30, "score": 85},
+                {"name": "Bob", "age": 25, "score": 92},
+                {"name": "Charlie", "age": 35, "score": 78},
+            ],
+            # Sort by score descending on initial render
+            default_sort="-score",
+        )
+        table
+        ```
+
         In each case, access the table data with `table.value`.
 
     Attributes:
@@ -375,6 +390,10 @@ class table(
             Plain text only is supported.
         max_columns (int, optional): Maximum number of columns to display. Defaults to the
             configured default_table_max_columns (50 by default). Set to None to show all columns.
+        default_sort (Union[str, List[str]], optional): Column name(s) to sort by initially.
+            Use '-' prefix for descending order (e.g., "-Title" sorts by Title descending).
+            Can be a single string or a list of strings for multi-column sorting.
+            Defaults to None (no initial sorting).
         max_height (int, optional): Maximum height of the table body in pixels. When set,
             the table becomes vertically scrollable and the header will be made sticky
             in the UI to remain visible while scrolling. Defaults to None.
@@ -1514,6 +1533,56 @@ class table(
     @functools.cached_property
     def default_page_size(self) -> int:
         return get_default_table_page_size()
+
+    @staticmethod
+    def _parse_default_sort(
+        default_sort: Union[str, list[str]],
+    ) -> list[SortArgs]:
+        """Parse default_sort parameter into list of SortArgs.
+
+        Supports:
+        - Single column name: "Title" (ascending)
+        - Single column with minus prefix: "-Title" (descending)
+        - List of column names: ["Title", "-Date"]
+
+        Args:
+            default_sort: Column name(s) to sort by. Prefix with '-' for descending.
+
+        Returns:
+            List of SortArgs for the table manager.
+
+        Raises:
+            ValueError: If default_sort format is invalid.
+        """
+        if isinstance(default_sort, str):
+            sort_specs = [default_sort]
+        else:
+            sort_specs = default_sort
+
+        result: list[SortArgs] = []
+        for spec in sort_specs:
+            spec = spec.strip()
+            if not spec:
+                continue
+
+            if spec.startswith("-"):
+                # Descending sort (Django-style)
+                column = spec[1:].strip()
+                descending = True
+            else:
+                # Ascending sort (default)
+                column = spec
+                descending = False
+
+            if not column:
+                raise ValueError(
+                    f"Invalid default_sort format: '{spec}'. "
+                    "Column name cannot be empty."
+                )
+
+            result.append(SortArgs(by=column, descending=descending))
+
+        return result
 
     def __hash__(self) -> int:
         return id(self)
