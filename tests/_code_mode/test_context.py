@@ -577,3 +577,88 @@ class TestInstallPackages:
         assert installed["pandas"] == ""
         assert installed["polars>=0.20"] == ""
         assert installed["numpy==1.26"] == ""
+
+
+class TestAutorunStaleState:
+    """In autorun mode, downstream cells should not be marked stale."""
+
+    async def test_dependent_chain_only_root_run(self, k: Kernel) -> None:
+        """Running the root cell should mark reactive descendants as
+        non-stale in autorun mode so the frontend doesn't show them
+        as 'needs run'."""
+        ctx = AsyncCodeModeContext(k)
+        _clear_messages(k)
+
+        async with ctx as nb:
+            a = nb.create_cell("x = 1")
+            b = nb.create_cell("y = x + 1")
+            nb.run_cell(a)
+
+        # Both cells should have executed.
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+
+        # The notification for b should be code_is_stale=False because
+        # autorun will execute it.
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        stale_flags = {
+            cid: n["code_is_stale"]
+            for n in code_notifs
+            for cid in n["cell_ids"]
+        }
+        a_id = list(k.graph.cells.keys())[0]
+        b_id = list(k.graph.cells.keys())[1]
+        assert stale_flags[str(a_id)] is False
+        assert stale_flags[str(b_id)] is False
+
+    async def test_dependent_chain_lazy_mode(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        """In lazy mode, only the explicitly run cell should be non-stale.
+        Downstream cells stay stale."""
+        k = lazy_kernel
+        ctx = AsyncCodeModeContext(k)
+        _clear_messages(k)
+
+        async with ctx as nb:
+            a = nb.create_cell("x = 1")
+            b = nb.create_cell("y = x + 1")
+            nb.run_cell(a)
+
+        assert k.globals["x"] == 1
+        # b should NOT have executed in lazy mode.
+        assert "y" not in k.globals
+
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        stale_flags = {
+            cid: n["code_is_stale"]
+            for n in code_notifs
+            for cid in n["cell_ids"]
+        }
+        a_id = list(k.graph.cells.keys())[0]
+        b_id = list(k.graph.cells.keys())[1]
+        assert stale_flags[str(a_id)] is False
+        assert stale_flags[str(b_id)] is True
+
+    async def test_two_step_edit_then_run(self, k: Kernel) -> None:
+        """edit_cell in one flush, run_cell in a separate flush should
+        send code_is_stale=false so the frontend clears the stale state."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        # Flush 1: edit only
+        async with ctx as nb:
+            nb.edit_cell("0", code="x = 42")
+
+        _clear_messages(k)
+
+        # Flush 2: run only
+        ctx2 = AsyncCodeModeContext(k)
+        async with ctx2 as nb:
+            nb.run_cell("0")
+
+        assert k.globals["x"] == 42
+
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        assert len(code_notifs) == 1
+        assert code_notifs[0]["code_is_stale"] is False
