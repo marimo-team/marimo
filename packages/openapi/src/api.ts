@@ -6067,7 +6067,7 @@ export interface components {
     TyLanguageServerConfig: {
       enabled?: boolean;
     };
-    UIElementId: TypedString<"UIElementId">;
+    UIElementId: `${components["schemas"]["CellId"]}-${string}`;
     /**
      * UIElementMessageNotification
      * @description Sends a message to a UI element/widget.

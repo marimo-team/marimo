@@ -14,7 +14,6 @@ import openapiTS, { astToString, COMMENT_HEADER } from "openapi-typescript";
  */
 const BRANDED_TYPES = {
   CellId: "CellId",
-  UIElementId: "UIElementId",
   SessionId: "SessionId",
   VariableName: "VariableName",
   RequestId: "RequestId",
@@ -52,6 +51,12 @@ function transform(content) {
     const replacement = `$1: TypedString<"${brand}">;`;
     result = result.replace(pattern, replacement);
   }
+
+  // 4. UIElementId is a template literal, not a simple branded string.
+  result = result.replace(
+    /\bUIElementId: string;/,
+    'UIElementId: `${components["schemas"]["CellId"]}-${string}`;',
+  );
 
   return result;
 }
