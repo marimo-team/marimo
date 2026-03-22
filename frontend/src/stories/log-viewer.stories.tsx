@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { cellId } from "@/__tests__/branded";
 import { LogViewer } from "@/components/editor/chrome/panels/logs-panel";
-import type { CellId } from "@/core/cells/ids";
 import { Dialog } from "../components/ui/dialog";
 import { TooltipProvider } from "../components/ui/tooltip";
 
@@ -23,37 +23,37 @@ export const Primary: Story = {
             {
               timestamp: Date.now(),
               level: "stdout",
-              cellId: "cell1" as CellId,
+              cellId: cellId("cell1"),
               message: "Hello world!",
             },
             {
               timestamp: Date.now(),
               level: "stdout",
-              cellId: "cell1" as CellId,
+              cellId: cellId("cell1"),
               message: "Running cell...",
             },
             {
               timestamp: Date.now(),
               level: "stdout",
-              cellId: "cell1" as CellId,
+              cellId: cellId("cell1"),
               message: "Done!",
             },
             {
               timestamp: Date.now(),
               level: "stderr",
-              cellId: "cell2" as CellId,
+              cellId: cellId("cell2"),
               message: "Output is too large!",
             },
             {
               timestamp: Date.now(),
               level: "stderr",
-              cellId: "cell2" as CellId,
+              cellId: cellId("cell2"),
               message: "String length is too short.".repeat(100),
             },
-            ...Array.from({ length: 100 }).map((_, index) => ({
+            ...Array.from({ length: 100 }).map(() => ({
               timestamp: Date.now(),
               level: "stdout" as const,
-              cellId: "cell1" as CellId,
+              cellId: cellId("cell1"),
               message: "Running cell...",
             })),
           ]}

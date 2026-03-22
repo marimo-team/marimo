@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
+import { variableName } from "@/__tests__/branded";
 import type { DataTable } from "@/core/kernel/messages";
 import type { VariableName } from "@/core/variables/types";
 import {
@@ -182,7 +183,7 @@ describe("filtering data sources", () => {
   });
 
   it("keeps matching variables and internal engines", () => {
-    const filtered = filterDataSources(["conn1" as unknown as VariableName]);
+    const filtered = filterDataSources([variableName("conn1")]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
     for (const engine of INTERNAL_SQL_ENGINES) {
@@ -191,16 +192,14 @@ describe("filtering data sources", () => {
   });
 
   it("filters out non-matching variables", () => {
-    const filtered = filterDataSources([
-      "non_existent" as unknown as VariableName,
-    ]);
+    const filtered = filterDataSources([variableName("non_existent")]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize);
   });
 
   it("handles mix of matching and non-matching variables", () => {
     const filtered = filterDataSources([
-      "conn1" as unknown as VariableName,
-      "non_existent" as unknown as VariableName,
+      variableName("conn1"),
+      variableName("non_existent"),
     ]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);

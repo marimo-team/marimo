@@ -2,9 +2,9 @@
 
 import { createRef } from "react";
 import { describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { NotebookState } from "@/core/cells/cells";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
 import { createCell, createCellRuntimeState } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
@@ -17,17 +17,17 @@ describe("hasAnyOutputAtom", () => {
   ): NotebookState => ({
     ...initialNotebookState(),
     cellIds: new MultiColumn([
-      CollapsibleTree.from(outputs.map((_, i) => `${i}` as CellId)),
+      CollapsibleTree.from(outputs.map((_, i) => cellId(`${i}`))),
     ]),
     cellData: Object.fromEntries(
       outputs.map((_, i) => [
-        `${i}` as CellId,
-        createCell({ id: `${i}` as CellId }),
+        cellId(`${i}`),
+        createCell({ id: cellId(`${i}`) }),
       ]),
     ),
     cellRuntime: Object.fromEntries(
       outputs.map((output, i) => [
-        `${i}` as CellId,
+        `${i}`,
         createCellRuntimeState({
           output,
           status: "queued",
@@ -36,7 +36,7 @@ describe("hasAnyOutputAtom", () => {
       ]),
     ),
     cellHandles: Object.fromEntries(
-      outputs.map((_, i) => [`${i}` as CellId, createRef()]),
+      outputs.map((_, i) => [cellId(`${i}`), createRef()]),
     ),
   });
 
@@ -90,8 +90,8 @@ describe("hasAnyOutputAtom", () => {
 
   it("should return true when all outputs are idle", () => {
     const notebookState = createNotebookState([null, null]);
-    const cellId0 = "0" as CellId;
-    const cellId1 = "1" as CellId;
+    const cellId0 = cellId("0");
+    const cellId1 = cellId("1");
     // Some idle cell, so returns false
     store.set(notebookAtom, {
       ...notebookState,

@@ -3,6 +3,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { cellId } from "@/__tests__/branded";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import {
   type CellRuntimeState,
@@ -18,7 +19,6 @@ import { MultiColumn } from "@/utils/id-tree";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell as EditorCell } from "../components/editor/notebook-cell";
 import { TooltipProvider } from "../components/ui/tooltip";
-import type { CellId } from "../core/cells/ids";
 
 type Story = StoryObj<typeof Cell>;
 
@@ -34,11 +34,11 @@ const Cell: React.FC<{
     config?: CellConfig;
   };
 }> = ({ overrides = {} }) => {
-  const cellId = "1" as CellId;
+  const cid = cellId("1");
   const notebook: NotebookState = {
     cellData: {
-      [cellId]: {
-        id: cellId,
+      [cid]: {
+        id: cid,
         name: "cell_1",
         code: "import marimo as mo",
         edited: overrides.edited ?? false,
@@ -52,9 +52,9 @@ const Cell: React.FC<{
         lastExecutionTime: null,
       },
     },
-    cellIds: MultiColumn.from([[cellId]]),
+    cellIds: MultiColumn.from([[cid]]),
     cellRuntime: {
-      [cellId]: createCellRuntimeState({
+      [cid]: createCellRuntimeState({
         output: overrides.output ?? null,
         runElapsedTimeMs: overrides.runElapsedTimeMs ?? (10 as Milliseconds),
         status: overrides.status ?? "idle",
@@ -70,7 +70,7 @@ const Cell: React.FC<{
       }),
     },
     cellHandles: {
-      [cellId]: createRef(),
+      [cid]: createRef(),
     },
     cellLogs: [],
     history: [],
@@ -86,7 +86,7 @@ const Cell: React.FC<{
     <Provider store={store}>
       <TooltipProvider>
         <EditorCell
-          cellId={cellId}
+          cellId={cid}
           theme={"light"}
           showPlaceholder={false}
           mode={"edit"}

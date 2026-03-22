@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { cellId } from "@/__tests__/branded";
 import { VariableTable } from "@/components/variables/variables-table";
-import type { CellId } from "@/core/cells/ids";
 
 const meta: Meta<typeof VariableTable> = {
   title: "VariableTable",
@@ -51,7 +51,7 @@ export const Primary: Story = {
     <div className="max-w-4xl">
       <VariableTable
         variables={variables}
-        cellIds={["2", "1", "3"] as CellId[]}
+        cellIds={[cellId("2"), cellId("1"), cellId("3")]}
       />
     </div>
   ),

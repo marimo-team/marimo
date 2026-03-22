@@ -12,12 +12,12 @@ vi.mock("@/utils/storage/storage", () => ({
   },
 }));
 
-import type { CellId } from "@/core/cells/ids";
 import { availableStorage } from "@/utils/storage/storage";
 import { ChartSchema } from "../schemas";
 import type { TabName } from "../storage";
 import { KEY, tabsStorageAtom } from "../storage";
 import { ChartType } from "../types";
+import { cellId } from "@/__tests__/branded";
 
 describe("Chart Transforms Storage", () => {
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe("Chart Transforms Storage", () => {
 
     it("should store and retrieve tab data", () => {
       const store = getDefaultStore();
-      const cellId = "cell-1" as CellId;
+      const cid = cellId("cell-1");
       const tabData = {
         tabName: "Tab 1" as TabName,
         chartType: ChartType.LINE,
@@ -51,17 +51,17 @@ describe("Chart Transforms Storage", () => {
 
       // Set the atom value
       const newMap = new Map();
-      newMap.set(cellId, [tabData]);
+      newMap.set(cid, [tabData]);
       store.set(tabsStorageAtom, newMap);
 
       // Verify the value was set
       const retrievedValue = store.get(tabsStorageAtom);
-      expect(retrievedValue.get(cellId)).toEqual([tabData]);
+      expect(retrievedValue.get(cid)).toEqual([tabData]);
     });
 
     it("should handle multiple tabs for the same cell", () => {
       const store = getDefaultStore();
-      const cellId = "cell-1" as CellId;
+      const cid = cellId("cell-1");
       const tabData1 = {
         tabName: "Tab 1" as TabName,
         chartType: ChartType.LINE,
@@ -85,12 +85,12 @@ describe("Chart Transforms Storage", () => {
 
       // Set the atom value
       const newMap = new Map();
-      newMap.set(cellId, [tabData1, tabData2]);
+      newMap.set(cid, [tabData1, tabData2]);
       store.set(tabsStorageAtom, newMap);
 
       // Verify the value was set
       const retrievedValue = store.get(tabsStorageAtom);
-      expect(retrievedValue.get(cellId)).toEqual([tabData1, tabData2]);
+      expect(retrievedValue.get(cid)).toEqual([tabData1, tabData2]);
     });
   });
 

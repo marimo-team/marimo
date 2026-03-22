@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { cellId } from "@/__tests__/branded";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getDefaultStore } from "jotai";
@@ -32,7 +33,7 @@ function createMockEditorView(code: string): EditorView {
       doc: code,
       extensions: [
         adaptiveLanguageConfiguration({
-          cellId: "cell1" as CellId,
+          cellId: cellId("cell1"),
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
@@ -44,7 +45,7 @@ function createMockEditorView(code: string): EditorView {
           lspConfig: {},
         }),
         cellConfigExtension({
-          cellId: "cell1" as CellId,
+          cellId: cellId("cell1"),
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
@@ -93,9 +94,9 @@ describe("EditNotebookTool", () => {
     };
     tool = new EditNotebookTool();
 
-    cellId1 = "cell-1" as CellId;
-    cellId2 = "cell-2" as CellId;
-    cellId3 = "cell-3" as CellId;
+    cellId1 = cellId("cell-1");
+    cellId2 = cellId("cell-2");
+    cellId3 = cellId("cell-3");
 
     // Reset mocks
     vi.clearAllMocks();
@@ -270,7 +271,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              position: { cellId: "nonexistent" as CellId },
+              position: { cellId: cellId("nonexistent") },
               code: "x = 2",
             },
           },
@@ -283,7 +284,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              position: { cellId: "nonexistent" as CellId },
+              position: { cellId: cellId("nonexistent") },
               code: "x = 2",
             },
           },
@@ -496,7 +497,7 @@ describe("EditNotebookTool", () => {
               type: "add_cell",
               position: {
                 type: "relative",
-                cellId: "nonexistent" as CellId,
+                cellId: cellId("nonexistent"),
                 before: true,
               },
               code: "y = 2",
@@ -660,7 +661,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "delete_cell",
-              position: { cellId: "nonexistent" as CellId },
+              position: { cellId: cellId("nonexistent") },
             },
           },
           toolContext as never,

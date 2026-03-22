@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
+import { HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 
 // Mock the getCellEditorView function
@@ -20,12 +21,12 @@ vi.mock("@/core/codemirror/extensions", () => ({
 const { scrollCellIntoView } = await import("@/core/cells/scrollCellIntoView");
 
 describe("scrollCellIntoView", () => {
-  const cellId = "test-cell-id" as CellId;
+  const cid = cellId("test-cell-id");
   let cellElement: HTMLElement;
 
   beforeEach(() => {
     cellElement = document.createElement("div");
-    cellElement.id = HTMLCellId.create(cellId);
+    cellElement.id = HTMLCellId.create(cid);
     cellElement.scrollIntoView = vi.fn();
     document.body.append(cellElement);
 
@@ -42,7 +43,7 @@ describe("scrollCellIntoView", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGetCellEditorView.mockReturnValue(mockEditor as any);
 
-    scrollCellIntoView(cellId);
+    scrollCellIntoView(cid);
 
     expect(mockScrollActiveLineIntoView).toHaveBeenCalledWith(mockEditor, {
       behavior: "instant",
@@ -51,7 +52,7 @@ describe("scrollCellIntoView", () => {
   });
 
   it("should scroll cell element when editor is not focused", () => {
-    scrollCellIntoView(cellId);
+    scrollCellIntoView(cid);
 
     expect(mockScrollActiveLineIntoView).not.toHaveBeenCalled();
     expect(cellElement.scrollIntoView).toHaveBeenCalledWith({
@@ -64,10 +65,10 @@ describe("scrollCellIntoView", () => {
     const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(vi.fn());
     cellElement.remove();
 
-    scrollCellIntoView(cellId);
+    scrollCellIntoView(cid);
 
     expect(warnSpy).toHaveBeenCalledWith(
-      `[CellFocusManager] scrollCellIntoView: element not found: ${cellId}`,
+      `[CellFocusManager] scrollCellIntoView: element not found: ${cid}`,
     );
     warnSpy.mockRestore();
   });

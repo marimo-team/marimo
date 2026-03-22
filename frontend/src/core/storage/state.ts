@@ -71,7 +71,7 @@ const {
     const names = new Set(variableNames);
     // Filter out namespaces whose backing variable is no longer in scope
     const namespaces = state.namespaces.filter((ns) => {
-      return names.has(ns.name as VariableName);
+      return names.has(ns.name);
     });
     return { ...state, namespaces };
   },

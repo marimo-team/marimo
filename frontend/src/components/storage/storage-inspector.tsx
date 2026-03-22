@@ -50,7 +50,6 @@ import type {
   StoragePathKey,
 } from "@/core/storage/types";
 import { storagePathKey } from "@/core/storage/types";
-import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
@@ -474,7 +473,7 @@ const StorageNamespaceSection: React.FC<{
         <span>{namespace.displayName}</span>
         {namespace.name && (
           <span className="text-xs text-muted-foreground font-normal">
-            (<EngineVariable variableName={namespace.name as VariableName} />)
+            (<EngineVariable variableName={namespace.name} />)
           </span>
         )}
         <RefreshIconButton

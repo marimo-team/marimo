@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockModules, Mocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
@@ -63,7 +64,7 @@ describe("useEnrichCellOutputs", () => {
   ): Record<CellId, CellRuntimeState> => {
     return Object.fromEntries(
       Object.entries(cells).map(([cellId, cell]) => [
-        cellId as CellId,
+        cellId,
         {
           output: cell.output || null,
           status: cell.status || "idle",
@@ -106,7 +107,7 @@ describe("useEnrichCellOutputs", () => {
   });
 
   it("should capture screenshots for cells with text/html output", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockElement = document.createElement("div");
     const mockDataUrl = "data:image/png;base64,mockImageData";
 
@@ -116,7 +117,7 @@ describe("useEnrichCellOutputs", () => {
 
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -133,7 +134,7 @@ describe("useEnrichCellOutputs", () => {
     const output = await takeScreenshots({ progress });
 
     expect(document.getElementById).toHaveBeenCalledWith(
-      CellOutputId.create(cellId),
+      CellOutputId.create(cid),
     );
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
@@ -143,12 +144,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
     expect(output).toEqual({
-      [cellId]: ["image/png", mockDataUrl],
+      [cid]: ["image/png", mockDataUrl],
     });
   });
 
   it("should skip cells where output has not changed", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockElement = document.createElement("div");
     const mockDataUrl = "data:image/png;base64,mockImageData";
     const htmlData = "<div>Chart</div>";
@@ -158,7 +159,7 @@ describe("useEnrichCellOutputs", () => {
 
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -176,7 +177,7 @@ describe("useEnrichCellOutputs", () => {
     // First call - should capture
     let takeScreenshots = result.current;
     let output = await takeScreenshots({ progress });
-    expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl] });
+    expect(output).toEqual({ [cid]: ["image/png", mockDataUrl] });
     expect(toPng).toHaveBeenCalledTimes(1);
 
     // Rerender to get updated atom state
@@ -190,7 +191,7 @@ describe("useEnrichCellOutputs", () => {
   });
 
   it("should handle screenshot errors gracefully", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockElement = document.createElement("div");
     const error = new Error("Screenshot failed");
 
@@ -199,7 +200,7 @@ describe("useEnrichCellOutputs", () => {
 
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -217,13 +218,13 @@ describe("useEnrichCellOutputs", () => {
 
     expect(output).toEqual({}); // Failed screenshot should be filtered out
     expect(Logger.error).toHaveBeenCalledWith(
-      `Error screenshotting cell ${cellId}:`,
+      `Error screenshotting cell ${cid}:`,
       error,
     );
   });
 
   it("should retry failed screenshots on next call", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockElement = document.createElement("div");
     const error = new Error("Screenshot failed");
     const mockDataUrl = "data:image/png;base64,retrySuccess";
@@ -236,7 +237,7 @@ describe("useEnrichCellOutputs", () => {
 
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -262,18 +263,18 @@ describe("useEnrichCellOutputs", () => {
     // Second call - should retry since the first one failed
     takeScreenshots = result.current;
     output = await takeScreenshots({ progress });
-    expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl] });
+    expect(output).toEqual({ [cid]: ["image/png", mockDataUrl] });
     expect(toPng).toHaveBeenCalledTimes(2);
   });
 
   it("should handle missing DOM elements", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
 
     vi.spyOn(document, "getElementById").mockReturnValue(null);
 
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -291,14 +292,14 @@ describe("useEnrichCellOutputs", () => {
 
     expect(output).toEqual({});
     expect(Logger.error).toHaveBeenCalledWith(
-      `Output element not found for cell ${cellId}`,
+      `Output element not found for cell ${cid}`,
     );
     expect(toPng).not.toHaveBeenCalled();
   });
 
   it("should process multiple cells in parallel", async () => {
-    const cell1 = "cell-1" as CellId;
-    const cell2 = "cell-2" as CellId;
+    const cell1 = "cell-1";
+    const cell2 = "cell-2";
     const mockElement1 = document.createElement("div");
     const mockElement2 = document.createElement("div");
     const mockDataUrl1 = "data:image/png;base64,image1";
@@ -347,8 +348,8 @@ describe("useEnrichCellOutputs", () => {
 
   it("should filter out null results from failed screenshots", async () => {
     // Setup: one successful, one failed screenshot
-    const cell1 = "cell-1" as CellId;
-    const cell2 = "cell-2" as CellId;
+    const cell1 = "cell-1";
+    const cell2 = "cell-2";
     const mockElement1 = document.createElement("div");
     const mockDataUrl = "data:image/png;base64,image1";
 
@@ -394,7 +395,7 @@ describe("useEnrichCellOutputs", () => {
   });
 
   it("should only capture screenshots for cells with changed output", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockElement = document.createElement("div");
     const mockDataUrl1 = "data:image/png;base64,image1";
     const mockDataUrl2 = "data:image/png;base64,image2";
@@ -407,7 +408,7 @@ describe("useEnrichCellOutputs", () => {
     // First call - cell should be captured
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -425,7 +426,7 @@ describe("useEnrichCellOutputs", () => {
     // First screenshot
     let takeScreenshots = result.current;
     let output = await takeScreenshots({ progress });
-    expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl1] });
+    expect(output).toEqual({ [cid]: ["image/png", mockDataUrl1] });
 
     // Second call - same output, should not be captured
     rerender();
@@ -436,7 +437,7 @@ describe("useEnrichCellOutputs", () => {
     // Third call - output changed, should be captured
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -450,7 +451,7 @@ describe("useEnrichCellOutputs", () => {
     rerender();
     takeScreenshots = result.current;
     output = await takeScreenshots({ progress });
-    expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl2] });
+    expect(output).toEqual({ [cid]: ["image/png", mockDataUrl2] });
     expect(toPng).toHaveBeenCalledTimes(2);
   });
 
@@ -523,7 +524,7 @@ describe("useEnrichCellOutputs", () => {
 
   it("should return correctly formatted result with CellId and tuple", async () => {
     // Expected format: Record<CellId, ["image/png", string]>
-    const cellId = "test-cell" as CellId;
+    const cid = cellId("test-cell");
     const mockElement = document.createElement("div");
     const mockDataUrl = "data:image/png;base64,testData";
 
@@ -532,7 +533,7 @@ describe("useEnrichCellOutputs", () => {
 
     setCellsRuntime(
       createMockCellRuntimes({
-        [cellId]: {
+        [cid]: {
           output: {
             channel: "output",
             mimetype: "text/html",
@@ -549,8 +550,8 @@ describe("useEnrichCellOutputs", () => {
     const output = await takeScreenshots({ progress });
 
     // Verify the exact return type structure
-    expect(output).toHaveProperty(cellId);
-    const cellOutput = output[cellId];
+    expect(output).toHaveProperty(cid);
+    const cellOutput = output[cid];
     expect(cellOutput).toBeDefined();
     expect(Array.isArray(cellOutput)).toBe(true);
     if (cellOutput) {
@@ -566,9 +567,9 @@ describe("updateCellOutputsWithScreenshots", () => {
   });
 
   it("should call updateCellOutputs when there are screenshots", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockScreenshots = {
-      [cellId]: ["image/png", "data:image/png;base64,test"] as [
+      [cid]: ["image/png", "data:image/png;base64,test"] as [
         "image/png",
         string,
       ],
@@ -603,8 +604,8 @@ describe("updateCellOutputsWithScreenshots", () => {
   });
 
   it("should handle multiple cell screenshots", async () => {
-    const cell1 = "cell-1" as CellId;
-    const cell2 = "cell-2" as CellId;
+    const cell1 = "cell-1";
+    const cell2 = "cell-2";
     const mockScreenshots = {
       [cell1]: ["image/png", "data:image/png;base64,image1"] as [
         "image/png",
@@ -654,9 +655,9 @@ describe("updateCellOutputsWithScreenshots", () => {
   });
 
   it("should catch errors from updateCellOutputs and show toast", async () => {
-    const cellId = "cell-1" as CellId;
+    const cid = cellId("cell-1");
     const mockScreenshots = {
-      [cellId]: ["image/png", "data:image/png;base64,test"] as [
+      [cid]: ["image/png", "data:image/png;base64,test"] as [
         "image/png",
         string,
       ],

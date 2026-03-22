@@ -2,10 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, expect, it, vi } from "vitest";
-import type { CellId } from "@/core/cells/ids";
 import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
-import type { Variable, VariableName, Variables } from "@/core/variables/types";
+import type { Variable, Variables } from "@/core/variables/types";
 import { type VariableContextItem, VariableContextProvider } from "../variable";
+import { cellId, variableName } from "@/__tests__/branded";
 
 // Mock the variable completions module
 vi.mock("@/core/codemirror/completion/variable-completions", () => ({
@@ -17,7 +17,7 @@ vi.mock("@/core/codemirror/completion/variable-completions", () => ({
       prefix: string,
     ) => {
       return Object.entries(variables).map(([name, variable]) => ({
-        name: `${prefix}${name}`,
+        name: variableName(`${prefix}${name}`),
         displayname: name,
         detail: variable.dataType || "unknown",
         boost,
@@ -34,9 +34,9 @@ const createMockVariable = (
   name: string,
   options: Partial<Variable> = {},
 ): Variable => ({
-  name: name as VariableName,
-  declaredBy: ["cell1" as CellId],
-  usedBy: ["cell2" as CellId],
+  name: variableName(name),
+  declaredBy: [cellId("cell1")],
+  usedBy: [cellId("cell2")],
   value: `value_of_${name}`,
   dataType: "str",
   ...options,
@@ -55,10 +55,13 @@ describe("VariableContextProvider", () => {
 
     it("should return variable items for single variable", () => {
       const variables: Variables = {
-        ["user_name" as VariableName]: createMockVariable("user_name", {
-          value: '"John Doe"',
-          dataType: "str",
-        }),
+        [variableName("user_name")]: createMockVariable(
+          variableName("user_name"),
+          {
+            value: '"John Doe"',
+            dataType: "str",
+          },
+        ),
       };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
@@ -69,29 +72,32 @@ describe("VariableContextProvider", () => {
 
     it("should return variable items for multiple variables with different types", () => {
       const variables: Variables = {
-        ["user_id" as VariableName]: createMockVariable("user_id", {
+        [variableName("user_id")]: createMockVariable(variableName("user_id"), {
           value: "123",
           dataType: "int",
-          declaredBy: ["cell1" as CellId],
-          usedBy: ["cell2" as CellId, "cell3" as CellId],
+          declaredBy: [cellId("cell1")],
+          usedBy: [cellId("cell2"), cellId("cell3")],
         }),
-        ["is_active" as VariableName]: createMockVariable("is_active", {
-          value: "True",
-          dataType: "bool",
-          declaredBy: ["cell2" as CellId],
-          usedBy: [],
-        }),
-        ["scores" as VariableName]: createMockVariable("scores", {
+        [variableName("is_active")]: createMockVariable(
+          variableName("is_active"),
+          {
+            value: "True",
+            dataType: "bool",
+            declaredBy: [cellId("cell2")],
+            usedBy: [],
+          },
+        ),
+        [variableName("scores")]: createMockVariable(variableName("scores"), {
           value: "[1, 2, 3, 4, 5]",
           dataType: "list",
-          declaredBy: ["cell3" as CellId],
-          usedBy: ["cell4" as CellId],
+          declaredBy: [cellId("cell3")],
+          usedBy: [cellId("cell4")],
         }),
-        ["config" as VariableName]: createMockVariable("config", {
+        [variableName("config")]: createMockVariable(variableName("config"), {
           value: '{"debug": true, "timeout": 30}',
           dataType: "dict",
-          declaredBy: ["cell1" as CellId],
-          usedBy: ["cell2" as CellId, "cell4" as CellId],
+          declaredBy: [cellId("cell1")],
+          usedBy: [cellId("cell2"), cellId("cell4")],
         }),
       };
       const tablesMap: DatasetTablesMap = new Map();
@@ -103,18 +109,27 @@ describe("VariableContextProvider", () => {
 
     it("should handle variables with null/undefined values", () => {
       const variables: Variables = {
-        ["null_var" as VariableName]: createMockVariable("null_var", {
-          value: null,
-          dataType: "NoneType",
-        }),
-        ["undefined_var" as VariableName]: createMockVariable("undefined_var", {
-          value: undefined,
-          dataType: null,
-        }),
-        ["empty_string" as VariableName]: createMockVariable("empty_string", {
-          value: '""',
-          dataType: "str",
-        }),
+        [variableName("null_var")]: createMockVariable(
+          variableName("null_var"),
+          {
+            value: null,
+            dataType: "NoneType",
+          },
+        ),
+        [variableName("undefined_var")]: createMockVariable(
+          variableName("undefined_var"),
+          {
+            value: undefined,
+            dataType: null,
+          },
+        ),
+        [variableName("empty_string")]: createMockVariable(
+          variableName("empty_string"),
+          {
+            value: '""',
+            dataType: "str",
+          },
+        ),
       };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
@@ -125,23 +140,23 @@ describe("VariableContextProvider", () => {
 
     it("should handle complex data types", () => {
       const variables: Variables = {
-        ["df" as VariableName]: createMockVariable("df", {
+        [variableName("df")]: createMockVariable(variableName("df"), {
           value: "<DataFrame shape: (100, 5)>",
           dataType: "pandas.DataFrame",
-          declaredBy: ["cell1" as CellId],
-          usedBy: ["cell2" as CellId, "cell3" as CellId],
+          declaredBy: [cellId("cell1")],
+          usedBy: [cellId("cell2"), cellId("cell3")],
         }),
-        ["model" as VariableName]: createMockVariable("model", {
+        [variableName("model")]: createMockVariable(variableName("model"), {
           value: "<sklearn.linear_model.LinearRegression>",
           dataType: "sklearn.linear_model._base.LinearRegression",
-          declaredBy: ["cell4" as CellId],
-          usedBy: ["cell5" as CellId],
+          declaredBy: [cellId("cell4")],
+          usedBy: [cellId("cell5")],
         }),
-        ["array" as VariableName]: createMockVariable("array", {
+        [variableName("array")]: createMockVariable(variableName("array"), {
           value: "array([1, 2, 3, 4, 5])",
           dataType: "numpy.ndarray",
-          declaredBy: ["cell2" as CellId],
-          usedBy: ["cell3" as CellId],
+          declaredBy: [cellId("cell2")],
+          usedBy: [cellId("cell3")],
         }),
       };
       const tablesMap: DatasetTablesMap = new Map();
@@ -153,21 +168,27 @@ describe("VariableContextProvider", () => {
 
     it("should handle variables with special characters in names", () => {
       const variables: Variables = {
-        ["_private_var" as VariableName]: createMockVariable("_private_var", {
-          value: "42",
-          dataType: "int",
-        }),
-        ["var_with_numbers123" as VariableName]: createMockVariable(
-          "var_with_numbers123",
+        [variableName("_private_var")]: createMockVariable(
+          variableName("_private_var"),
+          {
+            value: "42",
+            dataType: "int",
+          },
+        ),
+        [variableName("var_with_numbers123")]: createMockVariable(
+          variableName("var_with_numbers123"),
           {
             value: '"test"',
             dataType: "str",
           },
         ),
-        ["CONSTANT_VAR" as VariableName]: createMockVariable("CONSTANT_VAR", {
-          value: "3.14159",
-          dataType: "float",
-        }),
+        [variableName("CONSTANT_VAR")]: createMockVariable(
+          variableName("CONSTANT_VAR"),
+          {
+            value: "3.14159",
+            dataType: "float",
+          },
+        ),
       };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
@@ -191,7 +212,7 @@ describe("VariableContextProvider", () => {
         data: { variable },
       };
 
-      const variables: Variables = { ["username" as VariableName]: variable };
+      const variables: Variables = { [variableName("username")]: variable };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
 
@@ -213,7 +234,7 @@ describe("VariableContextProvider", () => {
       };
 
       const variables: Variables = {
-        ["mystery_var" as VariableName]: variable,
+        [variableName("mystery_var")]: variable,
       };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
@@ -237,7 +258,7 @@ describe("VariableContextProvider", () => {
       };
 
       const variables: Variables = {
-        ["complex_data" as VariableName]: variable,
+        [variableName("complex_data")]: variable,
       };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
@@ -260,7 +281,7 @@ describe("VariableContextProvider", () => {
         data: { variable },
       };
 
-      const variables: Variables = { ["sales_df" as VariableName]: variable };
+      const variables: Variables = { [variableName("sales_df")]: variable };
       const tablesMap: DatasetTablesMap = new Map();
       const provider = new VariableContextProvider(variables, tablesMap);
 
@@ -284,12 +305,12 @@ describe("VariableContextProvider", () => {
   describe("integration with tables", () => {
     it("should work with both variables and tables", () => {
       const variables: Variables = {
-        ["df" as VariableName]: createMockVariable("df", {
+        [variableName("df")]: createMockVariable(variableName("df"), {
           dataType: "pandas.DataFrame",
           value: "<DataFrame shape: (50, 3)>",
         }),
-        ["connection_string" as VariableName]: createMockVariable(
-          "connection_string",
+        [variableName("connection_string")]: createMockVariable(
+          variableName("connection_string"),
           {
             dataType: "str",
             value: '"postgresql://localhost:5432/mydb"',

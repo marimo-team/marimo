@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { cellId } from "@/__tests__/branded";
 import { EditorView } from "@codemirror/view";
 import {
   type LanguageServerClient,
@@ -19,9 +20,9 @@ import { NotebookLanguageServerClient } from "../notebook-lsp";
 import { CellDocumentUri, type ILanguageServerClient } from "../types";
 
 const Cells = {
-  cell1: "cell1" as CellId,
-  cell2: "cell2" as CellId,
-  cell3: "cell3" as CellId,
+  cell1: cellId("cell1"),
+  cell2: cellId("cell2"),
+  cell3: cellId("cell3"),
 };
 
 describe("createNotebookLens", () => {

@@ -4,10 +4,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { CellId } from "@/core/cells/ids";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
+import { cellId } from "@/__tests__/branded";
 
 SetupMocks.resizeObserver();
 
@@ -24,7 +24,7 @@ describe("ConsoleOutput integration", () => {
   });
 
   const defaultProps = {
-    cellId: "cell-1" as CellId,
+    cellId: cellId("cell-1"),
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
@@ -55,7 +55,7 @@ describe("ConsoleOutput integration", () => {
 
 describe("ConsoleOutput pdb history", () => {
   const defaultProps = {
-    cellId: "cell-1" as CellId,
+    cellId: cellId("cell-1"),
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
@@ -215,7 +215,7 @@ describe("ConsoleOutput debounced clearing", () => {
   });
 
   const defaultProps = {
-    cellId: "cell-1" as CellId,
+    cellId: cellId("cell-1"),
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,

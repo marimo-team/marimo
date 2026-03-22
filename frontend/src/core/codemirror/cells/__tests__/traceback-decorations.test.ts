@@ -5,6 +5,7 @@ import { foldCode, foldedRanges, foldGutter } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import { createMockObservable } from "@/core/state/__mocks__/mocks";
 import type { Observable } from "@/core/state/observable";
@@ -48,7 +49,7 @@ describe("traceback-decorations", () => {
 
   describe("unfoldErrorLines", () => {
     it("should unfold folded regions containing error lines", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     y = 2
@@ -60,7 +61,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function body (lines 2-5)
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -82,7 +83,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 3,
         },
       ]);
@@ -100,7 +101,7 @@ result = my_function()`;
     });
 
     it("should not unfold folded regions when error is outside the region", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     y = 2
@@ -111,7 +112,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function body (lines 2-4)
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -133,7 +134,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 6,
         },
       ]);
@@ -151,8 +152,8 @@ result = my_function()`;
     });
 
     it("should not unfold regions for errors in different cells", () => {
-      const cellId1 = "cell1" as CellId;
-      const cellId2 = "cell2" as CellId;
+      const cellId1 = cellId("cell1");
+      const cellId2 = cellId("cell2");
       const code = `def my_function():
     x = 1
     y = 2
@@ -201,7 +202,7 @@ result = my_function()`;
     });
 
     it("should handle multiple errors in the same folded region", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     y = 2
@@ -213,7 +214,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function body
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -235,12 +236,12 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 2, // Inside folded region
         },
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 4, // Also inside folded region
         },
       ]);
@@ -258,7 +259,7 @@ result = my_function()`;
     });
 
     it("should handle invalid line numbers gracefully in unfoldErrorLines", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     return x`;
@@ -266,7 +267,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -284,7 +285,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 2, // Valid line number inside folded region
         },
       ]);
@@ -310,7 +311,7 @@ result = my_function()`;
     });
 
     it("should handle file errors (not cell errors)", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     return x`;
@@ -318,7 +319,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -350,7 +351,7 @@ result = my_function()`;
     });
 
     it("should handle empty or undefined errors", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     return x`;
@@ -358,7 +359,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -392,7 +393,7 @@ result = my_function()`;
     });
 
     it("should handle invalid line numbers gracefully", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     return x`;
@@ -400,7 +401,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -415,7 +416,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: maxLine + 100, // Invalid line number
         },
       ]);
@@ -438,7 +439,7 @@ result = my_function()`;
     });
 
     it("should unfold nested structures when error is inside", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def outer_function():
     def inner_function():
         x = 1
@@ -452,7 +453,7 @@ final = outer_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the outer function (which contains the inner function)
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -474,7 +475,7 @@ final = outer_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 4,
         },
       ]);
@@ -492,7 +493,7 @@ final = outer_function()`;
     });
 
     it("should handle errors being cleared and then re-added", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     y = 2
@@ -503,7 +504,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -517,7 +518,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 2,
         },
       ]);
@@ -545,7 +546,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 3,
         },
       ]);
@@ -562,7 +563,7 @@ result = my_function()`;
     });
 
     it("should unfold immediately when errors are set", () => {
-      const cellId = "cell1" as CellId;
+      const cid = cellId("cell1");
       const code = `def my_function():
     x = 1
     y = 2
@@ -573,7 +574,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor(code, cid, errorsObservable);
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -595,7 +596,7 @@ result = my_function()`;
       mockObservable.set([
         {
           kind: "cell",
-          cellId,
+          cellId: cid,
           lineNumber: 2,
         },
       ]);
