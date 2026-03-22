@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { cellId } from "@/__tests__/branded";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { cellId } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variables } from "@/core/variables/types";

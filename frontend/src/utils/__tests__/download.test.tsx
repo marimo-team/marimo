@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { cellId } from "@/__tests__/branded";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import { CellOutputId } from "@/core/cells/ids";
 import {
   downloadAsPDF,

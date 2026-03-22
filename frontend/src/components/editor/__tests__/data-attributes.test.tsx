@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
@@ -14,7 +15,6 @@ import type { AppMode } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { Cell } from "../notebook-cell";
 import { OutputArea } from "../Output";
-import { cellId } from "@/__tests__/branded";
 
 function createTestWrapper() {
   const store = createStore();

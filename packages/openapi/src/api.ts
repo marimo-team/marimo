@@ -3391,6 +3391,7 @@ export interface components {
       /** @default null */
       variant?: "danger" | null;
     };
+    Base64String: TypedString<"Base64String">;
     /** BaseResponse */
     BaseResponse: {
       success: boolean;
@@ -5106,7 +5107,7 @@ export interface components {
      *             token: Unique identifier for deduplication across dual queues.
      */
     ModelCommand: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
@@ -5120,7 +5121,7 @@ export interface components {
      * @description Custom application message.
      */
     ModelCustom: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       content: unknown;
       /** @enum {unknown} */
       method: "custom";
@@ -5163,14 +5164,14 @@ export interface components {
      */
     ModelOpen: {
       buffer_paths: (string | number)[][];
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
     };
     /** ModelRequest */
     ModelRequest: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
@@ -5183,7 +5184,7 @@ export interface components {
      */
     ModelUpdate: {
       buffer_paths: (string | number)[][];
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -6079,7 +6080,7 @@ export interface components {
      */
     UIElementMessageNotification: {
       /** @default null */
-      buffers?: string[] | null;
+      buffers?: components["schemas"]["Base64String"][] | null;
       message: Record<string, any>;
       /** @enum {unknown} */
       op: "send-ui-element-message";

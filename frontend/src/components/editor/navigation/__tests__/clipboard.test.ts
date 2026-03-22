@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
-import { cellId } from "@/__tests__/branded";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { asMock, MockModules, Mocks, SetupMocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import type { CellActions, NotebookState } from "@/core/cells/cells";
 import { useCellClipboard } from "../clipboard";
 

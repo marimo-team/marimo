@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { cellId } from "@/__tests__/branded";
 import { renderHook } from "@testing-library/react";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
 import {

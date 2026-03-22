@@ -168,6 +168,38 @@ def _enrich_branded_types(
                     replacement["default"] = existing["default"]
                 properties[field_name] = replacement
 
+    # Step 4 — replace inline {type: string, contentEncoding: base64}
+    # with a named $ref. msgspec already emits contentEncoding for
+    # bytes fields; we just need to give it a name so the TS codegen
+    # can brand it.
+    component_schemas["Base64String"] = {
+        "type": "string",
+        "contentEncoding": "base64",
+    }
+
+    def _make_base64_ref() -> dict[str, str]:
+        # Fresh dict each time to avoid YAML anchor deduplication
+        return {"$ref": "#/components/schemas/Base64String"}
+
+    def _replace_base64(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            if (
+                obj.get("type") == "string"
+                and obj.get("contentEncoding") == "base64"
+            ):
+                return _make_base64_ref()
+            return {k: _replace_base64(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_replace_base64(item) for item in obj]
+        return obj
+
+    for schema_name in list(component_schemas):
+        if schema_name == "Base64String":
+            continue
+        component_schemas[schema_name] = _replace_base64(
+            component_schemas[schema_name]
+        )
+
 
 def _generate_server_api_schema() -> dict[str, Any]:
     import msgspec

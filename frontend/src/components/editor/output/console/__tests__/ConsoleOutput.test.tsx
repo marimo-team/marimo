@@ -3,11 +3,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
-import { cellId } from "@/__tests__/branded";
 
 SetupMocks.resizeObserver();
 

@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { cellId } from "@/__tests__/branded";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
 
 const mockScrollCellIntoView = vi.fn();
 const mockRaf2 = vi.fn((callback: () => void) => callback());

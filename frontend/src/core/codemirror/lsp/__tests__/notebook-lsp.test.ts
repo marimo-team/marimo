@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { cellId } from "@/__tests__/branded";
 import { EditorView } from "@codemirror/view";
 import {
   type LanguageServerClient,
@@ -9,6 +8,7 @@ import {
 } from "@marimo-team/codemirror-languageserver";
 import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
 import * as LSP from "vscode-languageserver-protocol";
+import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { topologicalCodesAtom } from "../../copilot/getCodes";

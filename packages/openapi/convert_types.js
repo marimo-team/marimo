@@ -13,6 +13,7 @@ import openapiTS, { astToString, COMMENT_HEADER } from "openapi-typescript";
  * the generated TypeScript carries the branded type.
  */
 const BRANDED_TYPES = {
+  Base64String: "Base64String",
   CellId: "CellId",
   SessionId: "SessionId",
   VariableName: "VariableName",

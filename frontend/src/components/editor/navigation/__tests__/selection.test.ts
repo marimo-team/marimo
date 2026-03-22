@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { cellId } from "@/__tests__/branded";
+
 import { beforeEach, describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { MultiColumn } from "@/utils/id-tree";
 import type { CellSelectionState } from "../selection";
 import { exportedForTesting } from "../selection";

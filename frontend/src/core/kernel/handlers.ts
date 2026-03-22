@@ -161,7 +161,7 @@ export function handleKernelReady(
   if (resumed) {
     for (const [objectId, value] of Objects.entries(ui_values || {})) {
       // @ts-expect-error - TODO: We need to fix the types for KernelReadyNotification["ui_values"]
-      // It is currently typed as Record<string, any> and shoudl be Record<UIElementId, unknown>
+      // It is currently typed as Record<string, any> and should be Record<UIElementId, unknown>
       const uiObjectId: UIElementId = objectId;
       UI_ELEMENT_REGISTRY.set(uiObjectId, value);
     }

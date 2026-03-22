@@ -3,10 +3,10 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration, switchLanguage } from "../extension";
-import { cellId } from "@/__tests__/branded";
 import {
   getEditorCodeAsPython,
   splitEditor,

@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { cellId } from "@/__tests__/branded";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { RunStaleCellsTool } from "../run-cells-tool";

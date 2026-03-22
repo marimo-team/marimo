@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { requestId } from "@/__tests__/branded";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import { CachingRequestRegistry } from "../CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../DeferredRequestRegistry";
 

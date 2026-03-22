@@ -256,6 +256,9 @@ components:
       - description
       title: BannerNotification
       type: object
+    Base64String:
+      contentEncoding: base64
+      type: string
     BaseResponse:
       properties:
         success:
@@ -3123,8 +3126,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         message:
           anyOf:
@@ -3154,8 +3156,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         content: {}
         method:
@@ -3223,8 +3224,7 @@ components:
           type: array
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         method:
           enum:
@@ -3242,8 +3242,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         message:
           anyOf:
@@ -3277,8 +3276,7 @@ components:
           type: array
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         method:
           enum:
@@ -4673,8 +4671,7 @@ components:
         buffers:
           anyOf:
           - items:
-              contentEncoding: base64
-              type: string
+              $ref: '#/components/schemas/Base64String'
             type: array
           - type: 'null'
           default: null

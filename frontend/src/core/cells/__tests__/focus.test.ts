@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { cellId } from "@/__tests__/branded";
+
 import { beforeEach, describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { CellFocusState } from "../focus";
 import { exportedForTesting } from "../focus";
 

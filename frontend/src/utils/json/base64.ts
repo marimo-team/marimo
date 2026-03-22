@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { components } from "@marimo-team/marimo-api";
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import type { TypedString } from "../typed";
 
@@ -11,9 +12,9 @@ export type JsonString<T = unknown> = TypedString<"Json"> & {
 };
 
 /**
- * A base64-encoded string.
+ * A base64-encoded string — derived from the generated OpenAPI schema.
  */
-export type Base64String = TypedString<"Base64">;
+export type Base64String = components["schemas"]["Base64String"];
 
 /**
  * A data URL string.
@@ -120,7 +121,6 @@ export function dataViewToBase64(dataView: DataView): Base64String {
 export function safeExtractSetUIElementMessageBuffers(
   notification: NotificationMessageData<"send-ui-element-message">,
 ): readonly DataView[] {
-  // @ts-expect-error - TypeScript doesn't know that these strings are actually base64 strings
   const strs: Base64String[] = notification.buffers ?? [];
   return strs.map(base64ToDataView);
 }

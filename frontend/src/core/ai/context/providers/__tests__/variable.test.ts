@@ -2,10 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, expect, it, vi } from "vitest";
+import { cellId, variableName } from "@/__tests__/branded";
 import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { Variable, Variables } from "@/core/variables/types";
 import { type VariableContextItem, VariableContextProvider } from "../variable";
-import { cellId, variableName } from "@/__tests__/branded";
 
 // Mock the variable completions module
 vi.mock("@/core/codemirror/completion/variable-completions", () => ({

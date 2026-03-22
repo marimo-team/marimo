@@ -12,12 +12,12 @@ vi.mock("@/utils/storage/storage", () => ({
   },
 }));
 
+import { cellId } from "@/__tests__/branded";
 import { availableStorage } from "@/utils/storage/storage";
 import { ChartSchema } from "../schemas";
 import type { TabName } from "../storage";
 import { KEY, tabsStorageAtom } from "../storage";
 import { ChartType } from "../types";
-import { cellId } from "@/__tests__/branded";
 
 describe("Chart Transforms Storage", () => {
   beforeEach(() => {
