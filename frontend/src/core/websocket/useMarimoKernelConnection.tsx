@@ -33,6 +33,7 @@ import { useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import type { ConnectionName } from "../datasets/engines";
 import {
+  PreviewSQLSchemaList,
   PreviewSQLTable,
   PreviewSQLTableList,
   ValidateSQL,
@@ -275,6 +276,12 @@ export function useMarimoKernelConnection(opts: {
         return;
       case "sql-table-list-preview":
         PreviewSQLTableList.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "sql-schema-list-preview":
+        PreviewSQLSchemaList.resolve(
+          msg.data.request_id as RequestId,
+          msg.data,
+        );
         return;
       case "validate-sql-result":
         ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);

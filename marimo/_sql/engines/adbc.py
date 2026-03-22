@@ -463,6 +463,19 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def get_default_schema(self) -> Optional[str]:
         return self._catalog.get_default_schema()
 
+    # TODO: The following methods are currently not implemented.
+    # We should consider implementing these in the future for better performance when users don't want to fetch everything.
+    def get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Return all schemas in a database. This is currently implemented in get_databases_from_duckdb."""
+        _, _, _ = database, include_tables, include_table_details
+        return []
+
     def get_databases(
         self,
         *,

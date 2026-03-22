@@ -199,7 +199,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
             schemas: list[Schema] = []
             if include_schemas:
                 schemas = self.get_schemas(
-                    catalog=catalog,
+                    database=catalog,
                     include_tables=include_tables,
                     include_table_details=include_table_details,
                 )
@@ -218,7 +218,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
     def get_schemas(
         self,
         *,
-        catalog: str,
+        database: Optional[str],
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -227,7 +227,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
         output_schemas: list[Schema] = []
         with self._connection.cursor() as cursor:
             # get_schemas returns [["schema_name", "catalog"], ["schema_2", "catalog"]]
-            schemas = cursor.get_schemas(catalog=catalog)
+            schemas = cursor.get_schemas(catalog=database)
 
             for schema in schemas:
                 schema_name = schema[0]
@@ -237,7 +237,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 tables = (
                     self.get_tables_in_schema(
                         schema=schema_name,
-                        database=catalog,
+                        database=database if database is not None else "",
                         include_table_details=include_table_details,
                     )
                     if include_tables

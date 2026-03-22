@@ -52,6 +52,7 @@ with app.setup:
         o.DatasetsNotification,
         o.SQLTablePreviewNotification,
         o.SQLTableListPreviewNotification,
+        o.SQLSchemaListPreviewNotification,
         o.DataColumnPreviewNotification,
         o.DataSourceConnectionsNotification,
         o.ValidateSQLResultNotification,

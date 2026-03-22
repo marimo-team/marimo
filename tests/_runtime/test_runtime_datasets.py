@@ -8,6 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     DataSourceConnectionsNotification,
     SQLMetadata,
+    SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     ValidateSQLResultNotification,
@@ -15,6 +16,7 @@ from marimo._messaging.notification import (
 from marimo._runtime.commands import (
     ExecuteCellCommand,
     ListDataSourceConnectionCommand,
+    ListSQLSchemasCommand,
     ListSQLTablesCommand,
     PreviewSQLTableCommand,
     ValidateSQLCommand,
@@ -177,6 +179,103 @@ class TestPreviewSQLTable:
                 error="Connection does not support catalog operations",
                 metadata=SQLMetadata(
                     connection=SQLITE_CONN, database="test", schema="test"
+                ),
+            )
+        ]
+
+
+@pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
+class TestPreviewSQLSchemaList:
+    async def test_non_existent_engine(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        preview_sql_schema_list_request = ListSQLSchemasCommand(
+            request_id=RequestId("0"),
+            engine=DUCKDB_CONN,
+            database="test",
+        )
+        await k.handle_message(preview_sql_schema_list_request)
+        preview_sql_schema_list_results = [
+            op
+            for op in stream.operations
+            if isinstance(op, SQLSchemaListPreviewNotification)
+        ]
+        assert preview_sql_schema_list_results == [
+            SQLSchemaListPreviewNotification(
+                request_id=RequestId("0"),
+                schemas=[],
+                error="Engine not found",
+                metadata=SQLMetadata(
+                    connection=DUCKDB_CONN, database="test", schema=None
+                ),
+            )
+        ]
+
+    async def test_catalog_engine(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecuteCellCommand],
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        preview_sql_schema_list_request = ListSQLSchemasCommand(
+            request_id=RequestId("0"),
+            engine=DUCKDB_CONN,
+            database="test",
+        )
+        await k.handle_message(preview_sql_schema_list_request)
+
+        preview_sql_schema_list_results = [
+            op
+            for op in stream.operations
+            if isinstance(op, SQLSchemaListPreviewNotification)
+        ]
+        assert preview_sql_schema_list_results == [
+            SQLSchemaListPreviewNotification(
+                request_id=RequestId("0"),
+                schemas=[],
+                error=None,
+                metadata=SQLMetadata(
+                    connection=DUCKDB_CONN, database="test", schema=None
+                ),
+            )
+        ]
+
+    async def test_query_engine(
+        self,
+        mocked_kernel: MockedKernel,
+        connection_requests: list[ExecuteCellCommand],
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        await k.run(connection_requests)
+
+        preview_sql_schema_list_request = ListSQLSchemasCommand(
+            request_id=RequestId("0"),
+            engine=SQLITE_CONN,
+            database="test",
+        )
+        await k.handle_message(preview_sql_schema_list_request)
+
+        preview_sql_schema_list_results = [
+            op
+            for op in stream.operations
+            if isinstance(op, SQLSchemaListPreviewNotification)
+        ]
+        assert preview_sql_schema_list_results == [
+            SQLSchemaListPreviewNotification(
+                request_id=RequestId("0"),
+                schemas=[],
+                error="Connection does not support catalog operations",
+                metadata=SQLMetadata(
+                    connection=SQLITE_CONN, database="test", schema=None
                 ),
             )
         ]

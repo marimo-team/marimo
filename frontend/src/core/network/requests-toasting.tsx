@@ -41,6 +41,7 @@ export function createErrorToastingRequests(
     previewDatasetColumn: "Failed to fetch data sources",
     previewSQLTable: "Failed to fetch SQL table",
     previewSQLTableList: "Failed to fetch SQL table list",
+    previewSQLSchemaList: "Failed to fetch SQL schema list",
     previewDataSourceConnection: "Failed to preview data source connection",
     validateSQL: "Failed to validate SQL",
     openFile: "Failed to open file",

@@ -1146,7 +1146,10 @@ components:
         database:
           type: string
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         type:
           enum:
           - sql-metadata
@@ -1156,6 +1159,32 @@ components:
       - database
       - schema
       title: SQLMetadata
+      type: object
+    SQLSchemaListPreviewNotification:
+      description: Preview of a list of schemas in a database.
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        metadata:
+          $ref: '#/components/schemas/SQLMetadata'
+        op:
+          enum:
+          - sql-schema-list-preview
+        request_id:
+          type: string
+        schemas:
+          default: []
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+      required:
+      - op
+      - request_id
+      - metadata
+      title: SQLSchemaListPreviewNotification
       type: object
     SQLTableListPreviewNotification:
       description: Preview of a list of tables in a schema.

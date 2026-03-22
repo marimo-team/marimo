@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
-from marimo._data.models import Database, DataTable
+from marimo._data.models import Database, DataTable, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -156,6 +156,19 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         )
         with self._install_connection(connection):
             return get_databases_from_duckdb(connection, self._engine_name)
+
+    # TODO: The following methods are currently not implemented.
+    # We should consider implementing these in the future for better performance when users don't want to fetch everything.
+    def get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Return all schemas in a database. This is currently implemented in get_databases_from_duckdb."""
+        _, _, _ = database, include_tables, include_table_details
+        return []
 
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool

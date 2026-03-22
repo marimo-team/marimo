@@ -235,6 +235,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    previewSQLSchemaList: (request) => {
+      return getClient()
+        .POST("/api/datasources/preview_sql_schema_list", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     previewDataSourceConnection: (request) => {
       return getClient()
         .POST("/api/datasources/preview_datasource_connection", {

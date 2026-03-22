@@ -399,7 +399,7 @@ def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
     engine = SQLAlchemyEngine(
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
-    schemas = engine._get_schemas(
+    schemas = engine.get_schemas(
         database=UNUSED_DB_NAME,
         include_tables=True,
         include_table_details=True,
@@ -415,7 +415,7 @@ def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
     assert schema == get_expected_schema("my_schema", "test2")
 
     # Test with include_table_details false
-    schemas = engine._get_schemas(
+    schemas = engine.get_schemas(
         database=UNUSED_DB_NAME,
         include_tables=True,
         include_table_details=False,
@@ -431,7 +431,7 @@ def test_sqlalchemy_engine_get_schemas(sqlite_engine: sa.Engine) -> None:
     assert schema.tables[0] == expected_table
 
     # Test with include_tables false
-    schemas = engine._get_schemas(
+    schemas = engine.get_schemas(
         database=UNUSED_DB_NAME,
         include_tables=False,
         include_table_details=True,

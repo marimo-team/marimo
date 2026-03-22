@@ -445,6 +445,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_sql_schema_list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ListSQLSchemasRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview a list of schemas in an SQL database */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
@@ -4693,6 +4734,7 @@ export interface components {
         | components["schemas"]["PreviewDatasetColumnCommand"]
         | components["schemas"]["PreviewSQLTableCommand"]
         | components["schemas"]["ListSQLTablesCommand"]
+        | components["schemas"]["ListSQLSchemasCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
         | components["schemas"]["StorageListEntriesCommand"]
@@ -4754,6 +4796,7 @@ export interface components {
         | components["schemas"]["DataColumnPreviewNotification"]
         | components["schemas"]["SQLTablePreviewNotification"]
         | components["schemas"]["SQLTableListPreviewNotification"]
+        | components["schemas"]["SQLSchemaListPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
@@ -4809,6 +4852,31 @@ export interface components {
     /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
+    };
+    /**
+     * ListSQLSchemasCommand
+     * @description List schemas in an SQL database.
+     *
+     *         Retrieves names of all schemas in a database. Used by the SQL editor for
+     *         schema selection.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *             database: Database to query.
+     */
+    ListSQLSchemasCommand: {
+      database: string;
+      engine: string;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "list-sql-schemas";
+    };
+    /** ListSQLSchemasRequest */
+    ListSQLSchemasRequest: {
+      database: string;
+      engine: string;
+      requestId: string;
     };
     /**
      * ListSQLTablesCommand
@@ -5578,14 +5646,35 @@ export interface components {
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
-     *             schema: Schema name.
+     *             schema: Schema name (optional).
      */
     SQLMetadata: {
       connection: string;
       database: string;
-      schema: string;
+      /** @default null */
+      schema?: string | null;
       /** @enum {unknown} */
       type: "sql-metadata";
+    };
+    /**
+     * SQLSchemaListPreviewNotification
+     * @description List of SQL schemas in a database.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             metadata: Database and schema metadata.
+     *             schemas: Schemas in database.
+     *             error: Error message if failed.
+     */
+    SQLSchemaListPreviewNotification: {
+      /** @default null */
+      error?: string | null;
+      metadata: components["schemas"]["SQLMetadata"];
+      /** @enum {unknown} */
+      op: "sql-schema-list-preview";
+      request_id: string;
+      /** @default [] */
+      schemas?: components["schemas"]["Schema"][];
     };
     /**
      * SQLTableListPreviewNotification

@@ -5,6 +5,7 @@ import { isSchemaless } from "@/components/datasources/utils";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import type {
+  DatabaseSchema,
   DataSourceConnection as DataSourceConnectionType,
   DataTable,
 } from "../kernel/messages";
@@ -41,6 +42,11 @@ export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
 export interface DataSourceState {
   latestEngineSelected: ConnectionName;
   connectionsMap: ConnectionsMap;
+}
+
+export interface SQLSchemaContext {
+  engine: string;
+  database: string;
 }
 
 export interface SQLTableContext {
@@ -130,6 +136,44 @@ const {
       latestEngineSelected: newMap.has(latestEngineSelected)
         ? latestEngineSelected
         : DUCKDB_ENGINE,
+      connectionsMap: newMap,
+    };
+  },
+
+  // Add schema list to a specific database in a connection
+  addSchemaList: (
+    state: DataSourceState,
+    opts: {
+      schemas: DatabaseSchema[];
+      sqlSchemaContext: SQLSchemaContext;
+    },
+  ): DataSourceState => {
+    const { schemas, sqlSchemaContext } = opts;
+    const { connectionsMap, latestEngineSelected } = state;
+    const connectionName = sqlSchemaContext.engine as ConnectionName;
+    const conn = connectionsMap.get(connectionName);
+
+    if (!conn) {
+      return state;
+    }
+
+    const newMap = new Map(connectionsMap);
+    const newConn: DataSourceConnection = {
+      ...conn,
+      databases: conn.databases.map((db) => {
+        if (db.name !== sqlSchemaContext.database) {
+          return db;
+        }
+        return {
+          ...db,
+          schemas: schemas,
+        };
+      }),
+    };
+    newMap.set(connectionName, newConn);
+
+    return {
+      latestEngineSelected: latestEngineSelected,
       connectionsMap: newMap,
     };
   },

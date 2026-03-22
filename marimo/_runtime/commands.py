@@ -642,6 +642,23 @@ class ListSQLTablesCommand(Command):
     schema: str
 
 
+class ListSQLSchemasCommand(Command):
+    """List schemas in an SQL database.
+
+    Retrieves names of all schemas in a database. Used by the SQL editor for
+    schema selection.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+        database: Database to query.
+    """
+
+    request_id: RequestId
+    engine: str
+    database: str
+
+
 class ListDataSourceConnectionCommand(Command):
     """List data source schemas.
 
@@ -856,6 +873,7 @@ CommandMessage = Union[
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     ListSQLTablesCommand,
+    ListSQLSchemasCommand,
     ValidateSQLCommand,
     ListDataSourceConnectionCommand,
     # Storage operations

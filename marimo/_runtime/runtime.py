@@ -77,6 +77,7 @@ from marimo._messaging.notification import (
     RemoveUIElementsNotification,
     SecretKeysResultNotification,
     SQLMetadata,
+    SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StorageDownloadReadyNotification,
@@ -133,6 +134,7 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
+    ListSQLSchemasCommand,
     ListSQLTablesCommand,
     ModelCommand,
     PreviewDatasetColumnCommand,
@@ -2373,6 +2375,10 @@ class Kernel:
             self.datasets_callbacks.preview_sql_table_list,
         )
         handler.register(
+            ListSQLSchemasCommand,
+            self.datasets_callbacks.preview_sql_schema_list,
+        )
+        handler.register(
             ListDataSourceConnectionCommand,
             self.datasets_callbacks.preview_datasource_connection,
         )
@@ -2659,6 +2665,63 @@ class DatasetCallbacks:
                     request_id=request.request_id,
                     tables=[],
                     error="Failed to get table list: " + str(e),
+                    metadata=sql_metadata,
+                ),
+            )
+
+    @kernel_tracer.start_as_current_span("preview_sql_schema_list")
+    async def preview_sql_schema_list(
+        self, request: ListSQLSchemasCommand
+    ) -> None:
+        """Get a list of schemas from an SQL database
+
+        Args:
+            request (ListSQLSchemasRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+        """
+        variable_name = cast(VariableName, request.engine)
+        database_name = request.database
+        sql_metadata = SQLMetadata(
+            connection=variable_name,
+            database=database_name,
+            schema=None,
+        )
+
+        engine, error = self.get_engine_catalog(variable_name)
+        if error is not None or engine is None:
+            broadcast_notification(
+                SQLSchemaListPreviewNotification(
+                    request_id=request.request_id,
+                    schemas=[],
+                    error=error,
+                    metadata=sql_metadata,
+                ),
+            )
+            return
+
+        try:
+            schema_list = engine.get_schemas(
+                database=database_name,
+                include_tables=False,
+                include_table_details=False,
+            )
+            broadcast_notification(
+                SQLSchemaListPreviewNotification(
+                    request_id=request.request_id,
+                    schemas=schema_list,
+                    metadata=sql_metadata,
+                ),
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get schema list for database %s", database_name
+            )
+            broadcast_notification(
+                SQLSchemaListPreviewNotification(
+                    request_id=request.request_id,
+                    schemas=[],
+                    error="Failed to get schema list: " + str(e),
                     metadata=sql_metadata,
                 ),
             )
