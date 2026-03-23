@@ -321,6 +321,9 @@ export function useMarimoKernelConnection(opts: {
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids });
         return;
+      case "notebook-document-transaction":
+        // TODO: apply transaction ops to local state (server → frontend)
+        return;
       default:
         logNever(msg.data);
     }

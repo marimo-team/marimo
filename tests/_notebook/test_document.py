@@ -1,0 +1,577 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import pytest
+from inline_snapshot import snapshot
+
+from marimo._ast.cell import CellConfig
+from marimo._notebook.document import NotebookCell, NotebookDocument
+from marimo._notebook.ops import (
+    CreateCell,
+    DeleteCell,
+    MoveCell,
+    Op,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    SetName,
+    Transaction,
+)
+from marimo._types.ids import CellId_t
+
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
+
+
+def _cell(name: str) -> NotebookCell:
+    return NotebookCell(
+        id=CellId_t(name), code="", name="__", config=CellConfig()
+    )
+
+
+def _doc(*names: str) -> NotebookDocument:
+    return NotebookDocument([_cell(n) for n in names])
+
+
+def _tx(*ops: Op, source: str = "test") -> Transaction:
+    return Transaction(ops=ops, source=source)
+
+
+def _ids(doc: NotebookDocument) -> list[str]:
+    return [str(cid) for cid in doc.cell_ids]
+
+
+# ------------------------------------------------------------------
+# CreateCell
+# ------------------------------------------------------------------
+
+
+class TestCreateCell:
+    def test_append_at_end(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                )
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "b", "new"])
+
+    def test_insert_after(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                    after=CellId_t("a"),
+                )
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "new", "b", "c"])
+
+    def test_insert_before(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                    before=CellId_t("b"),
+                )
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "new", "b", "c"])
+
+    def test_insert_into_empty(self) -> None:
+        doc = _doc()
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                )
+            )
+        )
+        assert _ids(doc) == snapshot(["new"])
+
+    def test_multiple(self) -> None:
+        doc = _doc("a")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("x"),
+                    code="1",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                CreateCell(
+                    cell_id=CellId_t("y"),
+                    code="2",
+                    name="__",
+                    config=CellConfig(),
+                ),
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "x", "y"])
+
+    def test_after_pending(self) -> None:
+        """A create can reference a cell added earlier in the same tx."""
+        doc = _doc("a")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("x"),
+                    code="1",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                CreateCell(
+                    cell_id=CellId_t("y"),
+                    code="2",
+                    name="__",
+                    config=CellConfig(),
+                    after=CellId_t("x"),
+                ),
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "x", "y"])
+
+    def test_duplicate_id_raises(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(ValueError, match="already exists"):
+            doc.apply(
+                _tx(
+                    CreateCell(
+                        cell_id=CellId_t("a"),
+                        code="x",
+                        name="__",
+                        config=CellConfig(),
+                    )
+                )
+            )
+
+    def test_stores_code_and_config(self) -> None:
+        doc = _doc()
+        cfg = CellConfig(hide_code=True, disabled=True)
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("a"),
+                    code="import os",
+                    name="imports",
+                    config=cfg,
+                )
+            )
+        )
+        cell = doc.get_cell(CellId_t("a"))
+        assert cell.code == "import os"
+        assert cell.name == "imports"
+        assert cell.config.hide_code is True
+        assert cell.config.disabled is True
+
+
+# ------------------------------------------------------------------
+# DeleteCell
+# ------------------------------------------------------------------
+
+
+class TestDeleteCell:
+    def test_delete_single(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(_tx(DeleteCell(cell_id=CellId_t("b"))))
+        assert _ids(doc) == snapshot(["a", "c"])
+
+    def test_delete_multiple(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(
+            _tx(
+                DeleteCell(cell_id=CellId_t("a")),
+                DeleteCell(cell_id=CellId_t("c")),
+            )
+        )
+        assert _ids(doc) == snapshot(["b"])
+
+    def test_delete_all(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(
+            _tx(
+                DeleteCell(cell_id=CellId_t("a")),
+                DeleteCell(cell_id=CellId_t("b")),
+            )
+        )
+        assert _ids(doc) == snapshot([])
+
+    def test_delete_not_found(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(KeyError):
+            doc.apply(_tx(DeleteCell(cell_id=CellId_t("missing"))))
+
+
+# ------------------------------------------------------------------
+# MoveCell
+# ------------------------------------------------------------------
+
+
+class TestMoveCell:
+    def test_move_after(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(_tx(MoveCell(cell_id=CellId_t("a"), after=CellId_t("c"))))
+        assert _ids(doc) == snapshot(["b", "c", "a"])
+
+    def test_move_before(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(_tx(MoveCell(cell_id=CellId_t("c"), before=CellId_t("a"))))
+        assert _ids(doc) == snapshot(["c", "a", "b"])
+
+    def test_no_anchor_raises(self) -> None:
+        doc = _doc("a", "b")
+        with pytest.raises(ValueError, match="before.*after"):
+            doc.apply(_tx(MoveCell(cell_id=CellId_t("a"))))
+
+
+# ------------------------------------------------------------------
+# SetCode
+# ------------------------------------------------------------------
+
+
+class TestSetCode:
+    def test_update_code(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(_tx(SetCode(cell_id=CellId_t("b"), code="new")))
+        assert doc.get_cell(CellId_t("b")).code == "new"
+        assert doc.get_cell(CellId_t("a")).code == ""  # unchanged
+
+    def test_not_found(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(KeyError):
+            doc.apply(_tx(SetCode(cell_id=CellId_t("missing"), code="x")))
+
+
+# ------------------------------------------------------------------
+# SetName
+# ------------------------------------------------------------------
+
+
+class TestSetName:
+    def test_update_name(self) -> None:
+        doc = _doc("a")
+        doc.apply(_tx(SetName(cell_id=CellId_t("a"), name="my_cell")))
+        assert doc.get_cell(CellId_t("a")).name == "my_cell"
+
+
+# ------------------------------------------------------------------
+# SetConfig
+# ------------------------------------------------------------------
+
+
+class TestSetConfig:
+    def test_partial_hide_code(self) -> None:
+        doc = _doc("a")
+        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), hide_code=True)))
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg.hide_code is True
+        assert cfg.disabled is False  # unchanged default
+
+    def test_partial_disabled(self) -> None:
+        doc = _doc("a")
+        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), disabled=True)))
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg.disabled is True
+        assert cfg.hide_code is False  # unchanged default
+
+    def test_multiple_fields(self) -> None:
+        doc = _doc("a")
+        doc.apply(
+            _tx(
+                SetConfig(cell_id=CellId_t("a"), hide_code=True, disabled=True)
+            )
+        )
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg.hide_code is True
+        assert cfg.disabled is True
+
+    def test_all_none_is_noop(self) -> None:
+        doc = _doc("a")
+        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"))))
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg == CellConfig()
+
+    def test_preserves_existing(self) -> None:
+        """Setting one field preserves other non-default fields."""
+        doc = NotebookDocument(
+            [
+                NotebookCell(
+                    id=CellId_t("a"),
+                    code="",
+                    name="__",
+                    config=CellConfig(hide_code=True, column=2),
+                )
+            ]
+        )
+        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), disabled=True)))
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg.disabled is True
+        assert cfg.hide_code is True  # preserved
+        assert cfg.column == 2  # preserved
+
+
+# ------------------------------------------------------------------
+# Validation
+# ------------------------------------------------------------------
+
+
+class TestValidation:
+    def test_delete_and_set_code_same_cell(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(ValueError, match="delete.*update"):
+            doc.apply(
+                _tx(
+                    SetCode(cell_id=CellId_t("a"), code="x"),
+                    DeleteCell(cell_id=CellId_t("a")),
+                )
+            )
+
+    def test_set_code_and_delete_same_cell(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(ValueError, match="update.*delete"):
+            doc.apply(
+                _tx(
+                    DeleteCell(cell_id=CellId_t("a")),
+                    SetCode(cell_id=CellId_t("a"), code="x"),
+                )
+            )
+
+    def test_delete_and_move_same_cell(self) -> None:
+        doc = _doc("a", "b")
+        with pytest.raises(ValueError, match="delete.*move"):
+            doc.apply(
+                _tx(
+                    MoveCell(cell_id=CellId_t("a"), after=CellId_t("b")),
+                    DeleteCell(cell_id=CellId_t("a")),
+                )
+            )
+
+    def test_double_delete(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(ValueError, match="deleted more than once"):
+            doc.apply(
+                _tx(
+                    DeleteCell(cell_id=CellId_t("a")),
+                    DeleteCell(cell_id=CellId_t("a")),
+                )
+            )
+
+    def test_valid_mixed_ops(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                SetCode(cell_id=CellId_t("a"), code="y"),
+                DeleteCell(cell_id=CellId_t("b")),
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "new"])
+
+
+# ------------------------------------------------------------------
+# Versioning
+# ------------------------------------------------------------------
+
+
+class TestVersion:
+    def test_increments_on_apply(self) -> None:
+        doc = _doc("a")
+        assert doc.version == 0
+        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="x")))
+        assert doc.version == 1
+        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="y")))
+        assert doc.version == 2
+
+    def test_stamped_on_returned_tx(self) -> None:
+        doc = _doc("a")
+        tx = _tx(SetCode(cell_id=CellId_t("a"), code="x"))
+        assert tx.version is None
+        applied = doc.apply(tx)
+        assert applied.version == 1
+
+    def test_empty_tx_no_increment(self) -> None:
+        doc = _doc("a")
+        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="x")))
+        assert doc.version == 1
+        applied = doc.apply(_tx())
+        assert doc.version == 1
+        assert applied.version == 1
+
+
+# ------------------------------------------------------------------
+# Combined ops
+# ------------------------------------------------------------------
+
+
+class TestCombined:
+    def test_delete_then_create(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(
+            _tx(
+                DeleteCell(cell_id=CellId_t("b")),
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="d",
+                    name="__",
+                    config=CellConfig(),
+                    after=CellId_t("a"),
+                ),
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "new", "c"])
+
+    def test_create_then_set_code(self) -> None:
+        doc = _doc("a")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="tmp",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                SetCode(cell_id=CellId_t("new"), code="final"),
+            )
+        )
+        assert _ids(doc) == snapshot(["a", "new"])
+        assert doc.get_cell(CellId_t("new")).code == "final"
+
+    def test_create_then_move(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                MoveCell(cell_id=CellId_t("new"), before=CellId_t("a")),
+            )
+        )
+        assert _ids(doc) == snapshot(["new", "a", "b"])
+
+    def test_source_preserved(self) -> None:
+        doc = _doc("a")
+        applied = doc.apply(
+            _tx(
+                SetCode(cell_id=CellId_t("a"), code="x"),
+                source="kernel",
+            )
+        )
+        assert applied.source == "kernel"
+
+
+# ------------------------------------------------------------------
+# Initialization
+# ------------------------------------------------------------------
+
+
+class TestInit:
+    def test_from_cells(self) -> None:
+        doc = _doc("a", "b", "c")
+        assert _ids(doc) == ["a", "b", "c"]
+
+    def test_empty(self) -> None:
+        doc = NotebookDocument()
+        assert _ids(doc) == []
+        assert doc.version == 0
+
+    def test_get_cell(self) -> None:
+        doc = _doc("a", "b")
+        cell = doc.get_cell(CellId_t("b"))
+        assert cell.id == CellId_t("b")
+
+    def test_get_cell_not_found(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(KeyError):
+            doc.get_cell(CellId_t("missing"))
+
+    def test_get_returns_none(self) -> None:
+        doc = _doc("a")
+        assert doc.get(CellId_t("missing")) is None
+        assert doc.get(CellId_t("a")) is not None
+
+    def test_contains(self) -> None:
+        doc = _doc("a", "b")
+        assert CellId_t("a") in doc
+        assert CellId_t("missing") not in doc
+
+    def test_len(self) -> None:
+        assert len(_doc()) == 0
+        assert len(_doc("a", "b")) == 2
+
+    def test_iter(self) -> None:
+        doc = _doc("a", "b", "c")
+        assert list(doc) == [CellId_t("a"), CellId_t("b"), CellId_t("c")]
+
+    def test_repr(self) -> None:
+        doc = _doc("a")
+        assert "NotebookDocument(1 cells)" in repr(doc)
+
+
+# ------------------------------------------------------------------
+# ReorderCells
+# ------------------------------------------------------------------
+
+
+class TestReorderCells:
+    def test_reorder(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(
+            _tx(
+                ReorderCells(
+                    cell_ids=(CellId_t("c"), CellId_t("a"), CellId_t("b"))
+                )
+            )
+        )
+        assert _ids(doc) == snapshot(["c", "a", "b"])
+
+    def test_missing_ids_appended(self) -> None:
+        """Cells not in the reorder list are appended at the end."""
+        doc = _doc("a", "b", "c")
+        doc.apply(_tx(ReorderCells(cell_ids=(CellId_t("c"), CellId_t("a")))))
+        assert _ids(doc) == snapshot(["c", "a", "b"])
+
+    def test_unknown_ids_ignored(self) -> None:
+        """IDs not in the document are silently skipped."""
+        doc = _doc("a", "b")
+        doc.apply(
+            _tx(
+                ReorderCells(
+                    cell_ids=(
+                        CellId_t("b"),
+                        CellId_t("unknown"),
+                        CellId_t("a"),
+                    )
+                )
+            )
+        )
+        assert _ids(doc) == snapshot(["b", "a"])
+
+    def test_reorder_single(self) -> None:
+        doc = _doc("a", "b", "c")
+        doc.apply(_tx(ReorderCells(cell_ids=(CellId_t("b"),))))
+        assert _ids(doc) == snapshot(["b", "a", "c"])

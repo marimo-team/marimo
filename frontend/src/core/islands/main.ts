@@ -196,6 +196,8 @@ export async function initialize() {
         return;
       case "kernel-startup-error":
         return;
+      case "notebook-document-transaction":
+        return;
       case "model-lifecycle":
         handleWidgetMessage(MODEL_MANAGER, msg.data);
         return;
