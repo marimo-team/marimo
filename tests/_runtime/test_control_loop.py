@@ -16,41 +16,6 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_blocking_queue_get_starves_background_tasks():
-    """Blocking queue.get() prevents background tasks from running.
-
-    This demonstrates the bug fixed by switching to run_in_executor:
-    a blocking get(timeout=0.1) holds the event loop for ~100ms per
-    iteration, so a background task sleeping for 10ms only wakes
-    a handful of times per second.
-    """
-    q: queue.Queue[None] = queue.Queue()
-    count = 0
-
-    async def background():
-        nonlocal count
-        end = time.time() + 0.5
-        while time.time() < end:
-            count += 1
-            await asyncio.sleep(0.01)
-
-    task = asyncio.create_task(background())
-
-    # Simulate the OLD control loop: blocking get()
-    end = time.time() + 0.5
-    while time.time() < end:
-        try:
-            q.get(timeout=0.1)
-        except queue.Empty:
-            await asyncio.sleep(0)
-
-    await task
-    # With blocking get(timeout=0.1), the task is starved:
-    # ~5 iterations per 0.5s instead of ~45.
-    assert count < 15
-
-
-@pytest.mark.asyncio
 async def test_executor_queue_get_does_not_starve_background_tasks():
     """run_in_executor keeps the event loop free for background tasks.
 
