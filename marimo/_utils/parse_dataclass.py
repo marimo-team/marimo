@@ -131,7 +131,7 @@ class _DataclassParser:
                 # catch expected exceptions when conversion fails
                 except (TypeError, ValueError):
                     continue
-                except:
+                except BaseException:
                     raise
             raise ValueError(
                 f"Value '{value}' does not fit any type of the union"
