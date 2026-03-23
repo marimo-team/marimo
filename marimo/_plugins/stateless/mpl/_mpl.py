@@ -8,6 +8,7 @@ Adapted from https://matplotlib.org/stable/gallery/user_interfaces/embedding_web
 from __future__ import annotations
 
 import io
+import warnings
 from typing import TYPE_CHECKING, Any, Union
 
 from marimo import _loggers
@@ -19,6 +20,7 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._utils.data_uri import build_data_url
 
 LOGGER = _loggers.marimo_logger()
 
@@ -42,8 +44,19 @@ def new_figure_manager_given_figure(
     class FigureCanvasWebAgg(FigureCanvasWebAggCore):
         manager_class = FigureManagerWebAgg  # type: ignore[assignment]
 
-    canvas = FigureCanvasWebAgg(figure)  # type: ignore[no-untyped-call]
-    manager = FigureManagerWebAgg(canvas, num)  # type: ignore[no-untyped-call]
+    # Suppress the "Starting a Matplotlib GUI outside of the main thread"
+    # warning.  WebAgg only renders to an in-memory Agg buffer and
+    # communicates over the network — no actual GUI toolkit is involved,
+    # so the warning is a false positive (especially in marimo-run mode
+    # where the kernel runs on a worker thread).
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Starting a Matplotlib GUI outside of the main thread",
+            category=UserWarning,
+        )
+        canvas = FigureCanvasWebAgg(figure)  # type: ignore[no-untyped-call]
+        manager = FigureManagerWebAgg(canvas, num)  # type: ignore[no-untyped-call]
     return manager
 
 
@@ -71,7 +84,10 @@ class NonInteractiveMplHtml(Html):
         super().__init__(as_html(figure).text)
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        return ("image/png", png_bytes(self._figure).decode())
+        data_url = build_data_url(
+            mimetype="image/png", data=png_bytes(self._figure)
+        )
+        return ("image/png", data_url)
 
 
 @mddoc

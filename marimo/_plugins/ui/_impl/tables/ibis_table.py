@@ -135,21 +135,24 @@ class IbisTableManagerFactory(TableManagerFactory):
             ) -> list[BinValue]:
                 data = self._original_data
 
-                def _convert_ms_to_time(ms: int) -> datetime.time:
-                    hours = ms // 3600000
-                    minutes = (ms % 3600000) // 60000
-                    seconds = (ms % 60000) // 1000
-                    microseconds = (ms % 1000) * 1000
-                    return datetime.time(hours, minutes, seconds, microseconds)
+                def _convert_seconds_to_time(
+                    secs: int,
+                ) -> datetime.time:
+                    hours = secs // 3600
+                    minutes = (secs % 3600) // 60
+                    seconds = secs % 60
+                    return datetime.time(hours, minutes, seconds)
 
                 col = data[column]
 
                 if dtype.is_time():
+                    # Avoid millisecond()/microsecond() as they
+                    # produce Mod expressions that fail with
+                    # sqlglotc's strict type checks.
                     col_agg = (
-                        col.hour() * 3600000
-                        + col.minute() * 60000
-                        + col.second() * 1000
-                        + col.microsecond() // 1000
+                        col.hour().cast("int64") * 3600
+                        + col.minute().cast("int64") * 60
+                        + col.second().cast("int64")
                     )
                 else:
                     col_agg = col.epoch_seconds()
@@ -169,11 +172,10 @@ class IbisTableManagerFactory(TableManagerFactory):
                         bin_start = datetime.date.fromtimestamp(row.bin_start)
                         bin_end = datetime.date.fromtimestamp(row.bin_end)
                     elif dtype.is_time():
-                        ms = int(row.bin_start)
-                        bin_start = _convert_ms_to_time(ms)
-
-                        ms = int(row.bin_end)
-                        bin_end = _convert_ms_to_time(ms)
+                        bin_start = _convert_seconds_to_time(
+                            int(row.bin_start)
+                        )
+                        bin_end = _convert_seconds_to_time(int(row.bin_end))
                     else:
                         bin_start = datetime.datetime.fromtimestamp(
                             row.bin_start

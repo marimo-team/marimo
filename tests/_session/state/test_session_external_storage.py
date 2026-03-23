@@ -27,6 +27,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                         display_name="s3_store",
                         protocol="s3",
                         root_path="my-bucket",
+                        backend_type="obstore",
                         storage_entries=[],
                     ),
                     StorageNamespace(
@@ -34,6 +35,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                         display_name="local_fs",
                         protocol="file",
                         root_path="/data",
+                        backend_type="fsspec",
                         storage_entries=[],
                     ),
                 ]
@@ -48,6 +50,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                 display_name="s3_store",
                 protocol="s3",
                 root_path="my-bucket",
+                backend_type="obstore",
                 storage_entries=[],
             ),
             StorageNamespace(
@@ -55,6 +58,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                 display_name="local_fs",
                 protocol="file",
                 root_path="/data",
+                backend_type="fsspec",
                 storage_entries=[],
             ),
         ]
@@ -70,6 +74,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                         display_name="s3_store_updated",
                         protocol="s3",
                         root_path="new-bucket",
+                        backend_type="obstore",
                         storage_entries=[],
                     ),
                     StorageNamespace(
@@ -77,6 +82,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                         display_name="gcs_store",
                         protocol="gcs",
                         root_path="gcs-bucket",
+                        backend_type="obstore",
                         storage_entries=[],
                     ),
                 ]
@@ -91,6 +97,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                 display_name="s3_store_updated",
                 protocol="s3",
                 root_path="new-bucket",
+                backend_type="obstore",
                 storage_entries=[],
             ),
             StorageNamespace(
@@ -98,6 +105,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                 display_name="local_fs",
                 protocol="file",
                 root_path="/data",
+                backend_type="fsspec",
                 storage_entries=[],
             ),
             StorageNamespace(
@@ -105,6 +113,7 @@ def test_add_storage_namespaces(session_view: SessionView) -> None:
                 display_name="gcs_store",
                 protocol="gcs",
                 root_path="gcs-bucket",
+                backend_type="obstore",
                 storage_entries=[],
             ),
         ]
@@ -137,6 +146,7 @@ def test_storage_namespaces_filtered_by_variables(
                     display_name="s3_store",
                     protocol="s3",
                     root_path="bucket-1",
+                    backend_type="obstore",
                     storage_entries=[],
                 ),
                 StorageNamespace(
@@ -144,6 +154,7 @@ def test_storage_namespaces_filtered_by_variables(
                     display_name="gcs_store",
                     protocol="gcs",
                     root_path="bucket-2",
+                    backend_type="obstore",
                     storage_entries=[],
                 ),
             ]
@@ -183,6 +194,7 @@ def test_storage_namespaces_filtered_by_variables(
                 display_name="s3_store",
                 protocol="s3",
                 root_path="bucket-1",
+                backend_type="obstore",
                 storage_entries=[],
             ),
         ]
@@ -218,6 +230,7 @@ def test_storage_namespaces_in_notifications(
                     display_name="store",
                     protocol="s3",
                     root_path="bucket",
+                    backend_type="obstore",
                     storage_entries=[],
                 ),
             ]
@@ -237,6 +250,7 @@ def test_storage_namespaces_in_notifications(
                         display_name="store",
                         protocol="s3",
                         root_path="bucket",
+                        backend_type="obstore",
                         storage_entries=[],
                     ),
                 ]

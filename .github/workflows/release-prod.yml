@@ -114,12 +114,3 @@ jobs:
       id-token: write  # Required for OIDC
       contents: read
 
-  publish_docker:
-    name: 🐋 Publish Docker images
-    needs: publish_release
-    uses: ./.github/workflows/publish-docker.yml
-    with:
-      marimo_version: ${{ needs.publish_release.outputs.marimo_version }}
-    permissions:
-      contents: read
-      packages: write

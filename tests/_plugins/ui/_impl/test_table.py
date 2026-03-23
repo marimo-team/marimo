@@ -2610,3 +2610,84 @@ def test_polars_enums_in_list():
         response_next_page.data
         == '[{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]},{"value":["C"]}]'
     )
+
+
+def test_search_returns_raw_data_with_format_mapping() -> None:
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    table = ui.table(
+        data,  # pyright: ignore[reportArgumentType]
+        format_mapping={"a": lambda x: f"formatted_{x}"},
+    )
+
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+
+    assert json.loads(result.data) == [
+        {"a": "formatted_1", "b": 4},
+        {"a": "formatted_2", "b": 5},
+        {"a": "formatted_3", "b": 6},
+    ]
+
+    assert result.raw_data is not None
+    assert json.loads(result.raw_data) == [
+        {"a": 1, "b": 4},
+        {"a": 2, "b": 5},
+        {"a": 3, "b": 6},
+    ]
+
+
+def test_search_returns_no_raw_data_without_format_mapping() -> None:
+    data = {"a": [1, 2, 3]}
+    table = ui.table(data)  # pyright: ignore[reportArgumentType]
+
+    result = table._search(SearchTableArgs(page_size=10, page_number=0))
+
+    assert result.raw_data is None
+
+
+def test_initial_args_include_raw_data_with_format_mapping() -> None:
+    data = {"a": [10, 20], "b": ["x", "y"]}
+    table = ui.table(
+        data,
+        format_mapping={"a": lambda x: x * 10},
+    )
+
+    raw_data = table._component_args["raw-data"]
+    assert isinstance(raw_data, str)
+    assert json.loads(raw_data) == [
+        {"a": 10, "b": "x"},
+        {"a": 20, "b": "y"},
+    ]
+    formatted_data = table._component_args["data"]
+    assert isinstance(formatted_data, str)
+    assert json.loads(formatted_data) == [
+        {"a": 100, "b": "x"},
+        {"a": 200, "b": "y"},
+    ]
+
+
+def test_initial_args_no_raw_data_without_format_mapping() -> None:
+    data = {"a": [1, 2]}
+    table = ui.table(data)  # pyright: ignore[reportArgumentType]
+
+    assert table._component_args["raw-data"] is None
+
+
+def test_search_raw_data_with_query_and_format_mapping() -> None:
+    data = {"name": ["alice", "bob", "charlie"], "score": [10, 20, 30]}
+    table = ui.table(
+        data,
+        format_mapping={"score": lambda x: f"{x}%"},
+    )
+
+    result = table._search(
+        SearchTableArgs(query="bob", page_size=10, page_number=0)
+    )
+
+    assert json.loads(result.data) == [
+        {"name": "bob", "score": "20%"},
+    ]
+
+    assert result.raw_data is not None
+    assert json.loads(result.raw_data) == [
+        {"name": "bob", "score": 20},
+    ]

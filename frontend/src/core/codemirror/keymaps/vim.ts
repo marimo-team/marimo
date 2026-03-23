@@ -247,6 +247,32 @@ function applyVimCommands(vimCommands: VimCommand[]) {
   }
 }
 
+interface ExtendedVim {
+  getVimGlobalState_: () => {
+    macroModeState?: {
+      isRecording: boolean;
+      isPlaying: boolean;
+    };
+  };
+}
+
+function isExtendedVim(vim: typeof Vim): vim is typeof Vim & ExtendedVim {
+  return (
+    "getVimGlobalState_" in vim && typeof vim.getVimGlobalState_ === "function"
+  );
+}
+
+function isMacroActive() {
+  if (!isExtendedVim(Vim)) {
+    return false;
+  }
+  const macroModeState = Vim.getVimGlobalState_()?.macroModeState;
+  if (!macroModeState) {
+    return false;
+  }
+  return Boolean(macroModeState.isRecording || macroModeState.isPlaying);
+}
+
 class CodeMirrorVimSync {
   private instances = new Set<EditorView>();
   private isBroadcasting = false;
@@ -275,10 +301,13 @@ class CodeMirrorVimSync {
         return;
       }
       invariant("mode" in e, 'Expected event to have a "mode" property');
+      const skipBroadcast = isMacroActive();
       this.isBroadcasting = true;
       // We use onIdle to keep the focused editor snappy
       onIdle(() => {
-        this.broadcastModeChange(instance, e.mode, e.subMode);
+        if (!skipBroadcast) {
+          this.broadcastModeChange(instance, e.mode, e.subMode);
+        }
         this.isBroadcasting = false;
       });
     });
@@ -338,9 +367,9 @@ class CodeMirrorVimSync {
             }
             break;
           case "insert":
-            // Only enter insert mode if we're not already in it
+            // only enter insert mode if we're not already in it
             if (!vim.insertMode) {
-              Vim.handleKey(cm, "i", "");
+              Vim.handleKey(cm, "i", "mapping");
             }
             break;
           case "visual":

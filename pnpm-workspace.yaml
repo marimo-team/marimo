@@ -1,4 +1,7 @@
 verifyDepsBeforeRun: install
 packages:
-  - 'frontend'
-  - 'packages/*'
+  - frontend
+  - packages/*
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - "@marimo-team/*"

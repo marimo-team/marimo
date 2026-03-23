@@ -3,7 +3,11 @@
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { replaceEditorContent } from "../replace-editor-content";
-import { languageAdapterState } from "./extension";
+import {
+  languageAdapterFromCode,
+  languageAdapterState,
+  switchLanguage,
+} from "./extension";
 import { languageMetadataField } from "./metadata";
 
 /**
@@ -35,6 +39,17 @@ export function updateEditorCodeFromPython(
   editor: EditorView,
   pythonCode: string,
 ): string {
+  const currentAdapter = editor.state.field(languageAdapterState);
+  const correctAdapter = languageAdapterFromCode(pythonCode);
+
+  // If the language type changed (e.g., markdown → python), switch adapters
+  if (correctAdapter.type !== currentAdapter.type) {
+    switchLanguage(editor, {
+      language: correctAdapter.type,
+      keepCodeAsIs: true,
+    });
+  }
+
   const languageAdapter = editor.state.field(languageAdapterState);
   const [code] = languageAdapter.transformIn(pythonCode);
   // Use replaceEditorContent which preserves cursor position when focused

@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -72,29 +71,26 @@ jobs:
             exit 1
           fi
 
-      - name: Comment on lint failure
+      - name: Summarize lint failure
         if: failure() && steps.lint.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "lint"
           command: "pnpm turbo lint"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on clean-tree failure after lint
+      - name: Summarize clean-tree failure after lint
         if: failure() && steps.lint_clean_tree.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "clean-tree"
           command: "pnpm turbo lint && git status --short"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on dedupe failure
+      - name: Summarize dedupe failure
         if: failure() && steps.dedupe.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "dedupe"
           command: "pnpm dedupe"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test_frontend:
     needs: changes
@@ -116,6 +112,9 @@ jobs:
       - name: 📥 Install repo
         uses: ./.github/actions/install
 
+      - name: 📋 Register tsc problem matcher
+        run: echo "::add-matcher::${{ github.workspace }}/.github/problemMatchers/tsc.json"
+
       - name: 🔎 Type check
         id: typecheck
         run: pnpm turbo typecheck
@@ -135,29 +134,26 @@ jobs:
         id: test
         run: pnpm turbo test
 
-      - name: Comment on typecheck failure
+      - name: Summarize typecheck failure
         if: failure() && steps.typecheck.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "typecheck"
           command: "pnpm turbo typecheck"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on test failure
+      - name: Summarize test failure
         if: failure() && steps.test.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "test"
           command: "pnpm turbo test"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on clean-tree failure after typecheck
+      - name: Summarize clean-tree failure after typecheck
         if: failure() && steps.typecheck_clean_tree.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "clean-tree"
           command: "pnpm turbo typecheck && git status --short"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   build_frontend:
     needs: changes
@@ -210,10 +206,9 @@ jobs:
           pnpm turbo build:islands
           ./islands/validate.sh
 
-      - name: Comment on build failure
+      - name: Summarize build failure
         if: failure() && steps.build.outcome == 'failure'
         uses: ./.github/actions/pr-comment-on-failure
         with:
           check-name: "build"
           command: "pnpm turbo build"
-          github-token: ${{ secrets.GITHUB_TOKEN }}

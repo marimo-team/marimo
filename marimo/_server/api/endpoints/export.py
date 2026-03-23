@@ -23,7 +23,10 @@ from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import (
+    notify_server_missing_packages,
+    parse_request,
+)
 from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
@@ -457,12 +460,19 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    async def _background_export() -> None:
-        # Check has nbformat installed
-        if not DependencyManager.nbformat.has():
-            LOGGER.error("Cannot snapshot to IPYNB: nbformat not installed")
-            return
+    # Check nbformat before scheduling background task.  Alert at most once
+    # per session so the notification doesn't keep popping up on every save.
+    if not DependencyManager.nbformat.has():
+        LOGGER.warning("Cannot snapshot to IPYNB: nbformat not installed")
+        if "nbformat" not in session_view.notified_server_packages:
+            notify_server_missing_packages(
+                session, app_state.get_current_session_id(), ["nbformat"]
+            )
+            session_view.notified_server_packages.add("nbformat")
+        session_view.mark_auto_export_ipynb()
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    async def _background_export() -> None:
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
 

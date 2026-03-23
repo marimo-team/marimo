@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.20.4"
+version = "0.21.1"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -50,6 +50,8 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
+    "pyzmq>=27.1.0; python_version < '3.15'",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -84,7 +86,7 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 sql = [
     "duckdb>=1.0.0",           # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    "sqlglot[c]>=26.2.0"       # SQL cells parsing;
+    "sqlglot[c]>=26.8.0"       # SQL cells parsing;
 ]
 
 # For per-notebook sandboxed kernels
@@ -123,7 +125,7 @@ dev = [
     "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -169,7 +171,7 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -197,6 +199,7 @@ test-optional = [
     "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat>=5.10.4",
+    "nbconvert>=7.17.0",
     "sympy>=1.13.3",
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
@@ -222,7 +225,7 @@ typecheck = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -266,6 +269,8 @@ docs = [
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
     "lzstring>=1.0.4",
+    "beautifulsoup4>=4.12.0",
+    "markdownify>=0.13.0",
 ]
 
 
@@ -435,7 +440,9 @@ banned-module-level-imports = [
     "typing_extensions",
     "pyiceberg",
     "redshift_connector",
-    "pydantic_ai"
+    "pydantic_ai",
+    # a top-level import of zmq may break WASM
+    "zmq"
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -462,8 +469,8 @@ addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_da
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-timeout = 30 # seconds, per test
-faulthandler_timeout = 30 # seconds, during collection
+timeout = 120 # seconds, per test (Windows CI needs extra headroom)
+faulthandler_timeout = 120 # seconds, during collection
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
@@ -513,6 +520,7 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 cache_panel = true
+isolate_apps = true
 
 [tool.marimo.display]
 dataframes = "rich"

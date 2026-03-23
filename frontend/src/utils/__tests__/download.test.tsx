@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Mocks } from "@/__mocks__/common";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import {
@@ -27,26 +28,23 @@ vi.mock("@/core/network/requests", () => ({
 }));
 
 // Mock the toast module
-const mockDismiss = vi.fn();
-const mockUpdate = vi.fn();
-vi.mock("@/components/ui/use-toast", () => ({
-  toast: vi.fn(() => ({
-    dismiss: mockDismiss,
-    update: mockUpdate,
-  })),
-}));
+const { mockDismiss, mockUpdate, toastMock } = vi.hoisted(() => {
+  const dismiss = vi.fn();
+  const update = vi.fn();
+  return {
+    mockDismiss: dismiss,
+    mockUpdate: update,
+    toastMock: { toast: vi.fn(() => ({ dismiss, update })) },
+  };
+});
+vi.mock("@/components/ui/use-toast", () => toastMock);
 
 // Mock the Spinner component
 vi.mock("@/components/icons/spinner", () => ({
   Spinner: () => "MockSpinner",
 }));
 
-// Mock Logger
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    error: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 // Mock Filenames
 vi.mock("@/utils/filenames", () => ({
@@ -439,8 +437,8 @@ describe("downloadHTMLAsImage", () => {
     await downloadHTMLAsImage({ element: mockElement, filename: "test" });
 
     expect(toast).toHaveBeenCalledWith({
-      title: "Error",
-      description: "Failed to download as PNG.",
+      title: "Failed to download as PNG",
+      description: "Failed",
       variant: "danger",
     });
   });

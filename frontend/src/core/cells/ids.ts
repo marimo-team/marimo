@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-redeclare */
 
+import { OBJECT_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { invariant } from "@/utils/invariant";
 import type { TypedString } from "../../utils/typed";
 
@@ -110,7 +111,7 @@ export function findCellId(element: HTMLElement): CellId | null {
 export type UIElementId = `${CellId}-${string}`;
 export const UIElementId = {
   parse(element: Element): UIElementId | null {
-    return element.getAttribute("object-id") as UIElementId | null;
+    return element.getAttribute(OBJECT_ID_ATTR) as UIElementId | null;
   },
   parseOrThrow(element: Element): UIElementId {
     const id = UIElementId.parse(element);

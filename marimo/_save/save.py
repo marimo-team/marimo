@@ -541,18 +541,6 @@ class _cache_call_async(_cache_call[P, R]):
     async def __call__(  # type: ignore[override]
         self, *args: P.args, **kwargs: P.kwargs
     ) -> R:
-        # Capture the deferred call case
-        if self.__wrapped__ is None:
-            if len(args) != 1:
-                raise TypeError(
-                    "cache() takes at most 1 argument (expecting function)"
-                )
-            # Remove the additional frames from singledispatch, because invoking
-            # the function directly.
-            self._frame_offset -= 4
-            self._set_context(cast(Callable[..., Any], args[0]))
-            return self  # type: ignore[return-value]
-
         # Prepare execution context to get cache key
         scope, ctx, attempt = self._prepare_call_execution(args, kwargs)
         cache_key = attempt.hash

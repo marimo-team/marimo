@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { merge } from "lodash-es";
 import {
   AlertTriangleIcon,
   BrainIcon,
@@ -287,10 +288,10 @@ export const UserConfigForm: React.FC = () => {
       dirtyValues.ai = setAiModels(values.ai, dirtyValues.ai);
     }
 
-    await saveUserConfig({ config: dirtyValues }).then(() => {
-      // Update local state with form values
-      setConfig((prev) => ({ ...prev, ...values }));
-    });
+    await saveUserConfig({ config: dirtyValues });
+    // Only apply the changed keys; this avoids stale request responses
+    // overwriting newer config changes.
+    setConfig((prev) => merge({}, prev, dirtyValues));
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
 

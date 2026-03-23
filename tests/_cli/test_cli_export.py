@@ -60,6 +60,36 @@ def _is_win32() -> bool:
     return sys.platform == "win32"
 
 
+def _playwright_browsers_installed() -> bool:
+    """Check if Playwright Chromium browser binary is actually installed."""
+    try:
+        import os
+
+        # Playwright stores browsers in PLAYWRIGHT_BROWSERS_PATH or
+        # the default cache: ~/.cache/ms-playwright (Linux),
+        # ~/Library/Caches/ms-playwright (macOS)
+        browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+        if not browsers_path:
+            if sys.platform == "darwin":
+                browsers_path = str(
+                    Path.home() / "Library" / "Caches" / "ms-playwright"
+                )
+            elif sys.platform == "win32":
+                local = os.environ.get("LOCALAPPDATA", "")
+                browsers_path = (
+                    str(Path(local) / "ms-playwright") if local else ""
+                )
+            else:
+                browsers_path = str(Path.home() / ".cache" / "ms-playwright")
+        p = Path(browsers_path)
+        if not p.exists():
+            return False
+        # Check if any chromium directory exists
+        return any(d.name.startswith("chromium") for d in p.iterdir())
+    except Exception:
+        return False
+
+
 _runner = CliRunner()
 
 
@@ -568,6 +598,17 @@ class TestExportScript:
             p.output,
         )
 
+    @staticmethod
+    def test_export_script_with_inline_deps(
+        temp_sandboxed_marimo_file: str,
+    ) -> None:
+        p = _run_export("script", temp_sandboxed_marimo_file)
+        _assert_success(p)
+        output = p.stdout
+        assert "# /// script" in output
+        assert "polars" in output
+        snapshot(_get_snapshot_path("script", "script_sandboxed"), output)
+
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has() or _is_win32(),
         reason="hangs when watchdog is installed, flaky on Windows",
@@ -807,10 +848,6 @@ class TestExportIpynb:
         not DependencyManager.nbformat.has(),
         reason="This test requires nbformat.",
     )
-    @pytest.mark.skipif(
-        sys.platform != "linux",
-        reason="Plotly template varies across versions; snapshot is linux-only.",
-    )
     def test_export_ipynb_with_media_outputs(
         self, temp_marimo_file_with_media: str
     ) -> None:
@@ -866,6 +903,71 @@ class TestExportIpynb:
         assert "division by zero" in output
         output = delete_lines_with_files(output)
         snapshot(_get_snapshot_path("ipynb", "ipynb_with_errors"), output)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_with_cli_args(
+        self, temp_marimo_file_with_md: str
+    ) -> None:
+        p = _run_export(
+            "ipynb",
+            temp_marimo_file_with_md,
+            "--include-outputs",
+            "--",
+            "--arg1",
+            "foo",
+            "--arg2",
+            "bar",
+        )
+        _assert_success(p)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb_cli_args_passed_to_export(
+        self, temp_marimo_file_with_md: str
+    ) -> None:
+        from marimo._server.export import ExportResult
+
+        fake_result = ExportResult(
+            contents="{}", download_filename="test.ipynb", did_error=False
+        )
+
+        async def fake_export(*args: Any, **kwargs: Any) -> ExportResult:
+            del args, kwargs
+            return fake_result
+
+        with mock.patch(
+            "marimo._cli.export.commands.run_app_then_export_as_ipynb",
+            side_effect=fake_export,
+        ) as mock_export:
+            p = _run_export(
+                "ipynb",
+                temp_marimo_file_with_md,
+                "--include-outputs",
+                "--",
+                "--arg1",
+                "foo",
+                "--arg2",
+                "bar",
+            )
+            _assert_success(p)
+
+            mock_export.assert_called_once()
+            call_kwargs = mock_export.call_args
+            assert call_kwargs.kwargs["cli_args"] == {
+                "arg1": "foo",
+                "arg2": "bar",
+            }
+            assert call_kwargs.kwargs["argv"] == [
+                "--arg1",
+                "foo",
+                "--arg2",
+                "bar",
+            ]
 
     @staticmethod
     @pytest.mark.skipif(
@@ -1148,6 +1250,11 @@ class TestExportPDF:
 @pytest.mark.skipif(
     not DependencyManager.playwright.has(),
     reason="This test requires playwright.",
+)
+@pytest.mark.skipif(
+    DependencyManager.playwright.has()
+    and not _playwright_browsers_installed(),
+    reason="Playwright browsers are not installed.",
 )
 class TestExportThumbnail:
     def test_export_thumbnail(self, temp_marimo_file: str) -> None:

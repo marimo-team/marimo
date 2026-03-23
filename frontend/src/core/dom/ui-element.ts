@@ -8,6 +8,7 @@ import {
   MarimoValueInputEvent,
   type MarimoValueInputEventType,
 } from "./events";
+import { RANDOM_ID_ATTR } from "./ui-element-constants";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 
 import "./ui-element.css";
@@ -189,7 +190,7 @@ export function initializeUIElement() {
     // used like a React key. If the random-id changes, we need to unmount and
     // remount its child.
     static get observedAttributes() {
-      return ["random-id"];
+      return [RANDOM_ID_ATTR];
     }
 
     attributeChangedCallback(
@@ -199,7 +200,7 @@ export function initializeUIElement() {
     ) {
       if (this.initialized) {
         const hasChanged = oldValue !== newValue;
-        if (name === "random-id" && hasChanged) {
+        if (name === RANDOM_ID_ATTR && hasChanged) {
           // deregister/clean-up this instance
           this.disconnectedCallback();
           // remove and re-add its child to force it to re-render; note that

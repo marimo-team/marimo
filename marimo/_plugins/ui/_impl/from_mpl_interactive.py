@@ -233,7 +233,11 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
 
         try:
             ctx = get_context()
-            ctx.cell_lifecycle_registry.add(_MplCleanupHandle(self._comm))
+            ctx.cell_lifecycle_registry.add(
+                _MplCleanupHandle(
+                    self._comm, self._figure_manager, self._sync_ws
+                )
+            )
         except ContextNotInitializedError:
             pass
 
@@ -295,15 +299,35 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
 
 
 class _MplCleanupHandle(CellLifecycleItem):
-    """Closes the MarimoComm when the cell is re-run or deleted."""
+    """Cleans up the matplotlib figure manager and MarimoComm on cell re-run or deletion."""
 
-    def __init__(self, comm: MarimoComm) -> None:
+    def __init__(
+        self,
+        comm: MarimoComm,
+        figure_manager: Any = None,
+        sync_ws: Any = None,
+    ) -> None:
         self._comm = comm
+        self._figure_manager = figure_manager
+        self._sync_ws = sync_ws
 
     def create(self, context: RuntimeContext) -> None:
         del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         del context, deletion
+        # Disconnect the web socket from the figure manager first,
+        # then destroy the canvas to prevent stale timer callbacks
+        # on thread teardown (avoids "QObject::killTimer" errors).
+        if self._figure_manager is not None and self._sync_ws is not None:
+            try:
+                self._figure_manager.remove_web_socket(self._sync_ws)
+            except Exception:
+                pass
+        if self._figure_manager is not None:
+            try:
+                self._figure_manager.canvas.close()
+            except Exception:
+                pass
         self._comm.close()
         return True

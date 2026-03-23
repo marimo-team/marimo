@@ -244,6 +244,7 @@ def test_require_many() -> None:
             "for testing multiple dependencies",
             missing1,
             missing2,
+            source="kernel",
         )
 
     assert excinfo.value.package_names == ["missing1", "missing2"]
@@ -264,6 +265,7 @@ def test_require_many_uses_package_name() -> None:
             "for testing package names",
             missing1,
             missing2,
+            source="kernel",
         )
 
     # Should use package_name, not pkg
@@ -279,6 +281,7 @@ def test_require_many_uses_package_name() -> None:
                 "for testing mixed dependencies",
                 DependencyManager.pandas,
                 missing1,
+                source="kernel",
             )
 
         assert excinfo.value.package_names == ["missing-package-1"]
@@ -286,6 +289,8 @@ def test_require_many_uses_package_name() -> None:
 
         # Test with all dependencies available
         result = DependencyManager.require_many(
-            "for testing available dependencies", DependencyManager.pandas
+            "for testing available dependencies",
+            DependencyManager.pandas,
+            source="kernel",
         )
         assert result is None

@@ -1,10 +1,10 @@
 # Remote Storage
 
-marimo makes it easy to work with cloud storage and remote filesystems by automatically detecting [Obstore](https://developmentseed.org/obstore/) and [fsspec](https://filesystem-spec.readthedocs.io/) storage connections in your notebook. From the Files panel, you can browse directories, search entries, copy URLs, and download files—all without leaving the editor.
+marimo makes it easy to work with cloud storage and remote filesystems by automatically detecting [obstore](https://developmentseed.org/obstore/) and [fsspec](https://filesystem-spec.readthedocs.io/) storage connections in your notebook. From the Files panel, you can browse directories, search entries, copy URLs, and download files—all without leaving the editor.
 
 !!! example "Experimental"
 
-    Remote storage is an experimental feature. Enable it in **Settings > Experimental > Storage Inspector**.
+    Remote storage is an experimental feature. It is enabled by default; you can turn it off in **Settings > Experimental > Storage Inspector** if needed.
 
 <div align="center">
 <video autoplay muted loop playsinline width="100%" height="100%" align="center">
@@ -18,15 +18,30 @@ marimo auto-discovers variables that are instances of:
 
 | Library | Base class | Example stores |
 |---------|-----------|----------------|
-| [Obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
+| [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
 | [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
 
 
-## Quick start
+## Creating a storage connection
 
-Create a storage connection in any cell. marimo will pick it up automatically after the cell executes.
+You can either create a storage connection using the UI or code.
 
-### Obstore
+### 1. Using the UI
+
+From the Files panel in the sidebar, expand the **Remote Storage** section and click the **Add remote storage** button. The UI will guide you through entering your storage connection details.
+
+<div align="center">
+  <figure>
+    <img width="700" src="/_static/docs-add-remote-storage-ui.png" alt="Add a storage connection through the UI" />
+  </figure>
+</div>
+
+If you'd like to connect to a storage that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=Add%20new%20storage%20connection%20UI:&labels=enhancement&template=feature_request.yaml).
+
+
+### 2. Using code
+
+#### obstore
 
 ```python
 from obstore.store import S3Store
@@ -38,7 +53,7 @@ store = S3Store.from_url(
 )
 ```
 
-### fsspec
+#### fsspec
 
 ```python
 from fsspec.implementations.github import GithubFileSystem
@@ -46,20 +61,13 @@ from fsspec.implementations.github import GithubFileSystem
 repo = GithubFileSystem(org="marimo-team", repo="marimo")
 ```
 
-After the cell runs, the **Remote Storage** section in the Files sidebar panel will show your connection with its detected protocol and root path.
+After the cell runs, the **Remote Storage** section will populate with your connection, its detected protocol, and root path.
 
-
-## Using the panel
-
-The storage inspector appears as a collapsible **Remote storage** section at the top of the **Files** sidebar panel.
-
-| Action | How |
-|--------|-----|
-| **Browse** | Click a directory to expand it. Entries are fetched lazily. |
-| **Search** | Type in the search box to filter loaded entries by name. Expand directories first to include their contents. |
-| **Copy URL** | Right-click or use the `⋮` menu on any entry to copy its full URL (e.g., `s3://bucket/path/to/file.parquet`). |
-| **Download** | Use the `⋮` menu on a file to download it through the marimo server. |
-| **Refresh** | Click the refresh icon on a namespace header to re-fetch its entries. |
+<div align="center">
+  <figure>
+    <img width="700" src="/_static/docs-remote-storage-panel.png" alt="Remote storage panel" />
+  </figure>
+</div>
 
 ## Multiple connections
 

@@ -336,12 +336,16 @@ class MissingPackageAlertNotification(
 
     Attributes:
         packages: Missing package names.
-        isolated: Whether in isolated environment.
+        isolated: Whether auto-install is possible in this environment.
+        source: Which Python environment to install into. "kernel" (default)
+                installs in the kernel's venv; "server" installs in the
+                server's own Python env (e.g. for formatter tools like ruff).
     """
 
     name: ClassVar[str] = "missing-package-alert"
     packages: list[str]
     isolated: bool
+    source: Literal["kernel", "server"] = "kernel"
 
 
 # package name => installation status
@@ -709,18 +713,22 @@ class FocusCellNotification(Notification, tag="focus-cell"):
 
 
 class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
-    """Updates cell code contents (kiosk mode).
+    """Updates cell code contents (kiosk mode and edit-mode file reload).
 
     Attributes:
         cell_ids: Cells to update.
         codes: New code for each cell.
         code_is_stale: If True, code was not executed on backend (output may not match).
+        names: Cell names for each cell (optional, for file reload).
+        configs: Cell configs for each cell (optional, for file reload).
     """
 
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: list[CellId_t]
     codes: list[str]
     code_is_stale: bool
+    names: list[str] = msgspec.field(default_factory=list)
+    configs: list[CellConfig] = msgspec.field(default_factory=list)
 
 
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):

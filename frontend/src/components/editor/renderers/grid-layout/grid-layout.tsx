@@ -158,12 +158,19 @@ export const GridLayoutRenderer: React.FC<Props> = ({
       compactType={null}
       preventCollision={true}
       rowHeight={layout.rowHeight}
-      onLayoutChange={(cellLayouts) =>
+      onLayoutChange={(cellLayouts) => {
+        // Don't update state in read mode — the layout is static and
+        // updating triggers a re-render cycle that causes an infinite loop
+        // (React error https://react.dev/errors/185 Maximum update depth exceeded).
+        // https://github.com/marimo-team/marimo/issues/8644
+        if (isReading) {
+          return;
+        }
         setLayout({
           ...layout,
           cells: cellLayouts,
-        })
-      }
+        });
+      }}
       droppingItem={
         droppingItem
           ? {

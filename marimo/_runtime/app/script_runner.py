@@ -24,6 +24,7 @@ from marimo._runtime.executor import (
 )
 from marimo._runtime.patches import (
     create_main_module,
+    extract_docstring_from_header,
     patch_main_module_context,
 )
 from marimo._types.ids import CellId_t
@@ -44,6 +45,7 @@ class AppScriptRunner:
     ) -> None:
         self.app = app
         self.filename = filename
+        self._docstring = extract_docstring_from_header(app._app._header)
         self.cells_cancelled: set[CellId_t] = set()
         self._glbls = glbls if glbls else {}
 
@@ -83,7 +85,10 @@ class AppScriptRunner:
     ) -> RunOutput:
         with patch_main_module_context(
             create_main_module(
-                file=self.filename, input_override=None, print_override=None
+                file=self.filename,
+                input_override=None,
+                print_override=None,
+                doc=self._docstring,
             )
         ) as module:
             glbls = module.__dict__
@@ -132,7 +137,10 @@ class AppScriptRunner:
     ) -> RunOutput:
         with patch_main_module_context(
             create_main_module(
-                file=self.filename, input_override=None, print_override=None
+                file=self.filename,
+                input_override=None,
+                print_override=None,
+                doc=self._docstring,
             )
         ) as module:
             glbls = module.__dict__

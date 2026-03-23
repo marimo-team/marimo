@@ -1,0 +1,60 @@
+name: Auto-tag Release
+
+# When a release PR is merged, create and push the version tag.
+# The tag push then triggers the production release workflow.
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  create-tag:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      startsWith(github.event.pull_request.title, 'release: ')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Extract version from PR title
+        id: version
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          VERSION="${PR_TITLE#release: }"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Use a GitHub App token so the tag push triggers other workflows.
+      # Tags pushed with the default GITHUB_TOKEN do not trigger workflows.
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Verify version in pyproject.toml
+        run: |
+          TOML_VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$TOML_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Version mismatch: PR title says ${{ steps.version.outputs.version }}, pyproject.toml says $TOML_VERSION"
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION="${{ steps.version.outputs.version }}"
+          git tag -a "$VERSION" -m "release: $VERSION"
+          git push origin "$VERSION"

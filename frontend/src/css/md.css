@@ -41,6 +41,10 @@
   font-family: var(--heading-font);
 }
 
+.markdown hr {
+  margin-block: 0.5rem;
+}
+
 .markdown a {
   cursor: pointer;
   text-decoration: inherit;
@@ -368,6 +372,13 @@ button .prose.prose {
 
 .markdown details > :not(summary) {
   @apply p-4 pt-0;
+}
+
+/* Restore proper list indentation inside details blocks.
+   The p-4 above overrides prose's padding-inline-start for bullet space.
+   This ensures bullets render correctly with list-style-position: outside. */
+.markdown details > :is(ul, ol) {
+  padding-inline-start: 2.5rem;
 }
 
 .markdown .codehilite {

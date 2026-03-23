@@ -94,6 +94,33 @@ class TestApp:
         assert defs["a"] == 2
 
     @staticmethod
+    def test_run_with_docstring() -> None:
+        """Test that __doc__ returns the notebook's docstring."""
+        app = App()
+        app._header = '"""This is a test"""'
+
+        @app.cell
+        def _() -> tuple[object]:
+            doc = __doc__  # noqa: F821
+            return (doc,)
+
+        _, defs = app.run()
+        assert defs["doc"] == "This is a test"
+
+    @staticmethod
+    def test_run_with_no_docstring() -> None:
+        """Test that __doc__ has a default when no header docstring."""
+        app = App()
+
+        @app.cell
+        def _() -> tuple[object]:
+            doc = __doc__  # noqa: F821
+            return (doc,)
+
+        _, defs = app.run()
+        assert defs["doc"] == "Created for the marimo kernel."
+
+    @staticmethod
     def test_run_with_refs() -> None:
         """Test that app.run() can override variables with provided defs."""
         app = App()
@@ -965,6 +992,37 @@ class TestApp:
         assert "y = x + 1" in python_code
         assert "cell_one" in python_code
         assert "cell_two" in python_code
+
+    @staticmethod
+    def test_run_md_object_passed_between_cells() -> None:
+        """Regression test for #7994: passing mo.md() object between cells
+        should work in script/run mode."""
+        app = App()
+
+        @app.cell
+        def _():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def _(mo):
+            title = mo.md("# Hello World")
+            return (title,)
+
+        @app.cell
+        def _(mo, title):
+            mo.vstack(
+                [
+                    title,
+                    mo.md("This should display above this text."),
+                ]
+            )
+            return
+
+        outputs, defs = app.run()
+        assert "title" in defs
+        assert defs["title"] is not None
 
 
 class TestInvalidSetup:

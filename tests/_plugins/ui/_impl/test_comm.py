@@ -63,7 +63,7 @@ def test_comm_manager_receive_unknown_message(
             buffers=[],
         )
         comm_manager.receive_comm_message(command)
-        mock_logger.warning.assert_called_once()
+        mock_logger.debug.assert_called_once()
 
 
 def test_comm_initialization(comm: MarimoComm):
