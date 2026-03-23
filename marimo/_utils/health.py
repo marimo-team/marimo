@@ -43,6 +43,11 @@ CGROUP_V1_CPU_CFS_PERIOD_US_FILE = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 CGROUP_V1_MEMORY_LIMIT_FILE = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 CGROUP_V1_MEMORY_USAGE_FILE = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
 
+# cgroup v1 uses a value near LONG_MAX to indicate "no limit". Any value >= 1
+# exabyte is treated as unlimited, since no real machine has that much RAM (if
+# you do let us know, that's amazing).
+CGROUP_V1_MEMORY_UNLIMITED_THRESHOLD = 2**60
+
 
 def get_node_version() -> Optional[str]:
     try:
@@ -294,6 +299,8 @@ def get_cgroup_mem_stats() -> Optional[MemoryStats]:
         elif os.path.exists(CGROUP_V1_MEMORY_LIMIT_FILE):
             with open(CGROUP_V1_MEMORY_LIMIT_FILE, encoding="utf-8") as f:
                 total = int(f.read().strip())
+            if total >= CGROUP_V1_MEMORY_UNLIMITED_THRESHOLD:
+                return None
             with open(CGROUP_V1_MEMORY_USAGE_FILE, encoding="utf-8") as f:
                 used = int(f.read().strip())
             available = total - used
