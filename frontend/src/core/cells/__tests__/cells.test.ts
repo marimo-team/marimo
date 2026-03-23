@@ -6,6 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { createStore } from "jotai";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -29,6 +30,7 @@ import {
   type NotebookState,
   notebookAtom,
 } from "../cells";
+import { exportedForTesting as documentTransactionTestExports } from "../document-transaction-middleware";
 import {
   focusAndScrollCellIntoView,
   scrollToBottom,
@@ -145,6 +147,10 @@ describe("cell reducer", () => {
     state.cellIds = MultiColumn.from([]);
     actions.createNewCell({ cellId: "__end__", before: false });
     firstCellId = state.cellIds.inOrderIds[0];
+  });
+
+  afterEach(() => {
+    documentTransactionTestExports.cancelPendingOps();
   });
 
   afterAll(() => {

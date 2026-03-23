@@ -549,6 +549,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   syncCellIds = () => Promise.resolve(null);
+  sendDocumentTransaction = () => Promise.resolve(null);
 
   addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);
