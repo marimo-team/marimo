@@ -34,6 +34,7 @@ from marimo._cli.print import bright_green, light_blue, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
+from marimo._cli.tips import choose_startup_tip
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
     check_app_correctness,
@@ -607,6 +608,7 @@ def edit(
         asset_url=asset_url,
         timeout=timeout,
         sandbox_mode=sandbox_mode,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -806,6 +808,7 @@ def new(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         timeout=timeout,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -1226,6 +1229,7 @@ def run(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         sandbox_mode=sandbox_mode,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -1348,6 +1352,7 @@ def tutorial(
         ),
         redirect_console_to_browser=False,
         ttl_seconds=None,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 

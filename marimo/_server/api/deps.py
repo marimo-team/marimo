@@ -111,6 +111,10 @@ class AppStateBase:
         return True
 
     @property
+    def startup_tip(self) -> Any:
+        return getattr(self.state, "startup_tip", None)
+
+    @property
     def html_head(self) -> Optional[str]:
         if hasattr(self.state, "html_head"):
             return cast(Optional[str], self.state.html_head)

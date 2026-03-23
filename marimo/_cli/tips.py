@@ -1,12 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import random
 import shlex
+import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+import click
+from click.core import ParameterSource
 
 
 @dataclass(frozen=True)
@@ -14,126 +16,6 @@ class CliTip:
     text: str
     command: str | None = None
     link: str | None = None
-
-
-@dataclass(frozen=True)
-class StartupTipContext:
-    command_path: tuple[str, ...]
-    active_flags: frozenset[str]
-
-    @classmethod
-    def from_argv(cls, argv: Sequence[str]) -> StartupTipContext:
-        tokens = list(argv)
-        if "--" in tokens:
-            tokens = tokens[: tokens.index("--")]
-        return cls(
-            command_path=_extract_command_path(_drop_leading_flags(tokens)),
-            active_flags=frozenset(
-                _normalize_flag(token)
-                for token in tokens
-                if token.startswith("-")
-            ),
-        )
-
-
-@dataclass(frozen=True)
-class _TipCommandSignature:
-    command_path: tuple[str, ...]
-    required_flags: frozenset[str]
-
-
-def get_relevant_startup_tips(
-    tips: tuple[CliTip, ...],
-    context: StartupTipContext,
-) -> tuple[CliTip, ...]:
-    relevant = tuple(
-        tip for tip in tips if _is_relevant_startup_tip(tip, context)
-    )
-
-    # If nothing matches, still show a tip instead of showing nothing.
-    return relevant or tips
-
-
-def _is_relevant_startup_tip(
-    tip: CliTip,
-    context: StartupTipContext,
-) -> bool:
-    signature = _get_tip_command_signature(tip)
-    # Tips without commands, or runs we could not read cleanly, stay eligible.
-    if signature is None or not context.command_path:
-        return True
-
-    # If the tip is about a different command, it is still useful.
-    if signature.command_path != context.command_path:
-        return True
-
-    # If the tip needs flags the user already has on, it is redundant.
-    return not signature.required_flags.issubset(context.active_flags)
-
-
-def _get_tip_command_signature(tip: CliTip) -> _TipCommandSignature | None:
-    if tip.command is None:
-        return None
-
-    # Read the example command once and use it
-    # to decide when the tip is too close to what the user is already doing.
-    try:
-        tokens = shlex.split(tip.command)
-    except ValueError:
-        return None
-    if tokens and tokens[0] == "marimo":
-        tokens = tokens[1:]
-
-    return _TipCommandSignature(
-        command_path=_extract_command_path(tokens),
-        required_flags=frozenset(
-            _normalize_flag(token) for token in tokens if token.startswith("-")
-        ),
-    )
-
-
-def _extract_command_path(tokens: Sequence[str]) -> tuple[str, ...]:
-    command_path: list[str] = []
-    for token in tokens:
-        if token.startswith("-"):
-            break
-
-        if command_path and _looks_like_example_operand(token):
-            break
-        command_path.append(token)
-    return tuple(command_path)
-
-
-def _looks_like_example_operand(token: str) -> bool:
-    return (
-        token in {".", "..", "-"}
-        or "://" in token
-        or "/" in token
-        or token.endswith(
-            (
-                ".py",
-                ".ipynb",
-                ".html",
-                ".pdf",
-                ".md",
-                ".txt",
-                ".csv",
-                ".json",
-                ".toml",
-            )
-        )
-    )
-
-
-def _drop_leading_flags(tokens: Sequence[str]) -> Sequence[str]:
-    index = 0
-    while index < len(tokens) and tokens[index].startswith("-"):
-        index += 1
-    return tokens[index:]
-
-
-def _normalize_flag(token: str) -> str:
-    return token.split("=", 1)[0]
 
 
 CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
@@ -174,3 +56,134 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
         link="https://docs.marimo.io/guides/coming_from/jupyter/",
     ),
 )
+
+
+@dataclass(frozen=True)
+class InvocationSignature:
+    command_path: tuple[str, ...]
+    enabled_options: frozenset[str]
+
+
+def choose_startup_tip(
+    ctx: click.Context,
+    tips: tuple[CliTip, ...] | None = None,
+) -> CliTip | None:
+    if not sys.stdout.isatty():
+        return None
+
+    tips = tips or CLI_STARTUP_TIPS
+    current = signature_from_click_context(ctx)
+    relevant = get_relevant_startup_tips(
+        tips=tips,
+        current=current,
+        root=ctx.find_root().command,
+    )
+    return random.choice(relevant)
+
+
+def get_relevant_startup_tips(
+    tips: tuple[CliTip, ...],
+    current: InvocationSignature,
+    root: click.Command,
+) -> tuple[CliTip, ...]:
+    relevant = tuple(
+        tip for tip in tips if _is_relevant_startup_tip(tip, current, root)
+    )
+
+    # If nothing matches, still show a tip instead of showing nothing.
+    return relevant or tips
+
+
+def signature_from_click_context(ctx: click.Context) -> InvocationSignature:
+    contexts = _context_chain(ctx)
+    command_path = tuple(
+        _context_command_name(context) for context in contexts[1:]
+    )
+    enabled_options = frozenset(
+        option.name
+        for context in contexts
+        for option in _explicitly_set_options(context)
+    )
+    return InvocationSignature(
+        command_path=command_path,
+        enabled_options=enabled_options,
+    )
+
+
+def signature_from_command_example(
+    root: click.Command,
+    command: str,
+) -> InvocationSignature | None:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return None
+
+    if tokens and tokens[0] == "marimo":
+        tokens = tokens[1:]
+
+    if not tokens:
+        return None
+
+    try:
+        root_ctx = root.make_context(
+            "marimo",
+            list(tokens),
+            resilient_parsing=True,
+        )
+        cmd_name, cmd, args = root.resolve_command(root_ctx, list(tokens))
+        sub_ctx = cmd.make_context(
+            cmd_name,
+            args,
+            parent=root_ctx,
+            resilient_parsing=True,
+        )
+    except click.ClickException:
+        return None
+    except Exception:
+        return None
+
+    return signature_from_click_context(sub_ctx)
+
+
+def _is_relevant_startup_tip(
+    tip: CliTip,
+    current: InvocationSignature,
+    root: click.Command,
+) -> bool:
+    if tip.command is None:
+        return True
+
+    tip_signature = signature_from_command_example(root, tip.command)
+    if tip_signature is None:
+        return True
+
+    if tip_signature.command_path != current.command_path:
+        return True
+
+    return not tip_signature.enabled_options.issubset(current.enabled_options)
+
+
+def _context_chain(ctx: click.Context) -> list[click.Context]:
+    chain: list[click.Context] = []
+    current: click.Context | None = ctx
+    while current is not None:
+        chain.append(current)
+        current = current.parent
+    return list(reversed(chain))
+
+
+def _context_command_name(ctx: click.Context) -> str:
+    return ctx.command.name or ctx.info_name or ""
+
+
+def _explicitly_set_options(ctx: click.Context) -> list[click.Option]:
+    options: list[click.Option] = []
+    for param in ctx.command.params:
+        if not isinstance(param, click.Option):
+            continue
+        source = ctx.get_parameter_source(param.name)
+        if source is None or source == ParameterSource.DEFAULT:
+            continue
+        options.append(param)
+    return options
