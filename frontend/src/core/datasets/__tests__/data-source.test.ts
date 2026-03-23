@@ -232,13 +232,12 @@ describe("add schema list", () => {
     schemas: DatabaseSchema[],
     engine: string,
     database: string,
-    dialect: string,
   ) => {
     return reducer(baseState, {
       type: "addSchemaList",
       payload: {
         schemas,
-        sqlSchemaContext: { engine, database, dialect },
+        sqlSchemaContext: { engine, database },
       },
     });
   };
@@ -255,7 +254,7 @@ describe("add schema list", () => {
       { name: "public", tables: [] },
       { name: "analytics", tables: [] },
     ];
-    const newState = addSchemaList(schemaList, "conn1", "db1", "sqlite");
+    const newState = addSchemaList(schemaList, "conn1", "db1");
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
     const db1 = conn1?.databases.find((db) => db.name === "db1");
@@ -267,7 +266,7 @@ describe("add schema list", () => {
       { name: "public", tables: [] },
       { name: "analytics", tables: [] },
     ];
-    const newState = addSchemaList(schemaList, "conn1", "db1", "sqlite");
+    const newState = addSchemaList(schemaList, "conn1", "db1");
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
     const db1 = conn1?.databases.find((db) => db.name === "db1");
@@ -278,7 +277,7 @@ describe("add schema list", () => {
       { name: "public", tables: [] },
       { name: "sales", tables: [] },
     ];
-    const updatedState = addSchemaList(newSchemaList, "conn1", "db1", "sqlite");
+    const updatedState = addSchemaList(newSchemaList, "conn1", "db1");
 
     const newConn = updatedState.connectionsMap.get("conn1" as ConnectionName);
     const newDb1 = newConn?.databases.find((db) => db.name === "db1");
@@ -290,12 +289,7 @@ describe("add schema list", () => {
       { name: "public", tables: [] },
       { name: "analytics", tables: [] },
     ];
-    const newState = addSchemaList(
-      schemaList,
-      "conn1",
-      "non_existent_db",
-      "sqlite",
-    );
+    const newState = addSchemaList(schemaList, "conn1", "non_existent_db");
 
     const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
     const db1 = conn1?.databases.find((db) => db.name === "db1");
