@@ -44,11 +44,21 @@ from marimo._code_mode._plan import (
     _validate_ops,
 )
 from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
     Notification,
     UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
+from marimo._notebook.ops import (
+    CreateCell,
+    DeleteCell,
+    Op,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    SetName,
+    Transaction,
+)
 from marimo._runtime.commands import (
     CommandMessage,
     DeleteCellCommand,
@@ -995,77 +1005,27 @@ class AsyncCodeModeContext:
                 ):
                     del _cell_names[op.cell_id]
 
-        # Notify frontend of all changes (code and config-only).
-        # Cells not queued for execution are marked as stale.
-        # Config-only changes are never stale (the code didn't change).
-        #
-        # In autorun mode, when the caller explicitly ran at least one
-        # cell, also include cells_to_run from mutate_graph (reactive
-        # descendants) so the agent sees their execution synchronously
-        # and the frontend isn't left showing stale for cells that are
-        # about to execute.  We only expand when explicit_run is
-        # non-empty to preserve the "suggestion" behavior: creating
-        # cells without run_cell leaves them stale/unexecuted.
-        _run_set = explicit_run or set()
-        if _run_set and self._kernel.reactive_execution_mode == "autorun":
-            _run_set = _run_set | cells_to_run
-        _code_entry_ids = {e.cell_id for e in code_entries}
-        all_entries = code_entries + config_entries
-        by_stale: dict[bool, list[_PlanEntry]] = {}
-        for entry in all_entries:
-            is_stale = (
-                entry.cell_id in _code_entry_ids
-                and entry.cell_id not in _run_set
-            )
-            by_stale.setdefault(is_stale, []).append(entry)
-
-        for is_stale, entries in by_stale.items():
-            names = [_cell_names.get(e.cell_id, "") for e in entries]
-            codes = [
-                e.code
-                if e.code is not None
-                else self.graph.cells[e.cell_id].code
-                for e in entries
-            ]
-            kwargs: dict[str, Any] = {}
-            if any(names):
-                kwargs["names"] = names
+        # Build document transaction ops from the plan and broadcast
+        # a single NotebookDocumentTransactionNotification instead of
+        # the legacy UpdateCellCodes / UpdateCellIds notifications.
+        doc_ops = _plan_to_document_ops(
+            plan=plan,
+            existing_ids=existing_id_set,
+            existing_code=existing_code,
+            resolved_configs=resolved_configs,
+            internal_ops=ops,
+        )
+        if doc_ops:
+            tx = Transaction(ops=tuple(doc_ops), source="kernel")
             self.notify(
-                UpdateCellCodesNotification(
-                    cell_ids=[e.cell_id for e in entries],
-                    codes=codes,
-                    code_is_stale=is_stale,
-                    configs=[resolved_configs[e.cell_id] for e in entries],
-                    **kwargs,
-                )
+                NotebookDocumentTransactionNotification(transaction=tx)
             )
-
-        # For name-only updates (no code change), send a notification
-        # with existing code so the frontend picks up the new name.
-        name_only = {
-            cid: n
-            for cid, n in _cell_names.items()
-            if cid not in {e.cell_id for e in code_entries}
-            and cid in self.graph.cells
-            and any(
-                getattr(op, "name", None) is not None and op.cell_id == cid
-                for op in ops
-            )
-        }
-        if name_only:
-            self.notify(
-                UpdateCellCodesNotification(
-                    cell_ids=list(name_only.keys()),
-                    codes=[self.graph.cells[cid].code for cid in name_only],
-                    code_is_stale=False,
-                    names=list(name_only.values()),
-                )
-            )
-
-        self.notify(UpdateCellIdsNotification(cell_ids=target_order))
 
         # Run queued cells (explicit run_cell + autorun descendants),
         # filtered to cells that still exist after structural ops.
+        _run_set = explicit_run or set()
+        if _run_set and self._kernel.reactive_execution_mode == "autorun":
+            _run_set = _run_set | cells_to_run
         if _run_set:
             cells_to_run = _run_set & set(self.graph.cells.keys())
             if cells_to_run:
@@ -1189,3 +1149,79 @@ class AsyncCodeModeContext:
     def notify(self, notification: Notification) -> None:
         """Send a notification to the frontend."""
         broadcast_notification(notification, stream=self._kernel.stream)  # type: ignore[arg-type]
+
+
+# ------------------------------------------------------------------
+# Plan → Document Ops conversion
+# ------------------------------------------------------------------
+
+
+def _plan_to_document_ops(
+    plan: list[_PlanEntry],
+    existing_ids: set[CellId_t],
+    existing_code: dict[CellId_t, str],
+    resolved_configs: dict[CellId_t, CellConfig],
+    internal_ops: list[_Op],
+) -> list[Op]:
+    """Convert a resolved plan diff into NotebookDocument ``Op``s."""
+    doc_ops: list[Op] = []
+    plan_ids = {e.cell_id for e in plan}
+
+    # Deletions: cells present before but absent from the plan.
+    for cid in existing_ids:
+        if cid not in plan_ids:
+            doc_ops.append(DeleteCell(cell_id=cid))
+
+    # Creations and property updates.
+    for entry in plan:
+        if entry.cell_id not in existing_ids:
+            # New cell.
+            cfg = resolved_configs.get(entry.cell_id, CellConfig())
+            doc_ops.append(
+                CreateCell(
+                    cell_id=entry.cell_id,
+                    code=entry.code or "",
+                    name=entry.name or "",
+                    config=cfg,
+                )
+            )
+        else:
+            # Existing cell — emit ops for changed properties.
+            if (
+                entry.code is not None
+                and entry.code != existing_code.get(entry.cell_id)
+            ):
+                doc_ops.append(
+                    SetCode(cell_id=entry.cell_id, code=entry.code)
+                )
+
+    # Names from internal ops (covers both add and update).
+    for op in internal_ops:
+        op_name = getattr(op, "name", None)
+        if op_name is None:
+            continue
+        target_id = getattr(op, "new_cell_id", None) or op.cell_id
+        # Skip if the cell was just created (name is already in CreateCell).
+        if target_id not in existing_ids:
+            continue
+        doc_ops.append(SetName(cell_id=target_id, name=op_name))
+
+    # Config updates for existing cells.
+    for entry in plan:
+        if entry.cell_id in existing_ids and entry.config is not None:
+            cfg = resolved_configs.get(entry.cell_id)
+            if cfg is not None:
+                doc_ops.append(
+                    SetConfig(
+                        cell_id=entry.cell_id,
+                        column=cfg.column,
+                        disabled=cfg.disabled,
+                        hide_code=cfg.hide_code,
+                    )
+                )
+
+    # Final ordering.
+    target_order = tuple(e.cell_id for e in plan)
+    doc_ops.append(ReorderCells(cell_ids=target_order))
+
+    return doc_ops
