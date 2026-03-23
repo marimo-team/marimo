@@ -4,9 +4,14 @@ import { useAtom, useSetAtom } from "jotai";
 import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
+import { applyTransactionOps } from "@/core/cells/apply-transaction";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { suppressDocumentTransactions } from "@/core/cells/document-transaction-middleware";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import type { NotificationPayload } from "@/core/kernel/messages";
+import type {
+  NotificationMessageData,
+  NotificationPayload,
+} from "@/core/kernel/messages";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -92,7 +97,34 @@ export function useMarimoKernelConnection(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const {
+    handleCellMessage,
+    createNewCell,
+    setCellCodes,
+    setCellIds,
+    deleteCell,
+    updateCellName,
+    updateCellConfig,
+  } = useCellActions();
+
+  const handleDocumentTransaction = (
+    transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
+  ) => {
+    suppressDocumentTransactions(() => {
+      applyTransactionOps(
+        transaction.ops,
+        {
+          createNewCell,
+          deleteCell,
+          setCellIds,
+          setCellCodes,
+          updateCellName,
+          updateCellConfig,
+        },
+        () => getNotebook().cellIds.inOrderIds,
+      );
+    });
+  };
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setAppConfig = useSetAppConfig();
@@ -322,7 +354,7 @@ export function useMarimoKernelConnection(opts: {
         setCellIds({ cellIds: msg.data.cell_ids });
         return;
       case "notebook-document-transaction":
-        // TODO: apply transaction ops to local state (server → frontend)
+        handleDocumentTransaction(msg.data.transaction);
         return;
       default:
         logNever(msg.data);
