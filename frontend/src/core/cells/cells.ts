@@ -759,13 +759,28 @@ const {
   },
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id;
-    const nextState = updateCellRuntimeState({
+    let nextState = updateCellRuntimeState({
       state,
       cellId,
       cellReducer: (cell) => {
         return transitionCell(cell, message);
       },
     });
+    // When a cell is queued for execution, snapshot the current code
+    // as lastCodeRun. This clears staleness for cells executed by the
+    // kernel (e.g. via code_mode). If the user edits during execution,
+    // code !== lastCodeRun keeps the cell stale.
+    if (message.status === "queued") {
+      nextState = updateCellData({
+        state: nextState,
+        cellId,
+        cellReducer: (cell) => ({
+          ...cell,
+          lastCodeRun: cell.code.trim(),
+          edited: false,
+        }),
+      });
+    }
     return {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
