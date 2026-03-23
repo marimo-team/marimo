@@ -2280,8 +2280,8 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            if request.document_cells is not None:
-                self._document = NotebookDocument(list(request.document_cells))
+            if request.notebook_cells is not None:
+                self._document = NotebookDocument(list(request.notebook_cells))
             try:
                 with http_request_context(request.request):
                     await self.run_scratchpad(request.code)

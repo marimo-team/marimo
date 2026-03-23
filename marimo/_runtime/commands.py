@@ -326,7 +326,7 @@ class ExecuteScratchpadCommand(Command):
     Attributes:
         code: Python code to execute.
         request: HTTP request context if available.
-        document_cells: Snapshot of the notebook document for code_mode reads.
+        notebook_cells: Snapshot of the notebook document for code_mode reads.
     """
 
     code: str
@@ -335,7 +335,7 @@ class ExecuteScratchpadCommand(Command):
     # Snapshot of notebook document state, attached by the session so
     # code_mode can read cell ordering/code/names/configs.
     # Only populated via /api/execute (code_mode entry point).
-    document_cells: tuple[NotebookCell, ...] | None = None
+    notebook_cells: tuple[NotebookCell, ...] | None = None
 
 
 class RenameNotebookCommand(Command):

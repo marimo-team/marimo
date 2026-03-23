@@ -1359,23 +1359,6 @@ components:
       - theme
       title: DisplayConfig
       type: object
-    DocumentCell:
-      description: A cell in the notebook document.
-      properties:
-        code:
-          type: string
-        config:
-          $ref: '#/components/schemas/CellConfig'
-        id:
-          type: string
-        name:
-          default: ''
-          type: string
-      required:
-      - id
-      - code
-      title: DocumentCell
-      type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
         \ code. Dependent cells may be\n    re-executed based on the reactive execution\
@@ -1460,15 +1443,15 @@ components:
         \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
         \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
         \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
-        \        request: HTTP request context if available.\n        document_cells:\
+        \        request: HTTP request context if available.\n        notebook_cells:\
         \ Snapshot of the notebook document for code_mode reads."
       properties:
         code:
           type: string
-        documentCells:
+        notebookCells:
           anyOf:
           - items:
-              $ref: '#/components/schemas/DocumentCell'
+              $ref: '#/components/schemas/NotebookCell'
             type: array
           - type: 'null'
           default: null
@@ -1489,10 +1472,10 @@ components:
       properties:
         code:
           type: string
-        documentCells:
+        notebookCells:
           anyOf:
           - items:
-              $ref: '#/components/schemas/DocumentCell'
+              $ref: '#/components/schemas/NotebookCell'
             type: array
           - type: 'null'
           default: null
@@ -3362,6 +3345,23 @@ components:
       - name
       - cells
       title: MultipleDefinitionError
+      type: object
+    NotebookCell:
+      description: A cell in the notebook document.
+      properties:
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        id:
+          type: string
+        name:
+          default: ''
+          type: string
+      required:
+      - id
+      - code
+      title: NotebookCell
       type: object
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
