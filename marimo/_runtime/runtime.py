@@ -2676,7 +2676,7 @@ class DatasetCallbacks:
         """Get a list of schemas from an SQL database
 
         Args:
-            request (ListSQLSchemasRequest): The request containing:
+            request (ListSQLSchemasCommand): The request containing:
                 - engine: Name of the SQL engine / connection
                 - database: Name of the database
         """
