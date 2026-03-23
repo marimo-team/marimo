@@ -9,11 +9,20 @@ from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
 from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
     UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
+
+
+def _tx_ops(k: Kernel) -> list[dict[str, object]]:
+    """Serialize all document transaction ops for snapshot comparison."""
+    ops: list[dict[str, object]] = []
+    for notif in k.stream.operations:
+        if isinstance(notif, NotebookDocumentTransactionNotification):
+            ops.extend(msgspec.to_builtins(notif.transaction.ops))
+    return ops
 
 
 def _code_notifs(k: Kernel) -> list[UpdateCellCodesNotification]:
@@ -21,14 +30,6 @@ def _code_notifs(k: Kernel) -> list[UpdateCellCodesNotification]:
         op
         for op in k.stream.operations
         if isinstance(op, UpdateCellCodesNotification)
-    ]
-
-
-def _ids_notifs(k: Kernel) -> list[UpdateCellIdsNotification]:
-    return [
-        op
-        for op in k.stream.operations
-        if isinstance(op, UpdateCellIdsNotification)
     ]
 
 
@@ -54,14 +55,24 @@ class TestAddCell:
         assert cell.code == "x = 1"
         assert k.globals["x"] == 1
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["codes"] == ["x = 1"]
-        assert code_notifs[0]["code_is_stale"] is False
-
-        ids_notifs = msgspec.to_builtins(_ids_notifs(k))
-        assert len(ids_notifs) == 1
-        assert len(ids_notifs[0]["cell_ids"]) == 1
+        assert _tx_ops(k) == snapshot(
+            [
+                {
+                    "type": "create-cell",
+                    "cellId": "Hbol",
+                    "code": "x = 1",
+                    "name": "",
+                    "config": {
+                        "column": None,
+                        "disabled": False,
+                        "hide_code": True,
+                    },
+                    "before": None,
+                    "after": None,
+                },
+                {"type": "reorder-cells", "cellIds": ("Hbol",)},
+            ]
+        )
 
     async def test_add_appends_by_default(self, k: Kernel) -> None:
         await k.run(
@@ -80,12 +91,12 @@ class TestAddCell:
         assert len(k.graph.cells) == 3
         assert k.globals["c"] == 30
 
-        # New cell should be last in the ordering notification.
-        ids_notifs = _ids_notifs(k)
-        assert len(ids_notifs) == 1
-        cell_ids = ids_notifs[0].cell_ids
-        assert cell_ids[:2] == ["0", "1"]
-        assert len(cell_ids) == 3
+        # New cell should be last in the ordering.
+        ops = _tx_ops(k)
+        reorder = [o for o in ops if o["type"] == "reorder-cells"]
+        assert len(reorder) == 1
+        assert reorder[0]["cellIds"][:2] == ("0", "1")
+        assert len(reorder[0]["cellIds"]) == 3
 
     async def test_add_with_after(self, k: Kernel) -> None:
         await k.run(
@@ -100,11 +111,11 @@ class TestAddCell:
         async with ctx as nb:
             nb.create_cell("c = a + b", after="0")
 
-        ids_notifs = _ids_notifs(k)
-        cell_ids = ids_notifs[0].cell_ids
-        assert cell_ids[0] == "0"
+        ops = _tx_ops(k)
+        reorder = [o for o in ops if o["type"] == "reorder-cells"][0]
+        assert reorder["cellIds"][0] == "0"
         # New cell should be after "0", before "1".
-        assert cell_ids[2] == "1"
+        assert reorder["cellIds"][2] == "1"
 
     async def test_add_without_run_does_not_execute(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
@@ -116,10 +127,11 @@ class TestAddCell:
         assert len(k.graph.cells) == 1
         assert "x" not in k.globals
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["codes"] == ["x = 999"]
-        assert code_notifs[0]["code_is_stale"] is True
+        # Cell should appear as a CreateCell op (frontend marks it stale).
+        ops = _tx_ops(k)
+        creates = [o for o in ops if o["type"] == "create-cell"]
+        assert len(creates) == 1
+        assert creates[0]["code"] == "x = 999"
 
     async def test_add_returns_cell_id(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
@@ -162,8 +174,11 @@ class TestDeleteCell:
 
         assert _graph_codes(k) == snapshot({"0": "a = 1", "2": "c = 3"})
 
-        assert msgspec.to_builtins(_ids_notifs(k)) == snapshot(
-            [{"op": "update-cell-ids", "cell_ids": ["0", "2"]}]
+        assert _tx_ops(k) == snapshot(
+            [
+                {"type": "delete-cell", "cellId": "1"},
+                {"type": "reorder-cells", "cellIds": ("0", "2")},
+            ]
         )
 
     async def test_delete_cleans_globals(self, k: Kernel) -> None:
@@ -217,22 +232,10 @@ class TestUpdateCell:
         assert k.globals["x"] == 42
         assert _graph_codes(k) == snapshot({"0": "x = 42"})
 
-        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
+        assert _tx_ops(k) == snapshot(
             [
-                {
-                    "op": "update-cell-codes",
-                    "cell_ids": ["0"],
-                    "codes": ["x = 42"],
-                    "code_is_stale": False,
-                    "names": [],
-                    "configs": [
-                        {
-                            "column": None,
-                            "disabled": False,
-                            "hide_code": False,
-                        }
-                    ],
-                }
+                {"type": "set-code", "cellId": "0", "code": "x = 42"},
+                {"type": "reorder-cells", "cellIds": ("0",)},
             ]
         )
 
@@ -281,22 +284,16 @@ class TestUpdateCell:
 
         assert k.globals["x"] == 1
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
-        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
+        assert _tx_ops(k) == snapshot(
             [
                 {
-                    "op": "update-cell-codes",
-                    "cell_ids": ["0"],
-                    "codes": ["x = 1"],
-                    "code_is_stale": False,
-                    "names": [],
-                    "configs": [
-                        {
-                            "column": None,
-                            "disabled": False,
-                            "hide_code": True,
-                        }
-                    ],
-                }
+                    "type": "set-config",
+                    "cellId": "0",
+                    "column": None,
+                    "disabled": False,
+                    "hideCode": True,
+                },
+                {"type": "reorder-cells", "cellIds": ("0",)},
             ]
         )
 
@@ -511,9 +508,9 @@ class TestResolveTarget:
         assert k.globals["y"] == 2
 
         # "first" should come before the second cell in ordering.
-        ids_notifs = _ids_notifs(k)
-        cell_ids = ids_notifs[0].cell_ids
-        assert len(cell_ids) == 2
+        ops = _tx_ops(k)
+        reorder = [o for o in ops if o["type"] == "reorder-cells"][0]
+        assert len(reorder["cellIds"]) == 2
 
     async def test_create_after_renamed_cell(self, k: Kernel) -> None:
         """Can reference a cell by its new name after edit_cell renames it."""
@@ -534,10 +531,10 @@ class TestResolveTarget:
         assert k.globals["c"] == 3
 
         # New cell should be after "0" (renamed), before "1".
-        ids_notifs = _ids_notifs(k)
-        cell_ids = ids_notifs[0].cell_ids
-        assert cell_ids[0] == "0"
-        assert cell_ids[2] == "1"
+        ops = _tx_ops(k)
+        reorder = [o for o in ops if o["type"] == "reorder-cells"][0]
+        assert reorder["cellIds"][0] == "0"
+        assert reorder["cellIds"][2] == "1"
 
 
 class TestInstallPackages:
@@ -598,18 +595,12 @@ class TestAutorunStaleState:
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
 
-        # The notification for b should be code_is_stale=False because
-        # autorun will execute it.
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        stale_flags = {
-            cid: n["code_is_stale"]
-            for n in code_notifs
-            for cid in n["cell_ids"]
-        }
-        a_id = list(k.graph.cells.keys())[0]
-        b_id = list(k.graph.cells.keys())[1]
-        assert stale_flags[str(a_id)] is False
-        assert stale_flags[str(b_id)] is False
+        # Both cells should appear as CreateCell ops in the transaction.
+        ops = _tx_ops(k)
+        creates = [o for o in ops if o["type"] == "create-cell"]
+        assert len(creates) == 2
+        assert creates[0]["code"] == "x = 1"
+        assert creates[1]["code"] == "y = x + 1"
 
     async def test_dependent_chain_lazy_mode(
         self, lazy_kernel: Kernel
@@ -629,16 +620,12 @@ class TestAutorunStaleState:
         # b should NOT have executed in lazy mode.
         assert "y" not in k.globals
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        stale_flags = {
-            cid: n["code_is_stale"]
-            for n in code_notifs
-            for cid in n["cell_ids"]
-        }
-        a_id = list(k.graph.cells.keys())[0]
-        b_id = list(k.graph.cells.keys())[1]
-        assert stale_flags[str(a_id)] is False
-        assert stale_flags[str(b_id)] is True
+        # Both cells should appear as CreateCell ops in the transaction.
+        ops = _tx_ops(k)
+        creates = [o for o in ops if o["type"] == "create-cell"]
+        assert len(creates) == 2
+        assert creates[0]["code"] == "x = 1"
+        assert creates[1]["code"] == "y = x + 1"
 
     async def test_two_step_edit_then_run(self, k: Kernel) -> None:
         """edit_cell in one flush, run_cell in a separate flush should
