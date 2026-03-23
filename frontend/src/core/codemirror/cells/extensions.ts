@@ -373,8 +373,9 @@ function shouldAutorunMarkdownUpdate({
       return false;
     }
 
-    // Prefer explicit local edit transactions, but fall back to focused local
-    // doc changes for paths that don't annotate a user event.
+    // Prefer explicit local edit transactions, but keep a focused fallback for
+    // local rewrite paths like split-cell, which can update markdown content
+    // without annotating a user event.
     return (
       MARKDOWN_AUTORUN_USER_EVENTS.some((kind) => tr.isUserEvent(kind)) ||
       hasFocus
