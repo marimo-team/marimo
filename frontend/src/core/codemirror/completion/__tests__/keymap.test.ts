@@ -1,44 +1,24 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { describe, expect, it, vi } from "vitest";
-import { completionKeymap } from "../keymap";
+import { completionKeymap as defaultCompletionKeymap } from "@codemirror/autocomplete";
+import { describe, expect, it } from "vitest";
+import { filterCompletionBindings } from "../keymap";
 
 describe("completionKeymap", () => {
-  it("should propagate Escape key when completion is pending", () => {
-    const state = EditorState.create({
-      extensions: [completionKeymap()],
-    });
-    const view = new EditorView({ state });
-
-    // Mock completionStatus to return "pending"
-    vi.spyOn(view.state, "field").mockReturnValue("pending");
-
-    view.dispatch({ changes: [], effects: [], annotations: [] });
-    const result = false; // Mock the expected result
-
-    // Should return false to propagate the Escape key
-    expect(result).toBe(false);
-
-    view.destroy();
+  it("upstream includes the macOS-only completion bindings we care about", () => {
+    expect(
+      defaultCompletionKeymap.some((binding) => binding.mac === "Alt-`"),
+    ).toBe(true);
+    expect(
+      defaultCompletionKeymap.some((binding) => binding.mac === "Alt-i"),
+    ).toBe(true);
   });
 
-  it("should not propagate Escape key when completion is active", () => {
-    const state = EditorState.create({
-      extensions: [completionKeymap()],
-    });
-    const view = new EditorView({ state });
+  it("removes Alt-backtick and Escape while keeping Alt-i", () => {
+    const filtered = filterCompletionBindings(defaultCompletionKeymap);
 
-    // Mock completionStatus to return "active"
-    vi.spyOn(view.state, "field").mockReturnValue("active");
-
-    view.dispatch({ changes: [], effects: [], annotations: [] });
-    const result = true; // Mock the expected result
-
-    // Should return true to stop propagation
-    expect(result).toBe(true);
-
-    view.destroy();
+    expect(filtered.some((binding) => binding.mac === "Alt-`")).toBe(false);
+    expect(filtered.some((binding) => binding.key === "Escape")).toBe(false);
+    expect(filtered.some((binding) => binding.mac === "Alt-i")).toBe(true);
   });
 });
