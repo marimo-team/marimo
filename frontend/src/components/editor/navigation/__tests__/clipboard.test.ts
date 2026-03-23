@@ -4,8 +4,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { asMock, MockModules, Mocks, SetupMocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import type { CellActions, NotebookState } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
 import { useCellClipboard } from "../clipboard";
 
 // Mock dependencies
@@ -179,7 +179,7 @@ describe("useCellClipboard", () => {
     });
 
     it("should filter out non-existent cells", async () => {
-      const nonExistentCellId = "non-existent" as CellId;
+      const nonExistentCellId = cellId("non-existent");
 
       const { result } = renderHook(() => useCellClipboard());
 

@@ -3,7 +3,7 @@ import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import type { LayoutType } from "@/components/editor/renderers/types";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
-import type { CellId, UIElementId } from "../cells/ids";
+import type { UIElementId } from "../cells/ids";
 import { type CellData, createCell } from "../cells/types";
 import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
@@ -47,7 +47,7 @@ export function buildCellData(data: KernelReadyData): CellData[] {
     const edited = lastCodeRun ? lastCodeRun !== code : false;
 
     return createCell({
-      id: cellId as CellId,
+      id: cellId,
       code,
       edited,
       name: names[i],
@@ -160,7 +160,10 @@ export function handleKernelReady(
   // If resumed, restore UI element values from kernel and we're done
   if (resumed) {
     for (const [objectId, value] of Objects.entries(ui_values || {})) {
-      UI_ELEMENT_REGISTRY.set(objectId as UIElementId, value);
+      // @ts-expect-error - TODO: We need to fix the types for KernelReadyNotification["ui_values"]
+      // It is currently typed as Record<string, any> and should be Record<UIElementId, unknown>
+      const uiObjectId: UIElementId = objectId;
+      UI_ELEMENT_REGISTRY.set(uiObjectId, value);
     }
     return;
   }
@@ -196,7 +199,7 @@ export function handleRemoveUIElements(
   // This removes the element from the registry to (1) clean-up
   // memory and (2) make sure that the old value doesn't get re-used
   // if the same cell-id is later reused for another element.
-  const cellId = data.cell_id as CellId;
+  const cellId = data.cell_id;
   UI_ELEMENT_REGISTRY.removeElementsByCell(cellId);
   VirtualFileTracker.INSTANCE.removeForCellId(cellId);
 }

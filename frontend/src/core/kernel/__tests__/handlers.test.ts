@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { buildCellData, buildLayoutState } from "../handlers";
 import type { NotificationMessageData } from "../messages";
 import { queryParamHandlers } from "../queryParamHandlers";
@@ -65,7 +66,7 @@ describe("queryParamHandlers", () => {
 describe("buildCellData", () => {
   it("should build cell data from kernel-ready data", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: ["cell1", "cell2"],
+      cell_ids: [cellId("cell1"), cellId("cell2")],
       codes: ["x = 1", "y = 2"],
       names: ["__", "__"],
       configs: [
@@ -127,7 +128,7 @@ describe("buildCellData", () => {
 
   it("should mark cells as edited when code differs from last executed code", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: ["cell1", "cell2"],
+      cell_ids: [cellId("cell1"), cellId("cell2")],
       codes: ["x = 1", "y = 3"],
       names: ["__", "__"],
       configs: [
@@ -201,7 +202,7 @@ describe("buildCellData", () => {
 describe("buildLayoutState", () => {
   it("should build default layout state when no layout is provided", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: ["cell1"],
+      cell_ids: [cellId("cell1")],
       codes: ["x = 1"],
       names: ["__"],
       configs: [{ disabled: false, hide_code: false }],
@@ -243,7 +244,7 @@ describe("buildLayoutState", () => {
 
   it("should build layout state with vertical layout", () => {
     const kernelReadyData: NotificationMessageData<"kernel-ready"> = {
-      cell_ids: ["cell1", "cell2"],
+      cell_ids: [cellId("cell1"), cellId("cell2")],
       codes: ["x = 1", "y = 2"],
       names: ["__", "__"],
       configs: [

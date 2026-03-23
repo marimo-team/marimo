@@ -1,15 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
 import { beforeEach, describe, expect, it } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import type { CellFocusState } from "../focus";
 import { exportedForTesting } from "../focus";
 
 const { initialState, reducer, createActions } = exportedForTesting;
 
 const CellIds = {
-  a: "a" as CellId,
-  b: "b" as CellId,
-  c: "c" as CellId,
+  a: cellId("a"),
+  b: cellId("b"),
+  c: cellId("c"),
 };
 
 describe("cell focus reducer", () => {

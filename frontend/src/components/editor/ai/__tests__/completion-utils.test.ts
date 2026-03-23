@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { variableName } from "@/__tests__/branded";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -7,7 +8,6 @@ import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import type { Variable, VariableName } from "@/core/variables/types";
 import { codeToCells, getAICompletionBody } from "../completion-utils";
 
 // Mock getCodes function
@@ -205,16 +205,16 @@ describe("getAICompletionBody", () => {
 
   it("should return the correct completion body with mentioned variables", () => {
     // Set up test data in the Jotai store
-    const testVariables: Record<VariableName, Variable> = {
-      ["var1" as VariableName]: {
-        name: "var1" as VariableName,
+    const testVariables = {
+      [variableName("var1")]: {
+        name: variableName("var1"),
         value: "string value",
         dataType: "string",
         declaredBy: [],
         usedBy: [],
       },
-      ["var2" as VariableName]: {
-        name: "var2" as VariableName,
+      [variableName("var2")]: {
+        name: variableName("var2"),
         value: "42",
         dataType: "number",
         declaredBy: [],
@@ -253,9 +253,9 @@ describe("getAICompletionBody", () => {
     ];
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
-    const testVariables: Record<VariableName, Variable> = {
-      ["var1" as VariableName]: {
-        name: "var1" as VariableName,
+    const testVariables = {
+      [variableName("var1")]: {
+        name: variableName("var1"),
         value: "string value",
         dataType: "string",
         declaredBy: [],
@@ -285,9 +285,9 @@ describe("getAICompletionBody", () => {
 
   it("should handle non-existent variables", () => {
     // Set up test data in the Jotai store
-    const testVariables: Record<VariableName, Variable> = {
-      ["existingVar" as VariableName]: {
-        name: "existingVar" as VariableName,
+    const testVariables = {
+      [variableName("existingVar")]: {
+        name: variableName("existingVar"),
         value: "string value",
         dataType: "string",
         declaredBy: [],
@@ -322,9 +322,9 @@ describe("getAICompletionBody", () => {
     ];
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
-    const testVariables: Record<VariableName, Variable> = {
-      ["conflict" as VariableName]: {
-        name: "conflict" as VariableName,
+    const testVariables = {
+      [variableName("conflict")]: {
+        name: variableName("conflict"),
         value: "string value",
         dataType: "string",
         declaredBy: [],

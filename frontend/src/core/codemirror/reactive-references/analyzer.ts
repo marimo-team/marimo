@@ -3,7 +3,7 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import type { SyntaxNode, Tree, TreeCursor } from "@lezer/common";
-import type { CellId } from "@/core/cells/ids";
+import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import type { VariableName, Variables } from "@/core/variables/types";
 
 export interface ReactiveVariableRange {
@@ -52,7 +52,7 @@ export function findReactiveVariables(options: {
       const variable = options.variables[name as VariableName];
       return (
         variable.dataType !== "module" &&
-        !variable.declaredBy.includes("setup" as CellId) &&
+        !variable.declaredBy.includes(SETUP_CELL_ID) &&
         !variable.declaredBy.includes(options.cellId)
       );
     }),

@@ -3,6 +3,7 @@
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { RunStaleCellsTool } from "../run-cells-tool";
@@ -46,9 +47,9 @@ describe("RunStaleCellsTool", () => {
 
     tool = new RunStaleCellsTool({ postExecutionDelay: 0 });
 
-    cellId1 = "cell-1" as CellId;
-    cellId2 = "cell-2" as CellId;
-    cellId3 = "cell-3" as CellId;
+    cellId1 = cellId("cell-1");
+    cellId2 = cellId("cell-2");
+    cellId3 = cellId("cell-3");
 
     // Reset mocks
     vi.clearAllMocks();
@@ -490,9 +491,8 @@ describe("RunStaleCellsTool", () => {
     });
 
     it("should omit output for cells that exceed total output budget", async () => {
-      const cellIds = Array.from(
-        { length: 25 },
-        (_, i) => `budget-cell-${i}` as CellId,
+      const cellIds = Array.from({ length: 25 }, (_, i) =>
+        cellId(`budget-cell-${i}`),
       );
       const cellData: Record<string, { code: string; edited: boolean }> = {};
       for (const id of cellIds) {
