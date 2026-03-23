@@ -29,6 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
+import { documentTransactionMiddleware } from "./document-transaction-middleware";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -172,6 +173,8 @@ export interface CreateNewCellAction {
 /**
  * Actions and reducer for the notebook state.
  */
+// TODO: remove biome-ignore after review
+// biome-ignore format: adding middleware arg changes indentation of entire reducer block
 const {
   reducer,
   createActions,
@@ -1403,7 +1406,7 @@ const {
       scrollKey: SETUP_CELL_ID,
     };
   },
-});
+}, [documentTransactionMiddleware]);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
