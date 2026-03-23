@@ -34,12 +34,12 @@ from __future__ import annotations
 
 from marimo._code_mode._context import (
     AsyncCodeModeContext,
-    NotebookCellData,
     get_context,
 )
+from marimo._notebook.document import NotebookCell
 
 __all__ = [
     "AsyncCodeModeContext",
-    "NotebookCellData",
+    "NotebookCell",
     "get_context",
 ]

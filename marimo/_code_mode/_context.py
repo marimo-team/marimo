@@ -24,9 +24,7 @@ Usage::
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, overload
-from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
@@ -49,6 +47,7 @@ from marimo._messaging.notification import (
     UpdateCellCodesNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
+from marimo._notebook.document import NotebookCell, NotebookDocument
 from marimo._notebook.ops import (
     CreateCell,
     DeleteCell,
@@ -81,27 +80,7 @@ if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
 
 
-# ------------------------------------------------------------------
-# Data types
-# ------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class NotebookCellData:
-    """Read-only snapshot of a notebook cell (returned by ``ctx.cells[...]``)."""
-
-    code: str | None = None
-    config: CellConfig | None = None
-    id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
-    name: str | None = field(default=None, repr=True, compare=False)
-
-
 LOGGER = _loggers.marimo_logger()
-
-
-# Module-level store for cell names set via code_mode.
-# Persists across context manager invocations within the same kernel.
-_cell_names: dict[CellId_t, str] = {}
 
 
 # ------------------------------------------------------------------
@@ -153,77 +132,55 @@ class _CellsView:
         for cid, cell in ctx.cells.items():
             ...
         ctx.cells.keys()  # list of CellId_t
-        ctx.cells.values()  # list of NotebookCellData
+        ctx.cells.values()  # list of NotebookCell
         "my_cell" in ctx.cells  # membership test
     """
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
         self._ctx = ctx
 
+    @property
+    def _doc(self) -> NotebookDocument:
+        return self._ctx._document
+
     def _cell_ids(self) -> list[CellId_t]:
-        return list(self._ctx.graph.cells.keys())
+        return list(self._doc)
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
-        # Check code_mode's own name store first.
-        name = _cell_names.get(cell_id)
-        if name is not None:
-            return name
-        # Fall back to cell_manager if available.
-        cm = self._ctx._cell_manager
-        if cm is None:
-            return None
-        data = cm.get_cell_data(cell_id)
-        return data.name if data else None
-
-    def _build_at(self, cell_id: CellId_t) -> NotebookCellData:
-        cell_impl = self._ctx.graph.cells[cell_id]
-        meta = self._ctx._kernel.cell_metadata.get(cell_id)
-        return NotebookCellData(
-            code=cell_impl.code,
-            config=meta.config if meta else CellConfig(),
-            name=self._cell_name(cell_id),
-            id=cell_id,
-        )
+        doc_cell = self._doc.get(cell_id)
+        return doc_cell.name or None if doc_cell else None
 
     def _resolve(self, target: str) -> CellId_t:
         """Resolve a cell ID or cell name to a ``CellId_t``.
 
         Raises ``KeyError`` if not found.
         """
-        cell_ids = self._cell_ids()
-
-        # Try cell ID first.
         cell_id_key = CellId_t(target)
-        for cid in cell_ids:
-            if cid == cell_id_key:
-                return cid
+        if cell_id_key in self._doc:
+            return cell_id_key
 
         # Fall back to cell name.
-        for cid in cell_ids:
-            name = self._cell_name(cid)
-            if name == target:
-                return cid
+        for cell in self._doc.cells:
+            if cell.name == target:
+                return cell.id
 
         raise KeyError(target)
 
     def __len__(self) -> int:
-        return len(self._ctx.graph.cells)
+        return len(self._doc)
 
     @overload
-    def __getitem__(self, key: int) -> NotebookCellData: ...
+    def __getitem__(self, key: int) -> NotebookCell: ...
     @overload
-    def __getitem__(self, key: str) -> NotebookCellData: ...
+    def __getitem__(self, key: str) -> NotebookCell: ...
 
-    def __getitem__(self, key: int | str) -> NotebookCellData:
-        cell_ids = self._cell_ids()
-
+    def __getitem__(self, key: int | str) -> NotebookCell:
         if isinstance(key, int):
-            return self._build_at(cell_ids[key])
-
-        return self._build_at(self._resolve(key))
+            return self._doc.cells[key]
+        return self._doc.get_cell(self._resolve(key))
 
     def __iter__(self) -> Iterator[CellId_t]:
-        yield from self._cell_ids()
+        yield from self._doc
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
@@ -238,15 +195,15 @@ class _CellsView:
 
     def keys(self) -> list[CellId_t]:
         """Return cell IDs in notebook order."""
-        return self._cell_ids()
+        return self._doc.cell_ids
 
-    def values(self) -> list[NotebookCellData]:
+    def values(self) -> list[NotebookCell]:
         """Return cell data in notebook order."""
-        return [self._build_at(cid) for cid in self._cell_ids()]
+        return self._doc.cells
 
-    def items(self) -> list[tuple[CellId_t, NotebookCellData]]:
+    def items(self) -> list[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
-        return [(cid, self._build_at(cid)) for cid in self._cell_ids()]
+        return [(c.id, c) for c in self._doc.cells]
 
 
 # ------------------------------------------------------------------
@@ -276,7 +233,17 @@ class AsyncCodeModeContext:
         *,
         skip_validation: bool = False,
     ) -> None:
+        from marimo._notebook.document import get_current_document
+
+        document = get_current_document()
+        if document is None:
+            raise RuntimeError(
+                "NotebookDocument not available — code_mode must be invoked "
+                "via the /api/execute endpoint which sets the document "
+                "context variable"
+            )
         self._kernel = kernel
+        self._document = document
         self._cell_manager = cell_manager
         self._skip_validation = skip_validation
         self._ops: list[_Op] = []
@@ -438,16 +405,9 @@ class AsyncCodeModeContext:
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: ``'id' (name)`` or ``'id'``."""
         short = repr(str(cell_id)[:8])
-        name: str | None = None
-        cm = self._cell_manager
-        if cm is not None:
-            data = cm.get_cell_data(cell_id)
-            if data and data.name:
-                name = data.name
-        if name is None:
-            name = _cell_names.get(cell_id)
-        if name:
-            return f"{short} ({name})"
+        doc_cell = self._document.get(cell_id)
+        if doc_cell and doc_cell.name:
+            return f"{short} ({doc_cell.name})"
         return short
 
     # ------------------------------------------------------------------
@@ -992,19 +952,6 @@ class AsyncCodeModeContext:
                 self.graph.cells[cell_id].configure(cfg.asdict())
             self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
 
-        # Persist names from ops into the module-level store.
-        for op in ops:
-            op_name = getattr(op, "name", None)
-            if op_name is not None:
-                target_id = getattr(op, "new_cell_id", None) or op.cell_id
-                _cell_names[target_id] = op_name
-                # Clean up stale entry when cell_id was migrated.
-                if (
-                    getattr(op, "new_cell_id", None) is not None
-                    and op.cell_id in _cell_names
-                ):
-                    del _cell_names[op.cell_id]
-
         # Build document transaction ops from the plan and broadcast
         # a single NotebookDocumentTransactionNotification instead of
         # the legacy UpdateCellCodes / UpdateCellIds notifications.
@@ -1017,6 +964,8 @@ class AsyncCodeModeContext:
         )
         if doc_ops:
             tx = Transaction(ops=tuple(doc_ops), source="kernel")
+            # Apply to local snapshot so _cell_label can read names.
+            self._document.apply(tx)
             self.notify(
                 NotebookDocumentTransactionNotification(transaction=tx)
             )
@@ -1187,13 +1136,10 @@ def _plan_to_document_ops(
             )
         else:
             # Existing cell — emit ops for changed properties.
-            if (
-                entry.code is not None
-                and entry.code != existing_code.get(entry.cell_id)
+            if entry.code is not None and entry.code != existing_code.get(
+                entry.cell_id
             ):
-                doc_ops.append(
-                    SetCode(cell_id=entry.cell_id, code=entry.code)
-                )
+                doc_ops.append(SetCode(cell_id=entry.cell_id, code=entry.code))
 
     # Names from internal ops (covers both add and update).
     for op in internal_ops:
@@ -1209,14 +1155,14 @@ def _plan_to_document_ops(
     # Config updates for existing cells.
     for entry in plan:
         if entry.cell_id in existing_ids and entry.config is not None:
-            cfg = resolved_configs.get(entry.cell_id)
-            if cfg is not None:
+            resolved_cfg = resolved_configs.get(entry.cell_id)
+            if resolved_cfg is not None:
                 doc_ops.append(
                     SetConfig(
                         cell_id=entry.cell_id,
-                        column=cfg.column,
-                        disabled=cfg.disabled,
-                        hide_code=cfg.hide_code,
+                        column=resolved_cfg.column,
+                        disabled=resolved_cfg.disabled,
+                        hide_code=resolved_cfg.hide_code,
                     )
                 )
 
