@@ -73,10 +73,13 @@ def choose_startup_tip(
 
     tips = tips or CLI_STARTUP_TIPS
     current = signature_from_click_context(ctx)
+    root = ctx.find_root().command
+    if not isinstance(root, click.Group):
+        return random.choice(tips)
     relevant = get_relevant_startup_tips(
         tips=tips,
         current=current,
-        root=ctx.find_root().command,
+        root=root,
     )
     return random.choice(relevant)
 
@@ -84,7 +87,7 @@ def choose_startup_tip(
 def get_relevant_startup_tips(
     tips: tuple[CliTip, ...],
     current: InvocationSignature,
-    root: click.Command,
+    root: click.Group,
 ) -> tuple[CliTip, ...]:
     relevant = tuple(
         tip for tip in tips if _is_relevant_startup_tip(tip, current, root)
@@ -100,9 +103,9 @@ def signature_from_click_context(ctx: click.Context) -> InvocationSignature:
         _context_command_name(context) for context in contexts[1:]
     )
     enabled_options = frozenset(
-        option.name
+        option_name
         for context in contexts
-        for option in _explicitly_set_options(context)
+        for option_name in _explicitly_set_option_names(context)
     )
     return InvocationSignature(
         command_path=command_path,
@@ -111,7 +114,7 @@ def signature_from_click_context(ctx: click.Context) -> InvocationSignature:
 
 
 def signature_from_command_example(
-    root: click.Command,
+    root: click.Group,
     command: str,
 ) -> InvocationSignature | None:
     try:
@@ -132,6 +135,8 @@ def signature_from_command_example(
             resilient_parsing=True,
         )
         cmd_name, cmd, args = root.resolve_command(root_ctx, list(tokens))
+        if cmd is None:
+            return None
         sub_ctx = cmd.make_context(
             cmd_name,
             args,
@@ -149,7 +154,7 @@ def signature_from_command_example(
 def _is_relevant_startup_tip(
     tip: CliTip,
     current: InvocationSignature,
-    root: click.Command,
+    root: click.Group,
 ) -> bool:
     if tip.command is None:
         return True
@@ -177,13 +182,15 @@ def _context_command_name(ctx: click.Context) -> str:
     return ctx.command.name or ctx.info_name or ""
 
 
-def _explicitly_set_options(ctx: click.Context) -> list[click.Option]:
-    options: list[click.Option] = []
+def _explicitly_set_option_names(ctx: click.Context) -> list[str]:
+    options: list[str] = []
     for param in ctx.command.params:
         if not isinstance(param, click.Option):
+            continue
+        if param.name is None:
             continue
         source = ctx.get_parameter_source(param.name)
         if source is None or source == ParameterSource.DEFAULT:
             continue
-        options.append(param)
+        options.append(param.name)
     return options
