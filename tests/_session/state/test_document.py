@@ -11,10 +11,11 @@ from marimo._session.state.document import (
     CellsReordered,
     CodeChanged,
     ConfigChanged,
-    DocumentCell,
     NameChanged,
+    NotebookCell,
     NotebookDocument,
 )
+from marimo._types.ids import CellId_t
 
 
 def _doc(*codes: str) -> NotebookDocument:
@@ -22,11 +23,13 @@ def _doc(*codes: str) -> NotebookDocument:
 
     Cell IDs are "0", "1", "2", ... matching their initial position.
     """
-    cells = [DocumentCell(id=str(i), code=c) for i, c in enumerate(codes)]
+    cells = [
+        NotebookCell(id=CellId_t(str(i)), code=c) for i, c in enumerate(codes)
+    ]
     return NotebookDocument(cells)
 
 
-def _ids(doc: NotebookDocument) -> list[str]:
+def _ids(doc: NotebookDocument) -> list[CellId_t]:
     return list(doc)
 
 
@@ -65,30 +68,37 @@ class TestConstruction:
 class TestCellCreated:
     def test_append_to_empty(self) -> None:
         doc = NotebookDocument()
-        doc.apply(CellCreated(id="a", code="x = 1"))
-        assert _ids(doc) == ["a"]
-        assert doc["a"].code == "x = 1"
+        cid = CellId_t("a")
+        doc.apply(CellCreated(id=cid, code="x = 1"))
+        assert _ids(doc) == [cid]
+        assert doc[cid].code == "x = 1"
 
     def test_append_to_end(self) -> None:
         doc = _doc("a", "b")
-        doc.apply(CellCreated(id="c", code="new"))
+        cid = CellId_t("c")
+        doc.apply(CellCreated(id=cid, code="new"))
         assert _ids(doc) == ["0", "1", "c"]
 
     def test_insert_after(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellCreated(id="x", code="new", after="0"))
+        cid = CellId_t("x")
+        target = CellId_t("0")
+        doc.apply(CellCreated(id=cid, code="new", after=target))
         assert _ids(doc) == ["0", "x", "1", "2"]
 
     def test_insert_after_last(self) -> None:
         doc = _doc("a", "b")
-        doc.apply(CellCreated(id="x", code="new", after="1"))
+        cid = CellId_t("x")
+        target = CellId_t("1")
+        doc.apply(CellCreated(id=cid, code="new", after=target))
         assert _ids(doc) == ["0", "1", "x"]
 
     def test_with_name_and_config(self) -> None:
         cfg = CellConfig(hide_code=True, disabled=True)
+        cid = CellId_t("CellId")
         doc = NotebookDocument()
-        doc.apply(CellCreated(id="a", code="x", name="setup", config=cfg))
-        cell = doc["a"]
+        doc.apply(CellCreated(id=cid, code="x", name="setup", config=cfg))
+        cell = doc[cid]
         assert cell.name == "setup"
         assert cell.config.hide_code is True
         assert cell.config.disabled is True
@@ -96,12 +106,16 @@ class TestCellCreated:
     def test_duplicate_id_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(ValueError, match="already exists"):
-            doc.apply(CellCreated(id="0", code="dup"))
+            doc.apply(CellCreated(id=CellId_t("0"), code="dup"))
 
     def test_after_nonexistent_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(CellCreated(id="x", code="new", after="missing"))
+            doc.apply(
+                CellCreated(
+                    id=CellId_t("x"), code="new", after=CellId_t("missing")
+                )
+            )
 
 
 # ------------------------------------------------------------------
@@ -111,30 +125,32 @@ class TestCellCreated:
 
 class TestCellDeleted:
     def test_delete_only_cell(self) -> None:
+        cid = CellId_t("0")
         doc = _doc("a")
-        doc.apply(CellDeleted(id="0"))
+        doc.apply(CellDeleted(id=cid))
         assert len(doc) == 0
-        assert "0" not in doc
+        assert cid not in doc
 
     def test_delete_middle(self) -> None:
+        cid = CellId_t("1")
         doc = _doc("a", "b", "c")
-        doc.apply(CellDeleted(id="1"))
+        doc.apply(CellDeleted(id=cid))
         assert _ids(doc) == ["0", "2"]
 
     def test_delete_first(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellDeleted(id="0"))
+        doc.apply(CellDeleted(id=CellId_t("0")))
         assert _ids(doc) == ["1", "2"]
 
     def test_delete_last(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellDeleted(id="2"))
+        doc.apply(CellDeleted(id=CellId_t("2")))
         assert _ids(doc) == ["0", "1"]
 
     def test_delete_nonexistent_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(CellDeleted(id="missing"))
+            doc.apply(CellDeleted(id=CellId_t("missing")))
 
 
 # ------------------------------------------------------------------
@@ -145,33 +161,33 @@ class TestCellDeleted:
 class TestCellMoved:
     def test_move_to_beginning(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellMoved(id="2", after=None))
+        doc.apply(CellMoved(id=CellId_t("2"), after=None))
         assert _ids(doc) == ["2", "0", "1"]
 
     def test_move_forward(self) -> None:
         doc = _doc("a", "b", "c", "d")
-        doc.apply(CellMoved(id="0", after="2"))
+        doc.apply(CellMoved(id=CellId_t("0"), after=CellId_t("2")))
         assert _ids(doc) == ["1", "2", "0", "3"]
 
     def test_move_backward(self) -> None:
         doc = _doc("a", "b", "c", "d")
-        doc.apply(CellMoved(id="3", after="0"))
+        doc.apply(CellMoved(id=CellId_t("3"), after=CellId_t("0")))
         assert _ids(doc) == ["0", "3", "1", "2"]
 
     def test_noop(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellMoved(id="1", after="0"))
+        doc.apply(CellMoved(id=CellId_t("1"), after=CellId_t("0")))
         assert _ids(doc) == ["0", "1", "2"]
 
     def test_nonexistent_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(CellMoved(id="missing", after=None))
+            doc.apply(CellMoved(id=CellId_t("missing"), after=None))
 
     def test_after_nonexistent_raises(self) -> None:
         doc = _doc("a", "b")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(CellMoved(id="0", after="missing"))
+            doc.apply(CellMoved(id=CellId_t("0"), after=CellId_t("missing")))
 
 
 # ------------------------------------------------------------------
@@ -182,40 +198,47 @@ class TestCellMoved:
 class TestCellsReordered:
     def test_move_to_beginning(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellsReordered(cell_ids=["2", "0", "1"]))
+        c0, c1, c2 = doc
+        doc.apply(CellsReordered(cell_ids=[c2, c0, c1]))
         assert _ids(doc) == ["2", "0", "1"]
 
     def test_move_forward(self) -> None:
         doc = _doc("a", "b", "c", "d")
-        doc.apply(CellsReordered(cell_ids=["1", "2", "0", "3"]))
+        c0, c1, c2, c3 = doc
+        doc.apply(CellsReordered(cell_ids=[c1, c2, c0, c3]))
         assert _ids(doc) == ["1", "2", "0", "3"]
 
     def test_move_backward(self) -> None:
         doc = _doc("a", "b", "c", "d")
-        doc.apply(CellsReordered(cell_ids=["0", "3", "1", "2"]))
+        c0, c1, c2, c3 = doc
+        doc.apply(CellsReordered(cell_ids=[c0, c3, c1, c2]))
         assert _ids(doc) == ["0", "3", "1", "2"]
 
     def test_same_order_is_noop(self) -> None:
         doc = _doc("a", "b", "c")
-        doc.apply(CellsReordered(cell_ids=["0", "1", "2"]))
-        assert _ids(doc) == ["0", "1", "2"]
+        ids = list(doc)
+        doc.apply(CellsReordered(cell_ids=ids))
+        assert _ids(doc) == ids
 
     def test_unknown_ids_ignored(self) -> None:
         doc = _doc("a", "b")
-        doc.apply(CellsReordered(cell_ids=["1", "unknown", "0"]))
+        cid0, cid1 = doc
+        doc.apply(CellsReordered(cell_ids=[cid1, CellId_t("unknown"), cid0]))
         assert _ids(doc) == ["1", "0"]
 
     def test_missing_ids_appended(self) -> None:
         """Cells not in the reorder list are appended at the end."""
         doc = _doc("a", "b", "c")
-        doc.apply(CellsReordered(cell_ids=["2", "0"]))
+        cid0, _, cid2 = doc
+        doc.apply(CellsReordered(cell_ids=[cid2, cid0]))
         assert _ids(doc) == ["2", "0", "1"]
 
     def test_preserves_cell_data(self) -> None:
         doc = _doc("code_a", "code_b")
-        doc.apply(CellsReordered(cell_ids=["1", "0"]))
-        assert doc["0"].code == "code_a"
-        assert doc["1"].code == "code_b"
+        cid0, cid1 = doc
+        doc.apply(CellsReordered(cell_ids=[cid1, cid0]))
+        assert doc[cid0].code == "code_a"
+        assert doc[cid1].code == "code_b"
 
 
 # ------------------------------------------------------------------
@@ -226,22 +249,24 @@ class TestCellsReordered:
 class TestCodeChanged:
     def test_change_code(self) -> None:
         doc = _doc("old code")
-        doc.apply(CodeChanged(id="0", code="new code"))
-        assert doc["0"].code == "new code"
+        cid, *_ = doc
+        doc.apply(CodeChanged(id=cid, code="new code"))
+        assert doc[cid].code == "new code"
 
     def test_preserves_other_fields(self) -> None:
+        cid = CellId_t("a")
         doc = NotebookDocument(
             [
-                DocumentCell(
-                    id="a",
+                NotebookCell(
+                    id=cid,
                     code="x",
                     name="setup",
                     config=CellConfig(hide_code=True),
                 )
             ]
         )
-        doc.apply(CodeChanged(id="a", code="y"))
-        cell = doc["a"]
+        doc.apply(CodeChanged(id=cid, code="y"))
+        cell = doc[cid]
         assert cell.code == "y"
         assert cell.name == "setup"
         assert cell.config.hide_code is True
@@ -249,13 +274,14 @@ class TestCodeChanged:
     def test_nonexistent_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(CodeChanged(id="missing", code="x"))
+            doc.apply(CodeChanged(id=CellId_t("missing"), code="x"))
 
     def test_last_write_wins(self) -> None:
         doc = _doc("v1")
-        doc.apply(CodeChanged(id="0", code="v2"))
-        doc.apply(CodeChanged(id="0", code="v3"))
-        assert doc["0"].code == "v3"
+        cid, *_ = doc
+        doc.apply(CodeChanged(id=cid, code="v2"))
+        doc.apply(CodeChanged(id=cid, code="v3"))
+        assert doc[cid].code == "v3"
 
 
 # ------------------------------------------------------------------
@@ -266,18 +292,20 @@ class TestCodeChanged:
 class TestNameChanged:
     def test_rename(self) -> None:
         doc = _doc("a")
-        doc.apply(NameChanged(id="0", name="setup"))
-        assert doc["0"].name == "setup"
+        cid, *_ = doc
+        doc.apply(NameChanged(id=cid, name="setup"))
+        assert doc[cid].name == "setup"
 
     def test_clear_name(self) -> None:
-        doc = NotebookDocument([DocumentCell(id="a", code="x", name="old")])
-        doc.apply(NameChanged(id="a", name=""))
-        assert doc["a"].name == ""
+        cid = CellId_t("a")
+        doc = NotebookDocument([NotebookCell(id=cid, code="x", name="old")])
+        doc.apply(NameChanged(id=cid, name=""))
+        assert doc[cid].name == ""
 
     def test_nonexistent_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(NameChanged(id="missing", name="x"))
+            doc.apply(NameChanged(id=CellId_t("missing"), name="x"))
 
 
 # ------------------------------------------------------------------
@@ -288,19 +316,23 @@ class TestNameChanged:
 class TestConfigChanged:
     def test_change_config(self) -> None:
         doc = _doc("a")
-        doc.apply(ConfigChanged(id="0", config=CellConfig(hide_code=True)))
-        assert doc["0"].config.hide_code is True
+        cid, *_ = doc
+        doc.apply(ConfigChanged(id=cid, config=CellConfig(hide_code=True)))
+        assert doc[cid].config.hide_code is True
 
     def test_preserves_code(self) -> None:
         doc = _doc("important code")
-        doc.apply(ConfigChanged(id="0", config=CellConfig(disabled=True)))
-        assert doc["0"].code == "important code"
-        assert doc["0"].config.disabled is True
+        cid, *_ = doc
+        doc.apply(ConfigChanged(id=cid, config=CellConfig(disabled=True)))
+        assert doc[cid].code == "important code"
+        assert doc[cid].config.disabled is True
 
     def test_nonexistent_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(KeyError, match="not in document"):
-            doc.apply(ConfigChanged(id="missing", config=CellConfig()))
+            doc.apply(
+                ConfigChanged(id=CellId_t("missing"), config=CellConfig())
+            )
 
 
 # ------------------------------------------------------------------
@@ -312,82 +344,100 @@ class TestEventSequences:
     def test_create_move_edit(self) -> None:
         """Full workflow: create cells, reorder, edit."""
         doc = NotebookDocument()
-        doc.apply(CellCreated(id="a", code="import mo"))
-        doc.apply(CellCreated(id="b", code="red"))
-        doc.apply(CellCreated(id="c", code="green"))
+
+        ca = CellCreated(id=CellId_t("a"), code="import mo")
+        doc.apply(ca)
+        cb = CellCreated(id=CellId_t("b"), code="red")
+        doc.apply(cb)
+        cc = CellCreated(id=CellId_t("c"), code="green")
+        doc.apply(cc)
+
         assert _ids(doc) == ["a", "b", "c"]
 
-        doc.apply(CellsReordered(cell_ids=["c", "a", "b"]))
+        doc.apply(CellsReordered(cell_ids=[cc.id, ca.id, cb.id]))
         assert _ids(doc) == ["c", "a", "b"]
 
-        doc.apply(CodeChanged(id="c", code="green (edited)"))
-        assert doc["c"].code == "green (edited)"
+        doc.apply(CodeChanged(id=cc.id, code="green (edited)"))
+        assert doc[cc.id].code == "green (edited)"
         assert _ids(doc) == ["c", "a", "b"]
 
     def test_create_delete_create(self) -> None:
         """Deleting a cell frees the ID for reuse."""
+        cid = CellId_t("a")
         doc = NotebookDocument()
-        doc.apply(CellCreated(id="a", code="v1"))
-        doc.apply(CellDeleted(id="a"))
-        doc.apply(CellCreated(id="a", code="v2"))
-        assert doc["a"].code == "v2"
+        doc.apply(CellCreated(id=cid, code="v1"))
+        doc.apply(CellDeleted(id=cid))
+        doc.apply(CellCreated(id=cid, code="v2"))
+        assert doc[cid].code == "v2"
 
     def test_interleaved_frontend_and_agent(self) -> None:
         """Simulate frontend and code_mode interleaving events."""
         doc = NotebookDocument()
 
+        a, b, c, d = (
+            CellId_t("a"),
+            CellId_t("b"),
+            CellId_t("c"),
+            CellId_t("d"),
+        )
+
         # Agent creates cells
-        doc.apply(CellCreated(id="a", code="import mo"))
-        doc.apply(CellCreated(id="b", code="red"))
-        doc.apply(CellCreated(id="c", code="green"))
+        doc.apply(CellCreated(id=a, code="import mo"))
+        doc.apply(CellCreated(id=b, code="red"))
+        doc.apply(CellCreated(id=c, code="green"))
 
         # User drags green to top
-        doc.apply(CellsReordered(cell_ids=["c", "a", "b"]))
-        assert _ids(doc) == ["c", "a", "b"]
+        doc.apply(CellsReordered(cell_ids=[c, a, b]))
+        assert _ids(doc) == [c, a, b]
 
         # Agent edits red — should NOT change ordering
-        doc.apply(CodeChanged(id="b", code="red (edited)"))
-        assert _ids(doc) == ["c", "a", "b"]
-        assert doc["b"].code == "red (edited)"
+        doc.apply(CodeChanged(id=b, code="red (edited)"))
+        assert _ids(doc) == [c, a, b]
+        assert doc[b].code == "red (edited)"
 
         # User creates a new cell between green and import
-        doc.apply(CellCreated(id="d", code="new", after="c"))
-        assert _ids(doc) == ["c", "d", "a", "b"]
+        doc.apply(CellCreated(id=d, code="new", after=c))
+        assert _ids(doc) == [c, d, a, b]
 
         # Agent deletes the new cell
-        doc.apply(CellDeleted(id="d"))
-        assert _ids(doc) == ["c", "a", "b"]
+        doc.apply(CellDeleted(id=d))
+        assert _ids(doc) == [c, a, b]
 
     def test_multiple_moves(self) -> None:
         doc = _doc("a", "b", "c", "d", "e")
+        c0, c1, c2, c3, c4 = doc
 
-        doc.apply(CellsReordered(cell_ids=["0", "4", "1", "2", "3"]))
-        assert _ids(doc) == ["0", "4", "1", "2", "3"]
+        doc.apply(CellsReordered(cell_ids=[c0, c4, c1, c2, c3]))
+        assert _ids(doc) == [c0, c4, c1, c2, c3]
 
-        doc.apply(CellsReordered(cell_ids=["2", "0", "4", "1", "3"]))
-        assert _ids(doc) == ["2", "0", "4", "1", "3"]
+        doc.apply(CellsReordered(cell_ids=[c2, c0, c4, c1, c3]))
+        assert _ids(doc) == [c2, c0, c4, c1, c3]
 
     def test_index_consistency_after_many_mutations(self) -> None:
         """The internal index must stay consistent through all operations."""
         doc = NotebookDocument()
 
         # Build up
-        for i in range(10):
-            doc.apply(CellCreated(id=str(i), code=f"cell {i}"))
+        ids = [CellId_t(str(i)) for i in range(10)]
+        for i, cid in enumerate(ids):
+            doc.apply(CellCreated(id=cid, code=f"cell {i}"))
 
         # Delete evens
         for i in range(0, 10, 2):
-            doc.apply(CellDeleted(id=str(i)))
-        assert _ids(doc) == ["1", "3", "5", "7", "9"]
+            doc.apply(CellDeleted(id=ids[i]))
+        assert _ids(doc) == [ids[1], ids[3], ids[5], ids[7], ids[9]]
 
         # Move 9 to front
-        doc.apply(CellsReordered(cell_ids=["9", "1", "3", "5", "7"]))
-        assert _ids(doc) == ["9", "1", "3", "5", "7"]
+        doc.apply(
+            CellsReordered(cell_ids=[ids[9], ids[1], ids[3], ids[5], ids[7]])
+        )
+        assert _ids(doc) == [ids[9], ids[1], ids[3], ids[5], ids[7]]
 
         # Create new cells in gaps
-        doc.apply(CellCreated(id="a", code="new", after="1"))
-        doc.apply(CellCreated(id="b", code="new", after="5"))
-        assert _ids(doc) == ["9", "1", "a", "3", "5", "b", "7"]
+        a, b = CellId_t("a"), CellId_t("b")
+        doc.apply(CellCreated(id=a, code="new", after=ids[1]))
+        doc.apply(CellCreated(id=b, code="new", after=ids[5]))
+        assert _ids(doc) == [ids[9], ids[1], a, ids[3], ids[5], b, ids[7]]
 
         # Verify every cell is findable
         for cid in _ids(doc):

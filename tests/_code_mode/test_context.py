@@ -14,14 +14,14 @@ from marimo._messaging.notification import (
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
-from marimo._session.state.document import DocumentCell, NotebookDocument
+from marimo._session.state.document import NotebookCell, NotebookDocument
 
 
 def _ctx(k: Kernel) -> AsyncCodeModeContext:
     """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
     k._document = NotebookDocument(
         [
-            DocumentCell(
+            NotebookCell(
                 id=cid,
                 code=cell.code,
                 config=cell.config,

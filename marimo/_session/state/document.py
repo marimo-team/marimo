@@ -31,11 +31,11 @@ if TYPE_CHECKING:
 
 
 # ------------------------------------------------------------------
-# Document cell
+# Notebook cell
 # ------------------------------------------------------------------
 
 
-class DocumentCell(msgspec.Struct):
+class NotebookCell(msgspec.Struct):
     """A cell in the notebook document."""
 
     id: CellId_t
@@ -140,8 +140,8 @@ class NotebookDocument:
 
     __slots__ = ("_cells", "_index")
 
-    def __init__(self, cells: list[DocumentCell] | None = None) -> None:
-        self._cells: list[DocumentCell] = list(cells) if cells else []
+    def __init__(self, cells: list[NotebookCell] | None = None) -> None:
+        self._cells: list[NotebookCell] = list(cells) if cells else []
         self._index: dict[CellId_t, int] = {
             c.id: i for i, c in enumerate(self._cells)
         }
@@ -150,7 +150,7 @@ class NotebookDocument:
     def from_cell_manager(cls, cell_manager: CellManager) -> NotebookDocument:
         """Build a document from a CellManager's current state."""
         cells = [
-            DocumentCell(
+            NotebookCell(
                 id=cd.cell_id,
                 code=cd.code,
                 name=cd.name,
@@ -166,17 +166,17 @@ class NotebookDocument:
     # ``list(doc.values())`` gives cells, ``doc[cell_id]`` looks up by
     # ID (KeyError if missing), ``doc.get(cell_id)`` returns None.
 
-    def __getitem__(self, cell_id: CellId_t) -> DocumentCell:
+    def __getitem__(self, cell_id: CellId_t) -> NotebookCell:
         return self._cells[self._require_index(cell_id)]
 
-    def get(self, cell_id: CellId_t) -> DocumentCell | None:
+    def get(self, cell_id: CellId_t) -> NotebookCell | None:
         idx = self._index.get(cell_id)
         return self._cells[idx] if idx is not None else None
 
     def __iter__(self) -> Iterator[CellId_t]:
         return (c.id for c in self._cells)
 
-    def values(self) -> Iterator[DocumentCell]:
+    def values(self) -> Iterator[NotebookCell]:
         """Iterate over cells in notebook order."""
         return iter(self._cells)
 
@@ -223,7 +223,7 @@ class NotebookDocument:
     def _rebuild_index(self) -> None:
         self._index = {c.id: i for i, c in enumerate(self._cells)}
 
-    def _insert_at(self, cell: DocumentCell, after: CellId_t | None) -> None:
+    def _insert_at(self, cell: NotebookCell, after: CellId_t | None) -> None:
         if after is None:
             self._cells.append(cell)
         else:
@@ -234,7 +234,7 @@ class NotebookDocument:
     def _apply_created(self, event: CellCreated) -> None:
         if event.id in self._index:
             raise ValueError(f"Cell {event.id!r} already exists in document")
-        cell = DocumentCell(
+        cell = NotebookCell(
             id=event.id,
             code=event.code,
             name=event.name,
@@ -261,7 +261,7 @@ class NotebookDocument:
     def _apply_reordered(self, event: CellsReordered) -> None:
         by_id = {c.id: c for c in self._cells}
         seen: set[CellId_t] = set()
-        reordered: list[DocumentCell] = []
+        reordered: list[NotebookCell] = []
         for cid in event.cell_ids:
             if cid in by_id and cid not in seen:
                 reordered.append(by_id[cid])

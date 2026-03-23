@@ -6,7 +6,7 @@ import pytest
 from marimo._code_mode._context import AsyncCodeModeContext, NotebookCellData
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
-from marimo._session.state.document import DocumentCell, NotebookDocument
+from marimo._session.state.document import NotebookCell, NotebookDocument
 from marimo._types.ids import CellId_t
 
 
@@ -14,7 +14,7 @@ def _ctx(k: Kernel) -> AsyncCodeModeContext:
     """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
     k._document = NotebookDocument(
         [
-            DocumentCell(id=cid, code=cell.code, config=cell.config)
+            NotebookCell(id=cid, code=cell.code, config=cell.config)
             for cid, cell in k.graph.cells.items()
         ]
     )
