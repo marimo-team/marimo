@@ -329,7 +329,6 @@ export const DataFrameComponent = memo(
           fieldTypes={field_types}
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={showDownload}
-          downloadFileName={dataframeName}
           download_as={download_as}
           enableSearch={false}
           showFilters={false}
