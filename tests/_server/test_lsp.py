@@ -82,8 +82,10 @@ async def test_base_lsp_server_start_stop(
 
     server.validate_requirements = mock.MagicMock(return_value=True)
 
-    # Test start
-    alert = await server.start()
+    # Skip readiness polling: the mock process doesn't listen on a TCP
+    # port, so _wait_until_ready would poll for its full 5 s timeout.
+    with mock.patch.object(server, "_wait_until_ready", return_value=True):
+        alert = await server.start()
     assert alert is None
     mock_popen.assert_called_once()
     assert (
@@ -109,8 +111,10 @@ async def test_base_lsp_server_stop_force_kill_on_timeout(
     server = MockLspServer(port=8000)
     server.validate_requirements = mock.MagicMock(return_value=True)
 
-    # Start the server
-    await server.start()
+    # Skip readiness polling: the mock process doesn't listen on a TCP
+    # port, so _wait_until_ready would poll for its full 5 s timeout.
+    with mock.patch.object(server, "_wait_until_ready", return_value=True):
+        await server.start()
 
     # Make wait() raise TimeoutExpired to simulate hung process
     mock_process.wait.side_effect = [
@@ -139,12 +143,14 @@ async def test_base_lsp_server_start_lock_prevents_concurrent_starts(
     server = MockLspServer(port=8000)
     server.validate_requirements = mock.MagicMock(return_value=True)
 
-    # Call start() multiple times concurrently
-    results = await asyncio.gather(
-        server.start(),
-        server.start(),
-        server.start(),
-    )
+    # Skip readiness polling: the mock process doesn't listen on a TCP
+    # port, so _wait_until_ready would poll for its full 5 s timeout.
+    with mock.patch.object(server, "_wait_until_ready", return_value=True):
+        results = await asyncio.gather(
+            server.start(),
+            server.start(),
+            server.start(),
+        )
 
     # All should succeed (return None), but Popen should only be called once
     assert all(r is None for r in results)
