@@ -75,7 +75,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
-        """Return all schemas in a database. This is currently implemented in get_databases_from_duckdb."""
+        """Get all schemas and optionally their tables. Keys are schema names."""
         _, _, _ = database, include_tables, include_table_details
         return []
 
