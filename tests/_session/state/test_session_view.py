@@ -907,7 +907,7 @@ def test_add_sql_table_previews() -> None:
         serialize_kernel_message(
             SQLSchemaListPreviewNotification(
                 metadata=SQLMetadata(
-                    connection="connection1", database="db1", schema="db1"
+                    connection="connection1", database="db1", schema=None
                 ),
                 request_id=RequestId("request_id"),
                 schemas=[
