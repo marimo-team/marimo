@@ -3568,10 +3568,7 @@ def launch_kernel(
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
     async def control_loop(kernel: Kernel) -> None:
-        from queue import Empty
-
         loop = asyncio.get_running_loop()
-        TIMEOUT_S = 0.1
 
         while True:
             try:
@@ -3580,10 +3577,8 @@ def launch_kernel(
                 # user-created tasks via create_task / ensure_future).
                 request: CommandMessage | None = await loop.run_in_executor(
                     None,
-                    lambda: control_queue.get(timeout=TIMEOUT_S),
+                    control_queue.get,
                 )
-            except Empty:
-                continue
             except Exception as e:
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
