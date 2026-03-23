@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Union
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -12,42 +12,35 @@ if TYPE_CHECKING:
 _HAS_TOMLLIB = sys.version_info >= (3, 11)
 
 
-def read_toml(file_path: Union[str, Path]) -> dict[str, Any]:
-    """Read and parse a TOML file."""
+class TomlReader:
+    """TOML reader that prefers tomllib (3.11+) over tomlkit."""
 
-    if _HAS_TOMLLIB:
-        import tomllib
+    decode_error: type[Exception]
+    _load: Callable[[IO[bytes]], dict[str, Any]]
+    _loads: Callable[[str], dict[str, Any]]
 
+    def __init__(self) -> None:
+        if _HAS_TOMLLIB:
+            import tomllib
+
+            self._load = tomllib.load  # type: ignore[assignment]
+            self._loads = tomllib.loads  # type: ignore[assignment]
+            self.decode_error = tomllib.TOMLDecodeError
+        else:
+            import tomlkit
+
+            self._load = lambda f: tomlkit.load(f).unwrap()
+            self._loads = lambda s: tomlkit.loads(s).unwrap()
+            self.decode_error = tomlkit.exceptions.TOMLKitError
+
+    def read(self, file_path: Union[str, Path]) -> dict[str, Any]:
+        """Read and parse a TOML file."""
         with open(file_path, "rb") as file:
-            return tomllib.load(file)
-    else:
-        import tomlkit
+            return self._load(file)
 
-        with open(file_path, "rb") as file:
-            return tomlkit.load(file).unwrap()
-
-
-def read_toml_string(s: str) -> dict[str, Any]:
-    """Read and parse a TOML string."""
-
-    if _HAS_TOMLLIB:
-        import tomllib
-
-        return tomllib.loads(s)
-    else:
-        import tomlkit
-
-        return tomlkit.loads(s).unwrap()
+    def reads(self, s: str) -> dict[str, Any]:
+        """Read and parse a TOML string."""
+        return self._loads(s)
 
 
-def is_toml_error(e: Exception) -> bool:
-    """Check if an exception is a TOML error."""
-
-    if _HAS_TOMLLIB:
-        import tomllib
-
-        return isinstance(e, tomllib.TOMLDecodeError)
-    else:
-        import tomlkit
-
-        return isinstance(e, tomlkit.exceptions.TOMLKitError)
+toml_reader = TomlReader()

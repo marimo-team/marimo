@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Literal, Optional
 
-from marimo._utils.toml import read_toml
+from marimo._utils.toml import toml_reader
 
 PackageManagerKind = Literal["pip", "rye", "uv", "poetry", "pixi"]
 
@@ -74,7 +74,7 @@ def infer_package_manager_from_pyproject(
 ) -> Optional[PackageManagerKind]:
     """Infer the package manager from a pyproject.toml file."""
     try:
-        data = read_toml(pyproject_toml)
+        data = toml_reader.read(pyproject_toml)
 
         if "tool" not in data:
             return None

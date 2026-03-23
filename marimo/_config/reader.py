@@ -6,21 +6,21 @@ from typing import Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
-from marimo._utils.toml import read_toml
+from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
     """Read the marimo.toml configuration."""
-    return cast(PartialMarimoConfig, read_toml(path))
+    return cast(PartialMarimoConfig, toml_reader.read(path))
 
 
 def read_pyproject_marimo_config(
     pyproject_path: Union[str, Path],
 ) -> Optional[PartialMarimoConfig]:
     """Read the marimo tool config from a pyproject.toml file."""
-    pyproject_config = read_toml(pyproject_path)
+    pyproject_config = toml_reader.read(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
         pyproject_config
     )

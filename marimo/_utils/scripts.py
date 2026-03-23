@@ -5,7 +5,7 @@ import platform
 import re
 from typing import Any
 
-from marimo._utils.toml import read_toml_string
+from marimo._utils.toml import toml_reader
 
 REGEX = (
     r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$"
@@ -39,7 +39,7 @@ def read_pyproject_from_script(script: str) -> dict[str, Any] | None:
             for line in matches[0].group("content").splitlines(keepends=True)
         )
 
-        pyproject = read_toml_string(content)
+        pyproject = toml_reader.reads(content)
         return pyproject
     else:
         return None
