@@ -21,10 +21,6 @@ from marimo._runtime.context.types import (
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
-from marimo._runtime.patches import (
-    create_main_module,
-    patch_main_module_context,
-)
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
@@ -53,17 +49,16 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def globals(self) -> dict[str, Any]:
-        if self._glbls is not None:
-            return self._glbls
-        # fallback: standalone path before _glbls is wired up
-        with patch_main_module_context(
-            create_main_module(
-                file=None, input_override=None, print_override=None
+        if self._glbls is None:
+            raise RuntimeError(
+                "ScriptRuntimeContext.globals accessed before "
+                "set_globals() was called."
             )
-        ) as module:
-            glbls = module.__dict__
-        glbls.update(sys.modules["__main__"].__dict__)
-        return glbls
+        return self._glbls
+
+    def set_globals(self, glbls: dict[str, Any]) -> None:
+        """Set the globals dict for this script context."""
+        self._glbls = glbls
 
     @property
     def execution_context(self) -> ExecutionContext | None:
@@ -142,16 +137,10 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._app
 
 
-def initialize_script_context(
+def create_script_context(
     app: InternalApp, stream: Stream, filename: str | None
 ) -> ScriptRuntimeContext:
-    """Creates a ScriptRuntimeContext for use with install().
-
-    Use the returned context as a context manager via ``with ctx.install():``
-    rather than calling ``initialize_context()`` directly, so that a
-    pre-existing context (e.g. an outer notebook's KernelRuntimeContext) is
-    saved and restored correctly.
-    """
+    """Creates a ScriptRuntimeContext."""
     from marimo._runtime.virtual_file import (
         InMemoryStorage,
         VirtualFileRegistry,

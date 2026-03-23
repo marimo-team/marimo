@@ -88,7 +88,7 @@ class AppScriptRunner:
         ) as module:
             glbls = module.__dict__
             glbls.update(self._glbls)
-            script_context._glbls = glbls
+            script_context.set_globals(glbls)
 
             outputs: dict[CellId_t, Any] = {}
             with script_context.install():
@@ -137,7 +137,7 @@ class AppScriptRunner:
         ) as module:
             glbls = module.__dict__
             glbls.update(self._glbls)
-            script_context._glbls = glbls
+            script_context.set_globals(glbls)
 
             outputs: dict[CellId_t, Any] = {}
 
@@ -177,7 +177,7 @@ class AppScriptRunner:
 
     def run(self) -> RunOutput:
         from marimo._runtime.context.script_context import (
-            initialize_script_context,
+            create_script_context,
         )
 
         app = self.app
@@ -198,7 +198,7 @@ class AppScriptRunner:
         # duration of execution.  install() saves/restores any pre-existing
         # context (e.g. an outer notebook's KernelRuntimeContext), so SQL cells
         # that call get_context().globals see the correct inner-app globals.
-        script_context = initialize_script_context(
+        script_context = create_script_context(
             app=app, stream=NoopStream(), filename=self.filename
         )
 
