@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 def _enrich_branded_types(
     component_schemas: dict[str, Any],
-    models: list[type],
+    models: list[object],
 ) -> None:
     """Post-process schemas to replace NewType string fields with $ref
     branded types.
