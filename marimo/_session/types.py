@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from marimo._config.manager import MarimoConfigManager
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
+    from marimo._notebook.document import NotebookDocument
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
     from marimo._session.extensions.types import SessionExtension
@@ -109,6 +110,7 @@ class Session(Protocol):
     initialization_id: str
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
+    document: NotebookDocument
     session_view: SessionView
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
