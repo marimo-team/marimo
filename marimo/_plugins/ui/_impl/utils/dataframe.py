@@ -26,9 +26,16 @@ def _create_download_virtual_file(
     data: Union[str, bytes, io.BytesIO],
     ext: str,
     filename: str,
-) -> str:
-    """Create a virtual file with a custom filename for download."""
-    from marimo._runtime.virtual_file import VirtualFile
+) -> tuple[str, str]:
+    """Create a virtual file with a custom filename for download.
+
+    Uses VirtualFileLifecycleItem for proper lifecycle management
+    to avoid virtual file leaks.
+
+    Returns:
+        tuple: (url, user-facing filename)
+    """
+    from marimo._runtime.virtual_file import VirtualFileLifecycleItem
 
     if isinstance(data, str):
         buffer = data.encode("utf-8")
@@ -37,19 +44,11 @@ def _create_download_virtual_file(
     else:
         buffer = data
 
-    try:
-        ctx = get_context()
-        if ctx.virtual_files_supported:
-            vfile = VirtualFile(filename=f"{filename}.{ext}", buffer=buffer)
-            ctx.virtual_file_registry.add(vfile, ctx)
-            return vfile.url
-    except ContextNotInitializedError:
-        pass
+    item = VirtualFileLifecycleItem(ext=ext, buffer=buffer)
+    item.add_to_cell_lifecycle_registry()
 
-    vfile = VirtualFile(
-        filename=f"{filename}.{ext}", buffer=buffer, as_data_url=True
-    )
-    return vfile.url
+    vfile = item.virtual_file
+    return (vfile.url, filename)
 
 
 def get_default_csv_encoding() -> str:
@@ -90,7 +89,7 @@ def download_as(
     csv_separator: str | None = None,
     json_ensure_ascii: bool = True,
     filename: str | None = None,
-) -> str:
+) -> tuple[str, str]:
     """Download the table data in the specified format.
 
     Args:
@@ -113,7 +112,7 @@ def download_as(
         NotImplementedError: If the table format is not supported.
 
     Returns:
-        str: The URL to download the table data.
+        tuple: (url, user-facing filename) for the downloaded file.
     """
     if drop_marimo_index:
         manager = manager.drop_columns([INDEX_COLUMN_NAME])
@@ -144,16 +143,19 @@ def download_as(
             if csv_encoding is not None
             else get_default_csv_encoding()
         )
-        return mo_data.csv(
+        vfile = mo_data.csv(
             manager.to_csv(encoding=encoding, separator=csv_separator)
-        ).url
+        )
+        return (vfile.url, vfile.filename)
     elif ext == "json":
-        return mo_data.json(
+        vfile = mo_data.json(
             manager.to_json(
                 encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
             )
-        ).url
+        )
+        return (vfile.url, vfile.filename)
     elif ext == "parquet":
-        return mo_data.parquet(manager.to_parquet()).url
+        vfile = mo_data.parquet(manager.to_parquet())
+        return (vfile.url, vfile.filename)
     else:
         raise ValueError("format must be one of 'csv', 'json', or 'parquet'.")

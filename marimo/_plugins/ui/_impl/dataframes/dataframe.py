@@ -28,6 +28,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 )
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
+    DownloadAsResponse,
     SearchTableArgs,
     SearchTableResponse,
     SortArgs,
@@ -333,7 +334,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
-    def _download_as(self, args: DownloadAsArgs) -> str:
+    def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the transformed dataframe in the specified format.
 
         Downloads the dataframe with all current transformations applied.
@@ -343,7 +344,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 format must be one of 'csv', 'json', or 'parquet'.
 
         Returns:
-            str: URL to download the data file.
+            DownloadAsResponse: URL and filename for the downloaded file.
 
         Raises:
             ValueError: If format is not supported.
@@ -356,13 +357,13 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             from marimo._runtime.context import get_context
 
             ctx = get_context()
-            bound = list(ctx.ui_element_registry.bound_names(self._id))
+            bound = sorted(ctx.ui_element_registry.bound_names(self._id))
             if bound:
                 bound_filename = bound[0]
         except Exception:
             LOGGER.debug("Error getting bound names for download filename")
 
-        return download_as(
+        url, filename = download_as(
             manager,
             args.format,
             csv_encoding=self._download_csv_encoding,
@@ -370,6 +371,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             json_ensure_ascii=self._download_json_ensure_ascii,
             filename=bound_filename,
         )
+        return DownloadAsResponse(url=url, filename=filename)
 
     def _apply_filters_query_sort(
         self,

@@ -1276,7 +1276,7 @@ def test_download_as(df: Any) -> None:
         """Helper to download and convert table data to DataFrame."""
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
-        )
+        ).url
         data_bytes = from_data_uri(download_str)[1]
         buffer = io.BytesIO(data_bytes)
 
@@ -1359,8 +1359,7 @@ def test_download_as_ignores_cell_selection() -> None:
     table._search(SearchTableArgs(query="2", page_size=10, page_number=0))
     # Make a cell selection; download should still include the filtered view
     table._convert_value([{"rowId": "0", "columnName": "a"}])
-    # Use JSON format to avoid optional dependencies
-    url = table._download_as(DownloadAsArgs(format="json"))
+    url = table._download_as(DownloadAsArgs(format="json")).url
     data_bytes = from_data_uri(url)[1]
     rows = json.loads(data_bytes)
     assert isinstance(rows, list)
@@ -2082,14 +2081,14 @@ def test_get_data_url_values() -> None:
     table = ui.table([1, 2, 3])
     response = table._get_data_url({})
     initial_data_url = response.data_url
-    assert initial_data_url.startswith("data:text/csv;base64,")
-    assert response.format == "csv"
+    assert initial_data_url.startswith("data:application/json;base64,")
+    assert response.format == "json"
 
     import pandas as pd
     from pandas.testing import assert_frame_equal
 
     df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
-    expected_df = pd.DataFrame({0: [1, 2, 3]})
+    expected_df = pd.DataFrame({"value": [1, 2, 3]})
     assert_frame_equal(df, expected_df)
 
     # Test search

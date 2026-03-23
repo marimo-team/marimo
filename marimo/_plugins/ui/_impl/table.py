@@ -93,6 +93,12 @@ class DownloadAsArgs:
 
 
 @dataclass
+class DownloadAsResponse:
+    url: str
+    filename: str
+
+
+@dataclass
 class ColumnSummariesArgs: ...
 
 
@@ -831,7 +837,7 @@ class table(
                 )
             return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
-    def _download_as(self, args: DownloadAsArgs) -> str:
+    def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
 
         For cell-selection modes ("single-cell"/"multi-cell"), selection is
@@ -845,7 +851,7 @@ class table(
                 format must be one of 'csv' or 'json'.
 
         Returns:
-            str: URL to download the data file.
+            DownloadAsResponse: URL and filename for the downloaded file.
 
         Raises:
             ValueError: If format is not 'csv' or 'json'.
@@ -872,18 +878,19 @@ class table(
                 from marimo._runtime.context import get_context
 
                 ctx = get_context()
-                bound = list(ctx.ui_element_registry.bound_names(self._id))
+                bound = sorted(ctx.ui_element_registry.bound_names(self._id))
                 if bound:
                     bound_filename = bound[0]
             except Exception:
                 LOGGER.debug("Error getting bound names for download filename")
 
-            return download_as(
+            url, filename = download_as(
                 manager_candidate,
                 args.format,
                 drop_marimo_index=True,
                 filename=bound_filename,
             )
+            return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(
                 "Download is not supported for this table format."
@@ -1123,13 +1130,27 @@ class table(
                 data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
                 return data_url, "arrow"
             except NotImplementedError:
-                LOGGER.debug(
-                    "Arrow export not implemented, falling back to CSV."
-                )
+                LOGGER.debug("Arrow export not implemented, falling back.")
             except Exception as e:
                 LOGGER.error("Unexpected error exporting Arrow: %s", e)
 
-        # Try CSV
+        data = table_manager.data
+        is_simple_list = (
+            isinstance(data, (list, tuple))
+            and len(data) > 0
+            and not isinstance(data[0], (list, tuple, dict))
+        )
+
+        if is_simple_list:
+            try:
+                data_url = mo_data.json(
+                    table_manager.to_json({}, ensure_ascii=True)
+                ).url
+                return data_url, "json"
+            except Exception as e:
+                LOGGER.error("Failed to export table data as JSON: %s", e)
+                raise
+
         try:
             data_url = mo_data.csv(table_manager.to_csv({})).url
             return data_url, "csv"
@@ -1138,7 +1159,6 @@ class table(
         except Exception as e:
             LOGGER.error("Unexpected error exporting CSV: %s", e)
 
-        # Fallback to JSON
         try:
             data_url = mo_data.json(
                 table_manager.to_json({}, ensure_ascii=True)
