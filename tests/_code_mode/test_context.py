@@ -12,8 +12,28 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     UpdateCellCodesNotification,
 )
+from marimo._notebook.document import (
+    NotebookCell,
+    NotebookDocument,
+    _current_document,
+)
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
+
+
+def _ctx(k: Kernel) -> AsyncCodeModeContext:
+    """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
+    _current_document.set(
+        NotebookDocument(
+            [
+                NotebookCell(
+                    id=cid, code=cell.code, name="", config=cell.config
+                )
+                for cid, cell in k.graph.cells.items()
+            ]
+        )
+    )
+    return AsyncCodeModeContext(k)
 
 
 def _tx_ops(k: Kernel) -> list[dict[str, object]]:
@@ -43,7 +63,7 @@ def _graph_codes(k: Kernel) -> dict[str, str]:
 
 class TestAddCell:
     async def test_add_into_empty(self, k: Kernel) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -81,7 +101,7 @@ class TestAddCell:
                 ExecuteCellCommand(cell_id="1", code="b = 20"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -105,7 +125,7 @@ class TestAddCell:
                 ExecuteCellCommand(cell_id="1", code="b = 20"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -118,7 +138,7 @@ class TestAddCell:
         assert reorder["cellIds"][2] == "1"
 
     async def test_add_without_run_does_not_execute(self, k: Kernel) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -134,7 +154,7 @@ class TestAddCell:
         assert creates[0]["code"] == "x = 999"
 
     async def test_add_returns_cell_id(self, k: Kernel) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             cid = nb.create_cell("x = 1")
@@ -143,7 +163,7 @@ class TestAddCell:
 
     async def test_add_chain_after(self, k: Kernel) -> None:
         """Can reference a just-added cell's ID in a subsequent add."""
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             cid1 = nb.create_cell("x = 1")
@@ -166,7 +186,7 @@ class TestDeleteCell:
         )
         assert len(k.graph.cells) == 3
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -192,7 +212,7 @@ class TestDeleteCell:
         assert k.globals["a"] == 1
         assert k.globals["b"] == 2
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         async with ctx as nb:
             nb.delete_cell("1")
 
@@ -207,7 +227,7 @@ class TestDeleteCell:
                 ExecuteCellCommand(cell_id="2", code="c = 3"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -222,7 +242,7 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
         assert k.globals["x"] == 1
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -245,7 +265,7 @@ class TestUpdateCell:
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
             nb.run_cell("0")
@@ -258,14 +278,14 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
 
         # Set hide_code=True on the cell.
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         async with ctx as nb:
             nb.edit_cell("0", hide_code=True)
 
         assert k.cell_metadata["0"].config.hide_code is True
 
         # Update code without touching config — hide_code should stick.
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
             nb.run_cell("0")
@@ -276,7 +296,7 @@ class TestUpdateCell:
     async def test_update_config_only(self, k: Kernel) -> None:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -308,7 +328,7 @@ class TestCombined:
             ]
         )
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -330,7 +350,7 @@ class TestCombined:
         )
         assert k.globals["b"] == 2
 
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         # Delete cell "1" and create a new cell that also defines "b".
@@ -346,7 +366,7 @@ class TestCombined:
     async def test_noop_batch(self, k: Kernel) -> None:
         """An empty context manager does nothing."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:  # noqa: B018
@@ -357,7 +377,7 @@ class TestCombined:
     async def test_exception_discards_ops(self, k: Kernel) -> None:
         """If an exception occurs, queued ops are discarded."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         try:
             async with ctx as nb:
@@ -373,7 +393,7 @@ class TestCombined:
     async def test_rerun_without_structural_ops(self, k: Kernel) -> None:
         """run_cell without any create/edit/delete still executes."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         # Mutate the global so we can detect re-execution.
         k.globals["x"] = 0
@@ -390,7 +410,7 @@ class TestCombined:
                 ExecuteCellCommand(cell_id="1", code="y = x + 1"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         # Mutate so we can detect re-execution of "0".
         k.globals["x"] = 0
@@ -403,7 +423,7 @@ class TestCombined:
     async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
         """Calling run_cell on a cell queued for deletion raises."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             nb.delete_cell("0")
@@ -415,7 +435,7 @@ class TestSummary:
     async def test_create_prints_summary(
         self, k: Kernel, capsys: object
     ) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             nb.create_cell("x = 1", name="my_cell")
@@ -427,7 +447,7 @@ class TestSummary:
         self, k: Kernel, capsys: object
     ) -> None:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             nb.edit_cell("0", code="x = 2")
@@ -439,7 +459,7 @@ class TestSummary:
         self, k: Kernel, capsys: object
     ) -> None:
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             nb.delete_cell("0")
@@ -450,7 +470,7 @@ class TestSummary:
     async def test_noop_prints_nothing(
         self, k: Kernel, capsys: object
     ) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:  # noqa: B018
             pass
@@ -467,7 +487,7 @@ class TestSummary:
                 ExecuteCellCommand(cell_id="2", code="c = 3"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             # delete
@@ -496,7 +516,7 @@ re-ran cell '2'
 class TestResolveTarget:
     async def test_create_after_pending_add_by_name(self, k: Kernel) -> None:
         """Can reference a just-added cell by name in a subsequent add."""
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         async with ctx as nb:
             cid1 = nb.create_cell("x = 1", name="first")
@@ -520,7 +540,7 @@ class TestResolveTarget:
                 ExecuteCellCommand(cell_id="1", code="b = 2"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -539,7 +559,7 @@ class TestResolveTarget:
 
 class TestInstallPackages:
     async def test_install_single(self, k: Kernel) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         pm = k.packages_callbacks.package_manager
         assert pm is not None
 
@@ -556,7 +576,7 @@ class TestInstallPackages:
         assert mock_install.call_args_list[0].kwargs["version"] == ""
 
     async def test_install_multiple_with_specifiers(self, k: Kernel) -> None:
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         pm = k.packages_callbacks.package_manager
         assert pm is not None
 
@@ -583,7 +603,7 @@ class TestAutorunStaleState:
         """Running the root cell should mark reactive descendants as
         non-stale in autorun mode so the frontend doesn't show them
         as 'needs run'."""
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -608,7 +628,7 @@ class TestAutorunStaleState:
         """In lazy mode, only the explicitly run cell should be non-stale.
         Downstream cells stay stale."""
         k = lazy_kernel
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
         _clear_messages(k)
 
         async with ctx as nb:
@@ -631,7 +651,7 @@ class TestAutorunStaleState:
         """edit_cell in one flush, run_cell in a separate flush should
         send code_is_stale=false so the frontend clears the stale state."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        ctx = _ctx(k)
 
         # Flush 1: edit only
         async with ctx as nb:
@@ -640,7 +660,7 @@ class TestAutorunStaleState:
         _clear_messages(k)
 
         # Flush 2: run only
-        ctx2 = AsyncCodeModeContext(k)
+        ctx2 = _ctx(k)
         async with ctx2 as nb:
             nb.run_cell("0")
 
