@@ -28,10 +28,14 @@ function hasRemovedKeybinding(binding: KeyBinding): boolean {
   );
 }
 
+export function filterCompletionBindings(
+  bindings: readonly KeyBinding[],
+): readonly KeyBinding[] {
+  return bindings.filter((binding) => !hasRemovedKeybinding(binding));
+}
+
 export function completionKeymap(): Extension {
-  const withoutKeysToRemove = defaultCompletionKeymap.filter(
-    (binding) => !hasRemovedKeybinding(binding),
-  );
+  const withoutKeysToRemove = filterCompletionBindings(defaultCompletionKeymap);
 
   return Prec.highest(
     keymap.of([
