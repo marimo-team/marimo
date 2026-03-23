@@ -2,10 +2,17 @@
 from __future__ import annotations
 
 import os
+import random
 import sys
 from typing import Optional
 
-from marimo._cli.print import bold, green, muted
+from marimo._cli.print import bold, green, light_blue, muted, yellow
+from marimo._cli.tips import (
+    CLI_STARTUP_TIPS,
+    CliTip,
+    StartupTipContext,
+    get_relevant_startup_tips,
+)
 from marimo._config.config import MarimoConfig, MCPConfig
 from marimo._utils.print import print_, print_tabbed
 
@@ -48,6 +55,13 @@ def print_startup(
         except Exception:
             # If we can't get the network URL, just skip it
             pass
+    tip = _get_startup_tip()
+    if tip is not None:
+        print_()
+        summary, action = _format_startup_tip(tip)
+        print_tabbed(summary)
+        if action is not None:
+            print_tabbed(action, n_tabs=2)
     print_()
 
 
@@ -128,6 +142,29 @@ def _colorized_url(url_string: str) -> str:
 
 def _utf8(msg: str) -> str:
     return msg if UTF8_SUPPORTED else ""
+
+
+def _format_startup_tip(tip: CliTip) -> tuple[str, str | None]:
+    emoji = _utf8("💡")
+    label = (
+        f"{emoji} {yellow('Tip:', bold=True)}"
+        if emoji
+        else yellow("Tip:", bold=True)
+    )
+    summary = f"{label} {tip.text}"
+    if tip.command is not None:
+        return summary, f"{muted('$')} {light_blue(tip.command)}"
+    if tip.link is not None:
+        return summary, f"{muted('Guide:')} {light_blue(tip.link)}"
+    return summary, None
+
+
+def _get_startup_tip() -> CliTip | None:
+    if not sys.stdout.isatty():
+        return None
+    context = StartupTipContext.from_argv(sys.argv[1:])
+    tip_pool = get_relevant_startup_tips(CLI_STARTUP_TIPS, context)
+    return random.choice(tip_pool)
 
 
 def print_experimental_features(config: MarimoConfig) -> None:
