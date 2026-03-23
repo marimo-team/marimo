@@ -2,9 +2,15 @@
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
-import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
+import {
+  EditorView,
+  type KeyBinding,
+  keymap,
+  type ViewUpdate,
+} from "@codemirror/view";
 import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
+import { loroSyncAnnotation } from "@/core/codemirror/rtc/loro/sync";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { duplicateWithCtrlModifier } from "@/core/hotkeys/shortcuts";
@@ -330,6 +336,52 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   return [onChangePlugin, formatKeymapExtension(hotkeys)];
 }
 
+const MARKDOWN_AUTORUN_USER_EVENTS = ["input", "delete", "undo", "redo"];
+
+function shouldAutorunMarkdownUpdate({
+  docChanged,
+  transactions,
+  predicate = () => true,
+  hasFocus = false,
+}: Pick<ViewUpdate, "docChanged" | "transactions"> & {
+  predicate?: () => boolean;
+  hasFocus?: boolean;
+}): boolean {
+  // If the doc didn't change, ignore.
+  if (!docChanged) {
+    return false;
+  }
+
+  // The caller decides when markdown autorun is allowed, e.g. not for
+  // f-strings where rerunning on every keystroke is usually incorrect.
+  if (!predicate()) {
+    return false;
+  }
+
+  // This happens on mount when we start in markdown mode.
+  // Ignore formatting changes so language switches don't trigger autorun.
+  const isFormattingChange = transactions.some((tr) =>
+    tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+  );
+  if (isFormattingChange) {
+    return false;
+  }
+
+  return transactions.some((tr) => {
+    // Ignore RTC sync changes to avoid duplicate runs from remote edits.
+    if (tr.annotation(loroSyncAnnotation) !== undefined) {
+      return false;
+    }
+
+    // Prefer explicit local edit transactions, but fall back to focused local
+    // doc changes for paths that don't annotate a user event.
+    return (
+      MARKDOWN_AUTORUN_USER_EVENTS.some((kind) => tr.isUserEvent(kind)) ||
+      hasFocus
+    );
+  });
+}
+
 /**
  * Extension for auto-running markdown cells
  */
@@ -339,30 +391,16 @@ export function markdownAutoRunExtension({
   predicate: () => boolean;
 }): Extension {
   return EditorView.updateListener.of((update) => {
-    // If the doc didn't change, ignore
-    if (!update.docChanged) {
+    if (
+      !shouldAutorunMarkdownUpdate({
+        docChanged: update.docChanged,
+        transactions: update.transactions,
+        predicate,
+        hasFocus: update.view.hasFocus,
+      })
+    ) {
       return;
     }
-
-    // If not focused, ignore
-    // This can cause multiple runs when in RTC mode
-    if (!update.view.hasFocus) {
-      return;
-    }
-
-    if (!predicate()) {
-      return;
-    }
-
-    // This happens on mount when we start in markdown mode
-    const isFormattingChange = update.transactions.some((tr) =>
-      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-    );
-    if (isFormattingChange) {
-      // Ignore formatting changes
-      return;
-    }
-
     const actions = update.view.state.facet(cellActionsState);
     actions.onRun();
   });
@@ -388,3 +426,7 @@ export function cellBundle({
     ),
   ];
 }
+
+export const exportedForTesting = {
+  shouldAutorunMarkdownUpdate,
+};
