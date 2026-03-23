@@ -224,6 +224,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
     ) -> list[Schema]:
         """Get schemas from the engine."""
 
+        if database is None:
+            # Early return to avoid passing None or "" as catalog
+            return []
+
         output_schemas: list[Schema] = []
         with self._connection.cursor() as cursor:
             # get_schemas returns [["schema_name", "catalog"], ["schema_2", "catalog"]]
@@ -237,7 +241,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 tables = (
                     self.get_tables_in_schema(
                         schema=schema_name,
-                        database=database if database is not None else "",
+                        database=database,
                         include_table_details=include_table_details,
                     )
                     if include_tables
