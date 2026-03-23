@@ -223,8 +223,7 @@ describe("wrapTooltipTargets", () => {
   });
 
   test("data-tooltip on nested element wraps only that element", () => {
-    const html =
-      '<p>Outer <span data-tooltip="tip">inner</span> text</p>';
+    const html = '<p>Outer <span data-tooltip="tip">inner</span> text</p>';
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <p>
         Outer 
