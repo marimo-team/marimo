@@ -1,17 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import { CachingRequestRegistry } from "../CachingRequestRegistry";
-import {
-  DeferredRequestRegistry,
-  type RequestId,
-} from "../DeferredRequestRegistry";
+import { DeferredRequestRegistry } from "../DeferredRequestRegistry";
 
 vi.mock("@/utils/uuid", () => ({
   generateUUID: vi.fn().mockReturnValue("uuid"),
 }));
 
 describe("CachingRequestRegistry", () => {
-  const REQUEST_ID = "uuid" as RequestId;
+  const REQUEST_ID = requestId("uuid");
   let makeRequestMock = vi.fn();
   let delegate: DeferredRequestRegistry<unknown, unknown>;
   let caching: CachingRequestRegistry<unknown, unknown>;
@@ -31,7 +30,7 @@ describe("CachingRequestRegistry", () => {
 
     // Resolve first request
     delegate.resolve(REQUEST_ID, "response");
-    await expect(p1).resolves.toBe("response");
+    await expect(p1).resolves.toBe(requestId("response"));
 
     // Second call with equivalent request gets served from cache
     const p2 = caching.request({ a: 1 });
@@ -50,8 +49,8 @@ describe("CachingRequestRegistry", () => {
     expect(p1).toStrictEqual(p2);
 
     // Resolve and ensure both resolve to same result
-    delegate.resolve(REQUEST_ID, "ok");
-    await expect(p1).resolves.toBe("ok");
+    delegate.resolve(REQUEST_ID, requestId("ok"));
+    await expect(p1).resolves.toBe(requestId("ok"));
     await expect(p2).resolves.toBe("ok");
   });
 
@@ -67,7 +66,7 @@ describe("CachingRequestRegistry", () => {
     expect(makeRequestMock).toHaveBeenCalledTimes(2);
 
     // Resolve the second request
-    delegate.resolve(REQUEST_ID, "ok");
-    await expect(p2).resolves.toBe("ok");
+    delegate.resolve(REQUEST_ID, requestId("ok"));
+    await expect(p2).resolves.toBe(requestId("ok"));
   });
 });

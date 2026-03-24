@@ -3,8 +3,8 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, test } from "vitest";
-import type { CellId } from "@/core/cells/ids";
-import type { VariableName, Variables } from "@/core/variables/types";
+import { cellId, variableName } from "@/__tests__/branded";
+import type { Variables } from "@/core/variables/types";
 import { findReactiveVariables, type ReactiveVariableRange } from "../analyzer";
 
 describe("findReactiveVariables - Lexical Scoping", () => {
@@ -1199,16 +1199,17 @@ class Foo:
 function runHighlight(variableNames: string[], code: string): string {
   const variables: Variables = {};
   for (const name of variableNames) {
-    variables[name as VariableName] = {
-      name: name as VariableName,
-      declaredBy: ["other-cell" as CellId],
+    const varName = variableName(name);
+    variables[varName] = {
+      name: varName,
+      declaredBy: [cellId("other-cell")],
       usedBy: [],
       value: "test-value",
       dataType: "str",
     };
   }
   const ranges = findReactiveVariables({
-    cellId: "current-cell" as CellId,
+    cellId: cellId("current-cell"),
     state: EditorState.create({
       doc: code,
       extensions: [python()],

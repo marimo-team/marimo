@@ -82,7 +82,7 @@ class NotebookCellData:
 
     code: str | None = None
     config: CellConfig | None = None
-    cell_id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
+    id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
     name: str | None = field(default=None, repr=True, compare=False)
 
 
@@ -99,7 +99,7 @@ _cell_names: dict[CellId_t, str] = {}
 # ------------------------------------------------------------------
 
 
-def get_context(*, check: bool = True) -> AsyncCodeModeContext:
+def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     """Return an ``AsyncCodeModeContext`` for the running kernel.
 
     Use as an async context manager::
@@ -107,24 +107,29 @@ def get_context(*, check: bool = True) -> AsyncCodeModeContext:
         async with cm.get_context() as ctx:
             ctx.create_cell("x = 1")
 
-    By default, a dry-run compile check is performed on exit to catch
-    syntax errors, multiply-defined names, and cycles before any graph
-    mutations.  Pass ``check=False`` to skip this validation::
-
-        async with cm.get_context(check=False) as ctx:
-            ...
+    Parameters
+    ----------
+    skip_validation : bool, default False
+        When False (the default), a dry-run compile check runs on exit
+        to catch syntax errors, multiply-defined names, and cycles
+        *before* any graph mutations are applied. The check is cheap
+        and should almost never be disabled. Only set to True when you
+        intentionally need to insert code that would fail validation
+        (e.g. incomplete stubs the user plans to fix by hand).
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
-        runtime_ctx._kernel, cell_manager=cell_manager, check=check
+        runtime_ctx._kernel,
+        cell_manager=cell_manager,
+        skip_validation=skip_validation,
     )
 
 
 class _CellsView:
-    """Read-only view over notebook cells as ``NotebookCellData`` objects.
+    """Read-only, ordered-dict-like view over notebook cells.
 
     Supports lookup by integer index, cell ID, or cell name::
 
@@ -132,6 +137,14 @@ class _CellsView:
         ctx.cells[-1]  # negative index
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
+
+    Dict-like iteration::
+
+        for cid, cell in ctx.cells.items():
+            ...
+        ctx.cells.keys()  # list of CellId_t
+        ctx.cells.values()  # list of NotebookCellData
+        "my_cell" in ctx.cells  # membership test
     """
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
@@ -159,7 +172,7 @@ class _CellsView:
             code=cell_impl.code,
             config=meta.config if meta else CellConfig(),
             name=self._cell_name(cell_id),
-            cell_id=cell_id,
+            id=cell_id,
         )
 
     def _resolve(self, target: str) -> CellId_t:
@@ -199,9 +212,31 @@ class _CellsView:
 
         return self._build_at(self._resolve(key))
 
-    def __iter__(self) -> Iterator[NotebookCellData]:
-        for cid in self._cell_ids():
-            yield self._build_at(cid)
+    def __iter__(self) -> Iterator[CellId_t]:
+        yield from self._cell_ids()
+
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, int):
+            return 0 <= key < len(self)
+        if isinstance(key, str):
+            try:
+                self._resolve(key)
+                return True
+            except KeyError:
+                return False
+        return False
+
+    def keys(self) -> list[CellId_t]:
+        """Return cell IDs in notebook order."""
+        return self._cell_ids()
+
+    def values(self) -> list[NotebookCellData]:
+        """Return cell data in notebook order."""
+        return [self._build_at(cid) for cid in self._cell_ids()]
+
+    def items(self) -> list[tuple[CellId_t, NotebookCellData]]:
+        """Return (cell_id, cell_data) pairs in notebook order."""
+        return [(cid, self._build_at(cid)) for cid in self._cell_ids()]
 
 
 # ------------------------------------------------------------------
@@ -229,11 +264,11 @@ class AsyncCodeModeContext:
         kernel: Kernel,
         cell_manager: CellManager | None = None,
         *,
-        check: bool = True,
+        skip_validation: bool = False,
     ) -> None:
         self._kernel = kernel
         self._cell_manager = cell_manager
-        self._check = check
+        self._skip_validation = skip_validation
         self._ops: list[_Op] = []
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
@@ -301,11 +336,23 @@ class AsyncCodeModeContext:
 
         if ops:
             _validate_ops(ops)
-            if self._check:
+            if not self._skip_validation:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
             # run_cell was called without any structural ops — just re-run.
+            # Notify the frontend that these cells are no longer stale so
+            # it clears edited/lastCodeRun (covers the two-step pattern:
+            # edit_cell in one flush, run_cell in a separate flush).
+            valid = cells_to_run & set(self.graph.cells.keys())
+            if valid:
+                self.notify(
+                    UpdateCellCodesNotification(
+                        cell_ids=list(valid),
+                        codes=[self.graph.cells[cid].code for cid in valid],
+                        code_is_stale=False,
+                    )
+                )
             await self._kernel._run_cells(cells_to_run)
 
         # Flush queued UI updates as a single batch.
@@ -404,7 +451,12 @@ class AsyncCodeModeContext:
 
     @property
     def globals(self) -> dict[str, Any]:
-        """The kernel's global namespace (all variables defined by cells)."""
+        """The kernel's global namespace (all variables defined by cells).
+
+        Mutations via :meth:`run_cell` update the kernel globals but
+        *not* the scratchpad's copy. Read values through this property
+        (``ctx.globals["x"]``) rather than bare variable names.
+        """
         return self._kernel.globals
 
     @property
@@ -515,10 +567,6 @@ class AsyncCodeModeContext:
             # Create and run
             cid = ctx.create_cell("x = 1")
             ctx.run_cell(cid)
-
-            # Create a setup cell with imports, then a cell that uses them
-            ctx.create_cell("import marimo as mo", name="setup")
-            ctx.create_cell("mo.md('# Hello')", name="greeting")
             ```
 
         Args:
@@ -532,8 +580,10 @@ class AsyncCodeModeContext:
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            name (str, optional): Name for the cell (e.g. ``"data_loader"``,
-                ``"setup"`` for a setup cell).
+            name (str, optional): Cell names are a human-facing label,
+                reserved for special cases (e.g. ``"setup"``). Prefer
+                referencing cells by the returned cell ID unless
+                naming is important for the user.
         """
         self._require_entered()
         if before is not None and after is not None:
@@ -565,8 +615,8 @@ class AsyncCodeModeContext:
     def edit_cell(
         self,
         target: str,
-        *,
         code: str | None = None,
+        *,
         hide_code: bool | None = None,
         disabled: bool | None = None,
         column: int | None = None,
@@ -580,24 +630,22 @@ class AsyncCodeModeContext:
         Editing a cell does not automatically execute it. Use ``run_cell``
         to queue it for execution::
 
-            ctx.edit_cell("my_cell", code="x = 42")
+            ctx.edit_cell("my_cell", "x = 42")
             ctx.run_cell("my_cell")
 
         Examples:
             ```python
             # Update only code (config like hide_code is preserved)
-            ctx.edit_cell(
-                "data_loader", code="df = pd.read_parquet('new.parquet')"
-            )
+            ctx.edit_cell("data_loader", "df = pd.read_parquet('new.parquet')")
 
             # Update only config (code is preserved)
             ctx.edit_cell("data_loader", hide_code=False)
 
             # Update both code and config
-            ctx.edit_cell("data_loader", code="df = load()", disabled=True)
+            ctx.edit_cell("data_loader", "df = load()", disabled=True)
 
             # Edit and run
-            ctx.edit_cell("my_cell", code="new_code()")
+            ctx.edit_cell("my_cell", "new_code()")
             ctx.run_cell("my_cell")
 
             # Rename a cell
@@ -835,19 +883,19 @@ class AsyncCodeModeContext:
             )
             new_cycles = set(graph.cycles) - existing_cycles
 
-            _check_false_hint = (
+            _skip_hint = (
                 "\n\nTo skip validation, use: "
-                "async with cm.get_context(check=False) as ctx"
+                "async with cm.get_context(skip_validation=True) as ctx"
             )
             if new_multiply_defined:
                 raise RuntimeError(
                     "Multiply-defined names: "
                     f"{sorted(new_multiply_defined)}"
-                    f"{_check_false_hint}"
+                    f"{_skip_hint}"
                 )
             if new_cycles:
                 raise RuntimeError(
-                    f"Cycles detected: {new_cycles}{_check_false_hint}"
+                    f"Cycles detected: {new_cycles}{_skip_hint}"
                 )
         finally:
             # Always clean up: remove dry-run cells, restore evicted ones.
@@ -950,7 +998,17 @@ class AsyncCodeModeContext:
         # Notify frontend of all changes (code and config-only).
         # Cells not queued for execution are marked as stale.
         # Config-only changes are never stale (the code didn't change).
+        #
+        # In autorun mode, when the caller explicitly ran at least one
+        # cell, also include cells_to_run from mutate_graph (reactive
+        # descendants) so the agent sees their execution synchronously
+        # and the frontend isn't left showing stale for cells that are
+        # about to execute.  We only expand when explicit_run is
+        # non-empty to preserve the "suggestion" behavior: creating
+        # cells without run_cell leaves them stale/unexecuted.
         _run_set = explicit_run or set()
+        if _run_set and self._kernel.reactive_execution_mode == "autorun":
+            _run_set = _run_set | cells_to_run
         _code_entry_ids = {e.cell_id for e in code_entries}
         all_entries = code_entries + config_entries
         by_stale: dict[bool, list[_PlanEntry]] = {}
@@ -1006,8 +1064,8 @@ class AsyncCodeModeContext:
 
         self.notify(UpdateCellIdsNotification(cell_ids=target_order))
 
-        # Only run cells explicitly queued via run_cell(), filtered to
-        # cells that still exist after structural ops have been applied.
+        # Run queued cells (explicit run_cell + autorun descendants),
+        # filtered to cells that still exist after structural ops.
         if _run_set:
             cells_to_run = _run_set & set(self.graph.cells.keys())
             if cells_to_run:

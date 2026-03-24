@@ -27,7 +27,7 @@ def mock_cwd(tmp_path: Path):
 def test_infer_package_manager_from_pyproject():
     # Test poetry detection
     with patch(
-        "marimo._config.packages.read_toml",
+        "marimo._config.packages.toml_reader.read",
         return_value={"tool": {"poetry": {}}},
     ):
         assert (
@@ -36,14 +36,16 @@ def test_infer_package_manager_from_pyproject():
         )
 
     # Test no tool section
-    with patch("marimo._config.packages.read_toml", return_value={}):
+    with patch("marimo._config.packages.toml_reader.read", return_value={}):
         assert (
             infer_package_manager_from_pyproject(Path("pyproject.toml"))
             is None
         )
 
     # Test exception handling
-    with patch("marimo._config.packages.read_toml", side_effect=Exception):
+    with patch(
+        "marimo._config.packages.toml_reader.read", side_effect=Exception
+    ):
         assert (
             infer_package_manager_from_pyproject(Path("pyproject.toml"))
             is None

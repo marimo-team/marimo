@@ -568,6 +568,7 @@ class ExperimentalConfig(TypedDict, total=False):
     markdown: bool  # Used in playground (community cloud)
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
+    isolate_apps: bool
 
     # Internal features
     cache: CacheConfig

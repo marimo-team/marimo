@@ -4,11 +4,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { variableName } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { variablesAtom } from "@/core/variables/state";
-import type { VariableName } from "@/core/variables/types";
 import type { Milliseconds } from "@/utils/time";
 import {
   usePendingDelete,
@@ -138,8 +138,8 @@ describe("pending-delete-service", () => {
 
     store.set(notebookAtom, notebook);
     store.set(variablesAtom, {
-      ["x" as VariableName]: {
-        name: "x" as VariableName,
+      [variableName("x")]: {
+        name: variableName("x"),
         declaredBy: [cell1Id],
         usedBy: [cell2Id],
       },

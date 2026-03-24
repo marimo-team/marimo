@@ -208,6 +208,39 @@ class TestMplCleanupHandle:
         assert result is True
         mock_comm.close.assert_called_once()
 
+    def test_dispose_cleans_up_figure_manager(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _MplCleanupHandle,
+        )
+
+        mock_comm = MagicMock()
+        mock_manager = MagicMock()
+        mock_ws = MagicMock()
+        handle = _MplCleanupHandle(mock_comm, mock_manager, mock_ws)
+        result = handle.dispose(context=MagicMock(), deletion=False)
+
+        assert result is True
+        mock_manager.remove_web_socket.assert_called_once_with(mock_ws)
+        mock_manager.canvas.close.assert_called_once()
+        mock_comm.close.assert_called_once()
+
+    def test_dispose_tolerates_manager_errors(self) -> None:
+        from marimo._plugins.ui._impl.from_mpl_interactive import (
+            _MplCleanupHandle,
+        )
+
+        mock_comm = MagicMock()
+        mock_manager = MagicMock()
+        mock_manager.remove_web_socket.side_effect = RuntimeError("boom")
+        mock_manager.canvas.close.side_effect = RuntimeError("boom")
+        mock_ws = MagicMock()
+        handle = _MplCleanupHandle(mock_comm, mock_manager, mock_ws)
+        # Should not raise even if manager cleanup fails
+        result = handle.dispose(context=MagicMock(), deletion=False)
+
+        assert result is True
+        mock_comm.close.assert_called_once()
+
 
 @pytest.mark.requires("matplotlib")
 class TestMplInteractiveArgs:

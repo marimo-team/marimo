@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response
+from starlette.routing import Route, WebSocketRoute
 from starlette.testclient import TestClient
 
 from marimo._server.asgi import (
@@ -538,21 +539,22 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
         # Create a WebSocket test app
         def ws_app_builder(base_url: str, file_path: str) -> Starlette:
             del base_url
-            app = Starlette()
 
             async def websocket_endpoint(websocket: WebSocket) -> None:
                 await websocket.accept()
                 await websocket.send_text(f"WS from {Path(file_path).stem}")
                 await websocket.close()
 
-            app.add_websocket_route("/ws", websocket_endpoint)
-
             async def handle(request: Request) -> Response:
                 del request
                 return PlainTextResponse(f"App from {Path(file_path).stem}")
 
-            app.add_route("/", handle)
-            return app
+            return Starlette(
+                routes=[
+                    WebSocketRoute("/ws", websocket_endpoint),
+                    Route("/", handle),
+                ]
+            )
 
         # Create middleware with WebSocket support
         ws_middleware = DynamicDirectoryMiddleware(
@@ -647,21 +649,22 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
     def test_nested_file_websocket(self):
         def ws_app_builder(base_url: str, file_path: str) -> Starlette:
             del base_url
-            app = Starlette()
 
             async def websocket_endpoint(websocket: WebSocket) -> None:
                 await websocket.accept()
                 await websocket.send_text(f"WS from {Path(file_path).stem}")
                 await websocket.close()
 
-            app.add_websocket_route("/ws", websocket_endpoint)
-
             async def handle(request: Request) -> Response:
                 del request
                 return PlainTextResponse(f"App from {Path(file_path).stem}")
 
-            app.add_route("/", handle)
-            return app
+            return Starlette(
+                routes=[
+                    WebSocketRoute("/ws", websocket_endpoint),
+                    Route("/", handle),
+                ]
+            )
 
         ws_middleware = DynamicDirectoryMiddleware(
             app=self.base_app,
@@ -941,21 +944,22 @@ class TestDynamicDirectoryMiddlewareSubMount(unittest.TestCase):
 
         def ws_app_builder(base_url: str, file_path: str) -> Starlette:
             del base_url
-            app = Starlette()
 
             async def websocket_endpoint(websocket: WebSocket) -> None:
                 await websocket.accept()
                 await websocket.send_text(f"WS from {Path(file_path).stem}")
                 await websocket.close()
 
-            app.add_websocket_route("/ws", websocket_endpoint)
-
             async def handle(request: Request) -> Response:
                 del request
                 return PlainTextResponse(f"App from {Path(file_path).stem}")
 
-            app.add_route("/", handle)
-            return app
+            return Starlette(
+                routes=[
+                    WebSocketRoute("/ws", websocket_endpoint),
+                    Route("/", handle),
+                ]
+            )
 
         middleware = DynamicDirectoryMiddleware(
             app=self.base_app,

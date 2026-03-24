@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-redeclare */
 
+import type { components } from "@marimo-team/marimo-api";
 import { OBJECT_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { invariant } from "@/utils/invariant";
-import type { TypedString } from "../../utils/typed";
 
 const lowercase = "abcdefghijklmnopqrstuvwxyz";
 const uppercase = lowercase.toUpperCase();
@@ -14,9 +14,9 @@ export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
 
 /**
- * A typed CellId
+ * A typed CellId — derived from the generated OpenAPI schema.
  */
-export type CellId = TypedString<"CellId">;
+export type CellId = components["schemas"]["CellId"];
 export const CellId = {
   /**
    * Create a new CellId, a random 4 letter string.
@@ -106,9 +106,9 @@ export function findCellId(element: HTMLElement): CellId | null {
 }
 
 /**
- * A typed UIElementId
+ * A typed UIElementId — derived from the generated OpenAPI schema.
  */
-export type UIElementId = `${CellId}-${string}`;
+export type UIElementId = components["schemas"]["UIElementId"];
 export const UIElementId = {
   parse(element: Element): UIElementId | null {
     return element.getAttribute(OBJECT_ID_ATTR) as UIElementId | null;

@@ -6,7 +6,6 @@ import base64
 import dataclasses
 import hashlib
 import inspect
-import struct
 import sys
 import types
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
@@ -18,7 +17,6 @@ from marimo._ast.variables import (
     unmangle_local,
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import induced_subgraph
@@ -36,22 +34,24 @@ from marimo._runtime.side_effect import CellHash, SideEffect
 from marimo._runtime.state import SetFunctor, State
 from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
+from marimo._save.encode import (
+    attempt_signed_bytes,
+    common_container_to_bytes,
+    data_to_buffer,
+    deterministic_dumps,
+    primitive_to_bytes,
+    type_sign,
+)
 from marimo._save.stubs import maybe_get_custom_stub
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
     from types import CodeType
 
     from marimo._ast.cell import CellImpl
     from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.loaders import Loader
-
-    # Union[list, torch.Tensor, jax.numpy.ndarray,
-    #             np.ndarray, scipy.sparse.spmatrix]
-    Tensor = Any
-
 
 # Default hash type is generally inconsequential, there may be implications of
 # malicious hash collision or performance. Malicious hash collision can be
@@ -167,130 +167,6 @@ def hash_cell_execution(
 ) -> bytes:
     ancestors = graph.ancestors(cell_id)
     return hash_cell_group(ancestors, graph, hash_type)
-
-
-def standardize_tensor(tensor: Tensor) -> Optional[Tensor]:
-    if (
-        hasattr(tensor, "__array__")
-        or hasattr(tensor, "toarray")
-        or hasattr(tensor, "__array_interface__")
-    ):
-        DependencyManager.numpy.require("to access data buffer for hashing.")
-        import numpy
-
-        if not hasattr(tensor, "__array_interface__"):
-            # Capture those sparse cases
-            if hasattr(tensor, "toarray"):
-                tensor = tensor.toarray()
-        # As array should not perform copy
-        return numpy.asarray(tensor)
-    raise ValueError(
-        f"Expected a data primitive object, but got {type(tensor)} instead."
-        "This maybe is an internal marimo issue. Please report to "
-        "https://github.com/marimo-team/marimo/issues."
-    )
-
-
-def type_sign(value: bytes, label: str) -> bytes:
-    # Appending all strings with a key disambiguates it from other types. e.g.
-    # when the string value is the same as a float pack, or is the literal
-    # ":none". If our content strings take the form: integrity + delimiter then
-    # these types of collisions become very hard.
-    #
-    # Note that this does not fully protect against cache poisoning, as an
-    # attacker can override python internals to provide a matched hash. A key
-    # signed cache result is the only way to properly protect against this.
-    #
-    # Additionally, (less meaningful, but still possible)- a byte collision can
-    # be manufactured by choosing data so long that the length of the data acts
-    # as the data injection.
-    #
-    # TODO: Benchmark something like `sha1 (integrity) + delimiter`, this
-    # method is chosen because it was assumed to be fast, but might be slow
-    # with a copy of large data.
-    return b"".join([value, bytes(len(value)), bytes(":" + label, "utf-8")])
-
-
-def iterable_sign(value: Iterable[Any], label: str) -> bytes:
-    values = list(value)
-    return b"".join(
-        [b"".join(values), bytes(len(values)), bytes(":" + label, "utf-8")]
-    )
-
-
-def primitive_to_bytes(value: Any) -> bytes:
-    if value is None:
-        return b":none"
-    if isinstance(value, str):
-        return type_sign(bytes(f"{value}", "utf-8"), "str")
-    if isinstance(value, float):
-        return type_sign(struct.pack("d", value), "float")
-    if isinstance(value, int):
-        return type_sign(struct.pack("q", value), "int")
-    if isinstance(value, tuple):
-        return iterable_sign(map(primitive_to_bytes, value), "tuple")
-    return type_sign(bytes(value), "bytes")
-
-
-def common_container_to_bytes(value: Any) -> bytes:
-    visited: dict[int, int] = {}
-
-    def recurse_container(value: Any) -> bytes:
-        if id(value) in visited:
-            return type_sign(bytes(visited[id(value)]), "id")
-        if isinstance(value, dict):
-            visited[id(value)] = len(visited)
-            return iterable_sign(
-                map(recurse_container, sorted(value.items())), "dict"
-            )
-        if isinstance(value, list):
-            visited[id(value)] = len(visited)
-            return iterable_sign(map(recurse_container, value), "list")
-        if isinstance(value, set):
-            visited[id(value)] = len(visited)
-            return iterable_sign(map(recurse_container, sorted(value)), "set")
-        # Tuple may be only data primitive, not fully primitive.
-        if isinstance(value, tuple):
-            return iterable_sign(map(recurse_container, value), "tuple")
-
-        if is_primitive(value):
-            return primitive_to_bytes(value)
-        return data_to_buffer(value)
-
-    return recurse_container(value)
-
-
-def data_to_buffer(data: Tensor) -> bytes:
-    data = standardize_tensor(data)
-    # From joblib.hashing
-    if data.shape == ():
-        # 0d arrays need to be flattened because viewing them as bytes
-        # raises a ValueError exception.
-        data_c_contiguous = data.flatten()
-    elif data.flags.c_contiguous:
-        data_c_contiguous = data
-    elif data.flags.f_contiguous:
-        data_c_contiguous = data.T
-    else:
-        # Cater for non-single-segment arrays, this creates a copy, and thus
-        # alleviates this issue. Note: There might be a more efficient way of
-        # doing this, check for joblib updates.
-        data_c_contiguous = data.flatten()
-    return type_sign(memoryview(data_c_contiguous.view("uint8")), "data")
-
-
-def attempt_signed_bytes(value: bytes, label: str) -> bytes:
-    # Prevents hash collisions like:
-    # >>> fib(1)
-    # >>> s, _ = state(1)
-    # >>> fib(s)
-    # ^ would be a cache hit as is even though fib(s) would fail by
-    # itself
-    try:
-        return type_sign(common_container_to_bytes(value), label)
-    # Fallback to raw state for eval in content hash.
-    except (TypeError, ValueError):
-        return value
 
 
 def get_and_update_context_from_scope(
@@ -616,7 +492,9 @@ class BlockHasher:
 
             for ref in unhashable:
                 try:
-                    _hashed = pickle.dumps(scope[ref])
+                    _hashed = deterministic_dumps(
+                        scope[ref], self.hash_alg.name
+                    )
                     content_serialization[ref] = type_sign(_hashed, "pickle")
                     refs.remove(ref)
                 except (pickle.PicklingError, TypeError) as e:

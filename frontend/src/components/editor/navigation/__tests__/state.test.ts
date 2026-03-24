@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 
 const mockScrollCellIntoView = vi.fn();
@@ -14,12 +15,12 @@ vi.mock("../focus-utils", () => ({
 type TemporarilyShownCodeState = Set<CellId>;
 
 describe("temporarilyShownCodeActions", () => {
-  const cellId = "cell-1" as CellId;
+  const cid = cellId("cell-1");
   let cellElement: HTMLElement;
 
   beforeEach(() => {
     cellElement = document.createElement("div");
-    cellElement.id = HTMLCellId.create(cellId);
+    cellElement.id = HTMLCellId.create(cid);
     document.body.append(cellElement);
     cellElement.focus();
 
@@ -37,17 +38,17 @@ describe("temporarilyShownCodeActions", () => {
   });
 
   it("should scroll cell into view when removing cell causes layout shift", () => {
-    const state = new Set<CellId>([cellId]);
-    removeCell(state, cellId);
+    const state = new Set<CellId>([cid]);
+    removeCell(state, cid);
 
-    expect(mockScrollCellIntoView).toHaveBeenCalledWith(cellId);
+    expect(mockScrollCellIntoView).toHaveBeenCalledWith(cid);
   });
 
   it("should not scroll when focused cell is not found", () => {
     vi.spyOn(HTMLCellId, "findElementThroughShadowDOMs").mockReturnValue(null);
 
-    const state = new Set<CellId>([cellId]);
-    removeCell(state, cellId);
+    const state = new Set<CellId>([cid]);
+    removeCell(state, cid);
 
     expect(mockScrollCellIntoView).not.toHaveBeenCalled();
   });

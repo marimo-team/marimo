@@ -1046,6 +1046,14 @@ class Kernel:
                 if name in self.globals:
                     del self.globals[name]
 
+                # Restore module-level __doc__ so it doesn't fall
+                # through to builtins.__doc__
+                if name == "__doc__":
+                    self.globals["__doc__"] = (
+                        self.app_metadata.docstring
+                        or "Created for the marimo kernel."
+                    )
+
                 if (
                     "__annotations__" in self.globals
                     and name in self.globals["__annotations__"]
@@ -3569,6 +3577,7 @@ def launch_kernel(
             file=app_metadata.filename,
             input_override=input_override,
             print_override=print_override,
+            doc=app_metadata.docstring,
         ),
         debugger_override=debugger,
         user_config=user_config,
@@ -3622,22 +3631,17 @@ def launch_kernel(
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
     async def control_loop(kernel: Kernel) -> None:
-        from queue import Empty
+        loop = asyncio.get_running_loop()
 
         while True:
             try:
-                TIMEOUT_S = 0.1
-                # 100ms timeout to avoid blocking
-                # this does not mean ControlRequest will be blocked for 100ms
-                # but rather background tasks may not start until 100ms have passed
-                request: CommandMessage | None = control_queue.get(
-                    timeout=TIMEOUT_S
+                # Offload the blocking queue.get() to a thread so the event
+                # loop stays free to service background asyncio tasks (e.g.
+                # user-created tasks via create_task / ensure_future).
+                request: CommandMessage | None = await loop.run_in_executor(
+                    None,
+                    control_queue.get,
                 )
-            except Empty:
-                # Yield control back to the event loop to give
-                # other tasks a chance to run
-                await asyncio.sleep(0)
-                continue
             except Exception as e:
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
@@ -3665,10 +3669,12 @@ def launch_kernel(
                         type(request).__name__,
                     )
 
-    # The control loop is asynchronous only because we allow user code to use
-    # top-level await; nothing else is awaited. Don't introduce async
-    # primitives anywhere else in the runtime unless there is a *very* good
-    # reason; prefer using threads (for performance and clarity).
+    # The control loop is asynchronous so that (a) user code can use
+    # top-level await, and (b) background asyncio tasks created by user code
+    # (via create_task / ensure_future) are not starved by a blocking
+    # queue.get().  The queue read is offloaded to a thread via
+    # run_in_executor; avoid adding further async primitives elsewhere in the
+    # runtime unless there is a very good reason.
     asyncio.run(control_loop(kernel))
 
     if not use_fd_redirect:

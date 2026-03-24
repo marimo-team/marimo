@@ -755,7 +755,7 @@ const {
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
-    const cellId = message.cell_id as CellId;
+    const cellId = message.cell_id;
     const nextState = updateCellRuntimeState({
       state,
       cellId,

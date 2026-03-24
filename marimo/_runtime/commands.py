@@ -442,6 +442,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
         app_config: Application-level configuration.
         argv: Full argument vector if available.
         filename: Path to the notebook file.
+        docstring: Module docstring extracted from the notebook header.
     """
 
     query_params: SerializedQueryParams
@@ -450,6 +451,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
+    docstring: Optional[str] = None
 
 
 class UpdateCellConfigCommand(Command):

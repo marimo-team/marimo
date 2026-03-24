@@ -256,6 +256,9 @@ components:
       - description
       title: BannerNotification
       type: object
+    Base64String:
+      contentEncoding: base64
+      type: string
     BaseResponse:
       properties:
         success:
@@ -366,6 +369,8 @@ components:
       required: []
       title: CellConfig
       type: object
+    CellId:
+      type: string
     CellNotification:
       description: "Updates a cell's state in the frontend.\n\n    Only fields that\
         \ are set (not None) will update the cell state.\n    Omitting a field leaves\
@@ -379,7 +384,7 @@ components:
         \ Creation timestamp, auto-set."
       properties:
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         console:
           anyOf:
           - items:
@@ -619,7 +624,7 @@ components:
         document:
           type: string
         id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - code-completion
@@ -637,7 +642,7 @@ components:
         document:
           type: string
         id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - id
       - document
@@ -1022,7 +1027,7 @@ components:
           type: array
         engine:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/VariableName'
           - type: 'null'
           default: null
         indexes:
@@ -1064,7 +1069,7 @@ components:
           - view
         variable_name:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/VariableName'
           - type: 'null'
       required:
       - source_type
@@ -1115,7 +1120,7 @@ components:
           type: string
         engine:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/VariableName'
           - type: 'null'
           default: null
         name:
@@ -1825,7 +1830,7 @@ components:
         \ Cell to focus."
       properties:
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         op:
           enum:
           - focus-cell
@@ -1882,7 +1887,7 @@ components:
         \ status."
       properties:
         function_call_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         op:
           enum:
           - function-call-result
@@ -2262,7 +2267,7 @@ components:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         cell_ids:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -2884,12 +2889,12 @@ components:
       properties:
         blamed_cell:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CellId'
           - type: 'null'
         msg:
           type: string
         raising_cell:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - ancestor-prevented
@@ -2905,7 +2910,7 @@ components:
         msg:
           type: string
         raising_cell:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - ancestor-stopped
@@ -2971,7 +2976,7 @@ components:
           type: string
         raising_cell:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CellId'
           - type: 'null'
         type:
           enum:
@@ -3082,7 +3087,7 @@ components:
       properties:
         blamed_cell:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CellId'
           - type: 'null'
         msg:
           type: string
@@ -3162,8 +3167,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         message:
           anyOf:
@@ -3193,8 +3197,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         content: {}
         method:
@@ -3262,8 +3265,7 @@ components:
           type: array
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         method:
           enum:
@@ -3281,8 +3283,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         message:
           anyOf:
@@ -3316,8 +3317,7 @@ components:
           type: array
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         method:
           enum:
@@ -3359,7 +3359,7 @@ components:
       properties:
         cells:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         name:
           type: string
@@ -3770,7 +3770,7 @@ components:
         \ UI elements should be removed."
       properties:
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         op:
           enum:
           - remove-ui-elements
@@ -3802,6 +3802,8 @@ components:
       - filename
       title: RenameNotebookRequest
       type: object
+    RequestId:
+      type: string
     RunningNotebooksResponse:
       properties:
         files:
@@ -3987,7 +3989,7 @@ components:
           enum:
           - sql-table-list-preview
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         tables:
           default: []
           items:
@@ -4016,7 +4018,7 @@ components:
           enum:
           - sql-table-preview
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         table:
           anyOf:
           - type: 'null'
@@ -4149,7 +4151,7 @@ components:
           enum:
           - secret-keys-result
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         secrets:
           items:
             $ref: '#/components/schemas/SecretKeysWithProvider'
@@ -4200,6 +4202,8 @@ components:
       - follow_symlink
       title: ServerConfig
       type: object
+    SessionId:
+      type: string
     SetupRootError:
       properties:
         edges_with_vars:
@@ -4611,7 +4615,7 @@ components:
         displayName:
           type: string
         name:
-          type: string
+          $ref: '#/components/schemas/VariableName'
         protocol:
           type: string
         rootPath:
@@ -4742,6 +4746,8 @@ components:
       required: []
       title: TyLanguageServerConfig
       type: object
+    UIElementId:
+      type: string
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
         \       ui_element: UI element identifier.\n        message: Message payload\
@@ -4750,8 +4756,7 @@ components:
         buffers:
           anyOf:
           - items:
-              contentEncoding: base64
-              type: string
+              $ref: '#/components/schemas/Base64String'
             type: array
           - type: 'null'
           default: null
@@ -4761,7 +4766,7 @@ components:
           enum:
           - send-ui-element-message
         ui_element:
-          type: string
+          $ref: '#/components/schemas/UIElementId'
       required:
       - op
       - ui_element
@@ -4795,7 +4800,7 @@ components:
       properties:
         cell_ids:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         code_is_stale:
           type: boolean
@@ -4857,7 +4862,7 @@ components:
       properties:
         cell_ids:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         op:
           enum:
@@ -5113,13 +5118,13 @@ components:
       properties:
         declared_by:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         name:
           type: string
         used_by:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
       required:
       - name
@@ -5127,6 +5132,8 @@ components:
       - used_by
       title: VariableDeclarationNotification
       type: object
+    VariableName:
+      type: string
     VariableValue:
       description: "Variable value and type for variables panel.\n\n    Attributes:\n\
         \        name: Variable name.\n        value: String representation of value.\n\
@@ -5195,6 +5202,8 @@ components:
       required: []
       title: VenvConfig
       type: object
+    WidgetModelId:
+      type: string
     WorkspaceFilesRequest:
       properties:
         includeMarkdown:

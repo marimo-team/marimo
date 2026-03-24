@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/SchemaStore/schemastore/refs/heads/master/src/schemas/json/github-issue-forms.json
+name: '☁️ molab issue'
+description: Report an issue with molab (cloud-hosted marimo notebooks)
+labels: [molab]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting this molab issue! This template is for issues specific to [molab](https://molab.marimo.io), our cloud-hosted notebook environment. For issues with the open-source marimo library itself, please use the [bug report](https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml) template instead.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the issue
+      description: |
+        A clear and concise description of the issue you're experiencing.
+        You may include screenshots or screen recordings here.
+      placeholder: What happened?
+    validations:
+      required: true
+  - type: input
+    id: notebook-url
+    attributes:
+      label: Notebook URL (optional)
+      description: |
+        If you're comfortable sharing it publicly, link to the molab notebook where you encountered the issue. This helps us reproduce and debug faster.
+      placeholder: https://molab.marimo.io/notebooks/nb_...
+    validations:
+      required: false
+  - type: input
+    id: marimo-version
+    attributes:
+      label: marimo version (optional)
+      description: |
+        If possible, run `import marimo; marimo.__version__` in a cell and paste the result here.
+      placeholder: e.g. 0.20.0
+    validations:
+      required: false
+  - type: dropdown
+    id: category
+    attributes:
+      label: Issue category
+      description: What area of molab does this relate to?
+      options:
+        - Notebook editor
+        - Package management
+        - Storage / file uploads
+        - Sharing / embedding
+        - GitHub previews
+        - Performance
+        - Authentication / account
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Walk us through how to reproduce the issue.
+      placeholder: |
+        1. Open a notebook
+        2. ...
+        3. See error
+    validations:
+      required: false
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: false
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (optional)
+      description: Which browser are you using?
+      placeholder: e.g. Chrome 130, Firefox 131, Safari 18
+    validations:
+      required: false
