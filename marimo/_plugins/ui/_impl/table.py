@@ -1275,8 +1275,7 @@ class table(
                 try:
                     page = self._searched_manager.take(take, skip)
                     row_ids = [
-                        int(v)
-                        for v in page.data[INDEX_COLUMN_NAME].to_list()
+                        int(v) for v in page.data[INDEX_COLUMN_NAME].to_list()
                     ]
                 except Exception:
                     row_ids = range(skip, skip + take)
@@ -1333,8 +1332,7 @@ class table(
                 try:
                     page = self._searched_manager.take(take, skip)
                     row_ids = [
-                        int(v)
-                        for v in page.data[INDEX_COLUMN_NAME].to_list()
+                        int(v) for v in page.data[INDEX_COLUMN_NAME].to_list()
                     ]
                 except Exception:
                     row_ids = range(skip, skip + take)

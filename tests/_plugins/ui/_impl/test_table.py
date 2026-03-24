@@ -1893,8 +1893,7 @@ def test_cell_styles_and_hover_texts_sorted_desc_by_non_index_column() -> None:
         expected_style = {"backgroundColor": "green"} if score >= 6 else {}
         assert page.cell_styles[row_id]["Score"] == expected_style
         assert (
-            page.cell_hover_texts[row_id]["Score"]
-            == f"Score={row['Score']}"
+            page.cell_hover_texts[row_id]["Score"] == f"Score={row['Score']}"
         )
 
 
