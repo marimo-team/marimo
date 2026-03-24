@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
@@ -9,12 +9,8 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql_quoting import quote_sql_identifier
 from marimo._sql.utils import sql_type_to_data_type
-from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
-
-if TYPE_CHECKING:
-    from sqlalchemy import Engine
 
 # StarRocks databases (marimo Schemas) that are internal and not useful to surface.
 _SYSTEM_SCHEMAS = frozenset({"information_schema", "sys", "_statistics_"})
@@ -54,10 +50,6 @@ class StarRocksEngine(SQLAlchemyEngine):
 
         return isinstance(var, Engine) and str(var.dialect.name) == "starrocks"
 
-    # ------------------------------------------------------------------
-    # Default catalog / schema
-    # ------------------------------------------------------------------
-
     def get_default_database(self) -> Optional[str]:
         """Return the current StarRocks catalog via ``SELECT CATALOG()``.
 
@@ -95,7 +87,9 @@ class StarRocksEngine(SQLAlchemyEngine):
         should_include_schemas = (
             include_schemas if isinstance(include_schemas, bool) else True
         )
-        should_include_tables = self._resolve_should_auto_discover(include_tables)
+        should_include_tables = self._resolve_should_auto_discover(
+            include_tables
+        )
         should_include_details = self._resolve_should_auto_discover(
             include_table_details
         )
@@ -136,7 +130,7 @@ class StarRocksEngine(SQLAlchemyEngine):
         """Return tables for *schema* inside *database* (a StarRocks catalog).
 
         Delegates to the inherited inspector path for the default catalog;
-        falls back to an ``information_schema`` query for external catalogs.
+        falls back to an ``DESC`` query for external catalogs.
         """
         if database == self.default_database:
             return super().get_tables_in_schema(
@@ -156,7 +150,7 @@ class StarRocksEngine(SQLAlchemyEngine):
         """Return column metadata for a table.
 
         Delegates to the inherited inspector path for the default catalog;
-        falls back to an ``information_schema`` query for external catalogs.
+        falls back to an ``DESC`` query for external catalogs.
         """
         if database_name == self.default_database:
             return super().get_table_details(
@@ -169,10 +163,6 @@ class StarRocksEngine(SQLAlchemyEngine):
             schema_name=schema_name,
             database_name=database_name,
         )
-
-    # ------------------------------------------------------------------
-    # Meta-schema filter (overrides SQLAlchemyEngine._get_meta_schemas)
-    # ------------------------------------------------------------------
 
     def _get_schemas(
         self,
@@ -196,10 +186,6 @@ class StarRocksEngine(SQLAlchemyEngine):
 
     def _get_meta_schemas(self) -> list[str]:
         return list(_SYSTEM_SCHEMAS)
-
-    # ------------------------------------------------------------------
-    # StarRocks-specific helpers
-    # ------------------------------------------------------------------
 
     def _list_catalogs(self) -> list[str]:
         """Return all catalog names via ``SHOW CATALOGS``.

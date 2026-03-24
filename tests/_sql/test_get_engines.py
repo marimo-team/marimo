@@ -90,7 +90,9 @@ def test_engine_to_data_source_connection() -> None:
     # Test with StarRocks engine
     mock_sr_engine = MagicMock()
     mock_sr_engine.dialect.name = "starrocks"
-    sr_engine = StarRocksEngine(mock_sr_engine, engine_name=VariableName("my_sr"))
+    sr_engine = StarRocksEngine(
+        mock_sr_engine, engine_name=VariableName("my_sr")
+    )
     connection = engine_to_data_source_connection(
         VariableName("my_sr"), sr_engine
     )
@@ -497,7 +499,7 @@ def test_variables_without_datasource_engine() -> None:
 )
 def test_get_engines_starrocks() -> None:
     import sqlalchemy as sa
-    import starrocks
+    import starrocks  # noqa: F401
 
     mock_engine = MagicMock(spec=sa.Engine)
     mock_engine.dialect = MagicMock()
