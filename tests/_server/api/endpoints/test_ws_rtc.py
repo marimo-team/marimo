@@ -29,12 +29,12 @@ async def setup_loro_docs() -> AsyncGenerator[None, None]:
     # Clear any existing loro docs
     DOC_MANAGER.loro_docs.clear()
     DOC_MANAGER.loro_docs_clients.clear()
-    DOC_MANAGER.loro_docs_cleaners.clear()
+    DOC_MANAGER._subscriptions.clear()
     yield
     # Cleanup after test
     DOC_MANAGER.loro_docs.clear()
     DOC_MANAGER.loro_docs_clients.clear()
-    DOC_MANAGER.loro_docs_cleaners.clear()
+    DOC_MANAGER._subscriptions.clear()
 
 
 @contextmanager

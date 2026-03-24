@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._server.file_router import MarimoFileKey
@@ -54,7 +54,12 @@ class LoroDocManager:
             def _on_local_update(update: bytes) -> bool:
                 clients = self.loro_docs_clients.get(file_key, set())
                 for client in clients:
-                    client.put_nowait(update)
+                    try:
+                        client.put_nowait(update)
+                    except asyncio.QueueFull:
+                        LOGGER.warning(
+                            "RTC: client queue full, dropping update"
+                        )
                 return True  # keep subscription alive
 
             self._subscriptions[file_key] = doc.subscribe_local_update(
@@ -85,7 +90,7 @@ class LoroDocManager:
         self,
         file_key: MarimoFileKey,
         message: bytes,
-        exclude_queue: Optional[asyncio.Queue[bytes]] = None,
+        exclude_queue: asyncio.Queue[bytes] | None = None,
     ) -> None:
         """Broadcast an update to all clients except the excluded queue."""
         clients = self.loro_docs_clients[file_key]
