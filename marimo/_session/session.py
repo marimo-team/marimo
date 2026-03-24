@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 from uuid import uuid4
 
 import msgspec
@@ -21,7 +21,10 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    serialize_kernel_message,
+    try_deserialize_kernel_notification_name,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._notebook.document import NotebookCell, NotebookDocument
 from marimo._runtime import commands
@@ -423,24 +426,28 @@ class SessionImpl(Session):
         # (stamps version), then re-serialize for broadcast.
         # Kernel notifications arrive as bytes via the stream distributor;
         # server-side callers (e.g. file-watch) pass typed objects.
-        if isinstance(operation, bytes) and (
-            operation.find(b'"notebook-document-transaction"') >= 0
-        ):
-            try:
-                operation = self._apply_document_transaction(
-                    msgspec.json.decode(
-                        operation,
-                        type=NotebookDocumentTransactionNotification,
+        if isinstance(operation, bytes):
+            name = try_deserialize_kernel_notification_name(
+                cast(KernelMessage, operation)
+            )
+            if name == NotebookDocumentTransactionNotification.name:
+                try:
+                    operation = self._apply_document_transaction(
+                        msgspec.json.decode(
+                            operation,
+                            type=NotebookDocumentTransactionNotification,
+                        )
                     )
-                )
-            except Exception:
-                LOGGER.warning("Failed to decode document transaction")
+                except Exception:
+                    LOGGER.warning("Failed to decode document transaction")
         elif isinstance(operation, NotebookDocumentTransactionNotification):
             operation = self._apply_document_transaction(operation)
+
         if isinstance(operation, bytes):
             notification = operation
         else:
             notification = serialize_kernel_message(operation)
+
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
 

@@ -41,3 +41,18 @@ def deserialize_kernel_notification_name(message: KernelMessage) -> str:
     """
     # We use the _NotificationName type to deserialize the message because it is slimmer than NotificationMessage
     return msgspec.json.decode(message, strict=True, type=_NotificationName).op
+
+
+def try_deserialize_kernel_notification_name(
+    message: KernelMessage,
+) -> str | None:
+    """
+    Try to deserialize a KernelMessage to a NotificationMessage name.
+    """
+    # We use the _NotificationName type to deserialize the message because it is slimmer than NotificationMessage
+    try:
+        return msgspec.json.decode(
+            message, strict=True, type=_NotificationName
+        ).op
+    except msgspec.DecodeError:
+        return None
