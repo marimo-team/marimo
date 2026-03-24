@@ -49,7 +49,7 @@ class RTCWebSocketHandler:
         # Get or create the LoroDoc and add the client to it
         LOGGER.debug("RTC: getting document")
         update_queue: asyncio.Queue[bytes] = asyncio.Queue()
-        doc = await self.doc_manager.get_or_create_doc(self.file_key)
+        doc = await self.doc_manager.get_doc(self.file_key)
         self.doc_manager.add_client_to_doc(self.file_key, update_queue)
 
         # Send initial sync to client

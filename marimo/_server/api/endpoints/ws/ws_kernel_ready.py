@@ -64,9 +64,9 @@ def build_kernel_ready(
     """
     codes, names, configs, cell_ids = _extract_cell_data(session, manager)
 
-    # Initialize RTC if needed
+    # Register session's LoroDoc for RTC if needed
     if _should_init_rtc(rtc_enabled, mode):
-        _try_init_rtc_doc(cell_ids, codes, file_key, doc_manager)
+        _try_init_rtc_doc(session, file_key, doc_manager)
 
     return KernelReadyNotification(
         codes=codes,
@@ -158,18 +158,20 @@ def _should_init_rtc(rtc_enabled: bool, mode: SessionMode) -> bool:
 
 
 def _try_init_rtc_doc(
-    cell_ids: tuple[CellId_t, ...],
-    codes: tuple[str, ...],
+    session: Session,
     file_key: MarimoFileKey,
     doc_manager: LoroDocManager,
 ) -> None:
-    """Try to initialize RTC document with cell data.
+    """Register the session's LoroDoc with the RTC doc manager.
+
+    The session's ``NotebookDocument`` already owns a ``LoroDoc`` that
+    holds all cell text.  This makes that same doc available for RTC
+    client connections so there is a single source of truth.
 
     Logs a warning if Loro is not available but does not fail.
 
     Args:
-        cell_ids: Cell IDs to initialize
-        codes: Cell codes to initialize
+        session: Current session (owns the LoroDoc via its document)
         file_key: File key for the document
         doc_manager: LoroDoc manager
     """
@@ -180,4 +182,6 @@ def _try_init_rtc_doc(
             "RTC: Loro is not installed, disabling real-time collaboration"
         )
     else:
-        asyncio.create_task(doc_manager.create_doc(file_key, cell_ids, codes))
+        asyncio.create_task(
+            doc_manager.register_doc(file_key, session.document.loro_doc)
+        )
