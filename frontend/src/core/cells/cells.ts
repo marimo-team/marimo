@@ -1807,8 +1807,10 @@ export function createTracebackInfoAtom(
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.
  */
-export function useCellActions(): CellActions {
-  return useActions();
+export function useCellActions(
+  options: { skipMiddleware?: boolean } = {},
+): CellActions {
+  return useActions(options);
 }
 
 /**

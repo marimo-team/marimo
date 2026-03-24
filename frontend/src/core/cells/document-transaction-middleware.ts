@@ -47,27 +47,11 @@ const flushOps = debounce(() => {
 }, 400);
 
 function enqueue(op: DocumentOp) {
-  if (_suppressDepth > 0 || store.get(kioskModeAtom)) {
+  if (store.get(kioskModeAtom)) {
     return;
   }
   pendingOps.push(op);
   flushOps();
-}
-
-/**
- * Depth counter for suppression. Incremented when applying
- * server-originated events so the middleware doesn't echo them back.
- * A counter (not a boolean) so nested calls are safe.
- */
-let _suppressDepth = 0;
-
-export function suppressDocumentTransactions<T>(fn: () => T): T {
-  _suppressDepth++;
-  try {
-    return fn();
-  } finally {
-    _suppressDepth--;
-  }
 }
 
 /**
