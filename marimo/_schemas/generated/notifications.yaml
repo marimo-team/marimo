@@ -1138,6 +1138,18 @@ components:
       - cell_id
       title: RemoveUIElementsNotification
       type: object
+    SQLDatabaseMetadata:
+      description: Metadata for a SQL database, including its dialect and name.
+      properties:
+        connection:
+          type: string
+        database:
+          type: string
+      required:
+      - connection
+      - database
+      title: SQLDatabaseMetadata
+      type: object
     SQLMetadata:
       description: Metadata for a SQL database.
       properties:
@@ -1146,10 +1158,7 @@ components:
         database:
           type: string
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
+          type: string
         type:
           enum:
           - sql-metadata
@@ -1169,7 +1178,7 @@ components:
           - type: 'null'
           default: null
         metadata:
-          $ref: '#/components/schemas/SQLMetadata'
+          $ref: '#/components/schemas/SQLDatabaseMetadata'
         op:
           enum:
           - sql-schema-list-preview

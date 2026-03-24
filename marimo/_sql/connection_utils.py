@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._data.models import DataSourceConnection, DataTable, Schema
-from marimo._messaging.notification import SQLMetadata
+from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 
 
 def update_table_in_connection(
@@ -37,7 +37,7 @@ def update_table_in_connection(
 
 def update_schema_list_in_connection(
     connections: list[DataSourceConnection],
-    sql_metadata: SQLMetadata,
+    sql_metadata: SQLDatabaseMetadata,
     updated_schema_list: list[Schema],
 ) -> None:
     """Update a list of schemas in the connection hierarchy, updates in-place.

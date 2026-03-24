@@ -76,6 +76,7 @@ from marimo._messaging.notification import (
     PackageStatusType,
     RemoveUIElementsNotification,
     SecretKeysResultNotification,
+    SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
@@ -2682,10 +2683,9 @@ class DatasetCallbacks:
         """
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
-        sql_metadata = SQLMetadata(
+        sql_metadata = SQLDatabaseMetadata(
             connection=variable_name,
             database=database_name,
-            schema=None,
         )
 
         engine, error = self.get_engine_catalog(variable_name)

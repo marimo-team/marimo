@@ -5640,6 +5640,18 @@ export interface components {
       watcher_on_save: "autorun" | "lazy";
     };
     /**
+     * SQLDatabaseMetadata
+     * @description SQL database metadata.
+     *
+     *         Attributes:
+     *             connection: Connection identifier.
+     *             database: Database name.
+     */
+    SQLDatabaseMetadata: {
+      connection: string;
+      database: string;
+    };
+    /**
      * SQLMetadata
      * @description SQL database and schema metadata.
      *
@@ -5669,7 +5681,7 @@ export interface components {
     SQLSchemaListPreviewNotification: {
       /** @default null */
       error?: string | null;
-      metadata: components["schemas"]["SQLMetadata"];
+      metadata: components["schemas"]["SQLDatabaseMetadata"];
       /** @enum {unknown} */
       op: "sql-schema-list-preview";
       request_id: string;

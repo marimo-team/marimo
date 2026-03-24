@@ -488,6 +488,18 @@ class DatasetsNotification(Notification, tag="datasets"):
     clear_channel: Optional[DataTableSource] = None
 
 
+class SQLDatabaseMetadata(msgspec.Struct):
+    """SQL database metadata.
+
+    Attributes:
+        connection: Connection identifier.
+        database: Database name.
+    """
+
+    connection: str
+    database: str
+
+
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
     """SQL database and schema metadata.
 
@@ -587,7 +599,7 @@ class SQLSchemaListPreviewNotification(
 
     name: ClassVar[str] = "sql-schema-list-preview"
     request_id: RequestId
-    metadata: SQLMetadata
+    metadata: SQLDatabaseMetadata
     schemas: list[Schema] = msgspec.field(default_factory=list)
     error: Optional[str] = None
 

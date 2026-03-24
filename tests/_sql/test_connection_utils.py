@@ -13,7 +13,7 @@ from marimo._data.models import (
     DataTableColumn,
     Schema,
 )
-from marimo._messaging.notification import SQLMetadata
+from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 from marimo._sql.connection_utils import (
     update_schema_list_in_connection,
     update_table_in_connection,
@@ -207,10 +207,9 @@ class TestUpdateSchemaListInConnection:
         """Test updating a schema list in the hierarchy."""
         connections = create_test_connections(num_schemas_per_db=3)
 
-        sql_metadata = SQLMetadata(
+        sql_metadata = SQLDatabaseMetadata(
             connection="connection_0",
             database="database_0",
-            schema=None,
         )
 
         # Create new schema list
@@ -232,10 +231,9 @@ class TestUpdateSchemaListInConnection:
         """Test updating a schema list in a non-existent connection."""
         connections = create_test_connections(num_schemas_per_db=3)
 
-        sql_metadata = SQLMetadata(
+        sql_metadata = SQLDatabaseMetadata(
             connection="nonexistent",
             database="database_0",
-            schema=None,
         )
 
         new_schemas = [
@@ -473,10 +471,9 @@ class TestPerformance:
             num_tables_per_schema=50,
         )
 
-        sql_metadata = SQLMetadata(
+        sql_metadata = SQLDatabaseMetadata(
             connection="connection_4",
             database="database_4",
-            schema=None,
         )
 
         new_schemas = [

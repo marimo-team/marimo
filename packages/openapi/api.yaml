@@ -3906,6 +3906,19 @@ components:
       - watcher_on_save
       title: RuntimeConfig
       type: object
+    SQLDatabaseMetadata:
+      description: "SQL database metadata.\n\n    Attributes:\n        connection:\
+        \ Connection identifier.\n        database: Database name."
+      properties:
+        connection:
+          type: string
+        database:
+          type: string
+      required:
+      - connection
+      - database
+      title: SQLDatabaseMetadata
+      type: object
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
@@ -3941,7 +3954,7 @@ components:
           - type: 'null'
           default: null
         metadata:
-          $ref: '#/components/schemas/SQLMetadata'
+          $ref: '#/components/schemas/SQLDatabaseMetadata'
         op:
           enum:
           - sql-schema-list-preview

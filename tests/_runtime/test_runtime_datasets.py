@@ -7,6 +7,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     DataSourceConnectionsNotification,
+    SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
@@ -208,8 +209,8 @@ class TestPreviewSQLSchemaList:
                 request_id=RequestId("0"),
                 schemas=[],
                 error="Engine not found",
-                metadata=SQLMetadata(
-                    connection=DUCKDB_CONN, database="test", schema=None
+                metadata=SQLDatabaseMetadata(
+                    connection=DUCKDB_CONN, database="test"
                 ),
             )
         ]
@@ -241,8 +242,8 @@ class TestPreviewSQLSchemaList:
                 request_id=RequestId("0"),
                 schemas=[],
                 error=None,
-                metadata=SQLMetadata(
-                    connection=DUCKDB_CONN, database="test", schema=None
+                metadata=SQLDatabaseMetadata(
+                    connection=DUCKDB_CONN, database="test"
                 ),
             )
         ]
@@ -274,8 +275,8 @@ class TestPreviewSQLSchemaList:
                 request_id=RequestId("0"),
                 schemas=[],
                 error="Connection does not support catalog operations",
-                metadata=SQLMetadata(
-                    connection=SQLITE_CONN, database="test", schema=None
+                metadata=SQLDatabaseMetadata(
+                    connection=SQLITE_CONN, database="test"
                 ),
             )
         ]

@@ -25,6 +25,7 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
     ModelUpdate,
+    SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
@@ -906,8 +907,8 @@ def test_add_sql_table_previews() -> None:
     session_view.add_raw_notification(
         serialize_kernel_message(
             SQLSchemaListPreviewNotification(
-                metadata=SQLMetadata(
-                    connection="connection1", database="db1", schema=None
+                metadata=SQLDatabaseMetadata(
+                    connection="connection1", database="db1"
                 ),
                 request_id=RequestId("request_id"),
                 schemas=[
