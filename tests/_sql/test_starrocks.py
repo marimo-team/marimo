@@ -15,20 +15,6 @@ from marimo._sql.engines.starrocks import (
 from marimo._sql.sql_quoting import quote_sql_identifier
 
 
-@pytest.fixture(autouse=True)
-def _mock_sqlalchemy_if_missing():
-    """Patch sys.modules with a lightweight sqlalchemy stub when the real
-    package is not installed, so mock-based tests can still run without it."""
-    if "sqlalchemy" in sys.modules:
-        yield
-        return
-
-    mock_sa = MagicMock()
-    mock_sa.text = MagicMock(side_effect=lambda q: q)
-    with patch.dict(sys.modules, {"sqlalchemy": mock_sa}):
-        yield
-
-
 def _make_mock_engine(dialect_name: str = "starrocks") -> MagicMock:
     """Return a mock SQLAlchemy Engine with the given dialect name."""
     mock_engine = MagicMock()

@@ -19,6 +19,7 @@ from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.engines.starrocks import StarRocksEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -33,6 +34,7 @@ HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_REDSHIFT = DependencyManager.redshift_connector.has()
 HAS_PYARROW = DependencyManager.pyarrow.has()
 HAS_IBIS = DependencyManager.ibis.has()
+HAS_STARROCKS = DependencyManager.starrocks.has()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -84,6 +86,19 @@ def test_engine_to_data_source_connection() -> None:
     assert connection.dialect == "postgresql"
     assert connection.name == "my_postgres"
     assert connection.display_name == "postgresql (my_postgres)"
+
+    # Test with StarRocks engine
+    mock_sr_engine = MagicMock()
+    mock_sr_engine.dialect.name = "starrocks"
+    sr_engine = StarRocksEngine(mock_sr_engine, engine_name=VariableName("my_sr"))
+    connection = engine_to_data_source_connection(
+        VariableName("my_sr"), sr_engine
+    )
+    assert isinstance(connection, DataSourceConnection)
+    assert connection.source == "starrocks"
+    assert connection.dialect == "starrocks"
+    assert connection.name == "my_sr"
+    assert connection.display_name == "starrocks (my_sr)"
 
     # Test with Ibis engine
     var_name = "my_ibis"
@@ -474,3 +489,24 @@ def test_variables_without_datasource_engine() -> None:
     variables = [("deferred_for_test", deferred_for_test)]
     engines = get_engines_from_variables(variables)
     assert not engines
+
+
+@pytest.mark.skipif(
+    not (HAS_SQLALCHEMY and HAS_STARROCKS),
+    reason="SQLAlchemy and starrocks not installed",
+)
+def test_get_engines_starrocks() -> None:
+    import sqlalchemy as sa
+    import starrocks
+
+    mock_engine = MagicMock(spec=sa.Engine)
+    mock_engine.dialect = MagicMock()
+    mock_engine.dialect.name = "starrocks"
+    variables: list[tuple[str, object]] = [("sr_engine", mock_engine)]
+
+    engines = get_engines_from_variables(variables)
+
+    assert len(engines) == 1
+    var_name, engine = engines[0]
+    assert var_name == "sr_engine"
+    assert isinstance(engine, StarRocksEngine)
