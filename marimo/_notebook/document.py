@@ -282,6 +282,10 @@ def _validate(ops: tuple[Op, ...], cells: list[NotebookCell]) -> None:
                     f"Cannot move cell {op.cell_id!r} that is also "
                     f"deleted in the same transaction"
                 )
+            if op.before is not None and op.after is not None:
+                raise ValueError(
+                    "MoveCell cannot specify both 'before' and 'after'"
+                )
             if op.before is None and op.after is None:
                 raise ValueError("MoveCell requires 'before' or 'after'")
             moved.add(op.cell_id)
