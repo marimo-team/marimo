@@ -148,7 +148,7 @@ describe("RunsState Reducer", () => {
           run_id: runId,
           cell_id: testCellId,
           timestamp: runStartTimestamp + 5000,
-          status: "success",
+          status: "running"
         },
         code: "console.log('Hello World');",
       },
@@ -156,7 +156,7 @@ describe("RunsState Reducer", () => {
 
     expect(successState.runIds).toEqual([runId]);
     expect(first(successState.runMap.get(runId)?.cellRuns).status).toBe(
-      "success",
+      "running",
     );
     expect(first(successState.runMap.get(runId)?.cellRuns).startTime).toBe(
       runStartTimestamp,
@@ -226,7 +226,8 @@ describe("RunsState Reducer", () => {
           status: "running",
           output: {
             channel: "stderr",
-            text: "Error occurred",
+            data: "Error occurred",
+            mimetype: "text/plain",
           },
         },
         code: "console.log('Hello World');",
@@ -254,7 +255,8 @@ describe("RunsState Reducer", () => {
           status: "running",
           output: {
             channel: "marimo-error",
-            text: "Error occurred",
+            data: "Error occurred",
+            mimetype: "text/plain",
           },
         },
         code: "console.log('Hello World');",
@@ -278,6 +280,8 @@ describe("RunsState Reducer", () => {
           timestamp,
           output: {
             channel: "marimo-error",
+            data: "",
+            mimetype: "text/plain",
           },
         },
         code: "console.log('Hello World');",
