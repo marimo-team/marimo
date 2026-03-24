@@ -317,6 +317,16 @@ function cellKeymaps({
 function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   const onChangePlugin = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
+      // Skip changes that came from Loro sync (RTC) — these are
+      // already reflected in the shared LoroDoc and don't need to
+      // round-trip through the transaction middleware.
+      const isLoroSync = update.transactions.some(
+        (tr) => tr.annotation(loroSyncAnnotation) != null,
+      );
+      if (isLoroSync) {
+        return;
+      }
+
       // Check if the doc update was a formatting change
       // e.g. changing from python to markdown
       const isFormattingChange = update.transactions.some((tr) =>
