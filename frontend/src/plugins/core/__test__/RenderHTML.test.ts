@@ -197,6 +197,51 @@ describe("parseHtml", () => {
   });
 });
 
+describe("wrapTooltipTargets", () => {
+  test("data-tooltip wraps element in Tooltip component", () => {
+    const html = '<span data-tooltip="Hello world">Hover me</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content="Hello world"
+      >
+        <span
+          data-tooltip="Hello world"
+        >
+          Hover me
+        </span>
+      </Tooltip>
+    `);
+  });
+
+  test("element without data-tooltip is not wrapped", () => {
+    const html = "<span>No tooltip</span>";
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <span>
+        No tooltip
+      </span>
+    `);
+  });
+
+  test("data-tooltip on nested element wraps only that element", () => {
+    const html = '<p>Outer <span data-tooltip="tip">inner</span> text</p>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <p>
+        Outer 
+        <Tooltip
+          content="tip"
+        >
+          <span
+            data-tooltip="tip"
+          >
+            inner
+          </span>
+        </Tooltip>
+         text
+      </p>
+    `);
+  });
+});
+
 describe("parseHtml with < nad >", () => {
   const html =
     'thread <unnamed> panicked at "assertion failed: `(left == right)`"';

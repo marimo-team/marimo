@@ -43,6 +43,7 @@ from marimo._runtime.runtime import Kernel
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._server.utils import initialize_mimetypes
 from marimo._session.model import SessionMode
+from marimo._session.state.session_view import SessionView
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -302,85 +303,50 @@ def executing_kernel() -> Generator[Kernel, None, None]:
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 
-@pytest.fixture
-def temp_marimo_file(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook.py"
-    tmp_file = tmp_path / "test" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
+def _make_temp_fixture(fixture_name: str, subdir: str):
+    @pytest.fixture
+    def _fixture(tmp_path: Path) -> str:
+        fixture_file = FIXTURE_DIR / fixture_name
+        tmp_file = tmp_path / subdir / fixture_name.split("/")[-1]
+        tmp_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(fixture_file, tmp_file)
+        return str(tmp_file)
+
+    return _fixture
+
+
+temp_marimo_file = _make_temp_fixture("notebook.py", "test")
+temp_sandboxed_marimo_file = _make_temp_fixture(
+    "notebook_sandboxed.py", "sandboxed"
+)
+temp_async_marimo_file = _make_temp_fixture("notebook_async.py", "async")
+temp_unparsable_marimo_file = _make_temp_fixture(
+    "notebook_unparsable.py", "unparsable"
+)
+temp_marimo_file_with_md = _make_temp_fixture("notebook_with_md.py", "with_md")
+temp_marimo_file_with_media = _make_temp_fixture(
+    "notebook_with_media.py", "with_media"
+)
+temp_md_marimo_file = _make_temp_fixture("notebook.md", "with_md")
+temp_marimo_file_with_errors = _make_temp_fixture(
+    "notebook_with_errors.py", "with_errors"
+)
+temp_marimo_file_with_multiple_definitions = _make_temp_fixture(
+    "notebook_with_multiple_definitions.py", "with_multiple_definitions"
+)
 
 
 @pytest.fixture
-def temp_sandboxed_marimo_file(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_sandboxed.py"
-    tmp_file = tmp_path / "sandboxed" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
+def session_view() -> Generator[SessionView, None, None]:
+    from tests.utils import assert_serialize_roundtrip
 
+    sv = SessionView()
 
-@pytest.fixture
-def temp_async_marimo_file(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_async.py"
-    tmp_file = tmp_path / "async" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
+    yield sv
 
-
-@pytest.fixture
-def temp_unparsable_marimo_file(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_unparsable.py"
-    tmp_file = tmp_path / "unparsable" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
-
-
-@pytest.fixture
-def temp_marimo_file_with_md(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_with_md.py"
-    tmp_file = tmp_path / "with_md" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
-
-
-@pytest.fixture
-def temp_marimo_file_with_media(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_with_media.py"
-    tmp_file = tmp_path / "with_media" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
-
-
-@pytest.fixture
-def temp_md_marimo_file(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook.md"
-    tmp_file = tmp_path / "with_md" / "notebook.md"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
-
-
-@pytest.fixture
-def temp_marimo_file_with_errors(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_with_errors.py"
-    tmp_file = tmp_path / "with_errors" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
-
-
-@pytest.fixture
-def temp_marimo_file_with_multiple_definitions(tmp_path: Path) -> str:
-    fixture_file = FIXTURE_DIR / "notebook_with_multiple_definitions.py"
-    tmp_file = tmp_path / "with_multiple_definitions" / "notebook.py"
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(fixture_file, tmp_file)
-    return str(tmp_file)
+    # Test all operations can be serialized/deserialized
+    for operation in sv.notifications:
+        assert_serialize_roundtrip(operation)
 
 
 # Factory to create ExecuteCellCommands and abstract away cell ID

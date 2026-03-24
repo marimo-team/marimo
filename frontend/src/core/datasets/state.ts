@@ -83,7 +83,7 @@ const {
       if (!table.variable_name) {
         return true;
       }
-      return names.has(table.variable_name as VariableName);
+      return names.has(table.variable_name);
     });
     return { ...state, tables };
   },

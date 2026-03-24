@@ -3,21 +3,17 @@
 import type * as api from "@marimo-team/marimo-api";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Mocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import { parseOutline } from "@/core/dom/outline";
 import { MultiColumn, visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import { type CellId, SETUP_CELL_ID } from "../ids";
+import { SETUP_CELL_ID } from "../ids";
 import { notebookStateFromSession } from "../session";
 
 // Mock dependencies
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 vi.mock("@/core/dom/outline", () => ({
   parseOutline: vi.fn(),
@@ -27,7 +23,7 @@ type SessionCell = api.Session["NotebookSessionV1"]["cells"][0];
 type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
 
 // Test constants
-const CELL_1 = "cell-1" as CellId;
+const CELL_1 = cellId("cell-1");
 
 describe("notebookStateFromSession", () => {
   beforeEach(() => {
@@ -676,9 +672,9 @@ describe("notebookStateFromSession", () => {
       );
       // Should have correct code and output for each cell
       for (const code of ["a", "b", "c", "d", "e", "f"]) {
-        const cellId = `cell-${code}` as CellId;
-        expect(result.cellData[cellId].code).toBe(code);
-        expect(result.cellRuntime[cellId].output).toEqual({
+        const cid = cellId(`cell-${code}`);
+        expect(result.cellData[cid].code).toBe(code);
+        expect(result.cellRuntime[cid].output).toEqual({
           channel: "output",
           data: `${code.toUpperCase()}!`,
           mimetype: "text/plain",
@@ -756,26 +752,26 @@ describe("notebookStateFromSession", () => {
       );
 
       // Should have correct code for each cell
-      expect(result.cellData["cell-a" as CellId].code).toBe("a");
-      expect(result.cellData["cell-c" as CellId].code).toBe("c");
-      expect(result.cellData["cell-z" as CellId].code).toBe("z");
-      expect(result.cellData["cell-e" as CellId].code).toBe("e");
-      expect(result.cellData["cell-g" as CellId].code).toBe("g");
+      expect(result.cellData[cellId("cell-a")].code).toBe("a");
+      expect(result.cellData[cellId("cell-c")].code).toBe("c");
+      expect(result.cellData[cellId("cell-z")].code).toBe("z");
+      expect(result.cellData[cellId("cell-e")].code).toBe("e");
+      expect(result.cellData[cellId("cell-g")].code).toBe("g");
 
       // Should have session outputs for matching cells (a, c, e)
-      expect(result.cellRuntime["cell-a" as CellId].output).toEqual({
+      expect(result.cellRuntime[cellId("cell-a")].output).toEqual({
         channel: "output",
         data: "A!",
         mimetype: "text/plain",
         timestamp: 0,
       });
-      expect(result.cellRuntime["cell-c" as CellId].output).toEqual({
+      expect(result.cellRuntime[cellId("cell-c")].output).toEqual({
         channel: "output",
         data: "C!",
         mimetype: "text/plain",
         timestamp: 0,
       });
-      expect(result.cellRuntime["cell-e" as CellId].output).toEqual({
+      expect(result.cellRuntime[cellId("cell-e")].output).toEqual({
         channel: "output",
         data: "E!",
         mimetype: "text/plain",
@@ -783,8 +779,8 @@ describe("notebookStateFromSession", () => {
       });
 
       // Should have no output for new cells (z, g) - they get stub session cells
-      expect(result.cellRuntime["cell-z" as CellId].output).toBeNull();
-      expect(result.cellRuntime["cell-g" as CellId].output).toBeNull();
+      expect(result.cellRuntime[cellId("cell-z")].output).toBeNull();
+      expect(result.cellRuntime[cellId("cell-g")].output).toBeNull();
 
       // Should log warning about different cells
       expect(Logger.warn).toHaveBeenCalledWith(
@@ -880,18 +876,18 @@ describe("notebookStateFromSession", () => {
       );
 
       // Should have correct code from notebook
-      expect(result.cellData["cell-1" as CellId].code).toBe("1 / 0");
-      expect(result.cellData["cell-2" as CellId].code).toBe('mo.md("Hello")');
-      expect(result.cellData["cell-3" as CellId].code).toBe(
+      expect(result.cellData[cellId("cell-1")].code).toBe("1 / 0");
+      expect(result.cellData[cellId("cell-2")].code).toBe('mo.md("Hello")');
+      expect(result.cellData[cellId("cell-3")].code).toBe(
         "x = mo.ui.slider(0, 10)",
       );
 
       // cell-1: No matching session cell (hash is null), gets stub session cell
-      expect(result.cellRuntime["cell-1" as CellId].output).toBeNull();
-      expect(result.cellRuntime["cell-1" as CellId].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[cellId("cell-1")].output).toBeNull();
+      expect(result.cellRuntime[cellId("cell-1")].consoleOutputs).toEqual([]);
 
       // cell-2: Matches session cell-1 by hash (moMd), gets its output
-      expect(result.cellRuntime["cell-2" as CellId].output).toEqual({
+      expect(result.cellRuntime[cellId("cell-2")].output).toEqual({
         channel: "output",
         data: "Welcome to marimo!",
         mimetype: "text/markdown",
@@ -899,7 +895,7 @@ describe("notebookStateFromSession", () => {
       });
 
       // cell-3: Matches session cell-2 by hash (slider), gets its output
-      expect(result.cellRuntime["cell-3" as CellId].output).toEqual({
+      expect(result.cellRuntime[cellId("cell-3")].output).toEqual({
         channel: "output",
         data: "",
         mimetype: "text/plain",

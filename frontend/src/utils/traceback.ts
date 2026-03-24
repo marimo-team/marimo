@@ -98,10 +98,12 @@ export function getTracebackInfo(domNode: DOMNode): TracebackInfo | null {
           10,
         );
         if (domNode.firstChild.nodeValue?.includes("__marimo__")) {
-          const cellId = /__marimo__cell_(\w+)_/.exec(
+          const maybeCellId = /__marimo__cell_(\w+)_/.exec(
             domNode.firstChild.nodeValue,
-          )?.[1] as CellId;
-          if (cellId && lineNumber) {
+          )?.[1];
+          if (maybeCellId && lineNumber) {
+            // @ts-expect-error - Custom parser above will return valid cell ids
+            const cellId: CellId = maybeCellId;
             return { kind: "cell", cellId, lineNumber };
           }
         } else {

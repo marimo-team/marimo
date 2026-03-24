@@ -174,6 +174,7 @@ export const PackageAlert: React.FC = () => {
                     })}
                     versions={desiredPackageVersions}
                     clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
+                    source={packageAlert.source}
                   />
 
                   {!isWasm() && (
@@ -323,11 +324,13 @@ const InstallPackagesButton = ({
   packages,
   versions,
   clearPackageAlert,
+  source,
 }: {
   manager: PackageManagerName;
   packages: string[];
   versions: Record<string, string>;
   clearPackageAlert: () => void;
+  source?: "kernel" | "server";
 }) => {
   const { sendInstallMissingPackages } = useRequestClient();
   return (
@@ -347,6 +350,7 @@ const InstallPackagesButton = ({
         await sendInstallMissingPackages({
           manager,
           versions: completePackages,
+          source,
         }).catch((error) => {
           Logger.error(error);
         });

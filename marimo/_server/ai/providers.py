@@ -96,7 +96,10 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             deps: The dependencies to require.
         """
         DependencyManager.require_many(
-            "for AI assistance", DependencyManager.pydantic_ai, *(deps or [])
+            "for AI assistance",
+            DependencyManager.pydantic_ai,
+            *(deps or []),
+            source="server",
         )
 
         self.model = model
@@ -689,8 +692,9 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
                 provider_factory=lambda _: self.provider,
             )
         except UserError:
-            LOGGER.warning(
-                f"Model {self.model} not found. Falling back to OpenAIChatModel."
+            LOGGER.debug(
+                f"Model {self.model} not found in pydantic-ai's model registry. "
+                "Falling back to OpenAIChatModel."
             )
             model = self.create_model(max_tokens)
         except Exception as e:

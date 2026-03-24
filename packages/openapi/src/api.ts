@@ -3,6 +3,9 @@
  * Do not make direct changes to the file.
  */
 
+/** Branded string type — compile-time only. */
+type TypedString<T extends string> = string & { __type__: T };
+
 export interface paths {
   "/@file/{filename_and_length}": {
     parameters: {
@@ -1609,6 +1612,47 @@ export interface paths {
       };
       responses: {
         /** @description Delete a cell */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/focus_cell": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FocusCellRequest"];
+        };
+      };
+      responses: {
+        /** @description Focus a cell in kiosk-mode consumers */
         200: {
           headers: {
             [name: string]: unknown;
@@ -3347,6 +3391,7 @@ export interface components {
       /** @default null */
       variant?: "danger" | null;
     };
+    Base64String: TypedString<"Base64String">;
     /** BaseResponse */
     BaseResponse: {
       success: boolean;
@@ -3436,6 +3481,7 @@ export interface components {
       /** @default false */
       hide_code?: boolean;
     };
+    CellId: TypedString<"CellId">;
     /**
      * CellNotification
      * @description Updates a cell's state in the frontend.
@@ -3454,7 +3500,7 @@ export interface components {
      *             timestamp: Creation timestamp, auto-set.
      */
     CellNotification: {
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @default null */
       console?:
         | components["schemas"]["CellOutput"][]
@@ -3592,7 +3638,7 @@ export interface components {
     CodeCompletionCommand: {
       cellId: string;
       document: string;
-      id: string;
+      id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "code-completion";
     };
@@ -3600,7 +3646,7 @@ export interface components {
     CodeCompletionRequest: {
       cellId: string;
       document: string;
-      id: string;
+      id: components["schemas"]["RequestId"];
     };
     /**
      * ColumnStats
@@ -3814,7 +3860,7 @@ export interface components {
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       /** @default null */
-      engine?: string | null;
+      engine?: components["schemas"]["VariableName"] | null;
       /** @default null */
       indexes?: string[] | null;
       name: string;
@@ -3830,7 +3876,7 @@ export interface components {
        * @enum {unknown}
        */
       type?: "table" | "view";
-      variable_name: string | null;
+      variable_name: components["schemas"]["VariableName"] | null;
     };
     /**
      * DataTableColumn
@@ -3870,7 +3916,7 @@ export interface components {
     Database: {
       dialect: string;
       /** @default null */
-      engine?: string | null;
+      engine?: components["schemas"]["VariableName"] | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
     };
@@ -4266,9 +4312,13 @@ export interface components {
      *             cell_id: Cell to focus.
      */
     FocusCellNotification: {
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @enum {unknown} */
       op: "focus-cell";
+    };
+    /** FocusCellRequest */
+    FocusCellRequest: {
+      cellId: string;
     };
     /** FormatCellsRequest */
     FormatCellsRequest: {
@@ -4304,7 +4354,7 @@ export interface components {
      *             status: Human-readable success/failure status.
      */
     FunctionCallResultNotification: {
-      function_call_id: string;
+      function_call_id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       op: "function-call-result";
       return_value: unknown;
@@ -4419,9 +4469,18 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             source: Where to install. "kernel" (default) dispatches to the kernel
+     *                     subprocess; "server" installs directly into the server's Python
+     *                     environment (sys.executable), used when the server itself needs
+     *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       /** @enum {unknown} */
       type: "install-packages";
       versions: {
@@ -4431,6 +4490,11 @@ export interface components {
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       versions: {
         [key: string]: string;
       };
@@ -4564,7 +4628,7 @@ export interface components {
       /** @default false */
       auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
-      cell_ids: string[];
+      cell_ids: components["schemas"]["CellId"][];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       kiosk: boolean;
@@ -4889,16 +4953,16 @@ export interface components {
     };
     /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {
-      blamed_cell: string | null;
+      blamed_cell: components["schemas"]["CellId"] | null;
       msg: string;
-      raising_cell: string;
+      raising_cell: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "ancestor-prevented";
     };
     /** MarimoAncestorStoppedError */
     MarimoAncestorStoppedError: {
       msg: string;
-      raising_cell: string;
+      raising_cell: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "ancestor-stopped";
     };
@@ -4929,7 +4993,7 @@ export interface components {
     MarimoExceptionRaisedError: {
       exception_type: string;
       msg: string;
-      raising_cell: string | null;
+      raising_cell: components["schemas"]["CellId"] | null;
       /** @enum {unknown} */
       type: "exception";
     };
@@ -4986,7 +5050,7 @@ export interface components {
     };
     /** MarimoStrictExecutionError */
     MarimoStrictExecutionError: {
-      blamed_cell: string | null;
+      blamed_cell: components["schemas"]["CellId"] | null;
       msg: string;
       ref: string;
       /** @enum {unknown} */
@@ -5006,13 +5070,21 @@ export interface components {
      *
      *         Attributes:
      *             packages: Missing package names.
-     *             isolated: Whether in isolated environment.
+     *             isolated: Whether auto-install is possible in this environment.
+     *             source: Which Python environment to install into. "kernel" (default)
+     *                     installs in the kernel's venv; "server" installs in the
+     *                     server's own Python env (e.g. for formatter tools like ruff).
      */
     MissingPackageAlertNotification: {
       isolated: boolean;
       /** @enum {unknown} */
       op: "missing-package-alert";
       packages: string[];
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /**
      * ModelClose
@@ -5035,7 +5107,7 @@ export interface components {
      *             token: Unique identifier for deduplication across dual queues.
      */
     ModelCommand: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
@@ -5049,7 +5121,7 @@ export interface components {
      * @description Custom application message.
      */
     ModelCustom: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       content: unknown;
       /** @enum {unknown} */
       method: "custom";
@@ -5092,14 +5164,14 @@ export interface components {
      */
     ModelOpen: {
       buffer_paths: (string | number)[][];
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
     };
     /** ModelRequest */
     ModelRequest: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
@@ -5112,7 +5184,7 @@ export interface components {
      */
     ModelUpdate: {
       buffer_paths: (string | number)[][];
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -5133,7 +5205,7 @@ export interface components {
     };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
-      cells: string[];
+      cells: components["schemas"]["CellId"][];
       name: string;
       /** @enum {unknown} */
       type: "multiple-defs";
@@ -5409,7 +5481,7 @@ export interface components {
      *             cell_id: Cell whose UI elements should be removed.
      */
     RemoveUIElementsNotification: {
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @enum {unknown} */
       op: "remove-ui-elements";
     };
@@ -5431,6 +5503,7 @@ export interface components {
     RenameNotebookRequest: {
       filename: string;
     };
+    RequestId: TypedString<"RequestId">;
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -5460,6 +5533,8 @@ export interface components {
      *             affected cells as stale, `"autorun"` automatically runs affected cells.
      *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
      *             values may affect frontend performance
+     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
+     *             The default is `False`.
      *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
      *           larger values may affect frontend performance
      *         - `pythonpath`: a list of directories to add to the Python search path.
@@ -5497,6 +5572,7 @@ export interface components {
       output_max_bytes: number;
       pythonpath?: string[];
       reactive_tests: boolean;
+      serve_cached_sessions_in_apps?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";
@@ -5533,7 +5609,7 @@ export interface components {
       metadata: components["schemas"]["SQLMetadata"];
       /** @enum {unknown} */
       op: "sql-table-list-preview";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default [] */
       tables?: components["schemas"]["DataTable"][];
     };
@@ -5553,7 +5629,7 @@ export interface components {
       metadata: components["schemas"]["SQLMetadata"];
       /** @enum {unknown} */
       op: "sql-table-preview";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       table: null | components["schemas"]["DataTable"];
     };
     /** SaveAppConfigurationRequest */
@@ -5619,7 +5695,7 @@ export interface components {
     SecretKeysResultNotification: {
       /** @enum {unknown} */
       op: "secret-keys-result";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       secrets: components["schemas"]["SecretKeysWithProvider"][];
     };
     /** SecretKeysWithProvider */
@@ -5647,6 +5723,7 @@ export interface components {
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
     };
+    SessionId: TypedString<"SessionId">;
     /** SetupRootError */
     SetupRootError: {
       edges_with_vars: [string, string[], string][];
@@ -5908,11 +5985,14 @@ export interface components {
      *             display_name: The display name of the storage namespace.
      *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
      *             root_path: The root path of the storage namespace.
+     *             backend_type: The type of the storage backend (fsspec or obstore)
      *             storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
+      /** @enum {unknown} */
+      backendType: "fsspec" | "obstore";
       displayName: string;
-      name: string;
+      name: components["schemas"]["VariableName"];
       protocol: string;
       rootPath: string;
       storageEntries: components["schemas"]["StorageEntry"][];
@@ -5988,6 +6068,7 @@ export interface components {
     TyLanguageServerConfig: {
       enabled?: boolean;
     };
+    UIElementId: `${components["schemas"]["CellId"]}-${string}`;
     /**
      * UIElementMessageNotification
      * @description Sends a message to a UI element/widget.
@@ -5999,11 +6080,11 @@ export interface components {
      */
     UIElementMessageNotification: {
       /** @default null */
-      buffers?: string[] | null;
+      buffers?: components["schemas"]["Base64String"][] | null;
       message: Record<string, any>;
       /** @enum {unknown} */
       op: "send-ui-element-message";
-      ui_element: string;
+      ui_element: components["schemas"]["UIElementId"];
     };
     /** UnknownError */
     UnknownError: {
@@ -6015,17 +6096,23 @@ export interface components {
     };
     /**
      * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode).
+     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
      *
      *         Attributes:
      *             cell_ids: Cells to update.
      *             codes: New code for each cell.
      *             code_is_stale: If True, code was not executed on backend (output may not match).
+     *             names: Cell names for each cell (optional, for file reload).
+     *             configs: Cell configs for each cell (optional, for file reload).
      */
     UpdateCellCodesNotification: {
-      cell_ids: string[];
+      cell_ids: components["schemas"]["CellId"][];
       code_is_stale: boolean;
       codes: string[];
+      /** @default [] */
+      configs?: components["schemas"]["CellConfig"][];
+      /** @default [] */
+      names?: string[];
       /** @enum {unknown} */
       op: "update-cell-codes";
     };
@@ -6060,7 +6147,7 @@ export interface components {
      *             cell_ids: Complete ordered list of cell IDs.
      */
     UpdateCellIdsNotification: {
-      cell_ids: string[];
+      cell_ids: components["schemas"]["CellId"][];
       /** @enum {unknown} */
       op: "update-cell-ids";
     };
@@ -6227,10 +6314,11 @@ export interface components {
      *             used_by: Cell IDs that use this variable.
      */
     VariableDeclarationNotification: {
-      declared_by: string[];
+      declared_by: components["schemas"]["CellId"][];
       name: string;
-      used_by: string[];
+      used_by: components["schemas"]["CellId"][];
     };
+    VariableName: TypedString<"VariableName">;
     /**
      * VariableValue
      * @description Variable value and type for variables panel.
@@ -6287,6 +6375,7 @@ export interface components {
       path?: string;
       writable?: boolean;
     };
+    WidgetModelId: TypedString<"WidgetModelId">;
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {
       /** @default false */

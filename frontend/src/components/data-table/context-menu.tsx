@@ -18,7 +18,7 @@ import {
 import { DATA_CELL_ID } from "./cell-utils";
 import { Filter } from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
-import { stringifyUnknownValue } from "./utils";
+import { getClipboardContent, getRawValue } from "./utils";
 
 export const DataTableContextMenu = <TData,>({
   contextMenuRef,
@@ -82,11 +82,15 @@ export const CellContextMenu = <TData,>({
     return;
   }
 
+  const table = cell.getContext().table;
+  const displayedValue = cell.getValue();
+  const rawValue =
+    getRawValue(table, cell.row.index, cell.column.id) ?? displayedValue;
+
   const handleCopyCell = () => {
     try {
-      const value = cell.getValue();
-      const stringValue = stringifyUnknownValue({ value });
-      copyToClipboard(stringValue);
+      const { text, html } = getClipboardContent(rawValue, displayedValue);
+      copyToClipboard(text, html);
     } catch (error) {
       Logger.error("Failed to copy context menu cell", error);
     }
@@ -98,7 +102,7 @@ export const CellContextMenu = <TData,>({
   const handleFilterCell = (operator: "in" | "not_in") => {
     column.setFilterValue(
       Filter.select({
-        options: [cell.getValue()],
+        options: [rawValue],
         operator,
       }),
     );

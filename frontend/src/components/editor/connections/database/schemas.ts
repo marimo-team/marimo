@@ -218,12 +218,59 @@ export const SnowflakeConnectionSchema = z
           optionRegex: ".*snowflake.*",
         }),
       ),
-    username: usernameField(),
-    password: passwordField(),
     role: z
       .string()
       .optional()
       .describe(FieldOptions.of({ label: "Role" })),
+    authType: z
+      .discriminatedUnion("type", [
+        z.object({
+          type: z.literal("Password"),
+          username: usernameField(),
+          password: passwordField(),
+          enable_mfa: z
+            .boolean()
+            .default(false)
+            .describe(FieldOptions.of({ label: "Enable MFA (Duo Push)" })),
+        }),
+        z.object({
+          type: z.literal("SSO (Browser)"),
+          username: usernameField(),
+        }),
+        z.object({
+          type: z.literal("Key Pair"),
+          username: usernameField(),
+          private_key_path: z
+            .string()
+            .nonempty()
+            .describe(
+              FieldOptions.of({
+                label: "Private Key Path",
+                placeholder: "/path/to/rsa_key.p8",
+              }),
+            ),
+          private_key_passphrase: z
+            .string()
+            .optional()
+            .describe(
+              FieldOptions.of({
+                label: "Private Key Passphrase",
+                inputType: "password",
+                optionRegex: ".*passphrase.*",
+              }),
+            ),
+        }),
+        z.object({
+          type: z.literal("OAuth / PAT"),
+          token: tokenField("Token", true),
+        }),
+      ])
+      .default({
+        type: "Password",
+        username: "username",
+        enable_mfa: false,
+      })
+      .describe(FieldOptions.of({ special: "tabs" })),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 

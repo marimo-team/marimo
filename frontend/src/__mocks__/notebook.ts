@@ -22,16 +22,16 @@ export const MockNotebook = {
   },
 
   notebookState: (opts?: {
-    cellData: Record<string, Partial<CellData>>;
-    cellRuntime?: Record<string, Partial<CellRuntimeState>>;
+    cellData: Record<CellId, Partial<CellData>>;
+    cellRuntime?: Record<CellId, Partial<CellRuntimeState>>;
   }): NotebookState => {
-    const cellData = opts?.cellData || {};
-    const cellRuntime = opts?.cellRuntime || {};
+    const cellData = opts?.cellData ?? {};
+    const cellRuntime = opts?.cellRuntime ?? {};
     return {
-      cellData: Objects.mapValues(cellData, (data, cellId) => ({
-        id: cellId as CellId,
+      cellData: Objects.mapValues(cellData, (data, cid) => ({
+        id: cid,
         code: "",
-        name: `cell-${cellId}`,
+        name: `cell-${cid}`,
         config: {
           hide_code: false,
           disabled: false,
@@ -45,8 +45,8 @@ export const MockNotebook = {
         ...data,
       })),
       cellIds: MultiColumn.from([Object.keys(cellData) as CellId[]]),
-      cellRuntime: Objects.mapValues(cellData, (_data, cellId) =>
-        createCellRuntimeState({ ...cellRuntime[cellId] }),
+      cellRuntime: Objects.mapValues(cellData, (_data, cid) =>
+        createCellRuntimeState({ ...cellRuntime[cid] }),
       ),
       cellHandles: Objects.mapValues(cellData, (_data) => createRef()),
       cellLogs: [],

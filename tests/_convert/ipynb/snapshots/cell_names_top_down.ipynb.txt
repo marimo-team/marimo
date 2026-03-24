@@ -1,0 +1,65 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "Hbol",
+      "metadata": {
+        "marimo": {
+          "name": "my_imports"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "import os\n",
+        "import sys"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "MJUe",
+      "metadata": {
+        "marimo": {
+          "name": "compute"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "result = os.getcwd() + sys.platform"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "vblA",
+      "metadata": {
+        "marimo": {
+          "name": "display"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "print(result)"
+      ]
+    }
+  ],
+  "metadata": {
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3"
+    },
+    "marimo": {
+      "marimo_version": "0.0.0"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

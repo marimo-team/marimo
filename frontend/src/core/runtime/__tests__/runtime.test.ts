@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Mocks } from "@/__mocks__/common";
 import type { SessionId } from "@/core/kernel/session";
 import { Logger } from "@/utils/Logger";
 import { RuntimeManager } from "../runtime";
@@ -11,14 +12,7 @@ vi.mock("@/core/kernel/session", () => ({
   getSessionId: () => "test-session-id" as SessionId,
 }));
 
-// Mock the Logger module
-vi.mock("@/utils/Logger", () => ({
-  Logger: {
-    debug: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
+vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 describe("RuntimeManager", () => {
   const mockConfig: RuntimeConfig = {

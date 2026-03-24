@@ -16,6 +16,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -26,6 +27,7 @@ import { makeSelectable } from "./make-selectable";
 import { getSelectionParamNames, ParamNames } from "./params";
 import { resolveVegaSpecData } from "./resolve-data";
 import type { VegaLiteSpec } from "./types";
+import { getContainerWidth } from "./utils";
 
 // register arrow reader under type 'arrow'
 formats("arrow", arrow);
@@ -304,11 +306,14 @@ const LoadedVegaComponent = ({
         </Alert>
       )}
       <div
-        className="relative"
+        className={cn("relative")}
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
-        <div ref={vegaRef} />
+        <div
+          ref={vegaRef}
+          data-container-width={getContainerWidth(selectableSpec)}
+        />
         {renderHelpContent()}
       </div>
     </>

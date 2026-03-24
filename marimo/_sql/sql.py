@@ -65,6 +65,7 @@ def sql(
             "to execute sql",
             DependencyManager.duckdb,
             DependencyManager.sqlglot,
+            source="kernel",
         )
         sql_engine = DuckDBEngine(connection=None)
     else:

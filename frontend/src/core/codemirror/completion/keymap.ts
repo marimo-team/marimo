@@ -6,7 +6,7 @@ import {
   moveCompletionSelection,
 } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { type KeyBinding, keymap } from "@codemirror/view";
 import { isInVimMode } from "../utils";
 
 const KEYS_TO_REMOVE = new Set<string | undefined>([
@@ -22,10 +22,20 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   "Alt-`",
 ]);
 
-export function completionKeymap(): Extension {
-  const withoutKeysToRemove = defaultCompletionKeymap.filter(
-    (binding) => !KEYS_TO_REMOVE.has(binding.key),
+function hasRemovedKeybinding(binding: KeyBinding): boolean {
+  return [binding.key, binding.mac, binding.linux, binding.win].some((key) =>
+    KEYS_TO_REMOVE.has(key),
   );
+}
+
+export function filterCompletionBindings(
+  bindings: readonly KeyBinding[],
+): readonly KeyBinding[] {
+  return bindings.filter((binding) => !hasRemovedKeybinding(binding));
+}
+
+export function completionKeymap(): Extension {
+  const withoutKeysToRemove = filterCompletionBindings(defaultCompletionKeymap);
 
   return Prec.highest(
     keymap.of([

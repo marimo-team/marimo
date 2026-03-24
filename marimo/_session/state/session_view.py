@@ -186,6 +186,10 @@ class SessionView:
             str, str
         ] = {}  # package name -> accumulated logs
 
+        # Server-side missing-package alerts already sent this session.
+        # NOT reset by _touch() — once alerted we don't re-alert.
+        self.notified_server_packages: set[str] = set()
+
         # Auto-saving
         self.auto_export_state = AutoExportState()
 

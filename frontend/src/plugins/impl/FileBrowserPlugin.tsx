@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
+import { RANDOM_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
@@ -150,7 +151,9 @@ export const FileBrowser = ({
 
   // HACK: use the random-id of the host element to force a re-render
   // when the random-id changes, this means the cell was re-rendered
-  const randomId = host.closest("[random-id]")?.getAttribute("random-id");
+  const randomId = host
+    .closest(`[${RANDOM_ID_ATTR}]`)
+    ?.getAttribute(RANDOM_ID_ATTR);
 
   const { data, error, isPending } = useAsyncData(() => {
     return list_directory({ path: path });

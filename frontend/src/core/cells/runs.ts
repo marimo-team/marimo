@@ -79,9 +79,9 @@ const {
         runId,
         cellRuns: new Map([
           [
-            cellNotification.cell_id as CellId,
+            cellNotification.cell_id,
             {
-              cellId: cellNotification.cell_id as CellId,
+              cellId: cellNotification.cell_id,
               code: code.slice(0, MAX_CODE_LENGTH),
               elapsedTime: 0,
               status: status,
@@ -111,9 +111,7 @@ const {
 
     // Update existing run
     const nextCellRuns = new Map(existingRun.cellRuns);
-    const existingCellRun = nextCellRuns.get(
-      cellNotification.cell_id as CellId,
-    );
+    const existingCellRun = nextCellRuns.get(cellNotification.cell_id);
 
     // Early return if nothing changed
     if (
@@ -140,15 +138,15 @@ const {
           ? timestamp - existingCellRun.startTime
           : undefined;
 
-      nextCellRuns.set(cellNotification.cell_id as CellId, {
+      nextCellRuns.set(cellNotification.cell_id, {
         ...existingCellRun,
         startTime,
         elapsedTime,
         status,
       });
     } else {
-      nextCellRuns.set(cellNotification.cell_id as CellId, {
-        cellId: cellNotification.cell_id as CellId,
+      nextCellRuns.set(cellNotification.cell_id, {
+        cellId: cellNotification.cell_id,
         code: code.slice(0, MAX_CODE_LENGTH),
         elapsedTime: 0,
         status: status,

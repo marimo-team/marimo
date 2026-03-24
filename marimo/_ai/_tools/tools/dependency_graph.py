@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
@@ -20,14 +19,15 @@ from marimo._types.ids import CellId_t, SessionId
 @dataclass
 class GetCellDependencyGraphArgs:
     session_id: SessionId
-    cell_id: Optional[CellId_t] = None
-    depth: Optional[int] = None
+    cell_id: CellId_t | None = None
+    depth: int | None = None
 
 
 @dataclass
 class VariableInfo:
     name: str
     kind: str
+    datatype: str | None = None
 
 
 @dataclass
@@ -98,6 +98,7 @@ class GetCellDependencyGraph(
         self, args: GetCellDependencyGraphArgs
     ) -> GetCellDependencyGraphOutput:
         session = self.context.get_session(args.session_id)
+        variable_values = session.session_view.variable_values
         app = session.app_file_manager.app
         cell_manager = app.cell_manager
         # app.graph calls _maybe_initialize() which raises on cycles or
@@ -165,7 +166,11 @@ class GetCellDependencyGraph(
                     vd_list = cell_impl.variable_data[var_name]
                     if vd_list:
                         kind = vd_list[-1].kind
-                defs.append(VariableInfo(name=var_name, kind=kind))
+                vv = variable_values.get(var_name)
+                datatype = vv.datatype if vv is not None else None
+                defs.append(
+                    VariableInfo(name=var_name, kind=kind, datatype=datatype)
+                )
 
             cells.append(
                 CellDependencyInfo(
@@ -218,7 +223,7 @@ class GetCellDependencyGraph(
 def _get_cells_within_depth(
     graph: DirectedGraph,
     center_cell_id: CellId_t,
-    depth: Optional[int],
+    depth: int | None,
 ) -> set[CellId_t]:
     if depth is None:
         all_related = graph.ancestors(center_cell_id) | graph.descendants(
@@ -248,7 +253,7 @@ def _get_cells_within_depth(
 def _build_next_steps(
     multiply_defined: list[str],
     cycles: list[CycleInfo],
-    cell_id: Optional[CellId_t],
+    cell_id: CellId_t | None,
 ) -> list[str]:
     next_steps: list[str] = []
     if multiply_defined:

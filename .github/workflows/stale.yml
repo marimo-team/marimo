@@ -1,0 +1,51 @@
+name: 🧹 Stale PRs
+
+# Close stale pull requests after a period of inactivity.
+# Runs daily at 9:00 UTC. Can also be triggered manually.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # --- General ---
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          operations-per-run: 60
+
+          # --- Pull Requests ---
+          days-before-stale: 30
+          days-before-close: 14
+          stale-pr-label: "stale"
+          stale-pr-message: >
+            This pull request has been automatically marked as stale because it
+            has not had activity in 30 days. It will be closed in 14 days if no
+            further activity occurs. If this PR is still relevant, please leave
+            a comment or push new changes to keep it open. Thank you for your
+            contribution!
+          close-pr-message: >
+            This pull request has been automatically closed due to inactivity.
+            Feel free to reopen it if you'd like to continue working on it.
+          close-pr-label: "closed-stale"
+          # Exempt draft PRs — many are maintainer WIP/experiments
+          exempt-draft-pr: true
+          # Don't touch issues with this workflow
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          # Exempt PRs with these labels
+          exempt-pr-labels: "do-not-close,work-in-progress,pinned"
+          # Remove stale label when PR is updated
+          remove-stale-when-updated: true
+
+          # --- Rate Limiting ---
+          # Ascending order processes oldest first
+          ascending: true

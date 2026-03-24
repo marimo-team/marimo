@@ -32,7 +32,6 @@ from marimo._server.main import (
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._session.model import SessionMode
-from marimo._utils.net import find_free_port
 from tests._server.conftest import join_kernel_thread_tasks
 from tests._server.mocks import get_mock_session_manager, token_header
 
@@ -330,22 +329,6 @@ def run_target_server():
     server.run()
 
 
-def run_mpl_server(host: str, port: int):
-    """Runs the matplotlib plugin server.
-    Defined at module level so it can be pickled."""
-    from marimo._plugins.stateless.mpl._mpl import (
-        create_application,  # Import here to avoid circular imports
-    )
-
-    app = create_application()
-    app.state.host = host
-    app.state.port = port
-    app.state.secure = False
-    config = Config(app=app, host=host, port=port, log_level="info")
-    server = Server(config)
-    server.run()
-
-
 async def serve_static(request: Request) -> Response:
     del request
     content = "body { color: red; }"
@@ -396,35 +379,6 @@ class TestProxyMiddleware:
             ProxyMiddleware,
             proxy_path="/proxy",
             target_url="http://127.0.0.1:8765",
-        )
-        return edit_app
-
-    @pytest.fixture(scope="module")
-    def mpl_server(self):
-        """Start the matplotlib plugin server in a separate process."""
-        host = "127.0.0.1"
-        port = find_free_port(10_000)
-
-        process = Process(
-            target=run_mpl_server, args=(host, port), daemon=True
-        )
-        process.start()
-        time.sleep(1)
-        yield host, port
-        process.terminate()
-        process.join()
-
-    @pytest.fixture
-    def app_with_mpl_proxy(
-        self, edit_app: Starlette, mpl_server: tuple[str, int]
-    ) -> ASGIApp:
-        """Create the app with ProxyMiddleware targeting the matplotlib plugin server."""
-        host, port = mpl_server
-        target_url = f"http://{host}:{port}"
-        edit_app.add_middleware(
-            ProxyMiddleware,
-            proxy_path="/mpl",
-            target_url=target_url,
         )
         return edit_app
 
@@ -620,25 +574,6 @@ class TestProxyMiddleware:
             response_3 = websocket.receive_json()
             assert response_3["message"] == "ws response from proxied app"
 
-    @pytest.mark.xfail(
-        reason="Returning 403 instead of invalid ID message",
-    )
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="Skipping test on Windows due to websocket issues",
-    )
-    def test_proxy_websocket_with_invalid_id(
-        self, app_with_mpl_proxy: Starlette
-    ) -> None:
-        client = TestClient(app_with_mpl_proxy)
-        with client.websocket_connect(
-            "/mpl/ws?figure=invalid_id",
-        ) as websocket:
-            websocket.send_json({"type": "supports_binary", "value": True})
-            message = websocket.receive_json()
-            assert message["type"] == "error"
-            assert "invalid" in message["message"].lower()
-
     async def test_proxy_middleware_websocket_protocol(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -686,8 +621,6 @@ class TestProxyMiddleware:
         middleware.target_url = lambda _path: "https://example.com"
         await middleware(scope, None, None)
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
-
-        # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
 
 
 def _mock_lsp_server(server_id: str, port: int):

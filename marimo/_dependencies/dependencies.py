@@ -6,6 +6,7 @@ import importlib.util
 import shutil
 import sys
 from dataclasses import dataclass
+from typing import Literal
 
 from marimo._dependencies.errors import ManyModulesNotFoundError
 
@@ -245,7 +246,7 @@ class DependencyManager:
     tomlkit = Dependency("tomlkit")
     loro = Dependency("loro")
     boto3 = Dependency("boto3")
-    litellm = Dependency("litellm")
+
     redshift_connector = Dependency("redshift_connector")
     starrocks = Dependency("starrocks")
     mcp = Dependency("mcp")
@@ -285,7 +286,11 @@ class DependencyManager:
         return shutil.which(pkg) is not None
 
     @staticmethod
-    def require_many(why: str, *dependencies: Dependency) -> None:
+    def require_many(
+        why: str,
+        *dependencies: Dependency,
+        source: Literal["kernel", "server"],
+    ) -> None:
         missing = [
             dep.pkg_name_to_install
             for dep in dependencies
@@ -295,4 +300,5 @@ class DependencyManager:
             raise ManyModulesNotFoundError(
                 missing,
                 f"The following packages are required {why}: {', '.join(missing)}",
+                source=source,
             )

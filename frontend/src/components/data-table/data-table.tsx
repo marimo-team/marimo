@@ -52,6 +52,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   maxHeight?: number;
   columns: ColumnDef<TData>[];
   data: TData[];
+  rawData?: TData[]; // raw data for filtering/copying (present only if format_mapping is provided)
   // Sorting
   manualSorting?: boolean; // server-side sorting
   sorting?: SortingState; // controlled sorting
@@ -103,6 +104,7 @@ const DataTableInternal = <TData,>({
   maxHeight,
   columns,
   data,
+  rawData,
   selection,
   totalColumns,
   totalRows,
@@ -197,6 +199,7 @@ const DataTableInternal = <TData,>({
     ],
     data,
     columns,
+    meta: { rawData },
     getCoreRowModel: getCoreRowModel(),
     // pagination
     rowCount: totalRows === "too_many" ? undefined : totalRows,

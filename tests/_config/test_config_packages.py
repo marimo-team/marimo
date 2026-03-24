@@ -27,7 +27,7 @@ def mock_cwd(tmp_path: Path):
 def test_infer_package_manager_from_pyproject():
     # Test poetry detection
     with patch(
-        "marimo._config.packages.read_toml",
+        "marimo._config.packages.toml_reader.read",
         return_value={"tool": {"poetry": {}}},
     ):
         assert (
@@ -36,14 +36,16 @@ def test_infer_package_manager_from_pyproject():
         )
 
     # Test no tool section
-    with patch("marimo._config.packages.read_toml", return_value={}):
+    with patch("marimo._config.packages.toml_reader.read", return_value={}):
         assert (
             infer_package_manager_from_pyproject(Path("pyproject.toml"))
             is None
         )
 
     # Test exception handling
-    with patch("marimo._config.packages.read_toml", side_effect=Exception):
+    with patch(
+        "marimo._config.packages.toml_reader.read", side_effect=Exception
+    ):
         assert (
             infer_package_manager_from_pyproject(Path("pyproject.toml"))
             is None
@@ -122,8 +124,16 @@ def test_infer_package_manager(
         else:
             (mock_cwd / filename).write_text(content)
 
+    # Ensure CI env vars (e.g. UV set by uv-based runners) don't leak
+    # into the test. Start from a clean slate for the keys that
+    # infer_package_manager inspects, then layer on env_vars.
+    sanitized = {
+        k: v for k, v in os.environ.items() if k not in ("UV", "VIRTUAL_ENV")
+    }
+    sanitized.update(env_vars)
+
     # Mock environment variables
-    with patch.dict(os.environ, env_vars):
+    with patch.dict(os.environ, sanitized, clear=True):
         # Mock sys attributes
         if sys_attrs:
             with patch.multiple(sys, **sys_attrs):

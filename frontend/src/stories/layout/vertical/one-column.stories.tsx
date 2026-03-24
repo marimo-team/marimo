@@ -3,6 +3,7 @@
 import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { cellId } from "@/__tests__/branded";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
@@ -99,8 +100,8 @@ export default {
 type W = Window & { __MARIMO_STATIC__?: { files: Record<string, unknown> } };
 
 const EditModeCodeShown = () => {
-  const cellId = "Hbol" as CellId;
-  const notebook = createLongReprNotebook(cellId);
+  const cid = cellId("Hbol");
+  const notebook = createLongReprNotebook(cid);
 
   const store = createStore();
   store.set(notebookAtom, notebook);
@@ -124,8 +125,8 @@ const EditModeCodeShown = () => {
 };
 
 const EditModeCodeHidden = () => {
-  const cellId = "Hbol" as CellId;
-  const notebook = createLongReprNotebook(cellId, true);
+  const cid = cellId("Hbol");
+  const notebook = createLongReprNotebook(cid, true);
 
   const store = createStore();
   store.set(notebookAtom, notebook);
@@ -149,8 +150,8 @@ const EditModeCodeHidden = () => {
 };
 
 const ReadModeCodeShown = () => {
-  const cellId = "Hbol" as CellId;
-  const notebook = createLongReprNotebook(cellId);
+  const cid = cellId("Hbol");
+  const notebook = createLongReprNotebook(cid);
 
   const store = createStore();
   store.set(notebookAtom, notebook);
@@ -168,8 +169,8 @@ const ReadModeCodeShown = () => {
 };
 
 const ReadModeCodeHidden = () => {
-  const cellId = "Hbol" as CellId;
-  const notebook = createLongReprNotebook(cellId);
+  const cid = cellId("Hbol");
+  const notebook = createLongReprNotebook(cid);
 
   const store = createStore();
   store.set(notebookAtom, notebook);

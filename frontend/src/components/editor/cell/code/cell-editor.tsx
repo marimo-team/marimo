@@ -163,6 +163,13 @@ const CellEditorInternal = ({
     }
   });
 
+  const afterToggleSQL = useEvent(() => {
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell: cellActions.createNewCell,
+    });
+  });
+
   const aiEnabled = isAiEnabled(userConfig);
 
   const extensions = useMemo(() => {
@@ -173,6 +180,7 @@ const CellEditorInternal = ({
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
+        afterToggleSQL,
         onRun: handleRunCell,
         deleteCell: handleDelete,
         saveNotebook: saveOrNameNotebook,
@@ -267,6 +275,7 @@ const CellEditorInternal = ({
     handleRunCell,
     setAiCompletionCell,
     afterToggleMarkdown,
+    afterToggleSQL,
     setLanguageAdapter,
     showHiddenCode,
     saveOrNameNotebook,

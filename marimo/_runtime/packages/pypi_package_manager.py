@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
 )
@@ -121,15 +122,47 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
+    def is_manager_installed(self) -> bool:
+        """Check if pip is available.
+
+        On some platforms (e.g. macOS with pip-installed Python from python.org),
+        only `pip3` is available in PATH, not `pip`. We first try the method we
+        actually use to invoke pip (`python -m pip`), then fall back to a PATH
+        check for compatibility.
+        """
+        # Primary check: use the same invocation method we actually use
+        # (python -m pip) rather than relying on PATH pip, which could be
+        # a different Python's pip than self._python_exe
+        try:
+            proc = subprocess.run(
+                [self._python_exe, "-m", "pip", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if proc.returncode == 0:
+                return True
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+        # Fallback: check if pip is on PATH (handles cases where pip is
+        # available but python -m pip is not desired/needed)
+        if DependencyManager.which(self.name):
+            return True
+        LOGGER.error(
+            f"{self.name} is not available. "
+            f"Check out the docs for installation instructions: {self.docs_url}"
+        )
+        return False
+
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return [
-            "pip",
-            "--python",
             self._python_exe,
+            "-m",
+            "pip",
             "install",
             *(["--upgrade"] if upgrade else []),
             *split_packages(package),
@@ -143,9 +176,9 @@ class PipPackageManager(PypiPackageManager):
         LOGGER.info(f"Uninstalling {package} with pip")
         return await self.run(
             [
-                "pip",
-                "--python",
                 self._python_exe,
+                "-m",
+                "pip",
                 "uninstall",
                 "-y",
                 *split_packages(package),
@@ -155,9 +188,9 @@ class PipPackageManager(PypiPackageManager):
 
     def list_packages(self) -> list[PackageDescription]:
         cmd = [
-            "pip",
-            "--python",
             self._python_exe,
+            "-m",
+            "pip",
             "list",
             "--format=json",
         ]

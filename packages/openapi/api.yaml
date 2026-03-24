@@ -256,6 +256,9 @@ components:
       - description
       title: BannerNotification
       type: object
+    Base64String:
+      contentEncoding: base64
+      type: string
     BaseResponse:
       properties:
         success:
@@ -366,6 +369,8 @@ components:
       required: []
       title: CellConfig
       type: object
+    CellId:
+      type: string
     CellNotification:
       description: "Updates a cell's state in the frontend.\n\n    Only fields that\
         \ are set (not None) will update the cell state.\n    Omitting a field leaves\
@@ -379,7 +384,7 @@ components:
         \ Creation timestamp, auto-set."
       properties:
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         console:
           anyOf:
           - items:
@@ -619,7 +624,7 @@ components:
         document:
           type: string
         id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - code-completion
@@ -637,7 +642,7 @@ components:
         document:
           type: string
         id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - id
       - document
@@ -1022,7 +1027,7 @@ components:
           type: array
         engine:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/VariableName'
           - type: 'null'
           default: null
         indexes:
@@ -1064,7 +1069,7 @@ components:
           - view
         variable_name:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/VariableName'
           - type: 'null'
       required:
       - source_type
@@ -1115,7 +1120,7 @@ components:
           type: string
         engine:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/VariableName'
           - type: 'null'
           default: null
         name:
@@ -1825,7 +1830,7 @@ components:
         \ Cell to focus."
       properties:
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         op:
           enum:
           - focus-cell
@@ -1833,6 +1838,14 @@ components:
       - op
       - cell_id
       title: FocusCellNotification
+      type: object
+    FocusCellRequest:
+      properties:
+        cellId:
+          type: string
+      required:
+      - cellId
+      title: FocusCellRequest
       type: object
     FormatCellsRequest:
       properties:
@@ -1874,7 +1887,7 @@ components:
         \ status."
       properties:
         function_call_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         op:
           enum:
           - function-call-result
@@ -2020,10 +2033,20 @@ components:
         \ the specified package manager. Triggered\n    automatically on import errors\
         \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
         \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
-        \ to version specifiers. Empty version\n                  means install latest."
+        \ to version specifiers. Empty version\n                  means install latest.\n\
+        \        source: Where to install. \"kernel\" (default) dispatches to the\
+        \ kernel\n                subprocess; \"server\" installs directly into the\
+        \ server's Python\n                environment (sys.executable), used when\
+        \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
+        \ auto-export in sandbox mode)."
       properties:
         manager:
           type: string
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
         type:
           enum:
           - install-packages
@@ -2041,6 +2064,11 @@ components:
       properties:
         manager:
           type: string
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
         versions:
           additionalProperties:
             type: string
@@ -2239,7 +2267,7 @@ components:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         cell_ids:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -2820,12 +2848,12 @@ components:
       properties:
         blamed_cell:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CellId'
           - type: 'null'
         msg:
           type: string
         raising_cell:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - ancestor-prevented
@@ -2841,7 +2869,7 @@ components:
         msg:
           type: string
         raising_cell:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - ancestor-stopped
@@ -2907,7 +2935,7 @@ components:
           type: string
         raising_cell:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CellId'
           - type: 'null'
         type:
           enum:
@@ -3018,7 +3046,7 @@ components:
       properties:
         blamed_cell:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CellId'
           - type: 'null'
         msg:
           type: string
@@ -3053,8 +3081,11 @@ components:
       type: object
     MissingPackageAlertNotification:
       description: "Alert for missing packages with install option.\n\n    Attributes:\n\
-        \        packages: Missing package names.\n        isolated: Whether in isolated\
-        \ environment."
+        \        packages: Missing package names.\n        isolated: Whether auto-install\
+        \ is possible in this environment.\n        source: Which Python environment\
+        \ to install into. \"kernel\" (default)\n                installs in the kernel's\
+        \ venv; \"server\" installs in the\n                server's own Python env\
+        \ (e.g. for formatter tools like ruff)."
       properties:
         isolated:
           type: boolean
@@ -3065,6 +3096,11 @@ components:
           items:
             type: string
           type: array
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
       required:
       - op
       - packages
@@ -3090,8 +3126,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         message:
           anyOf:
@@ -3121,8 +3156,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         content: {}
         method:
@@ -3190,8 +3224,7 @@ components:
           type: array
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         method:
           enum:
@@ -3209,8 +3242,7 @@ components:
       properties:
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         message:
           anyOf:
@@ -3244,8 +3276,7 @@ components:
           type: array
         buffers:
           items:
-            contentEncoding: base64
-            type: string
+            $ref: '#/components/schemas/Base64String'
           type: array
         method:
           enum:
@@ -3287,7 +3318,7 @@ components:
       properties:
         cells:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         name:
           type: string
@@ -3698,7 +3729,7 @@ components:
         \ UI elements should be removed."
       properties:
         cell_id:
-          type: string
+          $ref: '#/components/schemas/CellId'
         op:
           enum:
           - remove-ui-elements
@@ -3730,6 +3761,8 @@ components:
       - filename
       title: RenameNotebookRequest
       type: object
+    RequestId:
+      type: string
     RunningNotebooksResponse:
       properties:
         files:
@@ -3758,14 +3791,16 @@ components:
         \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
         \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
         \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
-        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
-        \    - `pythonpath`: a list of directories to add to the Python search path.\n\
-        \        Directories will be added to the head of sys.path. Similar to the\n\
-        \        `PYTHONPATH` environment variable, the directories will be included\
-        \ in\n        where Python will look for imported modules.\n    - `dotenv`:\
-        \ a list of paths to `.env` files to load.\n        If the file does not exist,\
-        \ it will be silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
+        \ frontend performance\n    - `serve_cached_sessions_in_apps`: if `True`,\
+        \ initialize applications with session cache.\n        The default is `False`.\n\
+        \    - `std_stream_max_bytes`: the maximum size in bytes of console outputs;\n\
+        \      larger values may affect frontend performance\n    - `pythonpath`:\
+        \ a list of directories to add to the Python search path.\n        Directories\
+        \ will be added to the head of sys.path. Similar to the\n        `PYTHONPATH`\
+        \ environment variable, the directories will be included in\n        where\
+        \ Python will look for imported modules.\n    - `dotenv`: a list of paths\
+        \ to `.env` files to load.\n        If the file does not exist, it will be\
+        \ silently ignored.\n        The default is `[\".env\"]` if a pyproject.toml\
         \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
         \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
@@ -3812,6 +3847,8 @@ components:
             type: string
           type: array
         reactive_tests:
+          type: boolean
+        serve_cached_sessions_in_apps:
           type: boolean
         std_stream_max_bytes:
           type: integer
@@ -3867,7 +3904,7 @@ components:
           enum:
           - sql-table-list-preview
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         tables:
           default: []
           items:
@@ -3896,7 +3933,7 @@ components:
           enum:
           - sql-table-preview
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         table:
           anyOf:
           - type: 'null'
@@ -4029,7 +4066,7 @@ components:
           enum:
           - secret-keys-result
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         secrets:
           items:
             $ref: '#/components/schemas/SecretKeysWithProvider'
@@ -4080,6 +4117,8 @@ components:
       - follow_symlink
       title: ServerConfig
       type: object
+    SessionId:
+      type: string
     SetupRootError:
       properties:
         edges_with_vars:
@@ -4481,12 +4520,17 @@ components:
         \        display_name: The display name of the storage namespace.\n      \
         \  protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http,\
         \ file, in-memory.\n        root_path: The root path of the storage namespace.\n\
+        \        backend_type: The type of the storage backend (fsspec or obstore)\n\
         \        storage_entries: The storage entries in the storage namespace."
       properties:
+        backendType:
+          enum:
+          - fsspec
+          - obstore
         displayName:
           type: string
         name:
-          type: string
+          $ref: '#/components/schemas/VariableName'
         protocol:
           type: string
         rootPath:
@@ -4500,6 +4544,7 @@ components:
       - displayName
       - protocol
       - rootPath
+      - backendType
       - storageEntries
       title: StorageNamespace
       type: object
@@ -4616,6 +4661,8 @@ components:
       required: []
       title: TyLanguageServerConfig
       type: object
+    UIElementId:
+      type: string
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
         \       ui_element: UI element identifier.\n        message: Message payload\
@@ -4624,8 +4671,7 @@ components:
         buffers:
           anyOf:
           - items:
-              contentEncoding: base64
-              type: string
+              $ref: '#/components/schemas/Base64String'
             type: array
           - type: 'null'
           default: null
@@ -4635,7 +4681,7 @@ components:
           enum:
           - send-ui-element-message
         ui_element:
-          type: string
+          $ref: '#/components/schemas/UIElementId'
       required:
       - op
       - ui_element
@@ -4660,18 +4706,30 @@ components:
       title: UnknownError
       type: object
     UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode).\n\n    Attributes:\n\
-        \        cell_ids: Cells to update.\n        codes: New code for each cell.\n\
-        \        code_is_stale: If True, code was not executed on backend (output\
-        \ may not match)."
+      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
+        \n    Attributes:\n        cell_ids: Cells to update.\n        codes: New\
+        \ code for each cell.\n        code_is_stale: If True, code was not executed\
+        \ on backend (output may not match).\n        names: Cell names for each cell\
+        \ (optional, for file reload).\n        configs: Cell configs for each cell\
+        \ (optional, for file reload)."
       properties:
         cell_ids:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         code_is_stale:
           type: boolean
         codes:
+          items:
+            type: string
+          type: array
+        configs:
+          default: []
+          items:
+            $ref: '#/components/schemas/CellConfig'
+          type: array
+        names:
+          default: []
           items:
             type: string
           type: array
@@ -4719,7 +4777,7 @@ components:
       properties:
         cell_ids:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         op:
           enum:
@@ -4975,13 +5033,13 @@ components:
       properties:
         declared_by:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         name:
           type: string
         used_by:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
       required:
       - name
@@ -4989,6 +5047,8 @@ components:
       - used_by
       title: VariableDeclarationNotification
       type: object
+    VariableName:
+      type: string
     VariableValue:
       description: "Variable value and type for variables panel.\n\n    Attributes:\n\
         \        name: Variable name.\n        value: String representation of value.\n\
@@ -5057,6 +5117,8 @@ components:
       required: []
       title: VenvConfig
       type: object
+    WidgetModelId:
+      type: string
     WorkspaceFilesRequest:
       properties:
         includeMarkdown:
@@ -5136,7 +5198,6 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.20.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5831,6 +5892,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Delete a cell
+  /api/kernel/focus_cell:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FocusCellRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Focus a cell in kiosk-mode consumers
   /api/kernel/format:
     post:
       requestBody:
