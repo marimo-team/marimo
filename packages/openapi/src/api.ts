@@ -6186,7 +6186,8 @@ export interface components {
         | components["schemas"]["SetName"]
         | components["schemas"]["SetConfig"]
       )[];
-      source: string;
+      /** @enum {unknown} */
+      source: "frontend" | "kernel";
       /** @default null */
       version?: number | null;
     };

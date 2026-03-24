@@ -4864,7 +4864,9 @@ components:
               propertyName: type
           type: array
         source:
-          type: string
+          enum:
+          - frontend
+          - kernel
         version:
           anyOf:
           - type: integer
