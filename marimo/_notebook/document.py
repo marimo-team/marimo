@@ -10,21 +10,19 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
 
+import msgspec
 from loro import LoroDoc, LoroText
 from msgspec.structs import replace as structs_replace
 
-from marimo._notebook._loro import create_doc, create_text
-
-import msgspec
-
 from marimo._ast.cell import CellConfig
+from marimo._notebook._loro import create_doc, create_text
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -52,20 +50,15 @@ class NotebookCell(msgspec.Struct, frozen=True):
     config: CellConfig
 
 
-class CellMeta:
-    """Mutable metadata for a cell.  Owned by the document internally.
+class CellMeta(msgspec.Struct):
+    """Mutable metadata for a cell. Owned by the document internally.
 
     Does *not* hold code — that lives in the ``LoroDoc``.
     """
 
-    __slots__ = ("id", "name", "config")
-
-    def __init__(
-        self, id: CellId_t, name: str, config: CellConfig
-    ) -> None:
-        self.id = id
-        self.name = name
-        self.config = config
+    id: CellId_t
+    name: str
+    config: CellConfig
 
 
 class NotebookDocument:
@@ -78,8 +71,11 @@ class NotebookDocument:
     Usage::
 
         from loro import LoroDoc
+
         doc = NotebookDocument(LoroDoc())
-        doc.add_cell(CellId_t("a"), code="x = 1", name="__", config=CellConfig())
+        doc.add_cell(
+            CellId_t("a"), code="x = 1", name="__", config=CellConfig()
+        )
         tx = Transaction(
             changes=(SetCode(CellId_t("a"), "x = 2"),), source="kernel"
         )
@@ -192,6 +188,11 @@ class NotebookDocument:
 
         for change in tx.changes:
             self._apply_change(change)
+
+        # Commit all Loro mutations from this transaction as a single
+        # batch.  This triggers one ``subscribe_local_update`` callback
+        # so RTC clients receive one update per transaction.
+        self._loro_doc.commit()
 
         self._version += 1
         return structs_replace(tx, version=self._version)
@@ -309,8 +310,8 @@ class NotebookDocument:
     def __repr__(self) -> str:
         lines = [f"NotebookDocument({len(self._cell_metas)} cells):"]
         for i, m in enumerate(self._cell_metas):
-            code_preview = self._get_loro_text(m.id).to_string()[:40].replace(
-                "\n", "\\n"
+            code_preview = (
+                self._get_loro_text(m.id).to_string()[:40].replace("\n", "\\n")
             )
             lines.append(f"  {i}: {m.id} {code_preview!r}")
         return "\n".join(lines)
