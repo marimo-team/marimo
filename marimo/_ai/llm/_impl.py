@@ -542,16 +542,14 @@ class bedrock(ChatModel):
     """
     AWS Bedrock ChatModel
 
-    Uses the boto3 Bedrock Converse API directly.
-
     Args:
         model: The model ID to use.
             Format: [<cross-region>.]<provider>.<model> (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
         system_message: The system message to use
         region_name: The AWS region to use (e.g., "us-east-1")
         profile_name: The AWS profile to use for credentials (optional)
-        aws_access_key_id: AWS access key ID (optional)
-        aws_secret_access_key: AWS secret access key (optional)
+        credentials: AWS credentials (optional)
+            Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
             If not provided, credentials will be retrieved from the environment
             or the AWS configuration files.
     """
@@ -563,20 +561,31 @@ class bedrock(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         region_name: str = "us-east-1",
         profile_name: Optional[str] = None,
+        credentials: Optional[dict[str, str]] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
     ):
-        # Strip the "bedrock/" prefix if present (legacy litellm convention)
-        if model.startswith("bedrock/"):
-            model = model[len("bedrock/") :]
+        if not model.startswith("bedrock/"):
+            model = f"bedrock/{model}"
         self.model = model
+        self._model_id = model[len("bedrock/") :]
         self.system_message = system_message
         self.region_name = region_name
         self.profile_name = profile_name
+        if credentials:
+            aws_access_key_id = credentials.get(
+                "aws_access_key_id", aws_access_key_id
+            )
+            aws_secret_access_key = credentials.get(
+                "aws_secret_access_key", aws_secret_access_key
+            )
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
 
     def _create_client(self) -> Any:
+        DependencyManager.boto3.require(
+            "bedrock chat model requires boto3. `pip install boto3`"
+        )
         import boto3  # type: ignore[import-not-found]
 
         session_kwargs: dict[str, Any] = {}
@@ -602,7 +611,7 @@ class bedrock(ChatModel):
             )
 
         params: dict[str, Any] = {
-            "modelId": self.model,
+            "modelId": self._model_id,
             "messages": converse_messages,
             "system": [{"text": self.system_message}],
         }
@@ -633,10 +642,6 @@ class bedrock(ChatModel):
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
-        DependencyManager.boto3.require(
-            "bedrock chat model requires boto3. `pip install boto3`"
-        )
-
         client = self._create_client()
         params = self._build_converse_params(messages, config)
 

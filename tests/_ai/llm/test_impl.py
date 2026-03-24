@@ -1032,17 +1032,17 @@ class TestBedrock:
             region_name="us-east-1",
         )
 
-        assert model.model == "anthropic.claude-3-sonnet-20240229"
+        assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
         assert model.system_message == "Test system message"
         assert model.region_name == "us-east-1"
         assert model.profile_name is None
         assert model.aws_access_key_id is None
         assert model.aws_secret_access_key is None
 
-    def test_init_strips_bedrock_prefix(self):
-        """Test that the bedrock/ prefix is stripped (legacy litellm convention)"""
+    def test_init_with_bedrock_prefix(self):
+        """Test that the bedrock/ prefix is accepted and preserved"""
         model = bedrock("bedrock/anthropic.claude-3-sonnet-20240229")
-        assert model.model == "anthropic.claude-3-sonnet-20240229"
+        assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
 
     def test_init_with_credentials(self):
         """Test initialization with explicit credentials"""
