@@ -5,6 +5,7 @@ import functools
 import threading
 from typing import Any
 
+from marimo._messaging._async_task_context import _asyncio_task_cell_id
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._messaging.notification_utils import broadcast_notification
@@ -41,11 +42,20 @@ def print_override(*args: Any, **kwargs: Any) -> None:
         return
 
     execution_context = ctx.execution_context
-    if execution_context is None:
+    # Prefer the execution_context's cell_id, but fall back to the
+    # asyncio task's cell_id if the execution_context is None.
+    # This handles the case where an async task created via create_task()
+    # calls print after the execution context for the creating cell
+    # has been cleared.
+    cell_id: str | None = None
+    if execution_context is not None:
+        cell_id = execution_context.cell_id
+    else:
+        cell_id = _asyncio_task_cell_id.get()
+
+    if cell_id is None:
         _original_print(*args, **kwargs)
         return
-
-    cell_id = execution_context.cell_id
 
     sep = kwargs.get("sep", " ")
     end = kwargs.get("end", "\n")

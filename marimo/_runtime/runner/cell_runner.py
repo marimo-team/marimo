@@ -44,6 +44,7 @@ from marimo._runtime.runner.hook_context import (
     ExceptionOrError,
     ExecutionContextManager,
 )
+from marimo._messaging._async_task_context import _asyncio_task_cell_id
 from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,
@@ -471,12 +472,22 @@ class Runner:
         run_result = None
         try:
             if cell.is_coroutine():
+                # Propagate cell_id to any asyncio tasks created via create_task()
+                # inside this async cell. This ensures that print() calls inside
+                # those tasks are routed to the correct cell's output.
+                async def run_cell_with_context() -> Any:
+                    token = _asyncio_task_cell_id.set(cell_id)
+                    try:
+                        return await self._executor.execute_cell_async(
+                            cell,
+                            self.glbls,
+                            self.graph,
+                        )
+                    finally:
+                        _asyncio_task_cell_id.reset(token)
+
                 return_value_future = asyncio.ensure_future(
-                    self._executor.execute_cell_async(
-                        cell,
-                        self.glbls,
-                        self.graph,
-                    )
+                    run_cell_with_context()
                 )
                 if threading.current_thread() == threading.main_thread():
                     # edit mode: need to handle user interrupts
