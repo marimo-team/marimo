@@ -382,24 +382,26 @@ const SchemaList: React.FC<{
     if (schemas.length === 0 && engineName && !schemasRequested) {
       setSchemasRequested(true);
       setSchemasLoading(true);
-      const previewSchemaList = await PreviewSQLSchemaList.request({
-        engine: engineName,
-        database: databaseName,
-      });
-
-      if (!previewSchemaList?.schemas) {
-        setSchemasLoading(false);
-        throw new Error("No schemas available");
-      }
-
-      addSchemaList({
-        schemas: previewSchemaList.schemas,
-        sqlSchemaContext: {
+      try {
+        const previewSchemaList = await PreviewSQLSchemaList.request({
           engine: engineName,
           database: databaseName,
-        },
-      });
-      setSchemasLoading(false);
+        });
+
+        if (!previewSchemaList?.schemas) {
+          throw new Error("No schemas available");
+        }
+
+        addSchemaList({
+          schemas: previewSchemaList.schemas,
+          sqlSchemaContext: {
+            engine: engineName,
+            database: databaseName,
+          },
+        });
+      } finally {
+        setSchemasLoading(false);
+      }
     }
   }, [schemas.length, engineName, databaseName, schemasRequested]);
 
