@@ -306,8 +306,13 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     with caplog.at_level("WARNING"):
         from marimo import _loggers
 
-        _loggers.marimo_logger().propagate = True
-        config = manager.get_config()
+        logger = _loggers.marimo_logger()
+        old_propagate = logger.propagate
+        try:
+            logger.propagate = True
+            config = manager.get_config()
+        finally:
+            logger.propagate = old_propagate
 
     # auto_instantiate should be stripped out
     assert "auto_instantiate" not in config.get("runtime", {})
