@@ -96,15 +96,24 @@ class OSFileSystem(FileSystem):
         contents: str | None = None,
     ) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
+        is_base64 = False
         if file_info.is_directory:
             actual_contents = None
         elif contents is not None:
             actual_contents = contents
         else:
             actual_contents = self.open_file(path, encoding=encoding)
+            if isinstance(actual_contents, bytes):
+                actual_contents = base64.b64encode(
+                    actual_contents
+                ).decode("utf-8")
+                is_base64 = True
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
-            file=file_info, contents=actual_contents, mime_type=mime_type
+            file=file_info,
+            contents=actual_contents,
+            mime_type=mime_type,
+            is_base64=is_base64,
         )
 
     def _is_marimo_file(self, path: str) -> bool:
@@ -116,13 +125,14 @@ class OSFileSystem(FileSystem):
 
         return is_marimo_app(path)
 
-    def open_file(self, path: str, encoding: str | None = None) -> str:
+    def open_file(
+        self, path: str, encoding: str | None = None
+    ) -> str | bytes:
         file_path = Path(path)
         try:
             return file_path.read_text(encoding=encoding)
         except UnicodeDecodeError:
-            # If its a UnicodeDecodeError, try as bytes and convert to base64
-            return base64.b64encode(file_path.read_bytes()).decode("utf-8")
+            return file_path.read_bytes()
 
     def create_file_or_directory(
         self,

@@ -65,6 +65,7 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob } from "@/utils/download";
+import { type Base64String, base64ToUint8Array } from "@/utils/json/base64";
 import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
@@ -650,8 +651,22 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             <DropdownMenuItem
               onSelect={async () => {
                 const details = await sendFileDetails({ path: node.data.path });
-                const contents = details.contents || "";
-                downloadBlob(new Blob([contents]), node.data.name);
+                if (details.isBase64 && details.contents) {
+                  const bytes = base64ToUint8Array(
+                    details.contents as Base64String,
+                  );
+                  downloadBlob(
+                    new Blob([bytes], {
+                      type: details.mimeType || "application/octet-stream",
+                    }),
+                    node.data.name,
+                  );
+                } else {
+                  downloadBlob(
+                    new Blob([details.contents || ""]),
+                    node.data.name,
+                  );
+                }
               }}
             >
               <DownloadIcon className={ic} />

@@ -23,7 +23,11 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob, downloadByURL } from "@/utils/download";
-import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
+import {
+  type Base64String,
+  base64ToDataURL,
+  base64ToUint8Array,
+} from "@/utils/json/base64";
 import { FilePreviewHeader } from "./file-header";
 import {
   FileContentRenderer,
@@ -124,6 +128,12 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     if (isMediaMime(mimeType)) {
       const dataURL = base64ToDataURL(data.contents as Base64String, mimeType);
       downloadByURL(dataURL, data.file.name);
+      return;
+    }
+
+    if (data.isBase64 && data.contents) {
+      const bytes = base64ToUint8Array(data.contents as Base64String);
+      downloadBlob(new Blob([bytes], { type: mimeType }), data.file.name);
       return;
     }
 

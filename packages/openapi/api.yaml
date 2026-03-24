@@ -1646,6 +1646,9 @@ components:
           default: null
         file:
           $ref: '#/components/schemas/FileInfo'
+        isBase64:
+          default: false
+          type: boolean
         mimeType:
           anyOf:
           - type: string
