@@ -11,6 +11,8 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Optional
 
+from marimo._utils.assert_never import assert_never
+
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
@@ -192,7 +194,7 @@ class NotebookDocument:
                 else cell.config.hide_code,
             )
         else:
-            raise TypeError(f"Unknown op type: {type(op)!r}")
+            assert_never(op)
 
     # ------------------------------------------------------------------
     # Helpers
