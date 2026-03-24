@@ -1848,6 +1848,56 @@ def test_cell_search_df_styles_sorted(df: Any):
     }
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_cell_styles_and_hover_texts_sorted_desc_by_non_index_column() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "Name": [f"row-{i}" for i in range(10)],
+            "Score": [10, 1, 9, 2, 8, 3, 7, 4, 6, 5],
+        }
+    )
+
+    def style_cell(_row: str, col: str, value: Any) -> dict[str, Any]:
+        if col != "Score":
+            return {}
+        return {"backgroundColor": "green"} if float(value) >= 6 else {}
+
+    def hover_cell(_row: str, col: str, value: Any) -> str:
+        return f"{col}={value}"
+
+    table = ui.table(df, style_cell=style_cell, hover_template=hover_cell)
+    page = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Score", descending=True)],
+        )
+    )
+
+    visible_rows = json.loads(page.data)
+    visible_row_ids = {str(row[INDEX_COLUMN_NAME]) for row in visible_rows}
+
+    assert page.cell_styles is not None
+    assert page.cell_hover_texts is not None
+    assert set(page.cell_styles.keys()) == visible_row_ids
+    assert set(page.cell_hover_texts.keys()) == visible_row_ids
+
+    for row in visible_rows:
+        row_id = str(row[INDEX_COLUMN_NAME])
+        score = float(row["Score"])
+        expected_style = {"backgroundColor": "green"} if score >= 6 else {}
+        assert page.cell_styles[row_id]["Score"] == expected_style
+        assert (
+            page.cell_hover_texts[row_id]["Score"]
+            == f"Score={row['Score']}"
+        )
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes(

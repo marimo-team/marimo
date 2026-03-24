@@ -1249,6 +1249,8 @@ class table(
         if self._style_cell is None:
             return None
 
+        del descending
+
         def do_style_cell(row: str, col: str) -> dict[str, Any]:
             selected_cells = self._searched_manager.select_cells(
                 [TableCoordinate(row_id=row, column_name=col)]
@@ -1268,10 +1270,16 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
-            if descending and total_rows != "too_many":
-                row_ids = range(
-                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
-                )
+
+            if response.all_rows and self._has_stable_row_id:
+                try:
+                    page = self._searched_manager.take(take, skip)
+                    row_ids = [
+                        int(v)
+                        for v in page.data[INDEX_COLUMN_NAME].to_list()
+                    ]
+                except Exception:
+                    row_ids = range(skip, skip + take)
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1290,6 +1298,8 @@ class table(
         """Calculate hover text for cells in the table (plain strings or None)."""
         if self._hover_cell is None:
             return None
+
+        del descending
 
         def do_hover_cell(row: str, col: str) -> Optional[str]:
             selected_cells = self._searched_manager.select_cells(
@@ -1318,10 +1328,16 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
-            if descending and total_rows != "too_many":
-                row_ids = range(
-                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
-                )
+
+            if response.all_rows and self._has_stable_row_id:
+                try:
+                    page = self._searched_manager.take(take, skip)
+                    row_ids = [
+                        int(v)
+                        for v in page.data[INDEX_COLUMN_NAME].to_list()
+                    ]
+                except Exception:
+                    row_ids = range(skip, skip + take)
         else:
             row_ids = response.row_ids[skip : skip + take]
 
