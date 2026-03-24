@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import msgspec
 
@@ -102,5 +102,5 @@ class Transaction(msgspec.Struct, frozen=True, rename="camel"):
     """
 
     ops: tuple[Op, ...]
-    source: str
+    source: Literal["frontend", "kernel"]
     version: Optional[int] = None
