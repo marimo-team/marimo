@@ -8,8 +8,8 @@ import {
   Input,
   OnBlurredInput,
 } from "../../components/ui/input";
-import { cn } from "../../utils/cn";
 import { RANDOM_ID_ATTR } from "../../core/dom/ui-element-constants";
+import { cn } from "../../utils/cn";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 
