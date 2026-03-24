@@ -54,6 +54,7 @@ from marimo._plugins.ui._impl.utils.dataframe import (
     ListOrTuple,
     TableData,
     download_as,
+    get_bound_name,
 )
 from marimo._plugins.validators import (
     validate_no_integer_columns,
@@ -873,16 +874,7 @@ class table(
             )
 
         if isinstance(manager_candidate, TableManager):
-            bound_filename: str | None = None
-            try:
-                from marimo._runtime.context import get_context
-
-                ctx = get_context()
-                bound = sorted(ctx.ui_element_registry.bound_names(self._id))
-                if bound:
-                    bound_filename = bound[0]
-            except Exception:
-                LOGGER.debug("Error getting bound names for download filename")
+            bound_filename = get_bound_name(self._id)
 
             url, filename = download_as(
                 manager_candidate,

@@ -22,6 +22,28 @@ LOGGER = _loggers.marimo_logger()
 DEFAULT_CSV_ENCODING = "utf-8"
 
 
+def get_bound_name(element_id: str) -> str | None:
+    """Get the bound variable name for a UI element.
+
+    Looks up the element's bound names from the UI element registry
+    at runtime. Returns the first (alphabetically sorted) bound name,
+    or None if not found.
+
+    Args:
+        element_id: The unique ID of the UI element.
+
+    Returns:
+        The bound variable name, or None if not found.
+    """
+    try:
+        ctx = get_context()
+        bound = sorted(ctx.ui_element_registry.bound_names(element_id))
+        return bound[0] if bound else None
+    except Exception:
+        LOGGER.debug("Error getting bound names for download filename")
+        return None
+
+
 def _create_download_virtual_file(
     data: Union[str, bytes, io.BytesIO],
     ext: str,
@@ -30,11 +52,19 @@ def _create_download_virtual_file(
     """Create a virtual file with a custom filename for download.
 
     Uses VirtualFileLifecycleItem for proper lifecycle management
-    to avoid virtual file leaks.
+    to avoid virtual file leaks. Each download gets a unique internal
+    filename to prevent registry key collisions and stale data.
+
+    Args:
+        data: The file content as string, bytes, or BytesIO.
+        ext: The file extension (csv, json, parquet).
+        filename: The user-facing filename (without extension).
 
     Returns:
         tuple: (url, user-facing filename)
     """
+    import secrets
+
     from marimo._runtime.virtual_file import VirtualFileLifecycleItem
 
     if isinstance(data, str):
@@ -44,7 +74,8 @@ def _create_download_virtual_file(
     else:
         buffer = data
 
-    item = VirtualFileLifecycleItem(ext=ext, buffer=buffer)
+    unique_filename = f"{filename}_{secrets.token_hex(4)}.{ext}"
+    item = VirtualFileLifecycleItem(ext=unique_filename, buffer=buffer)
     item.add_to_cell_lifecycle_registry()
 
     vfile = item.virtual_file
@@ -126,6 +157,7 @@ def download_as(
             )
             data = manager.to_csv(encoding=encoding, separator=csv_separator)
         elif ext == "json":
+            # Use strict JSON to ensure compliance with JSON spec
             data = manager.to_json(
                 encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
             )

@@ -42,7 +42,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
-from marimo._plugins.ui._impl.utils.dataframe import download_as
+from marimo._plugins.ui._impl.utils.dataframe import (
+    download_as,
+    get_bound_name,
+)
 from marimo._plugins.validators import (
     validate_no_integer_columns,
     validate_page_size,
@@ -193,6 +196,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             label="",
             args={
                 "columns": self._get_column_types(),
+                # dataframe-name is set at init time using infer_variable_name.
+                # For downloads, the actual filename comes from bound_names at
+                # download time via _download_as returning DownloadAsResponse.
                 "dataframe-name": dataframe_name,
                 "total": rows,
                 "page-size": page_size,
@@ -352,16 +358,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         df = self._value
         manager = self._get_cached_table_manager(df, self._limit)
 
-        bound_filename: str | None = None
-        try:
-            from marimo._runtime.context import get_context
-
-            ctx = get_context()
-            bound = sorted(ctx.ui_element_registry.bound_names(self._id))
-            if bound:
-                bound_filename = bound[0]
-        except Exception:
-            LOGGER.debug("Error getting bound names for download filename")
+        bound_filename = get_bound_name(self._id)
 
         url, filename = download_as(
             manager,

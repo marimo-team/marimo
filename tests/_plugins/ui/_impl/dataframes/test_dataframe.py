@@ -530,11 +530,16 @@ class TestDataframes:
             patch(
                 "marimo._runtime.virtual_file.VirtualFileLifecycleItem",
                 return_value=mock_lifecycle_item,
-            ),
+            ) as mock_vfile_item,
         ):
             result = subject._download_as(DownloadAsArgs(format="csv"))
             assert result.url == "data:text/csv;base64,YXM="
             assert result.filename == "my_dataframe"
+            mock_vfile_item.assert_called_once()
+            call_args = mock_vfile_item.call_args
+            assert "my_dataframe" in call_args.kwargs.get(
+                "ext", call_args.args[0] if call_args.args else ""
+            )
 
     @staticmethod
     @pytest.mark.parametrize(
