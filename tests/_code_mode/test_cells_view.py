@@ -27,11 +27,9 @@ def cmd(cell_id: str, code: str) -> ExecuteCellCommand:
 @contextmanager
 def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
     """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
-    doc = NotebookDocument(
-        [
-            NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
-            for cid, cell in k.graph.cells.items()
-        ]
+    doc = NotebookDocument.from_cells(
+        NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
+        for cid, cell in k.graph.cells.items()
     )
     with notebook_document_context(doc):
         yield AsyncCodeModeContext(k)
