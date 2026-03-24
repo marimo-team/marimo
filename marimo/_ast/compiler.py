@@ -437,6 +437,7 @@ def solve_source_position(
     code: str, filename: str
 ) -> Optional[SourcePosition]:
     entries = _build_source_position_map(filename)
+
     if not entries:
         return None
 

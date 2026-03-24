@@ -366,6 +366,76 @@ class TestRunModeTrace:
         assert "__marimo__cell_" not in result
         assert "test_notebook.py" in result
 
+    @staticmethod
+    async def test_run_mode_watch_invalidates_cache(
+        run_mode_kernel: MockedKernel,
+        tmp_path: Path,
+    ) -> None:
+        """Source position cache is invalidated on recompilation (--watch)."""
+        from marimo._ast.compiler import _build_source_position_map
+
+        notebook_v1 = textwrap.dedent("""\
+            import marimo
+
+            __generated_with = "0.0.0"
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+
+            if __name__ == "__main__":
+                app.run()
+        """)
+        notebook_file = tmp_path / "watch_notebook.py"
+        notebook_file.write_text(notebook_v1)
+
+        k = run_mode_kernel.k
+        k.app_metadata.filename = str(notebook_file)
+
+        # First compile — populates cache
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        cached = _build_source_position_map(str(notebook_file))
+        assert len(cached) == 1
+
+        # Simulate file change (--watch): add a second cell
+        notebook_v2 = textwrap.dedent("""\
+            import marimo
+
+            __generated_with = "0.0.0"
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+
+            @app.cell
+            def _(x):
+                y = x + 2
+                return (y,)
+
+
+            if __name__ == "__main__":
+                app.run()
+        """)
+        notebook_file.write_text(notebook_v2)
+
+        # Second compile — mutate_graph should clear cache
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = x + 2"),
+            ]
+        )
+        refreshed = _build_source_position_map(str(notebook_file))
+        assert len(refreshed) == 2
+
 
 class TestEmbedTrace:
     @staticmethod
