@@ -9,6 +9,7 @@ import {
   OnBlurredInput,
 } from "../../components/ui/input";
 import { cn } from "../../utils/cn";
+import { RANDOM_ID_ATTR } from "../../core/dom/ui-element-constants";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 
@@ -48,10 +49,12 @@ export class TextInputPlugin implements IPlugin<T, Data> {
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
-    // Force remount on cell re-run so useState resets cleanly
+    // Force remount on cell re-run so masked state resets cleanly
     const remountKey =
       props.data.kind === "password"
-        ? props.host.parentElement?.getAttribute("random-id")
+        ? props.host
+            .closest(`[${RANDOM_ID_ATTR}]`)
+            ?.getAttribute(RANDOM_ID_ATTR)
         : undefined;
     return (
       <TextComponent
@@ -70,25 +73,28 @@ interface TextComponentProps extends Data {
 }
 
 const TextComponent = (props: TextComponentProps) => {
-  const isPasswordWithValue =
+  // Before first real keystroke: show masked placeholder, suppress setValue.
+  // After first keystroke: normal password field.
+  const initiallyMasked =
     props.kind === "password" && props.passwordHasValue === true;
+  const [masked, setMasked] = useState(initiallyMasked);
+  const hasTyped = useRef(false);
 
-  // Before first edit: show masked placeholder, suppress value updates.
-  // After first edit: get out of the way entirely — normal password field.
-  const [hasInteracted, setHasInteracted] = useState(!isPasswordWithValue);
-  const hasBeenEdited = useRef(false);
-
-  const value = hasInteracted ? props.value : "";
-  const placeholder = hasInteracted ? props.placeholder : MASK_PLACEHOLDER;
-  const setValue: Setter<T> = hasInteracted
-    ? props.setValue
-    : (v) => {
-        if (!hasBeenEdited.current) {
-          return;
-        }
-        setHasInteracted(true);
+  const value = masked ? "" : props.value;
+  const placeholder = masked ? MASK_PLACEHOLDER : props.placeholder;
+  const setValue: Setter<T> = masked
+    ? (v) => {
+        if (!hasTyped.current) return;
+        setMasked(false);
         props.setValue(v);
-      };
+      }
+    : props.setValue;
+  // Capture-phase handler sets the ref synchronously before child onChange
+  const onInputCapture = masked
+    ? () => {
+        hasTyped.current = true;
+      }
+    : undefined;
 
   const [valueOnBlur, setValueOnBlur] = useState(props.value);
   const valueToValidate = valueOnBlur == null ? value : valueOnBlur;
@@ -107,14 +113,10 @@ const TextComponent = (props: TextComponentProps) => {
     </span>
   ) : null;
 
-  // Only intercept input events before first interaction
-  const maskHandlers = hasInteracted
-    ? {}
-    : {
-        onInputCapture: () => {
-          hasBeenEdited.current = true;
-        },
-      };
+  const inputClassName = cn({
+    "border-destructive": !isValid,
+    "w-full": props.fullWidth,
+  });
 
   let input: JSX.Element;
 
@@ -129,13 +131,11 @@ const TextComponent = (props: TextComponentProps) => {
         minLength={props.minLength}
         required={props.minLength != null && props.minLength > 0}
         disabled={props.disabled}
-        className={cn({
-          "border-destructive": !isValid,
-          "w-full": props.fullWidth,
-        })}
+        className={inputClassName}
         endAdornment={endAdornment}
         value={value}
         onValueChange={setValue}
+        onInputCapture={onInputCapture}
       />
     );
   } else if (typeof props.debounce === "number") {
@@ -149,15 +149,13 @@ const TextComponent = (props: TextComponentProps) => {
         minLength={props.minLength}
         required={props.minLength != null && props.minLength > 0}
         disabled={props.disabled}
-        className={cn({
-          "border-destructive": !isValid,
-          "w-full": props.fullWidth,
-        })}
+        className={inputClassName}
         endAdornment={endAdornment}
         value={value}
         onValueChange={setValue}
         onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
         delay={props.debounce}
+        onInputCapture={onInputCapture}
       />
     );
   } else {
@@ -171,21 +169,19 @@ const TextComponent = (props: TextComponentProps) => {
         minLength={props.minLength}
         required={props.minLength != null && props.minLength > 0}
         disabled={props.disabled}
-        className={cn({
-          "border-destructive": !isValid,
-          "w-full": props.fullWidth,
-        })}
+        className={inputClassName}
         endAdornment={endAdornment}
         value={value}
         onInput={(event) => setValue(event.currentTarget.value)}
         onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
+        onInputCapture={onInputCapture}
       />
     );
   }
 
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
-      <div {...maskHandlers}>{input}</div>
+      {input}
     </Labeled>
   );
 };
