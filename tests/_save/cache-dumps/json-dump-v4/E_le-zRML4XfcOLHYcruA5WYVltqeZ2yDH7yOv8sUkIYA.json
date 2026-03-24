@@ -1,0 +1,13 @@
+{
+    "defs": {
+        "value": 3
+    },
+    "hash": "le-zRML4XfcOLHYcruA5WYVltqeZ2yDH7yOv8sUkIYA",
+    "cache_type": "ExecutionPath",
+    "stateful_refs": [],
+    "hit": false,
+    "meta": {
+        "runtime": 7.390975952148438e-05,
+        "version": 4
+    }
+}

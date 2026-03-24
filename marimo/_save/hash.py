@@ -33,7 +33,7 @@ from marimo._runtime.primitives import (
 from marimo._runtime.side_effect import CellHash, SideEffect
 from marimo._runtime.state import SetFunctor, State
 from marimo._runtime.watch._path import PathState
-from marimo._save.cache import Cache, CacheType
+from marimo._save.cache import Cache, CacheType, HashMemoCleanup
 from marimo._save.encode import (
     attempt_signed_bytes,
     common_container_to_bytes,
@@ -315,10 +315,6 @@ class BlockHasher:
         # Default type, means that there are no references at all.
         cache_type: CacheType = "Pure"
 
-        # TODO: Consider memoizing the serialized contents and hashed cells,
-        # such that a parent cell's BlockHasher can be used to speed up the
-        # hashing of child.
-
         # Collect references that will be utilized for a content hash.
         content_serialization: dict[Name, bytes] = {}
         if refs:
@@ -442,6 +438,20 @@ class BlockHasher:
             cache_type=self.cache_type,
         )
 
+    def _is_memoizable(
+        self,
+        local_ref: Name,
+        value: Any,
+        ctx: RuntimeContext,
+    ) -> bool:
+        """Check if a variable's content hash can be memoized."""
+        return (
+            ctx.cache.is_memoizable(value)
+            and local_ref not in self.stateful_refs
+            and self.cell_id
+            not in self.graph.definitions.get(local_ref, set())
+        )
+
     def _apply_content_hash(
         self, content_serialization: dict[Name, bytes]
     ) -> None:
@@ -459,7 +469,7 @@ class BlockHasher:
     ) -> SerialRefs:
         self._hash = None
         refs, content_serialization, _ = (
-            self.serialize_and_dequeue_content_refs(refs, scope)
+            self.serialize_and_dequeue_content_refs(refs, scope, ctx)
         )
         # If scoped refs are present, then they are unhashable
         # and we should fallback to normal hash or fail.
@@ -483,7 +493,7 @@ class BlockHasher:
             closure -= set(content_serialization.keys()) | self.execution_refs
             unhashable_closure, relevant_serialization, _ = (
                 self.serialize_and_dequeue_content_refs(
-                    closure - unhashable, scope
+                    closure - unhashable, scope, ctx
                 )
             )
             unhashable |= unhashable_closure
@@ -647,7 +657,10 @@ class BlockHasher:
         return SerialRefs(refs, {}, stateful_refs)
 
     def serialize_and_dequeue_content_refs(
-        self, refs: set[Name], scope: dict[Name, Any]
+        self,
+        refs: set[Name],
+        scope: dict[Name, Any],
+        ctx: Optional[RuntimeContext] = None,
     ) -> SerialRefs:
         """Use hashable references to update the hash object and dequeue them.
 
@@ -666,6 +679,7 @@ class BlockHasher:
         Args:
             refs: A set of reference names unaccounted for.
             scope: A dictionary representing the current scope.
+            ctx: Optional runtime context for memoization.
 
         Returns a filtered list of remaining references that were not utilized
         in updating the hash, and a dictionary of the content serialization.
@@ -674,6 +688,7 @@ class BlockHasher:
 
         content_serialization = {}
         refs = set(refs)
+        defining_cells: set[CellId_t] = set()
         # Content addressed hash is valid if every reference is accounted for
         # and can be shown to be a primitive value.
         imports = get_imports(scope)
@@ -705,6 +720,16 @@ class BlockHasher:
                 continue
             value = scope[local_ref]
 
+            # Check memo before expensive serialization
+            if (
+                ctx is not None
+                and self._is_memoizable(local_ref, value, ctx)
+                and local_ref in ctx.cache.hash_memo
+            ):
+                content_serialization[ref] = ctx.cache.hash_memo[local_ref]
+                refs.remove(local_ref)
+                continue
+
             serial_value = None
             if is_primitive(value):
                 serial_value = primitive_to_bytes(value)
@@ -734,9 +759,31 @@ class BlockHasher:
                 continue
 
             if serial_value is not None:
-                content_serialization[ref] = serial_value
+                _hash = hashlib.new(self.hash_alg.name, usedforsecurity=False)
+                _hash.update(serial_value)
+                hash_digest = _hash.digest()
+                content_serialization[ref] = hash_digest
+                if ctx is not None and self._is_memoizable(
+                    local_ref, value, ctx
+                ):
+                    # Local ref as a key is sufficient, because values defined in
+                    # cell are not memoizable and rebinds will clean up the
+                    # cache via cell life cycle.
+                    ctx.cache.hash_memo[local_ref] = hash_digest
+                    defining_cells |= self.graph.definitions.get(
+                        local_ref, set()
+                    )
             # Fall through means that the references should be dequeued.
             refs.remove(local_ref)
+
+        # Register lifecycle cleanup — deduped, at most one per cell
+        if ctx:
+            for def_cell in defining_cells:
+                ctx.cell_lifecycle_registry.inject(
+                    def_cell,
+                    HashMemoCleanup(),
+                )
+
         return SerialRefs(refs, content_serialization, set())
 
     def serialize_and_dequeue_stateful_content_refs(
@@ -780,6 +827,8 @@ class BlockHasher:
             refs, scope, ctx
         )
         # Attempt content hash again on the extracted stateful refs.
+        # Do not pass ctx — stateful values can change between cells,
+        # so memoization is unsafe here.
         refs, content_serialization, _ = (
             self.serialize_and_dequeue_content_refs(refs, scope)
         )
