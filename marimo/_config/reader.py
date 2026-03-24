@@ -42,6 +42,10 @@ def sanitize_pyproject_dict(
             else:
                 return pyproject_dict
         if current_level and key_path[-1] in current_level:
+            LOGGER.warning(
+                "%s in script metadata is ignored for security reasons",
+                ".".join(key_path),
+            )
             del current_level[key_path[-1]]
     return pyproject_dict
 
