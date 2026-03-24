@@ -10,30 +10,14 @@
  */
 
 import { debounce } from "lodash-es";
+import type { DispatchedActionOf } from "@/utils/createReducer";
 import { kioskModeAtom } from "../mode";
 import { getRequestClient } from "../network/requests";
 import type { NotebookDocumentTransactionRequest } from "../network/types";
 import { store } from "../state/jotai";
-import type { NotebookState } from "./cells";
-import type { CellId } from "./ids";
+import type { CellActions, NotebookState } from "./cells";
 
 type DocumentOp = NotebookDocumentTransactionRequest["ops"][number];
-
-/**
- * Actions the middleware intercepts. Payload types are hardcoded from
- * the notebook reducer in cells.ts. A follow-up can infer these from
- * the reducer directly once it's extracted to a named variable.
- */
-type DocumentAction =
-  | { type: "createNewCell"; payload: { cellId: CellId } }
-  | { type: "deleteCell"; payload: { cellId: CellId } }
-  | { type: "moveCell"; payload: { cellId: CellId } }
-  | { type: "sendToTop"; payload: { cellId: CellId } }
-  | { type: "sendToBottom"; payload: { cellId: CellId } }
-  | { type: "dropCellOverCell"; payload: unknown }
-  | { type: "dropCellOverColumn"; payload: unknown }
-  | { type: "updateCellCode"; payload: { cellId: CellId; code: string } }
-  | { type: "updateCellName"; payload: { cellId: CellId; name: string } };
 
 let pendingOps: DocumentOp[] = [];
 
@@ -61,9 +45,8 @@ function enqueue(op: DocumentOp) {
 export function documentTransactionMiddleware(
   _prevState: NotebookState,
   newState: NotebookState,
-  unknownAction: { type: string; payload: unknown },
+  action: DispatchedActionOf<CellActions>,
 ): void {
-  const action = unknownAction as DocumentAction;
   switch (action.type) {
     case "createNewCell": {
       const { cellId } = action.payload;

@@ -27,6 +27,13 @@ type ReducerActions<RH extends ReducerHandlers<any>> = {
     : never;
 };
 
+/** Helper for typing middleware that receives dispatched actions. */
+export type DispatchedActionOf<T> = {
+  [Key in keyof T]: T[Key] extends (payload: infer T) => any
+    ? { type: Key; payload: T }
+    : never;
+}[keyof T];
+
 export interface ReducerCreatorResult<
   State,
   RH extends ReducerHandlers<State>,
@@ -80,21 +87,20 @@ export function createReducerAndAtoms<
   State,
   RH extends ReducerHandlers<NoInfer<State>>,
 >(initialState: () => State, reducers: RH, middleware?: Middleware<State>[]) {
+  const allMiddleware = [...(middleware ?? [])];
+  const addMiddleware = (mw: Middleware<State>) => {
+    allMiddleware.push(mw);
+  };
   const { reducer, createActions } = createReducer(initialState, reducers);
 
   const reducerWithMiddleware = (state: State, action: ReducerAction<any>) => {
     try {
       const newState = reducer(state, action);
-      if (middleware) {
-        for (const mw of middleware) {
-          try {
-            mw(state, newState, action);
-          } catch (error) {
-            Logger.error(
-              `Error in middleware for action ${action.type}:`,
-              error,
-            );
-          }
+      for (const mw of allMiddleware) {
+        try {
+          mw(state, newState, action);
+        } catch (error) {
+          Logger.error(`Error in middleware for action ${action.type}:`, error);
         }
       }
       return newState;

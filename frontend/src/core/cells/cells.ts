@@ -173,10 +173,9 @@ export interface CreateNewCellAction {
 /**
  * Actions and reducer for the notebook state.
  */
-// TODO: remove biome-ignore after review
-// biome-ignore format: adding middleware arg changes indentation of entire reducer block
 const {
   reducer,
+  addMiddleware,
   createActions,
   useActions,
   valueAtom: notebookAtom,
@@ -1421,7 +1420,12 @@ const {
       scrollKey: SETUP_CELL_ID,
     };
   },
-}, [documentTransactionMiddleware]);
+});
+
+// We apply the middleware here (rather than inline in createReducerAndAtoms)
+// so that the document transaction middleware can import CellActions and
+// strictly type the dispatched actions without creating a circular dependency.
+addMiddleware(documentTransactionMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
