@@ -108,8 +108,16 @@ export function createReducerAndAtoms<
   // map of SetAtom => Actions
   const actionsMap = new WeakMap();
 
-  function useActions(): ReducerActions<RH> {
+  function useActions(
+    options: { skipMiddleware?: boolean } = {},
+  ): ReducerActions<RH> {
     const setState = useSetAtom(valueAtom);
+
+    if (options.skipMiddleware === true) {
+      return createActions((action: ReducerAction<any>) => {
+        setState((state: State) => reducer(state, action));
+      });
+    }
 
     if (!actionsMap.has(setState)) {
       actionsMap.set(
