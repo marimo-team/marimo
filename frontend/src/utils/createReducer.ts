@@ -29,10 +29,10 @@ type ReducerActions<RH extends ReducerHandlers<any>> = {
 
 /** Helper for typing middleware that receives dispatched actions. */
 export type DispatchedActionOf<T> = {
-  [Key in keyof T]: T[Key] extends (payload: infer T) => any
-    ? { type: Key; payload: T }
+  [Key in keyof T]: T[Key] extends (payload: infer P) => any
+    ? { type: Key; payload: P }
     : never;
-}[keyof T];
+}[keyof T & string];
 
 export interface ReducerCreatorResult<
   State,
@@ -140,6 +140,7 @@ export function createReducerAndAtoms<
 
   return {
     reducer: reducerWithMiddleware,
+    addMiddleware,
     createActions,
     valueAtom,
     useActions,

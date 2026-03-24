@@ -4,7 +4,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
-import { applyTransactionOps } from "@/core/cells/apply-transaction";
+import { applyTransactionOps } from "@/core/cells/document-ops";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import type {

@@ -29,7 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { documentTransactionMiddleware } from "./document-transaction-middleware";
+import { documentTransactionMiddleware } from "./document-ops";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -1425,6 +1425,7 @@ const {
 // We apply the middleware here (rather than inline in createReducerAndAtoms)
 // so that the document transaction middleware can import CellActions and
 // strictly type the dispatched actions without creating a circular dependency.
+// @ts-expect-error - TODO: We should have better types for the middleware that are strict
 addMiddleware(documentTransactionMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
