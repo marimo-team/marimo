@@ -388,12 +388,8 @@ const SchemaList: React.FC<{
           database: databaseName,
         });
 
-        if (!previewSchemaList?.schemas) {
-          throw new Error("No schemas available");
-        }
-
         addSchemaList({
-          schemas: previewSchemaList.schemas,
+          schemas: previewSchemaList.schemas ?? [],
           sqlSchemaContext: {
             engine: engineName,
             database: databaseName,
