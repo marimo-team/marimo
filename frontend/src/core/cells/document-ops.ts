@@ -237,9 +237,7 @@ export function toDocumentOps(
           cellId: cellId,
           ...(config.hide_code != null && { hideCode: config.hide_code }),
           ...(config.disabled != null && { disabled: config.disabled }),
-          ...(config.column !== undefined && {
-            column: config.column ?? null,
-          }),
+          ...(config.column != null && { column: config.column }),
         },
       ];
     }
