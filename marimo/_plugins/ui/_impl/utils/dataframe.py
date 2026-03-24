@@ -16,6 +16,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._types.ids import UIElementId
 
 LOGGER = _loggers.marimo_logger()
 
@@ -37,7 +38,9 @@ def get_bound_name(element_id: str) -> str | None:
     """
     try:
         ctx = get_context()
-        bound = sorted(ctx.ui_element_registry.bound_names(element_id))
+        bound = sorted(
+            ctx.ui_element_registry.bound_names(UIElementId(element_id))
+        )
         return bound[0] if bound else None
     except Exception:
         LOGGER.debug("Error getting bound names for download filename")
