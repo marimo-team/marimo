@@ -561,100 +561,104 @@ class bedrock(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         region_name: str = "us-east-1",
         profile_name: Optional[str] = None,
+        credentials: Optional[dict[str, str]] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
     ):
         if not model.startswith("bedrock/"):
             model = f"bedrock/{model}"
         self.model = model
+        self._model_id = model[len("bedrock/") :]
         self.system_message = system_message
         self.region_name = region_name
         self.profile_name = profile_name
+        if credentials:
+            aws_access_key_id = credentials.get(
+                "aws_access_key_id", aws_access_key_id
+            )
+            aws_secret_access_key = credentials.get(
+                "aws_secret_access_key", aws_secret_access_key
+            )
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
 
-    def _setup_credentials(self) -> None:
-        # Use profile name if provided, otherwise use API key
+    def _create_client(self) -> Any:
+        DependencyManager.boto3.require(
+            "bedrock chat model requires boto3. `pip install boto3`"
+        )
+        import boto3
+
+        session_kwargs: dict[str, Any] = {}
         if self.profile_name:
-            os.environ["AWS_PROFILE"] = self.profile_name
-        elif self.aws_access_key_id and self.aws_secret_access_key:
-            os.environ["AWS_ACCESS_KEY_ID"] = self.aws_access_key_id
-            os.environ["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
-        else:
-            pass  # Use default credential chain
+            session_kwargs["profile_name"] = self.profile_name
+        if self.aws_access_key_id and self.aws_secret_access_key:
+            session_kwargs["aws_access_key_id"] = self.aws_access_key_id
+            session_kwargs["aws_secret_access_key"] = (
+                self.aws_secret_access_key
+            )
+
+        session = boto3.Session(**session_kwargs)
+        return session.client("bedrock-runtime", region_name=self.region_name)
+
+    def _build_converse_params(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> dict[str, Any]:
+        converse_messages: list[dict[str, Any]] = []
+        for msg in messages:
+            content = str(msg.content) if msg.content else ""
+            converse_messages.append(
+                {"role": msg.role, "content": [{"text": content}]}
+            )
+
+        params: dict[str, Any] = {
+            "modelId": self._model_id,
+            "messages": converse_messages,
+            "system": [{"text": self.system_message}],
+        }
+
+        inference_config: dict[str, Any] = {}
+        if config.max_tokens is not None:
+            inference_config["maxTokens"] = config.max_tokens
+        if config.temperature is not None:
+            inference_config["temperature"] = config.temperature
+        if config.top_p is not None:
+            inference_config["topP"] = config.top_p
+        if inference_config:
+            params["inferenceConfig"] = inference_config
+
+        return params
 
     def _stream_response(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, client: Any, params: dict[str, Any]
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - yields delta chunks.
-
-        Each yield is a new piece of content (delta) to be accumulated
-        by the consumer. This follows the standard AWS Bedrock streaming pattern.
-        """
-        from litellm import completion as litellm_completion
-
-        response = litellm_completion(
-            model=self.model,
-            messages=convert_to_openai_messages(
-                [ChatMessage(role="system", content=self.system_message)]
-                + messages
-            ),
-            max_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            frequency_penalty=config.frequency_penalty,
-            presence_penalty=config.presence_penalty,
-            stream=True,
-        )
-
-        for chunk in response:
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    yield delta.content
+        """Stream response using the Bedrock Converse Stream API."""
+        response = client.converse_stream(**params)
+        for event in response["stream"]:
+            if "contentBlockDelta" in event:
+                delta = event["contentBlockDelta"].get("delta", {})
+                if "text" in delta:
+                    yield delta["text"]
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
-        DependencyManager.boto3.require(
-            "bedrock chat model requires boto3. `pip install boto3`"
-        )
-        DependencyManager.litellm.require(
-            "bedrock chat model requires litellm. `pip install litellm`"
-        )
-        self._setup_credentials()
+        client = self._create_client()
+        params = self._build_converse_params(messages, config)
 
         try:
-            # Try streaming first, fall back to non-streaming on error
             try:
-                return self._stream_response(messages, config)
+                return self._stream_response(client, params)
             except Exception as stream_error:
-                # Fall back to non-streaming if streaming fails
                 if _looks_like_streaming_error(stream_error):
-                    from litellm import completion as litellm_completion
-
-                    response = litellm_completion(
-                        model=self.model,
-                        messages=convert_to_openai_messages(
-                            [
-                                ChatMessage(
-                                    role="system",
-                                    content=self.system_message,
-                                )
-                            ]
-                            + messages
-                        ),
-                        max_tokens=config.max_tokens,
-                        temperature=config.temperature,
-                        top_p=config.top_p,
-                        frequency_penalty=config.frequency_penalty,
-                        presence_penalty=config.presence_penalty,
-                        stream=False,
-                    )
-                    return response.choices[0].message.content or ""
+                    response = client.converse(**params)
+                    output = response.get("output", {})
+                    message = output.get("message", {})
+                    content = message.get("content", [])
+                    if content and "text" in content[0]:
+                        return content[0]["text"]
+                    return ""
                 raise
         except Exception as e:
-            # Handle common AWS exceptions with helpful messages
             error_msg = str(e)
 
             if "AccessDenied" in error_msg:
@@ -676,7 +680,6 @@ class bedrock(ChatModel):
                     "Check that the model ID is correct and available in this region."
                 ) from e
             else:
-                # Re-raise original exception if not handled
                 raise
 
 

@@ -1189,6 +1189,14 @@ def run(
                 "pyzmq is required when running a gallery with --sandbox.",
                 "marimo[sandbox]",
             )
+    elif is_multi:
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required for running multiple notebooks.",
+                "pyzmq",
+            )
 
     file_router = _create_run_file_router(validated_paths, watch=watch)
 

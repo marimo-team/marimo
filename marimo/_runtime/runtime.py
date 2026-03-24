@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
-from marimo._ast.compiler import compile_cell
+from marimo._ast.compiler import _build_source_position_map, compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
@@ -158,6 +158,7 @@ from marimo._runtime.context.kernel_context import (
     initialize_kernel_context,
 )
 from marimo._runtime.context.types import teardown_context
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
@@ -850,10 +851,17 @@ class Kernel:
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
+            # In run mode or debugpy, pass the notebook filename so
+            # tracebacks reference the real file instead of synthetic
+            # cell files.
+            filename = None
+            if get_mode() == "run" or os.environ.get("DEBUGPY_RUNNING"):
+                filename = self.app_metadata.filename
             cell = compile_cell(
                 code,
                 cell_id=cell_id,
                 carried_imports=carried_imports,
+                filename=filename,
             )
         except Exception as e:
             cell = None
@@ -1163,6 +1171,11 @@ class Kernel:
         """
         LOGGER.debug("Mutating graph.")
         LOGGER.debug("Current set of errors: %s", self.errors)
+        # Invalidate the cached notebook→source position map so that
+        # recompiled cells pick up the current file contents. This
+        # matters for debugpy (edit mode) and `marimo run --watch`
+        # where cells are recompiled after the file changes on disk.
+        _build_source_position_map.cache_clear()
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
         cells_starting_stale = (
@@ -3568,22 +3581,17 @@ def launch_kernel(
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
     async def control_loop(kernel: Kernel) -> None:
-        from queue import Empty
+        loop = asyncio.get_running_loop()
 
         while True:
             try:
-                TIMEOUT_S = 0.1
-                # 100ms timeout to avoid blocking
-                # this does not mean ControlRequest will be blocked for 100ms
-                # but rather background tasks may not start until 100ms have passed
-                request: CommandMessage | None = control_queue.get(
-                    timeout=TIMEOUT_S
+                # Offload the blocking queue.get() to a thread so the event
+                # loop stays free to service background asyncio tasks (e.g.
+                # user-created tasks via create_task / ensure_future).
+                request: CommandMessage | None = await loop.run_in_executor(
+                    None,
+                    control_queue.get,
                 )
-            except Empty:
-                # Yield control back to the event loop to give
-                # other tasks a chance to run
-                await asyncio.sleep(0)
-                continue
             except Exception as e:
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
@@ -3611,10 +3619,12 @@ def launch_kernel(
                         type(request).__name__,
                     )
 
-    # The control loop is asynchronous only because we allow user code to use
-    # top-level await; nothing else is awaited. Don't introduce async
-    # primitives anywhere else in the runtime unless there is a *very* good
-    # reason; prefer using threads (for performance and clarity).
+    # The control loop is asynchronous so that (a) user code can use
+    # top-level await, and (b) background asyncio tasks created by user code
+    # (via create_task / ensure_future) are not starved by a blocking
+    # queue.get().  The queue read is offloaded to a thread via
+    # run_in_executor; avoid adding further async primitives elsewhere in the
+    # runtime unless there is a very good reason.
     asyncio.run(control_loop(kernel))
 
     if not use_fd_redirect:

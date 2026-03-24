@@ -1,16 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  DeferredRequestRegistry,
-  type RequestId,
-} from "../DeferredRequestRegistry";
+import { requestId } from "@/__tests__/branded";
+import { DeferredRequestRegistry } from "../DeferredRequestRegistry";
 
 vi.mock("@/utils/uuid", () => ({
   generateUUID: vi.fn().mockReturnValue("uuid"),
 }));
 
 describe("DeferredRequestRegistry", () => {
-  const REQUEST_ID = "uuid" as RequestId;
+  const REQUEST_ID = requestId("uuid");
   let makeRequestMock = vi.fn();
   let registry: DeferredRequestRegistry<unknown, unknown>;
 
@@ -26,7 +24,7 @@ describe("DeferredRequestRegistry", () => {
 
     // resolve
     registry.resolve(REQUEST_ID, "response");
-    await expect(promise).resolves.toBe("response");
+    await expect(promise).resolves.toBe(requestId("response"));
   });
 
   it("should handle request failure", async () => {

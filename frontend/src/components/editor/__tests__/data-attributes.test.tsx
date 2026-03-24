@@ -5,9 +5,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
 import { createCellRuntimeState } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
@@ -39,7 +39,7 @@ describe("Cell data attributes", () => {
     "present",
   ])("should render cell with data-cell-id and data-cell-name in %s mode", (mode) => {
     const { store, wrapper } = createTestWrapper();
-    const cellId = "test" as CellId;
+    const cid = cellId("test");
     const cellName = "test_cell";
 
     const userConfig: UserConfig = {
@@ -83,7 +83,7 @@ describe("Cell data attributes", () => {
 
     const notebook = MockNotebook.notebookState({
       cellData: {
-        [cellId]: {
+        [cid]: {
           code: "",
           name: cellName,
           edited: false,
@@ -97,7 +97,7 @@ describe("Cell data attributes", () => {
       },
     });
 
-    notebook.cellRuntime[cellId] = createCellRuntimeState({
+    notebook.cellRuntime[cid] = createCellRuntimeState({
       status: "idle",
       output: null,
       consoleOutputs: [],
@@ -117,7 +117,7 @@ describe("Cell data attributes", () => {
     const { container } = render(
       <TooltipProvider>
         <Cell
-          cellId={cellId}
+          cellId={cid}
           mode={mode as AppMode}
           canDelete={true}
           userConfig={userConfig}
@@ -131,7 +131,7 @@ describe("Cell data attributes", () => {
       { wrapper },
     );
 
-    const cellElement = container.querySelector(`[data-cell-id="${cellId}"]`);
+    const cellElement = container.querySelector(`[data-cell-id="${cid}"]`);
     expect(cellElement).toBeTruthy();
     expect(cellElement?.getAttribute("data-cell-name")).toBe(cellName);
   });
@@ -139,7 +139,7 @@ describe("Cell data attributes", () => {
 
 describe("Output data attributes", () => {
   it("should render output with data-cell-role", () => {
-    const cellId = "test" as CellId;
+    const cid = cellId("test");
     const output: OutputMessage = {
       channel: "output",
       mimetype: "text/plain",
@@ -151,7 +151,7 @@ describe("Output data attributes", () => {
       <TooltipProvider>
         <OutputArea
           output={output}
-          cellId={cellId}
+          cellId={cid}
           stale={false}
           loading={false}
           allowExpand={true}

@@ -69,6 +69,10 @@ const pylspClient = once((lspConfig: LSPConfig) => {
     "W292", // No newline at end of file
     // Modules can be imported in any cell
     "E402", // Module level import not at top of file
+    // Blank line rules are not useful in marimo because cells are joined
+    // without extra blank lines, which can trigger these rules at cell boundaries
+    "E302", // Expected 2 blank lines, found 0
+    "E305", // Expected 2 blank lines after class or function definition, found 0
   ];
   const ignoredRuffRules = [
     // Even ruff documentation of this rule explains it is not useful in notebooks

@@ -18,14 +18,116 @@ const RangeSlider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
     valueMap: (sliderValue: number) => number;
+    steps?: number[];
   }
 >(({ className, valueMap, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
   const { locale } = useLocale();
 
+  const isDraggingRange = React.useRef(false);
+  const dragStartX = React.useRef(0);
+  const dragStartY = React.useRef(0);
+  const dragStartValue = React.useRef<number[]>([]);
+  const currentDragValue = React.useRef<number[]>([]);
+  const rootRef =
+    React.useRef<React.ElementRef<typeof SliderPrimitive.Root>>(null);
+  const trackRef = React.useRef<HTMLSpanElement>(null);
+  const dragTrackRect = React.useRef<DOMRect | null>(null);
+
+  const mergedRef = React.useCallback(
+    (node: React.ElementRef<typeof SliderPrimitive.Root>) => {
+      rootRef.current = node;
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    },
+    [ref],
+  );
+
+  const handleRangePointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!props.value || props.value.length !== 2) {
+      return;
+    }
+    if (props.disabled) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDraggingRange.current = true;
+    dragStartX.current = e.clientX;
+    dragStartY.current = e.clientY;
+    dragStartValue.current = [...props.value];
+    currentDragValue.current = [...props.value];
+    dragTrackRect.current = trackRef.current?.getBoundingClientRect() ?? null;
+
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleRangePointerMove = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!isDraggingRange.current) {
+      return;
+    }
+    e.stopPropagation();
+
+    const trackRect = dragTrackRect.current;
+    if (!trackRect) {
+      return;
+    }
+
+    const isVertical = props.orientation === "vertical";
+    const min = props.min ?? 0;
+    const max = props.max ?? 100;
+    const totalRange = max - min;
+
+    let delta: number;
+    if (isVertical) {
+      const trackLength = trackRect.height;
+      delta = -((e.clientY - dragStartY.current) / trackLength) * totalRange;
+    } else {
+      const trackLength = trackRect.width;
+      delta = ((e.clientX - dragStartX.current) / trackLength) * totalRange;
+    }
+
+    const [origLeft, origRight] = dragStartValue.current;
+    const rangeWidth = origRight - origLeft;
+
+    const steps = props.steps;
+    const step: number =
+      steps && steps.length > 1
+        ? Math.min(...steps.slice(1).map((s, i) => s - steps[i]))
+        : (props.step ?? 1);
+    const snappedDelta = Math.round(delta / step) * step;
+
+    const clampedDelta = Math.max(
+      min - origLeft,
+      Math.min(max - origRight, snappedDelta),
+    );
+
+    const newLeft = origLeft + clampedDelta;
+    const newRight = newLeft + rangeWidth;
+
+    currentDragValue.current = [newLeft, newRight];
+    props.onValueChange?.([newLeft, newRight]);
+  };
+
+  const handleRangePointerUp = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!isDraggingRange.current) {
+      return;
+    }
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    isDraggingRange.current = false;
+
+    if (currentDragValue.current.length === 2) {
+      props.onValueCommit?.(currentDragValue.current);
+    }
+  };
+
   return (
     <SliderPrimitive.Root
-      ref={ref}
+      ref={mergedRef}
       className={cn(
         "relative flex touch-none select-none hover:cursor-pointer",
         "data-[orientation=horizontal]:w-full data-[orientation=horizontal]:items-center",
@@ -36,6 +138,7 @@ const RangeSlider = React.forwardRef<
       {...props}
     >
       <SliderPrimitive.Track
+        ref={trackRef}
         data-testid="track"
         className={cn(
           "relative grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60",
@@ -50,7 +153,11 @@ const RangeSlider = React.forwardRef<
             "data-[orientation=horizontal]:h-full",
             "data-[orientation=vertical]:w-full",
             "data-disabled:opacity-50",
+            "hover:cursor-grab active:cursor-grabbing",
           )}
+          onPointerDown={handleRangePointerDown}
+          onPointerMove={handleRangePointerMove}
+          onPointerUp={handleRangePointerUp}
         />
       </SliderPrimitive.Track>
       <TooltipProvider>

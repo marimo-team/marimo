@@ -120,10 +120,8 @@ class BaseLspServer(LspServer):
                 and self.process.returncode != 0
             ):
                 # Process failed immediately - read stderr to diagnose
-                stderr_output = (
-                    self.process.stderr.read()
-                    if self.process.stderr
-                    else "No error output available"
+                stderr_output = await self._read_stderr_output(
+                    fallback="No error output available"
                 )
                 LOGGER.error(
                     f"{self.id} LSP server failed to start with return code {self.process.returncode}"
@@ -139,6 +137,34 @@ class BaseLspServer(LspServer):
 
             LOGGER.info(f"Started LSP {self.id} at port {self.port}")
             self._started_at = time.time()
+
+            # Wait briefly for the server port to accept connections.
+            # This avoids races where the websocket proxy connects right
+            # after startup but before the process is listening.
+            is_ready = await self._wait_until_ready()
+            if not is_ready:
+                if not self.is_running():
+                    stderr_output = await self._read_stderr_output(
+                        fallback="No error output available"
+                    )
+                    LOGGER.error(
+                        f"{self.id} LSP server exited before becoming ready."
+                    )
+                    LOGGER.error(f"Command: {' '.join(cmd)}")
+                    LOGGER.error(f"Error output: {stderr_output}")
+                    return AlertNotification(
+                        title=f"{self.id} LSP server failed to start",
+                        description=(
+                            f"The {self.id} server exited before it was ready. "
+                            f"Check {self.log_file} for details. "
+                            f"Error: {stderr_output[:200]}"
+                        ),
+                        variant="danger",
+                    )
+                LOGGER.warning(
+                    "%s LSP server did not become ready within startup timeout.",
+                    self.id,
+                )
 
             # Start health monitoring in background
             if (
@@ -157,6 +183,28 @@ class BaseLspServer(LspServer):
             self.process = None
 
         return None
+
+    async def _read_stderr_output(self, fallback: str = "") -> str:
+        process = self.process
+        if process is None or process.stderr is None:
+            return fallback
+        try:
+            return await asyncio.to_thread(process.stderr.read)
+        except Exception:
+            return fallback
+
+    async def _wait_until_ready(
+        self, timeout_seconds: float = 5.0, poll_seconds: float = 0.1
+    ) -> bool:
+        start_time = time.monotonic()
+        while (time.monotonic() - start_time) < timeout_seconds:
+            if not self.is_running():
+                return False
+            is_responsive, _ = await self.ping(timeout_ms=500)
+            if is_responsive:
+                return True
+            await asyncio.sleep(poll_seconds)
+        return False
 
     def is_running(self) -> bool:
         if self.process is None:
@@ -297,14 +345,9 @@ class BaseLspServer(LspServer):
 
             # Process has exited - check if it was expected
             if self.process and self.process.returncode is not None:
-                stderr_output = ""
-                if self.process.stderr:
-                    try:
-                        # Try to read any remaining stderr
-                        # Note: stderr might be empty if already consumed during wait()
-                        stderr_output = self.process.stderr.read()
-                    except Exception:
-                        pass
+                # Try to read any remaining stderr.
+                # Note: stderr might be empty if already consumed during wait().
+                stderr_output = await self._read_stderr_output()
 
                 LOGGER.error(
                     f"{self.id} LSP server crashed unexpectedly with exit code {self.process.returncode}. Check {self.log_file} for details."
