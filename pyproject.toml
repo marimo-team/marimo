@@ -194,7 +194,7 @@ test-optional = [
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
     # for bedrock ui chat
-    "litellm>=1.70.0",
+    "litellm>=1.70.0,<=1.82.6",
     # exporting as ipynb
     "nbformat>=5.10.4",
     "nbconvert>=7.17.0",
@@ -231,7 +231,7 @@ typecheck = [
     "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
-    "litellm>=1.70.0",
+    "litellm>=1.70.0,<=1.82.6",
     "python-dotenv>=1.0.1",
     "jupytext>=1.17.2",
     "types-Pillow>=10.2.0.20240520",
