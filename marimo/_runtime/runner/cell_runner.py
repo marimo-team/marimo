@@ -19,6 +19,7 @@ from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
+from marimo._messaging._async_task_context import _asyncio_task_cell_id
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoSQLError,
@@ -44,7 +45,6 @@ from marimo._runtime.runner.hook_context import (
     ExceptionOrError,
     ExecutionContextManager,
 )
-from marimo._messaging._async_task_context import _asyncio_task_cell_id
 from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,

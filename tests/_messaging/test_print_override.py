@@ -227,7 +227,9 @@ class TestPrintOverride:
 
                     # Should use execution_context cell_id, not the task cell_id
                     assert len(stream.operations) == 1
-                    assert stream.operations[0]["cell_id"] == "cell-from-exec-ctx"
+                    assert (
+                        stream.operations[0]["cell_id"] == "cell-from-exec-ctx"
+                    )
                     assert (
                         stream.operations[0]["console"]["data"]
                         == "Hello from asyncio!\n"
