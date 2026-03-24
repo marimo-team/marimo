@@ -291,6 +291,33 @@ def test_text() -> None:
     assert text.value == "value"
 
 
+def test_text_password_masking() -> None:
+    # Password with value: Python value is the real password
+    t = ui.text(value="secret123", kind="password")
+    assert t.value == "secret123"
+
+    # HTML should NOT contain the real password
+    assert "secret123" not in t.text
+    # data-initial-value should be empty string
+    assert "data-initial-value" in t.text
+
+    # Password-has-value arg should be set
+    assert t._component_args.get("password-has-value") is True
+
+    # Update works normally
+    t._update("new_password")
+    assert t.value == "new_password"
+
+    # Password without value: normal behavior
+    t = ui.text(kind="password")
+    assert t.value == ""
+    assert t._component_args.get("password-has-value") is None
+
+    # Non-password text: value appears in HTML normally
+    t = ui.text(value="hello")
+    assert "hello" in t.text
+
+
 def test_checkbox_init() -> None:
     assert not ui.checkbox().value
     assert ui.checkbox(value=True).value

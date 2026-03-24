@@ -753,9 +753,10 @@ class text(UIElement[str, str]):
         on_change: Optional[Callable[[str], None]] = None,
         full_width: bool = False,
     ) -> None:
+        is_password_with_value = kind == "password" and bool(value)
         super().__init__(
             component_name=text._name,
-            initial_value=value,
+            initial_value="" if is_password_with_value else value,
             label=label,
             args={
                 "placeholder": placeholder,
@@ -764,9 +765,12 @@ class text(UIElement[str, str]):
                 "full-width": full_width,
                 "disabled": disabled,
                 "debounce": debounce,
+                "password-has-value": is_password_with_value or None,
             },
             on_change=on_change,
         )
+        if is_password_with_value:
+            self._value = self._initial_value = value
 
     def _convert_value(self, value: str) -> str:
         return value
