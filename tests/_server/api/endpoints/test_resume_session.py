@@ -286,12 +286,13 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         assert result.handled
 
         data = websocket.receive_json()
-        assert data == {
-            "op": "update-cell-ids",
-            "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
-        }
-        data = websocket.receive_json()
-        assert data["op"] == "update-cell-codes"
+        assert data["op"] == "notebook-document-transaction"
+        tx = data["data"]["transaction"]
+        # Transaction should contain the new cell and reorder.
+        op_types = [op["type"] for op in tx["ops"]]
+        assert "create-cell" in op_types
+        assert "reorder-cells" in op_types
+        assert tx["source"] == "file-watch"
 
     # Resume session with new ID (simulates refresh)
     with client.websocket_connect(_create_ws_url("456")) as websocket:
@@ -304,7 +305,7 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         assert parse_raw(data["data"], KernelReadyNotification)
         messages: list[dict[str, Any]] = []
 
-        # Wait for update-cell-ids message
+        # Wait for update-cell-ids message (session replay)
         while True:
             data = websocket.receive_json()
             messages.append(data)
@@ -313,7 +314,7 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
 
         # 2 messages:
         # 1. banner
-        # 2. update-cell-ids
+        # 2. update-cell-ids (from session view replay)
         assert len(messages) == 2
         assert messages[0]["op"] == "banner"
         assert messages[1] == {

@@ -12,12 +12,21 @@ from typing import TYPE_CHECKING, Optional, Protocol
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
-from marimo._messaging.notification import (
-    ReloadNotification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
+from marimo._messaging.notebook import DocumentChange
+from marimo._messaging.notebook.changes import (
+    CreateCell,
+    DeleteCell,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    SetName,
+    Transaction,
 )
-from marimo._runtime.commands import DeleteCellCommand, SyncGraphCommand
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+    ReloadNotification,
+)
+from marimo._runtime.commands import SyncGraphCommand
 from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 from marimo._utils import async_path
@@ -68,12 +77,9 @@ class EditModeReloadStrategy(ReloadStrategy):
         self, session: Session, *, changed_cell_ids: set[CellId_t]
     ) -> None:
         """Handle reload in edit mode with optional auto-run."""
-        # Get the latest codes, cell IDs, names, and configs
         cell_manager = session.app_file_manager.app.cell_manager
-        codes = list(cell_manager.codes())
         cell_ids = list(cell_manager.cell_ids())
-        names = list(cell_manager.names())
-        configs = list(cell_manager.configs())
+        codes = list(cell_manager.codes())
 
         LOGGER.info(
             f"File changed: {session.app_file_manager.path}. "
@@ -81,68 +87,74 @@ class EditModeReloadStrategy(ReloadStrategy):
             f"changed_cell_ids: {changed_cell_ids}"
         )
 
-        # Send the updated cell IDs to the frontend
-        session.notify(
-            UpdateCellIdsNotification(cell_ids=cell_ids),
-            from_consumer_id=None,
-        )
+        # Build a transaction by diffing session.document vs new cell_manager.
+        doc = session.document
+        doc_ids = set(doc)
+        new_ids = set(cell_ids)
+        deleted = doc_ids - new_ids
 
-        # Check if we should auto-run cells based on config
+        changes: list[DocumentChange] = []
+
+        # Deletes
+        for cid in deleted:
+            changes.append(DeleteCell(cell_id=cid))
+
+        # Creates and updates
+        for cd in cell_manager.cell_data():
+            if cd.cell_id not in doc_ids:
+                changes.append(
+                    CreateCell(
+                        cell_id=cd.cell_id,
+                        code=cd.code,
+                        name=cd.name,
+                        config=cd.config,
+                    )
+                )
+            else:
+                doc_cell = doc.get_cell(cd.cell_id)
+                if cd.code != doc_cell.code:
+                    changes.append(SetCode(cell_id=cd.cell_id, code=cd.code))
+                if cd.name != doc_cell.name:
+                    changes.append(SetName(cell_id=cd.cell_id, name=cd.name))
+                if cd.config != doc_cell.config:
+                    changes.append(
+                        SetConfig(
+                            cell_id=cd.cell_id,
+                            column=cd.config.column,
+                            disabled=cd.config.disabled,
+                            hide_code=cd.config.hide_code,
+                        )
+                    )
+
+        # Reorder
+        changes.append(ReorderCells(cell_ids=tuple(cell_ids)))
+
+        # Broadcast transaction — session.notify() applies to
+        # session.document and stamps the version before forwarding.
+        if changes:
+            session.notify(
+                NotebookDocumentTransactionNotification(
+                    transaction=Transaction(
+                        changes=tuple(changes), source="file-watch"
+                    )
+                ),
+                from_consumer_id=None,
+            )
+
+        # Auto-run changed cells if configured.
         watcher_on_save = self._config_manager.get_config()["runtime"][
             "watcher_on_save"
         ]
-        should_autorun = watcher_on_save == "autorun"
-
-        # Determine deleted cells
-        deleted = {
-            cell_id for cell_id in changed_cell_ids if cell_id not in cell_ids
-        }
-
-        # Auto-run cells if configured
-        if should_autorun:
-            changed_cell_ids_list = list(changed_cell_ids - deleted)
-            cells = dict(zip(cell_ids, codes))
-
-            # Send names and configs to the frontend (SyncGraphCommand
-            # doesn't carry them)
-            if cell_ids:
-                session.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=cell_ids,
-                        codes=codes,
-                        code_is_stale=False,
-                        names=names,
-                        configs=configs,
-                    ),
-                    from_consumer_id=None,
-                )
-
+        if watcher_on_save == "autorun":
+            changed_not_deleted = list(changed_cell_ids - deleted)
             session.put_control_request(
                 SyncGraphCommand(
-                    cells=cells,
-                    run_ids=changed_cell_ids_list,
+                    cells=dict(zip(cell_ids, codes)),
+                    run_ids=changed_not_deleted,
                     delete_ids=list(deleted),
                 ),
                 from_consumer_id=None,
             )
-        else:
-            # Just send deletes and code updates
-            for to_delete in deleted:
-                session.put_control_request(
-                    DeleteCellCommand(cell_id=to_delete),
-                    from_consumer_id=None,
-                )
-            if cell_ids:
-                session.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=cell_ids,
-                        codes=codes,
-                        code_is_stale=True,
-                        names=names,
-                        configs=configs,
-                    ),
-                    from_consumer_id=None,
-                )
 
 
 class RunModeReloadStrategy:
