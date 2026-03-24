@@ -482,7 +482,7 @@ markers = [
 omit = ["marimo/_tutorials/*"]
 
 [tool.typos.default]
-extend-ignore-re = ["[0-9a-zA-Z]{43}"]
+extend-ignore-re = ["[0-9a-zA-Z_-]{43}"]
 
 [tool.typos.default.extend-words]
 wheres = "wheres"
