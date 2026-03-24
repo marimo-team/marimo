@@ -2296,7 +2296,7 @@ class Kernel:
             request: ExecuteScratchpadCommand,
         ) -> None:
             doc = (
-                NotebookDocument(list(request.notebook_cells))
+                NotebookDocument.from_cells(request.notebook_cells)
                 if request.notebook_cells is not None
                 else None
             )
