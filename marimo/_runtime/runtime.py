@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
-from marimo._ast.compiler import compile_cell
+from marimo._ast.compiler import _build_source_position_map, compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
@@ -158,6 +158,7 @@ from marimo._runtime.context.kernel_context import (
     initialize_kernel_context,
 )
 from marimo._runtime.context.types import teardown_context
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import getpass_override, input_override
 from marimo._runtime.packages.import_error_extractors import (
@@ -850,10 +851,17 @@ class Kernel:
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
         error: Optional[Error] = None
         try:
+            # In run mode or debugpy, pass the notebook filename so
+            # tracebacks reference the real file instead of synthetic
+            # cell files.
+            filename = None
+            if get_mode() == "run" or os.environ.get("DEBUGPY_RUNNING"):
+                filename = self.app_metadata.filename
             cell = compile_cell(
                 code,
                 cell_id=cell_id,
                 carried_imports=carried_imports,
+                filename=filename,
             )
         except Exception as e:
             cell = None
@@ -1163,6 +1171,11 @@ class Kernel:
         """
         LOGGER.debug("Mutating graph.")
         LOGGER.debug("Current set of errors: %s", self.errors)
+        # Invalidate the cached notebook→source position map so that
+        # recompiled cells pick up the current file contents. This
+        # matters for debugpy (edit mode) and `marimo run --watch`
+        # where cells are recompiled after the file changes on disk.
+        _build_source_position_map.cache_clear()
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
         cells_starting_stale = (
