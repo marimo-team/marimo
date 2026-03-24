@@ -230,6 +230,7 @@ typecheck = [
     "fsspec>=2026.2.0",
     "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.52.0",
     "loro>=1.5.0",
+    "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
     "python-dotenv>=1.0.1",

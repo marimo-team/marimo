@@ -586,7 +586,7 @@ class bedrock(ChatModel):
         DependencyManager.boto3.require(
             "bedrock chat model requires boto3. `pip install boto3`"
         )
-        import boto3  # type: ignore[import-not-found]
+        import boto3
 
         session_kwargs: dict[str, Any] = {}
         if self.profile_name:
