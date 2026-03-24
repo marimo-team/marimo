@@ -102,12 +102,12 @@ class OSFileSystem(FileSystem):
         elif contents is not None:
             actual_contents = contents
         else:
-            actual_contents = self.open_file(path, encoding=encoding)
-            if isinstance(actual_contents, bytes):
-                actual_contents = base64.b64encode(
-                    actual_contents
-                ).decode("utf-8")
+            raw = self.open_file(path, encoding=encoding)
+            if isinstance(raw, bytes):
+                actual_contents = base64.b64encode(raw).decode("utf-8")
                 is_base64 = True
+            else:
+                actual_contents = raw
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
             file=file_info,
