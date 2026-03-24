@@ -5664,13 +5664,12 @@ export interface components {
      *         Attributes:
      *             connection: Connection identifier.
      *             database: Database name.
-     *             schema: Schema name (optional).
+     *             schema: Schema name.
      */
     SQLMetadata: {
       connection: string;
       database: string;
-      /** @default null */
-      schema?: string | null;
+      schema: string;
       /** @enum {unknown} */
       type: "sql-metadata";
     };
@@ -5690,7 +5689,7 @@ export interface components {
       metadata: components["schemas"]["SQLDatabaseMetadata"];
       /** @enum {unknown} */
       op: "sql-schema-list-preview";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default [] */
       schemas?: components["schemas"]["Schema"][];
     };

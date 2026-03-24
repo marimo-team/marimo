@@ -3924,17 +3924,14 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name (optional)."
+        \       schema: Schema name."
       properties:
         connection:
           type: string
         database:
           type: string
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
+          type: string
         type:
           enum:
           - sql-metadata
@@ -3942,6 +3939,7 @@ components:
       - type
       - connection
       - database
+      - schema
       title: SQLMetadata
       type: object
     SQLSchemaListPreviewNotification:
@@ -3961,7 +3959,7 @@ components:
           enum:
           - sql-schema-list-preview
         request_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schemas:
           default: []
           items:

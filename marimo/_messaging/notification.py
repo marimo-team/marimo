@@ -506,12 +506,12 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
     Attributes:
         connection: Connection identifier.
         database: Database name.
-        schema: Schema name (optional).
+        schema: Schema name.
     """
 
     connection: str
     database: str
-    schema: Optional[str] = None
+    schema: str
 
 
 class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
