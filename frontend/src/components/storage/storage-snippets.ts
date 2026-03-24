@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { LucideIcon } from "lucide-react";
-import { BookOpenIcon, LinkIcon } from "lucide-react";
+import { BookPlusIcon, FileSymlink } from "lucide-react";
 import type { StorageEntry, StorageNamespace } from "@/core/storage/types";
 
 type BackendType = StorageNamespace["backendType"];
@@ -31,7 +31,7 @@ export const STORAGE_SNIPPETS: StorageSnippet[] = [
   {
     id: "read-file",
     label: "Insert read snippet",
-    icon: BookOpenIcon,
+    icon: BookPlusIcon,
     getCode: (ctx) => {
       if (ctx.entry.kind === "directory") {
         return null;
@@ -46,7 +46,7 @@ export const STORAGE_SNIPPETS: StorageSnippet[] = [
   {
     id: "download-file",
     label: "Insert download snippet",
-    icon: LinkIcon,
+    icon: FileSymlink,
     getCode: (ctx) => {
       if (ctx.entry.kind === "directory") {
         return null;

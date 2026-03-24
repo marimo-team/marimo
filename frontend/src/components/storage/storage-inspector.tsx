@@ -64,6 +64,8 @@ import { STORAGE_SNIPPETS } from "./storage-snippets";
 interface OpenFileInfo {
   entry: StorageEntry;
   namespace: string;
+  protocol: string;
+  backendType: StorageNamespace["backendType"];
 }
 
 // Pixels per depth level. Applied as paddingLeft on each full-width item
@@ -315,7 +317,7 @@ const StorageEntryRow: React.FC<{
           if (isDir) {
             setIsExpanded(!effectiveExpanded);
           } else {
-            onOpenFile({ entry, namespace });
+            onOpenFile({ entry, namespace, protocol, backendType });
           }
         }}
       >
@@ -361,7 +363,9 @@ const StorageEntryRow: React.FC<{
             >
               {!isDir && (
                 <DropdownMenuItem
-                  onSelect={() => onOpenFile({ entry, namespace })}
+                  onSelect={() =>
+                    onOpenFile({ entry, namespace, protocol, backendType })
+                  }
                 >
                   <ViewIcon className={MENU_ITEM_ICON_CLASS} />
                   View
@@ -585,6 +589,8 @@ export const StorageInspector: React.FC = () => {
         <StorageFileViewer
           entry={openFile.entry}
           namespace={openFile.namespace}
+          protocol={openFile.protocol}
+          backendType={openFile.backendType}
           onBack={() => setOpenFile(null)}
         />
       )}
