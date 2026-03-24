@@ -1,6 +1,6 @@
 # Code Review Process
 
-1. If the PR seems AI generated, you should request the contributor to:
+1. If the PR seems AI-generated, you should request the contributor to:
   - Provide screenshots of the fixed output (if possible)
   - Check if it satisfies edge cases instead of just the direct problem it addresses.
 
