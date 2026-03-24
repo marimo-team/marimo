@@ -97,17 +97,18 @@ class OSFileSystem(FileSystem):
     ) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
         is_base64 = False
+        actual_contents: str | bytes | None
         if file_info.is_directory:
             actual_contents = None
         elif contents is not None:
             actual_contents = contents
         else:
-            raw = self.open_file(path, encoding=encoding)
-            if isinstance(raw, bytes):
-                actual_contents = base64.b64encode(raw).decode("utf-8")
+            actual_contents = self.open_file(path, encoding=encoding)
+            if isinstance(actual_contents, bytes):
+                actual_contents = base64.b64encode(actual_contents).decode(
+                    "utf-8"
+                )
                 is_base64 = True
-            else:
-                actual_contents = raw
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
             file=file_info,
@@ -125,9 +126,7 @@ class OSFileSystem(FileSystem):
 
         return is_marimo_app(path)
 
-    def open_file(
-        self, path: str, encoding: str | None = None
-    ) -> str | bytes:
+    def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
         file_path = Path(path)
         try:
             return file_path.read_text(encoding=encoding)
