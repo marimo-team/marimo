@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch  # noqa: F401
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -11,6 +11,9 @@ from marimo._sql.engines.starrocks import (
     StarRocksEngine,
 )
 from marimo._sql.sql_quoting import quote_sql_identifier
+
+# Skip the entire module when sqlalchemy is not installed.
+pytestmark = pytest.mark.requires("sqlalchemy")
 
 
 def _make_mock_engine(dialect_name: str = "starrocks") -> MagicMock:

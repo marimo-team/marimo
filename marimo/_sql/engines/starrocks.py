@@ -130,7 +130,7 @@ class StarRocksEngine(SQLAlchemyEngine):
         """Return tables for *schema* inside *database* (a StarRocks catalog).
 
         Delegates to the inherited inspector path for the default catalog;
-        falls back to an ``DESC`` query for external catalogs.
+        falls back to a ``SHOW`` query for external catalogs.
         """
         if database == self.default_database:
             return super().get_tables_in_schema(
