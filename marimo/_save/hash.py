@@ -766,7 +766,7 @@ class BlockHasher:
                 if ctx is not None and self._is_memoizable(
                     local_ref, value, ctx
                 ):
-                    # Local ref as a key is sufficent, because values defined in
+                    # Local ref as a key is sufficient, because values defined in
                     # cell are not memoizable and rebinds will clean up the
                     # cache via cell life cycle.
                     ctx.cache.hash_memo[local_ref] = hash_digest
