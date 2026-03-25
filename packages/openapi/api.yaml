@@ -1493,10 +1493,20 @@ components:
         \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
         \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
         \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
-        \        request: HTTP request context if available."
+        \        request: HTTP request context if available.\n        notebook_cells:\
+        \ Snapshot of notebook cells from the session document.\n            Used\
+        \ to populate the document ContextVar so code_mode can read\n            cell\
+        \ ordering, code, names, and configs."
       properties:
         code:
           type: string
+        notebookCells:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NotebookCell'
+            type: array
+          - type: 'null'
+          default: null
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -1514,6 +1524,13 @@ components:
       properties:
         code:
           type: string
+        notebookCells:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NotebookCell'
+            type: array
+          - type: 'null'
+          default: null
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -3401,6 +3418,24 @@ components:
       - cells
       title: MultipleDefinitionError
       type: object
+    NotebookCell:
+      description: "A single cell in the document. Mutable \u2014 owned by the document."
+      properties:
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        id:
+          $ref: '#/components/schemas/CellId'
+        name:
+          type: string
+      required:
+      - id
+      - code
+      - name
+      - config
+      title: NotebookCell
+      type: object
     NotebookDocumentTransactionNotification:
       description: "Broadcasts an applied transaction to the frontend.\n\n    Sent\
         \ by the session when the document changes (from any source).\n    The frontend\
@@ -4864,7 +4899,9 @@ components:
               propertyName: type
           type: array
         source:
-          type: string
+          enum:
+          - frontend
+          - kernel
         version:
           anyOf:
           - type: integer

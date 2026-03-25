@@ -4185,9 +4185,14 @@ export interface components {
      *         Attributes:
      *             code: Python code to execute.
      *             request: HTTP request context if available.
+     *             notebook_cells: Snapshot of notebook cells from the session document.
+     *                 Used to populate the document ContextVar so code_mode can read
+     *                 cell ordering, code, names, and configs.
      */
     ExecuteScratchpadCommand: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -4196,6 +4201,8 @@ export interface components {
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
@@ -5291,6 +5298,16 @@ export interface components {
       type: "multiple-defs";
     };
     /**
+     * NotebookCell
+     * @description A single cell in the document. Mutable — owned by the document.
+     */
+    NotebookCell: {
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      id: components["schemas"]["CellId"];
+      name: string;
+    };
+    /**
      * NotebookDocumentTransactionNotification
      * @description Broadcasts an applied transaction to the frontend.
      *
@@ -6227,7 +6244,8 @@ export interface components {
         | components["schemas"]["SetName"]
         | components["schemas"]["SetConfig"]
       )[];
-      source: string;
+      /** @enum {unknown} */
+      source: "frontend" | "kernel";
       /** @default null */
       version?: number | null;
     };
