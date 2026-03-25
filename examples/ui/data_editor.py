@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "polars==1.17.1",
+#     "polars==1.39.3",
 #     "vega-datasets==0.9.0",
 # ]
 # ///
