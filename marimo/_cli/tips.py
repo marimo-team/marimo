@@ -28,7 +28,7 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
         command="marimo edit notebook.py --watch",
     ),
     CliTip(
-        text="Run a notebook in an isolated environment",
+        text="Run a notebook in an isolated virtual environment",
         command="marimo edit --sandbox notebook.py",
     ),
     CliTip(
