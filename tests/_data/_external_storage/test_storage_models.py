@@ -644,6 +644,8 @@ class TestFsspecFilesystem:
         result = backend.list_entries(prefix="folder")
 
         assert mock_store.ls.call_count == 2
+        assert "" not in mock_store.dircache
+        assert "folder" not in mock_store.dircache
         assert result == snapshot(
             [
                 StorageEntry(

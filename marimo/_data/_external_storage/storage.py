@@ -284,7 +284,15 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         return storage_entries
 
     def _normalize_path(self, path: str) -> str:
-        return path.strip().strip("/")
+        # Match fsspec path handling: strip protocol and trailing slashes,
+        # but preserve leading slash for absolute paths (e.g. "/tmp").
+        path = path.strip()
+        strip_protocol = getattr(self.store, "_strip_protocol", None)
+        if callable(strip_protocol):
+            stripped = strip_protocol(path)
+            if isinstance(stripped, str):
+                path = stripped
+        return path.rstrip("/")
 
     def _list_files(self, prefix: str) -> list[Any]:
         files = self.store.ls(path=prefix, detail=True)
