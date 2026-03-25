@@ -656,7 +656,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
                     details.contents as Base64String,
                   );
                   downloadBlob(
-                    new Blob([bytes], {
+                    new Blob([bytes.buffer], {
                       type: details.mimeType || "application/octet-stream",
                     }),
                     node.data.name,
