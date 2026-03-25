@@ -103,9 +103,7 @@ class LazyLoader(BasePersistenceLoader):
 
     def load_cache(self, key: HashKey) -> Optional[Cache]:
         try:
-            blob: Optional[bytes] = self.store.get(
-                str(self.build_path(key))
-            )
+            blob: Optional[bytes] = self.store.get(str(self.build_path(key)))
             if not blob:
                 return None
             return self.restore_cache(key, blob)
@@ -277,9 +275,7 @@ class LazyLoader(BasePersistenceLoader):
                 # Manifest last — readers check for it to detect complete writes
                 store.put(manifest_key, manifest)
             except Exception:
-                LOGGER.exception(
-                    "Failed to write cache blobs for %s", path
-                )
+                LOGGER.exception("Failed to write cache blobs for %s", path)
 
         t = threading.Thread(target=_serialize_and_write, daemon=False)
         t.start()

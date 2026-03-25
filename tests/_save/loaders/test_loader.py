@@ -276,7 +276,9 @@ class TestLazyLoader(ABCTestLoader):
             CacheSchema(
                 hash="missing",
                 cache_type=CacheType("Pure"),
-                defs={"var1": Item(reference=(base / "var1.pickle").as_posix())},
+                defs={
+                    "var1": Item(reference=(base / "var1.pickle").as_posix())
+                },
                 stateful_refs=[],
                 meta=Meta(version=MARIMO_CACHE_VERSION),
             )
