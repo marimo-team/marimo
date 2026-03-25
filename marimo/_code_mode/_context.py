@@ -1118,7 +1118,7 @@ def _plan_to_document_ops(
     plan_ids = {e.cell_id for e in plan}
 
     # Deletions: cells present before but absent from the plan.
-    for cid in existing_ids:
+    for cid in sorted(existing_ids):
         if cid not in plan_ids:
             doc_ops.append(DeleteCell(cell_id=cid))
 
