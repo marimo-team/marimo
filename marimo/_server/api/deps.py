@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers as loggers
+from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
@@ -111,8 +112,9 @@ class AppStateBase:
         return True
 
     @property
-    def startup_tip(self) -> Any:
-        return getattr(self.state, "startup_tip", None)
+    def startup_tip(self) -> CliTip | None:
+        startup_tip = getattr(self.state, "startup_tip", None)
+        return cast(CliTip | None, startup_tip)
 
     @property
     def html_head(self) -> Optional[str]:

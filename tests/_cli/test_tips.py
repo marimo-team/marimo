@@ -39,6 +39,13 @@ def test_signature_from_click_context_root_option_with_value() -> None:
     assert signature.enabled_options == frozenset({"log_level", "watch"})
 
 
+def test_signature_from_click_context_ignores_negated_boolean_flag() -> None:
+    ctx = _make_subcommand_context(["edit", "notebook.py", "--no-sandbox"])
+    signature = signature_from_click_context(ctx)
+    assert signature.command_path == ("edit",)
+    assert signature.enabled_options == frozenset()
+
+
 def test_signature_from_command_example_edit_watch() -> None:
     signature = signature_from_command_example(
         cli.main, "marimo edit notebook.py --watch"
@@ -90,6 +97,16 @@ def test_get_relevant_startup_tips_keeps_watch_tip_without_watch() -> None:
     filtered = get_relevant_startup_tips(CLI_STARTUP_TIPS, current, cli.main)
     assert any(
         tip.command == "marimo edit notebook.py --watch" for tip in filtered
+    )
+
+
+def test_get_relevant_startup_tips_keeps_sandbox_tip_with_no_sandbox() -> None:
+    current = signature_from_click_context(
+        _make_subcommand_context(["edit", "notebook.py", "--no-sandbox"])
+    )
+    filtered = get_relevant_startup_tips(CLI_STARTUP_TIPS, current, cli.main)
+    assert any(
+        tip.command == "marimo edit --sandbox notebook.py" for tip in filtered
     )
 
 

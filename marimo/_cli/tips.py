@@ -192,5 +192,8 @@ def _explicitly_set_option_names(ctx: click.Context) -> list[str]:
         source = ctx.get_parameter_source(param.name)
         if source is None or source == ParameterSource.DEFAULT:
             continue
+        value = ctx.params.get(param.name)
+        if isinstance(value, bool) and not value:
+            continue
         options.append(param.name)
     return options
