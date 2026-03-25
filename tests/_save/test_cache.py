@@ -3481,4 +3481,6 @@ class TestAsyncCacheDecorator:
                 "pending tasks from a different event loop"
             )
         finally:
+            with _cache_call_async._pending_lock:
+                _cache_call_async._pending_executions.pop(fn, None)
             other_loop.close()
