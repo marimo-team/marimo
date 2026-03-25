@@ -24,7 +24,7 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
         command="marimo run notebook.py",
     ),
     CliTip(
-        text="Watch for external edits and auto-reload",
+        text="Reload the editor when the notebook file is edited externally",
         command="marimo edit notebook.py --watch",
     ),
     CliTip(
