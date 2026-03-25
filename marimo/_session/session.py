@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 import msgspec
@@ -427,9 +427,7 @@ class SessionImpl(Session):
         # Kernel notifications arrive as bytes via the stream distributor;
         # server-side callers (e.g. file-watch) pass typed objects.
         if isinstance(operation, bytes):
-            name = try_deserialize_kernel_notification_name(
-                cast(KernelMessage, operation)
-            )
+            name = try_deserialize_kernel_notification_name(operation)
             if name == NotebookDocumentTransactionNotification.name:
                 try:
                     operation = self._apply_document_transaction(

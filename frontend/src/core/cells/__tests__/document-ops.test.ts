@@ -23,7 +23,7 @@ import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extens
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MultiColumn } from "@/utils/id-tree";
 import { exportedForTesting, type NotebookState } from "../cells";
-import { toDocumentOps } from "../document-ops";
+import { type CellAction, toDocumentOps } from "../document-ops";
 import { CellId } from "../ids";
 
 const { initialNotebookState, reducer } = exportedForTesting;
@@ -68,12 +68,9 @@ function dispatch(
 }
 
 /** Dispatch an action and return the ops it produces. */
-function resolve(
-  state: NotebookState,
-  action: { type: string; payload: unknown },
-) {
+function resolve(state: NotebookState, action: CellAction) {
   const next = dispatch(state, action);
-  const ops = toDocumentOps(state, next, action as any);
+  const ops = toDocumentOps(state, next, action);
   return { next, ops };
 }
 

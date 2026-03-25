@@ -33,7 +33,7 @@ type Transaction =
   NotificationMessageData<"notebook-document-transaction">["transaction"];
 type TransactionOp = Transaction["ops"][number];
 
-type CellAction = DispatchedActionOf<CellActions>;
+export type CellAction = DispatchedActionOf<CellActions>;
 
 // ---------------------------------------------------------------------------
 // Helpers

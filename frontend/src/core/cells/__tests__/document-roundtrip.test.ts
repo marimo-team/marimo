@@ -173,15 +173,10 @@ function documentSnapshot(state: NotebookState) {
   });
 }
 
-/** Assert both notebooks have identical document state. */
-function expectConverged() {
-  expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
-}
-
 describe("document round-trip", () => {
   it("initial setup converges", () => {
     setup("a", "b", "c");
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("createNewCell at end", () => {
@@ -193,7 +188,7 @@ describe("document round-trip", () => {
       newCellId: CellId.create(),
     });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("createNewCell before first cell", () => {
@@ -206,7 +201,7 @@ describe("document round-trip", () => {
       newCellId: CellId.create(),
     });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("createNewCell between cells", () => {
@@ -219,7 +214,7 @@ describe("document round-trip", () => {
       newCellId: CellId.create(),
     });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("createNewCell with hideCode config", () => {
@@ -232,7 +227,7 @@ describe("document round-trip", () => {
       hideCode: true,
     });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("deleteCell", () => {
@@ -240,7 +235,7 @@ describe("document round-trip", () => {
     const [, b] = primary.cellIds.inOrderIds;
     primaryActions.deleteCell({ cellId: b });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("updateCellCode", () => {
@@ -252,7 +247,7 @@ describe("document round-trip", () => {
       formattingChange: false,
     });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("updateCellName", () => {
@@ -260,7 +255,7 @@ describe("document round-trip", () => {
     const [a] = primary.cellIds.inOrderIds;
     primaryActions.updateCellName({ cellId: a, name: "my_var" });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("updateCellConfig", () => {
@@ -271,7 +266,7 @@ describe("document round-trip", () => {
       config: { hide_code: true, disabled: true },
     });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("moveCell down", () => {
@@ -279,15 +274,15 @@ describe("document round-trip", () => {
     const [a] = primary.cellIds.inOrderIds;
     primaryActions.moveCell({ cellId: a, before: false });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("sendToTop", () => {
     setup("a", "b", "c");
-    const [, , c] = primary.cellIds.inOrderIds;
+    const c = primary.cellIds.inOrderIds[2];
     primaryActions.sendToTop({ cellId: c });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("sendToBottom", () => {
@@ -295,7 +290,7 @@ describe("document round-trip", () => {
     const [a] = primary.cellIds.inOrderIds;
     primaryActions.sendToBottom({ cellId: a });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("dropCellOverCell", () => {
@@ -303,7 +298,7 @@ describe("document round-trip", () => {
     const [a, , c] = primary.cellIds.inOrderIds;
     primaryActions.dropCellOverCell({ cellId: c, overCellId: a });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("multiple operations in sequence", () => {
@@ -338,7 +333,7 @@ describe("document round-trip", () => {
     });
     sync();
 
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("create then delete", () => {
@@ -356,7 +351,7 @@ describe("document round-trip", () => {
     primaryActions.deleteCell({ cellId: newId });
     sync();
 
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("addColumnBreakpoint", () => {
@@ -364,7 +359,7 @@ describe("document round-trip", () => {
     const [, b] = primary.cellIds.inOrderIds;
     primaryActions.addColumnBreakpoint({ cellId: b });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 
   it("dropOverNewColumn", () => {
@@ -372,6 +367,6 @@ describe("document round-trip", () => {
     const [, b] = primary.cellIds.inOrderIds;
     primaryActions.dropOverNewColumn({ cellId: b });
     sync();
-    expectConverged();
+    expect(documentSnapshot(primary)).toEqual(documentSnapshot(replica));
   });
 });
