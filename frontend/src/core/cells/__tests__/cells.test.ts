@@ -30,7 +30,7 @@ import {
   type NotebookState,
   notebookAtom,
 } from "../cells";
-import { exportedForTesting as documentTransactionTestExports } from "../document-transaction-middleware";
+import { exportedForTesting as documentTransactionTestExports } from "../document-ops";
 import {
   focusAndScrollCellIntoView,
   scrollToBottom,
