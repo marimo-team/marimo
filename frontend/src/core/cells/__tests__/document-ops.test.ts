@@ -68,7 +68,7 @@ function dispatch(
 }
 
 /** Dispatch an action and return the ops it produces. */
-function dispatchAndResolve(
+function resolve(
   state: NotebookState,
   action: { type: string; payload: unknown },
 ) {
@@ -98,7 +98,7 @@ afterAll(() => {
 
 function setup(...codes: string[]) {
   for (const code of codes) {
-    const action = {
+    state = dispatch(state, {
       type: "createNewCell",
       payload: {
         cellId: "__end__",
@@ -106,8 +106,7 @@ function setup(...codes: string[]) {
         code,
         newCellId: CellId.create(),
       },
-    };
-    state = dispatch(state, action);
+    });
   }
 }
 
@@ -117,7 +116,7 @@ describe("toDocumentOps", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
 
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "createNewCell",
         payload: {
           cellId: a,
@@ -127,16 +126,27 @@ describe("toDocumentOps", () => {
         },
       });
 
-      expect(ops).toHaveLength(1);
-      expect(ops[0]).toMatchObject({ type: "create-cell", before: a });
-      expect(ops[0]).not.toHaveProperty("after");
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "before": "0",
+            "cellId": "1",
+            "code": "first",
+            "config": {
+              "column": null,
+              "disabled": false,
+              "hide_code": false,
+            },
+            "name": "_",
+            "type": "create-cell",
+          },
+        ]
+      `);
     });
 
     it("uses after anchor for __end__ insertion", () => {
       setup("a");
-      const [a] = state.cellIds.inOrderIds;
-
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "createNewCell",
         payload: {
           cellId: "__end__",
@@ -146,21 +156,42 @@ describe("toDocumentOps", () => {
         },
       });
 
-      expect(ops[0]).toMatchObject({ after: a });
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "after": "0",
+            "cellId": "1",
+            "code": "last",
+            "config": {
+              "column": null,
+              "disabled": false,
+              "hide_code": false,
+            },
+            "name": "_",
+            "type": "create-cell",
+          },
+        ]
+      `);
     });
 
     it("uses before when sendToTop moves cell to first position", () => {
       setup("a", "b", "c");
       const [, b] = state.cellIds.inOrderIds;
 
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "sendToTop",
         payload: { cellId: b },
       });
 
-      expect(ops[0]).toMatchObject({ type: "move-cell", cellId: b });
-      expect(ops[0]).toHaveProperty("before");
-      expect(ops[0]).not.toHaveProperty("after");
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "before": "0",
+            "cellId": "1",
+            "type": "move-cell",
+          },
+        ]
+      `);
     });
   });
 
@@ -169,22 +200,26 @@ describe("toDocumentOps", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
 
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "updateCellConfig",
         payload: { cellId: a, config: { hide_code: true } },
       });
 
-      expect(ops[0]).toEqual({
-        type: "set-config",
-        cellId: a,
-        hideCode: true,
-      });
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "0",
+            "hideCode": true,
+            "type": "set-config",
+          },
+        ]
+      `);
     });
 
     it("includes full CellConfig in create-cell", () => {
       setup("a");
 
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "createNewCell",
         payload: {
           cellId: "__end__",
@@ -203,74 +238,122 @@ describe("toDocumentOps", () => {
   });
 
   describe("column structure actions", () => {
-    it("dropOverNewColumn emits reorder-cells", () => {
+    it("dropOverNewColumn emits set-config + reorder-cells", () => {
       setup("a", "b");
       const [, b] = state.cellIds.inOrderIds;
 
-      const { ops, next } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "dropOverNewColumn",
         payload: { cellId: b },
       });
 
-      expect(ops).toHaveLength(1);
-      expect(ops[0]).toMatchObject({ type: "reorder-cells" });
-      expect((ops[0] as any).cellIds).toEqual(next.cellIds.inOrderIds);
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "1",
+            "column": 1,
+            "type": "set-config",
+          },
+          {
+            "cellIds": [
+              "0",
+              "1",
+            ],
+            "type": "reorder-cells",
+          },
+        ]
+      `);
     });
 
-    it("addColumnBreakpoint emits reorder-cells", () => {
+    it("addColumnBreakpoint emits set-config + reorder-cells", () => {
       setup("a", "b", "c");
       const [, b] = state.cellIds.inOrderIds;
 
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "addColumnBreakpoint",
         payload: { cellId: b },
       });
 
-      expect(ops).toHaveLength(1);
-      expect(ops[0]).toMatchObject({ type: "reorder-cells" });
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "1",
+            "column": 1,
+            "type": "set-config",
+          },
+          {
+            "cellId": "2",
+            "column": 1,
+            "type": "set-config",
+          },
+          {
+            "cellIds": [
+              "0",
+              "1",
+              "2",
+            ],
+            "type": "reorder-cells",
+          },
+        ]
+      `);
     });
 
-    it("mergeAllColumns emits reorder-cells", () => {
+    it("mergeAllColumns emits set-config + reorder-cells", () => {
       setup("a", "b", "c");
       const [, b] = state.cellIds.inOrderIds;
-      // Create a second column first
       state = dispatch(state, {
         type: "addColumnBreakpoint",
         payload: { cellId: b },
       });
 
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "mergeAllColumns",
         payload: {},
       });
 
-      expect(ops).toHaveLength(1);
-      expect(ops[0]).toMatchObject({ type: "reorder-cells" });
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "1",
+            "column": 0,
+            "type": "set-config",
+          },
+          {
+            "cellId": "2",
+            "column": 0,
+            "type": "set-config",
+          },
+          {
+            "cellIds": [
+              "0",
+              "1",
+              "2",
+            ],
+            "type": "reorder-cells",
+          },
+        ]
+      `);
     });
   });
 
   describe("actions that should NOT emit ops", () => {
-    it("focusCell does not emit ops", () => {
+    it("focusCell returns empty", () => {
       setup("a", "b");
       const [a] = state.cellIds.inOrderIds;
-
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "focusCell",
         payload: { cellId: a, where: "after" },
       });
-
       expect(ops).toHaveLength(0);
     });
 
-    it("prepareForRun does not emit ops", () => {
+    it("prepareForRun returns empty", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
-
-      const { ops } = dispatchAndResolve(state, {
+      const { ops } = resolve(state, {
         type: "prepareForRun",
         payload: { cellId: a },
       });
-
       expect(ops).toHaveLength(0);
     });
   });

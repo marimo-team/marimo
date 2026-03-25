@@ -62,12 +62,12 @@ function getCell(
 /**
  * Derive the position anchor for a cell from the notebook state.
  * Returns `{ after: prevId }` if there's a cell before it,
- * `{ before: nextId }` if it's the first cell, or `{}` if it's alone.
+ * `{ before: nextId }` if it's the first cell, or `undefined` if it's alone.
  */
 function anchorOf(
   cellId: CellId,
   state: NotebookState,
-): { after: CellId } | { before: CellId } | Record<string, never> {
+): { after: CellId } | { before: CellId } | undefined {
   const ids = state.cellIds.inOrderIds;
   const idx = ids.indexOf(cellId);
   if (idx > 0) {
@@ -76,7 +76,52 @@ function anchorOf(
   if (idx === 0 && ids.length > 1) {
     return { before: ids[1] };
   }
-  return {};
+  return undefined;
+}
+
+/**
+ * Build a map from cellId → column index for all cells in the state.
+ */
+function columnIndexMap(state: NotebookState): Map<CellId, number> {
+  const map = new Map<CellId, number>();
+  const columns = state.cellIds.getColumns();
+  for (let col = 0; col < columns.length; col++) {
+    for (const id of columns[col].inOrderIds) {
+      map.set(id, col);
+    }
+  }
+  return map;
+}
+
+/**
+ * Produce set-config ops for cells whose column index changed between
+ * prevState and newState, plus a reorder-cells op for the new ordering.
+ */
+function columnChangeOps(
+  prevState: NotebookState,
+  newState: NotebookState,
+): DocumentOp[] {
+  const prevColumns = columnIndexMap(prevState);
+  const newColumns = columnIndexMap(newState);
+  const ops: DocumentOp[] = [];
+
+  for (const [cellId, newCol] of newColumns) {
+    const prevCol = prevColumns.get(cellId);
+    if (prevCol !== newCol) {
+      ops.push({
+        type: "set-config",
+        cellId: cellId,
+        column: newCol,
+      });
+    }
+  }
+
+  ops.push({
+    type: "reorder-cells",
+    cellIds: newState.cellIds.inOrderIds,
+  });
+
+  return ops;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,18 +185,13 @@ export function toDocumentOps(
       ];
     }
 
-    // dropCellOverCell/dropCellOverColumn → reorder-cells
+    // dropCellOverCell/dropCellOverColumn → set-config + reorder-cells
     // Drag-and-drop reorders can move cells within or across columns.
-    // We send the full ordering from newState rather than trying to
-    // express the move as a single before/after anchor.
+    // We emit config changes for cells whose column changed, then
+    // the full ordering.
     case "dropCellOverCell":
     case "dropCellOverColumn":
-      return [
-        {
-          type: "reorder-cells",
-          cellIds: newState.cellIds.inOrderIds,
-        },
-      ];
+      return columnChangeOps(prevState, newState);
 
     // updateCellCode → set-code
     // Reads the code from newState via getCell.
@@ -187,17 +227,14 @@ export function toDocumentOps(
 
     // updateCellConfig → set-config
     // Maps CellConfig's snake_case hide_code to the op's camelCase hideCode.
-    // Only includes fields that were actually specified in the partial config.
+    // Only includes fields that were actually specified in the partial config
+    // (from the action payload, not the full cell config).
     case "updateCellConfig": {
-      const cell = getCell(action.payload.cellId, newState);
-      if (!cell) {
-        return [];
-      }
-      const config = cell.config;
+      const { cellId, config } = action.payload;
       return [
         {
           type: "set-config",
-          cellId: cell.id,
+          cellId: cellId,
           ...(config.hide_code != null && { hideCode: config.hide_code }),
           ...(config.disabled != null && { disabled: config.disabled }),
           ...(config.column !== undefined && {
@@ -207,21 +244,16 @@ export function toDocumentOps(
       ];
     }
 
-    // Column structure changes → reorder-cells
-    // All of these change column layout. We send the full ordering
-    // from newState since the op schema has no column concept.
+    // Column structure changes → set-config + reorder-cells
+    // All of these change column layout. We emit config changes for
+    // cells whose column index changed, then the full ordering.
     case "dropOverNewColumn":
     case "moveColumn":
     case "addColumnBreakpoint":
     case "deleteColumn":
     case "mergeAllColumns":
     case "compactColumns":
-      return [
-        {
-          type: "reorder-cells",
-          cellIds: newState.cellIds.inOrderIds,
-        },
-      ];
+      return columnChangeOps(prevState, newState);
 
     // addColumn creates a new column with a new empty cell.
     // TODO: emit create-cell for the new cell.

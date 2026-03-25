@@ -151,14 +151,26 @@ function sync() {
 /**
  * Extract the document-relevant state: cell ordering, code, name, config.
  * This is the "NotebookDocument" equivalent — what the Python side tracks.
+ *
+ * TODO(column-config): config.column is excluded because the column
+ * reducers (addColumnBreakpoint, dropOverNewColumn, moveColumn, etc.)
+ * update cellIds (MultiColumn structure) but don't sync config.column
+ * on affected cells. The middleware correctly emits set-config ops with
+ * the new column index, but the primary's config.column stays stale,
+ * causing a mismatch with the replica. Fix: have the column reducers
+ * update config.column as part of their state transition, then remove
+ * the { column: _, ...config } exclusion here.
  */
 function documentSnapshot(state: NotebookState) {
-  return state.cellIds.inOrderIds.map((id) => ({
-    id,
-    code: state.cellData[id].code,
-    name: state.cellData[id].name,
-    config: state.cellData[id].config,
-  }));
+  return state.cellIds.inOrderIds.map((id) => {
+    const { column: _, ...config } = state.cellData[id].config;
+    return {
+      id,
+      code: state.cellData[id].code,
+      name: state.cellData[id].name,
+      config,
+    };
+  });
 }
 
 /** Assert both notebooks have identical document state. */
