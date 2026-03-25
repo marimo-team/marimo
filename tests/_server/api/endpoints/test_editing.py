@@ -1,10 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import sys
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import anyio
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -13,13 +15,25 @@ from tests._server.mocks import token_header, with_session
 HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
 
 if TYPE_CHECKING:
-    from starlette.testclient import TestClient
+    from starlette.testclient import TestClient, WebSocketTestSession
 
 SESSION_ID = "session-123"
 HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+
+
+def _receive_json_with_timeout(
+    websocket: WebSocketTestSession, timeout_seconds: float = 0.5
+) -> dict[str, object]:
+    async def receive() -> dict[str, object]:
+        with anyio.fail_after(timeout_seconds):
+            message = await websocket._send_rx.receive()
+        websocket._raise_on_close(message)
+        return json.loads(message["text"])
+
+    return websocket.portal.call(receive)
 
 
 @with_session(SESSION_ID)
@@ -76,27 +90,36 @@ def test_format_cell(client: TestClient) -> None:
 def test_format_cell_passes_notebook_path_to_formatter(
     client: TestClient,
 ) -> None:
-    with patch(
-        "marimo._server.api.endpoints.editing.DefaultFormatter.format",
-        new=AsyncMock(return_value={"cell-123": "x = 1"}),
-    ) as mock_format:
-        response = client.post(
-            "/api/kernel/format",
-            headers=HEADERS,
-            json={
-                "codes": {"cell-123": "x=1"},
-                "lineLength": 80,
-            },
-        )
+    # pytest.mark.parametrize doesn't work with @with_session
+    for suffix, filename in (
+        (".py", "notebook.py"),
+        (".md", "notebook.md.py"),
+        (".qmd", "notebook.qmd.py"),
+    ):
+        with (
+            patch(
+                "marimo._server.api.endpoints.editing.DefaultFormatter.format",
+                new=AsyncMock(return_value={"cell-123": "x = 1"}),
+            ) as mock_format,
+            patch(
+                "marimo._server.api.endpoints.editing.AppState.require_current_session"
+            ) as mock_require_session,
+        ):
+            mock_session = MagicMock()
+            mock_session.app_file_manager.path = f"notebook{suffix}"
+            mock_require_session.return_value = mock_session
+            response = client.post(
+                "/api/kernel/format",
+                headers=HEADERS,
+                json={
+                    "codes": {"cell-123": "x=1"},
+                    "lineLength": 80,
+                },
+            )
 
-    assert response.status_code == 200, response.text
-    assert response.json() == {"codes": {"cell-123": "x = 1"}}
-    assert mock_format.await_count == 1
-
-    args, kwargs = mock_format.await_args
-    assert {"cell-123": "x=1"} in args
-    assert isinstance(kwargs["stdin_filename"], str)
-    assert kwargs["stdin_filename"].endswith(".py")
+            assert response.status_code == 200, response.text
+            assert response.json() == {"codes": {"cell-123": "x = 1"}}
+            mock_format.assert_awaited_once_with({"cell-123": "x=1"}, filename)
 
 
 @with_session(SESSION_ID)
@@ -190,3 +213,43 @@ def test_stdin(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "success" in response.json()
+
+
+@with_session(SESSION_ID)
+def test_focus_cell(client: TestClient) -> None:
+    response = client.post(
+        "/api/kernel/focus_cell",
+        headers=HEADERS,
+        json={"cellId": "some-cell-id"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/json"
+    assert "success" in response.json()
+
+
+@with_session(SESSION_ID)
+def test_focus_cell_notifies_same_session_kiosk_consumer(
+    client: TestClient,
+) -> None:
+    cell_id = "some-cell-id"
+    auth_token = token_header("fake-token")
+    with client.websocket_connect(
+        f"/ws?session_id={SESSION_ID}&kiosk=true&access_token=fake-token",
+        headers=auth_token,
+    ) as websocket:
+        data = websocket.receive_json()
+        assert data["op"] == "kernel-ready"
+        assert data["data"]["kiosk"] is True
+
+        response = client.post(
+            "/api/kernel/focus_cell",
+            headers=HEADERS,
+            json={"cellId": cell_id},
+        )
+        assert response.status_code == 200, response.text
+
+        message = _receive_json_with_timeout(websocket)
+        assert message == {
+            "op": "focus-cell",
+            "data": {"op": "focus-cell", "cell_id": cell_id},
+        }

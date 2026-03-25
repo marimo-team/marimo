@@ -755,7 +755,7 @@ const {
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
-    const cellId = message.cell_id as CellId;
+    const cellId = message.cell_id;
     const nextState = updateCellRuntimeState({
       state,
       cellId,
@@ -1640,6 +1640,12 @@ export const cellsRuntimeAtom = atom((get) => get(notebookAtom).cellRuntime);
 export const notebookIsRunningAtom = atom((get) =>
   notebookIsRunning(get(notebookAtom)),
 );
+export const onlyScratchpadIsRunningAtom = atom((get) => {
+  const { cellRuntime } = get(notebookAtom);
+  return Object.entries(cellRuntime).every(
+    ([id, rt]) => rt.status !== "running" || id === SCRATCH_CELL_ID,
+  );
+});
 export const notebookQueuedOrRunningCountAtom = atom((get) =>
   notebookQueueOrRunningCount(get(notebookAtom)),
 );

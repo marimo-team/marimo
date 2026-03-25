@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { sanitizeHtml } from "@/plugins/core/sanitize";
+import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { Outline, OutlineItem } from "../cells/outline";

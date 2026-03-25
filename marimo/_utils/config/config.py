@@ -5,7 +5,7 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo._utils.parse_dataclass import parse_raw
-from marimo._utils.toml import is_toml_error, read_toml
+from marimo._utils.toml import toml_reader
 from marimo._utils.xdg import marimo_state_dir
 
 if TYPE_CHECKING:
@@ -32,12 +32,10 @@ class ConfigReader:
 
     def read_toml(self, cls: type[T], *, fallback: T) -> T:
         try:
-            data = read_toml(self.filepath)
+            data = toml_reader.read(self.filepath)
             return parse_raw(data, cls, allow_unknown_keys=True)
-        except Exception as e:
-            if is_toml_error(e) or isinstance(e, FileNotFoundError):
-                return fallback
-            raise e
+        except (toml_reader.decode_error, FileNotFoundError):
+            return fallback
 
     def write_toml(self, data: Any) -> None:
         import tomlkit

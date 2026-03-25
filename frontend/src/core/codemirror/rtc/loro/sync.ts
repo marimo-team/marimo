@@ -72,6 +72,7 @@ export class LoroSyncPluginValue implements PluginValue {
             insert: text.toString(),
           },
         ],
+        annotations: [loroSyncAnnotation.of(this)],
       });
     });
   }

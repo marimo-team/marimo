@@ -405,7 +405,7 @@ class Exporter:
                     exc_info=e,
                 )
 
-        from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+        from nbconvert import WebPDFExporter
 
         web_exporter = WebPDFExporter()  # type: ignore[no-untyped-call]
         web_exporter.exclude_input = not include_inputs
@@ -499,7 +499,7 @@ class Exporter:
         import os
         import tempfile
 
-        from nbconvert import SlidesExporter  # type: ignore[import-not-found]
+        from nbconvert import SlidesExporter
 
         # Add slideshow metadata so each cell becomes a slide.
         for cell in notebook.cells:
@@ -512,7 +512,7 @@ class Exporter:
         # Convert to reveal.js HTML
         slides_exporter = SlidesExporter()  # type: ignore[no-untyped-call]
         slides_exporter.exclude_input = not include_inputs
-        html_data, _resources = slides_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)
 
         # Write HTML to a temp file for Playwright to load
         with tempfile.NamedTemporaryFile(

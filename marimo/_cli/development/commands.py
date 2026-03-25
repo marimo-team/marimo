@@ -24,6 +24,183 @@ if TYPE_CHECKING:
     import psutil
 
 
+def _enrich_branded_types(
+    component_schemas: dict[str, Any],
+    models: list[object],
+) -> None:
+    """Post-process schemas to replace NewType string fields with $ref
+    branded types.
+
+    msgspec.json.schema_components() strips NewType wrappers, emitting plain
+    ``{type: string}`` for fields like ``CellId_t``. This function:
+
+    1. Adds named schemas for each branded type (e.g. ``CellId: {type: string}``).
+    2. Walks every model struct's type hints and replaces inline schemas with
+       ``$ref`` pointers wherever a field's annotation is (or contains) a
+       registered NewType.
+    """
+    import types as _types
+    import typing
+    from typing import Union
+
+    import msgspec
+
+    from marimo._types.ids import (
+        CellId_t,
+        RequestId,
+        SessionId,
+        UIElementId,
+        VariableName,
+        WidgetModelId,
+    )
+
+    branded: dict[Any, str] = {
+        CellId_t: "CellId",
+        UIElementId: "UIElementId",
+        SessionId: "SessionId",
+        VariableName: "VariableName",
+        RequestId: "RequestId",
+        WidgetModelId: "WidgetModelId",
+    }
+
+    # Step 1 — add named schemas for each branded type
+    for schema_name in branded.values():
+        component_schemas[schema_name] = {"type": "string"}
+
+    def make_ref(name: str) -> dict[str, str]:
+        return {"$ref": f"#/components/schemas/{name}"}
+
+    def _is_union(origin: Any) -> bool:
+        return origin is Union or origin is getattr(_types, "UnionType", None)
+
+    def resolve(ty: Any) -> dict[str, Any] | None:
+        """Produce a branded schema for *ty*, or ``None``."""
+        if ty in branded:
+            return make_ref(branded[ty])
+
+        origin = typing.get_origin(ty)
+        args = typing.get_args(ty)
+
+        # Union / Optional
+        if _is_union(origin):
+            non_none = [a for a in args if a is not type(None)]
+            has_none = len(non_none) < len(args)
+            if len(non_none) == 1:
+                inner = resolve(non_none[0])
+                if inner is not None:
+                    if has_none:
+                        return {"anyOf": [inner, {"type": "null"}]}
+                    return inner
+            return None
+
+        # list[T]
+        if origin is list:
+            if args:
+                inner = resolve(args[0])
+                if inner is not None:
+                    return {"type": "array", "items": inner}
+            return None
+
+        # tuple[T, ...]
+        if origin is tuple:
+            if len(args) == 2 and args[1] is Ellipsis:
+                inner = resolve(args[0])
+                if inner is not None:
+                    return {"type": "array", "items": inner}
+            return None
+
+        # dict[K, V] — brand the value type (keys are always strings in JSON)
+        if origin is dict and len(args) == 2:
+            val = resolve(args[1])
+            if val is not None:
+                return {"type": "object", "additionalProperties": val}
+
+        return None
+
+    # Step 2 — collect *all* reachable struct types (not just MODELS,
+    # since msgspec pulls in transitively-referenced structs too).
+    all_structs: dict[str, type] = {}
+
+    def _visit_type(ty: Any) -> None:
+        if isinstance(ty, type) and issubclass(ty, msgspec.Struct):
+            if ty.__name__ in all_structs:
+                return
+            all_structs[ty.__name__] = ty
+            try:
+                for hint in typing.get_type_hints(ty).values():
+                    _visit_annotation(hint)
+            except Exception:
+                pass
+
+    def _visit_annotation(ty: Any) -> None:
+        if isinstance(ty, type):
+            _visit_type(ty)
+            return
+        for arg in typing.get_args(ty):
+            if arg is not Ellipsis and arg is not type(None):
+                _visit_annotation(arg)
+
+    for model in models:
+        _visit_type(model)
+
+    # Step 3 — walk collected structs and replace inline schemas with $refs
+    for schema_name, struct_cls in all_structs.items():
+        schema = component_schemas.get(schema_name)
+        if schema is None:
+            continue
+
+        properties = schema.get("properties", {})
+
+        try:
+            hints = typing.get_type_hints(struct_cls)
+        except Exception:
+            continue
+
+        for field_name, field_type in hints.items():
+            if field_name not in properties:
+                continue
+
+            replacement = resolve(field_type)
+            if replacement is not None:
+                # Preserve default value from the original schema
+                existing = properties[field_name]
+                if isinstance(existing, dict) and "default" in existing:
+                    replacement["default"] = existing["default"]
+                properties[field_name] = replacement
+
+    # Step 4 — replace inline {type: string, contentEncoding: base64}
+    # with a named $ref. msgspec already emits contentEncoding for
+    # bytes fields; we just need to give it a name so the TS codegen
+    # can brand it.
+    component_schemas["Base64String"] = {
+        "type": "string",
+        "contentEncoding": "base64",
+    }
+
+    def _make_base64_ref() -> dict[str, str]:
+        # Fresh dict each time to avoid YAML anchor deduplication
+        return {"$ref": "#/components/schemas/Base64String"}
+
+    def _replace_base64(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            if (
+                obj.get("type") == "string"
+                and obj.get("contentEncoding") == "base64"
+            ):
+                return _make_base64_ref()
+            return {k: _replace_base64(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_replace_base64(item) for item in obj]
+        return obj
+
+    for schema_name in list(component_schemas):
+        if schema_name == "Base64String":
+            continue
+        component_schemas[schema_name] = _replace_base64(
+            component_schemas[schema_name]
+        )
+
+
 def _generate_server_api_schema() -> dict[str, Any]:
     import msgspec
     import msgspec.json
@@ -255,6 +432,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.UpdateCellConfigRequest,
         models.UpdateCellIdsRequest,
+        models.FocusCellRequest,
         models.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,
@@ -273,6 +451,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         MODELS + [KnownUnions],
         ref_template="#/components/schemas/{name}",
     )
+
+    _enrich_branded_types(component_schemas, MODELS)
 
     schemas_generator = SchemaGenerator(
         {

@@ -3,7 +3,7 @@
 import { EditorState, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { describe, expect, test, vi } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
 import type { CodemirrorCellActions } from "../cells/state";
@@ -35,7 +35,7 @@ function namedFunction(name: string) {
 
 function getOpts() {
   return {
-    cellId: "0" as CellId,
+    cellId: cellId("0"),
     showPlaceholder: false,
     enableAI: false,
     cellActions: {
@@ -45,6 +45,7 @@ function getOpts() {
       onRun: namedFunction("onRun"),
       deleteCell: namedFunction("deleteCell"),
       afterToggleMarkdown: namedFunction("afterToggleMarkdown"),
+      afterToggleSQL: namedFunction("afterToggleSQL"),
     } as unknown as CodemirrorCellActions,
     completionConfig: {
       activate_on_typing: false,

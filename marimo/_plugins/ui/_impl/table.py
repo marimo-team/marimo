@@ -151,6 +151,9 @@ class SearchTableResponse:
     cell_hover_texts: Optional[
         dict[RowId, dict[ColumnName, Optional[str]]]
     ] = None
+    # Unformatted data mirroring the same shape/page as `data`,
+    # provided when format_mapping is applied.
+    raw_data: str | None = None
 
 
 @dataclass
@@ -666,6 +669,7 @@ class table(
             dict[RowId, dict[ColumnName, Optional[str]]]
         ] = None
         search_result_data: JSONType = []
+        search_result_raw_data: str | None = None
         field_types: Optional[FieldTypes] = None
         num_columns = 0
 
@@ -682,6 +686,7 @@ class table(
             )
             search_result_styles = search_result.cell_styles
             search_result_data = search_result.data
+            search_result_raw_data = search_result.raw_data
             search_result_hover_texts = search_result.cell_hover_texts
 
             # Validate column configurations
@@ -703,6 +708,7 @@ class table(
             initial_value=initial_value,
             args={
                 "data": search_result_data,
+                "raw-data": search_result_raw_data,
                 "total-rows": total_rows,
                 "total-columns": num_columns,
                 "max-columns": max_columns_arg,
@@ -1353,7 +1359,9 @@ class table(
         if max_columns == MAX_COLUMNS_NOT_PROVIDED:
             max_columns = self._max_columns
 
-        def clamp_rows_and_columns(manager: TableManager[Any]) -> str:
+        def clamp_rows_and_columns(
+            manager: TableManager[Any],
+        ) -> tuple[str, str | None]:
             # Limit to page and column clamping for the frontend
             data = manager.take(args.page_size, offset)
             column_names = data.get_column_names()
@@ -1369,7 +1377,9 @@ class table(
                 data = data.select_columns(columns_to_select)
 
             try:
-                return data.to_json_str(self._format_mapping)
+                formatted = data.to_json_str(self._format_mapping)
+                raw = data.to_json_str() if self._format_mapping else None
+                return formatted, raw
             except BaseException as e:
                 # Catch and re-raise the error as a non-BaseException
                 # to avoid crashing the kernel
@@ -1385,8 +1395,9 @@ class table(
             else:
                 total_rows = self._manager.get_num_rows(force=True) or 0
 
+            formatted_data, raw_data = clamp_rows_and_columns(self._manager)
             return SearchTableResponse(
-                data=clamp_rows_and_columns(self._manager),
+                data=formatted_data,
                 total_rows=total_rows,
                 cell_styles=self._style_cells(
                     offset, args.page_size, total_rows
@@ -1394,6 +1405,7 @@ class table(
                 cell_hover_texts=self._hover_cells(
                     offset, args.page_size, total_rows
                 ),
+                raw_data=raw_data,
             )
 
         filter_function = (
@@ -1422,8 +1434,9 @@ class table(
                 if element.descending:
                     descending = True
 
+        formatted_data, raw_data = clamp_rows_and_columns(result)
         return SearchTableResponse(
-            data=clamp_rows_and_columns(result),
+            data=formatted_data,
             total_rows=total_rows,
             cell_styles=self._style_cells(
                 offset, args.page_size, total_rows, descending
@@ -1431,6 +1444,7 @@ class table(
             cell_hover_texts=self._hover_cells(
                 offset, args.page_size, total_rows, descending
             ),
+            raw_data=raw_data,
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

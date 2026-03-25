@@ -246,7 +246,7 @@ class DependencyManager:
     tomlkit = Dependency("tomlkit")
     loro = Dependency("loro")
     boto3 = Dependency("boto3")
-    litellm = Dependency("litellm")
+
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
     pydantic_ai = Dependency(

@@ -3,7 +3,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration, switchLanguage } from "../extension";
@@ -26,12 +26,12 @@ function createEditor(doc: string) {
             codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
-          cellId: "cell1" as CellId,
+          cellId: cellId("cell1"),
           placeholderType: "marimo-import",
           lspConfig: {},
         }),
         cellConfigExtension({
-          cellId: "cell1" as CellId,
+          cellId: cellId("cell1"),
           completionConfig: {
             activate_on_typing: true,
             signature_hint_on_typing: false,

@@ -95,7 +95,7 @@ async def handle_error(request: Request, response: Any) -> Any:
                             {"detail": str(response)}, status_code=500
                         )
                     packages = [response.name]
-                    source = "kernel"
+                    source = "server"
                 # TODO(dmadisetti): Consider checking if the server is in a virtual environment
                 # and if so, set isolated to False.
                 isolated = True if source == "server" else is_python_isolated()

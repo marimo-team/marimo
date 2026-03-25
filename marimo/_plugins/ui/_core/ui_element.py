@@ -529,6 +529,9 @@ class UIElement(Html, Generic[S, T]):
                     "functions": result._args.functions,
                 }
             )
+
+        # Use the newly constructed arguments, instead of the one in the naive deepcopy.
+        result._args = args
         result._initialize(args)
         return result
 

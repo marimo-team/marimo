@@ -12,7 +12,7 @@ from marimo._config.reader import (
     read_marimo_config,
     read_pyproject_marimo_config,
 )
-from marimo._utils.toml import is_toml_error, read_toml
+from marimo._utils.toml import toml_reader
 
 
 def test_read_toml():
@@ -21,7 +21,7 @@ def test_read_toml():
     key = "value"
     """
     with patch("builtins.open", mock_open(read_data=toml_content)):
-        result = read_toml("dummy.toml")
+        result = toml_reader.read("dummy.toml")
         assert result == {"section": {"key": "value"}}
 
 
@@ -145,6 +145,5 @@ def test_read_toml_invalid_content():
     """
 
     with patch("builtins.open", mock_open(read_data=invalid_toml)):
-        with pytest.raises(Exception) as e:
-            read_toml("dummy.toml")
-        assert is_toml_error(e.value)
+        with pytest.raises(toml_reader.decode_error):
+            toml_reader.read("dummy.toml")

@@ -34,7 +34,7 @@ from marimo._server.file_router import (
 )
 from marimo._server.templates.templates import get_version
 from marimo._utils.platform import is_windows
-from marimo._utils.toml import read_toml
+from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -160,7 +160,7 @@ def _get_port() -> int:
 def _read_toml(filepath: Path) -> Optional[dict[str, Any]]:
     if not filepath.exists():
         return None
-    return read_toml(filepath)
+    return toml_reader.read(filepath)
 
 
 def _write_temp_notebook(notebook: str, tmp_dir: Path) -> Path:

@@ -28,7 +28,6 @@ import {
   notebookAtom,
   notebookReducer,
 } from "../cells/cells";
-import type { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
@@ -41,7 +40,6 @@ import {
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
-import type { RequestId } from "../network/DeferredRequestRegistry";
 import { requestClientAtom } from "../network/requests";
 import { store } from "../state/jotai";
 import { IslandsPyodideBridge } from "./bridge";
@@ -153,7 +151,7 @@ export async function initialize() {
         return;
       case "send-ui-element-message":
         UI_ELEMENT_REGISTRY.broadcastMessage(
-          msg.data.ui_element as UIElementId,
+          msg.data.ui_element,
           msg.data.message,
           safeExtractSetUIElementMessageBuffers(msg.data),
         );
@@ -163,10 +161,7 @@ export async function initialize() {
         handleRemoveUIElements(msg.data);
         return;
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(
-          msg.data.function_call_id as RequestId,
-          msg.data,
-        );
+        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
       case "cell-op":
         handleCellNotificationeration(msg.data, actions.handleCellMessage);

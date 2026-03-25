@@ -487,7 +487,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         for df_ in dfs:
             result = result.join(df_, on=index_columns, how="left")
         if transform.aggregation in {"count", "sum"}:
-            result = result.select(nw.all().fill_null(0))
+            result = result.with_columns(
+                nw.exclude(*index_columns).fill_null(0)
+            )
         return result.sort(by=index_columns)
 
     @staticmethod

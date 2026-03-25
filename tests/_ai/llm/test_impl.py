@@ -94,19 +94,28 @@ def mock_google_client():
 
 
 @pytest.fixture
-def mock_litellm_completion():
-    """Fixture for mocking the litellm completion function."""
-    with patch("litellm.completion") as mock_litellm_completion:
-        # Setup the response structure
-        mock_response = MagicMock()
-        mock_choice = MagicMock()
-        mock_message = MagicMock()
-        mock_message.content = "Test response"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_litellm_completion.return_value = mock_response
+def mock_bedrock_client():
+    """Fixture for mocking the boto3 bedrock-runtime client."""
+    with patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_session_class.return_value = mock_session
 
-        yield mock_litellm_completion
+        mock_client = MagicMock()
+        mock_session.client.return_value = mock_client
+
+        # Setup converse response
+        mock_client.converse.return_value = {
+            "output": {"message": {"content": [{"text": "Test response"}]}}
+        }
+
+        # Setup converse_stream response
+        mock_client.converse_stream.return_value = {
+            "stream": [
+                {"contentBlockDelta": {"delta": {"text": "Test response"}}}
+            ]
+        }
+
+        yield mock_client
 
 
 @pytest.fixture
@@ -1009,8 +1018,8 @@ class TestAnthropic:
 
 
 @pytest.mark.skipif(
-    not DependencyManager.boto3.has() or not DependencyManager.litellm.has(),
-    reason="boto3 or litellm is not installed",
+    not DependencyManager.boto3.has(),
+    reason="boto3 is not installed",
 )
 class TestBedrock:
     """Test the Bedrock model class"""
@@ -1023,13 +1032,17 @@ class TestBedrock:
             region_name="us-east-1",
         )
 
-        # bedrock automatically prefixes with bedrock/ for litellm usage
         assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
         assert model.system_message == "Test system message"
         assert model.region_name == "us-east-1"
         assert model.profile_name is None
         assert model.aws_access_key_id is None
         assert model.aws_secret_access_key is None
+
+    def test_init_with_bedrock_prefix(self):
+        """Test that the bedrock/ prefix is accepted and preserved"""
+        model = bedrock("bedrock/anthropic.claude-3-sonnet-20240229")
+        assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
 
     def test_init_with_credentials(self):
         """Test initialization with explicit credentials"""
@@ -1051,36 +1064,28 @@ class TestBedrock:
 
         assert model.profile_name == "test-profile"
 
-    @pytest.mark.xfail(
-        reason="latest litellm and openai are not compatible",
-    )
-    def test_call(self, mock_litellm_completion, test_messages, test_config):
-        """Test calling the bedrock class with LiteLLM client."""
+    def test_call(self, mock_bedrock_client, test_messages, test_config):
+        """Test calling the bedrock class with boto3 Converse API."""
         model_name = "anthropic.claude-3-sonnet-20240229"
 
-        # Create model with API key to avoid _require_api_key
         model = bedrock(model_name)
 
-        result = model(test_messages, test_config)
+        result = list(model(test_messages, test_config))
 
-        # Verify result
-        assert result == "Test response"
+        assert result == ["Test response"]
 
-        # Verify API call
-        mock_litellm_completion.assert_called_once()
-        call_args = mock_litellm_completion.call_args[1]
-        assert call_args["model"] == f"bedrock/{model_name}"
-        assert len(call_args["messages"]) == 2
-        assert call_args["messages"][0]["role"] == "system"
-        assert call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
-        assert call_args["messages"][1]["role"] == "user"
-        assert call_args["messages"][1]["content"] == "Test prompt"
-        assert call_args["max_tokens"] == 100
-        # Use pytest.approx for floating point comparisons
-        assert call_args["temperature"] == pytest.approx(0.7)
-        assert call_args["top_p"] == pytest.approx(0.9)
-        assert call_args["frequency_penalty"] == pytest.approx(0.5)
-        assert call_args["presence_penalty"] == pytest.approx(0.5)
+        mock_bedrock_client.converse_stream.assert_called_once()
+        call_args = mock_bedrock_client.converse_stream.call_args[1]
+        assert call_args["modelId"] == model_name
+        assert call_args["system"] == [{"text": DEFAULT_SYSTEM_MESSAGE}]
+        assert len(call_args["messages"]) == 1
+        assert call_args["messages"][0]["role"] == "user"
+        assert call_args["messages"][0]["content"] == [{"text": "Test prompt"}]
+        assert call_args["inferenceConfig"]["maxTokens"] == 100
+        assert call_args["inferenceConfig"]["temperature"] == pytest.approx(
+            0.7
+        )
+        assert call_args["inferenceConfig"]["topP"] == pytest.approx(0.9)
 
 
 @pytest.mark.skipif(

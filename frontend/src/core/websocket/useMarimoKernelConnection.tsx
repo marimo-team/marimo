@@ -24,7 +24,7 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
 import { cacheInfoAtom } from "../cache/requests";
-import { type CellId, SCRATCH_CELL_ID, type UIElementId } from "../cells/ids";
+import { SCRATCH_CELL_ID } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import type { CellData } from "../cells/types";
@@ -153,7 +153,7 @@ export function useMarimoKernelConnection(opts: {
         if (uiElement) {
           const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
           UI_ELEMENT_REGISTRY.broadcastMessage(
-            uiElement as UIElementId,
+            uiElement,
             msg.data.message,
             buffers,
           );
@@ -173,14 +173,11 @@ export function useMarimoKernelConnection(opts: {
         AUTOCOMPLETER.resolve(msg.data.completion_id as RequestId, msg.data);
         return;
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(
-          msg.data.function_call_id as RequestId,
-          msg.data,
-        );
+        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
       case "cell-op": {
         handleCellNotificationeration(msg.data, handleCellMessage);
-        const cellData = getNotebook().cellData[msg.data.cell_id as CellId];
+        const cellData = getNotebook().cellData[msg.data.cell_id];
         if (!cellData) {
           return;
         }
@@ -195,8 +192,8 @@ export function useMarimoKernelConnection(opts: {
         setVariables(
           msg.data.variables.map((v) => ({
             name: v.name as VariableName,
-            declaredBy: v.declared_by as CellId[],
-            usedBy: v.used_by as CellId[],
+            declaredBy: v.declared_by,
+            usedBy: v.used_by,
           })),
         );
         filterDatasetsFromVariables(
@@ -271,16 +268,16 @@ export function useMarimoKernelConnection(opts: {
         addColumnPreview(msg.data);
         return;
       case "sql-table-preview":
-        PreviewSQLTable.resolve(msg.data.request_id as RequestId, msg.data);
+        PreviewSQLTable.resolve(msg.data.request_id, msg.data);
         return;
       case "sql-table-list-preview":
-        PreviewSQLTableList.resolve(msg.data.request_id as RequestId, msg.data);
+        PreviewSQLTableList.resolve(msg.data.request_id, msg.data);
         return;
       case "validate-sql-result":
         ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "secret-keys-result":
-        SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
+        SECRETS_REGISTRY.resolve(msg.data.request_id, msg.data);
         return;
       case "cache-info":
         setCacheInfo(msg.data);
@@ -310,19 +307,19 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "focus-cell":
-        focusAndScrollCellOutputIntoView(msg.data.cell_id as CellId);
+        focusAndScrollCellOutputIntoView(msg.data.cell_id);
         return;
       case "update-cell-codes":
         setCellCodes({
           codes: msg.data.codes,
-          ids: msg.data.cell_ids as CellId[],
+          ids: msg.data.cell_ids,
           codeIsStale: msg.data.code_is_stale,
           names: msg.data.names,
           configs: msg.data.configs,
         });
         return;
       case "update-cell-ids":
-        setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
+        setCellIds({ cellIds: msg.data.cell_ids });
         return;
       default:
         logNever(msg.data);

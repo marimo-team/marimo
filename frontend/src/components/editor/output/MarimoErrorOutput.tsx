@@ -316,7 +316,7 @@ export const MarimoErrorOutput = ({
               <ul className="list-disc">
                 {error.cells.map((cid, cidIdx) => (
                   <li className={liStyle} key={`cell-${cidIdx}`}>
-                    <CellLinkError cellId={cid as CellId} />
+                    <CellLinkError cellId={cid} />
                   </li>
                 ))}
               </ul>
@@ -491,7 +491,7 @@ export const MarimoErrorOutput = ({
                 ) : (
                   <div>
                     {processTextForUrls(error.msg, `exception-${idx}`)}
-                    <CellLinkError cellId={error.raising_cell as CellId} />
+                    <CellLinkError cellId={error.raising_cell} />
                   </div>
                 )}
               </li>
@@ -518,7 +518,7 @@ export const MarimoErrorOutput = ({
               ) : (
                 <div>
                   {error.msg}
-                  <CellLinkError cellId={error.blamed_cell as CellId} />
+                  <CellLinkError cellId={error.blamed_cell} />
                 </div>
               )}
             </li>
@@ -554,13 +554,13 @@ export const MarimoErrorOutput = ({
               {error.msg}
               {error.blamed_cell == null ? (
                 <span>
-                  (<CellLinkError cellId={error.raising_cell as CellId} />)
+                  (<CellLinkError cellId={error.raising_cell} />)
                 </span>
               ) : (
                 <span>
-                  (<CellLinkError cellId={error.raising_cell as CellId} />
+                  (<CellLinkError cellId={error.raising_cell} />
                   &nbsp;blames&nbsp;
-                  <CellLinkError cellId={error.blamed_cell as CellId} />)
+                  <CellLinkError cellId={error.blamed_cell} />)
                 </span>
               )}
             </div>
@@ -578,7 +578,7 @@ export const MarimoErrorOutput = ({
           {ancestorStoppedErrors.map((error, idx) => (
             <div key={`ancestor-stopped-${idx}`}>
               {error.msg}
-              <CellLinkError cellId={error.raising_cell as CellId} />
+              <CellLinkError cellId={error.raising_cell} />
             </div>
           ))}
           {cellId && (

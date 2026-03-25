@@ -63,6 +63,57 @@ async def test_failed_install_returns_false() -> None:
     assert not await mgr.install("asdfasdfasdfasdfqwerty", version=None)
 
 
+@patch("subprocess.run")
+def test_pip_is_manager_installed_primary_check_success(mock_run: MagicMock):
+    """Primary python -m pip check succeeds → returns True."""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = PipPackageManager()
+    assert mgr.is_manager_installed() is True
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert call_args == [PY_EXE, "-m", "pip", "--version"]
+
+
+@patch("subprocess.run")
+@patch("marimo._dependencies.dependencies.DependencyManager.which")
+def test_pip_is_manager_installed_fallback_check(
+    mock_which: MagicMock, mock_run: MagicMock
+):
+    """Primary python -m pip fails but pip is on PATH → returns True (fallback)."""
+    mock_run.return_value = MagicMock(returncode=1)
+    mock_which.return_value = True
+    mgr = PipPackageManager()
+    assert mgr.is_manager_installed() is True
+    # Primary check was called and failed
+    mock_run.assert_called_once()
+    # Fallback which() was also called
+    mock_which.assert_called_once_with("pip")
+
+
+@patch("subprocess.run")
+@patch("marimo._dependencies.dependencies.DependencyManager.which")
+def test_pip_is_manager_installed_permission_error(
+    mock_which: MagicMock, mock_run: MagicMock
+):
+    """python -m pip raises OSError (e.g. PermissionError) → returns False."""
+    mock_run.side_effect = PermissionError("python not executable")
+    mock_which.return_value = False
+    mgr = PipPackageManager()
+    assert mgr.is_manager_installed() is False
+
+
+@patch("subprocess.run")
+@patch("marimo._dependencies.dependencies.DependencyManager.which")
+def test_pip_is_manager_installed_both_fail(
+    mock_which: MagicMock, mock_run: MagicMock
+):
+    """Both python -m pip and which("pip") fail → returns False."""
+    mock_run.return_value = MagicMock(returncode=1)
+    mock_which.return_value = False
+    mgr = PipPackageManager()
+    assert mgr.is_manager_installed() is False
+
+
 manager = PipPackageManager()
 
 
@@ -76,7 +127,7 @@ async def test_install(mock_run: MagicMock):
         )
 
     mock_run.assert_called_once_with(
-        ["pip", "--python", PY_EXE, "install", "package1", "package2"],
+        [PY_EXE, "-m", "pip", "install", "package1", "package2"],
     )
     assert result is True
 
@@ -101,9 +152,9 @@ async def test_uninstall(mock_run: MagicMock):
 
     mock_run.assert_called_once_with(
         [
-            "pip",
-            "--python",
             PY_EXE,
+            "-m",
+            "pip",
             "uninstall",
             "-y",
             "package1",
@@ -127,7 +178,7 @@ def test_list_packages(mock_run: MagicMock):
         packages = manager.list_packages()
 
     mock_run.assert_called_once_with(
-        ["pip", "--python", PY_EXE, "list", "--format=json"],
+        [PY_EXE, "-m", "pip", "list", "--format=json"],
         capture_output=True,
         text=True,
         encoding="utf-8",

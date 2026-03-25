@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { findVirtualFiles, VirtualFileTracker } from "../virtual-file-tracker";
 
@@ -103,32 +103,32 @@ describe("findVirtualFiles", () => {
 describe("VirtualFileTracker", () => {
   it("should track virtual files, append, clear", () => {
     const tracker = VirtualFileTracker.INSTANCE;
-    const cellId = "test-cell-id" as CellId;
+    const cid = cellId("test-cell-id");
     tracker.track({
-      cell_id: cellId,
+      cell_id: cid,
       output: {
         mimetype: "text/html",
         data: "Some text /@file/test-file.js more text",
       } as OutputMessage,
     });
-    expect(tracker.virtualFiles.get(cellId)).toEqual(
+    expect(tracker.virtualFiles.get(cid)).toEqual(
       new Set(["/@file/test-file.js"]),
     );
 
     // can append
     tracker.track({
-      cell_id: cellId,
+      cell_id: cid,
       output: {
         mimetype: "text/html",
         data: "Some text /@file/another-file.txt more text",
       } as OutputMessage,
     });
-    expect(tracker.virtualFiles.get(cellId)).toEqual(
+    expect(tracker.virtualFiles.get(cid)).toEqual(
       new Set(["/@file/test-file.js", "/@file/another-file.txt"]),
     );
 
     // can clear
-    tracker.removeForCellId(cellId);
-    expect(tracker.virtualFiles.get(cellId)).toEqual(undefined);
+    tracker.removeForCellId(cid);
+    expect(tracker.virtualFiles.get(cid)).toEqual(undefined);
   });
 });

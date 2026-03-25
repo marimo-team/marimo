@@ -18,7 +18,6 @@ class _AddOp:
     cell_id: CellId_t
     code: str
     config: CellConfig
-    draft: bool = False
     before: CellId_t | None = None
     after: CellId_t | None = None
     name: str | None = None
@@ -29,7 +28,6 @@ class _UpdateOp:
     cell_id: CellId_t
     code: str | None = None
     config: CellConfig | None = None
-    draft: bool = False
     name: str | None = None
     new_cell_id: CellId_t | None = None
 
@@ -59,7 +57,6 @@ class _PlanEntry:
     cell_id: CellId_t
     code: str | None = None
     config: CellConfig | None = None
-    draft: bool = False
     name: str | None = None
 
 
@@ -93,7 +90,6 @@ def _build_plan(
                 cell_id=op.cell_id,
                 code=op.code,
                 config=op.config,
-                draft=op.draft,
                 name=op.name,
             )
             if op.after is not None:
@@ -117,7 +113,6 @@ def _build_plan(
                 entry.config = op.config
             if op.name is not None:
                 entry.name = op.name
-            entry.draft = op.draft
 
         elif isinstance(op, _DeleteOp):
             idx = _find_index(op.cell_id)

@@ -224,6 +224,7 @@ export function renderChart(chartSpec: string, theme: Theme) {
   return (
     <Suspense fallback={LoadingChart}>
       <LazyVegaEmbed
+        data-container-width="container"
         spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
         options={{
           theme: theme === "dark" ? "dark" : "vox",

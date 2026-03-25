@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { CellMessage } from "../../kernel/messages";
 import { formatLogTimestamp, getCellLogsForMessage } from "../logs";
 
@@ -18,7 +19,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles text/plain MIME type on stdout", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-1",
+      cell_id: cellId("cell-1"),
       console: [
         {
           mimetype: "text/plain",
@@ -46,7 +47,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles text/plain MIME type on stderr", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-2",
+      cell_id: cellId("cell-2"),
       console: [
         {
           mimetype: "text/plain",
@@ -74,7 +75,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles text/html MIME type and strips HTML tags", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-3",
+      cell_id: cellId("cell-3"),
       console: [
         {
           mimetype: "text/html",
@@ -102,7 +103,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles text/html MIME type on stderr", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-4",
+      cell_id: cellId("cell-4"),
       console: [
         {
           mimetype: "text/html",
@@ -130,7 +131,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles application/vnd.marimo+traceback MIME type and strips HTML", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-5",
+      cell_id: cellId("cell-5"),
       console: [
         {
           mimetype: "application/vnd.marimo+traceback",
@@ -156,7 +157,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles multiple console outputs with different MIME types", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-7",
+      cell_id: cellId("cell-7"),
       console: [
         {
           mimetype: "text/plain",
@@ -196,7 +197,7 @@ describe("getCellLogsForMessage", () => {
     vi.spyOn(Date, "now").mockReturnValue(now);
 
     const cellMessage: CellMessage = {
-      cell_id: "cell-8",
+      cell_id: cellId("cell-8"),
       console: [
         {
           mimetype: "text/plain",
@@ -219,7 +220,7 @@ describe("getCellLogsForMessage", () => {
 
   test("ignores unsupported MIME types", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-9",
+      cell_id: cellId("cell-9"),
       console: [
         {
           mimetype: "application/json",
@@ -241,7 +242,7 @@ describe("getCellLogsForMessage", () => {
 
   test("ignores non-logging channels", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-10",
+      cell_id: cellId("cell-10"),
       console: [
         {
           mimetype: "text/plain",
@@ -263,7 +264,7 @@ describe("getCellLogsForMessage", () => {
 
   test("returns empty array when console is null", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-11",
+      cell_id: cellId("cell-11"),
       console: null as unknown as CellMessage["console"],
       output: null,
       status: "idle",
@@ -278,7 +279,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles complex HTML with nested elements in text/html", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-12",
+      cell_id: cellId("cell-12"),
       console: [
         {
           mimetype: "text/html",
@@ -301,7 +302,7 @@ describe("getCellLogsForMessage", () => {
 
   test("handles marimo-error channel as stderr level", () => {
     const cellMessage: CellMessage = {
-      cell_id: "cell-13",
+      cell_id: cellId("cell-13"),
       console: [
         {
           mimetype: "text/plain",

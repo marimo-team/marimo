@@ -4,6 +4,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import msgspec
+import pytest
 from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
@@ -45,7 +46,8 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 1")
+            cid = nb.create_cell("x = 1")
+            nb.run_cell(cid)
 
         assert len(k.graph.cells) == 1
         cell = list(k.graph.cells.values())[0]
@@ -72,7 +74,8 @@ class TestAddCell:
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.create_cell("c = a + b")
+            cid = nb.create_cell("c = a + b")
+            nb.run_cell(cid)
 
         assert len(k.graph.cells) == 3
         assert k.globals["c"] == 30
@@ -103,12 +106,12 @@ class TestAddCell:
         # New cell should be after "0", before "1".
         assert cell_ids[2] == "1"
 
-    async def test_add_draft_does_not_execute(self, k: Kernel) -> None:
+    async def test_add_without_run_does_not_execute(self, k: Kernel) -> None:
         ctx = AsyncCodeModeContext(k)
         _clear_messages(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 999", draft=True)
+            nb.create_cell("x = 999")
 
         assert len(k.graph.cells) == 1
         assert "x" not in k.globals
@@ -132,7 +135,9 @@ class TestAddCell:
 
         async with ctx as nb:
             cid1 = nb.create_cell("x = 1")
-            nb.create_cell("y = 2", after=cid1)
+            cid2 = nb.create_cell("y = 2", after=cid1)
+            nb.run_cell(cid1)
+            nb.run_cell(cid2)
 
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
@@ -207,6 +212,7 @@ class TestUpdateCell:
 
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
+            nb.run_cell("0")
 
         assert k.globals["x"] == 42
         assert _graph_codes(k) == snapshot({"0": "x = 42"})
@@ -239,6 +245,7 @@ class TestUpdateCell:
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
+            nb.run_cell("0")
 
         assert k.globals["x"] == 42
         assert "y" not in k.globals
@@ -258,6 +265,7 @@ class TestUpdateCell:
         ctx = AsyncCodeModeContext(k)
         async with ctx as nb:
             nb.edit_cell("0", code="x = 42")
+            nb.run_cell("0")
 
         assert k.globals["x"] == 42
         assert k.cell_metadata["0"].config.hide_code is True
@@ -273,7 +281,24 @@ class TestUpdateCell:
 
         assert k.globals["x"] == 1
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
-        assert msgspec.to_builtins(_code_notifs(k)) == snapshot([])
+        assert msgspec.to_builtins(_code_notifs(k)) == snapshot(
+            [
+                {
+                    "op": "update-cell-codes",
+                    "cell_ids": ["0"],
+                    "codes": ["x = 1"],
+                    "code_is_stale": False,
+                    "names": [],
+                    "configs": [
+                        {
+                            "column": None,
+                            "disabled": False,
+                            "hide_code": True,
+                        }
+                    ],
+                }
+            ]
+        )
 
 
 class TestCombined:
@@ -291,7 +316,8 @@ class TestCombined:
 
         async with ctx as nb:
             nb.delete_cell("1")
-            nb.create_cell("d = a + c", after="0")
+            cid = nb.create_cell("d = a + c", after="0")
+            nb.run_cell(cid)
 
         assert k.globals["d"] == 4
         codes = _graph_codes(k)
@@ -314,7 +340,8 @@ class TestCombined:
         # This must not raise a multiply-defined error.
         async with ctx as nb:
             nb.delete_cell("1")
-            nb.create_cell("b = a + 100")
+            cid = nb.create_cell("b = a + 100")
+            nb.run_cell(cid)
 
         assert k.globals["b"] == 101
         assert "1" not in _graph_codes(k)
@@ -346,6 +373,46 @@ class TestCombined:
         assert _graph_codes(k) == snapshot({"0": "x = 1"})
         assert len(k.graph.cells) == 1
 
+    async def test_rerun_without_structural_ops(self, k: Kernel) -> None:
+        """run_cell without any create/edit/delete still executes."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        # Mutate the global so we can detect re-execution.
+        k.globals["x"] = 0
+        async with ctx as nb:
+            nb.run_cell("0")
+
+        assert k.globals["x"] == 1
+
+    async def test_rerun_alongside_structural_ops(self, k: Kernel) -> None:
+        """run_cell on an unchanged cell works even with other structural ops."""
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+            ]
+        )
+        ctx = AsyncCodeModeContext(k)
+
+        # Mutate so we can detect re-execution of "0".
+        k.globals["x"] = 0
+        async with ctx as nb:
+            nb.create_cell("z = 99", name="new")
+            nb.run_cell("0")
+
+        assert k.globals["x"] == 1
+
+    async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
+        """Calling run_cell on a cell queued for deletion raises."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        async with ctx as nb:
+            nb.delete_cell("0")
+            with pytest.raises(ValueError, match="queued for deletion"):
+                nb.run_cell("0")
+
 
 class TestSummary:
     async def test_create_prints_summary(
@@ -354,10 +421,10 @@ class TestSummary:
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 1")
+            nb.create_cell("x = 1", name="my_cell")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "created cell" in captured.out
+        assert captured.out == snapshot("created cell 'Hbol' (my_cell)\n")
 
     async def test_edit_prints_summary(
         self, k: Kernel, capsys: object
@@ -369,7 +436,7 @@ class TestSummary:
             nb.edit_cell("0", code="x = 2")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "edited code of cell" in captured.out
+        assert captured.out == snapshot("edited code of cell '0'\n")
 
     async def test_delete_prints_summary(
         self, k: Kernel, capsys: object
@@ -381,7 +448,7 @@ class TestSummary:
             nb.delete_cell("0")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "deleted cell" in captured.out
+        assert captured.out == snapshot("deleted cell '0'\n")
 
     async def test_noop_prints_nothing(
         self, k: Kernel, capsys: object
@@ -394,26 +461,39 @@ class TestSummary:
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         assert captured.out == ""
 
-    async def test_mixed_ops_prints_all(
-        self, k: Kernel, capsys: object
-    ) -> None:
+    async def test_batch_summary(self, k: Kernel, capsys: object) -> None:
+        """Full batch: create+run, edit+run, delete, create (staged), re-run."""
         await k.run(
             [
                 ExecuteCellCommand(cell_id="0", code="a = 1"),
                 ExecuteCellCommand(cell_id="1", code="b = 2"),
+                ExecuteCellCommand(cell_id="2", code="c = 3"),
             ]
         )
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
+            # delete
             nb.delete_cell("1")
-            nb.create_cell("c = 3")
+            # create + run
+            nb.create_cell("d = 4", name="new_cell")
+            nb.run_cell("new_cell")
+            # create without run (staged)
+            nb.create_cell("e = 5", name="staged")
+            # edit + run
             nb.edit_cell("0", code="a = 10")
+            nb.run_cell("0")
+            # re-run existing cell without editing
+            nb.run_cell("2")
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
-        assert "deleted cell" in captured.out
-        assert "created cell" in captured.out
-        assert "edited code of cell" in captured.out
+        assert captured.out == snapshot("""\
+deleted cell '1'
+created and ran cell 'Hbol' (new_cell)
+created cell 'MJUe' (staged)
+edited code of cell '0' and ran
+re-ran cell '2'
+""")
 
 
 class TestResolveTarget:
@@ -422,8 +502,10 @@ class TestResolveTarget:
         ctx = AsyncCodeModeContext(k)
 
         async with ctx as nb:
-            nb.create_cell("x = 1", name="first")
-            nb.create_cell("y = x + 1", after="first")
+            cid1 = nb.create_cell("x = 1", name="first")
+            cid2 = nb.create_cell("y = x + 1", after="first")
+            nb.run_cell(cid1)
+            nb.run_cell(cid2)
 
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
@@ -446,7 +528,8 @@ class TestResolveTarget:
 
         async with ctx as nb:
             nb.edit_cell("0", name="renamed")
-            nb.create_cell("c = a + b", after="renamed")
+            cid = nb.create_cell("c = a + b", after="renamed")
+            nb.run_cell(cid)
 
         assert k.globals["c"] == 3
 
@@ -494,3 +577,88 @@ class TestInstallPackages:
         assert installed["pandas"] == ""
         assert installed["polars>=0.20"] == ""
         assert installed["numpy==1.26"] == ""
+
+
+class TestAutorunStaleState:
+    """In autorun mode, downstream cells should not be marked stale."""
+
+    async def test_dependent_chain_only_root_run(self, k: Kernel) -> None:
+        """Running the root cell should mark reactive descendants as
+        non-stale in autorun mode so the frontend doesn't show them
+        as 'needs run'."""
+        ctx = AsyncCodeModeContext(k)
+        _clear_messages(k)
+
+        async with ctx as nb:
+            a = nb.create_cell("x = 1")
+            b = nb.create_cell("y = x + 1")
+            nb.run_cell(a)
+
+        # Both cells should have executed.
+        assert k.globals["x"] == 1
+        assert k.globals["y"] == 2
+
+        # The notification for b should be code_is_stale=False because
+        # autorun will execute it.
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        stale_flags = {
+            cid: n["code_is_stale"]
+            for n in code_notifs
+            for cid in n["cell_ids"]
+        }
+        a_id = list(k.graph.cells.keys())[0]
+        b_id = list(k.graph.cells.keys())[1]
+        assert stale_flags[str(a_id)] is False
+        assert stale_flags[str(b_id)] is False
+
+    async def test_dependent_chain_lazy_mode(
+        self, lazy_kernel: Kernel
+    ) -> None:
+        """In lazy mode, only the explicitly run cell should be non-stale.
+        Downstream cells stay stale."""
+        k = lazy_kernel
+        ctx = AsyncCodeModeContext(k)
+        _clear_messages(k)
+
+        async with ctx as nb:
+            a = nb.create_cell("x = 1")
+            b = nb.create_cell("y = x + 1")
+            nb.run_cell(a)
+
+        assert k.globals["x"] == 1
+        # b should NOT have executed in lazy mode.
+        assert "y" not in k.globals
+
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        stale_flags = {
+            cid: n["code_is_stale"]
+            for n in code_notifs
+            for cid in n["cell_ids"]
+        }
+        a_id = list(k.graph.cells.keys())[0]
+        b_id = list(k.graph.cells.keys())[1]
+        assert stale_flags[str(a_id)] is False
+        assert stale_flags[str(b_id)] is True
+
+    async def test_two_step_edit_then_run(self, k: Kernel) -> None:
+        """edit_cell in one flush, run_cell in a separate flush should
+        send code_is_stale=false so the frontend clears the stale state."""
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        ctx = AsyncCodeModeContext(k)
+
+        # Flush 1: edit only
+        async with ctx as nb:
+            nb.edit_cell("0", code="x = 42")
+
+        _clear_messages(k)
+
+        # Flush 2: run only
+        ctx2 = AsyncCodeModeContext(k)
+        async with ctx2 as nb:
+            nb.run_cell("0")
+
+        assert k.globals["x"] == 42
+
+        code_notifs = msgspec.to_builtins(_code_notifs(k))
+        assert len(code_notifs) == 1
+        assert code_notifs[0]["code_is_stale"] is False

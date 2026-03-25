@@ -12,10 +12,13 @@ Usage::
 
     async with cm.get_context() as ctx:
         cid = ctx.create_cell("x = 1")
-        ctx.create_cell("y = x + 1", after=cid)
+        cid2 = ctx.create_cell("y = x + 1", after=cid)
         ctx.edit_cell("my_cell", code="z = 42")
         ctx.delete_cell("old_cell")
         ctx.move_cell("my_cell", after="other_cell")
+        ctx.run_cell(cid)
+        ctx.run_cell(cid2)
+        ctx.run_cell("my_cell")
 """
 
 from __future__ import annotations
@@ -51,7 +54,6 @@ from marimo._runtime.commands import (
     DeleteCellCommand,
     ExecuteCellCommand,
     InstallPackagesCommand,
-    UpdateCellConfigCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.context import get_context as _get_runtime_context
@@ -80,7 +82,7 @@ class NotebookCellData:
 
     code: str | None = None
     config: CellConfig | None = None
-    cell_id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
+    id: CellId_t = field(default_factory=lambda: CellId_t(str(uuid4())))
     name: str | None = field(default=None, repr=True, compare=False)
 
 
@@ -97,7 +99,7 @@ _cell_names: dict[CellId_t, str] = {}
 # ------------------------------------------------------------------
 
 
-def get_context(*, check: bool = True) -> AsyncCodeModeContext:
+def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     """Return an ``AsyncCodeModeContext`` for the running kernel.
 
     Use as an async context manager::
@@ -105,24 +107,29 @@ def get_context(*, check: bool = True) -> AsyncCodeModeContext:
         async with cm.get_context() as ctx:
             ctx.create_cell("x = 1")
 
-    By default, a dry-run compile check is performed on exit to catch
-    syntax errors, multiply-defined names, and cycles before any graph
-    mutations.  Pass ``check=False`` to skip this validation::
-
-        async with cm.get_context(check=False) as ctx:
-            ...
+    Parameters
+    ----------
+    skip_validation : bool, default False
+        When False (the default), a dry-run compile check runs on exit
+        to catch syntax errors, multiply-defined names, and cycles
+        *before* any graph mutations are applied. The check is cheap
+        and should almost never be disabled. Only set to True when you
+        intentionally need to insert code that would fail validation
+        (e.g. incomplete stubs the user plans to fix by hand).
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
         raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
-        runtime_ctx._kernel, cell_manager=cell_manager, check=check
+        runtime_ctx._kernel,
+        cell_manager=cell_manager,
+        skip_validation=skip_validation,
     )
 
 
 class _CellsView:
-    """Read-only view over notebook cells as ``NotebookCellData`` objects.
+    """Read-only, ordered-dict-like view over notebook cells.
 
     Supports lookup by integer index, cell ID, or cell name::
 
@@ -130,6 +137,14 @@ class _CellsView:
         ctx.cells[-1]  # negative index
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
+
+    Dict-like iteration::
+
+        for cid, cell in ctx.cells.items():
+            ...
+        ctx.cells.keys()  # list of CellId_t
+        ctx.cells.values()  # list of NotebookCellData
+        "my_cell" in ctx.cells  # membership test
     """
 
     def __init__(self, ctx: AsyncCodeModeContext) -> None:
@@ -157,7 +172,7 @@ class _CellsView:
             code=cell_impl.code,
             config=meta.config if meta else CellConfig(),
             name=self._cell_name(cell_id),
-            cell_id=cell_id,
+            id=cell_id,
         )
 
     def _resolve(self, target: str) -> CellId_t:
@@ -197,9 +212,31 @@ class _CellsView:
 
         return self._build_at(self._resolve(key))
 
-    def __iter__(self) -> Iterator[NotebookCellData]:
-        for cid in self._cell_ids():
-            yield self._build_at(cid)
+    def __iter__(self) -> Iterator[CellId_t]:
+        yield from self._cell_ids()
+
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, int):
+            return 0 <= key < len(self)
+        if isinstance(key, str):
+            try:
+                self._resolve(key)
+                return True
+            except KeyError:
+                return False
+        return False
+
+    def keys(self) -> list[CellId_t]:
+        """Return cell IDs in notebook order."""
+        return self._cell_ids()
+
+    def values(self) -> list[NotebookCellData]:
+        """Return cell data in notebook order."""
+        return [self._build_at(cid) for cid in self._cell_ids()]
+
+    def items(self) -> list[tuple[CellId_t, NotebookCellData]]:
+        """Return (cell_id, cell_data) pairs in notebook order."""
+        return [(cid, self._build_at(cid)) for cid in self._cell_ids()]
 
 
 # ------------------------------------------------------------------
@@ -227,11 +264,11 @@ class AsyncCodeModeContext:
         kernel: Kernel,
         cell_manager: CellManager | None = None,
         *,
-        check: bool = True,
+        skip_validation: bool = False,
     ) -> None:
         self._kernel = kernel
         self._cell_manager = cell_manager
-        self._check = check
+        self._skip_validation = skip_validation
         self._ops: list[_Op] = []
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
@@ -242,6 +279,7 @@ class AsyncCodeModeContext:
         self._id_generator.seen_ids = set(kernel.graph.cells.keys())
         self._packages_to_install: list[str] = []
         self._ui_updates: list[tuple[UIElementId, Any]] = []
+        self._cells_to_run: set[CellId_t] = set()
         self._entered = False
 
     def _require_entered(self) -> None:
@@ -264,6 +302,7 @@ class AsyncCodeModeContext:
         self._pending_adds = {}
         self._packages_to_install = []
         self._ui_updates = []
+        self._cells_to_run = set()
         self._entered = True
         return self
 
@@ -276,10 +315,12 @@ class AsyncCodeModeContext:
         ops = self._ops
         packages = self._packages_to_install
         ui_updates = self._ui_updates
+        cells_to_run = self._cells_to_run
         self._ops = []
         self._pending_adds = {}
         self._packages_to_install = []
         self._ui_updates = []
+        self._cells_to_run = set()
 
         if exc_type is not None:
             return  # let exception propagate, discard queued ops
@@ -295,9 +336,24 @@ class AsyncCodeModeContext:
 
         if ops:
             _validate_ops(ops)
-            if self._check:
+            if not self._skip_validation:
                 self._dry_run_compile(ops)
-            await self._apply_ops(ops)
+            await self._apply_ops(ops, cells_to_run)
+        elif cells_to_run:
+            # run_cell was called without any structural ops — just re-run.
+            # Notify the frontend that these cells are no longer stale so
+            # it clears edited/lastCodeRun (covers the two-step pattern:
+            # edit_cell in one flush, run_cell in a separate flush).
+            valid = cells_to_run & set(self.graph.cells.keys())
+            if valid:
+                self.notify(
+                    UpdateCellCodesNotification(
+                        cell_ids=list(valid),
+                        codes=[self.graph.cells[cid].code for cid in valid],
+                        code_is_stale=False,
+                    )
+                )
+            await self._kernel._run_cells(cells_to_run)
 
         # Flush queued UI updates as a single batch.
         if ui_updates:
@@ -310,7 +366,7 @@ class AsyncCodeModeContext:
             )
 
         # Print a summary of what was applied.
-        self._print_summary(ops, packages, ui_updates)
+        self._print_summary(ops, packages, ui_updates, cells_to_run)
 
     # ------------------------------------------------------------------
     # Summary
@@ -321,6 +377,7 @@ class AsyncCodeModeContext:
         ops: list[_Op],
         packages: list[str],
         ui_updates: list[tuple[UIElementId, Any]],
+        cells_to_run: set[CellId_t] | None = None,
     ) -> None:
         """Print a human-readable summary of applied operations."""
         lines: list[str] = []
@@ -328,11 +385,16 @@ class AsyncCodeModeContext:
         for pkg in packages:
             lines.append(f"installed {pkg}")
 
+        _run = cells_to_run or set()
+        op_cell_ids: set[CellId_t] = set()
         for op in ops:
             cell_id = op.cell_id
+            op_cell_ids.add(cell_id)
             label = self._cell_label(cell_id)
+            ran = cell_id in _run
             if isinstance(op, _AddOp):
-                lines.append(f"created cell {label}")
+                verb = "created and ran" if ran else "created"
+                lines.append(f"{verb} cell {label}")
             elif isinstance(op, _UpdateOp):
                 parts = []
                 if op.code is not None:
@@ -340,11 +402,19 @@ class AsyncCodeModeContext:
                 if op.config is not None:
                     parts.append("config")
                 detail = " and ".join(parts) if parts else "config"
-                lines.append(f"edited {detail} of cell {label}")
+                suffix = " and ran" if ran else ""
+                lines.append(f"edited {detail} of cell {label}{suffix}")
             elif isinstance(op, _DeleteOp):
                 lines.append(f"deleted cell {label}")
             elif isinstance(op, _MoveOp):
                 lines.append(f"moved cell {label}")
+
+        # Report cells queued for execution that had no structural op.
+        if _run:
+            for cell_id in _run:
+                if cell_id not in op_cell_ids:
+                    label = self._cell_label(cell_id)
+                    lines.append(f"re-ran cell {label}")
 
         if ui_updates:
             lines.append(f"updated {len(ui_updates)} UI element(s)")
@@ -356,14 +426,19 @@ class AsyncCodeModeContext:
             sys.stdout.write(line + "\n")
 
     def _cell_label(self, cell_id: CellId_t) -> str:
-        """Return a display label for a cell: name if available, else short ID."""
+        """Return a display label: ``'id' (name)`` or ``'id'``."""
+        short = repr(str(cell_id)[:8])
+        name: str | None = None
         cm = self._cell_manager
         if cm is not None:
             data = cm.get_cell_data(cell_id)
             if data and data.name:
-                return repr(data.name)
-        short = str(cell_id)[:8]
-        return repr(short)
+                name = data.name
+        if name is None:
+            name = _cell_names.get(cell_id)
+        if name:
+            return f"{short} ({name})"
+        return short
 
     # ------------------------------------------------------------------
     # Read-only attributes
@@ -376,7 +451,12 @@ class AsyncCodeModeContext:
 
     @property
     def globals(self) -> dict[str, Any]:
-        """The kernel's global namespace (all variables defined by cells)."""
+        """The kernel's global namespace (all variables defined by cells).
+
+        Mutations via :meth:`run_cell` update the kernel globals but
+        *not* the scratchpad's copy. Read values through this property
+        (``ctx.globals["x"]``) rather than bare variable names.
+        """
         return self._kernel.globals
 
     @property
@@ -449,8 +529,7 @@ class AsyncCodeModeContext:
                 if self._cell_manager is not None
                 else CellId_t(SETUP_CELL_NAME)
             )
-            # Setup is identified by cell_id, not name — clear the name.
-            return cell_id, None
+            return cell_id, SETUP_CELL_NAME
         cell_id = self._id_generator.create_cell_id()
         return cell_id, name
 
@@ -463,13 +542,18 @@ class AsyncCodeModeContext:
         hide_code: bool = True,
         disabled: bool = False,
         column: int | None = None,
-        draft: bool = False,
         name: str | None = None,
     ) -> CellId_t:
         """Queue a new cell. Returns the new cell's ID.
 
         The returned ID can be used in subsequent operations within the
         same batch (e.g. as an ``after`` target for the next cell).
+
+        Cells are not executed automatically. Use ``run_cell`` to queue
+        them for execution::
+
+            cid = ctx.create_cell("x = 1")
+            ctx.run_cell(cid)
 
         Examples:
             ```python
@@ -480,15 +564,9 @@ class AsyncCodeModeContext:
             cid2 = ctx.create_cell("df = pd.read_csv('data.csv')", after=cid)
             ctx.create_cell("df.head()", after=cid2)
 
-            # Insert before a named cell, with code visible
-            ctx.create_cell("# Setup", before="analysis", hide_code=False)
-
-            # Stage without executing
-            ctx.create_cell("expensive_computation()", draft=True)
-
-            # Create a setup cell with imports, then a cell that uses them
-            ctx.create_cell("import marimo as mo", name="setup")
-            ctx.create_cell("mo.md('# Hello')", name="greeting")
+            # Create and run
+            cid = ctx.create_cell("x = 1")
+            ctx.run_cell(cid)
             ```
 
         Args:
@@ -502,10 +580,10 @@ class AsyncCodeModeContext:
             disabled (bool): Prevent the cell from executing.
                 Defaults to False.
             column (int, optional): Column index for multi-column layouts.
-            draft (bool): Insert code without executing it.
-                Defaults to False.
-            name (str, optional): Name for the cell (e.g. ``"data_loader"``,
-                ``"setup"`` for a setup cell).
+            name (str, optional): Cell names are a human-facing label,
+                reserved for special cases (e.g. ``"setup"``). Prefer
+                referencing cells by the returned cell ID unless
+                naming is important for the user.
         """
         self._require_entered()
         if before is not None and after is not None:
@@ -526,7 +604,6 @@ class AsyncCodeModeContext:
             cell_id=cell_id,
             code=code,
             config=config,
-            draft=draft,
             before=before_id,
             after=after_id,
             name=resolved_name,
@@ -538,12 +615,11 @@ class AsyncCodeModeContext:
     def edit_cell(
         self,
         target: str,
-        *,
         code: str | None = None,
+        *,
         hide_code: bool | None = None,
         disabled: bool | None = None,
         column: int | None = None,
-        draft: bool = False,
         name: str | None = None,
     ) -> None:
         """Queue an update to an existing cell's code and/or config.
@@ -551,21 +627,26 @@ class AsyncCodeModeContext:
         Only the arguments you explicitly pass are changed — the cell's
         existing config is preserved for any argument left as ``None``.
 
+        Editing a cell does not automatically execute it. Use ``run_cell``
+        to queue it for execution::
+
+            ctx.edit_cell("my_cell", "x = 42")
+            ctx.run_cell("my_cell")
+
         Examples:
             ```python
             # Update only code (config like hide_code is preserved)
-            ctx.edit_cell(
-                "data_loader", code="df = pd.read_parquet('new.parquet')"
-            )
+            ctx.edit_cell("data_loader", "df = pd.read_parquet('new.parquet')")
 
             # Update only config (code is preserved)
             ctx.edit_cell("data_loader", hide_code=False)
 
             # Update both code and config
-            ctx.edit_cell("data_loader", code="df = load()", disabled=True)
+            ctx.edit_cell("data_loader", "df = load()", disabled=True)
 
-            # Stage new code without executing
-            ctx.edit_cell("my_cell", code="new_code()", draft=True)
+            # Edit and run
+            ctx.edit_cell("my_cell", "new_code()")
+            ctx.run_cell("my_cell")
 
             # Rename a cell
             ctx.edit_cell("old_name", name="new_name")
@@ -577,7 +658,6 @@ class AsyncCodeModeContext:
             hide_code (bool, optional): Collapse the code editor. None keeps existing.
             disabled (bool, optional): Prevent the cell from executing. None keeps existing.
             column (int, optional): Column index for multi-column layouts. None keeps existing.
-            draft (bool): Update code without executing. Defaults to False.
             name (str, optional): New name for the cell. None keeps existing.
         """
         self._require_entered()
@@ -632,7 +712,6 @@ class AsyncCodeModeContext:
                 cell_id=cell_id,
                 code=code,
                 config=config,
-                draft=draft,
                 name=name,
                 new_cell_id=new_cell_id,
             )
@@ -699,6 +778,47 @@ class AsyncCodeModeContext:
             )
         )
 
+    def run_cell(self, target: str) -> None:
+        """Queue a cell for execution.
+
+        Cells created or edited in the same batch are not executed
+        automatically — use ``run_cell`` to mark them for execution.
+        Can also be used to re-run an existing cell without editing it.
+
+        All queued ``run_cell`` targets are executed in a single batch
+        on context exit, after structural operations (create/edit/delete)
+        have been applied.
+
+        Examples:
+            ```python
+            # Create and run
+            cid = ctx.create_cell("x = 1")
+            ctx.run_cell(cid)
+
+            # Edit and run
+            ctx.edit_cell("my_cell", code="y = 2")
+            ctx.run_cell("my_cell")
+
+            # Re-run an existing cell without editing
+            ctx.run_cell("my_cell")
+            ```
+
+        Args:
+            target (str): Cell ID or cell name to execute.
+        """
+        self._require_entered()
+        cell_id = self._resolve_target(target)
+        # Guard against running a cell that is queued for deletion.
+        deleted_ids = {
+            op.cell_id for op in self._ops if isinstance(op, _DeleteOp)
+        }
+        if cell_id in deleted_ids:
+            raise ValueError(
+                f"Cannot run cell {target!r} because it is queued "
+                "for deletion in this batch"
+            )
+        self._cells_to_run.add(cell_id)
+
     # ------------------------------------------------------------------
     # Apply queued operations
     # ------------------------------------------------------------------
@@ -763,19 +883,19 @@ class AsyncCodeModeContext:
             )
             new_cycles = set(graph.cycles) - existing_cycles
 
-            _check_false_hint = (
+            _skip_hint = (
                 "\n\nTo skip validation, use: "
-                "async with cm.get_context(check=False) as ctx"
+                "async with cm.get_context(skip_validation=True) as ctx"
             )
             if new_multiply_defined:
                 raise RuntimeError(
                     "Multiply-defined names: "
                     f"{sorted(new_multiply_defined)}"
-                    f"{_check_false_hint}"
+                    f"{_skip_hint}"
                 )
             if new_cycles:
                 raise RuntimeError(
-                    f"Cycles detected: {new_cycles}{_check_false_hint}"
+                    f"Cycles detected: {new_cycles}{_skip_hint}"
                 )
         finally:
             # Always clean up: remove dry-run cells, restore evicted ones.
@@ -789,7 +909,9 @@ class AsyncCodeModeContext:
             if evicted:
                 graph.topology.reorder_nodes(original_order)
 
-    async def _apply_ops(self, ops: list[_Op]) -> None:
+    async def _apply_ops(
+        self, ops: list[_Op], explicit_run: set[CellId_t] | None = None
+    ) -> None:
         """Validate, plan, format, and apply a batch of operations."""
         existing_ids = list(self.graph.cells.keys())
         plan = _build_plan(existing_ids, ops)
@@ -807,7 +929,6 @@ class AsyncCodeModeContext:
         # Classify each entry.
         code_entries: list[_PlanEntry] = []  # new or changed code
         config_entries: list[_PlanEntry] = []  # config-only changes
-        draft_ids: set[CellId_t] = set()
 
         for entry in plan:
             is_new = entry.cell_id not in existing_id_set
@@ -817,34 +938,30 @@ class AsyncCodeModeContext:
             )
             if is_new or code_changed:
                 code_entries.append(entry)
-                if entry.draft:
-                    draft_ids.add(entry.cell_id)
             elif entry.config is not None:
                 config_entries.append(entry)
 
-        # Resolve configs before mutate_graph (which may delete metadata).
+        # Resolve configs for all entries (code and config-only).
         resolved_configs: dict[CellId_t, CellConfig] = {}
-        for entry in code_entries:
-            assert entry.code is not None
-            if entry.cell_id not in existing_id_set:
-                resolved_configs[entry.cell_id] = entry.config or CellConfig(
-                    hide_code=True
-                )
+        for entry in code_entries + config_entries:
+            if entry.config is not None:
+                resolved_configs[entry.cell_id] = entry.config
+            elif entry.cell_id not in existing_id_set:
+                resolved_configs[entry.cell_id] = CellConfig(hide_code=True)
             else:
                 existing_meta = self._kernel.cell_metadata.get(entry.cell_id)
-                resolved_configs[entry.cell_id] = entry.config or (
+                resolved_configs[entry.cell_id] = (
                     existing_meta.config if existing_meta else CellConfig()
                 )
 
         # Let mutate_graph handle all graph mutations: it properly
         # cleans up globals, UI elements, and lifecycle hooks for
         # deleted/replaced cells via _delete_cell / _deactivate_cell.
-        execution_requests: list[ExecuteCellCommand] = []
-        for e in code_entries:
-            assert e.code is not None
-            execution_requests.append(
-                ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
-            )
+        execution_requests = [
+            ExecuteCellCommand(cell_id=e.cell_id, code=e.code)
+            for e in code_entries
+            if e.code is not None
+        ]
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
@@ -859,7 +976,7 @@ class AsyncCodeModeContext:
         target_order = [e.cell_id for e in plan]
         self.graph.topology.reorder_nodes(target_order)
 
-        # Apply configs to newly registered cells.
+        # Apply configs to all affected cells.
         for cell_id, cfg in resolved_configs.items():
             if cell_id in self.graph.cells:
                 self.graph.cells[cell_id].configure(cfg.asdict())
@@ -878,30 +995,45 @@ class AsyncCodeModeContext:
                 ):
                     del _cell_names[op.cell_id]
 
-        # Apply config-only changes.
-        for entry in config_entries:
-            await self.execute_command(
-                UpdateCellConfigCommand(
-                    configs={entry.cell_id: entry.config.asdict()}  # type: ignore[union-attr]
-                )
-            )
-
-        # Notify frontend of code changes.
-        target_order = [e.cell_id for e in plan]
-
+        # Notify frontend of all changes (code and config-only).
+        # Cells not queued for execution are marked as stale.
+        # Config-only changes are never stale (the code didn't change).
+        #
+        # In autorun mode, when the caller explicitly ran at least one
+        # cell, also include cells_to_run from mutate_graph (reactive
+        # descendants) so the agent sees their execution synchronously
+        # and the frontend isn't left showing stale for cells that are
+        # about to execute.  We only expand when explicit_run is
+        # non-empty to preserve the "suggestion" behavior: creating
+        # cells without run_cell leaves them stale/unexecuted.
+        _run_set = explicit_run or set()
+        if _run_set and self._kernel.reactive_execution_mode == "autorun":
+            _run_set = _run_set | cells_to_run
+        _code_entry_ids = {e.cell_id for e in code_entries}
+        all_entries = code_entries + config_entries
         by_stale: dict[bool, list[_PlanEntry]] = {}
-        for entry in code_entries:
-            by_stale.setdefault(entry.draft, []).append(entry)
+        for entry in all_entries:
+            is_stale = (
+                entry.cell_id in _code_entry_ids
+                and entry.cell_id not in _run_set
+            )
+            by_stale.setdefault(is_stale, []).append(entry)
 
         for is_stale, entries in by_stale.items():
             names = [_cell_names.get(e.cell_id, "") for e in entries]
+            codes = [
+                e.code
+                if e.code is not None
+                else self.graph.cells[e.cell_id].code
+                for e in entries
+            ]
             kwargs: dict[str, Any] = {}
             if any(names):
                 kwargs["names"] = names
             self.notify(
                 UpdateCellCodesNotification(
                     cell_ids=[e.cell_id for e in entries],
-                    codes=[e.code for e in entries],  # type: ignore[misc]
+                    codes=codes,
                     code_is_stale=is_stale,
                     configs=[resolved_configs[e.cell_id] for e in entries],
                     **kwargs,
@@ -932,10 +1064,12 @@ class AsyncCodeModeContext:
 
         self.notify(UpdateCellIdsNotification(cell_ids=target_order))
 
-        # Run cells, excluding drafts.
-        cells_to_run -= draft_ids
-        if cells_to_run:
-            await self._kernel._run_cells(cells_to_run)
+        # Run queued cells (explicit run_cell + autorun descendants),
+        # filtered to cells that still exist after structural ops.
+        if _run_set:
+            cells_to_run = _run_set & set(self.graph.cells.keys())
+            if cells_to_run:
+                await self._kernel._run_cells(cells_to_run)
 
     # ------------------------------------------------------------------
     # Formatting helpers

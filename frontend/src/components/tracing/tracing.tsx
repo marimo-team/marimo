@@ -243,7 +243,9 @@ const TraceBlockBody: React.FC<{
         signalName: VEGA_HOVER_SIGNAL,
         handler: (_name: string, value: unknown) => {
           const signalValue = value as VegaHoverCellSignal;
-          const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
+          const hoveredCell = (signalValue.cell?.[0] ?? undefined) as
+            | CellId
+            | undefined;
           setHoveredCellId(hoveredCell ?? null);
         },
       },

@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._cli.sandbox import SandboxMode
-from marimo._messaging.notification import UpdateCellIdsNotification
+from marimo._messaging.notification import (
+    FocusCellNotification,
+    UpdateCellIdsNotification,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
     dispatch_control_request,
@@ -18,6 +21,7 @@ from marimo._server.models.models import (
     BaseResponse,
     CodeCompletionRequest,
     DeleteCellRequest,
+    FocusCellRequest,
     FormatCellsRequest,
     FormatResponse,
     InstallPackagesRequest,
@@ -122,6 +126,38 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
     return SuccessResponse()
 
 
+@router.post("/focus_cell")
+@requires("edit")
+async def focus_cell(request: Request) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FocusCellRequest"
+    responses:
+        200:
+            description: Focus a cell in kiosk-mode consumers
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=FocusCellRequest)
+    app_state.require_current_session().notify(
+        FocusCellNotification(cell_id=body.cell_id),
+        from_consumer_id=None,
+    )
+    return SuccessResponse()
+
+
 @router.post("/format")
 @requires("edit")
 async def format_cell(request: Request) -> FormatResponse:
@@ -142,14 +178,13 @@ async def format_cell(request: Request) -> FormatResponse:
     app_state = AppState(request)
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
+    filename = app_state.require_current_session().app_file_manager.path
+    if filename and filename.endswith((".md", ".qmd")):
+        filename = f"{filename}.py"
 
     try:
-        return FormatResponse(
-            codes=await formatter.format(
-                body.codes,
-                stdin_filename=app_state.require_current_session().app_file_manager.path,
-            )
-        )
+        codes = await formatter.format(body.codes, filename)
+        return FormatResponse(codes)
     except ModuleNotFoundError:
         # In multi-sandbox mode each kernel has its own venv, so installing
         # ruff into the server wouldn't help the kernel.  Just surface the

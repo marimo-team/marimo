@@ -3,28 +3,27 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
+import { cellId, variableName } from "@/__tests__/branded";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import type { VariableName, Variables } from "@/core/variables/types";
 import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration } from "../../language/extension";
 import { getCodes, getTopologicalCellIds } from "../getCodes";
 
 const Cells = {
-  cell1: "cell1" as CellId,
-  cell2: "cell2" as CellId,
-  cell3: "cell3" as CellId,
-  cell4: "cell4" as CellId,
+  cell1: cellId("cell1"),
+  cell2: cellId("cell2"),
+  cell3: cellId("cell3"),
+  cell4: cellId("cell4"),
 };
 
 const Variables = {
-  var1: "var1" as VariableName,
-  var2: "var2" as VariableName,
-  var3: "var3" as VariableName,
+  var1: variableName("var1"),
+  var2: variableName("var2"),
+  var3: variableName("var3"),
 };
 
 function createMockEditorView(code: string) {
@@ -33,7 +32,7 @@ function createMockEditorView(code: string) {
       doc: code,
       extensions: [
         adaptiveLanguageConfiguration({
-          cellId: "cell1" as CellId,
+          cellId: cellId("cell1"),
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
@@ -45,7 +44,7 @@ function createMockEditorView(code: string) {
           lspConfig: {},
         }),
         cellConfigExtension({
-          cellId: "cell1" as CellId,
+          cellId: cellId("cell1"),
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
@@ -71,7 +70,7 @@ describe("getTopologicalCellIds", () => {
   it("should return topologically sorted cell IDs", () => {
     // Setup mock data
     const cellIds = [Cells.cell1, Cells.cell2, Cells.cell3, Cells.cell4];
-    const variables: Variables = {
+    const variables = {
       [Variables.var1]: {
         name: Variables.var1,
         declaredBy: [Cells.cell1],
@@ -125,7 +124,7 @@ describe("getTopologicalCellIds", () => {
 
   it("should put new cells (with no dependencies) at the end", () => {
     const cellIds = [Cells.cell1, Cells.cell2, Cells.cell3, Cells.cell4];
-    const variables: Variables = {
+    const variables = {
       [Variables.var1]: {
         name: Variables.var1,
         declaredBy: [Cells.cell2],

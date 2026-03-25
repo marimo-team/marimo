@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
-import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import { CellOutputId } from "@/core/cells/ids";
 import {
   downloadAsPDF,
@@ -218,7 +219,7 @@ describe("getImageDataUrlForCell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockElement = document.createElement("div");
-    mockElement.id = CellOutputId.create("cell-1" as CellId);
+    mockElement.id = CellOutputId.create(cellId("cell-1"));
     document.body.append(mockElement);
   });
 
@@ -227,7 +228,7 @@ describe("getImageDataUrlForCell", () => {
   });
 
   it("should return undefined if element is not found", async () => {
-    const result = await getImageDataUrlForCell("nonexistent" as CellId);
+    const result = await getImageDataUrlForCell(cellId("nonexistent"));
 
     expect(result).toBeUndefined();
     expect(Logger.error).toHaveBeenCalledWith(
@@ -238,7 +239,7 @@ describe("getImageDataUrlForCell", () => {
   it("should capture screenshot and return data URL", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    const result = await getImageDataUrlForCell("cell-1" as CellId);
+    const result = await getImageDataUrlForCell(cellId("cell-1"));
 
     expect(result).toBe(mockDataUrl);
     expect(toPng).toHaveBeenCalledWith(
@@ -253,7 +254,7 @@ describe("getImageDataUrlForCell", () => {
   it("should pass style options to prevent clipping", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell(cellId("cell-1"));
 
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
@@ -274,7 +275,7 @@ describe("getImageDataUrlForCell", () => {
     });
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell(cellId("cell-1"));
 
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
@@ -287,7 +288,7 @@ describe("getImageDataUrlForCell", () => {
   it("should pass scrollbar hiding styles via extraStyleContent", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell(cellId("cell-1"));
 
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
@@ -302,7 +303,7 @@ describe("getImageDataUrlForCell", () => {
     mockElement.style.maxHeight = "100px";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell(cellId("cell-1"));
 
     // DOM should remain unchanged
     expect(mockElement.style.overflow).toBe("hidden");
@@ -312,7 +313,7 @@ describe("getImageDataUrlForCell", () => {
   it("should throw error on failure", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
 
-    await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow(
+    await expect(getImageDataUrlForCell(cellId("cell-1"))).rejects.toThrow(
       "Capture failed",
     );
   });
@@ -320,13 +321,13 @@ describe("getImageDataUrlForCell", () => {
   it("should handle concurrent captures correctly", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
-    mockElement2.id = CellOutputId.create("cell-2" as CellId);
+    mockElement2.id = CellOutputId.create(cellId("cell-2"));
     document.body.append(mockElement2);
 
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId);
+    const capture1 = getImageDataUrlForCell(cellId("cell-1"));
+    const capture2 = getImageDataUrlForCell(cellId("cell-2"));
 
     await Promise.all([capture1, capture2]);
 
@@ -437,8 +438,8 @@ describe("downloadHTMLAsImage", () => {
     await downloadHTMLAsImage({ element: mockElement, filename: "test" });
 
     expect(toast).toHaveBeenCalledWith({
-      title: "Error",
-      description: "Failed to download as PNG.",
+      title: "Failed to download as PNG",
+      description: "Failed",
       variant: "danger",
     });
   });
@@ -461,7 +462,7 @@ describe("downloadCellOutputAsImage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockElement = document.createElement("div");
-    mockElement.id = CellOutputId.create("cell-1" as CellId);
+    mockElement.id = CellOutputId.create(cellId("cell-1"));
     mockAppEl = document.createElement("div");
     mockAppEl.id = "App";
     // Mock scrollTo since jsdom doesn't implement it
@@ -486,7 +487,7 @@ describe("downloadCellOutputAsImage", () => {
   });
 
   it("should show error toast if element not found", async () => {
-    await downloadCellOutputAsImage("nonexistent" as CellId, "test");
+    await downloadCellOutputAsImage(cellId("nonexistent"), "test");
 
     expect(toPng).not.toHaveBeenCalled();
     expect(Logger.error).toHaveBeenCalledWith(
@@ -502,7 +503,7 @@ describe("downloadCellOutputAsImage", () => {
   it("should show error toast if toPng fails", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Screenshot failed"));
 
-    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+    await downloadCellOutputAsImage(cellId("cell-1"), "result");
 
     expect(toast).toHaveBeenCalledWith({
       title: "Failed to download PNG",
@@ -514,7 +515,7 @@ describe("downloadCellOutputAsImage", () => {
   it("should download cell output as image", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+    await downloadCellOutputAsImage(cellId("cell-1"), "result");
 
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
@@ -529,7 +530,7 @@ describe("downloadCellOutputAsImage", () => {
   it("should pass style options to toPng for full content capture", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+    await downloadCellOutputAsImage(cellId("cell-1"), "result");
 
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
@@ -547,7 +548,7 @@ describe("downloadCellOutputAsImage", () => {
     mockElement.style.maxHeight = "100px";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+    await downloadCellOutputAsImage(cellId("cell-1"), "result");
 
     // DOM should remain unchanged
     expect(mockElement.style.overflow).toBe("hidden");

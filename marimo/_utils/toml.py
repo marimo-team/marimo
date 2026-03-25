@@ -1,54 +1,46 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Union
-
-from marimo._dependencies.dependencies import DependencyManager
+import sys
+from typing import IO, TYPE_CHECKING, Any, Callable, Union
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+# tomllib is available in python 3.11+ and is much faster than tomlkit
+# (C extension vs pure Python). Prefer it for read-only operations.
+_HAS_TOMLLIB = sys.version_info >= (3, 11)
 
-def read_toml(file_path: Union[str, Path]) -> dict[str, Any]:
-    """Read and parse a TOML file."""
 
-    # tomllib is only available in python 3.11+
-    if DependencyManager.tomlkit.has():
-        import tomlkit
+class TomlReader:
+    """TOML reader that prefers tomllib (3.11+) over tomlkit."""
 
+    decode_error: type[Exception]
+    _load: Callable[[IO[bytes]], dict[str, Any]]
+    _loads: Callable[[str], dict[str, Any]]
+
+    def __init__(self) -> None:
+        if _HAS_TOMLLIB:
+            import tomllib
+
+            self._load = tomllib.load  # type: ignore[assignment]
+            self._loads = tomllib.loads  # type: ignore[assignment]
+            self.decode_error = tomllib.TOMLDecodeError
+        else:
+            import tomlkit
+
+            self._load = lambda f: tomlkit.load(f).unwrap()
+            self._loads = lambda s: tomlkit.loads(s).unwrap()
+            self.decode_error = tomlkit.exceptions.TOMLKitError
+
+    def read(self, file_path: Union[str, Path]) -> dict[str, Any]:
+        """Read and parse a TOML file."""
         with open(file_path, "rb") as file:
-            # Use unwrap() to convert tomlkit types to Python built-ins
-            return tomlkit.load(file).unwrap()
-    else:
-        import tomllib
+            return self._load(file)
 
-        with open(file_path, "rb") as file:
-            return tomllib.load(file)
+    def reads(self, s: str) -> dict[str, Any]:
+        """Read and parse a TOML string."""
+        return self._loads(s)
 
 
-def read_toml_string(s: str) -> dict[str, Any]:
-    """Read and parse a TOML string."""
-
-    # tomllib is only available in python 3.11+
-    if DependencyManager.tomlkit.has():
-        import tomlkit
-
-        # Use unwrap() to convert tomlkit types to Python built-ins
-        return tomlkit.loads(s).unwrap()
-    else:
-        import tomllib
-
-        return tomllib.loads(s)
-
-
-def is_toml_error(e: Exception) -> bool:
-    """Check if an exception is a TOML error."""
-
-    if DependencyManager.tomlkit.has():
-        import tomlkit
-
-        return isinstance(e, tomlkit.exceptions.TOMLKitError)
-    else:
-        import tomllib
-
-        return isinstance(e, tomllib.TOMLDecodeError)
+toml_reader = TomlReader()
