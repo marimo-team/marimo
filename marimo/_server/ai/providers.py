@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
     from openai.types.shared.reasoning_effort import ReasoningEffort
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
-    from pydantic_ai.messages import ThinkingPart
     from pydantic_ai.models import Model
     from pydantic_ai.models.bedrock import BedrockConverseModel
     from pydantic_ai.models.google import GoogleModel
@@ -54,9 +53,7 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
-    from pydantic_ai.ui.vercel_ai import VercelAIAdapter
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
-    from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
     from starlette.responses import StreamingResponse
 
 
@@ -102,6 +99,10 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             source="server",
         )
 
+        DependencyManager.pydantic_ai.require_at_version(
+            "for Vercel AI SDK support", min_version="1.52.0"
+        )
+
         self.model = model
         self.config = config
         self.provider = self.create_provider(config)
@@ -132,12 +133,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             output_type=output_type,
         )
 
-    def get_vercel_adapter(self) -> type[VercelAIAdapter[Any, Any]]:
-        """Return the Vercel AI adapter for the given provider."""
-        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-
-        return VercelAIAdapter
-
     def convert_messages(
         self, messages: list[ServerUIMessage]
     ) -> list[UIMessage]:
@@ -153,6 +148,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         stream_options: Optional[StreamOptions] = None,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
         tools = (self.config.tools or []) + additional_tools
@@ -169,18 +165,12 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         # TODO: Text only and format stream are not supported yet
         stream_options = stream_options or StreamOptions()
 
-        vercel_adapter = self.get_vercel_adapter()
-        if DependencyManager.pydantic_ai.has_at_version(min_version="1.52.0"):
-            adapter = vercel_adapter(
-                agent=agent,
-                run_input=run_input,
-                accept=stream_options.accept,
-                sdk_version=AI_SDK_VERSION,
-            )
-        else:
-            adapter = vercel_adapter(
-                agent=agent, run_input=run_input, accept=stream_options.accept
-            )
+        adapter = VercelAIAdapter(
+            agent=agent,
+            run_input=run_input,
+            accept=stream_options.accept,
+            sdk_version=AI_SDK_VERSION,
+        )
         event_stream = adapter.run_stream()
         return adapter.streaming_response(event_stream)
 
@@ -193,16 +183,16 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         additional_tools: list[ToolDefinition],
     ) -> AsyncGenerator[str]:
         """Return a stream of text from the given messages."""
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 
         tools = (self.config.tools or []) + additional_tools
         agent = self.create_agent(
             max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
         )
-        vercel_adapter = self.get_vercel_adapter()
 
         async with agent.run_stream(
             user_prompt=user_prompt,
-            message_history=vercel_adapter.load_messages(
+            message_history=VercelAIAdapter.load_messages(
                 self.convert_messages(messages)
             ),
         ) as result:
@@ -799,73 +789,6 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
                 provider_metadata=part.provider_metadata,
             )
         return part
-
-    def get_vercel_adapter(
-        self,
-    ) -> type[VercelAIAdapter[None, DeferredToolRequests | str]]:
-        """
-        Return a custom adapter that includes thinking signatures in ReasoningEndChunk.
-
-        pydantic_ai's VercelAIEventStream.handle_thinking_end doesn't pass the signature
-        from ThinkingPart to ReasoningEndChunk, which breaks Anthropic's extended thinking
-        on follow-up messages (Anthropic requires signatures on thinking blocks).
-
-        This is a patch for pydantic-ai <1.47.0, which doesn't include the signature in the ReasoningEndChunk.
-        """
-        if DependencyManager.pydantic_ai.has_at_version(min_version="1.47.0"):
-            return super().get_vercel_adapter()
-
-        from pydantic_ai import DeferredToolRequests
-        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-        from pydantic_ai.ui.vercel_ai._event_stream import VercelAIEventStream
-        from pydantic_ai.ui.vercel_ai.response_types import ReasoningEndChunk
-
-        AnthropicOutputType = DeferredToolRequests | str
-
-        # Custom event stream that includes signature in ReasoningEndChunk
-        class AnthropicVercelAIEventStream(
-            VercelAIEventStream[None, AnthropicOutputType]
-        ):
-            async def handle_thinking_end(
-                self, part: ThinkingPart, followed_by_thinking: bool = False
-            ) -> AsyncIterator[BaseChunk]:
-                """Override to include signature in provider_metadata."""
-                try:
-                    provider_metadata = None
-                    if part.signature:
-                        pydantic_ai_meta: dict[str, Any] = {
-                            "signature": part.signature
-                        }
-                        if part.provider_name:
-                            pydantic_ai_meta["provider_name"] = (
-                                part.provider_name
-                            )
-                        if part.id:
-                            pydantic_ai_meta["id"] = part.id
-                        provider_metadata = {"pydantic_ai": pydantic_ai_meta}
-
-                    yield ReasoningEndChunk(
-                        id=self.message_id, provider_metadata=provider_metadata
-                    )
-                except Exception as e:
-                    LOGGER.warning(
-                        f"Error in AnthropicVercelAIEventStream.handle_thinking_end: {e}"
-                    )
-                    async for chunk in super().handle_thinking_end(
-                        part, followed_by_thinking
-                    ):
-                        yield chunk
-
-        # Custom adapter that uses the custom event stream
-        class AnthropicVercelAIAdapter(
-            VercelAIAdapter[None, AnthropicOutputType]
-        ):
-            def build_event_stream(self) -> AnthropicVercelAIEventStream:
-                return AnthropicVercelAIEventStream(
-                    self.run_input, accept=self.accept
-                )
-
-        return AnthropicVercelAIAdapter
 
 
 class BedrockProvider(PydanticProvider["PydanticBedrock"]):
