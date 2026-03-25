@@ -117,7 +117,7 @@ def normalize_path(path: Path) -> Path:
     """
     # Skip normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
     # os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
-    if path.__class__.__module__.startswith("cloudpathlib"):
+    if "CloudPath" in [cls.__name__ for cls in type(path).__mro__]:
         return path
 
     # Make absolute if relative (relative to current working directory)
