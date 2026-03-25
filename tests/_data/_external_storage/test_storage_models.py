@@ -659,7 +659,10 @@ class TestFsspecFilesystem:
             ]
         )
 
-    def test_list_entries_filters_only_exact_self_entry(self) -> None:
+    def test_list_entries_returns_multi_file_list_without_self_scan(
+        self,
+    ) -> None:
+        """Multi-entry listings skip self-entry handling (O(1) path); all rows pass through."""
         mock_store = MagicMock()
         mock_store.protocol = "file"
         mock_store.ls.return_value = [
@@ -686,8 +689,17 @@ class TestFsspecFilesystem:
         backend = self._make_backend(mock_store)
         result = backend.list_entries(prefix="folder")
 
+        mock_store.ls.assert_called_once_with(path="folder", detail=True)
         assert result == snapshot(
             [
+                StorageEntry(
+                    path="folder",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                    mime_type=None,
+                ),
                 StorageEntry(
                     path="folder/folder",
                     kind="directory",

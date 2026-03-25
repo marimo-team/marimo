@@ -263,9 +263,6 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             self._invalidate_listing_cache_for_prefix(prefix)
             files = self._list_files(prefix)
 
-        # Drop exact self-entries that survived the retry
-        files = self._filter_self_entries(files, normalized_prefix)
-
         total_files = len(files)
         if total_files > limit:
             LOGGER.debug(
@@ -303,12 +300,11 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
     def _has_self_entry(
         self, files: list[Any], normalized_prefix: str
     ) -> bool:
-        # Some fsspec backends may return the queried directory itself when
-        # listings are satisfied from cache. Detect that exact shape so we can
-        # recover and avoid recursive "folder contains itself" trees.
-        if not normalized_prefix:
+        # Stale dircache listings tend to echo only the queried path (length 1).
+        # Avoid scanning large result sets for an exact prefix match.
+        if not normalized_prefix or len(files) != 1:
             return False
-        return any(self._is_self_entry(f, normalized_prefix) for f in files)
+        return self._is_self_entry(files[0], normalized_prefix)
 
     def _is_self_entry(self, file: Any, normalized_prefix: str) -> bool:
         if not isinstance(file, dict):
@@ -317,19 +313,6 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         if not isinstance(name, str):
             return False
         return self._normalize_path(name) == normalized_prefix
-
-    def _filter_self_entries(
-        self, files: list[Any], normalized_prefix: str
-    ) -> list[Any]:
-        """Drop entries whose normalized path matches the queried prefix exactly.
-
-        Descendants like "foo/foo" are preserved; only exact echoes are removed.
-        """
-        if not normalized_prefix:
-            return files
-        return [
-            f for f in files if not self._is_self_entry(f, normalized_prefix)
-        ]
 
     def _invalidate_listing_cache_for_prefix(self, prefix: str) -> None:
         dircache = getattr(self.store, "dircache", None)
