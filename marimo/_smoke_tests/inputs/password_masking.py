@@ -25,6 +25,7 @@ def _(mo):
         kind="password",
         value="secret-B",
         label="debounce=True (default, on blur)",
+        debounce=True,
     )
     pw_debounce_true
     return (pw_debounce_true,)

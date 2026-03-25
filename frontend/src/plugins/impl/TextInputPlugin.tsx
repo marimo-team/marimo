@@ -84,7 +84,9 @@ const TextComponent = (props: TextComponentProps) => {
   const placeholder = masked ? MASK_PLACEHOLDER : props.placeholder;
   const setValue: Setter<T> = masked
     ? (v) => {
-        if (!hasTyped.current) return;
+        if (!hasTyped.current) {
+          return;
+        }
         setMasked(false);
         props.setValue(v);
       }
