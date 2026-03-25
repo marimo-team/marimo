@@ -36,7 +36,7 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
         command="marimo tutorial intro",
     ),
     CliTip(
-        text="Convert a Jupyter notebook",
+        text="Convert a Jupyter notebook to a marimo notebook",
         command="marimo convert notebook.ipynb -o notebook.py",
     ),
     CliTip(
