@@ -3409,3 +3409,76 @@ class TestAsyncCacheDecorator:
         assert k.globals["expensive_async_compute"].hits == 0, (
             "First execution should be a miss, deduplication doesn't count as hits"
         )
+
+    async def test_async_cache_stale_task_different_loop(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Regression test for GH-8866.
+
+        In marimo run, each session runs in its own thread with a separate event
+        loop. When a pending task from session A's loop is found by session B
+        (different loop), it must not be awaited — doing so raises RuntimeError.
+        """
+        import asyncio
+
+        from marimo._save.save import _cache_call_async
+
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import asyncio
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def compute(x):
+                        await asyncio.sleep(0)
+                        return x * 2
+
+                    result = await compute(42)
+                    """
+                )
+            ]
+        )
+
+        assert not k.stderr.messages
+        assert k.globals["result"] == 84
+
+        fn = k.globals["compute"]
+        cache_key = fn._last_hash
+
+        # Inject a stale future from a different event loop into the per-loop
+        # pending dict, simulating session A's in-progress task. Session B
+        # (the current kernel loop) must use its own loop's pending dict and
+        # never see or touch session A's future.
+        other_loop = asyncio.new_event_loop()
+        try:
+            stale_future = (
+                other_loop.create_future()
+            )  # Future, no coroutine → no warning
+
+            with _cache_call_async._pending_lock:
+                import weakref
+
+                if fn not in _cache_call_async._pending_executions:
+                    _cache_call_async._pending_executions[fn] = (
+                        weakref.WeakKeyDictionary()
+                    )
+                _cache_call_async._pending_executions[fn][other_loop] = {
+                    cache_key: stale_future
+                }
+
+            # Session B looks up its own loop's pending dict → not found →
+            # fresh execution → cache hit → result = 84, no RuntimeError.
+            await k.run([exec_req.get("result2 = await compute(42)")])
+
+            assert not k.stderr.messages, k.stderr
+            assert k.globals["result2"] == 84
+            # The stale future must be untouched: if __call__ had tried to
+            # await it the future would have raised an error and been resolved.
+            assert not stale_future.done(), (
+                "stale future was awaited/cancelled — __call__ must not touch "
+                "pending tasks from a different event loop"
+            )
+        finally:
+            other_loop.close()
