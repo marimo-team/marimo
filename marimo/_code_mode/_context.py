@@ -148,16 +148,17 @@ class _CellsView:
 
     def _cell_name(self, cell_id: CellId_t) -> str | None:
         doc_cell = self._doc.get(cell_id)
-        return doc_cell.name or None if doc_cell else None
+        if doc_cell is None:
+            return None
+        return doc_cell.name or None
 
     def _resolve(self, target: str) -> CellId_t:
         """Resolve a cell ID or cell name to a ``CellId_t``.
 
         Raises ``KeyError`` if not found.
         """
-        cell_id_key = CellId_t(target)
-        if cell_id_key in self._doc:
-            return cell_id_key
+        if target in self._doc:
+            return CellId_t(target)
 
         # Fall back to cell name.
         for cell in self._doc.cells:
