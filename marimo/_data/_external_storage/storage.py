@@ -253,9 +253,19 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         if prefix is None:
             prefix = ""
 
-        files = self.store.ls(path=prefix, detail=True)
-        if not isinstance(files, list):
-            raise ValueError(f"Files is not a list: {files}")
+        files = self._list_files(prefix)
+        normalized_prefix = self._normalize_path(prefix)
+        if self._has_self_entry(files, normalized_prefix):
+            LOGGER.debug(
+                "Detected self-entry for prefix %s, invalidating cache and retrying",
+                prefix,
+            )
+            self._invalidate_listing_cache_for_prefix(prefix)
+            files = self._list_files(prefix)
+
+        # Drop exact self-entries that survived the retry
+        files = self._filter_self_entries(files, normalized_prefix)
+
         total_files = len(files)
         if total_files > limit:
             LOGGER.debug(
@@ -272,6 +282,69 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
                 storage_entries.append(storage_entry)
 
         return storage_entries
+
+    def _normalize_path(self, path: str) -> str:
+        return path.strip().strip("/")
+
+    def _list_files(self, prefix: str) -> list[Any]:
+        files = self.store.ls(path=prefix, detail=True)
+        if not isinstance(files, list):
+            raise ValueError(f"Files is not a list: {files}")
+        return files
+
+    def _has_self_entry(
+        self, files: list[Any], normalized_prefix: str
+    ) -> bool:
+        # Some fsspec backends may return the queried directory itself when
+        # listings are satisfied from cache. Detect that exact shape so we can
+        # recover and avoid recursive "folder contains itself" trees.
+        if not normalized_prefix:
+            return False
+        return any(self._is_self_entry(f, normalized_prefix) for f in files)
+
+    def _is_self_entry(self, file: Any, normalized_prefix: str) -> bool:
+        if not isinstance(file, dict):
+            return False
+        name = file.get("name")
+        if not isinstance(name, str):
+            return False
+        return self._normalize_path(name) == normalized_prefix
+
+    def _filter_self_entries(
+        self, files: list[Any], normalized_prefix: str
+    ) -> list[Any]:
+        """Drop entries whose normalized path matches the queried prefix exactly.
+
+        Descendants like "foo/foo" are preserved; only exact echoes are removed.
+        """
+        if not normalized_prefix:
+            return files
+        return [
+            f for f in files if not self._is_self_entry(f, normalized_prefix)
+        ]
+
+    def _invalidate_listing_cache_for_prefix(self, prefix: str) -> None:
+        dircache = getattr(self.store, "dircache", None)
+        if dircache is None:
+            return
+
+        # Clear the minimum cache surface (target, parent, and root) that can
+        # contribute stale self-entries before retrying list().
+        cache_keys: set[str] = {self._normalize_path(prefix), ""}
+        parent_fn = getattr(self.store, "_parent", None)
+        if callable(parent_fn):
+            parent = parent_fn(prefix)
+            if isinstance(parent, str):
+                cache_keys.add(self._normalize_path(parent))
+
+        for key in cache_keys:
+            try:
+                dircache.pop(key, None)
+            except Exception:
+                # Some custom mappings may not support pop semantics.
+                LOGGER.debug(
+                    "Failed to clear fsspec cache key %s for listing", key
+                )
 
     def _identify_kind(self, entry_type: str) -> Literal["file", "directory"]:
         entry_type = entry_type.strip().lower()
