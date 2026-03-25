@@ -20,13 +20,14 @@ the future, but cell code would then live outside this model entirely.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Optional
 
 from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Generator, Iterable, Iterator
 
 import msgspec
 from msgspec.structs import replace as structs_replace
@@ -248,6 +249,18 @@ _current_document: ContextVar[NotebookDocument | None] = ContextVar(
 def get_current_document() -> NotebookDocument | None:
     """Return the document for the current execution, if any."""
     return _current_document.get()
+
+
+@contextmanager
+def notebook_document_context(
+    doc: NotebookDocument | None,
+) -> Generator[None, None, None]:
+    """Context manager for setting and resetting the current document."""
+    token = _current_document.set(doc)
+    try:
+        yield
+    finally:
+        _current_document.reset(token)
 
 
 # ------------------------------------------------------------------
