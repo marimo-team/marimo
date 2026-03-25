@@ -107,4 +107,13 @@ describe("isInteractiveTarget", () => {
     cell.append(wrapper);
     expect(isInteractiveTarget(createMouseEvent(text, cell))).toBe(false);
   });
+
+  it("returns false when target is a non-Element (e.g. Text node)", () => {
+    const cell = document.createElement("td");
+    const textNode = document.createTextNode("hello");
+    cell.append(textNode);
+    expect(isInteractiveTarget(createMouseEvent(textNode as never, cell))).toBe(
+      false,
+    );
+  });
 });

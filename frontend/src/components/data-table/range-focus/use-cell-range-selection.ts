@@ -127,7 +127,7 @@ export const useCellRangeSelection = <TData>({
   };
 };
 
-export const INTERACTIVE_SELECTOR =
+const INTERACTIVE_SELECTOR =
   'input, button, select, textarea, a, label, [role="checkbox"], [role="button"], [contenteditable="true"], marimo-ui-element';
 
 /**
@@ -135,8 +135,8 @@ export const INTERACTIVE_SELECTOR =
  * (e.g. a checkbox or button rendered as rich cell content).
  */
 export function isInteractiveTarget(e: React.MouseEvent): boolean {
-  const target = e.target as HTMLElement;
-  if (target === e.currentTarget) {
+  const target = e.target;
+  if (target === e.currentTarget || !(target instanceof Element)) {
     return false;
   }
   return target.closest(INTERACTIVE_SELECTOR) !== null;
