@@ -31,6 +31,7 @@ import {
   LayoutTemplateIcon,
   LinkIcon,
   MessagesSquareIcon,
+  NotebookIcon,
   PanelLeftIcon,
   PowerSquareIcon,
   PresentationIcon,
@@ -123,8 +124,13 @@ export function useNotebookActions() {
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
-  const { exportAsMarkdown, readCode, saveCellConfig, updateCellOutputs } =
-    useRequestClient();
+  const {
+    exportAsIPYNB,
+    exportAsMarkdown,
+    readCode,
+    saveCellConfig,
+    updateCellOutputs,
+  } = useRequestClient();
   const takeScreenshots = useEnrichCellOutputs();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
@@ -199,6 +205,27 @@ export function useNotebookActions() {
     setTimeout(() => window.dispatchEvent(afterprint), 0);
   };
 
+  const handleDownloadAsIPYNB = async () => {
+    if (!filename) {
+      toastNotebookMustBeNamed();
+      return;
+    }
+
+    const runDownload = async (progress: ProgressState) => {
+      await updateCellOutputsWithScreenshots({
+        takeScreenshots: () => takeScreenshots({ progress }),
+        updateCellOutputs,
+      });
+      const ipynb = await exportAsIPYNB({ download: false });
+      downloadBlob(
+        new Blob([ipynb], { type: "application/x-ipynb+json" }),
+        Filenames.toIPYNB(document.title),
+      );
+    };
+
+    await withLoadingToast("Downloading IPYNB...", runDownload);
+  };
+
   const actions: ActionButton[] = [
     {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
@@ -239,6 +266,11 @@ export function useNotebookActions() {
               Filenames.toMarkdown(document.title),
             );
           },
+        },
+        {
+          icon: <NotebookIcon size={14} strokeWidth={1.5} />,
+          label: "Download as ipynb",
+          handle: handleDownloadAsIPYNB,
         },
         {
           icon: <CodeIcon size={14} strokeWidth={1.5} />,
@@ -347,17 +379,20 @@ export function useNotebookActions() {
       label: "Helper panel",
       redundant: true,
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ type: id, Icon, hidden }) => {
-        if (hidden) {
-          return [];
-        }
-        return {
-          label: startCase(id),
-          rightElement: renderCheckboxElement(selectedPanel === id),
-          icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => toggleApplication(id),
-        };
-      }),
+      dropdown: PANELS.flatMap(
+        ({ type: id, Icon, hidden, additionalKeywords }) => {
+          if (hidden) {
+            return [];
+          }
+          return {
+            label: startCase(id),
+            rightElement: renderCheckboxElement(selectedPanel === id),
+            icon: <Icon size={14} strokeWidth={1.5} />,
+            handle: () => toggleApplication(id),
+            additionalKeywords,
+          };
+        },
+      ),
     },
 
     {
@@ -478,6 +513,7 @@ export function useNotebookActions() {
       label: "Restart kernel",
       variant: "danger",
       handle: restartKernel,
+      additionalKeywords: ["reset", "reload", "restart"],
     },
     {
       icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
@@ -535,6 +571,7 @@ export function useNotebookActions() {
       label: "User settings",
       handle: () => setSettingsDialogOpen((open) => !open),
       redundant: true,
+      additionalKeywords: ["preferences", "options", "configuration"],
     },
     {
       icon: <ExternalLinkIcon size={14} strokeWidth={1.5} />,

@@ -287,6 +287,7 @@ def test_script_config_manager_no_marimo_section(tmp_path: Path) -> None:
 
 def test_script_config_manager_sanitizes_auto_instantiate(
     tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test that auto_instantiate in script metadata is ignored"""
     notebook_path = tmp_path / "notebook.py"
@@ -302,13 +303,27 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
     manager = ScriptConfigManager(str(notebook_path))
-    config = manager.get_config()
+    with caplog.at_level("WARNING"):
+        from marimo import _loggers
+
+        logger = _loggers.marimo_logger()
+        old_propagate = logger.propagate
+        try:
+            logger.propagate = True
+            config = manager.get_config()
+        finally:
+            logger.propagate = old_propagate
 
     # auto_instantiate should be stripped out
     assert "auto_instantiate" not in config.get("runtime", {})
     # Other configs should still be present
     # Note: runtime key may exist but be empty after sanitization
     assert config.get("save") == {"autosave_delay": 2000}
+    # Warning should be logged
+    assert any(
+        "auto_instantiate" in record.message and "ignored" in record.message
+        for record in caplog.records
+    )
 
 
 def test_marimo_config_reader_properties() -> None:

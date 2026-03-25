@@ -25,44 +25,40 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
 
 
-@pytest.fixture
-def mock_openai_client():
-    """Fixture for mocking the OpenAI client."""
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_client = MagicMock()
-        mock_openai_class.return_value = mock_client
+def _make_chat_client_fixture(patch_path: str, *, streaming: bool = False):
+    @pytest.fixture
+    def _fixture():
+        with patch(patch_path) as mock_class:
+            mock_client = MagicMock()
+            mock_class.return_value = mock_client
+            if streaming:
+                mock_chunk = MagicMock()
+                mock_choice = MagicMock()
+                mock_delta = MagicMock()
+                mock_delta.content = "Test response"
+                mock_choice.delta = mock_delta
+                mock_chunk.choices = [mock_choice]
+                mock_client.chat.completions.create.return_value = [mock_chunk]
+            else:
+                mock_response = MagicMock()
+                mock_choice = MagicMock()
+                mock_message = MagicMock()
+                mock_message.content = "Test response"
+                mock_choice.message = mock_message
+                mock_response.choices = [mock_choice]
+                mock_client.chat.completions.create.return_value = (
+                    mock_response
+                )
+            yield mock_client, mock_class
 
-        # Setup the streaming response structure
-        mock_chunk = MagicMock()
-        mock_choice = MagicMock()
-        mock_delta = MagicMock()
-        mock_delta.content = "Test response"
-        mock_choice.delta = mock_delta
-        mock_chunk.choices = [mock_choice]
-
-        # Return an iterable for streaming
-        mock_client.chat.completions.create.return_value = [mock_chunk]
-
-        yield mock_client, mock_openai_class
+    return _fixture
 
 
-@pytest.fixture
-def mock_groq_client():
-    """Fixture for mocking the Groq client."""
-    with patch("groq.Groq") as mock_groq_class:
-        mock_client = MagicMock()
-        mock_groq_class.return_value = mock_client
-
-        # Setup the response structure
-        mock_response = MagicMock()
-        mock_choice = MagicMock()
-        mock_message = MagicMock()
-        mock_message.content = "Test response"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
-
-        yield mock_client, mock_groq_class
+mock_openai_client = _make_chat_client_fixture("openai.OpenAI", streaming=True)
+mock_groq_client = _make_chat_client_fixture("groq.Groq")
+mock_azure_openai_client = _make_chat_client_fixture(
+    "openai.AzureOpenAI", streaming=True
+)
 
 
 @pytest.fixture
@@ -98,40 +94,28 @@ def mock_google_client():
 
 
 @pytest.fixture
-def mock_azure_openai_client():
-    """Fixture for mocking the Azure OpenAI client."""
-    with patch("openai.AzureOpenAI") as mock_azure_openai_class:
+def mock_bedrock_client():
+    """Fixture for mocking the boto3 bedrock-runtime client."""
+    with patch("boto3.Session") as mock_session_class:
+        mock_session = MagicMock()
+        mock_session_class.return_value = mock_session
+
         mock_client = MagicMock()
-        mock_azure_openai_class.return_value = mock_client
+        mock_session.client.return_value = mock_client
 
-        # Setup the streaming response structure
-        mock_chunk = MagicMock()
-        mock_choice = MagicMock()
-        mock_delta = MagicMock()
-        mock_delta.content = "Test response"
-        mock_choice.delta = mock_delta
-        mock_chunk.choices = [mock_choice]
+        # Setup converse response
+        mock_client.converse.return_value = {
+            "output": {"message": {"content": [{"text": "Test response"}]}}
+        }
 
-        # Return an iterable for streaming
-        mock_client.chat.completions.create.return_value = [mock_chunk]
+        # Setup converse_stream response
+        mock_client.converse_stream.return_value = {
+            "stream": [
+                {"contentBlockDelta": {"delta": {"text": "Test response"}}}
+            ]
+        }
 
-        yield mock_client, mock_azure_openai_class
-
-
-@pytest.fixture
-def mock_litellm_completion():
-    """Fixture for mocking the OpenAI client."""
-    with patch("litellm.completion") as mock_litellm_completion:
-        # Setup the response structure
-        mock_response = MagicMock()
-        mock_choice = MagicMock()
-        mock_message = MagicMock()
-        mock_message.content = "Test response"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_litellm_completion.return_value = mock_response
-
-        yield mock_litellm_completion
+        yield mock_client
 
 
 @pytest.fixture
@@ -1034,8 +1018,8 @@ class TestAnthropic:
 
 
 @pytest.mark.skipif(
-    not DependencyManager.boto3.has() or not DependencyManager.litellm.has(),
-    reason="boto3 or litellm is not installed",
+    not DependencyManager.boto3.has(),
+    reason="boto3 is not installed",
 )
 class TestBedrock:
     """Test the Bedrock model class"""
@@ -1048,13 +1032,17 @@ class TestBedrock:
             region_name="us-east-1",
         )
 
-        # bedrock automatically prefixes with bedrock/ for litellm usage
         assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
         assert model.system_message == "Test system message"
         assert model.region_name == "us-east-1"
         assert model.profile_name is None
         assert model.aws_access_key_id is None
         assert model.aws_secret_access_key is None
+
+    def test_init_with_bedrock_prefix(self):
+        """Test that the bedrock/ prefix is accepted and preserved"""
+        model = bedrock("bedrock/anthropic.claude-3-sonnet-20240229")
+        assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
 
     def test_init_with_credentials(self):
         """Test initialization with explicit credentials"""
@@ -1076,36 +1064,28 @@ class TestBedrock:
 
         assert model.profile_name == "test-profile"
 
-    @pytest.mark.xfail(
-        reason="latest litellm and openai are not compatible",
-    )
-    def test_call(self, mock_litellm_completion, test_messages, test_config):
-        """Test calling the bedrock class with LiteLLM client."""
+    def test_call(self, mock_bedrock_client, test_messages, test_config):
+        """Test calling the bedrock class with boto3 Converse API."""
         model_name = "anthropic.claude-3-sonnet-20240229"
 
-        # Create model with API key to avoid _require_api_key
         model = bedrock(model_name)
 
-        result = model(test_messages, test_config)
+        result = list(model(test_messages, test_config))
 
-        # Verify result
-        assert result == "Test response"
+        assert result == ["Test response"]
 
-        # Verify API call
-        mock_litellm_completion.assert_called_once()
-        call_args = mock_litellm_completion.call_args[1]
-        assert call_args["model"] == f"bedrock/{model_name}"
-        assert len(call_args["messages"]) == 2
-        assert call_args["messages"][0]["role"] == "system"
-        assert call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
-        assert call_args["messages"][1]["role"] == "user"
-        assert call_args["messages"][1]["content"] == "Test prompt"
-        assert call_args["max_tokens"] == 100
-        # Use pytest.approx for floating point comparisons
-        assert call_args["temperature"] == pytest.approx(0.7)
-        assert call_args["top_p"] == pytest.approx(0.9)
-        assert call_args["frequency_penalty"] == pytest.approx(0.5)
-        assert call_args["presence_penalty"] == pytest.approx(0.5)
+        mock_bedrock_client.converse_stream.assert_called_once()
+        call_args = mock_bedrock_client.converse_stream.call_args[1]
+        assert call_args["modelId"] == model_name
+        assert call_args["system"] == [{"text": DEFAULT_SYSTEM_MESSAGE}]
+        assert len(call_args["messages"]) == 1
+        assert call_args["messages"][0]["role"] == "user"
+        assert call_args["messages"][0]["content"] == [{"text": "Test prompt"}]
+        assert call_args["inferenceConfig"]["maxTokens"] == 100
+        assert call_args["inferenceConfig"]["temperature"] == pytest.approx(
+            0.7
+        )
+        assert call_args["inferenceConfig"]["topP"] == pytest.approx(0.9)
 
 
 @pytest.mark.skipif(

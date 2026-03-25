@@ -5,10 +5,9 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import type { InlineContext } from "@lezer/markdown";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId, variableName } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import type { VariableName, Variables } from "@/core/variables/types";
 import { parsePython, variableCompletionSource } from "../embedded-python";
 
 const IS_ACTIVE = () => true;
@@ -51,16 +50,16 @@ describe("parsePython", () => {
 
 describe("variableCompletionSource", () => {
   beforeEach(() => {
-    const mockCellId = "cell-1" as CellId;
-    const mockVariables: Variables = {
-      ["var1" as VariableName]: {
-        name: "var1" as VariableName,
+    const mockCellId = cellId("cell-1");
+    const mockVariables = {
+      [variableName("var1")]: {
+        name: variableName("var1"),
         dataType: "int",
         declaredBy: [mockCellId],
         usedBy: [mockCellId],
       },
-      ["var2" as VariableName]: {
-        name: "var2" as VariableName,
+      [variableName("var2")]: {
+        name: variableName("var2"),
         dataType: "str",
         declaredBy: [mockCellId],
         usedBy: [mockCellId],

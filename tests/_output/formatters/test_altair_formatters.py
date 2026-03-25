@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from urllib.request import urlopen
 
 import pytest
@@ -16,7 +16,6 @@ from marimo._output.formatters.altair_formatters import (
 )
 from marimo._output.formatters.formatters import register_formatters
 from marimo._output.formatting import get_formatter
-from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
 from tests._data.mocks import create_dataframes
 
 HAS_DEPS = DependencyManager.altair.has() and DependencyManager.polars.has()
@@ -83,11 +82,8 @@ def test_altair_formatter_registration():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
-@patch("marimo._output.formatters.altair_formatters.maybe_make_full_width")
-def test_altair_formatter_full_width(mock_make_full_width: MagicMock):
+def test_altair_formatter_respects_default_width():
     AltairFormatter().register()
-
-    mock_make_full_width.side_effect = maybe_make_full_width
 
     import altair as alt
 
@@ -101,8 +97,6 @@ def test_altair_formatter_full_width(mock_make_full_width: MagicMock):
         )
     )
 
-    mock_make_full_width.return_value = chart
-
     formatter = get_formatter(chart)
     assert formatter is not None
     res = formatter(chart)
@@ -110,10 +104,8 @@ def test_altair_formatter_full_width(mock_make_full_width: MagicMock):
     mime, content = res
     assert_vegalite_mimetype(mime)
     assert isinstance(content, str)
-    assert "container" in content
-
-    # Verify maybe_make_full_width was called
-    mock_make_full_width.assert_called_once()
+    json_content = json.loads(content)
+    assert json_content.get("width") != "container"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")

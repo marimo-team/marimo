@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.20.4"
+version = "0.21.1"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -50,6 +50,8 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
+    "pyzmq>=27.1.0; python_version < '3.15'",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -84,7 +86,7 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 sql = [
     "duckdb>=1.0.0",           # SQL cells
     "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    "sqlglot[c]>=26.2.0"       # SQL cells parsing;
+    "sqlglot[c]>=26.8.0"       # SQL cells parsing;
 ]
 
 # For per-notebook sandboxed kernels
@@ -116,14 +118,14 @@ mcp = [
 
 [dependency-groups]
 dev = [
-    "hatch>=1.16.3",
-    "black~=23.12.1",
+    # Typo checking
+    "typos~=1.23.6",
     # For tracing debugging
     "opentelemetry-api~=1.28.0",
     "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
@@ -156,6 +158,7 @@ test = [
 ]
 
 test-optional = [
+    {include-group = "test"},
     # For testing ADBC driver-based SQL connections
     "adbc_driver_manager",
     "adbc_driver_sqlite",
@@ -168,7 +171,7 @@ test-optional = [
     "altair>=5.4.0",
     "plotly>=5.14.0",
     "polars>=1.32.2",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
@@ -184,7 +187,7 @@ test-optional = [
     "duckdb>=1.0.0",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
-    "pillow~=10.4.0",
+    "pillow~=12.0.0",
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
@@ -193,9 +196,9 @@ test-optional = [
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
     # for bedrock ui chat
-    "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat>=5.10.4",
+    "nbconvert>=7.17.0",
     "sympy>=1.13.3",
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
@@ -207,36 +210,11 @@ test-optional = [
     "pyzmq>=27.1.0",
     # weave tracing integration
     "weave>=0.51.0",
+    # For type-checking tests
+    "basedpyright>=1.28.0",
 ]
 
-
-[tool.hatch]
-installer = "uv"
-
-# Override the default uv version to use the latest version
-[tool.hatch.envs.hatch-uv]
-dependencies = ["uv>=0.9.21"]
-
-[tool.hatch.envs.default]
-dependency-groups = ["dev"]
-python = "3.12"
-installer = "uv"
-dependencies = [
-    "uv>=0.9.21", # so we can bump the version used by hatch
-    # Typo checking
-    "typos~=1.23.6",
-]
-
-[tool.hatch.envs.default.scripts]
-lint = "ruff check --fix"
-lint-unsafe = "ruff check --fix --unsafe-fixes"
-format = "ruff format"
-
-[tool.hatch.envs.typecheck]
-python = "3.12"
-installer = "uv"
-dependency-groups = ["dev"]
-dependencies = [
+typecheck = [
     "mypy~=1.15.0",
     # Types for mypy
     "altair>=5.4.0",
@@ -246,15 +224,15 @@ dependencies = [
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
-    "sqlglot[c]>=26.2.0",
+    "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
     "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.52.0",
     "loro>=1.5.0",
+    "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
-    "litellm>=1.70.0",
     "python-dotenv>=1.0.1",
     "jupytext>=1.17.2",
     "types-Pillow>=10.2.0.20240520",
@@ -269,42 +247,8 @@ dependencies = [
     "pyarrow-stubs",
 ]
 
-[tool.hatch.envs.typecheck.scripts]
-# tutorials shouldn't be type-checked (should be excluded), but they get
-# included due to import following; so ensure tutorial imports are type
-# ignored.
-check = "mypy marimo --exclude=marimo/_tutorials/"
-tutorials = "mypy marimo/_tutorials"
-
-[tool.hatch.envs.test]
-dependency-groups = ["test"]
-
-[[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-
-[tool.hatch.envs.test.scripts]
-test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
-default = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
-# This is used externally from the narwhals repo to run our tests from their repo.
-# This should include any tests that may use narwhals.
-# It is ok if we test more than narwhals here, but we should not test less.
-test-narwhals = """
-    pytest{env:HATCH_TEST_ARGS:} \
-        tests/_data/ \
-        tests/_plugins/ui/_impl/ \
-        tests/_utils/test_narwhals_utils.py
-"""
-
-[tool.hatch.envs.test-optional]
-template = "test"
-dependency-groups = ["dev", "test", "test-optional"]
-
-[[tool.hatch.envs.test-optional.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-
-[tool.hatch.envs.docs]
-dependencies = [
-    "marimo_docs @ file://docs",
+docs = [
+    "marimo_docs",
     "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
     "mkdocs>=1.6.1",
     # Live reloading broken in >= 9.6.21: https://github.com/squidfunk/mkdocs-material/issues/8478
@@ -323,7 +267,11 @@ dependencies = [
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
+    "lzstring>=1.0.4",
+    "beautifulsoup4>=4.12.0",
+    "markdownify>=0.13.0",
 ]
+
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
@@ -333,11 +281,6 @@ module-name = "marimo"
 module-root = ""
 source-include = ["third_party.txt", "third_party_licenses.txt"]
 wheel-exclude = ["marimo/_smoke_tests/**"]
-
-[tool.hatch.envs.docs.scripts]
-build = "mkdocs build {args}"
-serve = "mkdocs serve --clean {args}"
-deploy = "mkdocs gh-deploy --force {args}"
 
 [tool.ruff]
 line-length = 79
@@ -496,7 +439,9 @@ banned-module-level-imports = [
     "typing_extensions",
     "pyiceberg",
     "redshift_connector",
-    "pydantic_ai"
+    "pydantic_ai",
+    # a top-level import of zmq may break WASM
+    "zmq"
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -523,8 +468,8 @@ addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_da
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-timeout = 30 # seconds, per test
-faulthandler_timeout = 30 # seconds, during collection
+timeout = 120 # seconds, per test (Windows CI needs extra headroom)
+faulthandler_timeout = 120 # seconds, during collection
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
@@ -537,7 +482,7 @@ markers = [
 omit = ["marimo/_tutorials/*"]
 
 [tool.typos.default]
-extend-ignore-re = ["[0-9a-zA-Z]{43}"]
+extend-ignore-re = ["[0-9a-zA-Z_-]{43}"]
 
 [tool.typos.default.extend-words]
 wheres = "wheres"
@@ -562,8 +507,6 @@ extend-exclude = [
     "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
 ]
 
-[tool.black]
-line-length = 79
 
 [tool.marimo.ai]
 rules = "- prefer polars over pandas\n- make charts using altair"
@@ -576,6 +519,7 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 cache_panel = true
+isolate_apps = true
 
 [tool.marimo.display]
 dataframes = "rich"

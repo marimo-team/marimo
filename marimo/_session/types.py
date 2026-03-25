@@ -8,12 +8,14 @@ implementations.
 
 from __future__ import annotations
 
+import contextlib
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
 if TYPE_CHECKING:
+    import asyncio
     import threading
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._messaging.notification import NotificationMessage
@@ -109,6 +111,7 @@ class Session(Protocol):
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
+    scratchpad_lock: asyncio.Lock
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
@@ -182,12 +185,12 @@ class Session(Protocol):
         """Instantiate the app."""
         ...
 
-    def attach_extension(self, extension: SessionExtension) -> None:
-        """Dynamically attach an extension to the session."""
-        ...
-
-    def detach_extension(self, extension: SessionExtension) -> None:
-        """Dynamically detach an extension from the session."""
+    @contextlib.contextmanager
+    def scoped(
+        self,
+        extension: SessionExtension,
+    ) -> Iterator[SessionExtension]:
+        """Attach an extension for the duration of the context."""
         ...
 
     def close(self) -> None:

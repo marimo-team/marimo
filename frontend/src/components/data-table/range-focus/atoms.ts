@@ -167,8 +167,8 @@ const {
       return state;
     }
 
-    const text = getCellValues(table, state.selectedCells);
-    copyToClipboard(text);
+    const { text, html } = getCellValues(table, state.selectedCells);
+    copyToClipboard(text, html);
     onCopyComplete();
 
     return {

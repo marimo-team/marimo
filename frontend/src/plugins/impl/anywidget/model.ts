@@ -323,8 +323,7 @@ export async function handleWidgetMessage(
   const msg = notification.message;
 
   // Decode base64 buffers to DataViews (present in open/update/custom messages)
-  const base64Buffers: Base64String[] =
-    "buffers" in msg ? (msg.buffers as Base64String[]) : [];
+  const base64Buffers: Base64String[] = "buffers" in msg ? msg.buffers : [];
   const buffers = base64Buffers.map(base64ToDataView);
 
   switch (msg.method) {

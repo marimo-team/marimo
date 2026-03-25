@@ -156,10 +156,11 @@ export async function downloadHTMLAsImage(opts: {
     // Get screenshot
     const dataUrl = await toPng(element);
     downloadByURL(dataUrl, Filenames.toPNG(filename));
-  } catch {
+  } catch (error) {
+    Logger.error("Error downloading as PNG", error);
     toast({
-      title: "Error",
-      description: "Failed to download as PNG.",
+      title: "Failed to download as PNG",
+      description: prettyError(error),
       variant: "danger",
     });
   } finally {

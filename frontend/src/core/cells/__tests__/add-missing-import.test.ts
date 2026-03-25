@@ -4,6 +4,7 @@ import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { cellId } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variables } from "@/core/variables/types";
@@ -13,7 +14,6 @@ import {
   maybeAddMissingImport,
 } from "../add-missing-import";
 import { notebookAtom } from "../cells";
-import type { CellId } from "../ids";
 
 // Mock the getRequestClient function
 const mockRequestClient = MockRequestClient.create();
@@ -21,8 +21,8 @@ vi.mock("@/core/network/requests", () => ({
   getRequestClient: () => mockRequestClient,
 }));
 
-const Cell1 = "1" as CellId;
-const Cell2 = "2" as CellId;
+const Cell1 = cellId("1");
+const Cell2 = cellId("2");
 
 describe("maybeAddMissingImport", () => {
   beforeEach(() => {

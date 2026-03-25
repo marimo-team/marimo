@@ -299,12 +299,6 @@ def script(
     """
     import sys
 
-    # Set default, if not provided
-    if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
-        sandbox = maybe_prompt_run_in_sandbox(name)
-
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
@@ -376,12 +370,6 @@ def md(
     """
     import sys
 
-    # Set default, if not provided
-    if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
-
-        sandbox = maybe_prompt_run_in_sandbox(name)
-
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
@@ -408,6 +396,10 @@ Example:
 Watch for changes and regenerate the script on modification:
 
     marimo export ipynb notebook.py -o notebook.ipynb --watch
+
+Optionally pass CLI args to the notebook:
+
+    marimo export ipynb notebook.py -o notebook.ipynb --include-outputs -- -arg1 foo -arg2 bar
 
 Requires nbformat to be installed.
 """,
@@ -459,6 +451,7 @@ Requires nbformat to be installed.
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def ipynb(
     name: str,
     output: Path,
@@ -467,6 +460,7 @@ def ipynb(
     include_outputs: bool,
     sandbox: Optional[bool],
     force: bool,
+    args: tuple[str],
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
@@ -498,14 +492,16 @@ def ipynb(
         package = getattr(e, "name", None) or "nbformat"
         raise MarimoCLIMissingDependencyError(str(e), package) from None
 
+    cli_args = parse_args(args) if include_outputs else {}
+
     def export_callback(file_path: MarimoPath) -> ExportResult:
         if include_outputs:
             return asyncio_run(
                 run_app_then_export_as_ipynb(
                     file_path,
                     sort_mode=sort,
-                    cli_args={},
-                    argv=None,
+                    cli_args=cli_args,
+                    argv=list(args),
                 )
             )
         return export_as_ipynb(file_path, sort_mode=sort)
@@ -681,6 +677,7 @@ def pdf(
             "for PDF export",
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
+            source="server",
         )
     except ManyModulesNotFoundError as e:
         sandbox_rerun_command = (
@@ -885,12 +882,10 @@ def html_wasm(
 
     out_dir = output
     filename = "index.html"
-    ignore_index_html = False
     # If ends with .html, get the directory
     if output.suffix == ".html":
         out_dir = output.parent
         filename = output.name
-        ignore_index_html = True
 
     marimo_file = MarimoPath(name)
 
@@ -898,7 +893,7 @@ def html_wasm(
         return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Export assets first
-    Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)
+    Exporter().export_assets(out_dir)
 
     # Create .nojekyll file to prevent GitHub Pages from interfering with asset
     # resolution

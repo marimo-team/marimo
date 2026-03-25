@@ -346,6 +346,7 @@ class Exporter:
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
             DependencyManager.playwright,
+            source="server",
         )
 
         ipynb_json_str = self.export_as_ipynb(
@@ -367,31 +368,49 @@ class Exporter:
 
         # Try standard PDF export first (requires pandoc + TeX)
         # and fall back to webpdf if it fails
+        from nbconvert.utils.exceptions import (  # type: ignore[import-not-found]
+            ConversionException,
+        )
+        from nbconvert.utils.pandoc import (  # type: ignore[import-not-found]
+            PandocMissing,
+        )
+
         if not webpdf:
             try:
                 from nbconvert import (  # type: ignore[import-not-found]
                     PDFExporter,
                 )
 
-                exporter = PDFExporter()
+                exporter = PDFExporter()  # type: ignore[no-untyped-call]
                 exporter.exclude_input = not include_inputs
-                pdf_data, _resources = exporter.from_notebook_node(notebook)
+                pdf_data, _resources = exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
                 if isinstance(pdf_data, bytes):
                     return pdf_data
                 LOGGER.error("PDF data is not bytes: %s", pdf_data)
                 return None
             except OSError as e:
-                LOGGER.warning(
-                    "Standard PDF export failed, falling back to webpdf. Error: %s",
+                # LatexFailed (IOError) or xelatex not on PATH
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
                     e,
                 )
+            except (PandocMissing, ConversionException) as e:
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
+                    e,
+                )
+            except Exception as e:
+                LOGGER.error(
+                    "Standard PDF export failed, falling back to webpdf.",
+                    exc_info=e,
+                )
 
-        from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+        from nbconvert import WebPDFExporter
 
-        web_exporter = WebPDFExporter()
+        web_exporter = WebPDFExporter()  # type: ignore[no-untyped-call]
         web_exporter.exclude_input = not include_inputs
         web_exporter.allow_chromium_download = True
-        pdf_data, _resources = web_exporter.from_notebook_node(notebook)
+        pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -431,6 +450,7 @@ class Exporter:
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
             DependencyManager.playwright,
+            source="server",
         )
 
         ipynb_json_str = self.export_as_ipynb(
@@ -479,7 +499,7 @@ class Exporter:
         import os
         import tempfile
 
-        from nbconvert import SlidesExporter  # type: ignore[import-not-found]
+        from nbconvert import SlidesExporter
 
         # Add slideshow metadata so each cell becomes a slide.
         for cell in notebook.cells:
@@ -490,7 +510,7 @@ class Exporter:
             )
 
         # Convert to reveal.js HTML
-        slides_exporter = SlidesExporter()
+        slides_exporter = SlidesExporter()  # type: ignore[no-untyped-call]
         slides_exporter.exclude_input = not include_inputs
         html_data, _resources = slides_exporter.from_notebook_node(notebook)
 
@@ -555,9 +575,7 @@ class Exporter:
             return None
         return pdf_data
 
-    def export_assets(
-        self, directory: Path, ignore_index_html: bool = False
-    ) -> None:
+    def export_assets(self, directory: Path) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
         LOGGER.debug(f"Copying assets to {dirpath}")
@@ -570,11 +588,7 @@ class Exporter:
             ROOT,
             dirpath,
             dirs_exist_ok=True,
-            ignore=(
-                shutil.ignore_patterns("index.html")
-                if ignore_index_html
-                else None
-            ),
+            ignore=(shutil.ignore_patterns("index.html")),
         )
 
     def export_public_folder(

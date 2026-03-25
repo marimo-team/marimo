@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -148,20 +149,46 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             column = col(condition.column_id)
             column_name = str(condition.column_id)
             value = condition.value
-
-            native_df = df.to_native()
             dtype = df.collect_schema().get(column_name)
 
-            # For polars, we need to convert the values based on dtype
-            if _is_polars_dataframe_or_lazyframe(native_df):
-                if dtype == nw.Datetime:
-                    value = convert_value(
-                        value, datetime.datetime.fromisoformat
+            # Convert string values to the appropriate type based on dtype
+            if dtype == nw.Datetime:
+                value = convert_value(value, datetime.datetime.fromisoformat)
+            elif dtype == nw.Date:
+                value = convert_value(value, datetime.date.fromisoformat)
+            elif dtype == nw.Time:
+                value = convert_value(value, datetime.time.fromisoformat)
+            elif dtype == nw.Object:
+                # Object dtype may contain date/datetime/Decimal values
+                # (e.g., pandas stores these as Python objects)
+                try:
+                    sample = (
+                        df.select(column_name)
+                        .filter(~col(column_name).is_null())
+                        .head(1)
+                        .collect()
+                        .get_column(column_name)
+                        .to_list()
                     )
-                elif dtype == nw.Date:
-                    value = convert_value(value, datetime.date.fromisoformat)
-                elif dtype == nw.Time:
-                    value = convert_value(value, datetime.time.fromisoformat)
+                    if sample:
+                        if isinstance(sample[0], datetime.datetime):
+                            value = convert_value(
+                                value, datetime.datetime.fromisoformat
+                            )
+                        elif isinstance(sample[0], datetime.date):
+                            value = convert_value(
+                                value, datetime.date.fromisoformat
+                            )
+                        elif isinstance(sample[0], datetime.time):
+                            value = convert_value(
+                                value, datetime.time.fromisoformat
+                            )
+                        elif isinstance(sample[0], decimal.Decimal):
+                            # Cast to Float64 so Decimal values can be compared, minor precision loss
+                            value = convert_value(value, float)
+                            column = column.cast(nw.Float64)
+                except Exception:
+                    pass
 
             # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
             if (
@@ -174,6 +201,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 and dtype.is_float()  # Note: this doesn't cover Object types for pandas
             ):
                 value = convert_value(value, float)
+            elif dtype is not None and dtype.is_decimal():
+                # Cast to Float64 so Decimal values can be compared, minor precision loss
+                value = convert_value(value, float)
+                column = column.cast(nw.Float64)
 
             # Build the expression based on the operator
             condition_expr: nw.Expr
@@ -456,7 +487,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         for df_ in dfs:
             result = result.join(df_, on=index_columns, how="left")
         if transform.aggregation in {"count", "sum"}:
-            result = result.select(nw.all().fill_null(0))
+            result = result.with_columns(
+                nw.exclude(*index_columns).fill_null(0)
+            )
         return result.sort(by=index_columns)
 
     @staticmethod

@@ -405,6 +405,13 @@ class TestObstore:
             backend = self._make_backend(store)
             assert backend.protocol == "file"
 
+    def test_backend_type(self) -> None:
+        from obstore.store import MemoryStore
+
+        store = MemoryStore()
+        backend = self._make_backend(store)
+        assert backend.backend_type == "obstore"
+
     def test_root_path_memory(self) -> None:
         from obstore.store import MemoryStore
 
@@ -517,6 +524,38 @@ class TestObstore:
         backend = self._make_backend(store)
         assert backend.display_name == "In-memory"
 
+    def test_protocol_returns_unknown_when_config_panics(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("bucket", skip_signature=True)
+        backend = self._make_backend(store)
+
+        def _raise(_: Any) -> None:
+            raise BaseException("rust panic")  # noqa: TRY002
+
+        with patch.object(
+            type(store),
+            "config",
+            new_callable=lambda: property(_raise),
+        ):
+            assert backend.protocol == "unknown"
+
+    def test_root_path_returns_none_when_config_panics(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("bucket", skip_signature=True)
+        backend = self._make_backend(store)
+
+        def _raise(_: Any) -> None:
+            raise BaseException("rust panic")  # noqa: TRY002
+
+        with patch.object(
+            type(store),
+            "config",
+            new_callable=lambda: property(_raise),
+        ):
+            assert backend.root_path is None
+
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")
 class TestFsspecFilesystem:
@@ -576,6 +615,109 @@ class TestFsspecFilesystem:
         backend.list_entries(prefix=None)
 
         mock_store.ls.assert_called_once_with(path="", detail=True)
+
+    def test_list_entries_retries_when_self_entry_detected(self) -> None:
+        mock_store = MagicMock()
+        mock_store.protocol = "file"
+        mock_store.dircache = {"": [{"name": "folder"}], "folder": []}
+        mock_store._parent = lambda _path: ""
+        mock_store.ls.side_effect = [
+            [
+                {
+                    "name": "folder",
+                    "size": 0,
+                    "type": "directory",
+                    "mtime": None,
+                }
+            ],
+            [
+                {
+                    "name": "folder/file.txt",
+                    "size": 100,
+                    "type": "file",
+                    "mtime": 1234567890.0,
+                }
+            ],
+        ]
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix="folder")
+
+        assert mock_store.ls.call_count == 2
+        assert "" not in mock_store.dircache
+        assert "folder" not in mock_store.dircache
+        assert result == snapshot(
+            [
+                StorageEntry(
+                    path="folder/file.txt",
+                    kind="file",
+                    size=100,
+                    last_modified=1234567890.0,
+                    metadata={},
+                    mime_type="text/plain",
+                ),
+            ]
+        )
+
+    def test_list_entries_returns_multi_file_list_without_self_scan(
+        self,
+    ) -> None:
+        """Multi-entry listings skip self-entry handling (O(1) path); all rows pass through."""
+        mock_store = MagicMock()
+        mock_store.protocol = "file"
+        mock_store.ls.return_value = [
+            {
+                "name": "folder",
+                "size": 0,
+                "type": "directory",
+                "mtime": None,
+            },
+            {
+                "name": "folder/folder",
+                "size": 0,
+                "type": "directory",
+                "mtime": None,
+            },
+            {
+                "name": "folder/file.txt",
+                "size": 1,
+                "type": "file",
+                "mtime": None,
+            },
+        ]
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix="folder")
+
+        mock_store.ls.assert_called_once_with(path="folder", detail=True)
+        assert result == snapshot(
+            [
+                StorageEntry(
+                    path="folder",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                    mime_type=None,
+                ),
+                StorageEntry(
+                    path="folder/folder",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                    mime_type=None,
+                ),
+                StorageEntry(
+                    path="folder/file.txt",
+                    kind="file",
+                    size=1,
+                    last_modified=None,
+                    metadata={},
+                    mime_type="text/plain",
+                ),
+            ]
+        )
 
     def test_list_entries_respects_limit(self) -> None:
         mock_store = MagicMock()
@@ -1063,6 +1205,13 @@ class TestFsspecFilesystemIntegration:
         fs = MemoryFileSystem()
         backend = FsspecFilesystem(fs, VariableName("mem_fs"))
         assert backend.protocol == "in-memory"
+
+    def test_backend_type_memory_filesystem(self) -> None:
+        from fsspec.implementations.memory import MemoryFileSystem
+
+        fs = MemoryFileSystem()
+        backend = FsspecFilesystem(fs, VariableName("mem_fs"))
+        assert backend.backend_type == "fsspec"
 
 
 @pytest.mark.skipif(not HAS_OBSTORE, reason="obstore not installed")

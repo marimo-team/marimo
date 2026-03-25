@@ -20,6 +20,7 @@ from marimo._runtime.commands import (
     SerializedQueryParams,
     UpdateUIElementCommand,
 )
+from marimo._runtime.patches import extract_docstring_from_header
 from marimo._server.app_defaults import AppDefaults
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
@@ -54,6 +55,7 @@ def instantiate(
     session.put_control_request(
         CreateNotebookCommand(
             execution_requests=execution_requests,
+            cell_ids=tuple(app.cell_manager.cell_ids()),
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[], values=[], request=None
             ),
@@ -144,6 +146,9 @@ def create_session(
             cli_args={},
             argv=[],
             app_config=app.config,
+            docstring=extract_docstring_from_header(
+                app_file_manager.app._app._header
+            ),
         ),
         user_config,
     )

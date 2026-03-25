@@ -53,11 +53,11 @@ jobs:
           turbo-token: ${{ secrets.TURBO_TOKEN }}
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v7
 
       - name: 📦 Build marimo wheel
-        run: hatch build -t wheel
+        run: uv build --wheel
 
       - name: Check for _static/_lsp directory in wheel
         run: |
@@ -152,7 +152,7 @@ jobs:
         shell: bash
         run: |
           uv venv
-          uv pip install --group=test-optional --group=test --group=dev marimo*.whl
+          uv pip install --group=test-optional --group=dev marimo*.whl
           uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:

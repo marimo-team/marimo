@@ -43,7 +43,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
             timestamp: output.timestamp || Date.now(),
             level: isError ? "stderr" : "stdout",
             message: message,
-            cellId: cell.cell_id as CellId,
+            cellId: cell.cell_id,
           });
           break;
         }
@@ -66,7 +66,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
     cell.output.data.forEach((error) => {
       CellLogLogger.log({
         level: "stderr",
-        cellId: cell.cell_id as CellId,
+        cellId: cell.cell_id,
         timestamp: cell.timestamp ?? 0,
         message: JSON.stringify(error),
       });

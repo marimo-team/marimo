@@ -27,6 +27,7 @@ import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { getContainerWidth } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
@@ -205,6 +206,7 @@ export const OutputRenderer: React.FC<{
         <Suspense fallback={<ChartLoadingState />}>
           <LazyVegaEmbed
             spec={parsedJsonData as TopLevelFacetedUnitSpec}
+            data-container-width={getContainerWidth(parsedJsonData)}
             options={{
               theme: theme === "dark" ? "dark" : undefined,
               mode: "vega-lite",

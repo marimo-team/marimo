@@ -114,6 +114,20 @@ def _(mo):
 
     This indicates a successful outcome or positive note
     ///
+
+    /// details | Details with lists
+        type: info
+
+    This is a note with bullets:
+    - First item
+    - Second item
+    - Third item
+
+    And an ordered list:
+    1. One
+    2. Two
+    3. Three
+    ///
     """)
     return
 

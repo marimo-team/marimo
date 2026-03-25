@@ -170,7 +170,7 @@ class DeleteCellRequest(DeleteCellCommand, tag=False):
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):
     def as_command(self) -> InstallPackagesCommand:
         return InstallPackagesCommand(
-            manager=self.manager, versions=self.versions
+            manager=self.manager, versions=self.versions, source=self.source
         )
 
 
@@ -240,6 +240,10 @@ class RenameNotebookRequest(msgspec.Struct, rename="camel"):
 
 class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
     cell_ids: list[CellId_t]
+
+
+class FocusCellRequest(msgspec.Struct, rename="camel"):
+    cell_id: CellId_t
 
 
 class ExecuteCellsRequest(msgspec.Struct, rename="camel"):

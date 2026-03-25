@@ -44,3 +44,12 @@ class http_request_context:
 
     def __exit__(self, *_: Any) -> None:
         HTTP_REQUEST_CTX.reset(self.token)
+
+
+def is_code_mode_request() -> bool:
+    """True when the current request originated from the /api/kernel/execute endpoint."""
+    request = HTTP_REQUEST_CTX.get(None)
+    if request is None:
+        return False
+    path: str = request.url.get("path", "")
+    return path.endswith("/api/kernel/execute")

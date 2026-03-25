@@ -174,7 +174,9 @@ export const KeyboardShortcuts: React.FC = () => {
                 return;
               }
 
-              let key = e.key.toLowerCase();
+              // Single character keys are always lowercase (e.g. "a", "b", "c")
+              // But we should preserve the original case for other keys (e.g. "Enter", "Escape")
+              let key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
               // Handle edge cases
               if (e.key === " ") {
                 key = "Space";

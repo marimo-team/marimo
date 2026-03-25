@@ -403,7 +403,10 @@ describe("cell selection atoms", () => {
     beforeEach(() => {
       // Reset mocks before each test
       vi.mocked(getCellValues).mockClear();
-      vi.mocked(getCellValues).mockReturnValue("mocked cell values");
+      vi.mocked(getCellValues).mockReturnValue({
+        text: "mocked cell values",
+        html: undefined,
+      });
     });
 
     afterEach(() => {
@@ -424,7 +427,10 @@ describe("cell selection atoms", () => {
       });
 
       expect(getCellValues).toHaveBeenCalledWith(mockTable, selectedCells);
-      expect(copyToClipboard).toHaveBeenCalledWith("mocked cell values");
+      expect(copyToClipboard).toHaveBeenCalledWith(
+        "mocked cell values",
+        undefined,
+      );
       expect(onCopyComplete).toHaveBeenCalledWith();
       expect(state.copiedCells).toEqual(selectedCells);
     });

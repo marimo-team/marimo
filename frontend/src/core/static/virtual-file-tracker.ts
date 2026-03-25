@@ -29,7 +29,7 @@ export class VirtualFileTracker {
 
   track(message: Pick<CellMessage, "cell_id" | "output">): void {
     const output = message.output;
-    const cellId = message.cell_id as CellId;
+    const cellId = message.cell_id;
     if (!output) {
       return;
     }

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import functools
 import inspect
 import io
 import linecache
@@ -170,7 +171,7 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
-def _extract_const_string(args: list[ast.stmt]) -> str:
+def _extract_const_string(args: list[ast.expr]) -> str:
     (inner,) = args
     # Various string types may need to be unpacked
     if isinstance(inner, ast.JoinedStr) or (
@@ -194,11 +195,18 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
     try:
         (body,) = tree.body
+        # Only match bare expressions like `mo.md("...")`, not assignments
+        # like `title = mo.md("...")` — both ast.Expr and ast.Assign have a
+        # `.value` attribute, so we must check the node type explicitly.
+        if not isinstance(body, ast.Expr):
+            return None
         if body.value.func.attr == "md":  # type: ignore[attr-defined, union-attr]
             value = body.value  # type: ignore[attr-defined, union-attr]
         else:
             return None
-        assert value.func.value.id == "mo"
+        if not isinstance(value, ast.Call):
+            return None
+        assert value.func.value.id == "mo"  # type: ignore[attr-defined]
         if not value.args:  # Handle mo.md() with no arguments
             return None
         md_lines = _extract_const_string(value.args).split("\n")
@@ -393,34 +401,63 @@ def compile_cell(
     )
 
 
-def solve_source_position(
-    code: str, filename: str
-) -> Optional[SourcePosition]:
+@functools.lru_cache(maxsize=1)
+def _build_source_position_map(
+    filename: str,
+) -> tuple[tuple[str, SourcePosition], ...]:
+    """Parse a notebook file and return a code→SourcePosition mapping.
+
+    Cached per filename to avoid O(N²) when resolving N cells from
+    the same file.
+    """
     from marimo._ast.load import _maybe_contents
     from marimo._ast.parse import parse_notebook
-    from marimo._utils.cell_matching import match_cell_ids_by_similarity
 
     contents = _maybe_contents(filename)
     if not contents:
-        return None
+        return ()
 
     notebook = parse_notebook(contents)
     if notebook is None or not notebook.valid:
+        return ()
+    return tuple(
+        (
+            cell.code.strip(),
+            SourcePosition(
+                filename=filename,
+                lineno=cell.lineno,
+                col_offset=cell.col_offset,
+            ),
+        )
+        for cell in notebook.cells
+    )
+
+
+def solve_source_position(
+    code: str, filename: str
+) -> Optional[SourcePosition]:
+    entries = _build_source_position_map(filename)
+
+    if not entries:
         return None
+
+    # Fast path: exact match (covers run mode and unmodified cells)
+    stripped = code.strip()
+    for cell_code, position in entries:
+        if cell_code == stripped:
+            return position
+
+    # Slow path: similarity matching for edited cells
+    from marimo._utils.cell_matching import match_cell_ids_by_similarity
+
     on_disk = {
-        CellId_t(str(i)): cell.code for i, cell in enumerate(notebook.cells)
+        CellId_t(str(i)): cell_code for i, (cell_code, _) in enumerate(entries)
     }
     matches = match_cell_ids_by_similarity(on_disk, {CellId_t("new"): code})
     if not matches or len(matches) != 1:
         return None
     (cell_index,) = matches.keys()
-    index = int(cell_index)
-
-    return SourcePosition(
-        filename=filename,
-        lineno=notebook.cells[index].lineno,
-        col_offset=notebook.cells[index].col_offset,
-    )
+    return entries[int(cell_index)][1]
 
 
 def get_source_position(

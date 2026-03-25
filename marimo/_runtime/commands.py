@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -441,6 +442,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
         app_config: Application-level configuration.
         argv: Full argument vector if available.
         filename: Path to the notebook file.
+        docstring: Module docstring extracted from the notebook header.
     """
 
     query_params: SerializedQueryParams
@@ -449,6 +451,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
+    docstring: Optional[str] = None
 
 
 class UpdateCellConfigCommand(Command):
@@ -488,16 +491,16 @@ class CreateNotebookCommand(Command):
 
     Attributes:
         execution_requests: ExecuteCellCommand for each notebook cell.
-        cell_ids: Initial cell IDs in the notebook (unused for now).
+        cell_ids: Initial cell IDs in the notebook.
         set_ui_element_value_request: Initial UI element values.
         auto_run: Whether to automatically execute cells on instantiation.
         request: HTTP request context if available.
     """
 
     execution_requests: tuple[ExecuteCellCommand, ...]
+    cell_ids: tuple[CellId_t, ...]
     set_ui_element_value_request: UpdateUIElementCommand
     auto_run: bool
-    cell_ids: Optional[tuple[CellId_t, ...]] = None
     request: Optional[HTTPRequest] = None
 
 
@@ -555,6 +558,10 @@ class InstallPackagesCommand(Command):
         manager: Package manager to use ('pip', 'conda', 'uv', etc.).
         versions: Package names mapped to version specifiers. Empty version
                   means install latest.
+        source: Where to install. "kernel" (default) dispatches to the kernel
+                subprocess; "server" installs directly into the server's Python
+                environment (sys.executable), used when the server itself needs
+                a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
     """
 
     # TODO: index URL (index/channel/...)
@@ -564,6 +571,8 @@ class InstallPackagesCommand(Command):
     # If the package name is not in the map, the latest version
     # will be installed
     versions: dict[str, str]
+
+    source: Literal["kernel", "server"] = "kernel"
 
 
 class PreviewDatasetColumnCommand(Command):

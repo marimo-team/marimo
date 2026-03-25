@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { TypedString } from "../../utils/typed";
+import type { components } from "@marimo-team/marimo-api";
 import type { CellId } from "../cells/ids";
 
-export type VariableName = TypedString<"VariableName">;
+export type VariableName = components["schemas"]["VariableName"];
 
 export interface Variable {
   name: VariableName;

@@ -59,6 +59,7 @@ export const MockRequestClient = {
       getRunningNotebooks: vi.fn().mockResolvedValue({ files: [] }),
       shutdownSession: vi.fn().mockResolvedValue({}),
       exportAsHTML: vi.fn().mockResolvedValue({ html: "" }),
+      exportAsIPYNB: vi.fn().mockResolvedValue(""),
       exportAsMarkdown: vi.fn().mockResolvedValue({ markdown: "" }),
       exportAsPDF: vi.fn().mockResolvedValue(new Blob()),
       autoExportAsHTML: vi.fn().mockResolvedValue({}),

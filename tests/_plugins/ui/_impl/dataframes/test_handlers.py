@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Any, Optional, cast
 
 import narwhals.stable.v2 as nw
@@ -497,6 +498,249 @@ class TestTransformHandler:
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": [Decimal("1.99"), Decimal("0.50"), Decimal("3.25")]},
+                    exclude=["pandas"],
+                ),
+                create_test_dataframes(
+                    {"A": [Decimal("1.99"), Decimal("3.25")]},
+                    exclude=["pandas"],
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_in_decimal(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A",
+                    operator="in",
+                    value=["1.99", "3.25"],
+                ),
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            Decimal("0.10"),
+                            Decimal("0.20"),
+                            Decimal("0.30"),
+                        ]
+                    },
+                    exclude=["pandas"],
+                ),
+                create_test_dataframes(
+                    {"A": [Decimal("0.10")]},
+                    exclude=["pandas"],
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_in_decimal_not_exactly_representable_as_float(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        """0.1 is not exactly representable as a float, but filtering should still work."""
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A",
+                    operator="in",
+                    value=["0.10"],
+                ),
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @pytest.mark.xfail(
+        reason="Casting both sides to Float64 causes precision loss at ~15 decimal places."
+    )
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes(
+            {
+                "A": [
+                    Decimal("1.12345678901234567"),
+                    Decimal("1.12345678901234568"),
+                ]
+            },
+            exclude=["pandas"],
+        ),
+    )
+    def test_filter_rows_in_decimal_precision_loss(
+        df: DataFrameType,
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A",
+                    operator="in",
+                    value=["1.12345678901234567"],
+                ),
+            ],
+        )
+        result = apply(df, transform)
+        assert df_size(result) == 1
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes(
+            {
+                "A": [
+                    Decimal("1.99"),
+                    Decimal("0.50"),
+                    Decimal("3.25"),
+                ]
+            },
+            exclude=["pandas"],
+        ),
+    )
+    def test_filter_rows_decimal_comparison_operators(
+        df: DataFrameType,
+    ) -> None:
+        """Test ==, >=, <, not_in on Decimal columns with string values."""
+        eq_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="==", value="0.50")],
+        )
+        assert df_size(apply(df, eq_transform)) == 1
+
+        gte_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator=">=", value="1.99")],
+        )
+        assert df_size(apply(df, gte_transform)) == 2
+
+        lt_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="<", value="1.00")],
+        )
+        assert df_size(apply(df, lt_transform)) == 1
+
+        not_in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A",
+                    operator="not_in",
+                    value=["0.50"],
+                )
+            ],
+        )
+        assert df_size(apply(df, not_in_transform)) == 2
+
+    @staticmethod
+    def test_filter_rows_in_decimal_pandas() -> None:
+        """Pandas stores Decimal as object dtype; filters should still work."""
+        df = pd.DataFrame(
+            {
+                "A": [Decimal("1.99"), Decimal("0.50"), Decimal("3.25")],
+            }
+        )
+
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(column_id="A", operator="in", value=["1.99", "3.25"])
+            ],
+        )
+        result = apply(df, in_transform)
+        assert df_size(result) == 2
+
+        eq_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="==", value="0.50")],
+        )
+        assert df_size(apply(df, eq_transform)) == 1
+
+        gte_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator=">=", value="1.99")],
+        )
+        assert df_size(apply(df, gte_transform)) == 2
+
+    @staticmethod
+    def test_filter_rows_date_pandas_object_dtype() -> None:
+        """Pandas stores raw Python date objects as Object dtype.
+
+        The Object handler must sample correctly via a LazyFrame
+        (apply_transforms_to_df calls make_lazy) to detect the date type.
+        """
+        df = pd.DataFrame(
+            {"d": [date(2024, 1, 1), date(2024, 6, 15), date(2024, 12, 31)]}
+        )
+        # Confirm pandas stored these as object, not datetime64
+        assert df["d"].dtype == object
+
+        eq_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(column_id="d", operator="==", value="2024-06-15")
+            ],
+        )
+        assert df_size(apply(df, eq_transform)) == 1
+
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="d",
+                    operator="in",
+                    value=["2024-01-01", "2024-12-31"],
+                )
+            ],
+        )
+        assert df_size(apply(df, in_transform)) == 2
+
+    @staticmethod
+    def test_filter_rows_date_pandas_object_dtype_with_leading_nulls() -> None:
+        """Type detection should work even when the first rows are null."""
+        df = pd.DataFrame(
+            {"d": [None, None, date(2024, 1, 1), date(2024, 6, 15)]}
+        )
+        assert df["d"].dtype == object
+
+        eq_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(column_id="d", operator="==", value="2024-06-15")
+            ],
+        )
+        assert df_size(apply(df, eq_transform)) == 1
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1413,6 +1657,32 @@ class TestTransformHandler:
         assert_frame_equal_with_nans(
             result, expected, allow_nan_equals_zero=True
         )
+
+    @staticmethod
+    def test_pivot_count_preserves_boolean_index_dtype() -> None:
+        """fill_null(0) on value columns must not alter boolean index dtypes."""
+        import polars as pl
+
+        df = pl.DataFrame(
+            {
+                "category": ["x", "x", "y"],
+                "id": [1, 2, 1],
+                "flag": [True, False, True],
+                "value": [10, 20, 30],
+            }
+        )
+
+        transform = PivotTransform(
+            type=TransformType.PIVOT,
+            column_ids=["category"],
+            index_column_ids=["id", "flag"],
+            value_column_ids=["value"],
+            aggregation="count",
+        )
+
+        result = apply(df, transform)
+        nw_result = nw.from_native(result)
+        assert nw_result.schema["flag"] == nw.Boolean
 
     @staticmethod
     @pytest.mark.parametrize(

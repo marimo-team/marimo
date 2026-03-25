@@ -3,6 +3,20 @@
 import { Objects } from "@/utils/objects";
 import type { DataType, FieldTypes, VegaDataType } from "./vega-loader";
 
+export type ContainerWidth = number | "container";
+
+/**
+ * Get the container width from a VegaLite spec.
+ * @param spec - The VegaLite spec.
+ * @returns The container width.
+ */
+export function getContainerWidth(spec: unknown): ContainerWidth | undefined {
+  if (typeof spec === "object" && spec !== null && "width" in spec) {
+    return spec.width as ContainerWidth | undefined;
+  }
+  return undefined;
+}
+
 export function mergeAsArrays<T>(
   left: T | T[] | undefined,
   right: T | T[] | undefined,

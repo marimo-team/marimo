@@ -248,6 +248,11 @@ def start(
             }
         )
 
+    is_multi = file_router.get_unique_file_key() is None
+    isolate_apps = is_multi and config_reader.experimental.get(
+        "isolate_apps", False
+    )
+
     session_manager = SessionManager(
         file_router=file_router,
         mode=mode,
@@ -262,6 +267,7 @@ def start(
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
         sandbox_mode=sandbox_mode,
+        isolate_apps=isolate_apps,
     )
 
     log_level = "info" if development_mode else "error"
@@ -274,6 +280,7 @@ def start(
         lifespans.logging,
         lifespans.open_browser,
         lifespans.tool_manager,
+        lifespans.server_registry,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 
@@ -355,7 +362,9 @@ def start(
         uvicorn.Config(
             app,
             port=port,
-            host=host,
+            host=host.strip(
+                "[]"
+            ),  # uvicorn expects bare IPv6 without brackets
             log_level=log_level,
             # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
             # seconds by default; for some reason breaks the server in

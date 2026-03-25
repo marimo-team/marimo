@@ -12,6 +12,7 @@ from marimo._data._external_storage.models import (
     DEFAULT_FETCH_LIMIT,
     KNOWN_STORAGE_TYPES,
     SIGNED_URL_EXPIRATION,
+    BackendType,
     StorageBackend,
     StorageEntry,
 )
@@ -24,7 +25,15 @@ if TYPE_CHECKING:
         AbstractFileSystem,  # noqa: F401
     )
     from obstore import ObjectMeta
-    from obstore.store import ObjectStore  # noqa: F401
+    from obstore.store import (
+        AzureConfig,
+        AzureStore,
+        GCSConfig,
+        GCSStore,
+        ObjectStore,  # noqa: F401
+        S3Config,
+        S3Store,
+    )
 
 LOGGER = _loggers.marimo_logger()
 
@@ -135,6 +144,18 @@ class Obstore(StorageBackend["ObjectStore"]):
             LOGGER.info("Failed to sign URL for %s", path)
             return None
 
+    def _get_config(
+        self, store: AzureStore | GCSStore | S3Store
+    ) -> AzureConfig | GCSConfig | S3Config | None:
+        try:
+            return store.config
+        except BaseException:
+            # Sometimes, there will be a Rust panic when trying to get the config for invalid stores
+            LOGGER.exception(
+                "Failed to read store config for %s", type(store).__name__
+            )
+        return None
+
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
         from obstore.store import (
@@ -148,7 +169,11 @@ class Obstore(StorageBackend["ObjectStore"]):
 
         # Try the endpoint URL which can give a more accurate protocol
         if not isinstance(self.store, (MemoryStore, HTTPStore, LocalStore)):
-            endpoint = self.store.config.get("endpoint")
+            config = self._get_config(self.store)
+            if config is None:
+                return "unknown"
+
+            endpoint = config.get("endpoint")
             if isinstance(endpoint, str) and (
                 protocol := detect_protocol_from_url(endpoint)
             ):
@@ -171,6 +196,10 @@ class Obstore(StorageBackend["ObjectStore"]):
             return "unknown"
 
     @property
+    def backend_type(self) -> BackendType:
+        return "obstore"
+
+    @property
     def root_path(self) -> str | None:
         from obstore.store import HTTPStore, LocalStore, MemoryStore
 
@@ -184,7 +213,10 @@ class Obstore(StorageBackend["ObjectStore"]):
             if isinstance(self.store, LocalStore):
                 return None  # root
 
-            config = self.store.config
+            config = self._get_config(self.store)
+            if config is None:
+                return None
+
             bucket = config.get("bucket")
             if bucket is None:
                 LOGGER.debug(
@@ -221,9 +253,16 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         if prefix is None:
             prefix = ""
 
-        files = self.store.ls(path=prefix, detail=True)
-        if not isinstance(files, list):
-            raise ValueError(f"Files is not a list: {files}")
+        files = self._list_files(prefix)
+        normalized_prefix = self._normalize_path(prefix)
+        if self._has_self_entry(files, normalized_prefix):
+            LOGGER.debug(
+                "Detected self-entry for prefix %s, invalidating cache and retrying",
+                prefix,
+            )
+            self._invalidate_listing_cache_for_prefix(prefix)
+            files = self._list_files(prefix)
+
         total_files = len(files)
         if total_files > limit:
             LOGGER.debug(
@@ -240,6 +279,63 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
                 storage_entries.append(storage_entry)
 
         return storage_entries
+
+    def _normalize_path(self, path: str) -> str:
+        # Match fsspec path handling: strip protocol and trailing slashes,
+        # but preserve leading slash for absolute paths (e.g. "/tmp").
+        path = path.strip()
+        strip_protocol = getattr(self.store, "_strip_protocol", None)
+        if callable(strip_protocol):
+            stripped = strip_protocol(path)
+            if isinstance(stripped, str):
+                path = stripped
+        return path.rstrip("/")
+
+    def _list_files(self, prefix: str) -> list[Any]:
+        files = self.store.ls(path=prefix, detail=True)
+        if not isinstance(files, list):
+            raise ValueError(f"Files is not a list: {files}")
+        return files
+
+    def _has_self_entry(
+        self, files: list[Any], normalized_prefix: str
+    ) -> bool:
+        # Stale dircache listings tend to echo only the queried path (length 1).
+        # Avoid scanning large result sets for an exact prefix match.
+        if not normalized_prefix or len(files) != 1:
+            return False
+        return self._is_self_entry(files[0], normalized_prefix)
+
+    def _is_self_entry(self, file: Any, normalized_prefix: str) -> bool:
+        if not isinstance(file, dict):
+            return False
+        name = file.get("name")
+        if not isinstance(name, str):
+            return False
+        return self._normalize_path(name) == normalized_prefix
+
+    def _invalidate_listing_cache_for_prefix(self, prefix: str) -> None:
+        dircache = getattr(self.store, "dircache", None)
+        if dircache is None:
+            return
+
+        # Clear the minimum cache surface (target, parent, and root) that can
+        # contribute stale self-entries before retrying list().
+        cache_keys: set[str] = {self._normalize_path(prefix), ""}
+        parent_fn = getattr(self.store, "_parent", None)
+        if callable(parent_fn):
+            parent = parent_fn(prefix)
+            if isinstance(parent, str):
+                cache_keys.add(self._normalize_path(parent))
+
+        for key in cache_keys:
+            try:
+                dircache.pop(key, None)
+            except Exception:
+                # Some custom mappings may not support pop semantics.
+                LOGGER.debug(
+                    "Failed to clear fsspec cache key %s for listing", key
+                )
 
     def _identify_kind(self, entry_type: str) -> Literal["file", "directory"]:
         entry_type = entry_type.strip().lower()
@@ -349,6 +445,10 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "-".join(store_protocol)
 
         return normalize_protocol(store_protocol) or store_protocol
+
+    @property
+    def backend_type(self) -> BackendType:
+        return "fsspec"
 
     @property
     def root_path(self) -> str | None:

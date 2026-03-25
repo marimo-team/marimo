@@ -56,12 +56,14 @@ export function createMockRow(
 export function createMockTable(
   rows: Row<unknown>[],
   columns: Column<unknown>[],
+  opts?: { rawData?: unknown[] },
 ): Table<unknown> {
   return {
     getRow: (id: string) => rows.find((row) => row.id === id),
     getRowModel: () => ({ rows }),
     getColumn: (columnId: string) => columns.find((col) => col.id === columnId),
     getAllColumns: () => columns,
+    options: { meta: { rawData: opts?.rawData } },
   } as unknown as Table<unknown>;
 }
 

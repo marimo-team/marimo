@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 
 // Mock the external dependencies
 vi.mock("html-to-image", () => ({
@@ -13,7 +14,6 @@ vi.mock("@/utils/Logger", () => ({
 }));
 
 import type { NotebookState } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
 import { CellOutputContextProvider, getCellContextData } from "../cell-output";
@@ -35,21 +35,21 @@ describe("CellOutputContextProvider", () => {
     // Create a basic mock notebook state
     mockNotebook = {
       cellIds: {
-        inOrderIds: ["cell1" as CellId, "cell2" as CellId, "cell3" as CellId],
+        inOrderIds: ["cell1", "cell2", "cell3"],
       },
       cellData: {
         cell1: {
-          id: "cell1" as CellId,
+          id: "cell1",
           name: "My Cell",
           code: "print('hello world')",
         },
         cell2: {
-          id: "cell2" as CellId,
+          id: "cell2",
           name: "",
           code: "import matplotlib.pyplot as plt\nplt.plot([1,2,3])",
         },
         cell3: {
-          id: "cell3" as CellId,
+          id: "cell3",
           name: "Empty Cell",
           code: "# no output",
         },
@@ -226,9 +226,9 @@ describe("Cell output utility functions", () => {
 
       for (const testCase of testCases) {
         mockStore = createMockStore({
-          cellIds: { inOrderIds: ["test" as CellId] },
+          cellIds: { inOrderIds: ["test"] },
           cellData: {
-            test: { id: "test" as CellId, name: "", code: "" },
+            test: { id: "test", name: "", code: "" },
           },
           cellRuntime: {
             test: {
@@ -261,9 +261,9 @@ describe("Cell output utility functions", () => {
 
       for (const testCase of testCases) {
         mockStore = createMockStore({
-          cellIds: { inOrderIds: ["test" as CellId] },
+          cellIds: { inOrderIds: ["test"] },
           cellData: {
-            test: { id: "test" as CellId, name: "", code: "" },
+            test: { id: "test", name: "", code: "" },
           },
           cellRuntime: {
             test: {
@@ -295,9 +295,9 @@ describe("Cell output utility functions", () => {
 
       for (const testCase of testCases) {
         mockStore = createMockStore({
-          cellIds: { inOrderIds: ["test" as CellId] },
+          cellIds: { inOrderIds: ["test"] },
           cellData: {
-            test: { id: "test" as CellId, name: "", code: "" },
+            test: { id: "test", name: "", code: "" },
           },
           cellRuntime: {
             test: {
@@ -369,9 +369,9 @@ describe("Cell output utility functions", () => {
       ).mockReturnValue(mockDiv);
 
       mockStore = createMockStore({
-        cellIds: { inOrderIds: ["test" as CellId] },
+        cellIds: { inOrderIds: ["test"] },
         cellData: {
-          test: { id: "test" as CellId, name: "", code: "" },
+          test: { id: "test", name: "", code: "" },
         },
         cellRuntime: {
           test: {
@@ -396,16 +396,16 @@ describe("Cell output utility functions", () => {
     beforeEach(() => {
       mockNotebook = {
         cellIds: {
-          inOrderIds: ["cell1" as CellId, "cell2" as CellId],
+          inOrderIds: ["cell1", "cell2"],
         },
         cellData: {
           cell1: {
-            id: "cell1" as CellId,
+            id: "cell1",
             name: "My Named Cell",
             code: "x = 42",
           },
           cell2: {
-            id: "cell2" as CellId,
+            id: "cell2",
             name: "",
             code: "y = x * 2",
           },
@@ -432,7 +432,7 @@ describe("Cell output utility functions", () => {
     });
 
     it("should extract basic cell data", () => {
-      const result = getCellContextData("cell1" as CellId, mockNotebook);
+      const result = getCellContextData(cellId("cell1"), mockNotebook);
 
       expect(result.cellId).toBe("cell1");
       expect(result.cellName).toBe("My Named Cell");
@@ -440,13 +440,13 @@ describe("Cell output utility functions", () => {
     });
 
     it("should generate cell name for unnamed cells", () => {
-      const result = getCellContextData("cell2" as CellId, mockNotebook);
+      const result = getCellContextData(cellId("cell2"), mockNotebook);
 
       expect(result.cellName).toBe("cell-1"); // 0-indexed, so cell2 is at index 1
     });
 
     it("should include cell output when present", () => {
-      const result = getCellContextData("cell1" as CellId, mockNotebook);
+      const result = getCellContextData(cellId("cell1"), mockNotebook);
 
       expect(result.cellOutput).toBeDefined();
       expect(result.cellOutput?.outputType).toBe("text");
@@ -454,19 +454,19 @@ describe("Cell output utility functions", () => {
     });
 
     it("should not include cell output when not present", () => {
-      const result = getCellContextData("cell2" as CellId, mockNotebook);
+      const result = getCellContextData(cellId("cell2"), mockNotebook);
 
       expect(result.cellOutput).toBeUndefined();
     });
 
     it("should not include console outputs by default", () => {
-      const result = getCellContextData("cell2" as CellId, mockNotebook);
+      const result = getCellContextData(cellId("cell2"), mockNotebook);
 
       expect(result.consoleOutputs).toBeUndefined();
     });
 
     it("should include console outputs when opted in", () => {
-      const result = getCellContextData("cell2" as CellId, mockNotebook, {
+      const result = getCellContextData(cellId("cell2"), mockNotebook, {
         includeConsoleOutput: true,
       });
 
@@ -478,7 +478,7 @@ describe("Cell output utility functions", () => {
     });
 
     it("should filter out empty console outputs", () => {
-      const cell2Runtime = mockNotebook.cellRuntime["cell2" as CellId];
+      const cell2Runtime = mockNotebook.cellRuntime[cellId("cell2")];
       if (cell2Runtime) {
         (cell2Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
           {
@@ -492,7 +492,7 @@ describe("Cell output utility functions", () => {
         ];
       }
 
-      const result = getCellContextData("cell2" as CellId, mockNotebook, {
+      const result = getCellContextData(cellId("cell2"), mockNotebook, {
         includeConsoleOutput: true,
       });
 
@@ -501,7 +501,7 @@ describe("Cell output utility functions", () => {
     });
 
     it("should handle cells with both cell output and console outputs", () => {
-      const cell1Runtime = mockNotebook.cellRuntime["cell1" as CellId];
+      const cell1Runtime = mockNotebook.cellRuntime[cellId("cell1")];
       if (cell1Runtime) {
         (cell1Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
           {
@@ -511,7 +511,7 @@ describe("Cell output utility functions", () => {
         ];
       }
 
-      const result = getCellContextData("cell1" as CellId, mockNotebook, {
+      const result = getCellContextData(cellId("cell1"), mockNotebook, {
         includeConsoleOutput: true,
       });
 
@@ -524,7 +524,7 @@ describe("Cell output utility functions", () => {
     });
 
     it("should handle empty console outputs array", () => {
-      const result = getCellContextData("cell1" as CellId, mockNotebook, {
+      const result = getCellContextData(cellId("cell1"), mockNotebook, {
         includeConsoleOutput: true,
       });
 
@@ -532,7 +532,7 @@ describe("Cell output utility functions", () => {
     });
 
     it("should handle media outputs in cell output", () => {
-      const cell1Runtime = mockNotebook.cellRuntime["cell1" as CellId];
+      const cell1Runtime = mockNotebook.cellRuntime[cellId("cell1")];
       if (cell1Runtime) {
         (cell1Runtime as { output: OutputMessage | null }).output = {
           mimetype: "image/png",
@@ -540,7 +540,7 @@ describe("Cell output utility functions", () => {
         } as OutputMessage;
       }
 
-      const result = getCellContextData("cell1" as CellId, mockNotebook);
+      const result = getCellContextData(cellId("cell1"), mockNotebook);
 
       expect(result.cellOutput).toBeDefined();
       expect(result.cellOutput?.outputType).toBe("media");
@@ -548,7 +548,7 @@ describe("Cell output utility functions", () => {
     });
 
     it("should handle media outputs in console outputs", () => {
-      const cell2Runtime = mockNotebook.cellRuntime["cell2" as CellId];
+      const cell2Runtime = mockNotebook.cellRuntime[cellId("cell2")];
       if (cell2Runtime) {
         (cell2Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
           {
@@ -558,7 +558,7 @@ describe("Cell output utility functions", () => {
         ];
       }
 
-      const result = getCellContextData("cell2" as CellId, mockNotebook, {
+      const result = getCellContextData(cellId("cell2"), mockNotebook, {
         includeConsoleOutput: true,
       });
 

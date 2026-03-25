@@ -234,6 +234,11 @@ class ThreadSafeStdout(Stdout):
     ):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
+        # Expose the underlying binary buffer so that code writing to
+        # sys.stdout.buffer (e.g. package installation logging) keeps working.
+        self.buffer: io.BufferedIOBase | None = getattr(
+            sys.stdout, "buffer", None
+        )
         self._watcher: Watcher | _NoOpWatcher = (
             Watcher(self) if forward_os_streams else _NOOP_WATCHER
         )
@@ -304,6 +309,11 @@ class ThreadSafeStderr(Stderr):
     ):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
+        # Expose the underlying binary buffer so that code writing to
+        # sys.stderr.buffer keeps working.
+        self.buffer: io.BufferedIOBase | None = getattr(
+            sys.stderr, "buffer", None
+        )
         self._watcher: Watcher | _NoOpWatcher = (
             Watcher(self) if forward_os_streams else _NOOP_WATCHER
         )
