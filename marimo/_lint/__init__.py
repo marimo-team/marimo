@@ -38,7 +38,7 @@ def resolve_lint_config(
         k: v
         for k, v in full_config.get("lint", {}).items()
         if k in ("select", "ignore")
-    }  # type: ignore[misc]
+    }  # type: ignore[assignment]
 
     # CLI --select replaces config select entirely
     if select_rules is not None:
