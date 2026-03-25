@@ -36,7 +36,7 @@ DEFAULT_CONFIG = ChatModelConfigDict(
 )
 
 # The version of the Vercel AI SDK we use
-AI_SDK_VERSION: Final[Literal[5, 6]] = 5
+AI_SDK_VERSION: Final[Literal[5, 6]] = 6
 DONE_CHUNK: Final[str] = "[DONE]"
 
 
