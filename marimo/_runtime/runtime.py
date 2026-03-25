@@ -109,6 +109,10 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._messaging.variables import create_variable_value
+from marimo._notebook.document import (
+    NotebookDocument,
+    _current_document,
+)
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
@@ -2275,8 +2279,17 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            with http_request_context(request.request):
-                await self.run_scratchpad(request.code)
+            token = None
+            if request.notebook_cells is not None:
+                token = _current_document.set(
+                    NotebookDocument(list(request.notebook_cells))
+                )
+            try:
+                with http_request_context(request.request):
+                    await self.run_scratchpad(request.code)
+            finally:
+                if token is not None:
+                    _current_document.reset(token)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_execute_stale(
