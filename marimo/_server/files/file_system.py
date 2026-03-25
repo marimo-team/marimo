@@ -29,7 +29,7 @@ class FileSystem(ABC):
         pass
 
     @abstractmethod
-    def open_file(self, path: str) -> str | bytes:
+    def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
         """Open and read the content of a file.
 
         Returns str for text files, bytes for binary files.

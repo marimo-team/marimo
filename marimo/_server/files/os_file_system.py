@@ -129,7 +129,7 @@ class OSFileSystem(FileSystem):
     def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
         file_path = Path(path)
         try:
-            return file_path.read_text(encoding=encoding)
+            return file_path.read_text(encoding=encoding or "utf-8")
         except UnicodeDecodeError:
             return file_path.read_bytes()
 
