@@ -1,15 +1,32 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/**
+ * Tests for fromDocumentOps / applyTransactionOps in isolation.
+ *
+ * These test the op→action mapping for edge cases and error paths that
+ * can't be exercised via the round-trip tests (since toDocumentOps would
+ * never produce malformed or conflicting ops). Basic correctness is
+ * covered by document-roundtrip.test.ts. This file focuses on:
+ *
+ * - Multi-op transactions (create+move, create+set-code, set-code+delete)
+ * - Cancelled ops (create+delete same cell)
+ * - Missing/nonexistent anchors and cells
+ * - Config propagation on create-cell (disabled, column)
+ */
+
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MultiColumn } from "@/utils/id-tree";
-import { applyTransactionOps } from "../apply-transaction";
 import { exportedForTesting, type NotebookState } from "../cells";
+import {
+  applyTransactionOps,
+  exportedForTesting as middlewareExports,
+} from "../document-ops";
 import { CellId } from "../ids";
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
@@ -57,19 +74,12 @@ function setup(...codes: string[]) {
   }
 }
 
+afterEach(() => {
+  middlewareExports.cancelPendingOps();
+});
+
 function apply(ops: Parameters<typeof applyTransactionOps>[0]) {
-  applyTransactionOps(
-    ops,
-    {
-      createNewCell: actions.createNewCell,
-      deleteCell: actions.deleteCell,
-      setCellIds: actions.setCellIds,
-      setCellCodes: actions.setCellCodes,
-      updateCellName: actions.updateCellName,
-      updateCellConfig: actions.updateCellConfig,
-    },
-    () => state.cellIds.inOrderIds,
-  );
+  applyTransactionOps(ops, actions, () => state.cellIds.inOrderIds);
 }
 
 /** Snapshot of document state: ordering, code, name, config. */
@@ -105,184 +115,22 @@ beforeEach(() => {
   i = 0;
 });
 
-describe("applyTransactionOps", () => {
-  it("set-code updates code", () => {
-    setup("x = 1", "y = 2");
-    const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "set-code", cellId: a, code: "x = 42" }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'x = 42'
-      1: 'y = 2'
-      "
-    `);
-  });
-
-  it("set-name renames a cell", () => {
-    setup("x = 1");
-    const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "set-name", cellId: a, name: "my_cell" }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'x = 1' [name=my_cell]
-      "
-    `);
-  });
-
-  it("delete-cell removes a cell", () => {
-    setup("a", "b", "c");
-    const [, b] = state.cellIds.inOrderIds;
-    apply([{ type: "delete-cell", cellId: b }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'a'
-      2: 'c'
-      "
-    `);
-  });
-
-  it("reorder-cells replaces full ordering", () => {
-    setup("a", "b", "c");
-    const [a, b, c] = state.cellIds.inOrderIds;
-    apply([{ type: "reorder-cells", cellIds: [c, a, b] }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      2: 'c'
-      0: 'a'
-      1: 'b'
-      "
-    `);
-  });
-
-  it("move-cell after", () => {
-    setup("a", "b", "c");
-    const [a, , c] = state.cellIds.inOrderIds;
-    apply([{ type: "move-cell", cellId: a, after: c }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      1: 'b'
-      2: 'c'
-      0: 'a'
-      "
-    `);
-  });
-
-  it("move-cell before", () => {
-    setup("a", "b", "c");
-    const [a, , c] = state.cellIds.inOrderIds;
-    apply([{ type: "move-cell", cellId: c, before: a }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      2: 'c'
-      0: 'a'
-      1: 'b'
-      "
-    `);
-  });
-
-  it("set-config hide_code", () => {
-    setup("x = 1");
-    const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "set-config", cellId: a, hideCode: true }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'x = 1' [hide_code]
-      "
-    `);
-  });
-
-  it("set-config disabled", () => {
-    setup("x = 1");
-    const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "set-config", cellId: a, disabled: true }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'x = 1' [disabled]
-      "
-    `);
-  });
-
-  it("create-cell appends at end", () => {
-    setup("a", "b");
-    apply([
-      {
-        type: "create-cell",
-        cellId: "new-cell",
-        code: "c = 3",
-        name: "my_new",
-        config: {},
-      },
-    ]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'a'
-      1: 'b'
-      new-cell: 'c = 3' [name=my_new]
-      "
-    `);
-  });
-
-  it("create-cell with after positions correctly", () => {
-    setup("a", "b", "c");
-    const [a] = state.cellIds.inOrderIds;
-    apply([
-      {
-        type: "create-cell",
-        cellId: "new-cell",
-        code: "inserted",
-        name: "",
-        config: {},
-        after: a,
-      },
-    ]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'a'
-      new-cell: 'inserted'
-      1: 'b'
-      2: 'c'
-      "
-    `);
-  });
-
-  it("create-cell with before positions correctly", () => {
-    setup("a", "b", "c");
-    const [, b] = state.cellIds.inOrderIds;
-    apply([
-      {
-        type: "create-cell",
-        cellId: "new-cell",
-        code: "inserted",
-        name: "",
-        config: {},
-        before: b,
-      },
-    ]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'a'
-      new-cell: 'inserted'
-      1: 'b'
-      2: 'c'
-      "
-    `);
-  });
-
-  it("create-cell with hide_code config", () => {
+describe("applyTransactionOps edge cases", () => {
+  it("create-cell applies disabled and column config", () => {
     setup("a");
     apply([
       {
         type: "create-cell",
         cellId: "new-cell",
-        code: "hidden",
+        code: "configured",
         name: "",
-        config: { hide_code: true },
+        config: { hide_code: true, disabled: true, column: 1 },
       },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
       0: 'a'
-      new-cell: 'hidden' [hide_code]
+      new-cell: 'configured' [hide_code, disabled, col=1]
       "
     `);
   });
@@ -329,16 +177,21 @@ describe("applyTransactionOps", () => {
     `);
   });
 
-  it("set-code then delete same cell", () => {
-    setup("a", "b");
-    const [a] = state.cellIds.inOrderIds;
+  it("create-cell then delete-cell same cell cancels out", () => {
+    setup("a");
     apply([
-      { type: "set-code", cellId: a, code: "doomed" },
-      { type: "delete-cell", cellId: a },
+      {
+        type: "create-cell",
+        cellId: "ephemeral",
+        code: "tmp",
+        name: "",
+        config: {},
+      },
+      { type: "delete-cell", cellId: "ephemeral" },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
-      1: 'b'
+      0: 'a'
       "
     `);
   });
@@ -359,75 +212,56 @@ describe("applyTransactionOps", () => {
     `);
   });
 
-  it("code + reorder in one transaction", () => {
+  it("move-cell with no anchor appends to end", () => {
     setup("a", "b", "c");
-    const [a, b, c] = state.cellIds.inOrderIds;
-    apply([
-      { type: "set-code", cellId: a, code: "first" },
-      { type: "set-code", cellId: c, code: "last" },
-      { type: "reorder-cells", cellIds: [c, b, a] },
-    ]);
+    const [a] = state.cellIds.inOrderIds;
+    apply([{ type: "move-cell", cellId: a }]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
-      2: 'last'
       1: 'b'
-      0: 'first'
+      2: 'c'
+      0: 'a'
       "
     `);
   });
 
-  it("delete + set-code on different cells", () => {
-    setup("a", "b", "c");
-    const [, b, c] = state.cellIds.inOrderIds;
-    apply([
-      { type: "delete-cell", cellId: b },
-      { type: "set-code", cellId: c, code: "updated" },
-    ]);
+  it("move-cell with missing after anchor falls back to end", () => {
+    setup("a", "b");
+    const [a] = state.cellIds.inOrderIds;
+    apply([{ type: "move-cell", cellId: a, after: "nonexistent" as CellId }]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
+      1: 'b'
       0: 'a'
-      2: 'updated'
       "
     `);
   });
 
-  it("create-cell then delete-cell same cell cancels out", () => {
-    setup("a");
+  it("move-cell with missing before anchor falls back to start", () => {
+    setup("a", "b");
+    const [, b] = state.cellIds.inOrderIds;
+    apply([{ type: "move-cell", cellId: b, before: "nonexistent" as CellId }]);
+    expect(pretty(state)).toMatchInlineSnapshot(`
+      "
+      1: 'b'
+      0: 'a'
+      "
+    `);
+  });
+
+  it("move-cell on nonexistent cell is a no-op", () => {
+    setup("a", "b");
     apply([
       {
-        type: "create-cell",
-        cellId: "ephemeral",
-        code: "tmp",
-        name: "",
-        config: {},
+        type: "move-cell",
+        cellId: "nonexistent" as CellId,
+        after: "0" as CellId,
       },
-      { type: "delete-cell", cellId: "ephemeral" },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
       0: 'a'
-      "
-    `);
-  });
-
-  it("set-config with column", () => {
-    setup("x = 1");
-    const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "set-config", cellId: a, column: 2 }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'x = 1' [col=2]
-      "
-    `);
-  });
-
-  it("set-config with multiple fields", () => {
-    setup("x = 1");
-    const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "set-config", cellId: a, hideCode: true, disabled: true }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'x = 1' [hide_code, disabled]
+      1: 'b'
       "
     `);
   });
@@ -439,16 +273,6 @@ describe("applyTransactionOps", () => {
       "
       0: 'a'
       1: 'b'
-      "
-    `);
-  });
-
-  it("set-code on nonexistent cell is a no-op", () => {
-    setup("a");
-    apply([{ type: "set-code", cellId: "missing" as CellId, code: "x" }]);
-    expect(pretty(state)).toMatchInlineSnapshot(`
-      "
-      0: 'a'
       "
     `);
   });

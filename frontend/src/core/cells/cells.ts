@@ -29,7 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { documentTransactionMiddleware } from "./document-transaction-middleware";
+import { documentTransactionMiddleware } from "./document-ops";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -173,10 +173,9 @@ export interface CreateNewCellAction {
 /**
  * Actions and reducer for the notebook state.
  */
-// TODO: remove biome-ignore after review
-// biome-ignore format: adding middleware arg changes indentation of entire reducer block
 const {
   reducer,
+  addMiddleware,
   createActions,
   useActions,
   valueAtom: notebookAtom,
@@ -1421,7 +1420,13 @@ const {
       scrollKey: SETUP_CELL_ID,
     };
   },
-}, [documentTransactionMiddleware]);
+});
+
+// We apply the middleware here (rather than inline in createReducerAndAtoms)
+// so that the document transaction middleware can import CellActions and
+// strictly type the dispatched actions without creating a circular dependency.
+// @ts-expect-error - TODO: We should have better types for the middleware that are strict
+addMiddleware(documentTransactionMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
@@ -1807,8 +1812,10 @@ export function createTracebackInfoAtom(
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.
  */
-export function useCellActions(): CellActions {
-  return useActions();
+export function useCellActions(
+  options: { skipMiddleware?: boolean } = {},
+): CellActions {
+  return useActions(options);
 }
 
 /**

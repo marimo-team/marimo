@@ -4,9 +4,8 @@ import { useAtom, useSetAtom } from "jotai";
 import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
-import { applyTransactionOps } from "@/core/cells/apply-transaction";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
-import { suppressDocumentTransactions } from "@/core/cells/document-transaction-middleware";
+import { applyTransactionOps } from "@/core/cells/document-ops";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import type {
   NotificationMessageData,
@@ -97,33 +96,17 @@ export function useMarimoKernelConnection(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const {
-    handleCellMessage,
-    createNewCell,
-    setCellCodes,
-    setCellIds,
-    deleteCell,
-    updateCellName,
-    updateCellConfig,
-  } = useCellActions();
+  const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
 
   const handleDocumentTransaction = (
     transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
   ) => {
-    suppressDocumentTransactions(() => {
-      applyTransactionOps(
-        transaction.ops,
-        {
-          createNewCell,
-          deleteCell,
-          setCellIds,
-          setCellCodes,
-          updateCellName,
-          updateCellConfig,
-        },
-        () => getNotebook().cellIds.inOrderIds,
-      );
-    });
+    applyTransactionOps(
+      transaction.ops,
+      actionsWithoutMiddleware,
+      () => getNotebook().cellIds.inOrderIds,
+    );
   };
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
