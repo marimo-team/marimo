@@ -85,8 +85,8 @@ function anchorOf(
 function columnIndexMap(state: NotebookState): Map<CellId, number> {
   const map = new Map<CellId, number>();
   const columns = state.cellIds.getColumns();
-  for (let col = 0; col < columns.length; col++) {
-    for (const id of columns[col].inOrderIds) {
+  for (const [col, column] of columns.entries()) {
+    for (const id of column.inOrderIds) {
       map.set(id, col);
     }
   }
@@ -348,10 +348,10 @@ export function fromDocumentOps(
         let cellId: CellId | "__end__" = "__end__";
         let before = false;
         if (op.after) {
-          cellId = op.after as CellId;
+          cellId = op.after;
           before = false;
         } else if (op.before) {
-          cellId = op.before as CellId;
+          cellId = op.before;
           before = true;
         }
         actions.push({
@@ -411,14 +411,14 @@ export function fromDocumentOps(
         }
         ids.splice(idx, 1);
         if (op.after) {
-          const afterIdx = ids.indexOf(op.after as CellId);
+          const afterIdx = ids.indexOf(op.after);
           if (afterIdx >= 0) {
             ids.splice(afterIdx + 1, 0, cellId);
           } else {
             ids.push(cellId);
           }
         } else if (op.before) {
-          const beforeIdx = ids.indexOf(op.before as CellId);
+          const beforeIdx = ids.indexOf(op.before);
           if (beforeIdx >= 0) {
             ids.splice(beforeIdx, 0, cellId);
           } else {

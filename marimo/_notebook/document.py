@@ -141,6 +141,8 @@ class NotebookDocument:
         return structs_replace(tx, version=self._version)
 
     def _apply_op(self, op: Op) -> None:
+        # TODO: refactor to use match/case (min Python is 3.10) once
+        # ruff target-version is bumped from py39.
         if isinstance(op, CreateCell):
             cell = NotebookCell(
                 id=op.cell_id,
