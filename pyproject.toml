@@ -101,7 +101,7 @@ recommended = [
     "marimo[sql]",
     "marimo[sandbox]",                  # For `marimo edit --sandbox DIRECTORY`
     "altair>=5.4.0",                    # Plotting in datasource viewer
-    "pydantic-ai-slim[openai]>=1.39.0", # AI features
+    "pydantic-ai-slim[openai]>=1.52.0", # AI features
     "ruff",                             # Formatting
     "nbformat>=5.7.0",                  # Export as IPYNB
 ]
