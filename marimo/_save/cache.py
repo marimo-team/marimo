@@ -59,7 +59,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 }
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return", "version", "runtime"]
+MetaKey = Literal["return", "version", "runtime", "variable_hashes"]
 # Matches functools
 CacheInfo = namedtuple(
     "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
@@ -221,7 +221,7 @@ class Cache:
             if isinstance(value, SetFunctor):
                 self.defs[ref] = value._state()
             elif isinstance(value, UIElement):
-                self.defs[ref] = value
+                self.defs[ref] = value.value
             else:
                 raise CacheException(
                     "Failure while saving cached values. "

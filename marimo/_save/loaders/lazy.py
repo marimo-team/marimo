@@ -65,15 +65,17 @@ def to_item(
 
 def from_item(item: Item) -> Any:
     if item.reference is not None:
-        return ImmediateReferenceStub(ReferenceStub(item.reference, item.hash))
+        return ImmediateReferenceStub(
+            ReferenceStub(item.reference, hash_value=item.hash or "")
+        )
     if item.module is not None:
-        stub = ModuleStub.__new__(ModuleStub)
-        stub.name = item.module
-        return stub
+        mod_stub = ModuleStub.__new__(ModuleStub)
+        mod_stub.name = item.module
+        return mod_stub
     if item.function is not None:
-        stub = FunctionStub.__new__(FunctionStub)
-        stub.code, stub.filename, stub.lineno = item.function
-        return stub
+        fn_stub = FunctionStub.__new__(FunctionStub)
+        fn_stub.code, fn_stub.filename, fn_stub.lineno = item.function
+        return fn_stub
     if item.primitive is not None:
         return item.primitive
     return None
@@ -99,6 +101,18 @@ class LazyLoader(BasePersistenceLoader):
             t.join()
         self._pending.clear()
 
+    def load_cache(self, key: HashKey) -> Optional[Cache]:
+        try:
+            blob: Optional[bytes] = self.store.get(
+                str(self.build_path(key))
+            )
+            if not blob:
+                return None
+            return self.restore_cache(key, blob)
+        except Exception as e:
+            LOGGER.warning("Failed to restore lazy cache: %s", e)
+            return None
+
     def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
         base = Path(self.name) / cache_data.hash
@@ -114,9 +128,19 @@ class LazyLoader(BasePersistenceLoader):
             if item.hash:
                 variable_hashes[var_name] = item.hash
 
+        # Eagerly resolve return value reference alongside defs
+        return_ref: Optional[str] = None
+        if (
+            cache_data.meta.return_value
+            and cache_data.meta.return_value.reference
+        ):
+            return_ref = cache_data.meta.return_value.reference
+
         # Read + unpickle in parallel, stream results via queue
         results: queue.Queue[tuple[str, Any]] = queue.Queue()
         unique_keys = set(ref_vars.values())
+        if return_ref:
+            unique_keys.add(return_ref)
 
         def _load_and_unpickle(key: str) -> None:
             data = self.store.get(key)
@@ -142,6 +166,9 @@ class LazyLoader(BasePersistenceLoader):
         for t in threads:
             t.join()
 
+        if len(unpickled) < len(unique_keys):
+            raise FileNotFoundError("Incomplete cache: missing blobs")
+
         # Distribute to defs
         defs: dict[str, Any] = {}
         for var_name, item in cache_data.defs.items():
@@ -155,11 +182,12 @@ class LazyLoader(BasePersistenceLoader):
             else:
                 defs[var_name] = from_item(item)
 
-        return_item = (
-            from_item(cache_data.meta.return_value)
-            if cache_data.meta.return_value
-            else None
-        )
+        if return_ref and return_ref in unpickled:
+            return_item = unpickled[return_ref]
+        elif cache_data.meta.return_value:
+            return_item = from_item(cache_data.meta.return_value)
+        else:
+            return_item = None
 
         return Cache(
             hash=cache_data.hash,
@@ -175,6 +203,9 @@ class LazyLoader(BasePersistenceLoader):
         )
 
     def save_cache(self, cache: Cache) -> bool:
+        # Reap completed threads
+        self._pending = [t for t in self._pending if t.is_alive()]
+
         path = Path(self.name) / cache.hash
         variable_hashes = cache.meta.get("variable_hashes", {})
         return_item = to_item(
@@ -230,18 +261,25 @@ class LazyLoader(BasePersistenceLoader):
 
         def _serialize_and_write() -> None:
             """Serialize and write all blobs + manifest in background."""
-            if return_ref:
-                store.put(return_ref, pickle.dumps(return_value))
-            if ui_vars:
-                store.put(
-                    (path / "ui.pickle").as_posix(), pickle.dumps(ui_vars)
+            try:
+                if return_ref:
+                    store.put(return_ref, pickle.dumps(return_value))
+                if ui_vars:
+                    store.put(
+                        (path / "ui.pickle").as_posix(),
+                        pickle.dumps(ui_vars),
+                    )
+                for var, obj in pickle_vars.items():
+                    store.put(
+                        (path / f"{var}.pickle").as_posix(),
+                        pickle.dumps(obj),
+                    )
+                # Manifest last — readers check for it to detect complete writes
+                store.put(manifest_key, manifest)
+            except Exception:
+                LOGGER.exception(
+                    "Failed to write cache blobs for %s", path
                 )
-            for var, obj in pickle_vars.items():
-                store.put(
-                    (path / f"{var}.pickle").as_posix(), pickle.dumps(obj)
-                )
-            # Manifest last — readers check for it to detect complete writes
-            store.put(manifest_key, manifest)
 
         t = threading.Thread(target=_serialize_and_write, daemon=False)
         t.start()

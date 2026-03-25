@@ -31,7 +31,7 @@ class Item(msgspec.Struct):
     primitive: Optional[Any] = None
     reference: Optional[str] = None
     module: Optional[str] = None
-    # (filename, code, linenumber)
+    # (code, filename, linenumber)
     function: Optional[tuple[str, str, int]] = None
     hash: Optional[str] = None
 
@@ -74,7 +74,7 @@ class ReferenceStub:
         self.loader = loader
         self.hash = hash_value
 
-    def load(self, glbls: dict[str, Any]) -> dict[str, Any]:
+    def load(self, glbls: dict[str, Any]) -> Any:
         del glbls
         blob = self.to_bytes()
         if not blob:
