@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorView } from "@codemirror/view";
-import { math } from "@streamdown/math";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { memo, Suspense, useState } from "react";
@@ -13,6 +12,7 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import { autoInstantiateAtom } from "@/core/config/config";
+import { useOnMount } from "@/hooks/useLifecycle";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
@@ -166,11 +166,28 @@ const COMPONENTS: Components = {
   },
 };
 
+// Lazy-load the math plugin to keep katex (~264 KB) out of the critical path.
+// The first render works without math; once loaded, it re-renders with math support.
+let mathPluginCache: StreamdownProps["plugins"];
+const useMathPlugin = () => {
+  const [plugins, setPlugins] = useState(mathPluginCache);
+  useOnMount(() => {
+    if (!mathPluginCache) {
+      import("@streamdown/math").then((mod) => {
+        mathPluginCache = { math: mod.math };
+        setPlugins(mathPluginCache);
+      });
+    }
+  });
+  return plugins;
+};
+
 export const MarkdownRenderer = memo(({ content }: { content: string }) => {
+  const plugins = useMathPlugin();
   return (
     <Streamdown
       components={COMPONENTS}
-      plugins={{ math }}
+      plugins={plugins}
       className="mo-markdown-renderer"
     >
       {content}
