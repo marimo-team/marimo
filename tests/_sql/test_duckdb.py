@@ -295,13 +295,14 @@ def test_duckdb_engine_sql_output_formats(
 @pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
 @pytest.mark.skipif(not HAS_POLARS, reason="requires polars")
 def test_explain_query_not_truncated_by_limit(
-    duckdb_connection: "duckdb.DuckDBPyConnection",
+    duckdb_connection: duckdb.DuckDBPyConnection,
 ) -> None:
     """EXPLAIN queries should not be truncated by the default result limit.
 
     Regression test for https://github.com/marimo-team/marimo/issues/8328
     """
     import os
+
     from marimo._sql.engines.duckdb import DuckDBEngine
 
     engine = DuckDBEngine(duckdb_connection, engine_name="duckdb")
@@ -321,6 +322,7 @@ def test_explain_query_not_truncated_by_limit(
         df, _ = result
         # EXPLAIN output should have more than 5 rows
         import polars as pl
+
         if isinstance(df, pl.DataFrame):
             assert len(df) > 5, (
                 "EXPLAIN query output was truncated by MARIMO_SQL_DEFAULT_LIMIT"

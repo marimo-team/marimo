@@ -106,7 +106,11 @@ def sql(
     except OSError:
         default_result_limit = None
 
-    enforce_own_limit = not has_limit and default_result_limit is not None and not is_explain_query(query)
+    enforce_own_limit = (
+        not has_limit
+        and default_result_limit is not None
+        and not is_explain_query(query)
+    )
 
     custom_total_count: Optional[Literal["too_many"]] = None
     if enforce_own_limit:
