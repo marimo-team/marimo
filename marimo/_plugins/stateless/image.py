@@ -86,6 +86,11 @@ def _normalize_image(
             lo = float(vmin) if vmin is not None else float(src.min())
             hi = float(vmax) if vmax is not None else float(src.max())
             if has_bounds:
+                if lo > hi:
+                    raise ValueError(
+                        f"vmin ({vmin}) must be less than or equal to "
+                        f"vmax ({vmax})."
+                    )
                 # torch/jax/tf tensors lack __array_interface__ and are
                 # converted to numpy above, so src is always an ndarray here.
                 if not hasattr(src, "clip"):
