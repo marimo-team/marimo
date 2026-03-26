@@ -290,3 +290,42 @@ def test_duckdb_engine_sql_output_formats(
         result = engine.execute("SELECT * FROM test ORDER BY id")
         assert isinstance(result, (pd.DataFrame, pl.DataFrame))
         assert len(result) == 4
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.skipif(not HAS_POLARS, reason="requires polars")
+def test_explain_query_not_truncated_by_limit(
+    duckdb_connection: "duckdb.DuckDBPyConnection",
+) -> None:
+    """EXPLAIN queries should not be truncated by the default result limit.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/8328
+    """
+    import os
+    import duckdb
+    from marimo._sql.engines.duckdb import DuckDBEngine
+
+    engine = DuckDBEngine(duckdb_connection, engine_name="duckdb")
+
+    # Create a table with many rows so EXPLAIN output is non-trivial
+    duckdb_connection.execute(
+        "CREATE TABLE IF NOT EXISTS big (id INTEGER, val VARCHAR)"
+    )
+    duckdb_connection.execute(
+        "INSERT INTO big SELECT i, 'v' FROM range(100) t(i)"
+    )
+
+    # Run EXPLAIN with a limit of 5 — should NOT truncate EXPLAIN output
+    os.environ["MARIMO_SQL_DEFAULT_LIMIT"] = "5"
+    try:
+        result = engine.execute("EXPLAIN SELECT * FROM big", {})
+        df, _ = result
+        # EXPLAIN output should have more than 5 rows
+        import polars as pl
+        if isinstance(df, pl.DataFrame):
+            assert len(df) > 5, (
+                "EXPLAIN query output was truncated by MARIMO_SQL_DEFAULT_LIMIT"
+            )
+    finally:
+        del os.environ["MARIMO_SQL_DEFAULT_LIMIT"]
+        duckdb_connection.execute("DROP TABLE IF EXISTS big")
