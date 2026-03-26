@@ -171,6 +171,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
             run=manager.mode == SessionMode.RUN,
             new=file_router.get_unique_file_key() == AppFileRouter.NEW_FILE,
             network=state.host == "0.0.0.0",
+            startup_tip=state.startup_tip,
         )
 
         print_experimental_features(state.config_manager.get_config())
