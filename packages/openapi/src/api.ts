@@ -4298,6 +4298,8 @@ export interface components {
       /** @default null */
       contents?: string | null;
       file: components["schemas"]["FileInfo"];
+      /** @default false */
+      isBase64?: boolean;
       /** @default null */
       mimeType?: string | null;
     };

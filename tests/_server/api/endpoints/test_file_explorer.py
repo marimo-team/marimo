@@ -46,7 +46,28 @@ def test_file_details(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
-    assert "file" in response.json()
+    data = response.json()
+    assert "file" in data
+    assert data["isBase64"] is False
+
+
+def test_file_details_binary(client: TestClient) -> None:
+    import base64
+
+    bin_path = os.path.join(test_dir, "binary_file.bin")
+    raw_bytes = b"\xff\xfe\xfd\x00\x80"
+    with open(bin_path, "wb") as f:
+        f.write(raw_bytes)
+    response = client.post(
+        "/api/files/file_details",
+        headers=HEADERS,
+        json={"path": bin_path},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["isBase64"] is True
+    assert data["contents"] == base64.b64encode(raw_bytes).decode("utf-8")
+    os.remove(bin_path)
 
 
 def test_create_and_delete_file_or_directory(client: TestClient) -> None:
