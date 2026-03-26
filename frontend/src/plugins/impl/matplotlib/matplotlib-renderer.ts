@@ -301,7 +301,9 @@ export class MatplotlibRenderer {
     canvas.width = this.#state.width * dpr;
     canvas.height = this.#state.height * dpr;
     canvas.style.width = `${this.#state.width}px`;
-    canvas.style.height = `${this.#state.height}px`;
+    canvas.style.maxWidth = "100%";
+    canvas.style.height = "auto";
+    canvas.style.aspectRatio = `${this.#state.width} / ${this.#state.height}`;
     canvas.style.touchAction = "none";
     container.append(canvas);
     this.#canvas = canvas;
@@ -343,7 +345,9 @@ export class MatplotlibRenderer {
       this.#canvas.width = state.width * dpr;
       this.#canvas.height = state.height * dpr;
       this.#canvas.style.width = `${state.width}px`;
-      this.#canvas.style.height = `${state.height}px`;
+      this.#canvas.style.maxWidth = "100%";
+      this.#canvas.style.height = "auto";
+      this.#canvas.style.aspectRatio = `${state.width} / ${state.height}`;
       needsRedraw = true;
     }
 
