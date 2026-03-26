@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+)
 from marimo._notebook.ops import Transaction
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -14,6 +17,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -47,7 +51,12 @@ async def document_transaction(request: Request) -> BaseResponse:
     app_state = AppState(request)
     body = await parse_request(request, cls=NotebookDocumentTransactionRequest)
     session = app_state.require_current_session()
+    session_id = app_state.require_current_session_id()
 
-    session.document.apply(Transaction(ops=tuple(body.ops), source="frontend"))
+    transaction = Transaction(ops=tuple(body.ops), source="frontend")
+    session.notify(
+        NotebookDocumentTransactionNotification(transaction=transaction),
+        from_consumer_id=ConsumerId(session_id),
+    )
 
     return SuccessResponse()

@@ -456,9 +456,7 @@ class SessionImpl(Session):
         """Apply to session.document, return with version stamped."""
         try:
             applied = self.document.apply(notif.transaction)
-            return NotebookDocumentTransactionNotification(
-                transaction=applied,
-            )
+            return NotebookDocumentTransactionNotification(transaction=applied)
         except (ValueError, KeyError):
             LOGGER.warning("Failed to apply document transaction")
             return notif
