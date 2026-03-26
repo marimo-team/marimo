@@ -1,14 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "ai";
-import { Suspense } from "react";
+import React, { Suspense } from "react";
 import { z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { Arrays } from "@/utils/arrays";
-import { Chatbot } from "./chat-ui";
 import type { SendMessageRequest } from "./types";
+
+const LazyChatbot = React.lazy(() =>
+  import("./chat-ui").then((m) => ({ default: m.Chatbot })),
+);
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type PluginFunctions = {
@@ -72,7 +75,7 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
   .renderer((props) => (
     <TooltipProvider>
       <Suspense>
-        <Chatbot
+        <LazyChatbot
           prompts={props.data.prompts}
           showConfigurationControls={props.data.showConfigurationControls}
           maxHeight={props.data.maxHeight}
