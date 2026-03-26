@@ -302,7 +302,6 @@ export class MatplotlibRenderer {
     canvas.height = this.#state.height * dpr;
     canvas.style.width = `${this.#state.width}px`;
     canvas.style.height = `${this.#state.height}px`;
-    canvas.style.maxWidth = "100%";
     canvas.style.touchAction = "none";
     container.append(canvas);
     this.#canvas = canvas;
