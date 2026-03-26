@@ -6,7 +6,6 @@ from inline_snapshot import snapshot
 from loro import LoroDoc
 
 from marimo._ast.cell import CellConfig
-from marimo._notebook.document import NotebookDocument
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -18,6 +17,7 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
+from marimo._notebook.document import NotebookDocument
 from marimo._types.ids import CellId_t
 
 # ------------------------------------------------------------------
