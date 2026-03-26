@@ -103,7 +103,7 @@ export function useMarimoKernelConnection(opts: {
     transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
   ) => {
     applyTransactionOps(
-      transaction.ops,
+      transaction.changes,
       actionsWithoutMiddleware,
       () => getNotebook().cellIds.inOrderIds,
     );

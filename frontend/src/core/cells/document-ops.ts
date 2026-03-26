@@ -27,11 +27,11 @@ import type { CellActions, NotebookState } from "./cells";
 import type { CellId } from "./ids";
 import type { CellData } from "./types";
 
-export type DocumentOp = NotebookDocumentTransactionRequest["ops"][number];
+export type DocumentOp = NotebookDocumentTransactionRequest["changes"][number];
 
 type Transaction =
   NotificationMessageData<"notebook-document-transaction">["transaction"];
-type TransactionOp = Transaction["ops"][number];
+type TransactionOp = Transaction["changes"][number];
 
 export type CellAction = DispatchedActionOf<CellActions>;
 
@@ -558,22 +558,22 @@ export function fromDocumentOps(
 // Middleware: debounced op dispatch to the server
 // ---------------------------------------------------------------------------
 
-let pendingOps: DocumentOp[] = [];
+let pendingChanges: DocumentOp[] = [];
 
 const flushOps = debounce(() => {
-  if (pendingOps.length === 0) {
+  if (pendingChanges.length === 0) {
     return;
   }
-  const ops = pendingOps;
-  pendingOps = [];
-  void getRequestClient().sendDocumentTransaction({ ops });
+  const changes = pendingChanges;
+  pendingChanges = [];
+  void getRequestClient().sendDocumentTransaction({ changes });
 }, 400);
 
 function enqueue(op: DocumentOp) {
   if (store.get(kioskModeAtom)) {
     return;
   }
-  pendingOps.push(op);
+  pendingChanges.push(op);
   flushOps();
 }
 
@@ -626,12 +626,12 @@ export function applyTransactionOps(
 export const exportedForTesting = {
   cancelPendingOps: () => {
     flushOps.cancel();
-    pendingOps = [];
+    pendingChanges = [];
   },
   drainOps: (): DocumentOp[] => {
     flushOps.cancel();
-    const ops = pendingOps;
-    pendingOps = [];
+    const ops = pendingChanges;
+    pendingChanges = [];
     return ops;
   },
 };
