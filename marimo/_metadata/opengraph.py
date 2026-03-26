@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 import msgspec
 
 from marimo import _loggers
-from marimo._utils.paths import normalize_path
+from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
 from marimo._utils.scripts import read_pyproject_from_script
 
 LOGGER = _loggers.marimo_logger()
@@ -160,12 +160,27 @@ def derive_title_from_path(filepath: str) -> str:
 def default_opengraph_image(filepath: str) -> str:
     """Return the default relative image path for a given notebook."""
     stem = Path(filepath).stem
-    return f"__marimo__/assets/{stem}/{DEFAULT_OPENGRAPH_IMAGE_FILENAME}"
+    return str(
+        Path(MARIMO_DIR_NAME)
+        / "assets"
+        / stem
+        / DEFAULT_OPENGRAPH_IMAGE_FILENAME
+    )
+
+
+def default_opengraph_image_abs(filepath: str) -> Path:
+    """Return the absolute image path for a given notebook."""
+    stem = Path(filepath).stem
+    return (
+        notebook_output_dir(filepath)
+        / "assets"
+        / stem
+        / DEFAULT_OPENGRAPH_IMAGE_FILENAME
+    )
 
 
 def _default_image_exists(filepath: str) -> bool:
-    notebook_dir = normalize_path(Path(filepath)).parent
-    return (notebook_dir / default_opengraph_image(filepath)).is_file()
+    return default_opengraph_image_abs(filepath).is_file()
 
 
 def _merge_opengraph_metadata(

@@ -42,3 +42,12 @@ class TestFileStore:
         # Clear non-existent key
         result = store.clear("nonexistent")
         assert result is False
+
+    def test_default_path_is_lazy(self) -> None:
+        """Default save_path is not resolved at construction time."""
+        store = FileStore()
+        # The backing attribute should be None until first access.
+        assert store._resolved_save_path is None
+        # Accessing the property triggers resolution.
+        _ = store.save_path
+        assert store._resolved_save_path is not None
