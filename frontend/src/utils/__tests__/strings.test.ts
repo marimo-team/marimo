@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { decodeUtf8, Strings } from "../strings";
+import { capitalize, decodeUtf8, Strings } from "../strings";
 
 describe("Strings", () => {
   describe("startCase", () => {
@@ -55,6 +55,32 @@ describe("Strings", () => {
       expect(Strings.withoutLeadingSlash("/path")).toBe("path");
       expect(Strings.withoutLeadingSlash("path")).toBe("path");
     });
+  });
+});
+
+describe("capitalize", () => {
+  it("capitalizes the first character", () => {
+    expect(capitalize("hello")).toBe("Hello");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(capitalize("")).toBe("");
+  });
+
+  it("handles already-capitalized strings", () => {
+    expect(capitalize("Hello")).toBe("Hello");
+  });
+
+  it("handles single character", () => {
+    expect(capitalize("a")).toBe("A");
+  });
+
+  it("preserves the rest of the string", () => {
+    expect(capitalize("hELLO")).toBe("HELLO");
+  });
+
+  it("handles non-letter first character", () => {
+    expect(capitalize("123abc")).toBe("123abc");
   });
 });
 

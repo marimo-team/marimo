@@ -75,7 +75,9 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
           {Object.entries(rest).map(([key, value]) => {
             if (
               value == null ||
-              (typeof value === "object" && Object.keys(value).length === 0)
+              (typeof value === "object" &&
+                !Array.isArray(value) &&
+                Object.keys(value as Record<string, unknown>).length === 0)
             ) {
               return null;
             }

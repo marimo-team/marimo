@@ -83,8 +83,18 @@ export function sortBy<T>(
   key: (item: T) => string | number | undefined | null,
 ): T[] {
   return [...arr].sort((a, b) => {
-    const ka = key(a) ?? "";
-    const kb = key(b) ?? "";
+    const ka = key(a);
+    const kb = key(b);
+    // Nullish values sort last
+    if (ka == null && kb == null) {
+      return 0;
+    }
+    if (ka == null) {
+      return 1;
+    }
+    if (kb == null) {
+      return -1;
+    }
     if (ka < kb) {
       return -1;
     }

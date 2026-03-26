@@ -41,7 +41,7 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
     }
 
     const parsedInt = Number.parseInt(v, 10);
-    if (typeof parsedInt === "number") {
+    if (!Number.isNaN(parsedInt)) {
       const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
       if (!needsBigInt) {
         return previousIntegerParserWithoutNaN(v);

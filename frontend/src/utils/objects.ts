@@ -113,7 +113,7 @@ export const Objects = {
   ): Pick<V, K & keyof V> {
     const result = {} as Record<string, unknown>;
     for (const key of keys) {
-      if (key in obj) {
+      if (Object.hasOwn(obj, key)) {
         result[key] = obj[key];
       }
     }

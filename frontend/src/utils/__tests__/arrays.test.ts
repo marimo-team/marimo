@@ -190,6 +190,27 @@ describe("sortBy", () => {
   it("should handle empty array", () => {
     expect(sortBy([], (x) => x)).toEqual([]);
   });
+
+  it("should sort null/undefined keys last", () => {
+    const items = [
+      { name: "b", v: undefined },
+      { name: "a", v: 1 },
+      { name: "c", v: null },
+      { name: "d", v: 2 },
+    ];
+    const result = sortBy(items, (x) => x.v);
+    expect(result.map((x) => x.name)).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("should sort numeric keys correctly", () => {
+    const items = [{ v: 10 }, { v: 2 }, { v: 1 }, { v: 20 }];
+    expect(sortBy(items, (x) => x.v)).toEqual([
+      { v: 1 },
+      { v: 2 },
+      { v: 10 },
+      { v: 20 },
+    ]);
+  });
 });
 
 describe("partition", () => {
