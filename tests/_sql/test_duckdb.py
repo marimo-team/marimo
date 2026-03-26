@@ -302,7 +302,6 @@ def test_explain_query_not_truncated_by_limit(
     Regression test for https://github.com/marimo-team/marimo/issues/8328
     """
     import os
-    import duckdb
     from marimo._sql.engines.duckdb import DuckDBEngine
 
     engine = DuckDBEngine(duckdb_connection, engine_name="duckdb")
