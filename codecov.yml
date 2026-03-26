@@ -1,3 +1,7 @@
+comment:
+  require_bundle_changes: True
+  bundle_change_threshold: "10Kb"
+
 coverage:
   status:
     project:
