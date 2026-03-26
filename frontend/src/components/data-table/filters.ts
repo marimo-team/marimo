@@ -16,6 +16,7 @@ declare module "@tanstack/react-table" {
     dtype?: string;
     dataType?: DataType;
     filterType?: FilterType;
+    minFractionDigits?: number;
   }
 }
 

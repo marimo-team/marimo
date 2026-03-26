@@ -222,6 +222,75 @@ describe("generateColumns", () => {
     expect(columns[1].meta?.dataType).toBe("number");
   });
 
+  it("should auto right-align numeric columns", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+    });
+
+    // "age" is a number column — should auto right-align
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cell = (columns[1].cell as any)({
+      column: {
+        columnDef: columns[1],
+      },
+      renderValue: () => 25,
+      getValue: () => 25,
+    });
+    expect(cell?.props.className).toContain("text-right");
+
+    // "name" is a string column — should remain left-aligned
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nameCell = (columns[0].cell as any)({
+      column: {
+        columnDef: columns[0],
+      },
+      renderValue: () => "John",
+      getValue: () => "John",
+    });
+    expect(nameCell?.props.className).not.toContain("text-right");
+  });
+
+  it("should respect explicit textJustifyColumns over auto alignment", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+      textJustifyColumns: { age: "left" },
+    });
+
+    // "age" is numeric but explicitly set to left
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cell = (columns[1].cell as any)({
+      column: {
+        columnDef: columns[1],
+      },
+      renderValue: () => 25,
+      getValue: () => 25,
+    });
+    expect(cell?.props.className).not.toContain("text-right");
+  });
+
+  it("should set minFractionDigits from fractionDigitsByColumn", () => {
+    const numericFieldTypes: FieldTypesWithExternalType = [
+      ["price", ["number", "float64"]],
+      ["count", ["integer", "int64"]],
+    ];
+
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes: numericFieldTypes,
+      fractionDigitsByColumn: { price: 2 },
+    });
+
+    // price has 2 fraction digits
+    expect(columns[0].meta?.minFractionDigits).toBe(2);
+    // count not in fractionDigitsByColumn
+    expect(columns[1].meta?.minFractionDigits).toBeUndefined();
+  });
+
   it("should handle text justification and wrapping", () => {
     const columns = generateColumns({
       rowHeaders: [],
@@ -571,6 +640,75 @@ describe("LocaleNumber", () => {
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"10,000,000,000"`);
+  });
+
+  it("should pad decimals with minFractionDigits", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={42} minFractionDigits={2} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"42.00"`);
+  });
+
+  it("should pad to minFractionDigits for numbers with fewer decimals", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={1234.5} minFractionDigits={3} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1,234.500"`);
+  });
+
+  it("should not truncate decimals beyond minFractionDigits", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={1.23456} minFractionDigits={2} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1.23456"`);
+  });
+});
+
+describe("renderCellValue with boolean values", () => {
+  const createMockColumn = () =>
+    ({
+      id: "active",
+      columnDef: {
+        meta: {
+          dataType: "boolean" as const,
+          dtype: "bool",
+        },
+      },
+      getColumnFormatting: () => undefined,
+      getColumnWrapping: () => undefined,
+      applyColumnFormatting: (value: unknown) => value,
+    }) as unknown as Column<unknown>;
+
+  it("should render true as True", () => {
+    const mockColumn = createMockColumn();
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => true,
+      getValue: () => true,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(result);
+    expect(container.textContent).toBe("True");
+  });
+
+  it("should render false as False", () => {
+    const mockColumn = createMockColumn();
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => false,
+      getValue: () => false,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const { container } = render(result);
+    expect(container.textContent).toBe("False");
   });
 });
 
