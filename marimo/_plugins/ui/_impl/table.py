@@ -355,6 +355,8 @@ class table(
             Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
+        default_sort (str, optional): Column name to sort by on initial render.
+            Sorting is ascending by default.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
@@ -467,6 +469,7 @@ class table(
         wrapped_columns: Optional[list[str]] = None,
         header_tooltip: Optional[dict[str, str]] = None,
         show_download: bool = True,
+        default_sort: Optional[str] = None,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
         label: str = "",
@@ -674,13 +677,26 @@ class table(
         num_columns = 0
 
         if not _internal_lazy:
+            if default_sort is not None:
+                existing_columns = set(self._manager.get_column_names())
+                if default_sort not in existing_columns:
+                    raise ValueError(
+                        f"default_sort column '{default_sort}' not found in table columns"
+                    )
+
+            default_sort_args = (
+                [SortArgs(by=default_sort, descending=False)]
+                if default_sort is not None
+                else None
+            )
+
             # Search first page
             search_result = self._search(
                 SearchTableArgs(
                     page_size=page_size,
                     page_number=0,
                     query=None,
-                    sort=None,
+                    sort=default_sort_args,
                     filters=None,
                 )
             )
@@ -722,6 +738,7 @@ class table(
                 "show-filters": self._manager.supports_filters(),
                 "show-download": show_download
                 and self._manager.supports_download(),
+                "default-sort": default_sort,
                 "show-column-summaries": show_column_summaries,
                 "show-data-types": show_data_types,
                 "show-page-size-selector": show_page_size_selector,

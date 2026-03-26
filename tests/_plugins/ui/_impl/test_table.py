@@ -2231,6 +2231,22 @@ def test_max_columns_not_provided_with_sort():
     assert len(result_data[0].keys()) == 100
 
 
+def test_default_sort_applies_on_initial_render() -> None:
+    data = {"name": ["charlie", "alice", "bob"], "value": [3, 1, 2]}
+    table = ui.table(data, selection=None, default_sort="name")
+
+    result_data = json.loads(table._component_args["data"])
+    assert [row["name"] for row in result_data] == ["alice", "bob", "charlie"]
+    assert table._component_args["default-sort"] == "name"
+
+
+def test_default_sort_invalid_column_raises() -> None:
+    data = {"name": ["charlie", "alice", "bob"], "value": [3, 1, 2]}
+
+    with pytest.raises(ValueError, match="default_sort column 'missing'"):
+        ui.table(data, selection=None, default_sort="missing")
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
