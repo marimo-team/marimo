@@ -112,6 +112,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   previewDatasetColumn: "waitForConnectionOpen",
   previewSQLTable: "waitForConnectionOpen",
   previewSQLTableList: "waitForConnectionOpen",
+  previewSQLSchemaList: "waitForConnectionOpen",
   previewDataSourceConnection: "waitForConnectionOpen",
   validateSQL: "waitForConnectionOpen",
   listStorageEntries: "waitForConnectionOpen",

@@ -26,6 +26,7 @@ from marimo._data.models import (
     DataSourceConnection,
     DataTable,
     DataTableSource,
+    Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
@@ -488,6 +489,18 @@ class DatasetsNotification(Notification, tag="datasets"):
     clear_channel: Optional[DataTableSource] = None
 
 
+class SQLDatabaseMetadata(msgspec.Struct):
+    """SQL database metadata.
+
+    Attributes:
+        connection: Connection identifier.
+        database: Database name.
+    """
+
+    connection: str
+    database: str
+
+
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
     """SQL database and schema metadata.
 
@@ -571,6 +584,25 @@ class DataColumnPreviewNotification(
     name: ClassVar[str] = "data-column-preview"
     table_name: str
     column_name: str
+
+
+class SQLSchemaListPreviewNotification(
+    Notification, tag="sql-schema-list-preview"
+):
+    """List of SQL schemas in a database.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        metadata: Database and schema metadata.
+        schemas: Schemas in database.
+        error: Error message if failed.
+    """
+
+    name: ClassVar[str] = "sql-schema-list-preview"
+    request_id: RequestId
+    metadata: SQLDatabaseMetadata
+    schemas: list[Schema] = msgspec.field(default_factory=list)
+    error: Optional[str] = None
 
 
 class DataSourceConnectionsNotification(
@@ -834,6 +866,7 @@ NotificationMessage = Union[
     DataColumnPreviewNotification,
     SQLTablePreviewNotification,
     SQLTableListPreviewNotification,
+    SQLSchemaListPreviewNotification,
     DataSourceConnectionsNotification,
     ValidateSQLResultNotification,
     # Storage

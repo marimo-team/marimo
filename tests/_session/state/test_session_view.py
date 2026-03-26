@@ -25,7 +25,9 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
     ModelUpdate,
+    SQLDatabaseMetadata,
     SQLMetadata,
+    SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
@@ -900,6 +902,49 @@ def test_add_sql_table_previews() -> None:
         session_view_connections[0].databases[0].schemas[0].tables[0].num_rows
         == 10
     )
+
+    # Add sql schema preview list
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            SQLSchemaListPreviewNotification(
+                metadata=SQLDatabaseMetadata(
+                    connection="connection1", database="db1"
+                ),
+                request_id=RequestId("request_id"),
+                schemas=[
+                    Schema(
+                        name="db1",
+                        tables=[
+                            DataTable(
+                                name="table2",
+                                source_type="connection",
+                                source="db1",
+                                num_rows=20,
+                                num_columns=10,
+                                variable_name=VariableName("var"),
+                                columns=[],
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
+    )
+    assert session_view_connections[0].databases[0].schemas[0].tables == [
+        DataTable(
+            source_type="connection",
+            source="db1",
+            name="table2",
+            num_rows=20,
+            num_columns=10,
+            variable_name=VariableName("var"),
+            columns=[],
+            engine=None,
+            type="table",
+            primary_keys=None,
+            indexes=None,
+        )
+    ]
 
     # Add sql table preview list
     session_view.add_raw_notification(

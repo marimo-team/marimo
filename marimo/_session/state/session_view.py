@@ -20,6 +20,7 @@ from marimo._messaging.notification import (
     ModelOpen,
     ModelUpdate,
     NotificationMessage,
+    SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
@@ -42,6 +43,7 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._sql.connection_utils import (
+    update_schema_list_in_connection,
     update_table_in_connection,
     update_table_list_in_connection,
 )
@@ -365,6 +367,17 @@ class SessionView:
                     table_preview_connections,
                     sql_metadata,
                     sql_table_preview.table,
+                )
+
+        elif isinstance(notification, SQLSchemaListPreviewNotification):
+            sql_schema_list_preview = notification
+            sql_db_metadata = sql_schema_list_preview.metadata
+            schema_list_connections = self.data_connectors.connections
+            if sql_schema_list_preview.schemas is not None:
+                update_schema_list_in_connection(
+                    schema_list_connections,
+                    sql_db_metadata,
+                    sql_schema_list_preview.schemas,
                 )
 
         elif isinstance(notification, SQLTableListPreviewNotification):

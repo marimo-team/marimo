@@ -40,6 +40,7 @@ export const MockRequestClient = {
       previewDatasetColumn: vi.fn().mockResolvedValue({}),
       previewSQLTable: vi.fn().mockResolvedValue({}),
       previewSQLTableList: vi.fn().mockResolvedValue({ tables: [] }),
+      previewSQLSchemaList: vi.fn().mockResolvedValue({ schemas: [] }),
       previewDataSourceConnection: vi.fn().mockResolvedValue({}),
       validateSQL: vi.fn().mockResolvedValue({}),
       openFile: vi.fn().mockResolvedValue({}),

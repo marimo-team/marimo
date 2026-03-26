@@ -138,6 +138,19 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
             to_pandas=convert_to_pandas,
         )
 
+    # TODO: The following methods are currently not implemented.
+    # We should consider implementing these in the future for better performance when users don't want to fetch everything.
+    def get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Get all schemas and optionally their tables. Keys are schema names."""
+        _, _, _ = database, include_tables, include_table_details
+        return []
+
     # TODO: Implement the following functionalities
     def get_databases(
         self,
@@ -258,6 +271,19 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             auto_discover_tables="auto",
             auto_discover_columns="auto",
         )
+
+    # TODO: The following methods are currently not implemented.
+    # We should consider implementing these in the future for better performance when users don't want to fetch everything.
+    def get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Get all schemas and optionally their tables. Keys are schema names."""
+        _, _, _ = database, include_tables, include_table_details
+        return []
 
     def get_databases(
         self,

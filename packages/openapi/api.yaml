@@ -2450,6 +2450,7 @@ components:
           - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
           - $ref: '#/components/schemas/PreviewSQLTableCommand'
           - $ref: '#/components/schemas/ListSQLTablesCommand'
+          - $ref: '#/components/schemas/ListSQLSchemasCommand'
           - $ref: '#/components/schemas/ValidateSQLCommand'
           - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
           - $ref: '#/components/schemas/StorageListEntriesCommand'
@@ -2474,6 +2475,7 @@ components:
               invoke-function: '#/components/schemas/InvokeFunctionCommand'
               list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
               list-secret-keys: '#/components/schemas/ListSecretKeysCommand'
+              list-sql-schemas: '#/components/schemas/ListSQLSchemasCommand'
               list-sql-tables: '#/components/schemas/ListSQLTablesCommand'
               model: '#/components/schemas/ModelCommand'
               preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
@@ -2559,6 +2561,7 @@ components:
           - $ref: '#/components/schemas/DataColumnPreviewNotification'
           - $ref: '#/components/schemas/SQLTablePreviewNotification'
           - $ref: '#/components/schemas/SQLTableListPreviewNotification'
+          - $ref: '#/components/schemas/SQLSchemaListPreviewNotification'
           - $ref: '#/components/schemas/DataSourceConnectionsNotification'
           - $ref: '#/components/schemas/ValidateSQLResultNotification'
           - $ref: '#/components/schemas/StorageNamespacesNotification'
@@ -2601,6 +2604,7 @@ components:
               remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
               secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
               send-ui-element-message: '#/components/schemas/UIElementMessageNotification'
+              sql-schema-list-preview: '#/components/schemas/SQLSchemaListPreviewNotification'
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
@@ -2698,6 +2702,43 @@ components:
       required:
       - packages
       title: ListPackagesResponse
+      type: object
+    ListSQLSchemasCommand:
+      description: "List schemas in an SQL database.\n\n    Retrieves names of all\
+        \ schemas in a database. Used by the SQL editor for\n    schema selection.\n\
+        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
+        \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
+        \     database: Database to query."
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        type:
+          enum:
+          - list-sql-schemas
+      required:
+      - type
+      - requestId
+      - engine
+      - database
+      title: ListSQLSchemasCommand
+      type: object
+    ListSQLSchemasRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      title: ListSQLSchemasRequest
       type: object
     ListSQLTablesCommand:
       description: "List tables in an SQL schema.\n\n    Retrieves names of all tables\
@@ -4055,6 +4096,19 @@ components:
       - watcher_on_save
       title: RuntimeConfig
       type: object
+    SQLDatabaseMetadata:
+      description: "SQL database metadata.\n\n    Attributes:\n        connection:\
+        \ Connection identifier.\n        database: Database name."
+      properties:
+        connection:
+          type: string
+        database:
+          type: string
+      required:
+      - connection
+      - database
+      title: SQLDatabaseMetadata
+      type: object
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
@@ -4075,6 +4129,35 @@ components:
       - database
       - schema
       title: SQLMetadata
+      type: object
+    SQLSchemaListPreviewNotification:
+      description: "List of SQL schemas in a database.\n\n    Attributes:\n      \
+        \  request_id: Request ID this responds to.\n        metadata: Database and\
+        \ schema metadata.\n        schemas: Schemas in database.\n        error:\
+        \ Error message if failed."
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        metadata:
+          $ref: '#/components/schemas/SQLDatabaseMetadata'
+        op:
+          enum:
+          - sql-schema-list-preview
+        request_id:
+          $ref: '#/components/schemas/RequestId'
+        schemas:
+          default: []
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+      required:
+      - op
+      - request_id
+      - metadata
+      title: SQLSchemaListPreviewNotification
       type: object
     SQLTableListPreviewNotification:
       description: "List of SQL tables in a schema.\n\n    Attributes:\n        request_id:\
@@ -5690,6 +5773,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Broadcasts a datasource connection
+  /api/datasources/preview_sql_schema_list:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListSQLSchemasRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a list of schemas in an SQL database
   /api/datasources/preview_sql_table:
     post:
       parameters:
