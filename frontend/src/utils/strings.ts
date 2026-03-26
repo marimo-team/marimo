@@ -1,28 +1,48 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { startCase } from "lodash-es";
 import { Logger } from "./Logger";
 
+/**
+ * Capitalize the first character of a string.
+ */
+export function capitalize(str: string): string {
+  if (!str) {
+    return "";
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Convert a string to start case (capitalize each word).
+ * Handles camelCase, snake_case, kebab-case, and space-separated strings.
+ * Returns the original string unchanged if it contains no letters.
+ */
+export function startCase(str: string): string {
+  if (!str) {
+    return "";
+  }
+
+  if (typeof str !== "string") {
+    Logger.error(str);
+    throw new TypeError(`Expected string, got ${typeof str}`);
+  }
+
+  // If has no letters, return the string as-is
+  if (!/[A-Za-z]/.test(str)) {
+    return str;
+  }
+
+  return str
+    .replaceAll(/([\da-z])([A-Z])/g, "$1 $2") // camelCase → camel Case
+    .replaceAll(/([A-Z]+)([A-Z][a-z])/g, "$1 $2") // ABCDef → ABC Def
+    .replaceAll(/[\s_-]+/g, " ") // snake_case/kebab-case → spaces
+    .trim()
+    .split(" ")
+    .map(capitalize)
+    .join(" ");
+}
+
 export const Strings = {
-  /**
-   * startCase that can handle non-letters
-   */
-  startCase: (str: string): string => {
-    if (!str) {
-      return "";
-    }
-
-    if (typeof str !== "string") {
-      Logger.error(str);
-      throw new TypeError(`Expected string, got ${typeof str}`);
-    }
-
-    // If has no letters, return the string
-    if (!/[A-Za-z]/.test(str)) {
-      return str;
-    }
-
-    return startCase(str);
-  },
+  startCase,
 
   htmlEscape: (str: string | undefined): string | undefined => {
     if (!str) {

@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { capitalize } from "lodash-es";
 import { ChevronDown } from "lucide-react";
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -14,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DataType } from "@/core/kernel/messages";
+import { capitalize } from "@/utils/strings";
 import { isFieldSet } from "../chart-spec/spec";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
 import {

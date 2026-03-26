@@ -9,6 +9,10 @@ import {
   arrayShallowEquals,
   arrayToggle,
   getNextIndex,
+  partition,
+  range,
+  sortBy,
+  uniq,
 } from "../arrays";
 
 describe("arrays", () => {
@@ -127,6 +131,99 @@ describe("arrays", () => {
     it("should handle empty array", () => {
       expect(arrayToggle([], 1)).toEqual([1]);
     });
+  });
+});
+
+describe("range", () => {
+  it("should create an array of numbers from 0 to length - 1", () => {
+    expect(range(5)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("should return empty array for 0", () => {
+    expect(range(0)).toEqual([]);
+  });
+
+  it("should return single element for 1", () => {
+    expect(range(1)).toEqual([0]);
+  });
+});
+
+describe("uniq", () => {
+  it("should remove duplicate numbers", () => {
+    expect(uniq([1, 2, 2, 3, 1])).toEqual([1, 2, 3]);
+  });
+
+  it("should remove duplicate strings", () => {
+    expect(uniq(["a", "b", "a", "c"])).toEqual(["a", "b", "c"]);
+  });
+
+  it("should handle empty array", () => {
+    expect(uniq([])).toEqual([]);
+  });
+
+  it("should preserve order of first occurrence", () => {
+    expect(uniq([3, 1, 2, 1, 3])).toEqual([3, 1, 2]);
+  });
+});
+
+describe("sortBy", () => {
+  it("should sort by a numeric key", () => {
+    const items = [{ n: 3 }, { n: 1 }, { n: 2 }];
+    expect(sortBy(items, (x) => x.n)).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
+  });
+
+  it("should sort by a string key", () => {
+    const items = [{ name: "charlie" }, { name: "alice" }, { name: "bob" }];
+    expect(sortBy(items, (x) => x.name)).toEqual([
+      { name: "alice" },
+      { name: "bob" },
+      { name: "charlie" },
+    ]);
+  });
+
+  it("should not mutate the original array", () => {
+    const arr = [3, 1, 2];
+    sortBy(arr, (x) => x);
+    expect(arr).toEqual([3, 1, 2]);
+  });
+
+  it("should handle empty array", () => {
+    expect(sortBy([], (x) => x)).toEqual([]);
+  });
+});
+
+describe("partition", () => {
+  it("should split array by predicate", () => {
+    const [evens, odds] = partition([1, 2, 3, 4, 5], (n) => n % 2 === 0);
+    expect(evens).toEqual([2, 4]);
+    expect(odds).toEqual([1, 3, 5]);
+  });
+
+  it("should handle all matching", () => {
+    const [pass, fail] = partition([2, 4, 6], (n) => n % 2 === 0);
+    expect(pass).toEqual([2, 4, 6]);
+    expect(fail).toEqual([]);
+  });
+
+  it("should handle none matching", () => {
+    const [pass, fail] = partition([1, 3, 5], (n) => n % 2 === 0);
+    expect(pass).toEqual([]);
+    expect(fail).toEqual([1, 3, 5]);
+  });
+
+  it("should handle empty array", () => {
+    const [pass, fail] = partition([], () => true);
+    expect(pass).toEqual([]);
+    expect(fail).toEqual([]);
+  });
+
+  it("should work with string predicates", () => {
+    const [long, short] = partition(
+      ["hi", "hello", "yo", "greetings"],
+      (s) => s.length > 3,
+    );
+    expect(long).toEqual(["hello", "greetings"]);
+    expect(short).toEqual(["hi", "yo"]);
   });
 });
 

@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { capitalize } from "lodash-es";
 import {
   ArrowDownWideNarrowIcon,
   ArrowUpWideNarrowIcon,
@@ -36,6 +35,7 @@ import { Slider } from "@/components/ui/slider";
 import type { DataType } from "@/core/kernel/messages";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
 import { cn } from "@/utils/cn";
+import { capitalize } from "@/utils/strings";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
 import {
   AGGREGATION_TYPE_DESCRIPTIONS,

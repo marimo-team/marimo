@@ -2,7 +2,7 @@
 "use no memo";
 
 import type { ColumnPinningState } from "@tanstack/react-table";
-import { isEqual } from "lodash-es";
+import { dequal as isEqual } from "dequal";
 import React from "react";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { SELECT_COLUMN_ID } from "../types";

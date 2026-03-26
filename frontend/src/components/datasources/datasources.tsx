@@ -2,7 +2,6 @@
 
 import { CommandList } from "cmdk";
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { sortBy } from "lodash-es";
 import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
@@ -48,6 +47,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { sortBy } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";

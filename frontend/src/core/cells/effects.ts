@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { debounce, isEqual } from "lodash-es";
+import { dequal as isEqual } from "dequal";
+import { debounce } from "lodash-es";
 import type { MultiColumn } from "@/utils/id-tree";
 import { kioskModeAtom } from "../mode";
 import { getRequestClient } from "../network/requests";

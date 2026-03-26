@@ -61,6 +61,61 @@ export const Arrays = {
   },
 };
 
+/**
+ * Create an array of numbers from 0 to length - 1.
+ */
+export function range(length: number): number[] {
+  return Array.from({ length }, (_, i) => i);
+}
+
+/**
+ * Remove duplicate values from an array.
+ */
+export function uniq<T>(arr: readonly T[]): T[] {
+  return [...new Set(arr)];
+}
+
+/**
+ * Sort an array by a key function, returning a new array.
+ */
+export function sortBy<T>(
+  arr: readonly T[],
+  key: (item: T) => string | number | undefined | null,
+): T[] {
+  return [...arr].sort((a, b) => {
+    const ka = key(a) ?? "";
+    const kb = key(b) ?? "";
+    if (ka < kb) {
+      return -1;
+    }
+    if (ka > kb) {
+      return 1;
+    }
+    return 0;
+  });
+}
+
+/**
+ * Split an array into two groups based on a predicate.
+ * Returns [pass, fail] where pass contains items that match
+ * and fail contains items that don't.
+ */
+export function partition<T>(
+  arr: readonly T[],
+  predicate: (item: T) => boolean,
+): [T[], T[]] {
+  const pass: T[] = [];
+  const fail: T[] = [];
+  for (const item of arr) {
+    if (predicate(item)) {
+      pass.push(item);
+    } else {
+      fail.push(item);
+    }
+  }
+  return [pass, fail];
+}
+
 export function arrayToggle<T>(arr: T[], item: T): T[] {
   if (!arr) {
     return [item];

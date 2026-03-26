@@ -2,7 +2,6 @@
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
-import { range } from "lodash-es";
 import {
   ChevronDown,
   ChevronLeft,
@@ -22,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { range } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
