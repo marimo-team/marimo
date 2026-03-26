@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { UserConfig } from "@/core/config/config-schema";
-import { applyManualInjections, getDirtyValues } from "../user-config-form";
+import { applyManualInjections, getDirtyValues } from "../get-dirty-values";
 
 describe("getDirtyValues", () => {
   test("extracts only dirty fields", () => {
