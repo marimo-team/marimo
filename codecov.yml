@@ -1,5 +1,5 @@
 comment:
-  require_bundle_changes: True
+  require_bundle_changes: true
   bundle_change_threshold: "10Kb"
 
 coverage:
