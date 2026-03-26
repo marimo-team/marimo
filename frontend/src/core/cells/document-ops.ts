@@ -94,6 +94,52 @@ function columnIndexMap(state: NotebookState): Map<CellId, number> {
 }
 
 /**
+ * Find cells that were added between prevState and newState and return
+ * create-cell ops for each, with position derived from newState.
+ */
+function newCellOps(
+  prevState: NotebookState,
+  newState: NotebookState,
+): DocumentOp[] {
+  const prevIds = new Set(prevState.cellIds.inOrderIds);
+  const ops: DocumentOp[] = [];
+  for (const id of newState.cellIds.inOrderIds) {
+    if (!prevIds.has(id)) {
+      const cell = getCell(id, newState);
+      if (cell) {
+        ops.push({
+          type: "create-cell",
+          cellId: cell.id,
+          code: cell.code,
+          name: cell.name,
+          config: cell.config,
+          ...anchorOf(cell.id, newState),
+        });
+      }
+    }
+  }
+  return ops;
+}
+
+/**
+ * Find cells that were removed between prevState and newState and return
+ * delete-cell ops for each.
+ */
+function deletedCellOps(
+  prevState: NotebookState,
+  newState: NotebookState,
+): DocumentOp[] {
+  const newIds = new Set(newState.cellIds.inOrderIds);
+  const ops: DocumentOp[] = [];
+  for (const id of prevState.cellIds.inOrderIds) {
+    if (!newIds.has(id)) {
+      ops.push({ type: "delete-cell", cellId: id });
+    }
+  }
+  return ops;
+}
+
+/**
  * Produce set-config ops for cells whose column index changed between
  * prevState and newState, plus a reorder-cells op for the new ordering.
  */
@@ -142,26 +188,8 @@ export function toDocumentOps(
     // createNewCell → create-cell
     // Reads code, name, and config from the newly created cell in newState.
     // Position is derived from newState via anchorOf (after or before neighbor).
-    case "createNewCell": {
-      const prevCellIds = new Set(prevState.cellIds.inOrderIds);
-      const cellId = newState.cellIds.inOrderIds.find(
-        (id) => !prevCellIds.has(id),
-      );
-      const cell = getCell(cellId, newState);
-      if (!cell) {
-        return [];
-      }
-      return [
-        {
-          type: "create-cell",
-          cellId: cell.id,
-          code: cell.code,
-          name: cell.name,
-          config: cell.config,
-          ...anchorOf(cell.id, newState),
-        },
-      ];
-    }
+    case "createNewCell":
+      return newCellOps(prevState, newState);
 
     // deleteCell → delete-cell
     // Direct 1:1 mapping. Only the cellId is needed.
@@ -254,17 +282,55 @@ export function toDocumentOps(
       return columnChangeOps(prevState, newState);
 
     // addColumn creates a new column with a new empty cell.
-    // TODO: emit create-cell for the new cell.
+    // Emits create-cell for the new cell plus column layout ops.
     case "addColumn":
-      return [];
+      return [
+        ...newCellOps(prevState, newState),
+        ...columnChangeOps(prevState, newState),
+      ];
 
-    // Cell lifecycle — TODO: emit ops for these.
-    case "undoDeleteCell":
-    case "splitCell":
-    case "undoSplitCell":
+    // undoDeleteCell restores a deleted cell from history.
+    case "undoDeleteCell": {
+      const ops = newCellOps(prevState, newState);
+      const colOps = columnChangeOps(prevState, newState);
+      // Only include column ops if layout actually changed
+      // (colOps always has at least a reorder-cells op)
+      return colOps.length > 1 ? [...ops, ...colOps] : ops;
+    }
+
+    // splitCell: original cell gets truncated code, new cell gets remainder.
+    case "splitCell": {
+      const { cellId } = action.payload;
+      const cell = getCell(cellId, newState);
+      if (!cell) {
+        return [];
+      }
+      return [
+        { type: "set-code", cellId, code: cell.code },
+        ...newCellOps(prevState, newState),
+      ];
+    }
+
+    // undoSplitCell: merge next cell back into current, delete the next cell.
+    case "undoSplitCell": {
+      const { cellId } = action.payload;
+      const cell = getCell(cellId, newState);
+      if (!cell) {
+        return [];
+      }
+      return [
+        { type: "set-code", cellId, code: cell.code },
+        ...deletedCellOps(prevState, newState),
+      ];
+    }
+
+    // moveToNextCell: may create a new cell at boundary.
     case "moveToNextCell":
+      return newCellOps(prevState, newState);
+
+    // addSetupCellIfDoesntExist: creates setup cell if missing.
     case "addSetupCellIfDoesntExist":
-      return [];
+      return newCellOps(prevState, newState);
 
     // UI-only actions — no document ops.
     case "focusCell":

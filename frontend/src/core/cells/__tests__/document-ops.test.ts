@@ -333,6 +333,224 @@ describe("toDocumentOps", () => {
     });
   });
 
+  describe("cell lifecycle actions", () => {
+    it("addColumn emits create-cell + column layout ops", () => {
+      setup("a");
+      const [a] = state.cellIds.inOrderIds;
+      const columnId = state.cellIds.findWithId(a).id;
+
+      const { ops } = resolve(state, {
+        type: "addColumn",
+        payload: { columnId },
+      });
+
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "after": "0",
+            "cellId": "1",
+            "code": "",
+            "config": {
+              "column": null,
+              "disabled": false,
+              "hide_code": false,
+            },
+            "name": "_",
+            "type": "create-cell",
+          },
+          {
+            "cellId": "1",
+            "column": 1,
+            "type": "set-config",
+          },
+          {
+            "cellIds": [
+              "0",
+              "1",
+            ],
+            "type": "reorder-cells",
+          },
+        ]
+      `);
+    });
+
+    it("undoDeleteCell emits create-cell for restored cell", () => {
+      setup("a", "b");
+      const [, b] = state.cellIds.inOrderIds;
+
+      // Delete cell b, then undo
+      state = dispatch(state, {
+        type: "deleteCell",
+        payload: { cellId: b },
+      });
+
+      const { ops } = resolve(state, {
+        type: "undoDeleteCell",
+        payload: {},
+      });
+
+      // Restored cell should have original code
+      expect(ops[0]).toMatchObject({
+        type: "create-cell",
+        code: "b",
+      });
+    });
+
+    it("splitCell emits set-code + create-cell", () => {
+      setup("line1\nline2");
+      const [a] = state.cellIds.inOrderIds;
+
+      // Position cursor at end of "line1" (position 5)
+      const view = state.cellHandles[a].current!.editorView!;
+      view.dispatch({ selection: { anchor: 5 } });
+
+      const { ops } = resolve(state, {
+        type: "splitCell",
+        payload: { cellId: a },
+      });
+
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "0",
+            "code": "line1",
+            "type": "set-code",
+          },
+          {
+            "after": "0",
+            "cellId": "1",
+            "code": "line2",
+            "config": {
+              "column": null,
+              "disabled": false,
+              "hide_code": false,
+            },
+            "name": "_",
+            "type": "create-cell",
+          },
+        ]
+      `);
+    });
+
+    it("undoSplitCell emits set-code + delete-cell", () => {
+      setup("line1\nline2");
+      const [a] = state.cellIds.inOrderIds;
+
+      // Split the cell first
+      const view = state.cellHandles[a].current!.editorView!;
+      view.dispatch({ selection: { anchor: 5 } });
+      const snapshot = view.state.doc.toString();
+      state = dispatch(state, {
+        type: "splitCell",
+        payload: { cellId: a },
+      });
+      const [, newCell] = state.cellIds.inOrderIds;
+
+      // Now undo the split
+      const { ops } = resolve(state, {
+        type: "undoSplitCell",
+        payload: { cellId: a, snapshot },
+      });
+
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "cellId": "0",
+            "code": "line1
+        line2",
+            "type": "set-code",
+          },
+          {
+            "cellId": "${newCell}",
+            "type": "delete-cell",
+          },
+        ]
+      `);
+    });
+
+    it("moveToNextCell emits create-cell when past last cell", () => {
+      setup("a");
+      const [a] = state.cellIds.inOrderIds;
+
+      const { ops } = resolve(state, {
+        type: "moveToNextCell",
+        payload: { cellId: a, before: false },
+      });
+
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "after": "0",
+            "cellId": "1",
+            "code": "",
+            "config": {
+              "column": null,
+              "disabled": false,
+              "hide_code": false,
+            },
+            "name": "_",
+            "type": "create-cell",
+          },
+        ]
+      `);
+    });
+
+    it("moveToNextCell emits nothing when moving within bounds", () => {
+      setup("a", "b");
+      const [a] = state.cellIds.inOrderIds;
+
+      const { ops } = resolve(state, {
+        type: "moveToNextCell",
+        payload: { cellId: a, before: false },
+      });
+
+      expect(ops).toHaveLength(0);
+    });
+
+    it("addSetupCellIfDoesntExist emits create-cell when new", () => {
+      setup("a");
+
+      const { ops } = resolve(state, {
+        type: "addSetupCellIfDoesntExist",
+        payload: { code: "import marimo as mo" },
+      });
+
+      expect(ops).toMatchInlineSnapshot(`
+        [
+          {
+            "before": "0",
+            "cellId": "setup",
+            "code": "import marimo as mo",
+            "config": {
+              "column": null,
+              "disabled": false,
+              "hide_code": false,
+            },
+            "name": "setup",
+            "type": "create-cell",
+          },
+        ]
+      `);
+    });
+
+    it("addSetupCellIfDoesntExist emits nothing when already exists", () => {
+      setup("a");
+      // Add setup cell first
+      state = dispatch(state, {
+        type: "addSetupCellIfDoesntExist",
+        payload: { code: "import marimo as mo" },
+      });
+
+      // Try to add again — should just focus
+      const { ops } = resolve(state, {
+        type: "addSetupCellIfDoesntExist",
+        payload: {},
+      });
+
+      expect(ops).toHaveLength(0);
+    });
+  });
+
   describe("actions that should NOT emit ops", () => {
     it("focusCell returns empty", () => {
       setup("a", "b");
