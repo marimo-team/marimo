@@ -3453,7 +3453,7 @@ components:
       type: object
     NotebookDocumentTransactionRequest:
       properties:
-        ops:
+        changes:
           items:
             anyOf:
             - $ref: '#/components/schemas/CreateCell'
@@ -3475,7 +3475,7 @@ components:
               propertyName: type
           type: array
       required:
-      - ops
+      - changes
       title: NotebookDocumentTransactionRequest
       type: object
     OpenAiConfig:
@@ -4873,11 +4873,11 @@ components:
       title: ToolDefinition
       type: object
     Transaction:
-      description: "An atomic batch of operations applied to a NotebookDocument.\n\
-        \n    ``source`` identifies the writer (e.g. ``\"frontend\"``, ``\"kernel\"\
+      description: "An atomic batch of changes applied to a NotebookDocument.\n\n\
+        \    ``source`` identifies the writer (e.g. ``\"frontend\"``, ``\"kernel\"\
         ``).\n    ``version`` is ``None`` when created and stamped by\n    ``NotebookDocument.apply()``."
       properties:
-        ops:
+        changes:
           items:
             anyOf:
             - $ref: '#/components/schemas/CreateCell'
@@ -4899,16 +4899,14 @@ components:
               propertyName: type
           type: array
         source:
-          enum:
-          - frontend
-          - kernel
+          type: string
         version:
           anyOf:
           - type: integer
           - type: 'null'
           default: null
       required:
-      - ops
+      - changes
       - source
       title: Transaction
       type: object

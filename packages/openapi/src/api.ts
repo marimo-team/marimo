@@ -5321,7 +5321,7 @@ export interface components {
     };
     /** NotebookDocumentTransactionRequest */
     NotebookDocumentTransactionRequest: {
-      ops: (
+      changes: (
         | components["schemas"]["CreateCell"]
         | components["schemas"]["DeleteCell"]
         | components["schemas"]["MoveCell"]
@@ -6228,14 +6228,14 @@ export interface components {
     };
     /**
      * Transaction
-     * @description An atomic batch of operations applied to a NotebookDocument.
+     * @description An atomic batch of changes applied to a NotebookDocument.
      *
      *         ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
      *         ``version`` is ``None`` when created and stamped by
      *         ``NotebookDocument.apply()``.
      */
     Transaction: {
-      ops: (
+      changes: (
         | components["schemas"]["CreateCell"]
         | components["schemas"]["DeleteCell"]
         | components["schemas"]["MoveCell"]
@@ -6244,8 +6244,7 @@ export interface components {
         | components["schemas"]["SetName"]
         | components["schemas"]["SetConfig"]
       )[];
-      /** @enum {unknown} */
-      source: "frontend" | "kernel";
+      source: string;
       /** @default null */
       version?: number | null;
     };
