@@ -90,5 +90,23 @@ def _(pw_empty):
     return
 
 
+@app.cell
+def _(mo):
+    pw_form = mo.ui.text(
+        kind="password",
+        value="secret-B",
+        placeholder="No initial value...",
+        label="Password (no initial value)",
+    ).form()
+    pw_form
+    return (pw_form,)
+
+
+@app.cell
+def _(pw_form):
+    print(f"Form password value: {pw_form.value!r}")
+    return
+
+
 if __name__ == "__main__":
     app.run()

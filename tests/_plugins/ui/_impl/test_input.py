@@ -298,8 +298,8 @@ def test_text_password_masking() -> None:
 
     # HTML should NOT contain the real password
     assert "secret123" not in t.text
-    # data-initial-value should be empty string
-    assert "data-initial-value" in t.text
+    # The frontend initial value must be empty (not the real password)
+    assert t._initial_value_frontend == ""
 
     # Password-has-value arg should be set
     assert t._component_args.get("password-has-value") is True
@@ -316,6 +316,28 @@ def test_text_password_masking() -> None:
     # Non-password text: value appears in HTML normally
     t = ui.text(value="hello")
     assert "hello" in t.text
+
+
+def test_text_password_masking_form_submit() -> None:
+    # Clone (used by form) preserves the real password
+    t = ui.text(value="secret123", kind="password")
+    f = t.form()
+    assert f.element.value == "secret123"
+
+    # Form submit without editing preserves the real password
+    f._update("")
+    assert f.value == "secret123"
+
+    # Form submit after user types uses the new value
+    f2 = ui.text(value="secret123", kind="password").form()
+    f2._update("new_password")
+    assert f2.value == "new_password"
+
+    # After unmasking then intentionally clearing, "" is accepted
+    t2 = ui.text(value="secret123", kind="password")
+    t2._update("a")  # unmask
+    t2._update("")  # intentional clear — accepted
+    assert t2.value == ""
 
 
 def test_checkbox_init() -> None:
