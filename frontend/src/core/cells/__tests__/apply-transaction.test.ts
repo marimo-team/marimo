@@ -1,15 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Tests for fromDocumentOps / applyTransactionOps in isolation.
+ * Tests for fromDocumentChanges / applyTransactionChanges in isolation.
  *
- * These test the op→action mapping for edge cases and error paths that
- * can't be exercised via the round-trip tests (since toDocumentOps would
- * never produce malformed or conflicting ops). Basic correctness is
+ * These test the change→action mapping for edge cases and error paths that
+ * can't be exercised via the round-trip tests (since toDocumentChanges would
+ * never produce malformed or conflicting changes). Basic correctness is
  * covered by document-roundtrip.test.ts. This file focuses on:
  *
- * - Multi-op transactions (create+move, create+set-code, set-code+delete)
- * - Cancelled ops (create+delete same cell)
+ * - Multi-change transactions (create+move, create+set-code, set-code+delete)
+ * - Cancelled changes (create+delete same cell)
  * - Missing/nonexistent anchors and cells
  * - Config propagation on create-cell (disabled, column)
  */
@@ -24,9 +24,9 @@ import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MultiColumn } from "@/utils/id-tree";
 import { exportedForTesting, type NotebookState } from "../cells";
 import {
-  applyTransactionOps,
+  applyTransactionChanges,
   exportedForTesting as middlewareExports,
-} from "../document-ops";
+} from "../document-changes";
 import { CellId } from "../ids";
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
@@ -75,11 +75,11 @@ function setup(...codes: string[]) {
 }
 
 afterEach(() => {
-  middlewareExports.cancelPendingOps();
+  middlewareExports.cancelPendingChanges();
 });
 
-function apply(ops: Parameters<typeof applyTransactionOps>[0]) {
-  applyTransactionOps(ops, actions, () => state.cellIds.inOrderIds);
+function apply(changes: Parameters<typeof applyTransactionChanges>[0]) {
+  applyTransactionChanges(changes, actions, () => state.cellIds.inOrderIds);
 }
 
 /** Snapshot of document state: ordering, code, name, config. */
@@ -115,7 +115,7 @@ beforeEach(() => {
   i = 0;
 });
 
-describe("applyTransactionOps edge cases", () => {
+describe("applyTransactionChanges edge cases", () => {
   it("create-cell applies disabled and column config", () => {
     setup("a");
     apply([
@@ -196,7 +196,7 @@ describe("applyTransactionOps edge cases", () => {
     `);
   });
 
-  it("multiple ops in one transaction", () => {
+  it("multiple changes in one transaction", () => {
     setup("a", "b", "c");
     const [a, b, c] = state.cellIds.inOrderIds;
     apply([
@@ -266,7 +266,7 @@ describe("applyTransactionOps edge cases", () => {
     `);
   });
 
-  it("empty ops is a no-op", () => {
+  it("empty changes is a no-op", () => {
     setup("a", "b");
     apply([]);
     expect(pretty(state)).toMatchInlineSnapshot(`

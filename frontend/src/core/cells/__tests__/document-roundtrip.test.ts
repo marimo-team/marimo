@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Round-trip tests: perform actions on a primary notebook (producing ops
- * via the middleware), then apply those ops to a replica notebook via
- * applyTransactionOps. The two should converge to identical document state.
+ * Round-trip tests: perform actions on a primary notebook (producing changes
+ * via the middleware), then apply those changes to a replica notebook via
+ * applyTransactionChanges. The two should converge to identical document state.
  *
  * This catches drift between what the middleware emits and what
  * apply-transaction consumes.
@@ -28,13 +28,13 @@ import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MultiColumn } from "@/utils/id-tree";
 import { exportedForTesting, type NotebookState } from "../cells";
 import {
-  applyTransactionOps,
+  applyTransactionChanges,
   exportedForTesting as middlewareExports,
-} from "../document-ops";
+} from "../document-changes";
 import { CellId } from "../ids";
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
-const { drainOps } = middlewareExports;
+const { drainChanges } = middlewareExports;
 
 function createEditor(code: string) {
   const state = EditorState.create({
@@ -58,7 +58,7 @@ function createEditor(code: string) {
   return new EditorView({ state, parent: document.body });
 }
 
-// --- Primary notebook: performs actions, middleware produces ops ---
+// --- Primary notebook: performs actions, middleware produces changes ---
 
 let primary: NotebookState;
 
@@ -75,7 +75,7 @@ const primaryActions = createActions((action) => {
   }
 });
 
-// --- Replica notebook: receives ops via applyTransactionOps ---
+// --- Replica notebook: receives changes via applyTransactionChanges ---
 
 let replica: NotebookState;
 
@@ -103,11 +103,11 @@ beforeEach(() => {
   i = 0;
   primary = initialNotebookState();
   primary.cellIds = MultiColumn.from([]);
-  drainOps();
+  drainChanges();
 });
 
 afterEach(() => {
-  middlewareExports.cancelPendingOps();
+  middlewareExports.cancelPendingChanges();
 });
 
 afterAll(() => {
@@ -125,27 +125,31 @@ function setup(...codes: string[]) {
     });
   }
 
-  // Apply the setup ops to the replica so both start identical
-  const setupOps = drainOps();
+  // Apply the setup changes to the replica so both start identical
+  const setupChanges = drainChanges();
   replica = initialNotebookState();
   replica.cellIds = MultiColumn.from([]);
-  applyTransactionOps(
-    setupOps,
+  applyTransactionChanges(
+    setupChanges,
     replicaActions,
     () => replica.cellIds.inOrderIds,
   );
-  // Drain any ops the replica's middleware produced
-  drainOps();
+  // Drain any changes the replica's middleware produced
+  drainChanges();
 }
 
 /**
- * Drain ops from the primary's middleware and apply them to the replica.
+ * Drain changes from the primary's middleware and apply them to the replica.
  */
 function sync() {
-  const ops = drainOps();
-  applyTransactionOps(ops, replicaActions, () => replica.cellIds.inOrderIds);
-  // Drain any ops the replica's middleware produced (we don't want those)
-  drainOps();
+  const changes = drainChanges();
+  applyTransactionChanges(
+    changes,
+    replicaActions,
+    () => replica.cellIds.inOrderIds,
+  );
+  // Drain any changes the replica's middleware produced (we don't want those)
+  drainChanges();
 }
 
 /**
@@ -155,7 +159,7 @@ function sync() {
  * TODO(column-config): config.column is excluded because the column
  * reducers (addColumnBreakpoint, dropOverNewColumn, moveColumn, etc.)
  * update cellIds (MultiColumn structure) but don't sync config.column
- * on affected cells. The middleware correctly emits set-config ops with
+ * on affected cells. The middleware correctly emits set-config changes with
  * the new column index, but the primary's config.column stays stale,
  * causing a mismatch with the replica. Fix: have the column reducers
  * update config.column as part of their state transition, then remove

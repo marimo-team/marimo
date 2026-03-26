@@ -30,7 +30,7 @@ import {
   type NotebookState,
   notebookAtom,
 } from "../cells";
-import { exportedForTesting as documentTransactionTestExports } from "../document-ops";
+import { exportedForTesting as documentTransactionTestExports } from "../document-changes";
 import {
   focusAndScrollCellIntoView,
   scrollToBottom,
@@ -150,7 +150,7 @@ describe("cell reducer", () => {
   });
 
   afterEach(() => {
-    documentTransactionTestExports.cancelPendingOps();
+    documentTransactionTestExports.cancelPendingChanges();
   });
 
   afterAll(() => {

@@ -29,7 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
-import { documentTransactionMiddleware } from "./document-ops";
+import { documentTransactionMiddleware } from "./document-changes";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {

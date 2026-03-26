@@ -1,16 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Tests for toDocumentOps (action → op mapping) as a pure function.
+ * Tests for toDocumentChanges (action → change mapping) as a pure function.
  *
  * Each test calls the reducer to produce prevState/newState, then calls
- * toDocumentOps directly — no middleware, no side effects. Basic round-trip
+ * toDocumentChanges directly — no middleware, no side effects. Basic round-trip
  * correctness is covered by document-roundtrip.test.ts. This file focuses on:
  *
  * - anchorOf edge cases (before vs after, first cell, __end__)
  * - Field name mapping (hide_code → hideCode)
  * - Column structure actions emitting reorder-cells
- * - Actions that should NOT emit ops
+ * - Actions that should NOT emit changes
  */
 
 import { python } from "@codemirror/lang-python";
@@ -23,7 +23,7 @@ import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extens
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { MultiColumn } from "@/utils/id-tree";
 import { exportedForTesting, type NotebookState } from "../cells";
-import { type CellAction, toDocumentOps } from "../document-ops";
+import { type CellAction, toDocumentChanges } from "../document-changes";
 import { CellId } from "../ids";
 
 const { initialNotebookState, reducer } = exportedForTesting;
@@ -67,11 +67,11 @@ function dispatch(
   return next;
 }
 
-/** Dispatch an action and return the ops it produces. */
+/** Dispatch an action and return the changes it produces. */
 function resolve(state: NotebookState, action: CellAction) {
   const next = dispatch(state, action);
-  const ops = toDocumentOps(state, next, action);
-  return { next, ops };
+  const changes = toDocumentChanges(state, next, action);
+  return { next, changes };
 }
 
 let state: NotebookState;
@@ -107,13 +107,13 @@ function setup(...codes: string[]) {
   }
 }
 
-describe("toDocumentOps", () => {
+describe("toDocumentChanges", () => {
   describe("anchorOf edge cases", () => {
     it("uses before anchor when new cell is first", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "createNewCell",
         payload: {
           cellId: a,
@@ -123,7 +123,7 @@ describe("toDocumentOps", () => {
         },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "before": "0",
@@ -143,7 +143,7 @@ describe("toDocumentOps", () => {
 
     it("uses after anchor for __end__ insertion", () => {
       setup("a");
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "createNewCell",
         payload: {
           cellId: "__end__",
@@ -153,7 +153,7 @@ describe("toDocumentOps", () => {
         },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "after": "0",
@@ -175,12 +175,12 @@ describe("toDocumentOps", () => {
       setup("a", "b", "c");
       const [, b] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "sendToTop",
         payload: { cellId: b },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "before": "0",
@@ -197,12 +197,12 @@ describe("toDocumentOps", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "updateCellConfig",
         payload: { cellId: a, config: { hide_code: true } },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "cellId": "0",
@@ -216,7 +216,7 @@ describe("toDocumentOps", () => {
     it("includes full CellConfig in create-cell", () => {
       setup("a");
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "createNewCell",
         payload: {
           cellId: "__end__",
@@ -227,7 +227,7 @@ describe("toDocumentOps", () => {
         },
       });
 
-      expect(ops[0]).toMatchObject({
+      expect(changes[0]).toMatchObject({
         type: "create-cell",
         config: { hide_code: true },
       });
@@ -239,12 +239,12 @@ describe("toDocumentOps", () => {
       setup("a", "b");
       const [, b] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "dropOverNewColumn",
         payload: { cellId: b },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "cellId": "1",
@@ -266,12 +266,12 @@ describe("toDocumentOps", () => {
       setup("a", "b", "c");
       const [, b] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "addColumnBreakpoint",
         payload: { cellId: b },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "cellId": "1",
@@ -303,12 +303,12 @@ describe("toDocumentOps", () => {
         payload: { cellId: b },
       });
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "mergeAllColumns",
         payload: {},
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "cellId": "1",
@@ -334,17 +334,17 @@ describe("toDocumentOps", () => {
   });
 
   describe("cell lifecycle actions", () => {
-    it("addColumn emits create-cell + column layout ops", () => {
+    it("addColumn emits create-cell + column layout changes", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
       const columnId = state.cellIds.findWithId(a).id;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "addColumn",
         payload: { columnId },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "after": "0",
@@ -384,13 +384,13 @@ describe("toDocumentOps", () => {
         payload: { cellId: b },
       });
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "undoDeleteCell",
         payload: {},
       });
 
       // Restored cell should have original code
-      expect(ops[0]).toMatchObject({
+      expect(changes[0]).toMatchObject({
         type: "create-cell",
         code: "b",
       });
@@ -404,12 +404,12 @@ describe("toDocumentOps", () => {
       const view = state.cellHandles[a].current!.editorView;
       view.dispatch({ selection: { anchor: 5 } });
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "splitCell",
         payload: { cellId: a },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "cellId": "0",
@@ -447,12 +447,12 @@ describe("toDocumentOps", () => {
       const [, newCell] = state.cellIds.inOrderIds;
 
       // Now undo the split
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "undoSplitCell",
         payload: { cellId: a, snapshot },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "cellId": "0",
@@ -472,12 +472,12 @@ describe("toDocumentOps", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "moveToNextCell",
         payload: { cellId: a, before: false },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "after": "0",
@@ -499,23 +499,23 @@ describe("toDocumentOps", () => {
       setup("a", "b");
       const [a] = state.cellIds.inOrderIds;
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "moveToNextCell",
         payload: { cellId: a, before: false },
       });
 
-      expect(ops).toHaveLength(0);
+      expect(changes).toHaveLength(0);
     });
 
     it("addSetupCellIfDoesntExist emits create-cell when new", () => {
       setup("a");
 
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "addSetupCellIfDoesntExist",
         payload: { code: "import marimo as mo" },
       });
 
-      expect(ops).toMatchInlineSnapshot(`
+      expect(changes).toMatchInlineSnapshot(`
         [
           {
             "before": "0",
@@ -542,34 +542,34 @@ describe("toDocumentOps", () => {
       });
 
       // Try to add again — should just focus
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "addSetupCellIfDoesntExist",
         payload: {},
       });
 
-      expect(ops).toHaveLength(0);
+      expect(changes).toHaveLength(0);
     });
   });
 
-  describe("actions that should NOT emit ops", () => {
+  describe("actions that should NOT emit changes", () => {
     it("focusCell returns empty", () => {
       setup("a", "b");
       const [a] = state.cellIds.inOrderIds;
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "focusCell",
         payload: { cellId: a, where: "after" },
       });
-      expect(ops).toHaveLength(0);
+      expect(changes).toHaveLength(0);
     });
 
     it("prepareForRun returns empty", () => {
       setup("a");
       const [a] = state.cellIds.inOrderIds;
-      const { ops } = resolve(state, {
+      const { changes } = resolve(state, {
         type: "prepareForRun",
         payload: { cellId: a },
       });
-      expect(ops).toHaveLength(0);
+      expect(changes).toHaveLength(0);
     });
   });
 });

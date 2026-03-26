@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional
 import msgspec
 
 from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.ops import DocumentChange
+from marimo._messaging.notebook.changes import DocumentChange
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,

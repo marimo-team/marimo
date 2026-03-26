@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
-import { applyTransactionOps } from "@/core/cells/document-ops";
+import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import type {
   NotificationMessageData,
@@ -102,7 +102,7 @@ export function useMarimoKernelConnection(opts: {
   const handleDocumentTransaction = (
     transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
   ) => {
-    applyTransactionOps(
+    applyTransactionChanges(
       transaction.changes,
       actionsWithoutMiddleware,
       () => getNotebook().cellIds.inOrderIds,

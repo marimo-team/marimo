@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._messaging.notebook.ops import Transaction
+from marimo._messaging.notebook.changes import Transaction
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )

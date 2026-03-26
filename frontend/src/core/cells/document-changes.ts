@@ -1,17 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Document ops: the bridge between notebook reducer actions and the
+ * Document changes: the bridge between notebook reducer actions and the
  * document transaction wire format.
  *
  * Pure functions:
- * - toDocumentOps: reducer action + state diff → document ops
- * - fromDocumentOps: document ops → reducer actions
+ * - toDocumentChanges: reducer action + state diff → document changes
+ * - fromDocumentChanges: document changes → reducer actions
  * - cancelledCellIds: detect create+delete cancellations
  *
  * Impure wrappers (for use by the reducer middleware and websocket):
- * - documentTransactionMiddleware: debounces and sends ops to the server
- * - applyTransactionOps: dispatches actions from incoming ops
+ * - documentTransactionMiddleware: debounces and sends changes to the server
+ * - applyTransactionChanges: dispatches actions from incoming changes
  */
 
 import { debounce } from "lodash-es";
@@ -27,11 +27,12 @@ import type { CellActions, NotebookState } from "./cells";
 import type { CellId } from "./ids";
 import type { CellData } from "./types";
 
-export type DocumentOp = NotebookDocumentTransactionRequest["changes"][number];
+export type DocumentChange =
+  NotebookDocumentTransactionRequest["changes"][number];
 
 type Transaction =
   NotificationMessageData<"notebook-document-transaction">["transaction"];
-type TransactionOp = Transaction["changes"][number];
+type TransactionChange = Transaction["changes"][number];
 
 export type CellAction = DispatchedActionOf<CellActions>;
 
@@ -95,19 +96,19 @@ function columnIndexMap(state: NotebookState): Map<CellId, number> {
 
 /**
  * Find cells that were added between prevState and newState and return
- * create-cell ops for each, with position derived from newState.
+ * create-cell changes for each, with position derived from newState.
  */
-function newCellOps(
+function newCellChanges(
   prevState: NotebookState,
   newState: NotebookState,
-): DocumentOp[] {
+): DocumentChange[] {
   const prevIds = new Set(prevState.cellIds.inOrderIds);
-  const ops: DocumentOp[] = [];
+  const changes: DocumentChange[] = [];
   for (const id of newState.cellIds.inOrderIds) {
     if (!prevIds.has(id)) {
       const cell = getCell(id, newState);
       if (cell) {
-        ops.push({
+        changes.push({
           type: "create-cell",
           cellId: cell.id,
           code: cell.code,
@@ -118,43 +119,43 @@ function newCellOps(
       }
     }
   }
-  return ops;
+  return changes;
 }
 
 /**
  * Find cells that were removed between prevState and newState and return
- * delete-cell ops for each.
+ * delete-cell changes for each.
  */
-function deletedCellOps(
+function deletedCellChanges(
   prevState: NotebookState,
   newState: NotebookState,
-): DocumentOp[] {
+): DocumentChange[] {
   const newIds = new Set(newState.cellIds.inOrderIds);
-  const ops: DocumentOp[] = [];
+  const changes: DocumentChange[] = [];
   for (const id of prevState.cellIds.inOrderIds) {
     if (!newIds.has(id)) {
-      ops.push({ type: "delete-cell", cellId: id });
+      changes.push({ type: "delete-cell", cellId: id });
     }
   }
-  return ops;
+  return changes;
 }
 
 /**
- * Produce set-config ops for cells whose column index changed between
- * prevState and newState, plus a reorder-cells op for the new ordering.
+ * Produce set-config changes for cells whose column index changed between
+ * prevState and newState, plus a reorder-cells change for the new ordering.
  */
-function columnChangeOps(
+function columnChanges(
   prevState: NotebookState,
   newState: NotebookState,
-): DocumentOp[] {
+): DocumentChange[] {
   const prevColumns = columnIndexMap(prevState);
   const newColumns = columnIndexMap(newState);
-  const ops: DocumentOp[] = [];
+  const changes: DocumentChange[] = [];
 
   for (const [cellId, newCol] of newColumns) {
     const prevCol = prevColumns.get(cellId);
     if (prevCol !== newCol) {
-      ops.push({
+      changes.push({
         type: "set-config",
         cellId: cellId,
         column: newCol,
@@ -162,34 +163,34 @@ function columnChangeOps(
     }
   }
 
-  ops.push({
+  changes.push({
     type: "reorder-cells",
     cellIds: newState.cellIds.inOrderIds,
   });
 
-  return ops;
+  return changes;
 }
 
 // ---------------------------------------------------------------------------
-// toDocumentOps: action + state → ops
+// toDocumentChanges: action + state → changes
 // ---------------------------------------------------------------------------
 
 /**
  * Given a reducer action and the before/after notebook state, return the
- * document ops that represent the change. Returns an empty array for
+ * document changes that represent the diff. Returns an empty array for
  * actions that don't affect document structure.
  */
-export function toDocumentOps(
+export function toDocumentChanges(
   prevState: NotebookState,
   newState: NotebookState,
   action: DispatchedActionOf<CellActions>,
-): DocumentOp[] {
+): DocumentChange[] {
   switch (action.type) {
     // createNewCell → create-cell
     // Reads code, name, and config from the newly created cell in newState.
     // Position is derived from newState via anchorOf (after or before neighbor).
     case "createNewCell":
-      return newCellOps(prevState, newState);
+      return newCellChanges(prevState, newState);
 
     // deleteCell → delete-cell
     // Direct 1:1 mapping. Only the cellId is needed.
@@ -219,7 +220,7 @@ export function toDocumentOps(
     // the full ordering.
     case "dropCellOverCell":
     case "dropCellOverColumn":
-      return columnChangeOps(prevState, newState);
+      return columnChanges(prevState, newState);
 
     // updateCellCode → set-code
     // Reads the code from newState via getCell.
@@ -254,7 +255,7 @@ export function toDocumentOps(
     }
 
     // updateCellConfig → set-config
-    // Maps CellConfig's snake_case hide_code to the op's camelCase hideCode.
+    // Maps CellConfig's snake_case hide_code to the change's camelCase hideCode.
     // Only includes fields that were actually specified in the partial config
     // (from the action payload, not the full cell config).
     case "updateCellConfig": {
@@ -279,23 +280,23 @@ export function toDocumentOps(
     case "deleteColumn":
     case "mergeAllColumns":
     case "compactColumns":
-      return columnChangeOps(prevState, newState);
+      return columnChanges(prevState, newState);
 
     // addColumn creates a new column with a new empty cell.
-    // Emits create-cell for the new cell plus column layout ops.
+    // Emits create-cell for the new cell plus column layout changes.
     case "addColumn":
       return [
-        ...newCellOps(prevState, newState),
-        ...columnChangeOps(prevState, newState),
+        ...newCellChanges(prevState, newState),
+        ...columnChanges(prevState, newState),
       ];
 
     // undoDeleteCell restores a deleted cell from history.
     case "undoDeleteCell": {
-      const ops = newCellOps(prevState, newState);
-      const colOps = columnChangeOps(prevState, newState);
-      // Only include column ops if layout actually changed
-      // (colOps always has at least a reorder-cells op)
-      return colOps.length > 1 ? [...ops, ...colOps] : ops;
+      const changes = newCellChanges(prevState, newState);
+      const colChanges = columnChanges(prevState, newState);
+      // Only include column changes if layout actually changed
+      // (colChanges always has at least a reorder-cells change)
+      return colChanges.length > 1 ? [...changes, ...colChanges] : changes;
     }
 
     // splitCell: original cell gets truncated code, new cell gets remainder.
@@ -307,7 +308,7 @@ export function toDocumentOps(
       }
       return [
         { type: "set-code", cellId, code: cell.code },
-        ...newCellOps(prevState, newState),
+        ...newCellChanges(prevState, newState),
       ];
     }
 
@@ -320,19 +321,19 @@ export function toDocumentOps(
       }
       return [
         { type: "set-code", cellId, code: cell.code },
-        ...deletedCellOps(prevState, newState),
+        ...deletedCellChanges(prevState, newState),
       ];
     }
 
     // moveToNextCell: may create a new cell at boundary.
     case "moveToNextCell":
-      return newCellOps(prevState, newState);
+      return newCellChanges(prevState, newState);
 
     // addSetupCellIfDoesntExist: creates setup cell if missing.
     case "addSetupCellIfDoesntExist":
-      return newCellOps(prevState, newState);
+      return newCellChanges(prevState, newState);
 
-    // UI-only actions — no document ops.
+    // UI-only actions — no document changes.
     case "focusCell":
     case "focusTopCell":
     case "focusBottomCell":
@@ -342,7 +343,7 @@ export function toDocumentOps(
     case "markUntouched":
       return [];
 
-    // Kernel/runtime state — never produces document ops.
+    // Kernel/runtime state — never produces document changes.
     case "prepareForRun":
     case "handleCellMessage":
     case "setCellIds":
@@ -356,7 +357,7 @@ export function toDocumentOps(
     case "clearLogs":
       return [];
 
-    // Editor UI state — no document ops.
+    // Editor UI state — no document changes.
     case "foldAll":
     case "unfoldAll":
     case "collapseCell":
@@ -371,51 +372,51 @@ export function toDocumentOps(
 }
 
 // ---------------------------------------------------------------------------
-// fromDocumentOps: ops → actions
+// fromDocumentChanges: changes → actions
 // ---------------------------------------------------------------------------
 
 /**
- * Find cell IDs that are both created and deleted in a set of ops.
+ * Find cell IDs that are both created and deleted in a set of changes.
  * These cancel out and should be skipped.
  */
-export function cancelledCellIds(ops: TransactionOp[]): Set<string> {
+export function cancelledCellIds(changes: TransactionChange[]): Set<string> {
   const created = new Set<string>();
   const deleted = new Set<string>();
-  for (const op of ops) {
-    if (op.type === "create-cell") {
-      created.add(op.cellId);
-    } else if (op.type === "delete-cell") {
-      deleted.add(op.cellId);
+  for (const change of changes) {
+    if (change.type === "create-cell") {
+      created.add(change.cellId);
+    } else if (change.type === "delete-cell") {
+      deleted.add(change.cellId);
     }
   }
   return created.intersection(deleted);
 }
 
 /**
- * Given document ops (from the server) and the current cell ordering,
+ * Given document changes (from the server) and the current cell ordering,
  * return the reducer actions that apply them to frontend state.
  */
-export function fromDocumentOps(
-  ops: TransactionOp[],
+export function fromDocumentChanges(
+  changes: TransactionChange[],
   getCurrentCellIds: () => CellId[],
 ): CellAction[] {
   const actions: CellAction[] = [];
 
-  for (const op of ops) {
-    switch (op.type) {
+  for (const change of changes) {
+    switch (change.type) {
       // create-cell → createNewCell + updateCellName + updateCellConfig
-      // Translates the op's before/after anchor into createNewCell's
-      // cellId+before pair. The op carries code, name, and a full CellConfig.
+      // Translates the change's before/after anchor into createNewCell's
+      // cellId+before pair. The change carries code, name, and a full CellConfig.
       // createNewCell only accepts hideCode, so name and remaining config
       // (disabled, column) are applied as separate follow-up actions.
       case "create-cell": {
         let cellId: CellId | "__end__" = "__end__";
         let before = false;
-        if (op.after) {
-          cellId = op.after;
+        if (change.after) {
+          cellId = change.after;
           before = false;
-        } else if (op.before) {
-          cellId = op.before;
+        } else if (change.before) {
+          cellId = change.before;
           before = true;
         }
         actions.push({
@@ -423,28 +424,30 @@ export function fromDocumentOps(
           payload: {
             cellId,
             before,
-            code: op.code,
-            newCellId: op.cellId as CellId,
+            code: change.code,
+            newCellId: change.cellId as CellId,
             autoFocus: false,
-            hideCode: op.config?.hide_code ?? false,
+            hideCode: change.config?.hide_code ?? false,
           },
         });
-        if (op.name) {
+        if (change.name) {
           actions.push({
             type: "updateCellName",
-            payload: { cellId: op.cellId as CellId, name: op.name },
+            payload: { cellId: change.cellId as CellId, name: change.name },
           });
         }
-        if (op.config?.disabled != null || op.config?.column != null) {
+        if (change.config?.disabled != null || change.config?.column != null) {
           actions.push({
             type: "updateCellConfig",
             payload: {
-              cellId: op.cellId as CellId,
+              cellId: change.cellId as CellId,
               config: {
-                ...(op.config.disabled != null && {
-                  disabled: op.config.disabled,
+                ...(change.config.disabled != null && {
+                  disabled: change.config.disabled,
                 }),
-                ...(op.config.column != null && { column: op.config.column }),
+                ...(change.config.column != null && {
+                  column: change.config.column,
+                }),
               },
             },
           });
@@ -457,7 +460,7 @@ export function fromDocumentOps(
       case "delete-cell":
         actions.push({
           type: "deleteCell",
-          payload: { cellId: op.cellId as CellId },
+          payload: { cellId: change.cellId as CellId },
         });
         break;
 
@@ -468,21 +471,21 @@ export function fromDocumentOps(
       // missing. No-ops if the cell itself doesn't exist.
       case "move-cell": {
         const ids = [...getCurrentCellIds()];
-        const cellId = op.cellId as CellId;
+        const cellId = change.cellId as CellId;
         const idx = ids.indexOf(cellId);
         if (idx < 0) {
           break;
         }
         ids.splice(idx, 1);
-        if (op.after) {
-          const afterIdx = ids.indexOf(op.after);
+        if (change.after) {
+          const afterIdx = ids.indexOf(change.after);
           if (afterIdx >= 0) {
             ids.splice(afterIdx + 1, 0, cellId);
           } else {
             ids.push(cellId);
           }
-        } else if (op.before) {
-          const beforeIdx = ids.indexOf(op.before);
+        } else if (change.before) {
+          const beforeIdx = ids.indexOf(change.before);
           if (beforeIdx >= 0) {
             ids.splice(beforeIdx, 0, cellId);
           } else {
@@ -500,11 +503,11 @@ export function fromDocumentOps(
 
       // reorder-cells → setCellIds
       // Replaces the full cell ordering. Used for drag-and-drop and
-      // bulk reorder ops where expressing individual moves is impractical.
+      // bulk reorders where expressing individual moves is impractical.
       case "reorder-cells":
         actions.push({
           type: "setCellIds",
-          payload: { cellIds: op.cellIds as CellId[] },
+          payload: { cellIds: change.cellIds as CellId[] },
         });
         break;
 
@@ -515,8 +518,8 @@ export function fromDocumentOps(
         actions.push({
           type: "setCellCodes",
           payload: {
-            ids: [op.cellId as CellId],
-            codes: [op.code],
+            ids: [change.cellId as CellId],
+            codes: [change.code],
             codeIsStale: true,
           },
         });
@@ -527,23 +530,23 @@ export function fromDocumentOps(
       case "set-name":
         actions.push({
           type: "updateCellName",
-          payload: { cellId: op.cellId as CellId, name: op.name },
+          payload: { cellId: change.cellId as CellId, name: change.name },
         });
         break;
 
       // set-config → updateCellConfig
-      // Maps the op's camelCase hideCode back to CellConfig's snake_case
+      // Maps the change's camelCase hideCode back to CellConfig's snake_case
       // hide_code. Only includes fields that are non-null (null means
       // "not specified" on the wire, not "clear the value").
       case "set-config":
         actions.push({
           type: "updateCellConfig",
           payload: {
-            cellId: op.cellId as CellId,
+            cellId: change.cellId as CellId,
             config: {
-              ...(op.hideCode != null && { hide_code: op.hideCode }),
-              ...(op.disabled != null && { disabled: op.disabled }),
-              ...(op.column != null && { column: op.column }),
+              ...(change.hideCode != null && { hide_code: change.hideCode }),
+              ...(change.disabled != null && { disabled: change.disabled }),
+              ...(change.column != null && { column: change.column }),
             },
           },
         });
@@ -555,12 +558,12 @@ export function fromDocumentOps(
 }
 
 // ---------------------------------------------------------------------------
-// Middleware: debounced op dispatch to the server
+// Middleware: debounced change dispatch to the server
 // ---------------------------------------------------------------------------
 
-let pendingChanges: DocumentOp[] = [];
+let pendingChanges: DocumentChange[] = [];
 
-const flushOps = debounce(() => {
+const flushChanges = debounce(() => {
   if (pendingChanges.length === 0) {
     return;
   }
@@ -569,50 +572,54 @@ const flushOps = debounce(() => {
   void getRequestClient().sendDocumentTransaction({ changes });
 }, 400);
 
-function enqueue(op: DocumentOp) {
+function enqueue(change: DocumentChange) {
   if (store.get(kioskModeAtom)) {
     return;
   }
-  pendingChanges.push(op);
-  flushOps();
+  pendingChanges.push(change);
+  flushChanges();
 }
 
 /**
- * Middleware for the notebook reducer. Converts actions to document ops
- * via toDocumentOps and enqueues them for debounced dispatch.
+ * Middleware for the notebook reducer. Converts actions to document changes
+ * via toDocumentChanges and enqueues them for debounced dispatch.
  */
 export function documentTransactionMiddleware(
   prevState: NotebookState,
   newState: NotebookState,
   action: CellAction,
 ): void {
-  for (const op of toDocumentOps(prevState, newState, action)) {
-    enqueue(op);
+  for (const change of toDocumentChanges(prevState, newState, action)) {
+    enqueue(change);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Apply: dispatch incoming ops as reducer actions
+// Apply: dispatch incoming changes as reducer actions
 // ---------------------------------------------------------------------------
 
 /**
- * Apply document transaction ops to the frontend cell state.
+ * Apply document transaction changes to the frontend cell state.
  *
- * Each op is applied immediately and in order so that subsequent ops
- * see the state produced by earlier ops (e.g. move-cell after create-cell).
+ * Each change is applied immediately and in order so that subsequent changes
+ * see the state produced by earlier changes (e.g. move-cell after create-cell).
  */
-export function applyTransactionOps(
-  ops: TransactionOp[],
+export function applyTransactionChanges(
+  changes: TransactionChange[],
   actions: CellActions,
   getCurrentCellIds: () => CellId[],
 ): void {
-  const cancelled = cancelledCellIds(ops);
+  const cancelled = cancelledCellIds(changes);
 
-  for (const op of ops) {
-    if (cancelled.size > 0 && "cellId" in op && cancelled.has(op.cellId)) {
+  for (const change of changes) {
+    if (
+      cancelled.size > 0 &&
+      "cellId" in change &&
+      cancelled.has(change.cellId)
+    ) {
       continue;
     }
-    for (const action of fromDocumentOps([op], getCurrentCellIds)) {
+    for (const action of fromDocumentChanges([change], getCurrentCellIds)) {
       // @ts-expect-error - TypeScript is not smart enough to know we have correctly mapped type -> payload
       actions[action.type](action.payload);
     }
@@ -624,14 +631,14 @@ export function applyTransactionOps(
 // ---------------------------------------------------------------------------
 
 export const exportedForTesting = {
-  cancelPendingOps: () => {
-    flushOps.cancel();
+  cancelPendingChanges: () => {
+    flushChanges.cancel();
     pendingChanges = [];
   },
-  drainOps: (): DocumentOp[] => {
-    flushOps.cancel();
-    const ops = pendingChanges;
+  drainChanges: (): DocumentChange[] => {
+    flushChanges.cancel();
+    const drained = pendingChanges;
     pendingChanges = [];
-    return ops;
+    return drained;
   },
 };

@@ -5,7 +5,7 @@ import pytest
 from msgspec.structs import replace as structs_replace
 
 from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.ops import (
+from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
     MoveCell,
@@ -18,8 +18,8 @@ from marimo._messaging.notebook.ops import (
 from marimo._types.ids import CellId_t
 
 
-class TestOpsFrozen:
-    """All op types must be immutable."""
+class TestChangesFrozen:
+    """All change types must be immutable."""
 
     def test_create_cell_frozen(self) -> None:
         op = CreateCell(

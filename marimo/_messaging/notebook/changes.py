@@ -11,7 +11,7 @@ from marimo._ast.cell import CellConfig
 from marimo._types.ids import CellId_t
 
 # ------------------------------------------------------------------
-# Structural ops (change the cell list)
+# Structural changes (change the cell list)
 # ------------------------------------------------------------------
 
 
@@ -57,7 +57,7 @@ class ReorderCells(
 
 
 # ------------------------------------------------------------------
-# Property ops (change cell content)
+# Property changes (change cell content)
 # ------------------------------------------------------------------
 
 

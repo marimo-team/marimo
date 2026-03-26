@@ -2,7 +2,7 @@
 """Notebook document model — canonical representation of notebook structure."""
 
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
-from marimo._messaging.notebook.ops import (
+from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
     DocumentChange,

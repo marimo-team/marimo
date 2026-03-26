@@ -6,7 +6,7 @@ from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
-from marimo._messaging.notebook.ops import (
+from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
     DocumentChange,

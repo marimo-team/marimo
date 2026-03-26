@@ -33,7 +33,7 @@ import msgspec
 from msgspec.structs import replace as structs_replace
 
 from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.ops import (
+from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
     DocumentChange,
@@ -127,7 +127,7 @@ class NotebookDocument:
         """Validate and apply *tx*, return it with ``version`` assigned.
 
         Raises ``ValueError`` for validation failures and ``KeyError``
-        when an op references a non-existent cell.
+        when a change references a non-existent cell.
         """
         if not tx.changes:
             return structs_replace(tx, version=self._version)
@@ -140,46 +140,46 @@ class NotebookDocument:
         self._version += 1
         return structs_replace(tx, version=self._version)
 
-    def _apply_change(self, op: DocumentChange) -> None:
+    def _apply_change(self, change: DocumentChange) -> None:
         # TODO: refactor to use match/case (min Python is 3.10) once
         # ruff target-version is bumped from py39.
-        if isinstance(op, CreateCell):
+        if isinstance(change, CreateCell):
             cell = NotebookCell(
-                id=op.cell_id,
-                code=op.code,
-                name=op.name,
-                config=op.config,
+                id=change.cell_id,
+                code=change.code,
+                name=change.name,
+                config=change.config,
             )
-            if op.after is not None:
-                idx = self._find_index(op.after)
+            if change.after is not None:
+                idx = self._find_index(change.after)
                 self._cells.insert(idx + 1, cell)
-            elif op.before is not None:
-                idx = self._find_index(op.before)
+            elif change.before is not None:
+                idx = self._find_index(change.before)
                 self._cells.insert(idx, cell)
             else:
                 self._cells.append(cell)
 
-        elif isinstance(op, DeleteCell):
-            idx = self._find_index(op.cell_id)
+        elif isinstance(change, DeleteCell):
+            idx = self._find_index(change.cell_id)
             del self._cells[idx]
 
-        elif isinstance(op, MoveCell):
-            idx = self._find_index(op.cell_id)
+        elif isinstance(change, MoveCell):
+            idx = self._find_index(change.cell_id)
             cell = self._cells.pop(idx)
-            if op.after is not None:
-                target = self._find_index(op.after)
+            if change.after is not None:
+                target = self._find_index(change.after)
                 self._cells.insert(target + 1, cell)
-            elif op.before is not None:
-                target = self._find_index(op.before)
+            elif change.before is not None:
+                target = self._find_index(change.before)
                 self._cells.insert(target, cell)
             else:
                 raise ValueError("MoveCell requires 'before' or 'after'")
 
-        elif isinstance(op, ReorderCells):
+        elif isinstance(change, ReorderCells):
             by_id = {c.id: c for c in self._cells}
             seen: set[CellId_t] = set()
             reordered: list[NotebookCell] = []
-            for cid in op.cell_ids:
+            for cid in change.cell_ids:
                 if cid in by_id and cid not in seen:
                     reordered.append(by_id[cid])
                     seen.add(cid)
@@ -189,27 +189,27 @@ class NotebookDocument:
                     reordered.append(c)
             self._cells = reordered
 
-        elif isinstance(op, SetCode):
-            self._find_cell(op.cell_id).code = op.code
+        elif isinstance(change, SetCode):
+            self._find_cell(change.cell_id).code = change.code
 
-        elif isinstance(op, SetName):
-            self._find_cell(op.cell_id).name = op.name
+        elif isinstance(change, SetName):
+            self._find_cell(change.cell_id).name = change.name
 
-        elif isinstance(op, SetConfig):
-            cell = self._find_cell(op.cell_id)
+        elif isinstance(change, SetConfig):
+            cell = self._find_cell(change.cell_id)
             cell.config = CellConfig(
-                column=op.column
-                if op.column is not None
+                column=change.column
+                if change.column is not None
                 else cell.config.column,
-                disabled=op.disabled
-                if op.disabled is not None
+                disabled=change.disabled
+                if change.disabled is not None
                 else cell.config.disabled,
-                hide_code=op.hide_code
-                if op.hide_code is not None
+                hide_code=change.hide_code
+                if change.hide_code is not None
                 else cell.config.hide_code,
             )
         else:
-            assert_never(op)
+            assert_never(change)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -271,66 +271,66 @@ def notebook_document_context(
 
 
 def _validate(
-    ops: tuple[DocumentChange, ...], cells: list[NotebookCell]
+    changes: tuple[DocumentChange, ...], cells: list[NotebookCell]
 ) -> None:
-    """Check for conflicting operations. Raises ``ValueError``."""
+    """Check for conflicting changes. Raises ``ValueError``."""
     existing_ids = {c.id for c in cells}
     created: set[CellId_t] = set()
     deleted: set[CellId_t] = set()
     updated: set[CellId_t] = set()
     moved: set[CellId_t] = set()
 
-    for op in ops:
-        if isinstance(op, CreateCell):
-            if op.cell_id in existing_ids or op.cell_id in created:
-                raise ValueError(f"Cell {op.cell_id!r} already exists")
-            if op.before is not None and op.after is not None:
+    for change in changes:
+        if isinstance(change, CreateCell):
+            if change.cell_id in existing_ids or change.cell_id in created:
+                raise ValueError(f"Cell {change.cell_id!r} already exists")
+            if change.before is not None and change.after is not None:
                 raise ValueError(
                     "CreateCell cannot specify both 'before' and 'after'"
                 )
-            created.add(op.cell_id)
+            created.add(change.cell_id)
 
-        elif isinstance(op, DeleteCell):
-            if op.cell_id in deleted:
+        elif isinstance(change, DeleteCell):
+            if change.cell_id in deleted:
                 raise ValueError(
-                    f"Cell {op.cell_id!r} is deleted more than once"
+                    f"Cell {change.cell_id!r} is deleted more than once"
                 )
-            if op.cell_id in updated:
+            if change.cell_id in updated:
                 raise ValueError(
-                    f"Cannot delete cell {op.cell_id!r} that is also "
+                    f"Cannot delete cell {change.cell_id!r} that is also "
                     f"updated in the same transaction"
                 )
-            if op.cell_id in moved:
+            if change.cell_id in moved:
                 raise ValueError(
-                    f"Cannot delete cell {op.cell_id!r} that is also "
+                    f"Cannot delete cell {change.cell_id!r} that is also "
                     f"moved in the same transaction"
                 )
-            deleted.add(op.cell_id)
+            deleted.add(change.cell_id)
 
-        elif isinstance(op, MoveCell):
-            if op.cell_id in deleted:
+        elif isinstance(change, MoveCell):
+            if change.cell_id in deleted:
                 raise ValueError(
-                    f"Cannot move cell {op.cell_id!r} that is also "
+                    f"Cannot move cell {change.cell_id!r} that is also "
                     f"deleted in the same transaction"
                 )
-            if op.before is not None and op.after is not None:
+            if change.before is not None and change.after is not None:
                 raise ValueError(
                     "MoveCell cannot specify both 'before' and 'after'"
                 )
-            if op.before is None and op.after is None:
+            if change.before is None and change.after is None:
                 raise ValueError("MoveCell requires 'before' or 'after'")
-            moved.add(op.cell_id)
+            moved.add(change.cell_id)
 
-        elif isinstance(op, ReorderCells):
+        elif isinstance(change, ReorderCells):
             pass  # No conflicts — replaces full ordering
 
-        elif isinstance(op, (SetCode, SetName, SetConfig)):
-            if op.cell_id in deleted:
+        elif isinstance(change, (SetCode, SetName, SetConfig)):
+            if change.cell_id in deleted:
                 raise ValueError(
-                    f"Cannot update cell {op.cell_id!r} that is also "
+                    f"Cannot update cell {change.cell_id!r} that is also "
                     f"deleted in the same transaction"
                 )
-            updated.add(op.cell_id)
+            updated.add(change.cell_id)
 
         else:
-            raise TypeError(f"Unknown op type: {type(op)!r}")
+            raise TypeError(f"Unknown change type: {type(change)!r}")
