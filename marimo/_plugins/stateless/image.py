@@ -80,10 +80,14 @@ def _normalize_image(
         if vmin is not None or vmax is not None:
             lo = float(vmin) if vmin is not None else float(src.min())
             hi = float(vmax) if vmax is not None else float(src.max())
-            if DependencyManager.numpy.imported():
-                import numpy as np
-
-                src = np.clip(src, lo, hi)
+            # torch/jax/tf tensors lack __array_interface__ and are converted
+            # to numpy at line 69-78, so src is always an ndarray here.
+            if not hasattr(src, "clip"):
+                raise ValueError(
+                    f"Array of type {type(src)} does not support clipping. "
+                    "Convert to a numpy array before passing to `mo.image`."
+                )
+            src = src.clip(lo, hi)
             denom = hi - lo
             if denom == 0:
                 src = src - src  # zeros, preserving shape
