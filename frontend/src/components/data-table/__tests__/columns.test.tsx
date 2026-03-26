@@ -663,7 +663,7 @@ describe("LocaleNumber", () => {
   it("should not truncate decimals beyond minFractionDigits", () => {
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={1.23456} minFractionDigits={2} />
+        <LocaleNumber value={1.234_56} minFractionDigits={2} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"1.23456"`);
