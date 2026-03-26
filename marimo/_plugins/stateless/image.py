@@ -87,8 +87,7 @@ def _normalize_image(
             hi = float(vmax) if vmax is not None else float(src.max())
             if has_bounds:
                 # torch/jax/tf tensors lack __array_interface__ and are
-                # converted to numpy at line 69-78, so src is always an
-                # ndarray here.
+                # converted to numpy above, so src is always an ndarray here.
                 if not hasattr(src, "clip"):
                     raise ValueError(
                         f"Array of type {type(src)} does not support "
