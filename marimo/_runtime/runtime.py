@@ -2691,7 +2691,7 @@ class DatasetCallbacks:
         """
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
-        sql_metadata = SQLDatabaseMetadata(
+        sql_db_metadata = SQLDatabaseMetadata(
             connection=variable_name,
             database=database_name,
         )
@@ -2703,7 +2703,7 @@ class DatasetCallbacks:
                     request_id=request.request_id,
                     schemas=[],
                     error=error,
-                    metadata=sql_metadata,
+                    metadata=sql_db_metadata,
                 ),
             )
             return
@@ -2718,7 +2718,7 @@ class DatasetCallbacks:
                 SQLSchemaListPreviewNotification(
                     request_id=request.request_id,
                     schemas=schema_list,
-                    metadata=sql_metadata,
+                    metadata=sql_db_metadata,
                 ),
             )
         except Exception as e:
@@ -2730,7 +2730,7 @@ class DatasetCallbacks:
                     request_id=request.request_id,
                     schemas=[],
                     error="Failed to get schema list: " + str(e),
-                    metadata=sql_metadata,
+                    metadata=sql_db_metadata,
                 ),
             )
 

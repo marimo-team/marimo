@@ -37,22 +37,22 @@ def update_table_in_connection(
 
 def update_schema_list_in_connection(
     connections: list[DataSourceConnection],
-    sql_metadata: SQLDatabaseMetadata,
+    sql_db_metadata: SQLDatabaseMetadata,
     updated_schema_list: list[Schema],
 ) -> None:
     """Update a list of schemas in the connection hierarchy, updates in-place.
 
     Args:
         connections: List of data source connections
-        sql_metadata: SQL metadata containing connection, database info
+        sql_db_metadata: SQL database metadata containing connection, database info
         updated_schema_list: The updated list of schemas to replace the existing ones
     """
     for connection in connections:
-        if connection.name != sql_metadata.connection:
+        if connection.name != sql_db_metadata.connection:
             continue
 
         for database in connection.databases:
-            if database.name != sql_metadata.database:
+            if database.name != sql_db_metadata.database:
                 continue
 
             database.schemas = updated_schema_list

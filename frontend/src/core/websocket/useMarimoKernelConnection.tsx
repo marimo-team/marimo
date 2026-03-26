@@ -275,10 +275,7 @@ export function useMarimoKernelConnection(opts: {
         PreviewSQLTableList.resolve(msg.data.request_id, msg.data);
         return;
       case "sql-schema-list-preview":
-        PreviewSQLSchemaList.resolve(
-          msg.data.request_id as RequestId,
-          msg.data,
-        );
+        PreviewSQLSchemaList.resolve(msg.data.request_id, msg.data);
         return;
       case "validate-sql-result":
         ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);

@@ -207,7 +207,7 @@ class TestUpdateSchemaListInConnection:
         """Test updating a schema list in the hierarchy."""
         connections = create_test_connections(num_schemas_per_db=3)
 
-        sql_metadata = SQLDatabaseMetadata(
+        sql_db_metadata = SQLDatabaseMetadata(
             connection="connection_0",
             database="database_0",
         )
@@ -218,7 +218,7 @@ class TestUpdateSchemaListInConnection:
         ]
 
         update_schema_list_in_connection(
-            connections, sql_metadata, new_schemas
+            connections, sql_db_metadata, new_schemas
         )
 
         # Verify the update
@@ -231,7 +231,7 @@ class TestUpdateSchemaListInConnection:
         """Test updating a schema list in a non-existent connection."""
         connections = create_test_connections(num_schemas_per_db=3)
 
-        sql_metadata = SQLDatabaseMetadata(
+        sql_db_metadata = SQLDatabaseMetadata(
             connection="nonexistent",
             database="database_0",
         )
@@ -242,7 +242,7 @@ class TestUpdateSchemaListInConnection:
         original_count = len(connections[0].databases[0].schemas)
 
         update_schema_list_in_connection(
-            connections, sql_metadata, new_schemas
+            connections, sql_db_metadata, new_schemas
         )
 
         # Verify nothing changed
@@ -471,7 +471,7 @@ class TestPerformance:
             num_tables_per_schema=50,
         )
 
-        sql_metadata = SQLDatabaseMetadata(
+        sql_db_metadata = SQLDatabaseMetadata(
             connection="connection_4",
             database="database_4",
         )
@@ -482,7 +482,7 @@ class TestPerformance:
 
         def update_func() -> None:
             update_schema_list_in_connection(
-                connections, sql_metadata, new_schemas
+                connections, sql_db_metadata, new_schemas
             )
 
         avg_time, total_time = self._measure_performance(
