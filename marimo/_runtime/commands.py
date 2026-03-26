@@ -22,7 +22,7 @@ from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
-from marimo._notebook.document import NotebookCell
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 LOGGER = _loggers.marimo_logger()

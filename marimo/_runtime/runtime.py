@@ -63,6 +63,10 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.notebook.document import (
+    NotebookDocument,
+    notebook_document_context,
+)
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
@@ -109,10 +113,6 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._messaging.variables import create_variable_value
-from marimo._notebook.document import (
-    NotebookDocument,
-    notebook_document_context,
-)
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException

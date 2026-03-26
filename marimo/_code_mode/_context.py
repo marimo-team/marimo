@@ -41,23 +41,23 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
-from marimo._messaging.notification import (
-    NotebookDocumentTransactionNotification,
-    Notification,
-    UpdateCellCodesNotification,
-)
-from marimo._messaging.notification_utils import broadcast_notification
-from marimo._notebook.document import NotebookCell, NotebookDocument
-from marimo._notebook.ops import (
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notebook.ops import (
     CreateCell,
     DeleteCell,
-    Op,
+    DocumentChange,
     ReorderCells,
     SetCode,
     SetConfig,
     SetName,
     Transaction,
 )
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+    Notification,
+    UpdateCellCodesNotification,
+)
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
     CommandMessage,
     DeleteCellCommand,
@@ -234,7 +234,7 @@ class AsyncCodeModeContext:
         *,
         skip_validation: bool = False,
     ) -> None:
-        from marimo._notebook.document import get_current_document
+        from marimo._messaging.notebook.document import get_current_document
 
         document = get_current_document()
         if document is None:
@@ -964,7 +964,7 @@ class AsyncCodeModeContext:
             internal_ops=ops,
         )
         if doc_ops:
-            tx = Transaction(ops=tuple(doc_ops), source="kernel")
+            tx = Transaction(changes=tuple(doc_ops), source="kernel")
             # Apply to local snapshot so _cell_label can read names.
             self._document.apply(tx)
             self.notify(
@@ -1112,9 +1112,9 @@ def _plan_to_document_ops(
     existing_code: dict[CellId_t, str],
     resolved_configs: dict[CellId_t, CellConfig],
     internal_ops: list[_Op],
-) -> list[Op]:
-    """Convert a resolved plan diff into NotebookDocument ``Op``s."""
-    doc_ops: list[Op] = []
+) -> list[DocumentChange]:
+    """Convert a resolved plan diff into NotebookDocument changes."""
+    doc_ops: list[DocumentChange] = []
     plan_ids = {e.cell_id for e in plan}
 
     # Deletions: cells present before but absent from the plan.

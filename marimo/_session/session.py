@@ -17,6 +17,7 @@ import msgspec
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     NotificationMessage,
@@ -26,7 +27,6 @@ from marimo._messaging.serde import (
     try_deserialize_kernel_notification_name,
 )
 from marimo._messaging.types import KernelMessage
-from marimo._notebook.document import NotebookCell, NotebookDocument
 from marimo._runtime import commands
 from marimo._runtime.commands import (
     AppMetadata,

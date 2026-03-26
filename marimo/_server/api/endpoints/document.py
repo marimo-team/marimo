@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
+from marimo._messaging.notebook.ops import Transaction
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
-from marimo._notebook.ops import Transaction
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
@@ -53,7 +53,7 @@ async def document_transaction(request: Request) -> BaseResponse:
     session = app_state.require_current_session()
     session_id = app_state.require_current_session_id()
 
-    transaction = Transaction(ops=tuple(body.ops), source="frontend")
+    transaction = Transaction(changes=tuple(body.changes), source="frontend")
     session.notify(
         NotebookDocumentTransactionNotification(transaction=transaction),
         from_consumer_id=ConsumerId(session_id),

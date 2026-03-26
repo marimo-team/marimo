@@ -5,7 +5,7 @@ import pytest
 from msgspec.structs import replace as structs_replace
 
 from marimo._ast.cell import CellConfig
-from marimo._notebook.ops import (
+from marimo._messaging.notebook.ops import (
     CreateCell,
     DeleteCell,
     MoveCell,
@@ -62,30 +62,30 @@ class TestOpsFrozen:
 class TestTransaction:
     def test_creation(self) -> None:
         tx = Transaction(
-            ops=(SetCode(cell_id=CellId_t("a"), code="x"),),
+            changes=(SetCode(cell_id=CellId_t("a"), code="x"),),
             source="kernel",
         )
         assert tx.source == "kernel"
         assert tx.version is None
-        assert len(tx.ops) == 1
+        assert len(tx.changes) == 1
 
     def test_frozen(self) -> None:
-        tx = Transaction(ops=(), source="test")
+        tx = Transaction(changes=(), source="test")
         with pytest.raises(AttributeError):
             tx.source = "other"  # type: ignore[misc]
 
     def test_version_stamping(self) -> None:
-        tx = Transaction(ops=(), source="test")
+        tx = Transaction(changes=(), source="test")
         stamped = structs_replace(tx, version=42)
         assert stamped.version == 42
         assert tx.version is None  # original unchanged
 
-    def test_ops_is_tuple(self) -> None:
+    def test_changes_is_tuple(self) -> None:
         tx = Transaction(
-            ops=(
+            changes=(
                 SetCode(cell_id=CellId_t("a"), code="x"),
                 SetName(cell_id=CellId_t("a"), name="foo"),
             ),
             source="test",
         )
-        assert isinstance(tx.ops, tuple)
+        assert isinstance(tx.changes, tuple)

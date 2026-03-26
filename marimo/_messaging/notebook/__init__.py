@@ -1,12 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Notebook document model — canonical representation of notebook structure."""
 
-from marimo._notebook.document import NotebookCell, NotebookDocument
-from marimo._notebook.ops import (
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notebook.ops import (
     CreateCell,
     DeleteCell,
+    DocumentChange,
     MoveCell,
-    Op,
     ReorderCells,
     SetCode,
     SetConfig,
@@ -17,10 +17,10 @@ from marimo._notebook.ops import (
 __all__ = [
     "CreateCell",
     "DeleteCell",
+    "DocumentChange",
     "MoveCell",
     "NotebookCell",
     "NotebookDocument",
-    "Op",
     "ReorderCells",
     "SetCode",
     "SetConfig",

@@ -36,7 +36,7 @@ from marimo._code_mode._context import (
     AsyncCodeModeContext,
     get_context,
 )
-from marimo._notebook.document import NotebookCell
+from marimo._messaging.notebook.document import NotebookCell
 
 __all__ = [
     "AsyncCodeModeContext",

@@ -18,9 +18,9 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
     from marimo._config.manager import MarimoConfigManager
+    from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
-    from marimo._notebook.document import NotebookDocument
     from marimo._runtime import commands
     from marimo._session.consumer import SessionConsumer
     from marimo._session.extensions.types import SessionExtension

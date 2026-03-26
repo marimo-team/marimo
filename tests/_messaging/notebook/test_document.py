@@ -5,12 +5,12 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
-from marimo._notebook.document import NotebookCell, NotebookDocument
-from marimo._notebook.ops import (
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notebook.ops import (
     CreateCell,
     DeleteCell,
+    DocumentChange,
     MoveCell,
-    Op,
     ReorderCells,
     SetCode,
     SetConfig,
@@ -34,8 +34,8 @@ def _doc(*names: str) -> NotebookDocument:
     return NotebookDocument([_cell(n) for n in names])
 
 
-def _tx(*ops: Op, source: str = "test") -> Transaction:
-    return Transaction(ops=ops, source=source)
+def _tx(*changes: DocumentChange, source: str = "test") -> Transaction:
+    return Transaction(changes=changes, source=source)
 
 
 def _ids(doc: NotebookDocument) -> list[str]:

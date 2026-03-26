@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional
 import msgspec
 
 from marimo._ast.cell import CellConfig
-from marimo._notebook.ops import Op
+from marimo._messaging.notebook.ops import DocumentChange
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
@@ -244,7 +244,7 @@ class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
 
 
 class NotebookDocumentTransactionRequest(msgspec.Struct, rename="camel"):
-    ops: list[Op]
+    changes: list[DocumentChange]
 
 
 class FocusCellRequest(msgspec.Struct, rename="camel"):

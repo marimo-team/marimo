@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 from marimo._code_mode._context import AsyncCodeModeContext
-from marimo._notebook.document import (
+from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
     notebook_document_context,

@@ -13,14 +13,14 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._code_mode._context import AsyncCodeModeContext
-from marimo._messaging.notification import (
-    NotebookDocumentTransactionNotification,
-    UpdateCellCodesNotification,
-)
-from marimo._notebook.document import (
+from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
     notebook_document_context,
+)
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+    UpdateCellCodesNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
@@ -44,7 +44,7 @@ def _tx_ops(k: Kernel) -> list[dict[str, object]]:
     ops: list[dict[str, object]] = []
     for notif in k.stream.operations:
         if isinstance(notif, NotebookDocumentTransactionNotification):
-            ops.extend(msgspec.to_builtins(notif.transaction.ops))
+            ops.extend(msgspec.to_builtins(notif.transaction.changes))
     return ops
 
 

@@ -33,11 +33,11 @@ import msgspec
 from msgspec.structs import replace as structs_replace
 
 from marimo._ast.cell import CellConfig
-from marimo._notebook.ops import (
+from marimo._messaging.notebook.ops import (
     CreateCell,
     DeleteCell,
+    DocumentChange,
     MoveCell,
-    Op,
     ReorderCells,
     SetCode,
     SetConfig,
@@ -67,7 +67,7 @@ class NotebookDocument:
             ]
         )
         tx = Transaction(
-            ops=(SetCode(CellId_t("a"), "x = 2"),), source="kernel"
+            changes=(SetCode(CellId_t("a"), "x = 2"),), source="kernel"
         )
         applied = doc.apply(tx)
         assert applied.version == 1
@@ -129,18 +129,18 @@ class NotebookDocument:
         Raises ``ValueError`` for validation failures and ``KeyError``
         when an op references a non-existent cell.
         """
-        if not tx.ops:
+        if not tx.changes:
             return structs_replace(tx, version=self._version)
 
-        _validate(tx.ops, self._cells)
+        _validate(tx.changes, self._cells)
 
-        for op in tx.ops:
-            self._apply_op(op)
+        for change in tx.changes:
+            self._apply_change(change)
 
         self._version += 1
         return structs_replace(tx, version=self._version)
 
-    def _apply_op(self, op: Op) -> None:
+    def _apply_change(self, op: DocumentChange) -> None:
         # TODO: refactor to use match/case (min Python is 3.10) once
         # ruff target-version is bumped from py39.
         if isinstance(op, CreateCell):
@@ -270,7 +270,9 @@ def notebook_document_context(
 # ------------------------------------------------------------------
 
 
-def _validate(ops: tuple[Op, ...], cells: list[NotebookCell]) -> None:
+def _validate(
+    ops: tuple[DocumentChange, ...], cells: list[NotebookCell]
+) -> None:
     """Check for conflicting operations. Raises ``ValueError``."""
     existing_ids = {c.id for c in cells}
     created: set[CellId_t] = set()

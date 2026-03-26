@@ -84,7 +84,7 @@ class SetConfig(msgspec.Struct, frozen=True, tag="set-config", rename="camel"):
     hide_code: Optional[bool] = None
 
 
-Op = Union[
+DocumentChange = Union[
     CreateCell, DeleteCell, MoveCell, ReorderCells, SetCode, SetName, SetConfig
 ]
 
@@ -94,13 +94,13 @@ Op = Union[
 
 
 class Transaction(msgspec.Struct, frozen=True, rename="camel"):
-    """An atomic batch of operations applied to a NotebookDocument.
+    """An atomic batch of changes applied to a NotebookDocument.
 
     ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
     ``version`` is ``None`` when created and stamped by
     ``NotebookDocument.apply()``.
     """
 
-    ops: tuple[Op, ...]
+    changes: tuple[DocumentChange, ...]
     source: Literal["frontend", "kernel"]
     version: Optional[int] = None
