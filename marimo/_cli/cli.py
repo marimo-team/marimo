@@ -1447,6 +1447,26 @@ def shell_completion() -> None:
     type=click.Choice(["full", "json"], case_sensitive=False),
     help="Output format for diagnostics.",
 )
+@click.option(
+    "--select",
+    "select_rules",
+    default=None,
+    type=str,
+    help=(
+        "Comma-separated rule codes/prefixes to enable, replacing config. "
+        "e.g. --select MB,MR001"
+    ),
+)
+@click.option(
+    "--ignore",
+    "ignore_rules",
+    default=None,
+    type=str,
+    help=(
+        "Comma-separated rule codes/prefixes to ignore. "
+        "e.g. --ignore MF004,MF007"
+    ),
+)
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
 def check(
     fix: bool,
@@ -1455,11 +1475,17 @@ def check(
     unsafe_fixes: bool,
     ignore_scripts: bool,
     formatter: str,
+    select_rules: str | None,
+    ignore_rules: str | None,
     files: tuple[str, ...],
 ) -> None:
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
+
+    from marimo._lint import resolve_lint_config
+
+    lint_config = resolve_lint_config(select_rules, ignore_rules)
 
     # Pass click.echo directly as pipe for streaming output, or None for JSON
     pipe = click.echo if verbose and formatter != "json" else None
@@ -1470,6 +1496,7 @@ def check(
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
         formatter=formatter,
+        lint_config=lint_config,
     )
 
     if formatter == "json":

@@ -2647,6 +2647,25 @@ components:
       - data
       title: LayoutConfig
       type: object
+    LintConfig:
+      description: "Configuration for lint rule selection.\n\n    Follows ruff-inspired\
+        \ semantics for selecting which rules to run\n    during ``marimo check``.\n\
+        \n    **Keys.**\n\n    - ``select``: list of rule code prefixes that replaces\
+        \ the default\n      enabled set. Use ``\"ALL\"`` to select all rules.\n \
+        \     Example: ``[\"MB\", \"MR001\"]``\n    - ``ignore``: list of rule code\
+        \ prefixes to remove from the\n      enabled set."
+      properties:
+        ignore:
+          items:
+            type: string
+          type: array
+        select:
+          items:
+            type: string
+          type: array
+      required: []
+      title: LintConfig
+      type: object
     ListDataSourceConnectionCommand:
       description: "List data source schemas.\n\n    Retrieves available schemas for\
         \ a data source engine.\n\n    Attributes:\n        engine: Data source engine\
@@ -2967,6 +2986,8 @@ components:
           $ref: '#/components/schemas/KeymapConfig'
         language_servers:
           $ref: '#/components/schemas/LanguageServersConfig'
+        lint:
+          $ref: '#/components/schemas/LintConfig'
         mcp:
           $ref: '#/components/schemas/MCPConfig'
         package_management:

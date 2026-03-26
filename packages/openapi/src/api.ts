@@ -4870,6 +4870,25 @@ export interface components {
       type: string;
     };
     /**
+     * LintConfig
+     * @description Configuration for lint rule selection.
+     *
+     *         Follows ruff-inspired semantics for selecting which rules to run
+     *         during ``marimo check``.
+     *
+     *         **Keys.**
+     *
+     *         - ``select``: list of rule code prefixes that replaces the default
+     *           enabled set. Use ``"ALL"`` to select all rules.
+     *           Example: ``["MB", "MR001"]``
+     *         - ``ignore``: list of rule code prefixes to remove from the
+     *           enabled set.
+     */
+    LintConfig: {
+      ignore?: string[];
+      select?: string[];
+    };
+    /**
      * ListDataSourceConnectionCommand
      * @description List data source schemas.
      *
@@ -5056,6 +5075,7 @@ export interface components {
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];
+      lint?: components["schemas"]["LintConfig"];
       mcp?: components["schemas"]["MCPConfig"];
       package_management: components["schemas"]["PackageManagementConfig"];
       runtime: components["schemas"]["RuntimeConfig"];
