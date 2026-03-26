@@ -469,9 +469,9 @@ class table(
         wrapped_columns: Optional[list[str]] = None,
         header_tooltip: Optional[dict[str, str]] = None,
         show_download: bool = True,
-        default_sort: Optional[str] = None,
         max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
+        default_sort: Optional[str] = None,
         label: str = "",
         on_change: Optional[
             Callable[
@@ -676,14 +676,14 @@ class table(
         field_types: Optional[FieldTypes] = None
         num_columns = 0
 
-        if not _internal_lazy:
-            if default_sort is not None:
-                existing_columns = set(self._manager.get_column_names())
-                if default_sort not in existing_columns:
-                    raise ValueError(
-                        f"default_sort column '{default_sort}' not found in table columns"
-                    )
+        if default_sort is not None:
+            existing_columns = set(self._manager.get_column_names())
+            if default_sort not in existing_columns:
+                raise ValueError(
+                    f"default_sort column '{default_sort}' not found in table columns"
+                )
 
+        if not _internal_lazy:
             default_sort_args = (
                 [SortArgs(by=default_sort, descending=False)]
                 if default_sort is not None

@@ -571,7 +571,11 @@ export const LoadingDataTableComponent = memo(
         searchQuery === "" &&
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
-        sorting.length === 0 &&
+        (sorting.length === 0 ||
+          (sorting.length === 1 &&
+            Boolean(props.defaultSort) &&
+            sorting[0]?.id === props.defaultSort &&
+            sorting[0]?.desc === false)) &&
         !props.lazy &&
         !pageSizeChanged;
 

@@ -2247,6 +2247,18 @@ def test_default_sort_invalid_column_raises() -> None:
         ui.table(data, selection=None, default_sort="missing")
 
 
+def test_default_sort_invalid_column_raises_in_lazy_mode() -> None:
+    data = {"name": ["charlie", "alice", "bob"], "value": [3, 1, 2]}
+
+    with pytest.raises(ValueError, match="default_sort column 'missing'"):
+        ui.table(
+            data,
+            selection=None,
+            default_sort="missing",
+            _internal_lazy=True,
+        )
+
+
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
