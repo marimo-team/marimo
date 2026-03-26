@@ -112,6 +112,7 @@ export function generateColumns<T>({
   headerTooltip,
   showDataTypes,
   calculateTopKRows,
+  fractionDigitsByColumn,
 }: {
   rowHeaders: FieldTypesWithExternalType;
   selection: DataTableSelection;
@@ -122,6 +123,7 @@ export function generateColumns<T>({
   headerTooltip?: Record<string, string>;
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
+  fractionDigitsByColumn?: Record<string, number>;
 }): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
@@ -138,6 +140,7 @@ export function generateColumns<T>({
         rowHeader: isRowHeader,
         dtype: types?.[1],
         dataType: types?.[0],
+        minFractionDigits: fractionDigitsByColumn?.[key],
       };
     }
 
@@ -146,7 +149,21 @@ export function generateColumns<T>({
       filterType: getFilterTypeForFieldType(types[0]),
       dtype: types[1],
       dataType: types[0],
+      minFractionDigits: fractionDigitsByColumn?.[key],
     };
+  };
+
+  const getJustify = (key: string): "left" | "center" | "right" | undefined => {
+    // Explicit user override takes precedence
+    if (textJustifyColumns?.[key]) {
+      return textJustifyColumns[key];
+    }
+    // Auto right-align numeric columns
+    const dataType = getMeta(key).dataType;
+    if (dataType === "number" || dataType === "integer") {
+      return "right";
+    }
+    return undefined;
   };
 
   const columnKeys: string[] = [
@@ -186,7 +203,7 @@ export function generateColumns<T>({
             </div>
           ) : null;
 
-        const justify = textJustifyColumns?.[key];
+        const justify = getJustify(key);
 
         const headerWithType = (
           <div
@@ -254,18 +271,21 @@ export function generateColumns<T>({
           cell.toggleSelected?.();
         }
 
-        const justify = textJustifyColumns?.[key];
+        const justify = getJustify(key);
         const wrapped = wrappedColumns?.includes(key);
         const isCellSelected = cell?.getIsSelected?.() || false;
         const canSelectCell =
           (selection === "single-cell" || selection === "multi-cell") &&
           !isCellSelected;
 
+        const dataType = column.columnDef.meta?.dataType;
+        const isNumeric = dataType === "number" || dataType === "integer";
         const cellStyles = getCellStyleClass(
           justify,
           wrapped,
           canSelectCell,
           isCellSelected,
+          isNumeric,
         );
 
         const renderedCell = renderCellValue({
@@ -430,6 +450,7 @@ function getCellStyleClass(
   wrapped: boolean | undefined,
   canSelectCell: boolean,
   isSelected: boolean,
+  isNumeric?: boolean,
 ): string {
   return cn(
     canSelectCell && "cursor-pointer",
@@ -438,6 +459,7 @@ function getCellStyleClass(
     "w-full",
     "text-left",
     "truncate",
+    isNumeric && "tabular-nums",
     justify === "center" && "text-center",
     justify === "right" && "text-right",
     wrapped && `${COLUMN_WRAPPING_STYLES} break-words`,
@@ -589,7 +611,18 @@ export function renderCellValue<TData, TValue>({
   if (typeof value === "number") {
     return (
       <div onClick={selectCell} className={cellStyles}>
-        <LocaleNumber value={value} />
+        <LocaleNumber
+          value={value}
+          minFractionDigits={column.columnDef.meta?.minFractionDigits}
+        />
+      </div>
+    );
+  }
+
+  if (typeof value === "boolean") {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {value ? "True" : "False"}
       </div>
     );
   }
@@ -635,9 +668,16 @@ export function renderCellValue<TData, TValue>({
   );
 }
 
-export const LocaleNumber = ({ value }: { value: number }) => {
+export const LocaleNumber = ({
+  value,
+  minFractionDigits,
+}: {
+  value: number;
+  minFractionDigits?: number;
+}) => {
   const { locale } = useLocale();
   const format = useNumberFormatter({
+    minimumFractionDigits: minFractionDigits,
     maximumFractionDigits: maxFractionalDigits(locale),
   });
   return format.format(value);
