@@ -615,7 +615,7 @@ class _cache_call_async(_cache_call[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
-                return attempt.meta["return"]
+                return attempt.meta.get("return")
 
             start_time = time.time()
             # Await the coroutine to get the actual result
