@@ -148,7 +148,7 @@ describe("RunsState Reducer", () => {
           run_id: runId,
           cell_id: testCellId,
           timestamp: runStartTimestamp + 5000,
-          status: "running"
+          status: "idle",
         },
         code: "console.log('Hello World');",
       },
@@ -156,7 +156,7 @@ describe("RunsState Reducer", () => {
 
     expect(successState.runIds).toEqual([runId]);
     expect(first(successState.runMap.get(runId)?.cellRuns).status).toBe(
-      "running",
+      "success",
     );
     expect(first(successState.runMap.get(runId)?.cellRuns).startTime).toBe(
       runStartTimestamp,
