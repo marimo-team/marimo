@@ -198,11 +198,16 @@ class file_browser(
 
         # Smart default limit based on path type
         if limit is None:
-            # Check if it's a cloud path
-            if self._path_cls.__module__.startswith("cloudpathlib"):
-                limit = 50  # Conservative for cloud storage
-            else:
-                limit = 10000  # High limit for local filesystems
+            # Check if it's a cloud path (supports subclasses of CloudPath)
+            try:
+                from cloudpathlib import CloudPath
+
+                if isinstance(self._initial_path, CloudPath):
+                    limit = 50  # Conservative for cloud storage
+                else:
+                    limit = 10000  # High limit for local filesystems
+            except ImportError:
+                limit = 10000
 
         self._limit = limit
 

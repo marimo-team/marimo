@@ -73,6 +73,16 @@ def normalize_path(path: Path) -> Path:
     """
     # Skip normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
     # os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
+    # Use isinstance to support subclasses of CloudPath (e.g., custom providers)
+    try:
+        from cloudpathlib import CloudPath
+
+        if isinstance(path, CloudPath):
+            return path
+    except ImportError:
+        pass
+
+    # Fallback: check module name for backward compatibility
     if path.__class__.__module__.startswith("cloudpathlib"):
         return path
 

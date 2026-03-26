@@ -95,7 +95,7 @@ def test_normalize_path_skips_cloudpathlib_paths() -> None:
     mock_path = MagicMock()
     mock_path.__class__.__module__ = "cloudpathlib.s3.s3path"
 
-    # normalize_path should return the path unchanged
+    # normalize_path should return the path unchanged (module check fallback)
     result = normalize_path(mock_path)
 
     # Should be the exact same object, returned unchanged
