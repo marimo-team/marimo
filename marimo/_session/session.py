@@ -12,13 +12,20 @@ import contextlib
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
+import msgspec
+
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    serialize_kernel_message,
+    try_deserialize_kernel_notification_name,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._runtime.commands import (
@@ -61,6 +68,7 @@ from marimo._utils.repr import format_repr
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
+    from marimo._ast.cell_manager import CellManager
     from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
 
@@ -69,6 +77,29 @@ LOGGER = _loggers.marimo_logger()
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
+
+
+def _document_from_cell_manager(cell_manager: CellManager) -> NotebookDocument:
+    """Build a NotebookDocument from a CellManager's current state.
+
+    TODO: CellManager and NotebookDocument track overlapping state (cell
+    ordering, code, names, configs). Once the document model is wired
+    into all consumers, we should reconcile these — either CellManager
+    wraps a NotebookDocument internally, or it is replaced by a
+    different composition. For now, the document is populated from the
+    cell manager at session startup and the two coexist.
+    """
+    return NotebookDocument(
+        [
+            NotebookCell(
+                id=cd.cell_id,
+                code=cd.code,
+                name=cd.name,
+                config=cd.config,
+            )
+            for cd in cell_manager.cell_data()
+        ]
+    )
 
 
 class SessionImpl(Session):
@@ -230,6 +261,9 @@ class SessionImpl(Session):
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
+        self.document = _document_from_cell_manager(
+            app_file_manager.app.cell_manager
+        )
         self.session_view = SessionView()
         self.config_manager = config_manager
         self.extensions = extensions
@@ -388,12 +422,44 @@ class SessionImpl(Session):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""
+        # Intercept document transactions: apply to session.document
+        # (stamps version), then re-serialize for broadcast.
+        # Kernel notifications arrive as bytes via the stream distributor;
+        # server-side callers (e.g. file-watch) pass typed objects.
+        if isinstance(operation, bytes):
+            name = try_deserialize_kernel_notification_name(operation)
+            if name == NotebookDocumentTransactionNotification.name:
+                try:
+                    operation = self._apply_document_transaction(
+                        msgspec.json.decode(
+                            operation,
+                            type=NotebookDocumentTransactionNotification,
+                        )
+                    )
+                except Exception:
+                    LOGGER.warning("Failed to decode document transaction")
+        elif isinstance(operation, NotebookDocumentTransactionNotification):
+            operation = self._apply_document_transaction(operation)
+
         if isinstance(operation, bytes):
             notification = operation
         else:
             notification = serialize_kernel_message(operation)
+
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
+
+    def _apply_document_transaction(
+        self,
+        notif: NotebookDocumentTransactionNotification,
+    ) -> NotebookDocumentTransactionNotification:
+        """Apply to session.document, return with version stamped."""
+        try:
+            applied = self.document.apply(notif.transaction)
+            return NotebookDocumentTransactionNotification(transaction=applied)
+        except (ValueError, KeyError):
+            LOGGER.warning("Failed to apply document transaction")
+            return notif
 
     def close(self) -> None:
         """

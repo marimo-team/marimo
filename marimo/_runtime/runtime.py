@@ -63,6 +63,10 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.notebook.document import (
+    NotebookDocument,
+    notebook_document_context,
+)
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
@@ -2288,7 +2292,15 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            with http_request_context(request.request):
+            doc = (
+                NotebookDocument(list(request.notebook_cells))
+                if request.notebook_cells is not None
+                else None
+            )
+            with (
+                notebook_document_context(doc),
+                http_request_context(request.request),
+            ):
                 await self.run_scratchpad(request.code)
             broadcast_notification(CompletedRunNotification())
 

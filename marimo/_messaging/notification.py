@@ -31,6 +31,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
+from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
@@ -785,6 +786,19 @@ class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
     cell_ids: list[CellId_t]
 
 
+class NotebookDocumentTransactionNotification(
+    Notification, tag="notebook-document-transaction"
+):
+    """Broadcasts an applied transaction to the frontend.
+
+    Sent by the session when the document changes (from any source).
+    The frontend applies the ops to update its local state.
+    """
+
+    name: ClassVar[str] = "notebook-document-transaction"
+    transaction: Transaction
+
+
 NotificationMessage = Union[
     # Cell operations
     CellNotification,
@@ -835,4 +849,6 @@ NotificationMessage = Union[
     FocusCellNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
+    # Document
+    NotebookDocumentTransactionNotification,
 ]

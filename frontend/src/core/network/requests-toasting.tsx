@@ -22,6 +22,7 @@ export function createErrorToastingRequests(
     sendFunctionRequest: "Failed to send function request",
     sendRestart: "Failed to restart",
     syncCellIds: "Failed to sync cell IDs",
+    sendDocumentTransaction: "Failed to sync document transaction",
     sendRun: "Failed to run",
     sendRunScratchpad: "Failed to run scratchpad",
     sendRename: "Failed to rename",

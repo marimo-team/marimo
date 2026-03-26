@@ -530,6 +530,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/document/transaction": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply a document transaction */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/documentation/snippets": {
     parameters: {
       query?: never;
@@ -3742,6 +3783,22 @@ export interface components {
       source: string;
     };
     /**
+     * CreateCell
+     * @description Insert a new cell into the notebook.
+     */
+    CreateCell: {
+      /** @default null */
+      after?: components["schemas"]["CellId"] | null;
+      /** @default null */
+      before?: components["schemas"]["CellId"] | null;
+      cellId: string;
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      name: string;
+      /** @enum {unknown} */
+      type: "create-cell";
+    };
+    /**
      * CreateNotebookCommand
      * @description Instantiate and initialize a notebook.
      *
@@ -3974,6 +4031,15 @@ export interface components {
       request?: components["schemas"]["HTTPRequest"] | null;
     };
     /**
+     * DeleteCell
+     * @description Remove a cell from the notebook.
+     */
+    DeleteCell: {
+      cellId: string;
+      /** @enum {unknown} */
+      type: "delete-cell";
+    };
+    /**
      * DeleteCellCommand
      * @description Delete a cell from the notebook.
      *
@@ -4119,9 +4185,14 @@ export interface components {
      *         Attributes:
      *             code: Python code to execute.
      *             request: HTTP request context if available.
+     *             notebook_cells: Snapshot of notebook cells from the session document.
+     *                 Used to populate the document ContextVar so code_mode can read
+     *                 cell ordering, code, names, and configs.
      */
     ExecuteScratchpadCommand: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -4130,6 +4201,8 @@ export interface components {
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
@@ -4769,7 +4842,8 @@ export interface components {
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["UpdateCellCodesNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"];
+        | components["schemas"]["UpdateCellIdsNotification"]
+        | components["schemas"]["NotebookDocumentTransactionNotification"];
     };
     /**
      * LanguageServersConfig
@@ -5203,12 +5277,59 @@ export interface components {
       method: "update";
       state: Record<string, any>;
     };
+    /**
+     * MoveCell
+     * @description Reposition a cell in the notebook.
+     */
+    MoveCell: {
+      /** @default null */
+      after?: components["schemas"]["CellId"] | null;
+      /** @default null */
+      before?: components["schemas"]["CellId"] | null;
+      cellId: string;
+      /** @enum {unknown} */
+      type: "move-cell";
+    };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
       cells: components["schemas"]["CellId"][];
       name: string;
       /** @enum {unknown} */
       type: "multiple-defs";
+    };
+    /**
+     * NotebookCell
+     * @description A single cell in the document. Mutable — owned by the document.
+     */
+    NotebookCell: {
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      id: components["schemas"]["CellId"];
+      name: string;
+    };
+    /**
+     * NotebookDocumentTransactionNotification
+     * @description Broadcasts an applied transaction to the frontend.
+     *
+     *         Sent by the session when the document changes (from any source).
+     *         The frontend applies the ops to update its local state.
+     */
+    NotebookDocumentTransactionNotification: {
+      /** @enum {unknown} */
+      op: "notebook-document-transaction";
+      transaction: components["schemas"]["Transaction"];
+    };
+    /** NotebookDocumentTransactionRequest */
+    NotebookDocumentTransactionRequest: {
+      changes: (
+        | components["schemas"]["CreateCell"]
+        | components["schemas"]["DeleteCell"]
+        | components["schemas"]["MoveCell"]
+        | components["schemas"]["ReorderCells"]
+        | components["schemas"]["SetCode"]
+        | components["schemas"]["SetName"]
+        | components["schemas"]["SetConfig"]
+      )[];
     };
     /**
      * OpenAiConfig
@@ -5503,6 +5624,18 @@ export interface components {
     RenameNotebookRequest: {
       filename: string;
     };
+    /**
+     * ReorderCells
+     * @description Replace the full cell ordering.
+     *
+     *         Cell IDs present in the document but missing from ``cell_ids``
+     *         are appended at the end. IDs not in the document are ignored.
+     */
+    ReorderCells: {
+      cellIds: string[];
+      /** @enum {unknown} */
+      type: "reorder-cells";
+    };
     RequestId: TypedString<"RequestId">;
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
@@ -5724,6 +5857,41 @@ export interface components {
       follow_symlink: boolean;
     };
     SessionId: TypedString<"SessionId">;
+    /**
+     * SetCode
+     * @description Replace a cell's source code.
+     */
+    SetCode: {
+      cellId: string;
+      code: string;
+      /** @enum {unknown} */
+      type: "set-code";
+    };
+    /**
+     * SetConfig
+     * @description Partially update a cell's config. None fields are unchanged.
+     */
+    SetConfig: {
+      cellId: string;
+      /** @default null */
+      column?: number | null;
+      /** @default null */
+      disabled?: boolean | null;
+      /** @default null */
+      hideCode?: boolean | null;
+      /** @enum {unknown} */
+      type: "set-config";
+    };
+    /**
+     * SetName
+     * @description Rename a cell.
+     */
+    SetName: {
+      cellId: string;
+      name: string;
+      /** @enum {unknown} */
+      type: "set-name";
+    };
     /** SetupRootError */
     SetupRootError: {
       edges_with_vars: [string, string[], string][];
@@ -6057,6 +6225,28 @@ export interface components {
       parameters: Record<string, any>;
       /** @enum {unknown} */
       source: "backend" | "frontend" | "mcp";
+    };
+    /**
+     * Transaction
+     * @description An atomic batch of changes applied to a NotebookDocument.
+     *
+     *         ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
+     *         ``version`` is ``None`` when created and stamped by
+     *         ``NotebookDocument.apply()``.
+     */
+    Transaction: {
+      changes: (
+        | components["schemas"]["CreateCell"]
+        | components["schemas"]["DeleteCell"]
+        | components["schemas"]["MoveCell"]
+        | components["schemas"]["ReorderCells"]
+        | components["schemas"]["SetCode"]
+        | components["schemas"]["SetName"]
+        | components["schemas"]["SetConfig"]
+      )[];
+      source: string;
+      /** @default null */
+      version?: number | null;
     };
     /**
      * TyLanguageServerConfig

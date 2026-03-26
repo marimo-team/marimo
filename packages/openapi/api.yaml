@@ -827,6 +827,38 @@ components:
       - destination
       title: CopyNotebookRequest
       type: object
+    CreateCell:
+      description: Insert a new cell into the notebook.
+      properties:
+        after:
+          anyOf:
+          - $ref: '#/components/schemas/CellId'
+          - type: 'null'
+          default: null
+        before:
+          anyOf:
+          - $ref: '#/components/schemas/CellId'
+          - type: 'null'
+          default: null
+        cellId:
+          type: string
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        name:
+          type: string
+        type:
+          enum:
+          - create-cell
+      required:
+      - type
+      - cellId
+      - code
+      - name
+      - config
+      title: CreateCell
+      type: object
     CreateNotebookCommand:
       description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
         \ is first loaded. Contains all cells and initial UI element values.\n\n \
@@ -1219,6 +1251,19 @@ components:
       - cellId
       title: DebugCellRequest
       type: object
+    DeleteCell:
+      description: Remove a cell from the notebook.
+      properties:
+        cellId:
+          type: string
+        type:
+          enum:
+          - delete-cell
+      required:
+      - type
+      - cellId
+      title: DeleteCell
+      type: object
     DeleteCellCommand:
       description: "Delete a cell from the notebook.\n\n    Removes cell from the\
         \ dependency graph and cleans up its variables.\n    Dependent cells may become\
@@ -1448,10 +1493,20 @@ components:
         \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
         \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
         \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
-        \        request: HTTP request context if available."
+        \        request: HTTP request context if available.\n        notebook_cells:\
+        \ Snapshot of notebook cells from the session document.\n            Used\
+        \ to populate the document ContextVar so code_mode can read\n            cell\
+        \ ordering, code, names, and configs."
       properties:
         code:
           type: string
+        notebookCells:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NotebookCell'
+            type: array
+          - type: 'null'
+          default: null
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -1469,6 +1524,13 @@ components:
       properties:
         code:
           type: string
+        notebookCells:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NotebookCell'
+            type: array
+          - type: 'null'
+          default: null
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -2505,6 +2567,7 @@ components:
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/UpdateCellCodesNotification'
           - $ref: '#/components/schemas/UpdateCellIdsNotification'
+          - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2525,6 +2588,7 @@ components:
               kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
               missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
               model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
+              notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
               query-params-append: '#/components/schemas/QueryParamsAppendNotification'
               query-params-clear: '#/components/schemas/QueryParamsClearNotification'
               query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
@@ -3314,6 +3378,29 @@ components:
       - bufferPaths
       title: ModelUpdateMessage
       type: object
+    MoveCell:
+      description: Reposition a cell in the notebook.
+      properties:
+        after:
+          anyOf:
+          - $ref: '#/components/schemas/CellId'
+          - type: 'null'
+          default: null
+        before:
+          anyOf:
+          - $ref: '#/components/schemas/CellId'
+          - type: 'null'
+          default: null
+        cellId:
+          type: string
+        type:
+          enum:
+          - move-cell
+      required:
+      - type
+      - cellId
+      title: MoveCell
+      type: object
     MultipleDefinitionError:
       properties:
         cells:
@@ -3330,6 +3417,66 @@ components:
       - name
       - cells
       title: MultipleDefinitionError
+      type: object
+    NotebookCell:
+      description: "A single cell in the document. Mutable \u2014 owned by the document."
+      properties:
+        code:
+          type: string
+        config:
+          $ref: '#/components/schemas/CellConfig'
+        id:
+          $ref: '#/components/schemas/CellId'
+        name:
+          type: string
+      required:
+      - id
+      - code
+      - name
+      - config
+      title: NotebookCell
+      type: object
+    NotebookDocumentTransactionNotification:
+      description: "Broadcasts an applied transaction to the frontend.\n\n    Sent\
+        \ by the session when the document changes (from any source).\n    The frontend\
+        \ applies the ops to update its local state."
+      properties:
+        op:
+          enum:
+          - notebook-document-transaction
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+      required:
+      - op
+      - transaction
+      title: NotebookDocumentTransactionNotification
+      type: object
+    NotebookDocumentTransactionRequest:
+      properties:
+        changes:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/CreateCell'
+            - $ref: '#/components/schemas/DeleteCell'
+            - $ref: '#/components/schemas/MoveCell'
+            - $ref: '#/components/schemas/ReorderCells'
+            - $ref: '#/components/schemas/SetCode'
+            - $ref: '#/components/schemas/SetName'
+            - $ref: '#/components/schemas/SetConfig'
+            discriminator:
+              mapping:
+                create-cell: '#/components/schemas/CreateCell'
+                delete-cell: '#/components/schemas/DeleteCell'
+                move-cell: '#/components/schemas/MoveCell'
+                reorder-cells: '#/components/schemas/ReorderCells'
+                set-code: '#/components/schemas/SetCode'
+                set-config: '#/components/schemas/SetConfig'
+                set-name: '#/components/schemas/SetName'
+              propertyName: type
+          type: array
+      required:
+      - changes
+      title: NotebookDocumentTransactionRequest
       type: object
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
@@ -3761,6 +3908,23 @@ components:
       - filename
       title: RenameNotebookRequest
       type: object
+    ReorderCells:
+      description: "Replace the full cell ordering.\n\n    Cell IDs present in the\
+        \ document but missing from ``cell_ids``\n    are appended at the end. IDs\
+        \ not in the document are ignored."
+      properties:
+        cellIds:
+          items:
+            type: string
+          type: array
+        type:
+          enum:
+          - reorder-cells
+      required:
+      - type
+      - cellIds
+      title: ReorderCells
+      type: object
     RequestId:
       type: string
     RunningNotebooksResponse:
@@ -4119,6 +4283,66 @@ components:
       type: object
     SessionId:
       type: string
+    SetCode:
+      description: Replace a cell's source code.
+      properties:
+        cellId:
+          type: string
+        code:
+          type: string
+        type:
+          enum:
+          - set-code
+      required:
+      - type
+      - cellId
+      - code
+      title: SetCode
+      type: object
+    SetConfig:
+      description: Partially update a cell's config. None fields are unchanged.
+      properties:
+        cellId:
+          type: string
+        column:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        disabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: null
+        hideCode:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - set-config
+      required:
+      - type
+      - cellId
+      title: SetConfig
+      type: object
+    SetName:
+      description: Rename a cell.
+      properties:
+        cellId:
+          type: string
+        name:
+          type: string
+        type:
+          enum:
+          - set-name
+      required:
+      - type
+      - cellId
+      - name
+      title: SetName
+      type: object
     SetupRootError:
       properties:
         edges_with_vars:
@@ -4647,6 +4871,44 @@ components:
       - source
       - mode
       title: ToolDefinition
+      type: object
+    Transaction:
+      description: "An atomic batch of changes applied to a NotebookDocument.\n\n\
+        \    ``source`` identifies the writer (e.g. ``\"frontend\"``, ``\"kernel\"\
+        ``).\n    ``version`` is ``None`` when created and stamped by\n    ``NotebookDocument.apply()``."
+      properties:
+        changes:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/CreateCell'
+            - $ref: '#/components/schemas/DeleteCell'
+            - $ref: '#/components/schemas/MoveCell'
+            - $ref: '#/components/schemas/ReorderCells'
+            - $ref: '#/components/schemas/SetCode'
+            - $ref: '#/components/schemas/SetName'
+            - $ref: '#/components/schemas/SetConfig'
+            discriminator:
+              mapping:
+                create-cell: '#/components/schemas/CreateCell'
+                delete-cell: '#/components/schemas/DeleteCell'
+                move-cell: '#/components/schemas/MoveCell'
+                reorder-cells: '#/components/schemas/ReorderCells'
+                set-code: '#/components/schemas/SetCode'
+                set-config: '#/components/schemas/SetConfig'
+                set-name: '#/components/schemas/SetName'
+              propertyName: type
+          type: array
+        source:
+          type: string
+        version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+      required:
+      - changes
+      - source
+      title: Transaction
       type: object
     TyLanguageServerConfig:
       description: 'Configuration options for Ty Language Server.
@@ -5444,6 +5706,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a list of tables in an SQL schema
+  /api/document/transaction:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotebookDocumentTransactionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Apply a document transaction
   /api/documentation/snippets:
     get:
       parameters:
