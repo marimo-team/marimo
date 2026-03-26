@@ -77,35 +77,30 @@ def _normalize_image(
                 src = src.toarray()
             src = numpy.array(src)
 
-        if vmin is not None or vmax is not None:
+        # uint8 (typestr '|u1') is already in [0, 255]; use directly
+        # see https://numpy.org/doc/stable/reference/arrays.interface.html
+        is_uint8 = src.__array_interface__["typestr"] == "|u1"
+        has_bounds = vmin is not None or vmax is not None
+
+        if not is_uint8 or has_bounds:
             lo = float(vmin) if vmin is not None else float(src.min())
             hi = float(vmax) if vmax is not None else float(src.max())
-            # torch/jax/tf tensors lack __array_interface__ and are converted
-            # to numpy at line 69-78, so src is always an ndarray here.
-            if not hasattr(src, "clip"):
-                raise ValueError(
-                    f"Array of type {type(src)} does not support clipping. "
-                    "Convert to a numpy array before passing to `mo.image`."
-                )
-            src = src.clip(lo, hi)
+            if has_bounds:
+                # torch/jax/tf tensors lack __array_interface__ and are
+                # converted to numpy at line 69-78, so src is always an
+                # ndarray here.
+                if not hasattr(src, "clip"):
+                    raise ValueError(
+                        f"Array of type {type(src)} does not support "
+                        "clipping. Convert to a numpy array before passing "
+                        "to `mo.image`."
+                    )
+                src = src.clip(lo, hi)
             denom = hi - lo
             if denom == 0:
                 src = src - src  # zeros, preserving shape
             else:
                 src = (src - lo) / denom * 255.0
-        elif src.__array_interface__["typestr"] == "|u1":
-            # uint8 (typestr '|u1') is already in [0, 255]; use directly
-            # see https://numpy.org/doc/stable/reference/arrays.interface.html
-            # for raw dtype definitions.
-            pass
-        else:
-            # Fallback: min-max normalize using array methods.
-            # Guard against uniform images (lo == hi).
-            lo, hi = float(src.min()), float(src.max())
-            if lo == hi:
-                src = src - src  # zeros, preserving shape
-            else:
-                src = (src - lo) / (hi - lo) * 255.0
 
         img = _Image.fromarray(src.astype("uint8"))
         # io.BytesIO is one of the Image types.
