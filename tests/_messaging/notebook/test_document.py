@@ -5,7 +5,6 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -17,6 +16,7 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._types.ids import CellId_t
 
 # ------------------------------------------------------------------

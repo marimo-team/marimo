@@ -41,7 +41,6 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
-from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -52,6 +51,7 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     Notification,
