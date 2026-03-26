@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Notebook document model — canonical representation of notebook structure."""
 
-from marimo._notebook.document import CellMeta, NotebookCell, NotebookDocument
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -13,6 +12,7 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
+from marimo._notebook.document import CellMeta, NotebookCell, NotebookDocument
 
 __all__ = [
     "CellMeta",

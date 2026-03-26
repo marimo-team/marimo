@@ -21,7 +21,6 @@ import msgspec
 from msgspec.structs import replace as structs_replace
 
 from marimo._ast.cell import CellConfig
-from marimo._notebook._loro import create_doc, create_text, unwrap_text
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -33,6 +32,7 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
+from marimo._notebook._loro import create_doc, create_text, unwrap_text
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -210,7 +210,9 @@ class NotebookDocument:
             text.insert(0, change.code)
             self._codes_map.insert_container(change.cell_id, text)
 
-            meta = CellMeta(id=change.cell_id, name=change.name, config=change.config)
+            meta = CellMeta(
+                id=change.cell_id, name=change.name, config=change.config
+            )
             if change.after is not None:
                 idx = self._find_index(change.after)
                 self._cell_metas.insert(idx + 1, meta)
