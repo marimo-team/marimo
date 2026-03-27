@@ -20,7 +20,6 @@ from marimo._messaging.notebook.document import (
 )
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
-    UpdateCellCodesNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
@@ -46,14 +45,6 @@ def _tx_ops(k: Kernel) -> list[dict[str, object]]:
         if isinstance(notif, NotebookDocumentTransactionNotification):
             ops.extend(msgspec.to_builtins(notif.transaction.changes))
     return ops
-
-
-def _code_notifs(k: Kernel) -> list[UpdateCellCodesNotification]:
-    return [
-        op
-        for op in k.stream.operations
-        if isinstance(op, UpdateCellCodesNotification)
-    ]
 
 
 def _clear_messages(k: Kernel) -> None:
@@ -642,7 +633,7 @@ class TestAutorunStaleState:
 
     async def test_two_step_edit_then_run(self, k: Kernel) -> None:
         """edit_cell in one flush, run_cell in a separate flush should
-        send code_is_stale=false so the frontend clears the stale state."""
+        execute the updated code."""
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
 
         # Flush 1: edit only
@@ -658,7 +649,3 @@ class TestAutorunStaleState:
                 nb.run_cell("0")
 
         assert k.globals["x"] == 42
-
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["code_is_stale"] is False

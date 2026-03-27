@@ -126,18 +126,19 @@ class EditModeReloadStrategy(ReloadStrategy):
                         )
                     )
 
-        # Reorder
-        changes.append(ReorderCells(cell_ids=tuple(cell_ids)))
+        # Reorder if the lists differ
+        if tuple(cell_ids) != tuple(doc_ids):
+            changes.append(ReorderCells(cell_ids=tuple(cell_ids)))
 
         # Broadcast transaction — session.notify() applies to
         # session.document and stamps the version before forwarding.
         if changes:
+            transaction = Transaction(
+                changes=tuple(changes), source="file-watch"
+            )
+            applied = session.document.apply(transaction)
             session.notify(
-                NotebookDocumentTransactionNotification(
-                    transaction=Transaction(
-                        changes=tuple(changes), source="file-watch"
-                    )
-                ),
+                NotebookDocumentTransactionNotification(transaction=applied),
                 from_consumer_id=None,
             )
 
@@ -151,6 +152,17 @@ class EditModeReloadStrategy(ReloadStrategy):
                 SyncGraphCommand(
                     cells=dict(zip(cell_ids, codes)),
                     run_ids=changed_not_deleted,
+                    delete_ids=list(deleted),
+                ),
+                from_consumer_id=None,
+            )
+        elif deleted:
+            # Even in lazy mode, sync deletions to the kernel so removed
+            # cells are cleaned up from the dependency graph.
+            session.put_control_request(
+                SyncGraphCommand(
+                    cells=dict(zip(cell_ids, codes)),
+                    run_ids=[],
                     delete_ids=list(deleted),
                 ),
                 from_consumer_id=None,
