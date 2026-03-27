@@ -10,16 +10,21 @@ import {
 /**
  * Manages the scroll container's max-height for the data table.
  *
- * The <Table> UI component wraps <table> in a div with overflow-auto.
- * We derive the scroll boundary from this wrapper (tableRef.parentElement)
- * to keep sticky headers working without coupling base components to
- * data-table specifics.
+ * Why set max-height on the table's direct wrapper via a ref?
+ * - `position: sticky` only works when the sticky element's nearest scrollable
+ *   ancestor is its immediate container. If max-height/overflow are applied on
+ *   a grandparent, sticky `<th>` elements will not stick.
+ * - The <Table> UI component wraps <table> in a div with overflow-auto. We
+ *   derive the scroll boundary from this wrapper (tableRef.parentElement) to
+ *   keep sticky headers working without coupling base UI components to
+ *   data-table specifics or expanding their API surface.
  *
- * Three modes:
- * - Explicit `maxHeight`: applied directly.
- * - Virtualize (no explicit maxHeight): observed via ResizeObserver on <thead>
+ * 3 scenarios:
+ * - maxHeight applied directly. This always takes preference
+ * - Virtualize without maxHeight: observed via ResizeObserver on <thead>
  *   so the container reacts to header size changes (charts loading, toggles).
- * - Neither: max-height is removed so the table grows freely.
+ * - No maxHeight and no virtualization: render everything
+ *   in practice virtualization kicks in after 100 rows with pagination disabled
  */
 export function useScrollContainerHeight({
   maxHeight,
