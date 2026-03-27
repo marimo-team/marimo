@@ -10,6 +10,20 @@ declare module "@tanstack/react-table" {
   }
 }
 
+// Pixel heights derived from Tailwind classes applied to table elements.
+// row: h-6 = 24px (TableRow in renderers.tsx)
+// header: min-h-10 = 40px (TableHead in renderers.tsx)
+export const TABLE_ROW_HEIGHT_PX = 24;
+export const TABLE_HEADER_HEIGHT_PX = 40;
+
+// Default number of visible rows when virtualizing without an explicit maxHeight.
+export const DEFAULT_VIRTUAL_ROWS = 15;
+
+// Minimum row count before virtualization kicks in. Below this threshold the
+// DOM overhead is negligible and the virtualizer's measurement cost isn't
+// worth it. Must be greater than DEFAULT_VIRTUAL_ROWS.
+export const MIN_ROWS_TO_VIRTUALIZE = 100;
+
 export type ColumnName = string;
 
 export const ColumnHeaderStatsKeys = [
