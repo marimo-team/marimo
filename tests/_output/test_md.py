@@ -158,12 +158,8 @@ def test_md_flexible_indent_spaces(spaces: int) -> None:
     assert result == snapshot(
         """\
 <ul>
-<li>
-<span class="paragraph">Item 1</span>
-<ul>
-<li>
-<span class="paragraph">Nested item</span>
-<ul>
+<li>Item 1<ul>
+<li>Nested item<ul>
 <li>Deep nested</li>
 </ul>
 </li>
@@ -188,12 +184,8 @@ def test_md_flexible_indent_mixed_normalization() -> None:
     assert result == snapshot(
         """\
 <ul>
-<li>
-<span class="paragraph">Item 1</span>
-<ul>
-<li>
-<span class="paragraph">Nested item (3 spaces, should normalize to 2 or 4)</span>
-<ul>
+<li>Item 1<ul>
+<li>Nested item (3 spaces, should normalize to 2 or 4)<ul>
 <li>Deep nested (6 spaces)</li>
 </ul>
 </li>
@@ -219,18 +211,98 @@ def test_md_flexible_indent_ordered_lists(spaces: int) -> None:
     assert result == snapshot(
         """\
 <ol>
-<li>
-<span class="paragraph">Item 1</span>
-<ol>
-<li>
-<span class="paragraph">Nested ordered item</span>
-<ol>
+<li>Item 1<ol>
+<li>Nested ordered item<ol>
 <li>Deep nested ordered</li>
 </ol>
 </li>
 </ol>
 </li>
 <li>Item 2</li>
+</ol>\
+"""
+    )
+
+
+def test_md_nested_list_no_paragraph_wrapper() -> None:
+    # Nested list items should not have <p>/<span class="paragraph"> wrappers
+    input_text = """- Item 1
+  - Nested item
+- Item 2"""
+
+    result = _md(input_text, apply_markdown_class=False).text
+    assert result == snapshot(
+        """\
+<ul>
+<li>Item 1<ul>
+<li>Nested item</li>
+</ul>
+</li>
+<li>Item 2</li>
+</ul>\
+"""
+    )
+    assert '<span class="paragraph">' not in result
+
+
+def test_md_nested_list_preserves_multi_paragraph() -> None:
+    input_text = """- Paragraph one
+
+    Paragraph two
+
+- Item 2"""
+
+    result = _md(input_text, apply_markdown_class=False).text
+    assert result == snapshot(
+        """\
+<ul>
+<li>
+<span class="paragraph">Paragraph one</span>
+<span class="paragraph">Paragraph two</span>
+</li>
+<li>Item 2</li>
+</ul>\
+"""
+    )
+
+
+def test_md_nested_list_with_inline_elements() -> None:
+    # Inline elements like bold/italic/code should survive p-unwrapping
+    input_text = """- **Bold item**
+    - *Nested italic*
+        - `code item`"""
+
+    result = _md(input_text, apply_markdown_class=False).text
+    assert result == snapshot(
+        """\
+<ul>
+<li><strong>Bold item</strong></li>
+<li><em>Nested italic</em><ul>
+<li><code>code item</code></li>
+</ul>
+</li>
+</ul>\
+"""
+    )
+
+
+def test_md_nested_mixed_list_types() -> None:
+    # Mixed ordered/unordered nested lists should unwrap correctly
+    input_text = """1. Ordered item
+  - Unordered nested
+  - Another nested
+2. Second ordered"""
+
+    result = _md(input_text, apply_markdown_class=False).text
+    assert result == snapshot(
+        """\
+<ol>
+<li>Ordered item<ul>
+<li>Unordered nested</li>
+<li>Another nested</li>
+</ul>
+</li>
+<li>Second ordered</li>
 </ol>\
 """
     )
