@@ -72,6 +72,8 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
         session = self.context.get_session(args.session_id)
         notebook_ir = session.app_file_manager.app.to_ir()
 
+        # TODO: Use lint config from session.config_manager once the AI
+        # agent can use context to decide whether to ignore a rule.
         rule_engine = RuleEngine.create_default()
         diagnostics = await rule_engine.check_notebook(notebook_ir)
 

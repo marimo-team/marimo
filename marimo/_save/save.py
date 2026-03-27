@@ -515,11 +515,17 @@ class _cache_call_async(_cache_call[P, R]):
     will share the same execution, preventing duplicate work.
     """
 
-    # Track pending executions per cache instance to prevent race conditions
-    # WeakKeyDictionary ensures instances are cleaned up when garbage collected
-    # Key: cache instance, Value: dict of {cache_key: Task}
+    # Track pending executions per (instance, event loop) to prevent race
+    # conditions and cross-session interference. The outer WeakKeyDictionary
+    # is keyed by cache instance; the inner one is keyed by event loop so
+    # that concurrent sessions (each with their own loop, as in marimo run)
+    # never share or evict each other's pending tasks. Both levels use
+    # WeakKeyDictionary so entries are GC'd when the instance or loop dies.
     _pending_executions: weakref.WeakKeyDictionary[
-        _cache_call_async[Any, Any], dict[str, asyncio.Task[Any]]
+        _cache_call_async[Any, Any],
+        weakref.WeakKeyDictionary[
+            asyncio.AbstractEventLoop, dict[str, asyncio.Task[Any]]
+        ],
     ] = weakref.WeakKeyDictionary()
     _pending_lock = threading.Lock()
 
@@ -544,16 +550,22 @@ class _cache_call_async(_cache_call[P, R]):
         # Prepare execution context to get cache key
         scope, ctx, attempt = self._prepare_call_execution(args, kwargs)
         cache_key = attempt.hash
+        current_loop = asyncio.get_running_loop()
 
-        # Check for pending execution (task deduplication)
+        # Check for pending execution (task deduplication).
+        # Each event loop gets its own pending dict so concurrent sessions
+        # (each with their own loop, as in marimo run) never share tasks.
         existing_task = None
         with self._pending_lock:
             if self not in self._pending_executions:
-                self._pending_executions[self] = {}
-            pending = self._pending_executions[self]
+                self._pending_executions[self] = weakref.WeakKeyDictionary()
+            loop_dict = self._pending_executions[self]
+            if current_loop not in loop_dict:
+                loop_dict[current_loop] = {}
+            pending = loop_dict[current_loop]
 
             if cache_key in pending:
-                # Another coroutine is already executing this - save the task
+                # Another coroutine in this session is already executing this
                 existing_task = pending[cache_key]
 
         # Await the existing task AFTER releasing the lock to avoid deadlock
@@ -571,13 +583,16 @@ class _cache_call_async(_cache_call[P, R]):
         try:
             result = await task
         finally:
-            # Clean up completed task
+            # Clean up completed task and empty dicts
             with self._pending_lock:
-                if cache_key in pending:
-                    del pending[cache_key]
-                # Clean up empty instance dict (WeakKeyDictionary handles instance cleanup)
-                if not pending and self in self._pending_executions:
-                    del self._pending_executions[self]
+                pending.pop(cache_key, None)
+                try:
+                    if not pending and current_loop in loop_dict:
+                        del loop_dict[current_loop]
+                    if not loop_dict and self in self._pending_executions:
+                        del self._pending_executions[self]
+                except KeyError:
+                    pass
 
         return cast(R, result)
 
@@ -600,7 +615,7 @@ class _cache_call_async(_cache_call[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
-                return attempt.meta["return"]
+                return attempt.meta.get("return")
 
             start_time = time.time()
             # Await the coroutine to get the actual result

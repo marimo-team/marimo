@@ -5,8 +5,12 @@ import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { applyTransactionChanges } from "@/core/cells/document-changes";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import type { NotificationPayload } from "@/core/kernel/messages";
+import type {
+  NotificationMessageData,
+  NotificationPayload,
+} from "@/core/kernel/messages";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -33,6 +37,7 @@ import { useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import type { ConnectionName } from "../datasets/engines";
 import {
+  PreviewSQLSchemaList,
   PreviewSQLTable,
   PreviewSQLTableList,
   ValidateSQL,
@@ -93,6 +98,17 @@ export function useMarimoKernelConnection(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
+
+  const handleDocumentTransaction = (
+    transaction: NotificationMessageData<"notebook-document-transaction">["transaction"],
+  ) => {
+    applyTransactionChanges(
+      transaction.changes,
+      actionsWithoutMiddleware,
+      () => getNotebook().cellIds.inOrderIds,
+    );
+  };
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
   const setAppConfig = useSetAppConfig();
@@ -273,6 +289,9 @@ export function useMarimoKernelConnection(opts: {
       case "sql-table-list-preview":
         PreviewSQLTableList.resolve(msg.data.request_id, msg.data);
         return;
+      case "sql-schema-list-preview":
+        PreviewSQLSchemaList.resolve(msg.data.request_id, msg.data);
+        return;
       case "validate-sql-result":
         ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);
         return;
@@ -320,6 +339,9 @@ export function useMarimoKernelConnection(opts: {
         return;
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids });
+        return;
+      case "notebook-document-transaction":
+        handleDocumentTransaction(msg.data.transaction);
         return;
       default:
         logNever(msg.data);

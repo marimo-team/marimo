@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from marimo._save.stubs.function_stub import FunctionStub
+from marimo._save.stubs.lazy_stub import ReferenceStub
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._save.stubs.pydantic_stub import PydanticStub
 from marimo._save.stubs.stubs import (
@@ -21,6 +22,18 @@ _REGISTERED_NAMES: set[str] = set()
 # Dictionary mapping fully qualified class names to registration functions
 STUB_REGISTRATIONS: dict[str, Callable[[Any], None]] = {
     "pydantic.main.BaseModel": PydanticStub.register,
+}
+
+LAZY_STUB_LOOKUP: dict[type, str] = {
+    int: "inline",
+    str: "inline",
+    float: "inline",
+    bool: "inline",
+    bytes: "inline",
+    type(None): "inline",
+    FunctionStub: "inline",
+    ModuleStub: "inline",
+    UIElementStub: "ui",
 }
 
 
@@ -85,9 +98,11 @@ __all__ = [
     "CUSTOM_STUBS",
     "CustomStub",
     "FunctionStub",
+    "LAZY_STUB_LOOKUP",
     "ModuleStub",
+    "ReferenceStub",
     "UIElementStub",
-    "maybe_register_stub",
     "maybe_get_custom_stub",
+    "maybe_register_stub",
     "register_stub",
 ]

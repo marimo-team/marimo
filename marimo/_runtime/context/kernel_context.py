@@ -155,6 +155,7 @@ def create_kernel_context(
         SharedMemoryStorage,
         VirtualFileRegistry,
     )
+    from marimo._save.cache import CacheState
     from marimo._save.stores import get_store
 
     # Use shared memory in edit mode,
@@ -172,7 +173,7 @@ def create_kernel_context(
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
-        cache_store=get_store(kernel.app_metadata.filename),
+        cache=CacheState(store=get_store(kernel.app_metadata.filename)),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=(
             parent.app_kernel_runner_registry

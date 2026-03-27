@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional
 import msgspec
 
 from marimo._ast.cell import CellConfig
+from marimo._messaging.notebook.changes import DocumentChange
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
@@ -19,6 +20,7 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
+    ListSQLSchemasCommand,
     ListSQLTablesCommand,
     ModelCommand,
     PreviewDatasetColumnCommand,
@@ -101,6 +103,15 @@ class ListSQLTablesRequest(ListSQLTablesCommand, tag=False):
             engine=self.engine,
             database=self.database,
             schema=self.schema,
+        )
+
+
+class ListSQLSchemasRequest(ListSQLSchemasCommand, tag=False):
+    def as_command(self) -> ListSQLSchemasCommand:
+        return ListSQLSchemasCommand(
+            request_id=self.request_id,
+            engine=self.engine,
+            database=self.database,
         )
 
 
@@ -240,6 +251,10 @@ class RenameNotebookRequest(msgspec.Struct, rename="camel"):
 
 class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
     cell_ids: list[CellId_t]
+
+
+class NotebookDocumentTransactionRequest(msgspec.Struct, rename="camel"):
+    changes: list[DocumentChange]
 
 
 class FocusCellRequest(msgspec.Struct, rename="camel"):

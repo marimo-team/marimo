@@ -156,7 +156,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         # If database_name is None, the connection might be detached or invalid.
         # We check for existing schemas to verify the connection's validity.
         if database_name is None:
-            schemas_found = self._get_schemas(
+            schemas_found = self.get_schemas(
                 database=None,
                 include_tables=False,
                 include_table_details=False,
@@ -210,7 +210,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         database_name = self.default_database
 
         schemas = (
-            self._get_schemas(
+            self.get_schemas(
                 database=database_name,
                 include_tables=self._resolve_should_auto_discover(
                     include_tables
@@ -232,7 +232,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         )
         return databases
 
-    def _get_schemas(
+    def get_schemas(
         self,
         *,
         database: Optional[str],

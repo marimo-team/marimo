@@ -22,6 +22,7 @@ from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 LOGGER = _loggers.marimo_logger()
@@ -325,11 +326,16 @@ class ExecuteScratchpadCommand(Command):
     Attributes:
         code: Python code to execute.
         request: HTTP request context if available.
+        notebook_cells: Snapshot of notebook cells from the session document.
+            Used to populate the document ContextVar so code_mode can read
+            cell ordering, code, names, and configs.
     """
 
     code: str
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
+    # Document snapshot — set by the execution endpoint from session.document.
+    notebook_cells: Optional[tuple[NotebookCell, ...]] = None
 
 
 class RenameNotebookCommand(Command):
@@ -644,6 +650,23 @@ class ListSQLTablesCommand(Command):
     schema: str
 
 
+class ListSQLSchemasCommand(Command):
+    """List schemas in an SQL database.
+
+    Retrieves names of all schemas in a database. Used by the SQL editor for
+    schema selection.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+        database: Database to query.
+    """
+
+    request_id: RequestId
+    engine: str
+    database: str
+
+
 class ListDataSourceConnectionCommand(Command):
     """List data source schemas.
 
@@ -858,6 +881,7 @@ CommandMessage = Union[
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     ListSQLTablesCommand,
+    ListSQLSchemasCommand,
     ValidateSQLCommand,
     ListDataSourceConnectionCommand,
     # Storage operations

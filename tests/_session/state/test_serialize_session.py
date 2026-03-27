@@ -582,6 +582,24 @@ def test_get_session_cache_file():
         )
 
 
+def test_get_session_cache_file_with_pycache_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    prefix = tmp_path / "prefix"
+    monkeypatch.setattr("sys.pycache_prefix", str(prefix))
+
+    path = tmp_path / "app" / "notebooks" / "notebook.py"
+    cache_file = get_session_cache_file(path)
+    relative_parent = Path(*path.parent.parts[1:])  # strip root
+    assert cache_file == (
+        prefix
+        / relative_parent
+        / "__marimo__"
+        / "session"
+        / "notebook.py.json"
+    )
+
+
 def test_hash_code():
     """Test _hash_code function"""
     assert _hash_code(None) is None

@@ -41,14 +41,14 @@ def type_sign(value: bytes, label: str) -> bytes:
     # TODO: Benchmark something like `sha1 (integrity) + delimiter`, this
     # method is chosen because it was assumed to be fast, but might be slow
     # with a copy of large data.
-    return b"".join([value, bytes(len(value)), bytes(":" + label, "utf-8")])
+    length = struct.pack("!Q", len(value))
+    return b"".join([value, length, bytes(":" + label, "utf-8")])
 
 
 def iterable_sign(value: Iterable[Any], label: str) -> bytes:
     values = list(value)
-    return b"".join(
-        [b"".join(values), bytes(len(values)), bytes(":" + label, "utf-8")]
-    )
+    length = struct.pack("!Q", len(values))
+    return b"".join([b"".join(values), length, bytes(":" + label, "utf-8")])
 
 
 def standardize_tensor(tensor: Tensor) -> Tensor:

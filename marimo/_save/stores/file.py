@@ -6,6 +6,7 @@ from typing import Optional
 
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.stores.store import Store
+from marimo._utils.paths import notebook_output_dir
 
 
 def _valid_path(path: Path) -> bool:
@@ -14,14 +15,22 @@ def _valid_path(path: Path) -> bool:
 
 class FileStore(Store):
     def __init__(self, save_path: Optional[str] = None) -> None:
-        self.save_path = Path(save_path or self._default_save_path())
-        # NB. construction may be called on store import, so do not create
-        # directories until needed.
+        # Defer default path resolution until first use so that the runtime
+        # context (and __file__) is available.
+        self._resolved_save_path: Path | None = (
+            Path(save_path) if save_path is not None else None
+        )
         self._initialized = False
+
+    @property
+    def save_path(self) -> Path:
+        if self._resolved_save_path is None:
+            self._resolved_save_path = self._default_save_path()
+        return self._resolved_save_path
 
     def _default_save_path(self) -> Path:
         if (root := notebook_dir()) is not None:
-            return Path(root / "__marimo__" / "cache")
+            return notebook_output_dir(root) / "cache"
         # This can happen if the notebook file is unnamed.
         return Path("__marimo__", "cache")
 

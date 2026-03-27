@@ -360,7 +360,9 @@ def get_session_cache_file(path: Path) -> Path:
     For example, if the path is `foo/bar/baz.py`, the cache file is
     `foo/bar/__marimo__/session/baz.py.json`.
     """
-    return path.parent / "__marimo__" / "session" / f"{path.name}.json"
+    from marimo._utils.paths import notebook_output_dir
+
+    return notebook_output_dir(path) / "session" / f"{path.name}.json"
 
 
 def _hash_code(code: Optional[str]) -> Optional[str]:

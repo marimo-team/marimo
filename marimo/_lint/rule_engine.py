@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     import logging
     from collections.abc import AsyncIterator
 
+    from marimo._config.config import LintConfig
     from marimo._lint.diagnostic import Diagnostic
     from marimo._lint.rules.base import LintRule
 
@@ -140,9 +141,21 @@ class RuleEngine:
 
     @classmethod
     def create_default(
-        cls, early_stopping: Optional[EarlyStoppingConfig] = None
+        cls,
+        early_stopping: Optional[EarlyStoppingConfig] = None,
+        lint_config: Optional[LintConfig] = None,
     ) -> RuleEngine:
-        """Create a RuleEngine with all default rules."""
-        # TODO: Filter rules based on user configuration if needed
-        rules = [rule() for rule in RULE_CODES.values()]
+        """Create a RuleEngine with rules filtered by configuration.
+
+        Args:
+            early_stopping: Early stopping configuration.
+            lint_config: Optional lint rule selection config. If None,
+                all rules are enabled (backward compatible).
+        """
+        if lint_config is not None:
+            from marimo._lint.rule_selector import resolve_rules
+
+            rules = resolve_rules(lint_config)
+        else:
+            rules = [rule() for rule in RULE_CODES.values()]
         return cls(rules, early_stopping)

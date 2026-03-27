@@ -12,6 +12,8 @@ from marimo._utils.files import async_expand_file_patterns
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from marimo._config.config import LintConfig
+
 
 # Define severity ordering (lower index = higher priority)
 SEVERITY_ORDER = {
@@ -21,6 +23,38 @@ SEVERITY_ORDER = {
 }
 
 
+def resolve_lint_config(
+    select_rules: str | None,
+    ignore_rules: str | None,
+) -> LintConfig | None:
+    """Resolve lint config from config files and CLI overrides."""
+    import os
+
+    from marimo._config.manager import get_default_config_manager
+
+    config_mgr = get_default_config_manager(current_path=os.getcwd())
+    full_config = config_mgr.get_config(hide_secrets=False)
+    lint_config: LintConfig = {
+        k: v
+        for k, v in full_config.get("lint", {}).items()
+        if k in ("select", "ignore")
+    }  # type: ignore[assignment]
+
+    # CLI --select replaces config select entirely
+    if select_rules is not None:
+        lint_config["select"] = [
+            s.strip() for s in select_rules.split(",") if s.strip()
+        ]
+
+    # CLI --ignore appends to config ignore
+    if ignore_rules is not None:
+        parsed = [s.strip() for s in ignore_rules.split(",") if s.strip()]
+        existing = list(lint_config.get("ignore") or [])
+        lint_config["ignore"] = existing + parsed
+
+    return lint_config if lint_config else None
+
+
 def run_check(
     file_patterns: tuple[str, ...],
     pipe: Callable[[str], None] | None = None,
@@ -28,6 +62,7 @@ def run_check(
     unsafe_fixes: bool = False,
     ignore_scripts: bool = False,
     formatter: str = "full",
+    lint_config: LintConfig | None = None,
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -41,6 +76,7 @@ def run_check(
         unsafe_fixes: Whether to enable unsafe fixes that may change behavior
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
         formatter: Output format for diagnostics ("full" or "json")
+        lint_config: Optional lint rule selection config
 
     Returns:
         Linter with per-file status and diagnostics
@@ -54,6 +90,7 @@ def run_check(
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
         formatter=formatter,
+        lint_config=lint_config,
     )
     linter.run_streaming(files_to_check)
     return linter
@@ -116,6 +153,7 @@ __all__ = [
     "EarlyStoppingConfig",
     "RuleEngine",
     "run_check",
+    "resolve_lint_config",
     "collect_messages",
     "Linter",
     "FileStatus",

@@ -58,6 +58,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendDocumentTransaction: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/document/transaction", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     sendRename: (request) => {
       return getClient()
         .POST("/api/kernel/rename", {
@@ -230,6 +239,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     previewSQLTableList: (request) => {
       return getClient()
         .POST("/api/datasources/preview_sql_table_list", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    previewSQLSchemaList: (request) => {
+      return getClient()
+        .POST("/api/datasources/preview_sql_schema_list", {
           body: request,
           params: getParams(),
         })
