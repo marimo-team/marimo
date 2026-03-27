@@ -127,12 +127,12 @@ class EditModeReloadStrategy(ReloadStrategy):
                     )
 
         # Reorder if the lists differ
-        if tuple(cell_ids) != tuple(doc_ids):
+        if tuple(cell_ids) != tuple(doc.cell_ids):
             changes.append(ReorderCells(cell_ids=tuple(cell_ids)))
 
-        # Broadcast transaction — session.notify() applies to
-        # session.document and stamps the version before forwarding.
         if changes:
+            # Broadcast transaction — document.apply() applies to
+            # document and stamps the version before forwarding.
             transaction = Transaction(
                 changes=tuple(changes), source="file-watch"
             )
