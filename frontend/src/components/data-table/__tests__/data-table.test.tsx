@@ -101,6 +101,64 @@ describe("DataTable", () => {
     expect(rows[2]).toHaveAttribute("title", "Jim Halpert");
   });
 
+  it("does not virtualize small datasets without pagination", () => {
+    const testData = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      name: `Item ${i}`,
+    }));
+
+    const columns: ColumnDef<TestData>[] = [
+      { accessorKey: "id", header: "ID" },
+      { accessorKey: "name", header: "Name" },
+    ];
+
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={50}
+          totalColumns={2}
+          pagination={false}
+        />
+      </TooltipProvider>,
+    );
+
+    // All 50 data rows + 1 header row should be in the DOM (no virtualization)
+    const rows = screen.getAllByRole("row");
+    expect(rows).toHaveLength(51);
+  });
+
+  it("renders without errors when virtualizing large datasets", () => {
+    const testData = Array.from({ length: 200 }, (_, i) => ({
+      id: i,
+      name: `Item ${i}`,
+    }));
+
+    const columns: ColumnDef<TestData>[] = [
+      { accessorKey: "id", header: "ID" },
+      { accessorKey: "name", header: "Name" },
+    ];
+
+    // Should not throw — virtualization is active but jsdom has no layout,
+    // so the virtualizer renders based on overscan only.
+    expect(() =>
+      render(
+        <TooltipProvider>
+          <DataTable
+            data={testData}
+            columns={columns}
+            selection={null}
+            totalRows={200}
+            totalColumns={2}
+            pagination={false}
+          />
+        </TooltipProvider>,
+      ),
+    ).not.toThrow();
+  });
+
   it("should display updated data after rerender with manual sorting and pagination", () => {
     // Simulates the bug from issue #8023:
     // When a user sorts a table, rows that moved from page 2 to page 1

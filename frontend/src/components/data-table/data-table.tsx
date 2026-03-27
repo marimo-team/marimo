@@ -295,7 +295,7 @@ const DataTableInternal = <TData,>({
             {showLoadingBar && (
               <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
             )}
-            {renderTableHeader(table, Boolean(maxHeight))}
+            {renderTableHeader(table, virtualize || Boolean(maxHeight))}
             <DataTableBody
               table={table}
               columns={columns}
