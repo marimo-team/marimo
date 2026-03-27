@@ -156,6 +156,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(
             session_view=session.session_view,
+            document=session.document,
             path=session.app_file_manager.path,
             interval=self.interval,
         )
