@@ -753,10 +753,10 @@ class text(UIElement[str, str]):
         on_change: Optional[Callable[[str], None]] = None,
         full_width: bool = False,
     ) -> None:
-        is_password_with_value = kind == "password" and bool(value)
+        self._masked: bool = kind == "password" and bool(value)
         super().__init__(
             component_name=text._name,
-            initial_value="" if is_password_with_value else value,
+            initial_value=value,
             label=label,
             args={
                 "placeholder": placeholder,
@@ -765,32 +765,22 @@ class text(UIElement[str, str]):
                 "full-width": full_width,
                 "disabled": disabled,
                 "debounce": debounce,
-                "password-has-value": is_password_with_value or None,
+                "password-has-value": self._masked or None,
             },
             on_change=on_change,
         )
-        self._masked = is_password_with_value
-        if is_password_with_value:
-            self._value = self._initial_value = value
+
+    def _frontend_initial_value(self, value: str) -> str:
+        if self._masked:
+            return ""
+        return value
 
     def _update(self, value: str) -> None:
-        # While the frontend is in masked state it sends "" (user never typed).
-        # Ignore that to preserve the real backend password. Once the user
-        # sends a non-empty value we unmask, so a subsequent "" (intentional
-        # clear) is accepted normally.
         if self._masked:
             if value == "":
                 return
             self._masked = False
         super()._update(value)
-
-    def _clone(self) -> text:
-        clone = cast("text", super()._clone())
-        # _initialize (called via from_args during deepcopy) resets _value to
-        # "" (the frontend initial value). Restore the real backend password.
-        if clone._masked:
-            clone._value = clone._initial_value = self._value
-        return clone
 
     def _convert_value(self, value: str) -> str:
         return value
