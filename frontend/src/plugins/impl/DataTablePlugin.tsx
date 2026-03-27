@@ -26,7 +26,6 @@ import type { CellSelectionState } from "@/components/data-table/cell-selection/
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
 import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
-import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
 import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
 import {
@@ -35,11 +34,11 @@ import {
 } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { LoadingTable } from "@/components/data-table/loading-table";
-import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
   type DownloadAsArgs,
   DownloadAsSchema,
 } from "@/components/data-table/schemas";
+import { TableExplorerPanel } from "@/components/data-table/table-explorer-panel/table-explorer-panel";
 import {
   type BinValues,
   type ColumnHeaderStats,
@@ -839,7 +838,8 @@ const DataTableComponent = ({
   }): JSX.Element => {
   const id = useId();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
-  const { isPanelOpen, togglePanel } = usePanelOwnership(id, cellId);
+  const { isPanelOpen, isAnyPanelOpen, togglePanel, panelType, setPanelType } =
+    usePanelOwnership(id, cellId);
 
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
@@ -1002,8 +1002,7 @@ const DataTableComponent = ({
   );
 
   const isSelectable = selection === "multi" || selection === "single";
-  const showColExplorer =
-    showColumnExplorer && preview_column && isPanelOpen("column-explorer");
+  const canShowColumnExplorer = showColumnExplorer && !!preview_column;
 
   const isInVscode = isInVscodeExtension();
 
@@ -1032,28 +1031,24 @@ const DataTableComponent = ({
         </Banner>
       )}
 
-      {isPanelOpen("row-viewer") && (
+      {isAnyPanelOpen && (showRowExplorer || canShowColumnExplorer) && (
         <ContextAwarePanelItem>
-          <RowViewerPanel
-            getRow={getRow}
-            fieldTypes={memoizedUnclampedFieldTypes}
-            totalRows={totalRows}
+          <TableExplorerPanel
             rowIdx={viewedRowIdx}
             setRowIdx={setViewedRow}
+            totalRows={totalRows}
+            fieldTypes={memoizedUnclampedFieldTypes}
+            getRow={getRow}
             isSelectable={isSelectable}
             isRowSelected={rowSelection[viewedRowIdx]}
             handleRowSelectionChange={handleRowSelectionChange}
-          />
-        </ContextAwarePanelItem>
-      )}
-      {showColExplorer && (
-        <ContextAwarePanelItem>
-          <ColumnExplorerPanel
             previewColumn={preview_column}
-            fieldTypes={memoizedUnclampedFieldTypes}
-            totalRows={totalRows}
             totalColumns={totalColumns}
             tableId={id}
+            showRowExplorer={showRowExplorer && !isInVscode}
+            showColumnExplorer={canShowColumnExplorer && !isInVscode}
+            activeTab={panelType}
+            onTabChange={setPanelType}
           />
         </ContextAwarePanelItem>
       )}
@@ -1099,11 +1094,13 @@ const DataTableComponent = ({
             showChartBuilder={showChartBuilder}
             showPageSizeSelector={showPageSizeSelector}
             // Hidden in VSCode (for now) because we don't have a panel to show
-            // the column/row explorer.
-            showColumnExplorer={showColumnExplorer && !isInVscode}
-            showRowExplorer={showRowExplorer && !isInVscode}
+            // the table explorer.
+            showTableExplorer={
+              (showRowExplorer || canShowColumnExplorer) && !isInVscode
+            }
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
+            isAnyPanelOpen={isAnyPanelOpen}
             viewedRowIdx={viewedRowIdx}
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
           />

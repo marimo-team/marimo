@@ -13,7 +13,10 @@ import { Logger } from "@/utils/Logger";
 
 interface PanelOwnershipResult {
   isPanelOpen: (panelType: PanelType) => boolean;
-  togglePanel: (panelType: PanelType) => void;
+  isAnyPanelOpen: boolean;
+  togglePanel: (panelType?: PanelType) => void;
+  panelType: PanelType | null;
+  setPanelType: (panelType: PanelType) => void;
 }
 
 export function usePanelOwnership(
@@ -55,24 +58,31 @@ export function usePanelOwnership(
     setPanelOwner(panelId);
   }
 
-  function togglePanel(panelType: PanelType) {
-    if (isPanelOpen(panelType)) {
+  const isAnyPanelOpen = panelOwner === panelId && isContextAwarePanelOpen;
+
+  function togglePanel(requestedType?: PanelType) {
+    if (isAnyPanelOpen) {
       setPanelOwner(null);
       setContextAwarePanelOpen(false);
     } else {
       setPanelOwner(panelId);
-      // if cell-aware, we want to focus on this cell when toggled open
       if (isPanelCellAware && cellId) {
         focusCell({ cellId });
       }
       setContextAwarePanelOpen(true);
-      setPanelType(panelType);
+      // Only set type if explicitly requested or no previous type exists
+      if (requestedType && !panelType) {
+        setPanelType(requestedType);
+      }
     }
   }
 
   return {
     isPanelOpen,
+    isAnyPanelOpen,
     togglePanel,
+    panelType,
+    setPanelType,
   };
 }
 

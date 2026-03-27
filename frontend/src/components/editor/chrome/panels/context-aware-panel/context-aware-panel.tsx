@@ -21,7 +21,12 @@ import {
   isPinnedAtom,
 } from "./atoms";
 
-export type PanelType = "row-viewer" | "column-explorer";
+export const PANEL_TYPES = {
+  ROW_VIEWER: "row-viewer",
+  COLUMN_EXPLORER: "column-explorer",
+} as const;
+
+export type PanelType = (typeof PANEL_TYPES)[keyof typeof PANEL_TYPES];
 
 export const ContextAwarePanel: React.FC = () => {
   const [owner, setOwner] = useAtom(contextAwarePanelOwner);
@@ -95,12 +100,13 @@ export const ContextAwarePanel: React.FC = () => {
 
   const renderBody = () => {
     return (
-      <div className="mt-2 pb-7 mb-4 h-full overflow-auto">
-        <div className="flex flex-row justify-between items-center mx-2">
+      <div className="pb-7 mb-4 h-full overflow-auto">
+        <div className="p-3 border-b flex justify-between items-center">
           {renderModeToggle()}
           <Button
-            variant="linkDestructive"
-            size="icon"
+            variant="text"
+            size="xs"
+            className="m-0"
             onClick={closePanel}
             aria-label="Close selection panel"
           >
@@ -126,7 +132,7 @@ export const ContextAwarePanel: React.FC = () => {
         onDragging={handleDragging}
         className="resize-handle border-border z-20 print:hidden border-l"
       />
-      <Panel defaultSize={20} minSize={15} maxSize={80}>
+      <Panel defaultSize={22} minSize={22} maxSize={80}>
         {renderBody()}
       </Panel>
     </>

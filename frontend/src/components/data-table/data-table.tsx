@@ -24,7 +24,10 @@ import { useLocale } from "react-aria";
 import { Table } from "@/components/ui/table";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import {
+  PANEL_TYPES,
+  type PanelType,
+} from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { CellHoverTemplateFeature } from "./cell-hover-template/feature";
 import { CellHoverTextFeature } from "./cell-hover-text/feature";
 import { CellSelectionFeature } from "./cell-selection/feature";
@@ -92,10 +95,10 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Others
   showChartBuilder?: boolean;
   showPageSizeSelector?: boolean;
-  showColumnExplorer?: boolean;
-  showRowExplorer?: boolean;
+  showTableExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
+  isAnyPanelOpen?: boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -137,10 +140,10 @@ const DataTableInternal = <TData,>({
   toggleDisplayHeader,
   showChartBuilder,
   showPageSizeSelector,
-  showColumnExplorer,
-  showRowExplorer,
+  showTableExplorer,
   togglePanel,
   isPanelOpen,
+  isAnyPanelOpen,
   viewedRowIdx,
   onViewedRowChange,
 }: DataTableProps<TData>) => {
@@ -267,7 +270,7 @@ const DataTableInternal = <TData,>({
     },
   });
 
-  const rowViewerPanelOpen = isPanelOpen?.("row-viewer") ?? false;
+  const rowViewerPanelOpen = isPanelOpen?.(PANEL_TYPES.ROW_VIEWER) ?? false;
 
   const tableRef = React.useRef<HTMLTableElement | null>(null);
 
@@ -345,10 +348,9 @@ const DataTableInternal = <TData,>({
         toggleDisplayHeader={toggleDisplayHeader}
         showChartBuilder={showChartBuilder}
         showPageSizeSelector={showPageSizeSelector}
-        showColumnExplorer={showColumnExplorer}
-        showRowExplorer={showRowExplorer}
+        showTableExplorer={showTableExplorer}
         togglePanel={togglePanel}
-        isPanelOpen={isPanelOpen}
+        isAnyPanelOpen={isAnyPanelOpen}
         tableLoading={reloading}
       />
     </div>
