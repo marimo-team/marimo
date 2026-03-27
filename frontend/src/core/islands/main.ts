@@ -113,7 +113,6 @@ export async function initialize() {
       case "installing-package-alert":
       case "completion-result":
       case "reload":
-      case "update-cell-codes":
       case "update-cell-ids":
       case "focus-cell":
       case "variables":

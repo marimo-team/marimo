@@ -97,7 +97,7 @@ export function useMarimoKernelConnection(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const { handleCellMessage, setCellIds } = useCellActions();
   const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
 
   const handleDocumentTransaction = (
@@ -327,15 +327,6 @@ export function useMarimoKernelConnection(opts: {
 
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
-        return;
-      case "update-cell-codes":
-        setCellCodes({
-          codes: msg.data.codes,
-          ids: msg.data.cell_ids,
-          codeIsStale: msg.data.code_is_stale,
-          names: msg.data.names,
-          configs: msg.data.configs,
-        });
         return;
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids });
