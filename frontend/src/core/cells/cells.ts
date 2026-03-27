@@ -589,7 +589,9 @@ const {
     const serializedEditorState = editorView?.state.toJSON({
       history: historyField,
     });
-    serializedEditorState.doc = state.cellData[cellId].code;
+    if (serializedEditorState) {
+      serializedEditorState.doc = state.cellData[cellId].code;
+    }
 
     // release the granular atom(s) created for this cell
     releaseCellAtoms(cellId);
