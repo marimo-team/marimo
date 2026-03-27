@@ -49,15 +49,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    syncCellIds: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/sync/cell_ids", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendDocumentTransaction: async (request) => {
       await waitForConnectionOpen();
       return getClient()

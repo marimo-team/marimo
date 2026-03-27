@@ -311,7 +311,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.QueryParamsAppendNotification,
         notifications.QueryParamsDeleteNotification,
         notifications.QueryParamsClearNotification,
-        notifications.UpdateCellIdsNotification,
         notifications.FocusCellNotification,
         notifications.NotificationMessage,
         # ai
@@ -433,7 +432,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.SuccessResponse,
         models.UpdateCellConfigRequest,
-        models.UpdateCellIdsRequest,
         models.NotebookDocumentTransactionRequest,
         models.FocusCellRequest,
         models.UpdateUIElementValuesRequest,

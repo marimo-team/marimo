@@ -224,18 +224,12 @@ def _collect_raster_targets(session_view: SessionView) -> list[_RasterTarget]:
 
 
 def _sort_targets_by_notebook_order(
-    session_view: SessionView,
+    cell_ids: list[CellId_t],
     targets: list[_RasterTarget],
 ) -> list[_RasterTarget]:
     """Sort targets in notebook order so capture sequencing is deterministic."""
 
-    if session_view.cell_ids is None:
-        return targets
-
-    order = {
-        cell_id: index
-        for index, cell_id in enumerate(session_view.cell_ids.cell_ids)
-    }
+    order = {cell_id: index for index, cell_id in enumerate(cell_ids)}
     fallback_index = len(order)
     return sorted(
         targets,
@@ -438,7 +432,9 @@ async def collect_pdf_png_fallbacks(
         LOGGER.debug("Raster capture skipped: no eligible outputs found.")
         return {}
 
-    targets = _sort_targets_by_notebook_order(session_view, targets)
+    targets = _sort_targets_by_notebook_order(
+        list(app.cell_manager.cell_ids()), targets
+    )
     server_mode = options.server_mode.lower()
     if server_mode not in {"static", "live"}:
         LOGGER.warning(

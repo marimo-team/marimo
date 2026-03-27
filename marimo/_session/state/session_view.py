@@ -26,7 +26,6 @@ from marimo._messaging.notification import (
     StartupLogsNotification,
     StorageNamespacesNotification,
     UIElementMessageNotification,
-    UpdateCellIdsNotification,
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
@@ -132,7 +131,6 @@ class SessionView:
     """A representation of a session state for replay and serialization.
 
     Of note, a SessionView stores:
-    * the last-seen notebook-order of Cell IDs
     * a mapping from cell IDs to their last seen notification of interest,
       such as an output, status, or console output
     * various other state needed for replay
@@ -143,8 +141,6 @@ class SessionView:
     """
 
     def __init__(self) -> None:
-        # Last seen notebook-order of cell IDs
-        self.cell_ids: Optional[UpdateCellIdsNotification] = None
         # A mapping from cell (IDs) to their last seen notification
         self.cell_notifications: dict[CellId_t, CellNotification] = {}
         # The most recent datasets notification.
@@ -387,9 +383,6 @@ class SessionView:
                 sql_table_list_preview.tables,
             )
 
-        elif isinstance(notification, UpdateCellIdsNotification):
-            self.cell_ids = notification
-
         elif isinstance(notification, UIElementMessageNotification):
             # TODO: Consider reducing to a single message per element
             # (similar to ModelReplayState) instead of keeping the full
@@ -536,8 +529,6 @@ class SessionView:
     @property
     def notifications(self) -> list[NotificationMessage]:
         all_notifications: list[NotificationMessage] = []
-        if self.cell_ids:
-            all_notifications.append(self.cell_ids)
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
         if self.variable_values:

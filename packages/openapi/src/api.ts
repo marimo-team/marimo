@@ -2526,47 +2526,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/sync/cell_ids": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellIdsRequest"];
-        };
-      };
-      responses: {
-        /** @description Sync cell ids */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/takeover": {
     parameters: {
       query?: never;
@@ -4886,7 +4845,6 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"];
     };
     /**
@@ -6427,22 +6385,6 @@ export interface components {
       configs: {
         [key: string]: Record<string, any>;
       };
-    };
-    /**
-     * UpdateCellIdsNotification
-     * @description Updates cell ordering in notebook.
-     *
-     *         Attributes:
-     *             cell_ids: Complete ordered list of cell IDs.
-     */
-    UpdateCellIdsNotification: {
-      cell_ids: components["schemas"]["CellId"][];
-      /** @enum {unknown} */
-      op: "update-cell-ids";
-    };
-    /** UpdateCellIdsRequest */
-    UpdateCellIdsRequest: {
-      cellIds: string[];
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {

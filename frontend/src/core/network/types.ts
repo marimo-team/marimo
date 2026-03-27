@@ -80,7 +80,6 @@ export interface SetCellConfigRequest {
 }
 export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
 export type ModelRequest = schemas["ModelRequest"];
-export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
 export type NotebookDocumentTransactionRequest =
   schemas["NotebookDocumentTransactionRequest"];
 export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
@@ -140,7 +139,6 @@ export interface EditRequests {
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
   saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
-  syncCellIds: (request: UpdateCellIdsRequest) => Promise<null>;
   sendDocumentTransaction: (
     request: NotebookDocumentTransactionRequest,
   ) => Promise<null>;
