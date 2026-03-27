@@ -40,6 +40,13 @@ AI_SDK_VERSION: Final[Literal[5, 6]] = 6
 DONE_CHUNK: Final[str] = "[DONE]"
 
 
+def require_vercel_ai_sdk_support() -> None:
+    """Only Pydantic AI >=1.52.0 supports AI SDK v6. So, we require it."""
+    DependencyManager.pydantic_ai.require_at_version(
+        why="for Vercel AI SDK support", min_version="1.52.0"
+    )
+
+
 @dataclass
 class SendMessageRequest:
     messages: list[ChatMessage]
@@ -413,9 +420,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         part_validator_class = None
         if DependencyManager.pydantic_ai.imported():
-            from pydantic_ai.ui.vercel_ai.request_types import (
-                UIMessagePart,
-            )
+            require_vercel_ai_sdk_support()
+            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
 
             # The frontend sends messages as ChatMessage parts so we use pydantic-ai to cast them
             # as Vercel UIMessagePart
@@ -466,20 +472,15 @@ class ChunkSerializer:
 
         # Handle Pydantic AI's Vercel AI SDK chunks
         if DependencyManager.pydantic_ai.imported():
+            require_vercel_ai_sdk_support()
             from pydantic_ai.ui.vercel_ai.response_types import (
                 BaseChunk,
             )
 
             if isinstance(chunk, BaseChunk):
-                try:
-                    serialized = json.loads(
-                        chunk.encode(sdk_version=AI_SDK_VERSION)
-                    )
-                except TypeError:
-                    # Fallback for pydantic-ai < 1.52.0 which doesn't have sdk_version param
-                    serialized = chunk.model_dump(
-                        mode="json", by_alias=True, exclude_none=True
-                    )
+                serialized = json.loads(
+                    chunk.encode(sdk_version=AI_SDK_VERSION)
+                )
                 self.on_send_chunk(serialized)
                 return
 

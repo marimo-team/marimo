@@ -25,7 +25,10 @@ from marimo._ai._pydantic_ai_utils import (
     generate_id,
 )
 from marimo._dependencies.dependencies import Dependency, DependencyManager
-from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION
+from marimo._plugins.ui._impl.chat.chat import (
+    AI_SDK_VERSION,
+    require_vercel_ai_sdk_support,
+)
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
@@ -98,10 +101,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             *(deps or []),
             source="server",
         )
-
-        DependencyManager.pydantic_ai.require_at_version(
-            "for Vercel AI SDK support", min_version="1.52.0"
-        )
+        require_vercel_ai_sdk_support()
 
         self.model = model
         self.config = config
