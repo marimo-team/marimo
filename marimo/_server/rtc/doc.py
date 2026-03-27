@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._server.file_router import MarimoFileKey
-from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from loro import LoroDoc
@@ -21,86 +20,62 @@ class LoroDocManager:
         self.loro_docs_clients: dict[
             MarimoFileKey, set[asyncio.Queue[bytes]]
         ] = {}
-        self.loro_docs_cleaners: dict[
-            MarimoFileKey, Optional[asyncio.Task[None]]
-        ] = {}
+        # Hold subscription references to prevent garbage collection
+        self._subscriptions: dict[MarimoFileKey, object] = {}
 
-    async def _clean_loro_doc(
-        self, file_key: MarimoFileKey, timeout: float = 60
-    ) -> None:
-        """Clean up a loro doc if no clients are connected."""
-        try:
-            await asyncio.sleep(timeout)
-            async with self.loro_docs_lock:
-                if (
-                    file_key in self.loro_docs_clients
-                    and len(self.loro_docs_clients[file_key]) == 0
-                ):
-                    LOGGER.debug(
-                        f"RTC: Removing loro doc for file {file_key} as it has no clients"
-                    )
-                    # Clean up the document
-                    await self._do_remove_doc(file_key)
-        except asyncio.CancelledError:
-            # Task was cancelled due to client reconnection
-            LOGGER.debug(
-                f"RTC: clean_loro_doc task cancelled for file {file_key} - likely due to reconnection"
-            )
-            pass
-
-    async def create_doc(
+    async def register_doc(
         self,
         file_key: MarimoFileKey,
-        cell_ids: tuple[CellId_t, ...],
-        codes: tuple[str, ...],
-    ) -> LoroDoc:
-        """Create a new loro doc."""
-        from loro import LoroDoc, LoroText
+        doc: LoroDoc,
+    ) -> None:
+        """Register an existing LoroDoc (owned by a session's NotebookDocument).
 
-        assert len(cell_ids) == len(codes), (
-            "cell_ids and codes must be the same length"
-        )
-
+        The session creates the LoroDoc at init time and the document
+        model owns it for the lifetime of the session.  This method
+        makes the same doc available for RTC client connections and
+        subscribes to local updates so that server-originated changes
+        (e.g. SetCode from kernel or file-watch) are broadcast to all
+        connected RTC clients.
+        """
         async with self.loro_docs_lock:
             if file_key in self.loro_docs:
-                return self.loro_docs[file_key]
-
-            LOGGER.debug(f"RTC: Initializing LoroDoc for file {file_key}")
-            doc = LoroDoc()  # type: ignore[no-untyped-call]
+                LOGGER.debug(
+                    f"RTC: LoroDoc already registered for file {file_key}"
+                )
+                return
+            # Ensure the languages map exists for the frontend
+            doc.get_map("languages")
+            LOGGER.debug(f"RTC: Registered LoroDoc for file {file_key}")
             self.loro_docs[file_key] = doc
 
-            # Add all cell code to the doc
-            doc_codes = doc.get_map("codes")
-            doc.get_map("languages")
-            for cell_id, code in zip(cell_ids, codes):
-                cell_text = LoroText()  # type: ignore[no-untyped-call]
-                cell_text.insert(0, code)
-                doc_codes.insert_container(cell_id, cell_text)
+            # Broadcast server-side Loro mutations to RTC clients.
+            # The callback fires synchronously on doc.commit() — we
+            # enqueue directly into client queues (non-blocking).
+            def _on_local_update(update: bytes) -> bool:
+                clients = self.loro_docs_clients.get(file_key, set())
+                for client in clients:
+                    try:
+                        client.put_nowait(update)
+                    except asyncio.QueueFull:
+                        LOGGER.warning(
+                            "RTC: client queue full, dropping update"
+                        )
+                return True  # keep subscription alive
 
-                # We don't set the language here because it will be set
-                # when the client connects for the first time.
-        return doc
+            self._subscriptions[file_key] = doc.subscribe_local_update(
+                _on_local_update
+            )
 
-    async def get_or_create_doc(self, file_key: MarimoFileKey) -> LoroDoc:
-        """Get or create a loro doc for a file key."""
-        from loro import LoroDoc
+    async def get_doc(self, file_key: MarimoFileKey) -> LoroDoc:
+        """Get the LoroDoc registered for *file_key*.
 
+        Raises ``KeyError`` if no doc has been registered via
+        ``register_doc``.
+        """
         async with self.loro_docs_lock:
-            if file_key in self.loro_docs:
-                doc = self.loro_docs[file_key]
-                # Cancel existing cleaner task if it exists
-                cleaner = self.loro_docs_cleaners.get(file_key, None)
-                if cleaner is not None:
-                    LOGGER.debug(
-                        f"RTC: Cancelling existing cleaner for file {file_key}"
-                    )
-                    cleaner.cancel()
-                    self.loro_docs_cleaners[file_key] = None
-            else:
-                LOGGER.warning(f"RTC: Expected loro doc for file {file_key}")
-                doc = LoroDoc()  # type: ignore[no-untyped-call]
-                self.loro_docs[file_key] = doc
-        return doc
+            if file_key not in self.loro_docs:
+                raise KeyError(f"No LoroDoc registered for file {file_key!r}")
+            return self.loro_docs[file_key]
 
     def add_client_to_doc(
         self, file_key: MarimoFileKey, update_queue: asyncio.Queue[bytes]
@@ -115,7 +90,7 @@ class LoroDocManager:
         self,
         file_key: MarimoFileKey,
         message: bytes,
-        exclude_queue: Optional[asyncio.Queue[bytes]] = None,
+        exclude_queue: asyncio.Queue[bytes] | None = None,
     ) -> None:
         """Broadcast an update to all clients except the excluded queue."""
         clients = self.loro_docs_clients[file_key]
@@ -129,39 +104,23 @@ class LoroDocManager:
         file_key: MarimoFileKey,
         update_queue: asyncio.Queue[bytes],
     ) -> None:
-        """Clean up a loro client and potentially the doc if no clients remain."""
-        should_create_cleaner = False
+        """Remove an RTC client queue.
 
+        The LoroDoc itself is *not* cleaned up when clients disconnect —
+        it is owned by the session's ``NotebookDocument`` and lives for
+        the session's lifetime.  Only the client tracking set is updated.
+        """
         async with self.loro_docs_lock:
             if file_key not in self.loro_docs_clients:
                 return
-
-            self.loro_docs_clients[file_key].remove(update_queue)
-            # If no clients are connected, set up a cleaner task
-            if len(self.loro_docs_clients[file_key]) == 0:
-                # Remove any existing cleaner
-                cleaner = self.loro_docs_cleaners.get(file_key, None)
-                if cleaner is not None:
-                    cleaner.cancel()
-                self.loro_docs_cleaners[file_key] = None
-                should_create_cleaner = True
-
-        # Create the cleaner task outside the lock to avoid deadlocks
-        if should_create_cleaner:
-            self.loro_docs_cleaners[file_key] = asyncio.create_task(
-                self._clean_loro_doc(file_key, 60.0)
-            )
-
-    async def _do_remove_doc(self, file_key: MarimoFileKey) -> None:
-        """Actual implementation of removing a doc, separate from remove_doc to avoid deadlocks."""
-        if file_key in self.loro_docs:
-            del self.loro_docs[file_key]
-        if file_key in self.loro_docs_clients:
-            del self.loro_docs_clients[file_key]
-        if file_key in self.loro_docs_cleaners:
-            del self.loro_docs_cleaners[file_key]
+            self.loro_docs_clients[file_key].discard(update_queue)
 
     async def remove_doc(self, file_key: MarimoFileKey) -> None:
-        """Remove a loro doc and all associated clients"""
+        """Unregister a LoroDoc and all associated client queues.
+
+        Called when the session closes.
+        """
         async with self.loro_docs_lock:
-            await self._do_remove_doc(file_key)
+            self.loro_docs.pop(file_key, None)
+            self.loro_docs_clients.pop(file_key, None)
+            self._subscriptions.pop(file_key, None)
