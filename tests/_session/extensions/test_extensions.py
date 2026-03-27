@@ -465,7 +465,7 @@ class TestReplayExtension:
         )
         extension.on_received_command(mock_session, cmd, None)
 
-        assert mock_session.notify.call_count == 2
+        assert mock_session.notify.call_count == 1
         extension.on_detach()
 
     def test_sync_graph_command_replayed(
@@ -486,7 +486,7 @@ class TestReplayExtension:
         )
         extension.on_received_command(mock_session, cmd, None)
 
-        assert mock_session.notify.call_count == 2
+        assert mock_session.notify.call_count == 1
         extension.on_detach()
 
     def test_other_commands_not_replayed(

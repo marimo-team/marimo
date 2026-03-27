@@ -26,7 +26,6 @@ from marimo._messaging.notification import (
     StartupLogsNotification,
     StorageNamespacesNotification,
     UIElementMessageNotification,
-    UpdateCellCodesNotification,
     UpdateCellIdsNotification,
     VariablesNotification,
     VariableValue,
@@ -170,8 +169,6 @@ class SessionView:
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
-        # Any stale code that was read from a file-watcher
-        self.stale_code: Optional[UpdateCellCodesNotification] = None
         # Aggregated model state — one snapshot per live model.
         # Updates merge in; close removes the entry.
         self.model_states: dict[WidgetModelId, ModelReplayState] = {}
@@ -393,12 +390,6 @@ class SessionView:
         elif isinstance(notification, UpdateCellIdsNotification):
             self.cell_ids = notification
 
-        elif (
-            isinstance(notification, UpdateCellCodesNotification)
-            and notification.code_is_stale
-        ):
-            self.stale_code = notification
-
         elif isinstance(notification, UIElementMessageNotification):
             # TODO: Consider reducing to a single message per element
             # (similar to ModelReplayState) instead of keeping the full
@@ -572,8 +563,6 @@ class SessionView:
                 all_notifications.extend(ui_messages)
 
         all_notifications.extend(self.cell_notifications.values())
-        if self.stale_code:
-            all_notifications.append(self.stale_code)
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)

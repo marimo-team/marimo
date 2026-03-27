@@ -2571,7 +2571,6 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
-          - $ref: '#/components/schemas/UpdateCellCodesNotification'
           - $ref: '#/components/schemas/UpdateCellIdsNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           discriminator:
@@ -2611,7 +2610,6 @@ components:
               storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
               storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
-              update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
               update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
               validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
               variable-values: '#/components/schemas/VariableValuesNotification'
@@ -5073,44 +5071,6 @@ components:
       - type
       - msg
       title: UnknownError
-      type: object
-    UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
-        \n    Attributes:\n        cell_ids: Cells to update.\n        codes: New\
-        \ code for each cell.\n        code_is_stale: If True, code was not executed\
-        \ on backend (output may not match).\n        names: Cell names for each cell\
-        \ (optional, for file reload).\n        configs: Cell configs for each cell\
-        \ (optional, for file reload)."
-      properties:
-        cell_ids:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        code_is_stale:
-          type: boolean
-        codes:
-          items:
-            type: string
-          type: array
-        configs:
-          default: []
-          items:
-            $ref: '#/components/schemas/CellConfig'
-          type: array
-        names:
-          default: []
-          items:
-            type: string
-          type: array
-        op:
-          enum:
-          - update-cell-codes
-      required:
-      - op
-      - cell_ids
-      - codes
-      - code_is_stale
-      title: UpdateCellCodesNotification
       type: object
     UpdateCellConfigCommand:
       description: "Update cell configuration.\n\n    Updates cell-level settings\

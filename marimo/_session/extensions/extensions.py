@@ -430,7 +430,6 @@ class ReplayExtension(SessionExtension, SessionEventListener):
         """Called when a command is received."""
         from marimo._messaging.notification import (
             FocusCellNotification,
-            UpdateCellCodesNotification,
         )
         from marimo._runtime.commands import (
             ExecuteCellsCommand,
@@ -444,22 +443,8 @@ class ReplayExtension(SessionExtension, SessionEventListener):
         # Collect cell ids and codes
         if isinstance(request, ExecuteCellsCommand):
             cell_ids = request.cell_ids
-            codes = request.codes
         else:
             cell_ids = request.run_ids
-            codes = [request.cells[cell_id] for cell_id in cell_ids]
-
-        # Send update cell codes notification
-        if cell_ids:
-            session.notify(
-                UpdateCellCodesNotification(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    # Not stale because we just ran the code
-                    code_is_stale=False,
-                ),
-                from_consumer_id=from_consumer_id,
-            )
 
         # Send focus cell notification
         if len(cell_ids) == 1:

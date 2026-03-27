@@ -311,7 +311,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notifications.QueryParamsAppendNotification,
         notifications.QueryParamsDeleteNotification,
         notifications.QueryParamsClearNotification,
-        notifications.UpdateCellCodesNotification,
         notifications.UpdateCellIdsNotification,
         notifications.FocusCellNotification,
         notifications.NotificationMessage,

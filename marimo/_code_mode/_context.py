@@ -55,7 +55,6 @@ from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     Notification,
-    UpdateCellCodesNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
@@ -318,19 +317,6 @@ class AsyncCodeModeContext:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
-            # run_cell was called without any structural ops — just re-run.
-            # Notify the frontend that these cells are no longer stale so
-            # it clears edited/lastCodeRun (covers the two-step pattern:
-            # edit_cell in one flush, run_cell in a separate flush).
-            valid = cells_to_run & set(self.graph.cells.keys())
-            if valid:
-                self.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=list(valid),
-                        codes=[self.graph.cells[cid].code for cid in valid],
-                        code_is_stale=False,
-                    )
-                )
             await self._kernel._run_cells(cells_to_run)
 
         # Flush queued UI updates as a single batch.
