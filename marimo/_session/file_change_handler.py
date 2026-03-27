@@ -152,7 +152,7 @@ class EditModeReloadStrategy(ReloadStrategy):
                 SyncGraphCommand(
                     cells=dict(zip(cell_ids, codes)),
                     run_ids=changed_not_deleted,
-                    delete_ids=list(deleted),
+                    delete_ids=sorted(deleted),
                 ),
                 from_consumer_id=None,
             )
@@ -163,7 +163,7 @@ class EditModeReloadStrategy(ReloadStrategy):
                 SyncGraphCommand(
                     cells=dict(zip(cell_ids, codes)),
                     run_ids=[],
-                    delete_ids=list(deleted),
+                    delete_ids=sorted(deleted),
                 ),
                 from_consumer_id=None,
             )

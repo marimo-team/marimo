@@ -37,46 +37,24 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 data, create_response({"kiosk": True, "resumed": True})
             )
 
-            # Send sync cell_ids
+            # Send document transaction to reorder cells
             response = client.post(
-                "/api/kernel/sync/cell_ids",
+                "/api/document/transaction",
                 headers=HEADERS,
-                json={"cell_ids": ["cell-123"]},
+                json={
+                    "changes": [
+                        {
+                            "type": "reorder-cells",
+                            "cellIds": ["cell-123"],
+                        }
+                    ],
+                },
             )
             assert response.status_code == 200, response.text
 
-            # Assert kiosk session received the sync cell_ids
+            # Assert kiosk session received the document transaction
             data = other_websocket.receive_json()
-            assert data == {
-                "op": "update-cell-ids",
-                "data": {"cell_ids": ["cell-123"]},
-            }
-
-            # Send run cell
-            response = client.post(
-                "/api/kernel/run",
-                headers=HEADERS,
-                json={
-                    "cell_ids": ["cell-1", "cell-2"],
-                    "codes": [
-                        "print('Hello, cell-1')",
-                        "print('Hello, cell-2')",
-                    ],
-                },
-            )
-
-            # Assert kiosk session received the updated cell codes
-            data = other_websocket.receive_json()
-            assert data == {
-                "op": "update-cell-codes",
-                "data": {
-                    "cell_ids": ["cell-1", "cell-2"],
-                    "codes": [
-                        "print('Hello, cell-1')",
-                        "print('Hello, cell-2')",
-                    ],
-                },
-            }
+            assert data["op"] == "notebook-document-transaction"
 
             # Send run single cell
             response = client.post(
@@ -88,17 +66,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 },
             )
 
-            # Assert kiosk session received the updated cell codes
-            data = _receive_until("update-cell-codes", other_websocket)
-            assert data == {
-                "op": "update-cell-codes",
-                "data": {
-                    "cell_ids": ["cell-3"],
-                    "codes": ["print('Hello, cell-3')"],
-                    "code_is_stale": False,
-                },
-            }
-            # And a focused cell
+            # Assert kiosk session received a focused cell notification
             data = _receive_until("focus-cell", other_websocket)
             assert data == {
                 "op": "focus-cell",

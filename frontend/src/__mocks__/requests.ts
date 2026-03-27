@@ -17,7 +17,6 @@ export const MockRequestClient = {
       sendModelValue: vi.fn().mockResolvedValue({}),
       sendRename: vi.fn().mockResolvedValue({}),
       sendRestart: vi.fn().mockResolvedValue({}),
-      syncCellIds: vi.fn().mockResolvedValue({}),
       sendDocumentTransaction: vi.fn().mockResolvedValue({}),
       sendSave: vi.fn().mockResolvedValue({}),
       sendCopy: vi.fn().mockResolvedValue({}),

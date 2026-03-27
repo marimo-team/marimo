@@ -1521,22 +1521,6 @@ components:
       - msg
       title: UnknownError
       type: object
-    UpdateCellIdsNotification:
-      description: "Updates cell ordering in notebook.\n\nAttributes:\n    cell_ids:\
-        \ Complete ordered list of cell IDs."
-      properties:
-        cell_ids:
-          items:
-            type: string
-          type: array
-        op:
-          enum:
-          - update-cell-ids
-      required:
-      - op
-      - cell_ids
-      title: UpdateCellIdsNotification
-      type: object
     ValidateSQLResultNotification:
       description: "SQL query validation result.\n\nAttributes:\n    request_id: Request\
         \ ID this responds to.\n    parse_result: SQL parsing result.\n    validate_result:\

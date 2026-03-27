@@ -33,14 +33,8 @@ class MockConsoleOutput:
 
 
 @dataclass
-class MockUpdateCellIdsRequest:
-    cell_ids: list[str]
-
-
-@dataclass
 class MockSessionView:
     cell_notifications: dict | None = None
-    cell_ids: MockUpdateCellIdsRequest | None = None
 
     def __post_init__(self) -> None:
         if self.cell_notifications is None:
