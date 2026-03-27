@@ -776,6 +776,10 @@ class text(UIElement[str, str]):
         return value
 
     def _update(self, value: str) -> None:
+        # While the frontend is in masked state it sends "" (user never typed).
+        # Ignore that to preserve the real backend password. Once the user
+        # sends a non-empty value we unmask, so a subsequent "" (intentional
+        # clear) is accepted normally.
         if self._masked:
             if value == "":
                 return
