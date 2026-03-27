@@ -191,7 +191,7 @@ jobs:
         run: |
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
-            -n auto \
+            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
             -k "not test_cli" \
             --durations=10 \
             -p packages.pytest_changed \
@@ -206,7 +206,7 @@ jobs:
         run: |
           uv run --python ${{ matrix.python-version }} --group test-optional pytest tests/ \
             -v \
-            -n auto \
+            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
             -k "not test_cli" \
             --durations=10 \
             -p packages.pytest_changed \
@@ -223,7 +223,7 @@ jobs:
         run: |
           uv run --python ${{ matrix.python-version }} --group test pytest tests/ \
             -v \
-            -n auto \
+            ${{ matrix.os != 'windows-latest' && '-n auto' || '-p no:xdist' }} \
             -k "not test_cli" \
             --durations=10 \
             -p packages.pytest_changed \

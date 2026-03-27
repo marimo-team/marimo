@@ -95,16 +95,35 @@ def _ensure_main_has_file() -> Generator[None, None, None]:
     tests that rely on __file__ being a real path.
     """
     main = sys.modules.get("__main__")
-    if main is not None and not hasattr(main, "__file__"):
-        # Use the pytest executable path, matching what normal pytest sets
-        main.__file__ = str(Path(sys.executable).parent / "pytest")
-        try:
-            yield
-        finally:
-            if hasattr(main, "__file__"):
-                del main.__file__
-    else:
+    if main is None:
         yield
+        return
+
+    had_file_attr = hasattr(main, "__file__")
+    original_file = getattr(main, "__file__", None)
+
+    if not had_file_attr or original_file is None:
+        # Find a valid pytest path: prefer shutil.which, fall back to
+        # sys.argv[0], then construct one from sys.executable.
+        pytest_path = shutil.which("pytest")
+        if pytest_path and Path(pytest_path).exists():
+            new_file = pytest_path
+        elif sys.argv and sys.argv[0] and Path(sys.argv[0]).exists():
+            new_file = sys.argv[0]
+        else:
+            new_file = str(Path(sys.executable).parent / "pytest")
+        main.__file__ = new_file
+
+    try:
+        yield
+    finally:
+        current_main = sys.modules.get("__main__")
+        if current_main is not None:
+            if had_file_attr:
+                # Restore the original value (which may be None)
+                current_main.__file__ = original_file
+            elif hasattr(current_main, "__file__"):
+                del current_main.__file__
 
 
 @pytest.fixture(autouse=True)

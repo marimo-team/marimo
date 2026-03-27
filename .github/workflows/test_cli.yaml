@@ -153,7 +153,7 @@ jobs:
         run: |
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl
-          uv run --no-project pytest -v tests/_cli/test_cli* -n auto --maxfail=2
+          uv run --no-project pytest -v tests/_cli/test_cli* -p no:xdist --maxfail=2
 
   test_examples:
     needs: [changes]
