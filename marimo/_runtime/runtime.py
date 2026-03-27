@@ -63,6 +63,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.notebook.changes import ReorderCells, Transaction
 from marimo._messaging.notebook.document import (
     NotebookDocument,
     notebook_document_context,
@@ -77,6 +78,7 @@ from marimo._messaging.notification import (
     HumanReadableStatus,
     InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
+    NotebookDocumentTransactionNotification,
     PackageStatusType,
     RemoveUIElementsNotification,
     SecretKeysResultNotification,
@@ -2150,6 +2152,15 @@ class Kernel:
             del request
             LOGGER.info("App is already instantiated, skipping instantiation.")
             return
+
+        broadcast_notification(
+            NotebookDocumentTransactionNotification(
+                transaction=Transaction(
+                    changes=(ReorderCells(cell_ids=tuple(request.cell_ids)),),
+                    source="kernel",
+                )
+            )
+        )
 
         # Handle markdown cells specially during kernel-ready initialization
         execution_requests = {
