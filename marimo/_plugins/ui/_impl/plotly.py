@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import numbers
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1191,26 +1192,7 @@ def _build_histogram_sample_point(
     if paired_axis_value is not None:
         point[paired_axis_key] = paired_axis_value
 
-    name = getattr(trace, "name", None)
-    if name:
-        point["name"] = name
-
-    customdata = _get_indexed_value(
-        getattr(trace, "customdata", None), point_idx
-    )
-    if customdata is not None:
-        point["customdata"] = customdata
-
-    text = _get_indexed_value(getattr(trace, "text", None), point_idx)
-    if text is not None:
-        point["text"] = text
-
-    hovertext = _get_indexed_value(
-        getattr(trace, "hovertext", None), point_idx
-    )
-    if hovertext is not None:
-        point["hovertext"] = hovertext
-
+    _add_trace_point_metadata(point, trace, point_idx)
     return point
 
 
@@ -1248,25 +1230,30 @@ def _append_bar_items_to_selection(
     bar_items = _extract_bars_from_range(
         figure, cast(dict[str, Any], range_value)
     )
-    existing_points = [p for p in selection_data.get("points", []) if p]
-    existing_indices = selection_data.get("indices", [])
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
 
-    if not existing_points and not bar_items:
+    if not any(all_points) and not bar_items:
         return
 
     seen: set[tuple[int, int]] = set()
     merged_points: list[dict[str, Any]] = []
     merged_indices: list[int] = []
 
-    for idx, point in enumerate(existing_points):
+    for point_idx, point in enumerate(all_points):
+        if not point:
+            continue
+
         point_id = _get_selection_point_id(point)
         if point_id is not None:
             if point_id in seen:
                 continue
             seen.add(point_id)
         merged_points.append(point)
-        if idx < len(existing_indices):
-            merged_indices.append(existing_indices[idx])
+        if point_idx < len(all_indices) and isinstance(
+            all_indices[point_idx], int
+        ):
+            merged_indices.append(all_indices[point_idx])
         elif point_id is not None:
             merged_indices.append(point_id[1])
 
@@ -1334,18 +1321,27 @@ def _extract_bars_numpy(
         x_arr = np.asarray(x_data)
         y_arr = np.asarray(y_data)
 
+        # For vertical bars: filter by x-axis position
+        # For horizontal bars: filter by y-axis position (swap roles)
         if orientation == "v":
+            # Vertical bars: x-axis determines which bars are selected
+            # y-axis is the value (we don't filter by it, similar to Altair)
             position_data = x_arr
             value_data = y_arr
             pos_min, pos_max = x_min, x_max
             value_min, value_max = y_min, y_max
         else:  # orientation == "h"
+            # Horizontal bars: y-axis determines which bars are selected
+            # x-axis is the value
             position_data = y_arr
             value_data = x_arr
             pos_min, pos_max = y_min, y_max
             value_min, value_max = x_min, x_max
 
+        # Determine if position axis is orderable (numeric or datetime-like)
         pos_is_orderable = _is_orderable_axis(position_data, pos_min)
+
+        # Parse datetime bounds (frontend sends ISO strings via JSON)
         pos_min_parsed = (
             _parse_datetime_bound(pos_min) if pos_is_orderable else pos_min
         )
@@ -1353,18 +1349,26 @@ def _extract_bars_numpy(
             _parse_datetime_bound(pos_max) if pos_is_orderable else pos_max
         )
 
+        # Compute mask for valid indices
         if pos_is_orderable:
+            # Orderable axis: direct range comparison
+            # TODO: Consider bar width in future implementations
+            # Currently treating bars as points at their position value
             pos_mask = (position_data >= pos_min_parsed) & (
                 position_data <= pos_max_parsed
             )
         else:
+            # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
+            # Selection overlaps if: pos_max > bar_min AND pos_min < bar_max
             pos_indices = np.arange(len(position_data))
             pos_mask = (pos_max > pos_indices - 0.5) & (
                 pos_min < pos_indices + 0.5
             )
 
+        # Get indices where mask is True
         selected_indices = np.where(pos_mask)[0]
 
+        # Iterate only over selected indices
         for i in selected_indices:
             if not _bar_value_in_selection_range(
                 trace, i, value_data[i], value_min, value_max
@@ -1423,6 +1427,8 @@ def _extract_bars_fallback(
         if orientation is None:
             orientation = "v"
 
+        # For vertical bars: filter by x-axis position
+        # For horizontal bars: filter by y-axis position
         if orientation == "v":
             position_data = x_data
             value_data = y_data
@@ -1434,14 +1440,22 @@ def _extract_bars_fallback(
             pos_min, pos_max = y_min, y_max
             value_min, value_max = x_min, x_max
 
+        # Iterate through bars
         for i, pos_val in enumerate(position_data):
+            # Check if bar position is within selection range
             pos_in_range = False
 
             if _is_orderable_value(pos_val) and _is_orderable_value(pos_min):
+                # Orderable axis (numeric or datetime): direct comparison
+                # Parse datetime bounds (frontend sends ISO strings)
                 pos_min_p = _parse_datetime_bound(pos_min)
                 pos_max_p = _parse_datetime_bound(pos_max)
+                # TODO: Consider bar width in future implementations
+                # Currently treating bars as points at their position value
                 pos_in_range = pos_min_p <= pos_val <= pos_max_p
             else:
+                # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
+                # Include bar if selection range strictly overlaps with bar bounds
                 bar_min = i - 0.5
                 bar_max = i + 0.5
                 pos_in_range = not (pos_max <= bar_min or pos_min >= bar_max)
@@ -1480,8 +1494,6 @@ def _extract_bars_fallback(
 def _get_selection_point_id(
     point: dict[str, Any],
 ) -> tuple[int, int] | None:
-    import numbers
-
     curve_number = point.get("curveNumber")
     point_index = point.get("pointIndex", point.get("pointNumber"))
 
@@ -1493,19 +1505,45 @@ def _get_selection_point_id(
 
 
 def _bar_value_in_selection_range(
-    trace: Any,
+    trace: object,
     point_idx: int,
-    point_value: Any,
-    selection_min: Any,
-    selection_max: Any,
+    point_value: object,
+    selection_min: object,
+    selection_max: object,
 ) -> bool:
     base = _get_indexed_value(getattr(trace, "base", None), point_idx)
     if base is None:
         base = 0
 
-    lower = min(base, point_value)
-    upper = max(base, point_value)
-    return not (selection_max < lower or selection_min > upper)
+    numeric_base = _to_numeric_bar_value(base)
+    numeric_point_value = _to_numeric_bar_value(point_value)
+    numeric_selection_min = _to_numeric_bar_value(selection_min)
+    numeric_selection_max = _to_numeric_bar_value(selection_max)
+
+    if (
+        numeric_base is None
+        or numeric_point_value is None
+        or numeric_selection_min is None
+        or numeric_selection_max is None
+    ):
+        return False
+
+    lower = min(numeric_base, numeric_point_value)
+    upper = max(numeric_base, numeric_point_value)
+    return not (numeric_selection_max < lower or numeric_selection_min > upper)
+
+
+def _to_numeric_bar_value(value: object) -> float | None:
+    if hasattr(value, "item"):
+        value = value.item()
+
+    if isinstance(value, bool):
+        return None
+
+    if isinstance(value, numbers.Real):
+        return float(value)
+
+    return None
 
 
 def _build_bar_point(
@@ -1523,27 +1561,21 @@ def _build_bar_point(
         "pointNumber": int(point_idx),
     }
 
+    _add_trace_point_metadata(point, trace, point_idx)
+    return point
+
+
+def _add_trace_point_metadata(
+    point: dict[str, Any], trace: Any, point_idx: int
+) -> None:
     name = getattr(trace, "name", None)
     if name:
         point["name"] = name
 
-    customdata = _get_indexed_value(
-        getattr(trace, "customdata", None), point_idx
-    )
-    if customdata is not None:
-        point["customdata"] = customdata
-
-    text = _get_indexed_value(getattr(trace, "text", None), point_idx)
-    if text is not None:
-        point["text"] = text
-
-    hovertext = _get_indexed_value(
-        getattr(trace, "hovertext", None), point_idx
-    )
-    if hovertext is not None:
-        point["hovertext"] = hovertext
-
-    return point
+    for field in ("customdata", "text", "hovertext"):
+        value = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if value is not None:
+            point[field] = value
 
 
 def _append_map_scatter_points_to_selection(

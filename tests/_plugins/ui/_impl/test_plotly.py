@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
+    _bar_value_in_selection_range,
     _extract_bars_fallback,
     _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
@@ -2124,6 +2125,22 @@ def test_bar_chart_empty_vertical_space_does_not_select() -> None:
     assert result == []
 
 
+def test_bar_value_in_selection_range_ignores_non_numeric_values() -> None:
+    """Test non-numeric bar values do not raise during overlap checks."""
+    trace = go.Bar(base=["bad-base"])
+
+    assert (
+        _bar_value_in_selection_range(
+            trace=trace,
+            point_idx=0,
+            point_value="bad-value",
+            selection_min=0,
+            selection_max=10,
+        )
+        is False
+    )
+
+
 def test_bar_chart_single_bar() -> None:
     """Test bar chart with a single bar."""
     fig = go.Figure(
@@ -2189,6 +2206,27 @@ def test_bar_chart_explicit_points_are_not_duplicated() -> None:
     assert len(result) == 2
     assert result == selection["points"]
     assert plot.indices == [0, 1]
+
+
+def test_bar_chart_preserves_indices_when_empty_points_exist() -> None:
+    """Test bar index alignment when frontend emits empty point dicts."""
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=["A", "B"], y=[10, 20]))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [0.5, 1.5], "y": [0, 25]},
+        "points": [
+            {},
+            {"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1},
+        ],
+        "indices": [999, 1],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [{"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1}]
+    assert plot.indices == [1]
 
 
 def test_bar_chart_initial_selection() -> None:

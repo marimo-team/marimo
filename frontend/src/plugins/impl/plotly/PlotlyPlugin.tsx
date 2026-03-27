@@ -203,6 +203,8 @@ export const PlotlyComponent = memo(
           if (!evt) {
             return;
           }
+          // Only handle clicks for chart types where box/lasso selection
+          // (onSelected) doesn't work, such as heatmaps.
           const isClickSelectable = evt.points.some((point) =>
             CLICK_SELECTABLE_TRACE_TYPES.has(point.data?.type ?? ""),
           );
@@ -213,7 +215,7 @@ export const PlotlyComponent = memo(
             ...prev,
             selections: Arrays.EMPTY,
             points: extractPoints(evt.points),
-            indices: evt.points.map(getPointIndex).filter(isDefined),
+            indices: getPointIndices(evt.points),
             range: undefined,
           }));
         })}
@@ -227,7 +229,7 @@ export const PlotlyComponent = memo(
             selections:
               "selections" in evt ? (evt.selections as unknown[]) : [],
             points: extractPoints(evt.points),
-            indices: evt.points.map(getPointIndex).filter(isDefined),
+            indices: getPointIndices(evt.points),
             range: evt.range,
           }));
         })}
@@ -247,8 +249,17 @@ function getPointIndex(point: Plotly.PlotDatum): number | undefined {
   return point.pointIndex ?? point.pointNumber;
 }
 
-function isDefined<T>(value: T | undefined): value is T {
-  return value !== undefined;
+function getPointIndices(points: Plotly.PlotDatum[]): number[] {
+  const indices: number[] = [];
+
+  for (const point of points) {
+    const index = getPointIndex(point);
+    if (index !== undefined) {
+      indices.push(index);
+    }
+  }
+
+  return indices;
 }
 
 /**
