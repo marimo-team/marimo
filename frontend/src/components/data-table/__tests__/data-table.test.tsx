@@ -130,7 +130,7 @@ describe("DataTable", () => {
     expect(rows).toHaveLength(51);
   });
 
-  it("renders without errors when virtualizing large datasets", () => {
+  it("virtualizes large datasets — renders fewer rows than the full dataset", () => {
     const testData = Array.from({ length: 200 }, (_, i) => ({
       id: i,
       name: `Item ${i}`,
@@ -141,22 +141,27 @@ describe("DataTable", () => {
       { accessorKey: "name", header: "Name" },
     ];
 
-    // Should not throw — virtualization is active but jsdom has no layout,
-    // so the virtualizer renders based on overscan only.
-    expect(() =>
-      render(
-        <TooltipProvider>
-          <DataTable
-            data={testData}
-            columns={columns}
-            selection={null}
-            totalRows={200}
-            totalColumns={2}
-            pagination={false}
-          />
-        </TooltipProvider>,
-      ),
-    ).not.toThrow();
+    render(
+      <TooltipProvider>
+        <DataTable
+          data={testData}
+          columns={columns}
+          selection={null}
+          totalRows={200}
+          totalColumns={2}
+          pagination={false}
+        />
+      </TooltipProvider>,
+    );
+
+    // In jsdom the virtualizer sees a 0-height container and renders 0 data
+    // rows (no layout engine). The key assertion is that significantly fewer
+    // than 200 rows are in the DOM, which catches regressions where
+    // virtualization is accidentally disabled and all rows are rendered.
+    const rows = screen.getAllByRole("row");
+    // Subtract 1 for the header row
+    const dataRows = rows.length - 1;
+    expect(dataRows).toBeLessThan(200);
   });
 
   it("should display updated data after rerender with manual sorting and pagination", () => {

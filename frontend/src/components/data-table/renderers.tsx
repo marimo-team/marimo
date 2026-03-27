@@ -235,36 +235,51 @@ export const DataTableBody = <TData,>({
     );
   };
 
-  const virtualItems = virtualizer.getVirtualItems();
-  const totalSize = virtualizer.getTotalSize();
-
-  const tableBody = (
-    <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
-      {rows.length > 0 ? (
-        virtualize ? (
-          <>
-            {virtualItems[0]?.start > 0 && (
-              <tr style={{ height: virtualItems[0].start }} />
-            )}
-            {virtualItems.map((vItem) => renderRow(rows[vItem.index]))}
-            {virtualItems.length > 0 && (
-              <tr
-                style={{
-                  height: totalSize - (virtualItems.at(-1)?.end ?? totalSize),
-                }}
-              />
-            )}
-          </>
-        ) : (
-          rows.map((row) => renderRow(row))
-        )
-      ) : (
+  const renderRows = () => {
+    if (rows.length === 0) {
+      return (
         <TableRow>
           <TableCell colSpan={columns.length} className="h-24 text-center">
             No results.
           </TableCell>
         </TableRow>
-      )}
+      );
+    }
+
+    if (virtualize) {
+      const virtualItems = virtualizer.getVirtualItems();
+      const totalSize = virtualizer.getTotalSize();
+      return (
+        <>
+          {virtualItems[0]?.start > 0 && (
+            <tr
+              data-virtual-spacer=""
+              style={{ height: virtualItems[0].start }}
+            >
+              <td colSpan={columns.length} />
+            </tr>
+          )}
+          {virtualItems.map((vItem) => renderRow(rows[vItem.index]))}
+          {virtualItems.length > 0 && (
+            <tr
+              data-virtual-spacer=""
+              style={{
+                height: totalSize - (virtualItems.at(-1)?.end ?? totalSize),
+              }}
+            >
+              <td colSpan={columns.length} />
+            </tr>
+          )}
+        </>
+      );
+    }
+
+    return rows.map((row) => renderRow(row));
+  };
+
+  const tableBody = (
+    <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
+      {renderRows()}
     </TableBody>
   );
 

@@ -76,9 +76,12 @@ export function useScrollContainerHeight({
     const updateMaxHeight = () => {
       const headerHeight =
         thead.getBoundingClientRect().height || TABLE_HEADER_HEIGHT_PX;
-      const firstRow = table.querySelector("tbody tr");
+      // Skip virtual spacer rows — they have arbitrary heights for scroll offset.
+      const firstDataRow = table.querySelector(
+        "tbody tr:not([data-virtual-spacer])",
+      );
       const rowHeight =
-        firstRow?.getBoundingClientRect().height || TABLE_ROW_HEIGHT_PX;
+        firstDataRow?.getBoundingClientRect().height || TABLE_ROW_HEIGHT_PX;
       wrapper.style.maxHeight = `${DEFAULT_VIRTUAL_ROWS * rowHeight + headerHeight}px`;
     };
 
