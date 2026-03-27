@@ -558,7 +558,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  syncCellIds = () => Promise.resolve(null);
   sendDocumentTransaction = () => Promise.resolve(null);
 
   addPackage: EditRequests["addPackage"] = async (request) => {

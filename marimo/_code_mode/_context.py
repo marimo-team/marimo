@@ -940,8 +940,7 @@ class AsyncCodeModeContext:
             self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
 
         # Build document transaction ops from the plan and broadcast
-        # a single NotebookDocumentTransactionNotification instead of
-        # the legacy UpdateCellCodes / UpdateCellIds notifications.
+        # a single NotebookDocumentTransactionNotification.
         doc_ops = _plan_to_document_ops(
             plan=plan,
             existing_ids=existing_id_set,

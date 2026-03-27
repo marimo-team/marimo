@@ -31,7 +31,6 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
-    UpdateCellIdsNotification,
     VariableDeclarationNotification,
     VariablesNotification,
     VariableValue,
@@ -65,19 +64,6 @@ updated_output = CellOutput(
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
-
-
-def test_cell_ids(session_view: SessionView) -> None:
-    assert session_view.cell_ids is None
-
-    session_view.add_notification(
-        UpdateCellIdsNotification(
-            cell_ids=[cell_id],
-        )
-    )
-    operation = session_view.notifications[0]
-    assert isinstance(operation, UpdateCellIdsNotification)
-    assert operation.cell_ids == [cell_id]
 
 
 def test_session_view_cell_notification(session_view: SessionView) -> None:

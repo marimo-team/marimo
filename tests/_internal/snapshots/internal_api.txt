@@ -94,7 +94,6 @@ notifications
   SecretKeysResultNotification
   StartupLogsNotification
   UIElementMessageNotification
-  UpdateCellIdsNotification
   ValidateSQLResultNotification
   VariableDeclarationNotification
   VariableValue

@@ -64,7 +64,6 @@ with app.setup:
         o.SecretKeysResultNotification,
         o.CacheClearedNotification,
         o.CacheInfoNotification,
-        o.UpdateCellIdsNotification,
     ]
 
 

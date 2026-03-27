@@ -91,17 +91,7 @@ def serialize_session_view(
     cells: list[Cell] = []
 
     if cell_ids is None:
-        if view.cell_ids is not None:
-            cell_ids = view.cell_ids.cell_ids
-        else:
-            # TODO: This is a problem for exporting to HTML, but not for caching the session view for replays. Something seems off.
-            LOGGER.debug(
-                "When serializing session view, the notebook-order of cells was "
-                "not known. This may cause issues when attempting to "
-                "reconstruct the notebook state from the serialized session "
-                "view."
-            )
-            cell_ids = view.cell_notifications.keys()
+        cell_ids = view.cell_notifications.keys()
 
     for cell_id in cell_ids:
         cell_notif = view.cell_notifications.get(cell_id)

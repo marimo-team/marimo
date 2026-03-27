@@ -788,17 +788,6 @@ class CacheInfoNotification(Notification, tag="cache-info"):
     disk_total: int
 
 
-class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
-    """Updates cell ordering in notebook.
-
-    Attributes:
-        cell_ids: Complete ordered list of cell IDs.
-    """
-
-    name: ClassVar[str] = "update-cell-ids"
-    cell_ids: list[CellId_t]
-
-
 class NotebookDocumentTransactionNotification(
     Notification, tag="notebook-document-transaction"
 ):
@@ -861,7 +850,6 @@ NotificationMessage = Union[
     CacheInfoNotification,
     # Kiosk
     FocusCellNotification,
-    UpdateCellIdsNotification,
     # Document
     NotebookDocumentTransactionNotification,
 ]

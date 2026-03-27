@@ -6,10 +6,7 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._cli.sandbox import SandboxMode
-from marimo._messaging.notification import (
-    FocusCellNotification,
-    UpdateCellIdsNotification,
-)
+from marimo._messaging.notification import FocusCellNotification
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
     dispatch_control_request,
@@ -28,10 +25,8 @@ from marimo._server.models.models import (
     StdinRequest,
     SuccessResponse,
     UpdateCellConfigRequest,
-    UpdateCellIdsRequest,
 )
 from marimo._server.router import APIRouter
-from marimo._types.ids import ConsumerId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
@@ -91,39 +86,6 @@ async def delete_cell(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DeleteCellRequest)
-
-
-@router.post("/sync/cell_ids")
-@requires("edit")
-async def sync_cell_ids(request: Request) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/UpdateCellIdsRequest"
-    responses:
-        200:
-            description: Sync cell ids
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=UpdateCellIdsRequest)
-    session_id = app_state.require_current_session_id()
-    app_state.require_current_session().notify(
-        UpdateCellIdsNotification(cell_ids=body.cell_ids),
-        from_consumer_id=ConsumerId(session_id),
-    )
-    return SuccessResponse()
 
 
 @router.post("/focus_cell")

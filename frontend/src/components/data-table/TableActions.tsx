@@ -4,6 +4,7 @@
 import type { RowSelectionState, Table } from "@tanstack/react-table";
 import { ChartSplineIcon, PanelRightIcon, SearchIcon } from "lucide-react";
 import React from "react";
+import { useLocale } from "react-aria";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import {
@@ -14,7 +15,7 @@ import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { type DownloadActionProps, DownloadAs } from "./download-actions";
-import { DataTablePagination } from "./pagination";
+import { DataTablePagination, prettifyRowColumnCount } from "./pagination";
 import type { DataTableSelection } from "./types";
 
 interface TableActionsProps<TData> {
@@ -60,6 +61,7 @@ export const TableActions = <TData,>({
   isAnyPanelOpen,
   tableLoading,
 }: TableActionsProps<TData>) => {
+  const { locale } = useLocale();
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
       return;
@@ -148,7 +150,7 @@ export const TableActions = <TData,>({
         </Tooltip>
       )}
 
-      {pagination && (
+      {pagination ? (
         <DataTablePagination
           totalColumns={totalColumns}
           selection={selection}
@@ -157,6 +159,10 @@ export const TableActions = <TData,>({
           tableLoading={tableLoading}
           showPageSizeSelector={showPageSizeSelector}
         />
+      ) : (
+        <span className="text-xs text-muted-foreground px-2">
+          {prettifyRowColumnCount(table.getRowCount(), totalColumns, locale)}
+        </span>
       )}
       <div className="ml-auto">
         {downloadAs && (

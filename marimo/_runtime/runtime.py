@@ -63,6 +63,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.notebook.changes import ReorderCells, Transaction
 from marimo._messaging.notebook.document import (
     NotebookDocument,
     notebook_document_context,
@@ -77,6 +78,7 @@ from marimo._messaging.notification import (
     HumanReadableStatus,
     InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
+    NotebookDocumentTransactionNotification,
     PackageStatusType,
     RemoveUIElementsNotification,
     SecretKeysResultNotification,
@@ -87,7 +89,6 @@ from marimo._messaging.notification import (
     SQLTablePreviewNotification,
     StorageDownloadReadyNotification,
     StorageEntriesNotification,
-    UpdateCellIdsNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -2153,7 +2154,12 @@ class Kernel:
             return
 
         broadcast_notification(
-            UpdateCellIdsNotification(cell_ids=list(request.cell_ids))
+            NotebookDocumentTransactionNotification(
+                transaction=Transaction(
+                    changes=(ReorderCells(cell_ids=tuple(request.cell_ids)),),
+                    source="kernel",
+                )
+            )
         )
 
         # Handle markdown cells specially during kernel-ready initialization

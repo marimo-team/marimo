@@ -2571,7 +2571,6 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
-          - $ref: '#/components/schemas/UpdateCellIdsNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           discriminator:
             mapping:
@@ -2610,7 +2609,6 @@ components:
               storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
               storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
-              update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
               validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
               variable-values: '#/components/schemas/VariableValuesNotification'
               variables: '#/components/schemas/VariablesNotification'
@@ -5100,32 +5098,6 @@ components:
       - configs
       title: UpdateCellConfigRequest
       type: object
-    UpdateCellIdsNotification:
-      description: "Updates cell ordering in notebook.\n\n    Attributes:\n      \
-        \  cell_ids: Complete ordered list of cell IDs."
-      properties:
-        cell_ids:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        op:
-          enum:
-          - update-cell-ids
-      required:
-      - op
-      - cell_ids
-      title: UpdateCellIdsNotification
-      type: object
-    UpdateCellIdsRequest:
-      properties:
-        cellIds:
-          items:
-            type: string
-          type: array
-      required:
-      - cellIds
-      title: UpdateCellIdsRequest
-      type: object
     UpdateCellOutputsRequest:
       properties:
         cellIdsToOutput:
@@ -6642,26 +6614,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Send input to the stdin stream
-  /api/kernel/sync/cell_ids:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCellIdsRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Sync cell ids
   /api/kernel/takeover:
     post:
       parameters:

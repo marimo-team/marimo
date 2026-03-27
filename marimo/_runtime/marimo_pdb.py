@@ -36,7 +36,7 @@ def try_restart() -> bool:
         if ctx.cell_id is None or ctx.cell_id not in graph.cells:
             return False
 
-        # This runs the request and also runs UpdateCellCodes
+        # This runs the request and queues the cell for execution
         ctx._kernel.enqueue_control_request(
             ExecuteCellsCommand(
                 cell_ids=[ctx.cell_id],
