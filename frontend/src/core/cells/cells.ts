@@ -1425,7 +1425,6 @@ const {
 // We apply the middleware here (rather than inline in createReducerAndAtoms)
 // so that the document transaction middleware can import CellActions and
 // strictly type the dispatched actions without creating a circular dependency.
-// @ts-expect-error - TODO: We should have better types for the middleware that are strict
 addMiddleware(documentTransactionMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
