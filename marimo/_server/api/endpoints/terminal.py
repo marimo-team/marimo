@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import select
+import selectors
 import signal
 import struct
 import sys
@@ -171,6 +171,22 @@ def _manage_command_buffer(
     return buffer
 
 
+def _wait_for_read(master: int, timeout: float) -> bool:
+    """Wait for data to be available on the file descriptor.
+
+    Uses selectors instead of select.select() to avoid the FD_SETSIZE
+    limitation (fd must be < 1024) that causes failures when many file
+    descriptors are open.
+    """
+    sel = selectors.DefaultSelector()
+    try:
+        sel.register(master, selectors.EVENT_READ)
+        events = sel.select(timeout=timeout)
+        return len(events) > 0
+    finally:
+        sel.close()
+
+
 async def _read_from_pty(master: int, websocket: WebSocket) -> None:
     """Read data from PTY and send to websocket with proper buffering.
 
@@ -184,16 +200,14 @@ async def _read_from_pty(master: int, websocket: WebSocket) -> None:
         while True:
             try:
                 # Check for available data with a timeout
-                r, _, _ = await loop.run_in_executor(
+                has_data = await loop.run_in_executor(
                     None,
-                    select.select,
-                    [master],
-                    [],
-                    [],
+                    _wait_for_read,
+                    master,
                     READ_TIMEOUT,
                 )
 
-                if r:
+                if has_data:
                     # Read available data
                     try:
                         chunk = os.read(master, MAX_CHUNK_SIZE)
