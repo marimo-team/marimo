@@ -12,20 +12,14 @@ import contextlib
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
-import msgspec
-
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
-    NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
-from marimo._messaging.serde import (
-    serialize_kernel_message,
-    try_deserialize_kernel_notification_name,
-)
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._runtime.commands import (
@@ -421,26 +415,7 @@ class SessionImpl(Session):
         operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
-        """Write an operation to the session consumer and the session view."""
-        # Intercept document transactions: apply to session.document
-        # (stamps version), then re-serialize for broadcast.
-        # Kernel notifications arrive as bytes via the stream distributor;
-        # server-side callers (e.g. file-watch) pass typed objects.
-        if isinstance(operation, bytes):
-            name = try_deserialize_kernel_notification_name(operation)
-            if name == NotebookDocumentTransactionNotification.name:
-                try:
-                    operation = self._apply_document_transaction(
-                        msgspec.json.decode(
-                            operation,
-                            type=NotebookDocumentTransactionNotification,
-                        )
-                    )
-                except Exception:
-                    LOGGER.warning("Failed to decode document transaction")
-        elif isinstance(operation, NotebookDocumentTransactionNotification):
-            operation = self._apply_document_transaction(operation)
-
+        """Broadcast a notification to session consumers."""
         if isinstance(operation, bytes):
             notification = operation
         else:
@@ -448,18 +423,6 @@ class SessionImpl(Session):
 
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
-
-    def _apply_document_transaction(
-        self,
-        notif: NotebookDocumentTransactionNotification,
-    ) -> NotebookDocumentTransactionNotification:
-        """Apply to session.document, return with version stamped."""
-        try:
-            applied = self.document.apply(notif.transaction)
-            return NotebookDocumentTransactionNotification(transaction=applied)
-        except (ValueError, KeyError):
-            LOGGER.warning("Failed to apply document transaction")
-            return notif
 
     def close(self) -> None:
         """

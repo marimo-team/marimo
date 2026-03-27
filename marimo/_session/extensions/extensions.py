@@ -11,8 +11,15 @@ import asyncio
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
+import msgspec
+
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+    NotificationMessage,
+)
+from marimo._messaging.serde import try_deserialize_kernel_notification_name
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session.events import SessionEventListener
@@ -226,6 +233,38 @@ class NotificationListenerExtension(SessionExtension):
             # Edit mode with original kernel manager uses connection
             return ConnectionDistributor(kernel_manager.kernel_connection)
 
+    @staticmethod
+    def _on_kernel_message(session: Session, msg: KernelMessage) -> None:
+        """Route a raw kernel message to the appropriate session method.
+
+        Document transactions are intercepted and applied to the
+        ``session.document``, then ``session.notify()`` is invoked with the (versioned) result.
+
+        Everything else is forwarded verbatim via ``session.notify()``.
+
+        TODO: if more notification types need server-side interception,
+        consider a middleware chain instead of inline dispatch.
+        """
+        notif: KernelMessage | NotificationMessage = msg
+
+        name = try_deserialize_kernel_notification_name(msg)
+        if name == NotebookDocumentTransactionNotification.name:
+            try:
+                decoded = msgspec.json.decode(
+                    msg,
+                    type=NotebookDocumentTransactionNotification,
+                )
+                applied = session.document.apply(decoded.transaction)
+                notif = NotebookDocumentTransactionNotification(
+                    transaction=applied
+                )
+            except Exception:  # noqa: BLE001
+                LOGGER.warning(
+                    "Failed to decode/apply kernel document transaction"
+                )
+
+        session.notify(notif, from_consumer_id=None)
+
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
         self.distributor = self._create_distributor(
@@ -233,7 +272,7 @@ class NotificationListenerExtension(SessionExtension):
             queue_manager=self.queue_manager,
         )
         self.distributor.add_consumer(
-            lambda msg: session.notify(msg, from_consumer_id=None)
+            lambda msg: self._on_kernel_message(session, msg)
         )
         self.distributor.start()
 
