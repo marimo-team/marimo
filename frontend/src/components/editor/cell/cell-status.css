@@ -1,3 +1,14 @@
+@keyframes running-cell-status-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 .cell-status-icon {
   margin-top: 4px;
   margin-left: 3px;
@@ -8,6 +19,35 @@
   font-family: var(--monospace-font);
   font-size: 0.75rem;
   color: var(--gray-11);
+}
+
+.elapsed-time.running {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: var(--accent-foreground);
+  border: 1px solid
+    color-mix(in srgb, var(--accent-foreground), transparent 78%);
+  background: color-mix(in srgb, var(--accent), transparent 22%);
+}
+
+.elapsed-time.running::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 0 color-mix(in srgb, currentColor, transparent 100%);
+  animation: running-cell-status-pulse 1600ms ease-in-out infinite;
+}
+
+.running-state-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 #App.disconnected .elapsed-time {

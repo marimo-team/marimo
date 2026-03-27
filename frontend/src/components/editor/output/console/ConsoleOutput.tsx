@@ -85,6 +85,7 @@ interface Props {
   className?: string;
   consoleOutputs: WithResponse<OutputMessage>[];
   stale: boolean;
+  running?: boolean;
   debuggerActive: boolean;
   onRefactorWithAI?: OnRefactorWithAI;
   onClear?: () => void;
@@ -101,6 +102,8 @@ export const ConsoleOutput = (props: Props) => {
 
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
+  const shouldFollowOutputRef = useRef(true);
+  const prevRenderedOutputCountRef = useRef(0);
   const { wrapText, setWrapText } = useWrapText();
   const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
   const [stdinValue, setStdinValue] = React.useState("");
@@ -111,6 +114,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const {
     consoleOutputs: rawConsoleOutputs,
     stale,
+    running = false,
     cellName,
     cellId,
     onSubmitDebugger,
@@ -141,27 +145,37 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   // Detect overflow on resize
   const isOverflowing = useOverflowDetection(ref, hasOutputs);
 
-  // Keep scroll at the bottom if it is within 120px of the bottom,
-  // so when we add new content, it will lock to the bottom
-  //
-  // We use flex flex-col-reverse to handle this, but it doesn't
-  // always work perfectly when moved form the bottom and back.
+  const isNearBottom = (el: HTMLDivElement) => {
+    const threshold = 24;
+    const scrollOffset = el.scrollHeight - el.clientHeight;
+    const distanceFromBottom = scrollOffset - el.scrollTop;
+    return distanceFromBottom <= threshold;
+  };
+
+  // Follow newly appended console output while the cell is actively running,
+  // but stop following when the user scrolls away from the bottom.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) {
       return;
     }
-    // N.B. This won't handle large jumps in the scroll position
-    // if there is a lot of content added at once.
-    // This is 'good enough' for now.
-    const threshold = 120;
 
-    const scrollOffset = el.scrollHeight - el.clientHeight;
-    const distanceFromBottom = scrollOffset - el.scrollTop;
-    if (distanceFromBottom < threshold) {
-      el.scrollTop = scrollOffset;
+    if (!hasOutputs) {
+      shouldFollowOutputRef.current = true;
+      prevRenderedOutputCountRef.current = 0;
+      return;
     }
-  });
+
+    const appendedOutput =
+      consoleOutputs.length > prevRenderedOutputCountRef.current;
+    prevRenderedOutputCountRef.current = consoleOutputs.length;
+
+    if (!running || !appendedOutput || !shouldFollowOutputRef.current) {
+      return;
+    }
+
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+  }, [consoleOutputs, hasOutputs, running]);
 
   if (!hasOutputs && isInternalCellName(cellName)) {
     return null;
@@ -236,6 +250,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
         {...selectAllProps}
         // oxlint-ignore-next-line jsx-a11y/no-noninteractive-tabindex -- Needed to capture keypress events
         tabIndex={0}
+        onScroll={(e) => {
+          shouldFollowOutputRef.current = isNearBottom(e.currentTarget);
+        }}
         className={cn(
           "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1 focus:outline-hidden",
           stale && "marimo-output-stale",

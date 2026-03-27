@@ -343,6 +343,11 @@ exports[`CellStatusComponent > renders running state 1`] = `
     data-status="running"
     data-testid="cell-status"
   >
+    <span
+      class="running-state-label"
+    >
+      Running
+    </span>
     <span>
       0ms
     </span>

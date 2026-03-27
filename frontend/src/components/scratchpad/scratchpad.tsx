@@ -289,6 +289,7 @@ export const ScratchPad: React.FC = () => {
                 consoleOutputs={consoleOutputs}
                 className="overflow-auto"
                 stale={false}
+                running={status === "running"}
                 cellName={DEFAULT_CELL_NAME}
                 onSubmitDebugger={Functions.NOOP}
                 cellId={cellId}

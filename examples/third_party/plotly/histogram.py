@@ -73,7 +73,6 @@ def _(numeric_hist, values):
         for row in selected_rows[:10]
         if isinstance(row.get("pointIndex"), int)
     ]
-
     return mapped_original_values, selected_rows
 
 
