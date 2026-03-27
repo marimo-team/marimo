@@ -70,7 +70,7 @@ export function usePanelOwnership(
         focusCell({ cellId });
       }
       setContextAwarePanelOpen(true);
-      // Only set type if explicitly requested or no previous type exists
+      // Only set type if explicitly requested and no previous type exists
       if (requestedType && !panelType) {
         setPanelType(requestedType);
       }

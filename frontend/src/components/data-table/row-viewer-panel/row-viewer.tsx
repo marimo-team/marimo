@@ -122,8 +122,6 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
         toggleRowSelection();
 
         break;
-
-      // No default
     }
   };
 

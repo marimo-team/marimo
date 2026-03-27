@@ -56,7 +56,7 @@ export const ContextAwarePanel: React.FC = () => {
             aria-label={isPinned ? "Unpin panel" : "Pin panel"}
           >
             {isPinned ? (
-              <PinIcon className="w-4 h-4" />
+              <PinIcon className="w-4 h-4 text-primary" />
             ) : (
               <PinOffIcon className="w-4 h-4" />
             )}
@@ -110,7 +110,7 @@ export const ContextAwarePanel: React.FC = () => {
             onClick={closePanel}
             aria-label="Close selection panel"
           >
-            <XIcon className="w-4 h-4" />
+            <XIcon className="w-4 h-4 hover:text-destructive" />
           </Button>
         </div>
 

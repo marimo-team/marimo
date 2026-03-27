@@ -26,16 +26,13 @@ export interface TableExplorerPanelProps {
   isSelectable: boolean;
   isRowSelected: boolean;
   handleRowSelectionChange?: OnChangeFn<RowSelectionState>;
-
   // Column explorer props
   previewColumn?: PreviewColumn;
   totalColumns: number;
   tableId: string;
-
   // Visibility flags
   showRowExplorer: boolean;
   showColumnExplorer: boolean;
-
   // Tab state (driven by contextAwarePanelType atom)
   activeTab: PanelType | null;
   onTabChange: (tab: PanelType) => void;
@@ -87,7 +84,7 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
     />
   );
 
-  // Single panel — no tabs needed
+  // If only one panel is visible, don't show tabs
   if (!showTabs) {
     if (showRowExplorer) {
       return rowViewer;
