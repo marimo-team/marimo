@@ -41,7 +41,9 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
     }
 
     const parsedInt = Number.parseInt(v, 10);
-    if (!Number.isNaN(parsedInt)) {
+    if (Number.isNaN(parsedInt)) {
+      return v;
+    } else {
       const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
       if (!needsBigInt) {
         return previousIntegerParserWithoutNaN(v);
@@ -53,8 +55,6 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
         // as BigInt
         return previousIntegerParserWithoutNaN(v);
       }
-    } else {
-      return "";
     }
   };
   typeParsers.number = (v: string) => {
