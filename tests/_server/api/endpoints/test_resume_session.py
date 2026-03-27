@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.notification import (
@@ -289,7 +289,7 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         assert data["op"] == "notebook-document-transaction"
         tx = data["data"]["transaction"]
         # Transaction should contain the new cell and reorder.
-        op_types = [op["type"] for op in tx["ops"]]
+        op_types = [op["type"] for op in tx["changes"]]
         assert "create-cell" in op_types
         assert "reorder-cells" in op_types
         assert tx["source"] == "file-watch"
@@ -303,24 +303,10 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         # Check for KernelReady message
         data = websocket.receive_json()
         assert parse_raw(data["data"], KernelReadyNotification)
-        messages: list[dict[str, Any]] = []
 
-        # Wait for update-cell-ids message (session replay)
-        while True:
-            data = websocket.receive_json()
-            messages.append(data)
-            if data["op"] == "update-cell-ids":
-                break
-
-        # 2 messages:
-        # 1. banner
-        # 2. update-cell-ids (from session view replay)
-        assert len(messages) == 2
-        assert messages[0]["op"] == "banner"
-        assert messages[1] == {
-            "op": "update-cell-ids",
-            "data": {"cell_ids": ["MJUe", "Hbol"], "op": "update-cell-ids"},
-        }
+        # Banner notification (session replay)
+        data = websocket.receive_json()
+        assert data["op"] == "banner"
 
 
 @contextmanager
