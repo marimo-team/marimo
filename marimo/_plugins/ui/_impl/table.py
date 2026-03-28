@@ -1238,12 +1238,44 @@ class table(
         )
         return column_preview
 
+    def _resolve_row_ids(
+        self,
+        skip: int,
+        take: int,
+        total_rows: Union[int, Literal["too_many"]],
+    ) -> Union[list[Any], range]:
+        response = self._get_row_ids(EmptyArgs())
+
+        # Clamp take to the available row count for non-lazy tables
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        if response.all_rows or response.error:
+            fallback_row_ids: range = range(skip, skip + take)
+
+            if response.all_rows and self._has_stable_row_id:
+                try:
+                    page = self._searched_manager.take(take, skip)
+                    # Keep provided row IDs as-is to support non-integer IDs.
+                    return page.data[INDEX_COLUMN_NAME].to_list()
+                except Exception as exc:
+                    LOGGER.warning(
+                        "Falling back to positional row IDs after failed "
+                        "stable-row-id lookup: %s",
+                        exc,
+                        exc_info=True,
+                    )
+
+            return fallback_row_ids
+
+        return response.row_ids[skip : skip + take]
+
     def _style_cells(
         self,
         skip: int,
         take: int,
         total_rows: Union[int, Literal["too_many"]],
-        descending: bool = False,
+        row_ids: Optional[Union[list[Any], range]] = None,
     ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
@@ -1258,26 +1290,15 @@ class table(
             return self._style_cell(row, col, selected_cells[0].value)
 
         columns = self._searched_manager.get_column_names()
-        response = self._get_row_ids(EmptyArgs())
-
-        # Clamp the take to the total number of rows
-        if total_rows != "too_many" and skip + take > total_rows:
-            take = total_rows - skip
-
-        # Determine row range
-        row_ids: Union[list[int], range]
-        if response.all_rows or response.error:
-            row_ids = range(skip, skip + take)
-            if descending and total_rows != "too_many":
-                row_ids = range(
-                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
-                )
-        else:
-            row_ids = response.row_ids[skip : skip + take]
+        resolved_row_ids = (
+            self._resolve_row_ids(skip, take, total_rows)
+            if row_ids is None
+            else row_ids
+        )
 
         return {
             str(row): {col: do_style_cell(str(row), col) for col in columns}
-            for row in row_ids
+            for row in resolved_row_ids
         }
 
     def _hover_cells(
@@ -1285,7 +1306,7 @@ class table(
         skip: int,
         take: int,
         total_rows: Union[int, Literal["too_many"]],
-        descending: bool = False,
+        row_ids: Optional[Union[list[Any], range]] = None,
     ) -> Optional[dict[RowId, dict[ColumnName, Optional[str]]]]:
         """Calculate hover text for cells in the table (plain strings or None)."""
         if self._hover_cell is None:
@@ -1308,26 +1329,15 @@ class table(
                 return None
 
         columns = self._searched_manager.get_column_names()
-        response = self._get_row_ids(EmptyArgs())
-
-        # Clamp the take to the total number of rows
-        if total_rows != "too_many" and skip + take > total_rows:
-            take = total_rows - skip
-
-        # Determine row range
-        row_ids: Union[list[int], range]
-        if response.all_rows or response.error:
-            row_ids = range(skip, skip + take)
-            if descending and total_rows != "too_many":
-                row_ids = range(
-                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
-                )
-        else:
-            row_ids = response.row_ids[skip : skip + take]
+        resolved_row_ids = (
+            self._resolve_row_ids(skip, take, total_rows)
+            if row_ids is None
+            else row_ids
+        )
 
         return {
             str(row): {col: do_hover_cell(str(row), col) for col in columns}
-            for row in row_ids
+            for row in resolved_row_ids
         }
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
@@ -1396,14 +1406,19 @@ class table(
                 total_rows = self._manager.get_num_rows(force=True) or 0
 
             formatted_data, raw_data = clamp_rows_and_columns(self._manager)
+            row_ids = (
+                self._resolve_row_ids(offset, args.page_size, total_rows)
+                if self._style_cell or self._hover_cell
+                else None
+            )
             return SearchTableResponse(
                 data=formatted_data,
                 total_rows=total_rows,
                 cell_styles=self._style_cells(
-                    offset, args.page_size, total_rows
+                    offset, args.page_size, total_rows, row_ids=row_ids
                 ),
                 cell_hover_texts=self._hover_cells(
-                    offset, args.page_size, total_rows
+                    offset, args.page_size, total_rows, row_ids=row_ids
                 ),
                 raw_data=raw_data,
             )
@@ -1422,27 +1437,26 @@ class table(
         # Save the manager to be used for selection
         self._searched_manager = result
 
-        descending = False
-
         if self._lazy:
             total_rows = "too_many"
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
-        if args.sort and (self._style_cell or self._hover_cell):
-            for element in args.sort:
-                if element.descending:
-                    descending = True
+        row_ids = (
+            self._resolve_row_ids(offset, args.page_size, total_rows)
+            if self._style_cell or self._hover_cell
+            else None
+        )
 
         formatted_data, raw_data = clamp_rows_and_columns(result)
         return SearchTableResponse(
             data=formatted_data,
             total_rows=total_rows,
             cell_styles=self._style_cells(
-                offset, args.page_size, total_rows, descending
+                offset, args.page_size, total_rows, row_ids=row_ids
             ),
             cell_hover_texts=self._hover_cells(
-                offset, args.page_size, total_rows, descending
+                offset, args.page_size, total_rows, row_ids=row_ids
             ),
             raw_data=raw_data,
         )
