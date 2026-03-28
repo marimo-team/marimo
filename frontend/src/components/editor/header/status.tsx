@@ -5,6 +5,7 @@ import { HourglassIcon, LockIcon, UnlinkIcon } from "lucide-react";
 import React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
+import { onlyScratchpadIsRunningAtom } from "@/core/cells/cells";
 import { viewStateAtom } from "@/core/mode";
 import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
@@ -52,17 +53,24 @@ const LockedIcon = () => (
   </Tooltip>
 );
 
-const RunningIcon = () => (
-  <Tooltip content="Jump to running cell" side="right">
-    <div
-      className={topLeftStatus}
-      data-testid="loading-indicator"
-      onClick={notebookScrollToRunning}
-    >
-      <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
-    </div>
-  </Tooltip>
-);
+const RunningIcon = () => {
+  const scratchpadOnly = useAtomValue(onlyScratchpadIsRunningAtom);
+  const tooltip = scratchpadOnly
+    ? "Scratchpad is running"
+    : "Jump to running cell";
+
+  return (
+    <Tooltip content={tooltip} side="right">
+      <div
+        className={topLeftStatus}
+        data-testid="loading-indicator"
+        onClick={scratchpadOnly ? undefined : notebookScrollToRunning}
+      >
+        <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
+      </div>
+    </Tooltip>
+  );
+};
 
 const NoiseBackground = () => (
   <>

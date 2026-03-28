@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
 import { beforeEach, describe, expect, it } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId } from "@/__tests__/branded";
 import { MultiColumn } from "@/utils/id-tree";
 import type { CellSelectionState } from "../selection";
 import { exportedForTesting } from "../selection";
@@ -8,11 +9,11 @@ import { exportedForTesting } from "../selection";
 const { initialState, reducer, createActions } = exportedForTesting;
 
 const CellIds = {
-  a: "a" as CellId,
-  b: "b" as CellId,
-  c: "c" as CellId,
-  d: "d" as CellId,
-  e: "e" as CellId,
+  a: cellId("a"),
+  b: cellId("b"),
+  c: cellId("c"),
+  d: cellId("d"),
+  e: cellId("e"),
 };
 
 describe("cell selection reducer", () => {

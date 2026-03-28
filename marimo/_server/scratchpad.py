@@ -26,7 +26,9 @@ if TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
     from marimo._session.session import Session
 
-EXECUTION_TIMEOUT = 30.0  # seconds
+EXECUTION_TIMEOUT = (
+    30.0  # seconds — used only by wait(); stream() has no timeout
+)
 
 # Channel name constants for SSE events
 _CHANNEL_MAP = {
@@ -106,25 +108,15 @@ class ScratchCellListener(SessionEventListener):
         if msg.status == "idle":
             self._queue.put_nowait(None)  # sentinel
 
-    async def stream(
-        self, timeout: float = EXECUTION_TIMEOUT
-    ) -> AsyncGenerator[str, None]:
-        """Yield SSE-formatted stdout/stderr events until execution completes."""
-        import time
+    async def stream(self) -> AsyncGenerator[str, None]:
+        """Yield SSE-formatted stdout/stderr events until execution completes.
 
-        deadline = time.monotonic() + timeout
+        Streams indefinitely — the caller is responsible for cancellation
+        (e.g. by disconnecting the SSE client, which triggers a kernel
+        interrupt server-side).
+        """
         while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                self.timed_out = True
-                return
-            try:
-                msg = await asyncio.wait_for(
-                    self._queue.get(), timeout=remaining
-                )
-            except asyncio.TimeoutError:
-                self.timed_out = True
-                return
+            msg = await self._queue.get()
 
             if msg is None:
                 # Done sentinel — but stdout/stderr are flushed every

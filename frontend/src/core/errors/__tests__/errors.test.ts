@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { MarimoError } from "@/core/kernel/messages";
 import { getAutoFixes, getImportCode } from "../errors";
 
@@ -25,7 +26,7 @@ describe("getAutoFixes", () => {
     const error: MarimoError = {
       type: "multiple-defs",
       name: "foo",
-      cells: ["foo"],
+      cells: [cellId("foo")],
     };
 
     const fixes = getAutoFixes(error, opts);

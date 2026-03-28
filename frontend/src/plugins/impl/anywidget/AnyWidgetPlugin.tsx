@@ -4,6 +4,7 @@
 import type { AnyWidget } from "@anywidget/types";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
+import { RANDOM_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
@@ -145,7 +146,9 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   }
 
   // Find the closest parent element with an attribute of `random-id`
-  const randomId = props.host.closest("[random-id]")?.getAttribute("random-id");
+  const randomId = props.host
+    .closest(`[${RANDOM_ID_ATTR}]`)
+    ?.getAttribute(RANDOM_ID_ATTR);
   const key = randomId ?? jsUrl;
 
   return (

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
+import { variableName } from "@/__tests__/branded";
 import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { DataTable, DataTableColumn } from "@/core/kernel/messages";
 import { type TableContextItem, TableContextProvider } from "../tables";
@@ -86,7 +87,7 @@ describe("TableContextProvider", () => {
 
     it("should handle dataframe tables with variable names", () => {
       const dfTable = createMockTable("df_analysis", {
-        variable_name: "df_analysis",
+        variable_name: variableName("df_analysis"),
         source: "pandas",
         source_type: "local",
         columns: [
@@ -180,7 +181,7 @@ describe("TableContextProvider", () => {
       const table = createMockTable("remote_table", {
         source: "postgresql://localhost:5432/mydb",
         source_type: "connection",
-        engine: "postgresql",
+        engine: variableName("postgresql"),
         columns: [
           createMockColumn("uuid", "string", "uuid"),
           createMockColumn("created_at", "string", "timestamp with time zone"),

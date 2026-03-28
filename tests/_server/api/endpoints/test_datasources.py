@@ -51,6 +51,22 @@ def test_preview_sql_table(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
+def test_preview_sql_schema_list(client: TestClient) -> None:
+    response = client.post(
+        "/api/datasources/preview_sql_schema_list",
+        headers=HEADERS,
+        json={
+            "requestId": "test_request_id",
+            "engine": "test_engine",
+            "database": "test_db",
+        },
+    )
+    assert response.status_code == 200, response.text
+    content = response.json()
+    assert content["success"] is True
+
+
+@with_session(SESSION_ID)
 def test_preview_sql_table_list(client: TestClient) -> None:
     response = client.post(
         "/api/datasources/preview_sql_table_list",
@@ -104,6 +120,17 @@ def test_fails_in_read_mode(client: TestClient) -> None:
             "database": "test_db",
             "schema": "test_schema",
             "tableName": "test_table",
+        },
+    )
+    assert response.status_code == 401
+
+    response = client.post(
+        "/api/datasources/preview_sql_schema_list",
+        headers=HEADERS,
+        json={
+            "requestId": "test_request_id",
+            "engine": "test_engine",
+            "database": "test_db",
         },
     )
     assert response.status_code == 401

@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-redeclare */
+import type { components } from "@marimo-team/marimo-api";
 import { Deferred } from "@/utils/Deferred";
 import { generateUUID } from "@/utils/uuid";
-import type { TypedString } from "../../utils/typed";
 
-export type RequestId = TypedString<"RequestId">;
+export type RequestId = components["schemas"]["RequestId"];
 export const RequestId = {
   create(): RequestId {
     return generateUUID() as RequestId;

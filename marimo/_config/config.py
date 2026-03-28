@@ -504,6 +504,26 @@ class DiagnosticsConfig(TypedDict, total=False):
 
 
 @dataclass
+class LintConfig(TypedDict, total=False):
+    """Configuration for lint rule selection.
+
+    Follows ruff-inspired semantics for selecting which rules to run
+    during ``marimo check``.
+
+    **Keys.**
+
+    - ``select``: list of rule code prefixes that replaces the default
+      enabled set. Use ``"ALL"`` to select all rules.
+      Example: ``["MB", "MR001"]``
+    - ``ignore``: list of rule code prefixes to remove from the
+      enabled set.
+    """
+
+    select: list[str]
+    ignore: list[str]
+
+
+@dataclass
 class SnippetsConfig(TypedDict):
     """Configuration for snippets.
 
@@ -568,6 +588,7 @@ class ExperimentalConfig(TypedDict, total=False):
     markdown: bool  # Used in playground (community cloud)
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
+    isolate_apps: bool
 
     # Internal features
     cache: CacheConfig
@@ -577,6 +598,10 @@ class ExperimentalConfig(TypedDict, total=False):
 # Prefer to accept any dict since feature flags can change frequently
 # But maintain type safety for known flags
 ExperimentalConfigType = dict[str, Any]
+
+# Default for experimental.storage_inspector when not set by user.
+# Must match frontend default in feature-flag.tsx.
+STORAGE_INSPECTOR_DEFAULT = True
 
 
 @mddoc
@@ -595,6 +620,7 @@ class MarimoConfig(TypedDict):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
+    lint: NotRequired[LintConfig]
     experimental: NotRequired[ExperimentalConfigType]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
@@ -664,6 +690,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     ai: NotRequired[AiConfig]
     language_servers: NotRequired[LanguageServersConfig]
     diagnostics: NotRequired[DiagnosticsConfig]
+    lint: NotRequired[LintConfig]
     experimental: NotRequired[ExperimentalConfigType]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]

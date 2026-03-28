@@ -4,13 +4,16 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._session.state.serialize import serialize_session_view
 from marimo._session.state.session_view import SessionView
+from marimo._types.ids import CellId_t
+
+CELL_ID = CellId_t("cell1")
 
 
 def test_serialize_session_with_dict_error_missing_type():
     """Test serialization of a session with a dictionary error missing the type key"""
     view = SessionView()
-    view.cell_notifications["cell1"] = CellNotification(
-        cell_id="cell1",
+    view.cell_notifications[CELL_ID] = CellNotification(
+        cell_id=CELL_ID,
         status="idle",
         output=CellOutput(
             channel=CellChannel.MARIMO_ERROR,
@@ -22,11 +25,11 @@ def test_serialize_session_with_dict_error_missing_type():
         console=[],
         timestamp=0,
     )
-    view.last_executed_code["cell1"] = (
+    view.last_executed_code[CELL_ID] = (
         "raise RuntimeError('Something went wrong')"
     )
 
-    result = serialize_session_view(view)
+    result = serialize_session_view(view, cell_ids=[CELL_ID])
     assert len(result["cells"]) == 1
     assert len(result["cells"][0]["outputs"]) == 1
     assert result["cells"][0]["outputs"][0]["type"] == "error"

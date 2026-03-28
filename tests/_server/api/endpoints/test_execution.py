@@ -10,8 +10,12 @@ import pytest
 
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
-from tests._server.conftest import get_session_manager
-from tests._server.mocks import token_header, with_read_session, with_session
+from tests._server.mocks import (
+    get_session_manager,
+    token_header,
+    with_read_session,
+    with_session,
+)
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient

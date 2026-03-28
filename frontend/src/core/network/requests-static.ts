@@ -36,7 +36,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
       return null;
     },
     sendRestart: throwNotInEditMode,
-    syncCellIds: throwNotInEditMode,
+    sendDocumentTransaction: throwNotInEditMode,
     sendRun: throwNotInEditMode,
     sendRunScratchpad: throwNotInEditMode,
     sendRename: throwNotInEditMode,
@@ -56,6 +56,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     previewDatasetColumn: throwNotInEditMode,
     previewSQLTable: throwNotInEditMode,
     previewSQLTableList: throwNotInEditMode,
+    previewSQLSchemaList: throwNotInEditMode,
     previewDataSourceConnection: throwNotInEditMode,
     validateSQL: throwNotInEditMode,
     openFile: throwNotInEditMode,

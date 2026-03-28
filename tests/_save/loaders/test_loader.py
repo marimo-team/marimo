@@ -7,17 +7,29 @@ import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import msgspec
 import pytest
 
-from marimo._save.cache import Cache
+from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.hash import HashKey
-from marimo._save.loaders import JsonLoader, MemoryLoader, PickleLoader
+from marimo._save.loaders import (
+    JsonLoader,
+    LazyLoader,
+    MemoryLoader,
+    PickleLoader,
+)
 from marimo._save.loaders.loader import (
     BasePersistenceLoader,
     Loader,
     LoaderPartial,
 )
 from marimo._save.stores.file import FileStore
+from marimo._save.stubs.lazy_stub import (
+    Cache as CacheSchema,
+    CacheType,
+    Item,
+    Meta,
+)
 from tests._save.loaders.mocks import MockLoader
 
 
@@ -188,3 +200,90 @@ class TestPickleLoader(ABCTestLoader):
         )
 
         self.store.put(str(cache_path), pickle.dumps(cache))
+
+
+class TestLazyLoader(ABCTestLoader):
+    suffix = "jsonl"
+
+    def _instance(self) -> Loader:
+        return LazyLoader("test", store=self.store)
+
+    def teardown_method(self) -> None:
+        if self.value and hasattr(self.value, "flush"):
+            self.value.flush()
+        super().teardown_method()
+
+    def seed_cache(self) -> None:
+        loader = self.instance()
+        cache_path = loader.build_path(key("hash1", "Pure"))
+        base = Path("test") / "hash1"
+
+        # Write the pickle blob for var1
+        var_ref = (base / "var1.pickle").as_posix()
+        self.store.put(var_ref, pickle.dumps("value1"))
+
+        # Write the manifest
+        manifest = msgspec.json.encode(
+            CacheSchema(
+                hash="hash1",
+                cache_type=CacheType("Pure"),
+                defs={"var1": Item(reference=var_ref)},
+                stateful_refs=[],
+                meta=Meta(version=MARIMO_CACHE_VERSION),
+            )
+        )
+        self.store.put(str(cache_path), manifest)
+
+    def test_round_trip(self) -> None:
+        """Test save_cache -> flush -> load_cache round-trip."""
+        loader = self.instance()
+
+        cache = Cache(
+            defs={"x": 42, "y": "hello", "z": [1, 2, 3]},
+            hash="round_trip_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        loaded = loader.load_cache(key("round_trip_hash", "Pure"))
+        assert loaded is not None
+        assert loaded.hash == "round_trip_hash"
+        assert loaded.defs["x"] == 42
+        assert loaded.defs["y"] == "hello"
+        assert loaded.defs["z"] == [1, 2, 3]
+
+    def test_corrupt_cache_returns_none(self) -> None:
+        """Corrupt manifest triggers cache miss, not crash."""
+        loader = self.instance()
+        cache_path = loader.build_path(key("bad", "Pure"))
+        self.store.put(str(cache_path), b"not valid json")
+
+        result = loader.load_cache(key("bad", "Pure"))
+        assert result is None
+
+    def test_missing_blob_returns_none(self) -> None:
+        """Missing pickle blob triggers cache miss."""
+        loader = self.instance()
+        cache_path = loader.build_path(key("missing", "Pure"))
+        base = Path("test") / "missing"
+
+        # Manifest references a blob that doesn't exist
+        manifest = msgspec.json.encode(
+            CacheSchema(
+                hash="missing",
+                cache_type=CacheType("Pure"),
+                defs={
+                    "var1": Item(reference=(base / "var1.pickle").as_posix())
+                },
+                stateful_refs=[],
+                meta=Meta(version=MARIMO_CACHE_VERSION),
+            )
+        )
+        self.store.put(str(cache_path), manifest)
+
+        result = loader.load_cache(key("missing", "Pure"))
+        assert result is None

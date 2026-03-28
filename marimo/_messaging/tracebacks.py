@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 
-from marimo._messaging.context import is_headless_request
+from marimo._messaging.context import is_code_mode_request
 from marimo._messaging.types import Stderr
 
 
@@ -23,7 +23,7 @@ def _highlight_traceback(traceback: str) -> str:
 
 
 def write_traceback(traceback: str) -> None:
-    if isinstance(sys.stderr, Stderr) and not is_headless_request():
+    if isinstance(sys.stderr, Stderr) and not is_code_mode_request():
         # Strip marimo's internal executor.py frame and highlight for the UI
         trimmed = _trim_traceback(traceback)
         sys.stderr._write_with_mimetype(

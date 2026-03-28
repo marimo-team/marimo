@@ -358,7 +358,6 @@ class TestScratchCellListener:
         name, payload = _parse_sse(events[0])
         assert name == "stdout"
         assert payload["data"] == "hello\n"
-        assert not listener.timed_out
 
     @pytest.mark.asyncio
     async def test_ignores_other_cells(self) -> None:
@@ -379,15 +378,42 @@ class TestScratchCellListener:
         assert listener._queue.empty()
 
     @pytest.mark.asyncio
-    async def test_stream_timeout(self) -> None:
+    async def test_stream_cancelled_on_disconnect(self) -> None:
+        """stream() can be cancelled externally (simulating client disconnect)."""
+        import asyncio
+
+        from marimo._messaging.serde import serialize_kernel_message
+
         listener = ScratchCellListener()
         event_bus = MagicMock()
         session = MagicMock()
         listener.on_attach(session, event_bus)
 
-        events: list[str] = []
-        async for event in listener.stream(timeout=0.1):
-            events.append(event)
+        # Send one stdout event but no idle sentinel — stream would block forever
+        console = CellNotification(
+            cell_id=SCRATCH_CELL_ID,
+            console=CellOutput.stdout("partial\n"),
+        )
+        listener.on_notification_sent(
+            session, serialize_kernel_message(console)
+        )
 
-        assert events == []
-        assert listener.timed_out is True
+        events: list[str] = []
+        got_first_event = asyncio.Event()
+
+        async def consume() -> None:
+            async for event in listener.stream():
+                events.append(event)
+                got_first_event.set()
+
+        task = asyncio.create_task(consume())
+        await got_first_event.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # Got the partial event before cancellation
+        assert len(events) == 1
+        name, payload = _parse_sse(events[0])
+        assert name == "stdout"
+        assert payload["data"] == "partial\n"

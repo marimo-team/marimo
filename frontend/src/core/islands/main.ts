@@ -28,7 +28,6 @@ import {
   notebookAtom,
   notebookReducer,
 } from "../cells/cells";
-import type { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
@@ -41,7 +40,6 @@ import {
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
-import type { RequestId } from "../network/DeferredRequestRegistry";
 import { requestClientAtom } from "../network/requests";
 import { store } from "../state/jotai";
 import { IslandsPyodideBridge } from "./bridge";
@@ -115,14 +113,13 @@ export async function initialize() {
       case "installing-package-alert":
       case "completion-result":
       case "reload":
-      case "update-cell-codes":
-      case "update-cell-ids":
       case "focus-cell":
       case "variables":
       case "variable-values":
       case "data-column-preview":
       case "sql-table-preview":
       case "sql-table-list-preview":
+      case "sql-schema-list-preview":
       case "datasets":
       case "data-source-connections":
       case "validate-sql-result":
@@ -153,7 +150,7 @@ export async function initialize() {
         return;
       case "send-ui-element-message":
         UI_ELEMENT_REGISTRY.broadcastMessage(
-          msg.data.ui_element as UIElementId,
+          msg.data.ui_element,
           msg.data.message,
           safeExtractSetUIElementMessageBuffers(msg.data),
         );
@@ -163,10 +160,7 @@ export async function initialize() {
         handleRemoveUIElements(msg.data);
         return;
       case "function-call-result":
-        FUNCTIONS_REGISTRY.resolve(
-          msg.data.function_call_id as RequestId,
-          msg.data,
-        );
+        FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
       case "cell-op":
         handleCellNotificationeration(msg.data, actions.handleCellMessage);
@@ -200,6 +194,8 @@ export async function initialize() {
       case "cache-info":
         return;
       case "kernel-startup-error":
+        return;
+      case "notebook-document-transaction":
         return;
       case "model-lifecycle":
         handleWidgetMessage(MODEL_MANAGER, msg.data);

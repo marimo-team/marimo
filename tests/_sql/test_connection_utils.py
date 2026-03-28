@@ -13,8 +13,9 @@ from marimo._data.models import (
     DataTableColumn,
     Schema,
 )
-from marimo._messaging.notification import SQLMetadata
+from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 from marimo._sql.connection_utils import (
+    update_schema_list_in_connection,
     update_table_in_connection,
     update_table_list_in_connection,
 )
@@ -197,6 +198,55 @@ class TestUpdateTableInConnection:
 
         # Verify nothing changed
         assert connections[0].databases[0].schemas[0].tables == original_tables
+
+
+class TestUpdateSchemaListInConnection:
+    """Tests for update_schema_list_in_connection function."""
+
+    def test_update_schema_list(self) -> None:
+        """Test updating a schema list in the hierarchy."""
+        connections = create_test_connections(num_schemas_per_db=3)
+
+        sql_db_metadata = SQLDatabaseMetadata(
+            connection="connection_0",
+            database="database_0",
+        )
+
+        # Create new schema list
+        new_schemas = [
+            Schema(name=f"new_schema_{i}", tables=[]) for i in range(5)
+        ]
+
+        update_schema_list_in_connection(
+            connections, sql_db_metadata, new_schemas
+        )
+
+        # Verify the update
+        target_database = connections[0].databases[0]
+        assert len(target_database.schemas) == 5
+        assert target_database.schemas[0].name == "new_schema_0"
+        assert target_database.schemas[4].name == "new_schema_4"
+
+    def test_update_schema_list_nonexistent_connection(self) -> None:
+        """Test updating a schema list in a non-existent connection."""
+        connections = create_test_connections(num_schemas_per_db=3)
+
+        sql_db_metadata = SQLDatabaseMetadata(
+            connection="nonexistent",
+            database="database_0",
+        )
+
+        new_schemas = [
+            Schema(name=f"new_schema_{i}", tables=[]) for i in range(5)
+        ]
+        original_count = len(connections[0].databases[0].schemas)
+
+        update_schema_list_in_connection(
+            connections, sql_db_metadata, new_schemas
+        )
+
+        # Verify nothing changed
+        assert len(connections[0].databases[0].schemas) == original_count
 
 
 class TestUpdateTableListInConnection:
@@ -411,6 +461,43 @@ class TestPerformance:
 
         # Early exit should be very fast
         assert avg_time < 0.1, f"Performance too slow: {avg_time:.4f}ms"
+
+    def test_performance_update_schema_list(self) -> None:
+        """Benchmark update_schema_list_in_connection."""
+        connections = create_test_connections(
+            num_connections=5,
+            num_databases_per_conn=5,
+            num_schemas_per_db=10,
+            num_tables_per_schema=50,
+        )
+
+        sql_db_metadata = SQLDatabaseMetadata(
+            connection="connection_4",
+            database="database_4",
+        )
+
+        new_schemas = [
+            Schema(name=f"new_schema_{i}", tables=[]) for i in range(10)
+        ]
+
+        def update_func() -> None:
+            update_schema_list_in_connection(
+                connections, sql_db_metadata, new_schemas
+            )
+
+        avg_time, total_time = self._measure_performance(
+            update_func, iterations=1000
+        )
+
+        print(
+            f"\nUpdate schema list (5x5x10 = 250 schemas): "
+            f"{avg_time:.4f}ms avg, {total_time:.2f}ms total"
+        )
+
+        # Should be fast since we're just replacing a list reference
+        assert avg_time < TIME_THRESHOLD_SECONDS, (
+            f"Performance too slow: {avg_time:.4f}ms"
+        )
 
     def test_performance_update_table_list(self) -> None:
         """Benchmark update_table_list_in_connection."""

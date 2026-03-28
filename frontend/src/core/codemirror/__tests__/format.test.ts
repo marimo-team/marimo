@@ -6,6 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { atom } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { cellId } from "@/__tests__/branded";
 import type { NotebookState } from "@/core/cells/cells";
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -99,11 +100,11 @@ afterEach(() => {
 describe("format", () => {
   describe("formatEditorViews", () => {
     it("should format code in editor views", async () => {
-      const cellId1 = "1" as CellId;
-      const cellId2 = "2" as CellId;
+      const cid1 = cellId("1");
+      const cid2 = cellId("2");
       const views = {
-        [cellId1]: createEditor("import numpy as    np", cellId1),
-        [cellId2]: createEditor("import pandas as    pd", cellId2),
+        [cid1]: createEditor("import numpy as    np", cid1),
+        [cid2]: createEditor("import pandas as    pd", cid2),
       };
 
       const formattedCode1 = "import numpy as np";
@@ -111,8 +112,8 @@ describe("format", () => {
 
       mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
-          [cellId1]: formattedCode1,
-          [cellId2]: formattedCode2,
+          [cid1]: formattedCode1,
+          [cid2]: formattedCode2,
         },
       });
 
@@ -122,36 +123,36 @@ describe("format", () => {
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
-          [cellId1]: "import numpy as    np",
-          [cellId2]: "import pandas as    pd",
+          [cid1]: "import numpy as    np",
+          [cid2]: "import pandas as    pd",
         },
         lineLength: 88,
       });
 
-      expect(views[cellId1].state.doc.toString()).toBe(formattedCode1);
-      expect(views[cellId2].state.doc.toString()).toBe(formattedCode2);
+      expect(views[cid1].state.doc.toString()).toBe(formattedCode1);
+      expect(views[cid2].state.doc.toString()).toBe(formattedCode2);
       expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cellId1,
+        cellId: cid1,
         code: formattedCode1,
         formattingChange: true,
       });
       expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cellId2,
+        cellId: cid2,
         code: formattedCode2,
         formattingChange: true,
       });
     });
 
     it("should not update editor if formatted code is same as original", async () => {
-      const cellId = "1" as CellId;
+      const cid = cellId("1");
       const originalCode = "import numpy as np";
       const views = {
-        [cellId]: createEditor(originalCode, cellId),
+        [cid]: createEditor(originalCode, cid),
       };
 
       mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
-          [cellId]: originalCode,
+          [cid]: originalCode,
         },
       });
 
@@ -159,26 +160,26 @@ describe("format", () => {
 
       await formatEditorViews(views);
 
-      expect(views[cellId].state.doc.toString()).toBe(originalCode);
+      expect(views[cid].state.doc.toString()).toBe(originalCode);
       expect(updateCellCode).not.toHaveBeenCalled();
     });
   });
 
   describe("formatAll", () => {
     it("should format all cells in notebook", async () => {
-      const cellId1 = "1" as CellId;
-      const cellId2 = "2" as CellId;
+      const cid1 = cellId("1");
+      const cid2 = cellId("2");
       const views = {
-        [cellId1]: createEditor("import numpy as    np", cellId1),
-        [cellId2]: createEditor("import pandas as    pd", cellId2),
+        [cid1]: createEditor("import numpy as    np", cid1),
+        [cid2]: createEditor("import pandas as    pd", cid2),
       };
 
       vi.mocked(getNotebook).mockReturnValueOnce({} as NotebookState);
       vi.mocked(notebookCellEditorViews).mockReturnValueOnce(views);
       mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
-          [cellId1]: "import numpy as np",
-          [cellId2]: "import pandas as pd",
+          [cid1]: "import numpy as np",
+          [cid2]: "import pandas as pd",
         },
       });
 
@@ -188,14 +189,14 @@ describe("format", () => {
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
-          [cellId1]: "import numpy as    np",
-          [cellId2]: "import pandas as    pd",
+          [cid1]: "import numpy as    np",
+          [cid2]: "import pandas as    pd",
         },
         lineLength: 88,
       });
 
       expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cellId1,
+        cellId: cid1,
         code: "import numpy as np",
         formattingChange: true,
       });
@@ -204,8 +205,8 @@ describe("format", () => {
 
   describe("formatSQL", () => {
     it("should format SQL code", async () => {
-      const cellId = "1" as CellId;
-      const editor = createEditor("SELECT * FROM table WHERE id = 1", cellId);
+      const cid = cellId("1");
+      const editor = createEditor("SELECT * FROM table WHERE id = 1", cid);
       switchLanguage(editor, { language: "sql" });
 
       await formatSQL(editor, "duckdb" as ConnectionName);
@@ -220,15 +221,15 @@ describe("format", () => {
           id = 1"
       `);
       expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cellId,
+        cellId: cid,
         code: editor.state.doc.toString(),
         formattingChange: true,
       });
     });
 
     it("should not format if language adapter is not SQL", async () => {
-      const cellId = "1" as CellId;
-      const editor = createEditor("SELECT * FROM table WHERE id = 1", cellId);
+      const cid = cellId("1");
+      const editor = createEditor("SELECT * FROM table WHERE id = 1", cid);
       switchLanguage(editor, { language: "python" });
 
       await formatSQL(editor, "duckdb" as ConnectionName);
@@ -242,11 +243,8 @@ describe("format", () => {
   });
 
   it("should format SQL code with different dialect", async () => {
-    const cellId = "1" as CellId;
-    const editor = createEditor(
-      "SELECT * FROM `table.dot` WHERE id = 1",
-      cellId,
-    );
+    const cid = cellId("1");
+    const editor = createEditor("SELECT * FROM `table.dot` WHERE id = 1", cid);
     switchLanguage(editor, { language: "sql" });
 
     await formatSQL(editor, "mysql" as ConnectionName); // mysql uses backticks for identifiers
@@ -260,7 +258,7 @@ describe("format", () => {
         id = 1"
     `);
     expect(updateCellCode).toHaveBeenCalledWith({
-      cellId: cellId,
+      cellId: cid,
       code: editor.state.doc.toString(),
       formattingChange: true,
     });

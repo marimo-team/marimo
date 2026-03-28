@@ -52,6 +52,7 @@ with app.setup:
         o.DatasetsNotification,
         o.SQLTablePreviewNotification,
         o.SQLTableListPreviewNotification,
+        o.SQLSchemaListPreviewNotification,
         o.DataColumnPreviewNotification,
         o.DataSourceConnectionsNotification,
         o.ValidateSQLResultNotification,
@@ -60,11 +61,9 @@ with app.setup:
         o.QueryParamsDeleteNotification,
         o.QueryParamsClearNotification,
         o.FocusCellNotification,
-        o.UpdateCellCodesNotification,
         o.SecretKeysResultNotification,
         o.CacheClearedNotification,
         o.CacheInfoNotification,
-        o.UpdateCellIdsNotification,
     ]
 
 

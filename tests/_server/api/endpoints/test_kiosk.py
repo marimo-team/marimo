@@ -1,71 +1,24 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notification import (
-    KernelCapabilitiesNotification,
-    KernelReadyNotification,
+from tests._server.api.endpoints.ws_helpers import (
+    HEADERS as _HEADERS,
+    assert_kernel_ready_response,
+    create_response,
 )
-from marimo._utils.parse_dataclass import parse_raw
-from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient, WebSocketTestSession
 
 
-def create_response(
-    partial_response: dict[str, Any],
-) -> dict[str, Any]:
-    response: dict[str, Any] = {
-        "cell_ids": ["Hbol"],
-        "codes": ["import marimo as mo"],
-        "names": ["__"],
-        "layout": None,
-        "resumed": False,
-        "ui_values": {},
-        "last_executed_code": {},
-        "last_execution_time": {},
-        "kiosk": False,
-        "configs": [{"disabled": False, "hide_code": False}],
-        "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilitiesNotification()),
-    }
-    response.update(partial_response)
-    return response
-
-
 HEADERS = {
-    **token_header("fake-token"),
+    **_HEADERS,
     "Marimo-Session-Id": "123",
 }
-
-
-def assert_kernel_ready_response(
-    raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
-) -> None:
-    if response is None:
-        response = create_response({})
-    data = parse_raw(raw_data["data"], KernelReadyNotification)
-    expected = parse_raw(response, KernelReadyNotification)
-    assert data.cell_ids == expected.cell_ids
-    assert data.codes == expected.codes
-    assert data.names == expected.names
-    assert data.layout == expected.layout
-    assert data.resumed == expected.resumed
-    assert data.ui_values == expected.ui_values
-    assert data.configs == expected.configs
-    assert data.app_config == expected.app_config
-    assert data.kiosk == expected.kiosk
-    assert data.capabilities == expected.capabilities
-
-
-def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
-    data = parse_raw(raw_data["data"], KernelReadyNotification)
-    assert data is not None
 
 
 @pytest.mark.skip
@@ -84,46 +37,24 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 data, create_response({"kiosk": True, "resumed": True})
             )
 
-            # Send sync cell_ids
+            # Send document transaction to reorder cells
             response = client.post(
-                "/api/kernel/sync/cell_ids",
+                "/api/document/transaction",
                 headers=HEADERS,
-                json={"cell_ids": ["cell-123"]},
+                json={
+                    "changes": [
+                        {
+                            "type": "reorder-cells",
+                            "cellIds": ["cell-123"],
+                        }
+                    ],
+                },
             )
             assert response.status_code == 200, response.text
 
-            # Assert kiosk session received the sync cell_ids
+            # Assert kiosk session received the document transaction
             data = other_websocket.receive_json()
-            assert data == {
-                "op": "update-cell-ids",
-                "data": {"cell_ids": ["cell-123"]},
-            }
-
-            # Send run cell
-            response = client.post(
-                "/api/kernel/run",
-                headers=HEADERS,
-                json={
-                    "cell_ids": ["cell-1", "cell-2"],
-                    "codes": [
-                        "print('Hello, cell-1')",
-                        "print('Hello, cell-2')",
-                    ],
-                },
-            )
-
-            # Assert kiosk session received the updated cell codes
-            data = other_websocket.receive_json()
-            assert data == {
-                "op": "update-cell-codes",
-                "data": {
-                    "cell_ids": ["cell-1", "cell-2"],
-                    "codes": [
-                        "print('Hello, cell-1')",
-                        "print('Hello, cell-2')",
-                    ],
-                },
-            }
+            assert data["op"] == "notebook-document-transaction"
 
             # Send run single cell
             response = client.post(
@@ -135,17 +66,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 },
             )
 
-            # Assert kiosk session received the updated cell codes
-            data = _receive_until("update-cell-codes", other_websocket)
-            assert data == {
-                "op": "update-cell-codes",
-                "data": {
-                    "cell_ids": ["cell-3"],
-                    "codes": ["print('Hello, cell-3')"],
-                    "code_is_stale": False,
-                },
-            }
-            # And a focused cell
+            # Assert kiosk session received a focused cell notification
             data = _receive_until("focus-cell", other_websocket)
             assert data == {
                 "op": "focus-cell",

@@ -18,6 +18,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import asdict
+from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import CellNotification
 from marimo._schemas.notebook import (
     NotebookCell,
@@ -78,7 +79,7 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
 
 def serialize_session_view(
     view: SessionView,
-    cell_ids: Iterable[CellId_t] | None = None,
+    cell_ids: Iterable[CellId_t],
     script_metadata_hash: str | None = None,
 ) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema.
@@ -89,19 +90,6 @@ def serialize_session_view(
     order from the SessionView object, but this is not always possible.
     """
     cells: list[Cell] = []
-
-    if cell_ids is None:
-        if view.cell_ids is not None:
-            cell_ids = view.cell_ids.cell_ids
-        else:
-            # TODO: This is a problem for exporting to HTML, but not for caching the session view for replays. Something seems off.
-            LOGGER.debug(
-                "When serializing session view, the notebook-order of cells was "
-                "not known. This may cause issues when attempting to "
-                "reconstruct the notebook state from the serialized session "
-                "view."
-            )
-            cell_ids = view.cell_notifications.keys()
 
     for cell_id in cell_ids:
         cell_notif = view.cell_notifications.get(cell_id)
@@ -360,7 +348,9 @@ def get_session_cache_file(path: Path) -> Path:
     For example, if the path is `foo/bar/baz.py`, the cache file is
     `foo/bar/__marimo__/session/baz.py.json`.
     """
-    return path.parent / "__marimo__" / "session" / f"{path.name}.json"
+    from marimo._utils.paths import notebook_output_dir
+
+    return notebook_output_dir(path) / "session" / f"{path.name}.json"
 
 
 def _hash_code(code: Optional[str]) -> Optional[str]:
@@ -385,12 +375,14 @@ class SessionCacheWriter(AsyncBackgroundTask):
     def __init__(
         self,
         session_view: SessionView,
+        document: NotebookDocument,
         path: Path,
         interval: float,
         notebook_path: Path | None = None,
     ) -> None:
         super().__init__()
         self.session_view = session_view
+        self.document = document
         self.notebook_path = notebook_path
         # Windows does not support our async path implementation
         self.path: AsyncPath | Path = path
@@ -417,6 +409,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
                     LOGGER.debug(f"Writing session view to cache {self.path}")
                     data = serialize_session_view(
                         self.session_view,
+                        cell_ids=self.document.cell_ids,
                         script_metadata_hash=_script_metadata_hash(
                             self.notebook_path
                         ),
@@ -451,10 +444,12 @@ class SessionCacheManager:
     def __init__(
         self,
         session_view: SessionView,
+        document: NotebookDocument,
         path: Optional[str | Path],
         interval: float,
     ):
         self.session_view = session_view
+        self.document = document
         self.path = path
         self.interval = interval
         self.session_cache_writer: SessionCacheWriter | None = None
@@ -469,6 +464,7 @@ class SessionCacheManager:
 
         self.session_cache_writer = SessionCacheWriter(
             session_view=self.session_view,
+            document=self.document,
             path=cache_file,
             interval=self.interval,
             notebook_path=notebook_path,

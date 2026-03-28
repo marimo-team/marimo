@@ -21,10 +21,8 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_binning,
     _has_geoshape,
     _has_legend_param,
-    _has_no_nested_hconcat,
     _has_selection_param,
     _parse_spec,
-    _update_vconcat_width,
     _using_vegafusion,
     altair_chart,
     maybe_fix_vegafusion_background,
@@ -1556,167 +1554,30 @@ def test_has_legend_param() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_update_vconcat_width() -> None:
+def test_autosize_not_applied_by_default() -> None:
     import altair as alt
 
-    # Create a simple chart
-    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
-    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
-
-    # Create a vconcat chart
-    vconcat_chart = alt.vconcat(chart1, chart2)
-
-    # Update the width
-    updated_chart = _update_vconcat_width(vconcat_chart)
-
-    # Check that the width is set to container for both subcharts
-    assert updated_chart.vconcat[0].width == "container"
-    assert updated_chart.vconcat[1].width == "container"
-
-    # Test with nested vconcat
-    nested_vconcat = alt.vconcat(
-        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
-    )
-
-    updated_nested = _update_vconcat_width(nested_vconcat)
-
-    # Check that all nested charts have container width
-    assert updated_nested.vconcat[0].vconcat[0].width == "container"
-    assert updated_nested.vconcat[0].vconcat[1].width == "container"
-    assert updated_nested.vconcat[1].vconcat[0].width == "container"
-    assert updated_nested.vconcat[1].vconcat[1].width == "container"
-
-    # Test with layer chart
-    layer_chart = alt.layer(chart1, chart2)
-    updated_layer = _update_vconcat_width(layer_chart)
-    assert updated_layer.layer[0].width == "container"
-    assert updated_layer.layer[1].width == "container"
-
-    # Test with hconcat chart
-    hconcat_chart = alt.hconcat(chart1, chart2)
-    updated_hconcat = _update_vconcat_width(hconcat_chart)
-    assert updated_hconcat.hconcat[0].width == "container"
-    assert updated_hconcat.hconcat[1].width == "container"
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_chart_with_column_encoding_not_full_width() -> None:
-    import altair as alt
-
-    from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
-
-    # Create a chart with column encoding (faceted chart)
-    data = pd.DataFrame(
-        {
-            "x": [1, 2, 3, 4],
-            "y": [4, 5, 6, 7],
-            "category": ["A", "B", "A", "B"],
-        }
-    )
-    chart = (
-        alt.Chart(data)
-        .mark_point()
-        .encode(x="x:Q", y="y:Q", column="category:N")
-    )
-
-    # Test that chart with column encoding is NOT made full width
-    result = maybe_make_full_width(chart)
-    assert result.width is alt.Undefined
-
-    # Test that chart without column encoding IS made full width
-    chart_without_column = (
-        alt.Chart(data).mark_point().encode(x="x:Q", y="y:Q")
-    )
-    result_without_column = maybe_make_full_width(chart_without_column)
-    assert result_without_column.width == "container"
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_has_no_nested_hconcat() -> None:
-    import altair as alt
-
-    # Create simple charts
-    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
-    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
-
-    # Simple chart has no hconcat
-    assert _has_no_nested_hconcat(chart1) is True
-
-    # HConcatChart should return False
-    hconcat_chart = alt.hconcat(chart1, chart2)
-    assert _has_no_nested_hconcat(hconcat_chart) is False
-
-    # VConcatChart with no nested hconcat should return True
-    vconcat_chart = alt.vconcat(chart1, chart2)
-    assert _has_no_nested_hconcat(vconcat_chart) is True
-
-    # LayerChart with no nested hconcat should return True
-    layer_chart = alt.layer(chart1, chart2)
-    assert _has_no_nested_hconcat(layer_chart) is True
-
-    # VConcatChart with nested HConcatChart should return False
-    nested_vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
-    assert _has_no_nested_hconcat(nested_vconcat_with_hconcat) is False
-
-    # VConcatChart with nested VConcatChart (no hconcat) should return True
-    nested_vconcat = alt.vconcat(
-        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
-    )
-    assert _has_no_nested_hconcat(nested_vconcat) is True
-
-    # LayerChart with simple charts (no hconcat) should return True
-    layer_simple = alt.layer(chart1, chart2)
-    assert _has_no_nested_hconcat(layer_simple) is True
-
-    # VConcatChart with nested layers (no hconcat) should return True
-    vconcat_with_layer = alt.vconcat(chart1, alt.layer(chart1, chart2))
-    assert _has_no_nested_hconcat(vconcat_with_layer) is True
-
-    # Deeply nested VConcat with HConcat should return False
-    deeply_nested = alt.vconcat(alt.vconcat(chart1, hconcat_chart), chart2)
-    assert _has_no_nested_hconcat(deeply_nested) is False
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_autosize_not_applied_with_nested_hconcat() -> None:
-    import altair as alt
-
-    # Create simple charts
     data = pd.DataFrame({"x": [1, 2], "y": [3, 4]})
     chart1 = alt.Chart(data).mark_point().encode(x="x", y="y")
     chart2 = alt.Chart(data).mark_line().encode(x="x", y="y")
 
-    def get_autosize(chart: dict[str, Any]) -> str | None:
-        return chart.get("autosize")
+    def get_autosize(spec: dict[str, Any]) -> str | None:
+        return spec.get("autosize")
 
-    # Test 1: VConcatChart with nested HConcatChart should NOT have autosize applied
-    hconcat_chart = alt.hconcat(chart1, chart2)
-    vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
-
-    marimo_chart = altair_chart(vconcat_with_hconcat)
-    # The autosize should remain Undefined (not set to "fit-x")
-    assert get_autosize(marimo_chart._spec) is None
-
-    # Test 2: Simple VConcatChart (no nested hconcat) SHOULD have autosize applied
     simple_vconcat = alt.vconcat(chart1, chart2)
     marimo_chart_simple = altair_chart(simple_vconcat)
-    # The autosize should be set to "fit-x"
-    assert get_autosize(marimo_chart_simple._spec) == "fit-x"
+    assert get_autosize(marimo_chart_simple._spec) is None
 
-    # Test 3: VConcatChart with nested vconcat containing hconcat should NOT have autosize
-    nested_with_hconcat = alt.vconcat(
-        alt.vconcat(chart1, hconcat_chart), chart2
-    )
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
+    marimo_chart = altair_chart(vconcat_with_hconcat)
+    assert get_autosize(marimo_chart._spec) is None
 
-    marimo_chart_complex = altair_chart(nested_with_hconcat)
-    assert get_autosize(marimo_chart_complex._spec) is None
-
-    # Test 4: VConcatChart with explicit autosize should not be overridden
+    # Explicit autosize set by the user should be preserved
     vconcat_with_autosize = alt.vconcat(chart1, chart2).properties(
         autosize="none"
     )
     marimo_chart_explicit = altair_chart(vconcat_with_autosize)
-    # Should keep the explicit autosize value
     assert get_autosize(marimo_chart_explicit._spec) == "none"
 
 

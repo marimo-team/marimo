@@ -616,6 +616,109 @@ class TestFsspecFilesystem:
 
         mock_store.ls.assert_called_once_with(path="", detail=True)
 
+    def test_list_entries_retries_when_self_entry_detected(self) -> None:
+        mock_store = MagicMock()
+        mock_store.protocol = "file"
+        mock_store.dircache = {"": [{"name": "folder"}], "folder": []}
+        mock_store._parent = lambda _path: ""
+        mock_store.ls.side_effect = [
+            [
+                {
+                    "name": "folder",
+                    "size": 0,
+                    "type": "directory",
+                    "mtime": None,
+                }
+            ],
+            [
+                {
+                    "name": "folder/file.txt",
+                    "size": 100,
+                    "type": "file",
+                    "mtime": 1234567890.0,
+                }
+            ],
+        ]
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix="folder")
+
+        assert mock_store.ls.call_count == 2
+        assert "" not in mock_store.dircache
+        assert "folder" not in mock_store.dircache
+        assert result == snapshot(
+            [
+                StorageEntry(
+                    path="folder/file.txt",
+                    kind="file",
+                    size=100,
+                    last_modified=1234567890.0,
+                    metadata={},
+                    mime_type="text/plain",
+                ),
+            ]
+        )
+
+    def test_list_entries_returns_multi_file_list_without_self_scan(
+        self,
+    ) -> None:
+        """Multi-entry listings skip self-entry handling (O(1) path); all rows pass through."""
+        mock_store = MagicMock()
+        mock_store.protocol = "file"
+        mock_store.ls.return_value = [
+            {
+                "name": "folder",
+                "size": 0,
+                "type": "directory",
+                "mtime": None,
+            },
+            {
+                "name": "folder/folder",
+                "size": 0,
+                "type": "directory",
+                "mtime": None,
+            },
+            {
+                "name": "folder/file.txt",
+                "size": 1,
+                "type": "file",
+                "mtime": None,
+            },
+        ]
+
+        backend = self._make_backend(mock_store)
+        result = backend.list_entries(prefix="folder")
+
+        mock_store.ls.assert_called_once_with(path="folder", detail=True)
+        assert result == snapshot(
+            [
+                StorageEntry(
+                    path="folder",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                    mime_type=None,
+                ),
+                StorageEntry(
+                    path="folder/folder",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                    mime_type=None,
+                ),
+                StorageEntry(
+                    path="folder/file.txt",
+                    kind="file",
+                    size=1,
+                    last_modified=None,
+                    metadata={},
+                    mime_type="text/plain",
+                ),
+            ]
+        )
+
     def test_list_entries_respects_limit(self) -> None:
         mock_store = MagicMock()
         files = [

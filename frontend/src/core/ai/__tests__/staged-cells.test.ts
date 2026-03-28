@@ -3,6 +3,7 @@
 import { renderHook } from "@testing-library/react";
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
 import {
@@ -61,8 +62,8 @@ describe("staged-cells", () => {
 
   beforeEach(() => {
     store = getDefaultStore();
-    cellId1 = "cell-1" as CellId;
-    cellId2 = "cell-2" as CellId;
+    cellId1 = cellId("cell-1");
+    cellId2 = cellId("cell-2");
 
     // Reset mocks
     vi.clearAllMocks();
@@ -213,7 +214,7 @@ describe("staged-cells", () => {
       const testCode = "print('hello world')";
 
       // Mock CellId.create to return a predictable ID
-      const mockCellId = "mock-cell-id" as CellId;
+      const mockCellId = cellId("mock-cell-id");
       vi.mocked(CellId.create).mockReturnValue(mockCellId);
 
       const returnedCellId = result.current.createStagedCell(testCode);
@@ -229,7 +230,7 @@ describe("staged-cells", () => {
 
     it("should delete a staged cell", () => {
       const { result } = renderHook(() => useStagedCells(store));
-      const testCellId = "test-cell-id" as CellId;
+      const testCellId = cellId("test-cell-id");
 
       result.current.deleteStagedCell(testCellId);
 
@@ -330,7 +331,7 @@ describe("staged-cells", () => {
       const { result } = renderHook(() => useStagedCells(store));
 
       // Create a staged cell
-      const mockCellId = "mock-cell-id" as CellId;
+      const mockCellId = cellId("mock-cell-id");
       vi.mocked(CellId.create).mockReturnValue(mockCellId);
 
       const createdCellId = result.current.createStagedCell("test code");
@@ -341,7 +342,7 @@ describe("staged-cells", () => {
 
       let state = store.get(stagedAICellsAtom);
       expect(state.has(mockCellId)).toBe(true);
-      expect(state.get(mockCellId)).toEqual({ type: "add_cell" });
+      expect(state.get(mockCellId)).toEqual({ type: cellId("add_cell") });
 
       // Delete the staged cell
       result.current.deleteStagedCell(mockCellId);
@@ -423,7 +424,7 @@ describe("onStream", () => {
     result.current.onStream({ type: "text-start", id: "test-id" });
 
     // Mock CellId.create to return a predictable ID
-    const mockCellId = "mock-cell-id" as CellId;
+    const mockCellId = cellId("mock-cell-id");
     vi.mocked(CellId.create).mockReturnValue(mockCellId);
 
     result.current.onStream({
@@ -444,7 +445,7 @@ describe("onStream", () => {
     const { result } = renderHook(() => useStagedCells(store));
     result.current.onStream({ type: "text-start", id: "test-id" });
 
-    const mockCellId = "mock-cell-id" as CellId;
+    const mockCellId = cellId("mock-cell-id");
     vi.mocked(CellId.create).mockReturnValue(mockCellId);
 
     result.current.onStream({

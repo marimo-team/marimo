@@ -53,6 +53,7 @@ import {
 } from "@/components/data-table/types";
 import {
   getPageIndexForRow,
+  loadTableAndRawData,
   loadTableData,
 } from "@/components/data-table/utils";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
@@ -60,7 +61,11 @@ import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
-import { type CellId, findCellId } from "@/core/cells/ids";
+import { type CellId, findCellId, UIElementId } from "@/core/cells/ids";
+import {
+  OBJECT_ID_ATTR,
+  RANDOM_ID_ATTR,
+} from "@/core/dom/ui-element-constants";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -170,6 +175,7 @@ const valueCounts: z.ZodType<ValueCounts> = z.array(
 interface Data<T> {
   label: string | null;
   data: TableData<T>;
+  rawData?: TableData<T> | null;
   totalRows: number | TooManyRows;
   pagination: boolean;
   pageSize: number;
@@ -216,6 +222,7 @@ type DataTableFunctions = {
     total_rows: number | TooManyRows;
     cell_styles?: CellStyleState | null;
     cell_hover_texts?: Record<string, Record<string, string | null>> | null;
+    raw_data?: TableData<T> | null;
   }>;
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
@@ -238,6 +245,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       ]),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      rawData: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
       totalRows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
@@ -321,6 +329,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             )
             .nullable(),
           cell_hover_texts: cellHoverTextSchema.nullable(),
+          raw_data: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
         }),
       ),
     get_row_ids: rpc.input(z.object({}).passthrough()).output(
@@ -359,6 +368,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         <LazyDataTableComponent
           isLazy={props.data.lazy}
           preload={props.data.preload}
+          host={props.host}
         >
           <LoadingDataTableComponent
             {...props.data}
@@ -375,21 +385,66 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     );
   });
 
+/**
+ * Tracks which lazy tables have been previewed across remounts (e.g. tab switches).
+ * Keyed by uiElementId (stable across remounts) with randomId as value
+ * (changes on cell re-execution, so stale entries are naturally invalidated).
+ */
+const previewedTables = new Map<UIElementId, string>();
+
+function wasTablePreviewed(
+  uiElementId: UIElementId | null | undefined,
+  randomId: string | null | undefined,
+): boolean {
+  return (
+    uiElementId != null &&
+    randomId != null &&
+    previewedTables.get(uiElementId) === randomId
+  );
+}
+
+function markTablePreviewed(
+  uiElementId: UIElementId | null | undefined,
+  randomId: string | null | undefined,
+): void {
+  if (uiElementId != null && randomId != null) {
+    previewedTables.set(uiElementId, randomId);
+  }
+}
+
 const LazyDataTableComponent = ({
   isLazy: initialIsLazy,
   children,
   preload,
+  host,
 }: {
   isLazy: boolean;
   children: React.ReactNode;
   preload: boolean;
+  host: HTMLElement;
 }) => {
-  const [isLazy, setIsLazy] = useState(initialIsLazy && !preload);
+  const parentElement = host.closest(`[${OBJECT_ID_ATTR}]`);
+  const uiElementId = parentElement ? UIElementId.parse(parentElement) : null;
+
+  const randomId = host
+    .closest(`[${RANDOM_ID_ATTR}]`)
+    ?.getAttribute(RANDOM_ID_ATTR);
+
+  const [isLazy, setIsLazy] = useState(
+    initialIsLazy && !preload && !wasTablePreviewed(uiElementId, randomId),
+  );
 
   if (isLazy) {
     return (
       <div className="flex h-20 items-center justify-center">
-        <Button variant="outline" size="xs" onClick={() => setIsLazy(false)}>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => {
+            markTablePreviewed(uiElementId, randomId);
+            setIsLazy(false);
+          }}
+        >
           <Table2Icon className="mr-2 h-4 w-4" />
           Preview data
         </Button>
@@ -477,17 +532,23 @@ export const LoadingDataTableComponent = memo(
     // Data loading
     const { data, error, isPending, isFetching } = useAsyncData<{
       rows: T[];
+      rawRows?: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
       cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
       // If there is no data, return an empty array
       if (props.totalRows === 0) {
-        return { rows: Arrays.EMPTY, totalRows: 0, cellStyles: {} };
+        return {
+          rows: Arrays.EMPTY,
+          totalRows: 0,
+          cellStyles: {},
+        };
       }
 
       // Table data is a url string or an array of objects
       let tableData = props.data;
+      let rawTableData: TableData<T> | undefined | null = props.rawData;
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
       let cellHoverTexts = props.cellHoverTexts;
@@ -535,13 +596,19 @@ export const LoadingDataTableComponent = memo(
       } else {
         const searchResults = await searchResultsPromise;
         tableData = searchResults.data;
+        rawTableData = searchResults.raw_data;
         totalRows = searchResults.total_rows;
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
-      tableData = await loadTableData(tableData);
+      const [data, rawData] = await loadTableAndRawData(
+        tableData,
+        rawTableData,
+      );
+      tableData = data;
       return {
         rows: tableData,
+        rawRows: rawData,
         totalRows: totalRows,
         cellStyles,
         cellHoverTexts,
@@ -663,6 +730,7 @@ export const LoadingDataTableComponent = memo(
       <DataTableComponent
         {...props}
         data={data?.rows ?? Arrays.EMPTY}
+        rawData={data?.rawRows}
         columnSummaries={columnSummaries}
         sorting={sorting}
         setSorting={setSorting}
@@ -714,6 +782,7 @@ LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 const DataTableComponent = ({
   label,
   data,
+  rawData,
   totalRows,
   maxColumns,
   pagination,
@@ -761,6 +830,7 @@ const DataTableComponent = ({
 }: DataTableProps<unknown> &
   DataTableSearchProps & {
     data: unknown[];
+    rawData?: unknown[];
     columnSummaries?: ColumnSummaries;
     getRow: (rowIdx: number) => Promise<GetRowResult>;
   }): JSX.Element => {
@@ -801,10 +871,35 @@ const DataTableComponent = ({
     return memoizedUnclampedFieldTypes.slice(0, maxColumns);
   }, [maxColumns, memoizedUnclampedFieldTypes]);
 
+  // Compute max fractional digits per numeric column for consistent formatting.
+  const computedFractionDigits = useMemo(() => {
+    const result: Record<string, number> = {};
+    if (data && data.length > 0) {
+      for (const [colName, types] of memoizedClampedFieldTypes) {
+        if (types[0] === "number") {
+          let maxDecimals = 0;
+          for (const row of data) {
+            const val = (row as Record<string, unknown>)[colName];
+            if (typeof val === "number" && Number.isFinite(val)) {
+              const str = String(val);
+              const dotIdx = str.indexOf(".");
+              if (dotIdx !== -1) {
+                maxDecimals = Math.max(maxDecimals, str.length - dotIdx - 1);
+              }
+            }
+          }
+          result[colName] = maxDecimals;
+        }
+      }
+    }
+    return result;
+  }, [data, memoizedClampedFieldTypes]);
+
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
+  const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
 
   // If the field types are not set, we don't show them
@@ -825,6 +920,7 @@ const DataTableComponent = ({
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
+        fractionDigitsByColumn: fractionDigitsByColumn,
       }),
     [
       selection,
@@ -836,6 +932,7 @@ const DataTableComponent = ({
       memoizedWrappedColumns,
       headerTooltip,
       calculate_top_k_rows,
+      fractionDigitsByColumn,
     ],
   );
 
@@ -962,6 +1059,7 @@ const DataTableComponent = ({
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
             data={data}
+            rawData={rawData}
             columns={columns}
             className={className}
             maxHeight={maxHeight}

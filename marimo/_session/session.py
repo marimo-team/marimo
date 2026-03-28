@@ -15,6 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
 )
@@ -61,13 +62,38 @@ from marimo._utils.repr import format_repr
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
+    from marimo._ast.cell_manager import CellManager
     from marimo._server.models.models import InstantiateNotebookRequest
+    from marimo._session.app_host import AppHostContext
 
 LOGGER = _loggers.marimo_logger()
 
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
+
+
+def _document_from_cell_manager(cell_manager: CellManager) -> NotebookDocument:
+    """Build a NotebookDocument from a CellManager's current state.
+
+    TODO: CellManager and NotebookDocument track overlapping state (cell
+    ordering, code, names, configs). Once the document model is wired
+    into all consumers, we should reconcile these — either CellManager
+    wraps a NotebookDocument internally, or it is replaced by a
+    different composition. For now, the document is populated from the
+    cell manager at session startup and the two coexist.
+    """
+    return NotebookDocument(
+        [
+            NotebookCell(
+                id=cd.cell_id,
+                code=cd.code,
+                name=cd.name,
+                config=cd.config,
+            )
+            for cd in cell_manager.cell_data()
+        ]
+    )
 
 
 class SessionImpl(Session):
@@ -93,6 +119,7 @@ class SessionImpl(Session):
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
         sandbox_mode: SandboxMode | None = None,
+        app_host_context: AppHostContext | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -106,10 +133,38 @@ class SessionImpl(Session):
         configs = app_file_manager.app.cell_manager.config_map()
 
         # Create kernel manager
-        # SandboxMode.MULTI uses IPC kernels with per-notebook sandboxed venvs
+        # AppHost path handles multi-app run mode (both sandbox and non-sandbox).
+        # SandboxMode.MULTI falls through to IPC kernels only in edit mode.
         queue_manager: QueueManager
         kernel_manager: KernelManager
-        if sandbox_mode is SandboxMode.MULTI:
+        if app_host_context is not None and mode == SessionMode.RUN:
+            from marimo._session.managers.app_host import (
+                AppHostKernelManager,
+                AppHostQueueManager,
+            )
+
+            file_path = app_file_manager.path
+            if file_path is None:
+                raise ValueError(
+                    "App host isolation requires a file-backed notebook"
+                )
+            app_host = app_host_context.pool.get_or_create(file_path)
+            queue_manager = AppHostQueueManager(
+                app_host, app_host_context.session_id
+            )
+            kernel_manager = AppHostKernelManager(
+                app_host=app_host,
+                session_id=app_host_context.session_id,
+                queue_manager=queue_manager,
+                mode=mode,
+                configs=configs,
+                app_metadata=app_metadata,
+                config_manager=config_manager,
+                redirect_console_to_browser=redirect_console_to_browser,
+            )
+        elif sandbox_mode is SandboxMode.MULTI:
+            # IPC kernel path — edit mode with sandbox
+            # (AppHostPool is never created in edit mode)
             from marimo._ipc import QueueManager as IPCQueueManager
             from marimo._session.managers import (
                 IPCKernelManagerImpl,
@@ -199,6 +254,9 @@ class SessionImpl(Session):
         self._kernel_manager = kernel_manager
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
+        )
+        self.document = _document_from_cell_manager(
+            app_file_manager.app.cell_manager
         )
         self.session_view = SessionView()
         self.config_manager = config_manager
@@ -357,11 +415,12 @@ class SessionImpl(Session):
         operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
-        """Write an operation to the session consumer and the session view."""
+        """Broadcast a notification to session consumers."""
         if isinstance(operation, bytes):
             notification = operation
         else:
             notification = serialize_kernel_message(operation)
+
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
 

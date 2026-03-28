@@ -1,19 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { cellId, variableName } from "@/__tests__/branded";
 import { exportedForTesting } from "../state";
-import type { VariableName, Variables } from "../types";
+import type { Variables } from "../types";
 
 const { initialState, reducer, createActions } = exportedForTesting;
 
 const CellIds = {
-  a: "a" as CellId,
-  b: "b" as CellId,
+  a: cellId("a"),
+  b: cellId("b"),
 };
 
 const Names = {
-  x: "x" as VariableName,
-  y: "y" as VariableName,
+  x: variableName("x"),
+  y: variableName("y"),
 };
 
 describe("cell reducer", () => {

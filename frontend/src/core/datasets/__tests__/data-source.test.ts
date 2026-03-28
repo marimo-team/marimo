@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import type { DataTable } from "@/core/kernel/messages";
+import { variableName } from "@/__tests__/branded";
+import type { DatabaseSchema, DataTable } from "@/core/kernel/messages";
 import type { VariableName } from "@/core/variables/types";
 import {
   type DataSourceConnection,
@@ -182,7 +183,7 @@ describe("filtering data sources", () => {
   });
 
   it("keeps matching variables and internal engines", () => {
-    const filtered = filterDataSources(["conn1" as unknown as VariableName]);
+    const filtered = filterDataSources([variableName("conn1")]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
     for (const engine of INTERNAL_SQL_ENGINES) {
@@ -191,22 +192,107 @@ describe("filtering data sources", () => {
   });
 
   it("filters out non-matching variables", () => {
-    const filtered = filterDataSources([
-      "non_existent" as unknown as VariableName,
-    ]);
+    const filtered = filterDataSources([variableName("non_existent")]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize);
   });
 
   it("handles mix of matching and non-matching variables", () => {
     const filtered = filterDataSources([
-      "conn1" as unknown as VariableName,
-      "non_existent" as unknown as VariableName,
+      variableName("conn1"),
+      variableName("non_existent"),
     ]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
     for (const engine of INTERNAL_SQL_ENGINES) {
       expect(filtered.connectionsMap.has(engine)).toBe(true);
     }
+  });
+});
+
+describe("add schema list", () => {
+  const connections: DataSourceConnection[] = [
+    {
+      name: "conn1" as ConnectionName,
+      source: "sqlite",
+      display_name: "SQLite DB",
+      dialect: "sqlite",
+      databases: [
+        {
+          name: "db1",
+          schemas: [],
+          dialect: "sqlite",
+        },
+      ],
+    },
+  ];
+
+  // Helper function to add schema list
+  const addSchemaList = (
+    schemas: DatabaseSchema[],
+    engine: string,
+    database: string,
+  ) => {
+    return reducer(baseState, {
+      type: "addSchemaList",
+      payload: {
+        schemas,
+        sqlSchemaContext: { engine, database },
+      },
+    });
+  };
+
+  let baseState: DataSourceState;
+
+  beforeEach(() => {
+    baseState = addConnection(connections, baseState);
+    expect(baseState.connectionsMap.size).toBe(defaultConnSize + 1);
+  });
+
+  it("adds schema list to a specific database", () => {
+    const schemaList: DatabaseSchema[] = [
+      { name: "public", tables: [] },
+      { name: "analytics", tables: [] },
+    ];
+    const newState = addSchemaList(schemaList, "conn1", "db1");
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    expect(db1?.schemas).toEqual(schemaList);
+  });
+
+  it("updates schema list for a database", () => {
+    const schemaList: DatabaseSchema[] = [
+      { name: "public", tables: [] },
+      { name: "analytics", tables: [] },
+    ];
+    const newState = addSchemaList(schemaList, "conn1", "db1");
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    expect(db1?.schemas).toEqual(schemaList);
+
+    // update with new schema list
+    const newSchemaList: DatabaseSchema[] = [
+      { name: "public", tables: [] },
+      { name: "sales", tables: [] },
+    ];
+    const updatedState = addSchemaList(newSchemaList, "conn1", "db1");
+
+    const newConn = updatedState.connectionsMap.get("conn1" as ConnectionName);
+    const newDb1 = newConn?.databases.find((db) => db.name === "db1");
+    expect(newDb1?.schemas).toEqual(newSchemaList);
+  });
+
+  it("does not add schema list if database does not exist", () => {
+    const schemaList: DatabaseSchema[] = [
+      { name: "public", tables: [] },
+      { name: "analytics", tables: [] },
+    ];
+    const newState = addSchemaList(schemaList, "conn1", "non_existent_db");
+
+    const conn1 = newState.connectionsMap.get("conn1" as ConnectionName);
+    const db1 = conn1?.databases.find((db) => db.name === "db1");
+    expect(db1?.schemas.length).toBe(0);
   });
 });
 

@@ -47,7 +47,7 @@ from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import marimo_package_path
+from marimo._utils.paths import marimo_package_path, notebook_output_dir
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -346,6 +346,7 @@ class Exporter:
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
             DependencyManager.playwright,
+            source="server",
         )
 
         ipynb_json_str = self.export_as_ipynb(
@@ -367,6 +368,13 @@ class Exporter:
 
         # Try standard PDF export first (requires pandoc + TeX)
         # and fall back to webpdf if it fails
+        from nbconvert.utils.exceptions import (  # type: ignore[import-not-found]
+            ConversionException,
+        )
+        from nbconvert.utils.pandoc import (  # type: ignore[import-not-found]
+            PandocMissing,
+        )
+
         if not webpdf:
             try:
                 from nbconvert import (  # type: ignore[import-not-found]
@@ -381,12 +389,23 @@ class Exporter:
                 LOGGER.error("PDF data is not bytes: %s", pdf_data)
                 return None
             except OSError as e:
-                LOGGER.warning(
-                    "Standard PDF export failed, falling back to webpdf. Error: %s",
+                # LatexFailed (IOError) or xelatex not on PATH
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
                     e,
                 )
+            except (PandocMissing, ConversionException) as e:
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
+                    e,
+                )
+            except Exception as e:
+                LOGGER.error(
+                    "Standard PDF export failed, falling back to webpdf.",
+                    exc_info=e,
+                )
 
-        from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+        from nbconvert import WebPDFExporter
 
         web_exporter = WebPDFExporter()  # type: ignore[no-untyped-call]
         web_exporter.exclude_input = not include_inputs
@@ -431,6 +450,7 @@ class Exporter:
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
             DependencyManager.playwright,
+            source="server",
         )
 
         ipynb_json_str = self.export_as_ipynb(
@@ -479,7 +499,7 @@ class Exporter:
         import os
         import tempfile
 
-        from nbconvert import SlidesExporter  # type: ignore[import-not-found]
+        from nbconvert import SlidesExporter
 
         # Add slideshow metadata so each cell becomes a slide.
         for cell in notebook.cells:
@@ -492,7 +512,7 @@ class Exporter:
         # Convert to reveal.js HTML
         slides_exporter = SlidesExporter()  # type: ignore[no-untyped-call]
         slides_exporter.exclude_input = not include_inputs
-        html_data, _resources = slides_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)
 
         # Write HTML to a temp file for Playwright to load
         with tempfile.NamedTemporaryFile(
@@ -602,8 +622,6 @@ class Exporter:
 
 
 class AutoExporter:
-    EXPORT_DIR = "__marimo__"
-
     def __init__(self) -> None:
         # Cache directories we've already created to avoid redundant checks
         self._created_dirs: set[Path] = set()
@@ -615,11 +633,12 @@ class AutoExporter:
     async def _save_file(
         self, filename: Optional[str], content: str, extension: str
     ) -> None:
-        directory = Path(get_filename(filename)).parent
-        filename = get_download_filename(filename, extension)
+        notebook_path = get_filename(filename)
+        download_name = get_download_filename(filename, extension)
+        export_dir = notebook_output_dir(notebook_path)
 
-        await self._ensure_export_dir_async(directory)
-        filepath = directory / self.EXPORT_DIR / filename
+        await self._ensure_export_dir_async(export_dir)
+        filepath = export_dir / download_name
 
         # Run blocking file I/O in thread pool
         loop = asyncio.get_event_loop()
@@ -642,16 +661,11 @@ class AutoExporter:
             return
         filepath.write_text(content, encoding="utf-8")
 
-    async def _ensure_export_dir_async(self, directory: Path) -> None:
+    async def _ensure_export_dir_async(self, export_dir: Path) -> None:
         """Async directory creation with caching to avoid redundant checks"""
-        export_dir = directory / self.EXPORT_DIR
-
         # Fast path: already created this directory
         if export_dir in self._created_dirs:
             return
-
-        if not await async_path.exists(directory):
-            raise FileNotFoundError(f"Directory {directory} does not exist")
 
         await async_path.mkdir(export_dir, parents=True, exist_ok=True)
 

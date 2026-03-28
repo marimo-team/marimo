@@ -1,11 +1,40 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from contextlib import contextmanager
+from typing import TYPE_CHECKING
+
 import pytest
 
-from marimo._code_mode._context import AsyncCodeModeContext, NotebookCellData
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+from marimo._code_mode._context import AsyncCodeModeContext
+from marimo._messaging.notebook.document import (
+    NotebookCell,
+    NotebookDocument,
+    notebook_document_context,
+)
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import CellId_t
+
+
+def cmd(cell_id: str, code: str) -> ExecuteCellCommand:
+    return ExecuteCellCommand(cell_id=CellId_t(cell_id), code=code)
+
+
+@contextmanager
+def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
+    """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
+    doc = NotebookDocument(
+        [
+            NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
+            for cid, cell in k.graph.cells.items()
+        ]
+    )
+    with notebook_document_context(doc):
+        yield AsyncCodeModeContext(k)
 
 
 class TestCellsViewIndex:
@@ -14,40 +43,37 @@ class TestCellsViewIndex:
     async def test_positive_index(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="a", code="x = 1"),
-                ExecuteCellCommand(cell_id="b", code="y = 2"),
-                ExecuteCellCommand(cell_id="c", code="z = 3"),
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
+                cmd(cell_id="c", code="z = 3"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
-
-        assert ctx.cells[0].cell_id == "a"
-        assert ctx.cells[1].cell_id == "b"
-        assert ctx.cells[2].cell_id == "c"
+        with _ctx(k) as ctx:
+            assert ctx.cells[0].id == "a"
+            assert ctx.cells[1].id == "b"
+            assert ctx.cells[2].id == "c"
 
     async def test_negative_index(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="a", code="x = 1"),
-                ExecuteCellCommand(cell_id="b", code="y = 2"),
-                ExecuteCellCommand(cell_id="c", code="z = 3"),
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
+                cmd(cell_id="c", code="z = 3"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
-
-        assert ctx.cells[-1].cell_id == "c"
-        assert ctx.cells[-2].cell_id == "b"
-        assert ctx.cells[-3].cell_id == "a"
+        with _ctx(k) as ctx:
+            assert ctx.cells[-1].id == "c"
+            assert ctx.cells[-2].id == "b"
+            assert ctx.cells[-3].id == "a"
 
     async def test_index_out_of_range(self, k: Kernel) -> None:
-        await k.run([ExecuteCellCommand(cell_id="a", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
+        await k.run([cmd(cell_id="a", code="x = 1")])
+        with _ctx(k) as ctx:
+            with pytest.raises(IndexError):
+                ctx.cells[5]
 
-        with pytest.raises(IndexError):
-            ctx.cells[5]
-
-        with pytest.raises(IndexError):
-            ctx.cells[-5]
+            with pytest.raises(IndexError):
+                ctx.cells[-5]
 
 
 class TestCellsViewCellId:
@@ -56,49 +82,41 @@ class TestCellsViewCellId:
     async def test_lookup_by_cell_id(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="abc", code="x = 1"),
-                ExecuteCellCommand(cell_id="def", code="y = 2"),
+                cmd(cell_id="abc", code="x = 1"),
+                cmd(cell_id="def", code="y = 2"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
-
-        cell = ctx.cells["def"]
-        assert cell.cell_id == "def"
-        assert cell.code == "y = 2"
+        with _ctx(k) as ctx:
+            cell = ctx.cells["def"]
+            assert cell.id == "def"
+            assert cell.code == "y = 2"
 
     async def test_lookup_by_cell_id_not_found(self, k: Kernel) -> None:
-        await k.run([ExecuteCellCommand(cell_id="abc", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
-
-        with pytest.raises(KeyError):
-            ctx.cells["nonexistent"]
+        await k.run([cmd(cell_id="abc", code="x = 1")])
+        with _ctx(k) as ctx:
+            with pytest.raises(KeyError):
+                ctx.cells["nonexistent"]
 
 
 class TestCellsViewCellName:
     """Test lookup by cell name."""
 
     async def test_name_lookup_without_cell_manager(self, k: Kernel) -> None:
-        await k.run([ExecuteCellCommand(cell_id="a", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
-
-        # No cell manager → name lookup fails
-        with pytest.raises(KeyError):
-            ctx.cells["my_cell"]
+        await k.run([cmd(cell_id="a", code="x = 1")])
+        with _ctx(k) as ctx:
+            # No cell manager → name lookup fails
+            with pytest.raises(KeyError):
+                ctx.cells["my_cell"]
 
 
 class TestCellsViewNameField:
-    """Test that the name field is populated on NotebookCellData."""
+    """Test that the name field is populated on NotebookCell."""
 
-    async def test_name_is_none_without_cell_manager(self, k: Kernel) -> None:
-        await k.run([ExecuteCellCommand(cell_id="a", code="x = 1")])
-        ctx = AsyncCodeModeContext(k)
-
-        cell = ctx.cells[0]
-        assert cell.name is None
-
-    async def test_name_field_on_constructed_cell(self) -> None:
-        cell = NotebookCellData(code="x = 1", name="my_cell")
-        assert cell.name == "my_cell"
+    async def test_name_is_empty_without_cell_manager(self, k: Kernel) -> None:
+        await k.run([cmd(cell_id="a", code="x = 1")])
+        with _ctx(k) as ctx:
+            cell = ctx.cells[0]
+            assert cell.name == ""
 
 
 class TestCellsViewIteration:
@@ -107,21 +125,69 @@ class TestCellsViewIteration:
     async def test_len(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="a", code="x = 1"),
-                ExecuteCellCommand(cell_id="b", code="y = 2"),
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
-        assert len(ctx.cells) == 2
+        with _ctx(k) as ctx:
+            assert len(ctx.cells) == 2
 
-    async def test_iteration(self, k: Kernel) -> None:
+    async def test_iteration_yields_cell_ids(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="a", code="x = 1"),
-                ExecuteCellCommand(cell_id="b", code="y = 2"),
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
             ]
         )
-        ctx = AsyncCodeModeContext(k)
+        with _ctx(k) as ctx:
+            ids = list(ctx.cells)
+            assert ids == ["a", "b"]
 
-        ids = [cell.cell_id for cell in ctx.cells]
-        assert ids == ["a", "b"]
+    async def test_keys(self, k: Kernel) -> None:
+        await k.run(
+            [
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
+            ]
+        )
+        with _ctx(k) as ctx:
+            assert ctx.cells.keys() == ["a", "b"]
+
+    async def test_values(self, k: Kernel) -> None:
+        await k.run(
+            [
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
+            ]
+        )
+        with _ctx(k) as ctx:
+            vals = ctx.cells.values()
+            assert [v.id for v in vals] == ["a", "b"]
+            assert [v.code for v in vals] == ["x = 1", "y = 2"]
+
+    async def test_items(self, k: Kernel) -> None:
+        await k.run(
+            [
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
+            ]
+        )
+        with _ctx(k) as ctx:
+            items = ctx.cells.items()
+            assert [(cid, cell.code) for cid, cell in items] == [
+                ("a", "x = 1"),
+                ("b", "y = 2"),
+            ]
+
+    async def test_contains(self, k: Kernel) -> None:
+        await k.run(
+            [
+                cmd(cell_id="a", code="x = 1"),
+                cmd(cell_id="b", code="y = 2"),
+            ]
+        )
+        with _ctx(k) as ctx:
+            assert "a" in ctx.cells
+            assert "nonexistent" not in ctx.cells
+            assert 0 in ctx.cells
+            assert 5 not in ctx.cells

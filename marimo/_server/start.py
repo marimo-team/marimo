@@ -5,7 +5,7 @@ import os
 import re
 import subprocess
 import threading
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import uvicorn
 
@@ -38,6 +38,9 @@ from marimo._session.model import SessionMode
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.net import find_free_port
+
+if TYPE_CHECKING:
+    from marimo._cli.tips import CliTip
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
@@ -183,6 +186,7 @@ def start(
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
     sandbox_mode: SandboxMode | None = None,
+    startup_tip: CliTip | None = None,
 ) -> None:
     """
     Start the server.
@@ -248,6 +252,11 @@ def start(
             }
         )
 
+    is_multi = file_router.get_unique_file_key() is None
+    isolate_apps = is_multi and config_reader.experimental.get(
+        "isolate_apps", False
+    )
+
     session_manager = SessionManager(
         file_router=file_router,
         mode=mode,
@@ -262,6 +271,7 @@ def start(
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
         sandbox_mode=sandbox_mode,
+        isolate_apps=isolate_apps,
     )
 
     log_level = "info" if development_mode else "error"
@@ -316,6 +326,7 @@ def start(
         mcp_server_enabled=mcp_enabled,
         skew_protection=skew_protection,
         enable_auth=enable_auth,
+        startup_tip=startup_tip,
     )
     init_state.apply(app.state)
 

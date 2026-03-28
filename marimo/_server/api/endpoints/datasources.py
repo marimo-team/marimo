@@ -10,6 +10,7 @@ from marimo._server.api.utils import dispatch_control_request
 from marimo._server.models.models import (
     BaseResponse,
     ListDataSourceConnectionRequest,
+    ListSQLSchemasRequest,
     ListSQLTablesRequest,
     PreviewDatasetColumnRequest,
     PreviewSQLTableRequest,
@@ -103,6 +104,32 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, ListSQLTablesRequest)
+
+
+@router.post("/preview_sql_schema_list")
+@requires("edit")
+async def preview_sql_schema_list(request: Request) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ListSQLSchemasRequest"
+    responses:
+        200:
+            description: Preview a list of schemas in an SQL database
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, ListSQLSchemasRequest)
 
 
 @router.post("/preview_datasource_connection")

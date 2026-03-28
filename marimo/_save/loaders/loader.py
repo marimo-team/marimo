@@ -208,7 +208,7 @@ class BasePersistenceLoader(Loader):
             self.store = store
         else:
             try:
-                self.store = get_context().cache_store
+                self.store = get_context().cache.store
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 

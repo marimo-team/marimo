@@ -6,23 +6,27 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._cli.sandbox import SandboxMode
-from marimo._messaging.notification import UpdateCellIdsNotification
+from marimo._messaging.notification import FocusCellNotification
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import dispatch_control_request, parse_request
+from marimo._server.api.utils import (
+    dispatch_control_request,
+    install_packages_on_server,
+    notify_server_missing_packages,
+    parse_request,
+)
 from marimo._server.models.models import (
     BaseResponse,
     CodeCompletionRequest,
     DeleteCellRequest,
+    FocusCellRequest,
     FormatCellsRequest,
     FormatResponse,
     InstallPackagesRequest,
     StdinRequest,
     SuccessResponse,
     UpdateCellConfigRequest,
-    UpdateCellIdsRequest,
 )
 from marimo._server.router import APIRouter
-from marimo._types.ids import ConsumerId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
@@ -84,9 +88,9 @@ async def delete_cell(request: Request) -> BaseResponse:
     return await dispatch_control_request(request, DeleteCellRequest)
 
 
-@router.post("/sync/cell_ids")
+@router.post("/focus_cell")
 @requires("edit")
-async def sync_cell_ids(request: Request) -> BaseResponse:
+async def focus_cell(request: Request) -> BaseResponse:
     """
     parameters:
         - in: header
@@ -98,21 +102,20 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/UpdateCellIdsRequest"
+                    $ref: "#/components/schemas/FocusCellRequest"
     responses:
         200:
-            description: Sync cell ids
+            description: Focus a cell in kiosk-mode consumers
             content:
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=UpdateCellIdsRequest)
-    session_id = app_state.require_current_session_id()
+    body = await parse_request(request, cls=FocusCellRequest)
     app_state.require_current_session().notify(
-        UpdateCellIdsNotification(cell_ids=body.cell_ids),
-        from_consumer_id=ConsumerId(session_id),
+        FocusCellNotification(cell_id=body.cell_id),
+        from_consumer_id=None,
     )
     return SuccessResponse()
 
@@ -137,22 +140,33 @@ async def format_cell(request: Request) -> FormatResponse:
     app_state = AppState(request)
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
+    filename = app_state.require_current_session().app_file_manager.path
+    if filename and filename.endswith((".md", ".qmd")):
+        filename = f"{filename}.py"
 
     try:
-        return FormatResponse(
-            codes=await formatter.format(
-                body.codes,
-                stdin_filename=app_state.require_current_session().app_file_manager.path,
-            )
-        )
+        codes = await formatter.format(body.codes, filename)
+        return FormatResponse(codes)
     except ModuleNotFoundError:
-        # Installation occurs in the kernel which is not useful for multi mode.
+        # In multi-sandbox mode each kernel has its own venv, so installing
+        # ruff into the server wouldn't help the kernel.  Just surface the
+        # error without an install prompt.
         if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
-            # Re-raise without name so error handler won't send install notification
             raise ModuleNotFoundError(
                 "Server does not have a formatter. Please install ruff"
             ) from None
-        raise
+        # For single-sandbox and non-sandbox modes the server *is* the
+        # formatting environment, so offer to install ruff there.
+        notify_server_missing_packages(
+            app_state.get_current_session(),
+            app_state.get_current_session_id(),
+            ["ruff"],
+        )
+        # Re-raise without .name so the error handler returns 500 without
+        # sending a duplicate notification.
+        raise ModuleNotFoundError(
+            "Server does not have a formatter. Please install ruff"
+        ) from None
 
 
 @router.post("/set_cell_config")
@@ -234,4 +248,17 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, InstallPackagesRequest)
+    body = await parse_request(request, cls=InstallPackagesRequest)
+    cmd = body.as_command()
+
+    if cmd.source == "server":
+        # Install into the server's own Python environment (sys.executable).
+        # Used when the server itself needs a package (e.g. nbformat for
+        # IPYNB auto-export when running with --sandbox).
+        app_state = AppState(request)
+        app_state.require_current_session()
+        await install_packages_on_server(cmd.manager, cmd.versions)
+        return SuccessResponse()
+
+    # Default ("kernel"): dispatch to kernel via ZeroMQ control queue.
+    return await dispatch_control_request(request, cmd)

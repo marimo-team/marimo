@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import contextlib
 import functools
 import sys
@@ -8,6 +9,7 @@ import textwrap
 import types
 from typing import TYPE_CHECKING, Any, Callable
 
+from marimo._ast.parse import ast_parse
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import marimo_browser, marimo_pdb
 from marimo._utils.platform import is_pyodide
@@ -169,15 +171,28 @@ del Loader; del MetaPathFinder
         del glbls["sys"]
 
 
+def extract_docstring_from_header(header: str | None) -> str | None:
+    """Extract the Python docstring value from a notebook header string."""
+    if not header:
+        return None
+    try:
+        tree = ast_parse(header)
+        return ast.get_docstring(tree)
+    except (SyntaxError, ValueError):
+        return None
+
+
 def create_main_module(
     file: str | None,
     input_override: Callable[[Any], str] | None,
     print_override: Callable[[Any], None] | None,
+    doc: str | None = None,
 ) -> types.ModuleType:
     # Every kernel gets its own main module, whose __dict__ attribute
     # serves as the global namespace
     _module = types.ModuleType(
-        "__main__", doc="Created for the marimo kernel."
+        "__main__",
+        doc=doc if doc is not None else "Created for the marimo kernel.",
     )
     _module.__dict__.setdefault("__builtin__", globals()["__builtins__"])
     _module.__dict__.setdefault("__builtins__", globals()["__builtins__"])
@@ -205,13 +220,14 @@ def patch_main_module(
     file: str | None,
     input_override: Callable[[Any], str] | None,
     print_override: Callable[[Any], None] | None,
+    doc: str | None = None,
 ) -> types.ModuleType:
     """Patches __main__ module
 
     - Makes functions pickleable
     - Loads some overrides and mocks into globals
     """
-    _module = create_main_module(file, input_override, print_override)
+    _module = create_main_module(file, input_override, print_override, doc=doc)
 
     # TODO(akshayka): In run mode, this can introduce races between different
     # kernel threads, since they each share sys.modules. Unfortunately, Python

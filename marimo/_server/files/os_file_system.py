@@ -96,15 +96,25 @@ class OSFileSystem(FileSystem):
         contents: str | None = None,
     ) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
+        is_base64 = False
+        actual_contents: str | bytes | None
         if file_info.is_directory:
             actual_contents = None
         elif contents is not None:
             actual_contents = contents
         else:
             actual_contents = self.open_file(path, encoding=encoding)
+            if isinstance(actual_contents, bytes):
+                actual_contents = base64.b64encode(actual_contents).decode(
+                    "utf-8"
+                )
+                is_base64 = True
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
-            file=file_info, contents=actual_contents, mime_type=mime_type
+            file=file_info,
+            contents=actual_contents,
+            mime_type=mime_type,
+            is_base64=is_base64,
         )
 
     def _is_marimo_file(self, path: str) -> bool:
@@ -116,13 +126,12 @@ class OSFileSystem(FileSystem):
 
         return is_marimo_app(path)
 
-    def open_file(self, path: str, encoding: str | None = None) -> str:
+    def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
         file_path = Path(path)
         try:
-            return file_path.read_text(encoding=encoding)
+            return file_path.read_text(encoding=encoding or "utf-8")
         except UnicodeDecodeError:
-            # If its a UnicodeDecodeError, try as bytes and convert to base64
-            return base64.b64encode(file_path.read_bytes()).decode("utf-8")
+            return file_path.read_bytes()
 
     def create_file_or_directory(
         self,
@@ -155,10 +164,17 @@ class OSFileSystem(FileSystem):
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
         elif file_type == "notebook" and not contents:
+            from marimo._convert.converters import MarimoConvert
+
             full_path.parent.mkdir(parents=True, exist_ok=True)
             # Create a new AppFileManager to get the default notebook code
             # We pass None as filename to get the empty notebook template
-            notebook_code = AppFileManager(None).to_code()
+            ir = AppFileManager(None).app.to_ir()
+            converter = MarimoConvert.from_ir(ir)
+            if full_path.suffix in (".md", ".qmd"):
+                notebook_code = converter.to_markdown(full_path.name)
+            else:
+                notebook_code = converter.to_py()
             full_path.write_text(notebook_code, encoding="utf-8")
             contents = notebook_code.encode("utf-8")
         else:
@@ -352,7 +368,6 @@ class OSFileSystem(FileSystem):
                     return True
                 except Exception as e:
                     LOGGER.error(f"Error opening with EDITOR: {e}")
-                    pass
 
             # Use system default if no editor specified
             if platform.system() == "Darwin":  # macOS

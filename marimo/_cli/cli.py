@@ -34,6 +34,7 @@ from marimo._cli.print import bright_green, light_blue, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
+from marimo._cli.tips import choose_startup_tip
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
     check_app_correctness,
@@ -607,6 +608,7 @@ def edit(
         asset_url=asset_url,
         timeout=timeout,
         sandbox_mode=sandbox_mode,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -806,6 +808,7 @@ def new(
         redirect_console_to_browser=True,
         ttl_seconds=None,
         timeout=timeout,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -1189,6 +1192,14 @@ def run(
                 "pyzmq is required when running a gallery with --sandbox.",
                 "marimo[sandbox]",
             )
+    elif is_multi:
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required for running multiple notebooks.",
+                "pyzmq",
+            )
 
     file_router = _create_run_file_router(validated_paths, watch=watch)
 
@@ -1218,6 +1229,7 @@ def run(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         sandbox_mode=sandbox_mode,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -1340,6 +1352,7 @@ def tutorial(
         ),
         redirect_console_to_browser=False,
         ttl_seconds=None,
+        startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
@@ -1439,6 +1452,26 @@ def shell_completion() -> None:
     type=click.Choice(["full", "json"], case_sensitive=False),
     help="Output format for diagnostics.",
 )
+@click.option(
+    "--select",
+    "select_rules",
+    default=None,
+    type=str,
+    help=(
+        "Comma-separated rule codes/prefixes to enable, replacing config. "
+        "e.g. --select MB,MR001"
+    ),
+)
+@click.option(
+    "--ignore",
+    "ignore_rules",
+    default=None,
+    type=str,
+    help=(
+        "Comma-separated rule codes/prefixes to ignore. "
+        "e.g. --ignore MF004,MF007"
+    ),
+)
 @click.argument("files", nargs=-1, type=click.UNPROCESSED)
 def check(
     fix: bool,
@@ -1447,11 +1480,17 @@ def check(
     unsafe_fixes: bool,
     ignore_scripts: bool,
     formatter: str,
+    select_rules: str | None,
+    ignore_rules: str | None,
     files: tuple[str, ...],
 ) -> None:
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")
+
+    from marimo._lint import resolve_lint_config
+
+    lint_config = resolve_lint_config(select_rules, ignore_rules)
 
     # Pass click.echo directly as pipe for streaming output, or None for JSON
     pipe = click.echo if verbose and formatter != "json" else None
@@ -1462,6 +1501,7 @@ def check(
         unsafe_fixes=unsafe_fixes,
         ignore_scripts=ignore_scripts,
         formatter=formatter,
+        lint_config=lint_config,
     )
 
     if formatter == "json":

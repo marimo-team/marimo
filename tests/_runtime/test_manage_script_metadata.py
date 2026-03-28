@@ -341,6 +341,7 @@ async def test_missing_packages_hook(
                 "cell3": ManyModulesNotFoundError(
                     package_names=["grouped-one", "grouped-two"],
                     msg="Missing one and two",
+                    source="kernel",
                 ),
             }
 

@@ -59,3 +59,12 @@ jobs:
           skip-existing: true
           attestations: false
           repository-url: https://test.pypi.org/legacy/
+
+      - name: 📢 Notify release result
+        if: always()
+        continue-on-error: true
+        uses: marimo-team/internal-gh-actions/release-notification@main
+        with:
+          status: ${{ job.status }}
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}
+          artifact-url: "https://pypi.org/project/marimo-base/"

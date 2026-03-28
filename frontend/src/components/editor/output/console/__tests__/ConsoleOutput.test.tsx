@@ -1,13 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { CellId } from "@/core/cells/ids";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { ConsoleOutput } from "../ConsoleOutput";
+import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
 
 SetupMocks.resizeObserver();
 
@@ -24,7 +24,7 @@ describe("ConsoleOutput integration", () => {
   });
 
   const defaultProps = {
-    cellId: "cell-1" as CellId,
+    cellId: cellId("cell-1"),
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
@@ -55,7 +55,7 @@ describe("ConsoleOutput integration", () => {
 
 describe("ConsoleOutput pdb history", () => {
   const defaultProps = {
-    cellId: "cell-1" as CellId,
+    cellId: cellId("cell-1"),
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
@@ -191,5 +191,96 @@ describe("ConsoleOutput pdb history", () => {
     // ArrowDown again should return to empty input
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(input).toHaveValue("");
+  });
+});
+
+describe("ConsoleOutput debounced clearing", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const createOutput = (
+    data: string,
+    channel = "stdout",
+  ): WithResponse<OutputMessage> => ({
+    channel: channel as "stdout" | "stderr",
+    mimetype: "text/plain",
+    data,
+    timestamp: 0,
+    response: undefined,
+  });
+
+  const defaultProps = {
+    cellId: cellId("cell-1"),
+    cellName: "test_cell",
+    consoleOutputs: [] as WithResponse<OutputMessage>[],
+    stale: false,
+    debuggerActive: false,
+    onSubmitDebugger: vi.fn(),
+  };
+
+  it("should keep old outputs visible when cleared, then show new outputs immediately", () => {
+    const outputs1 = [createOutput("hello world")];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput {...defaultProps} consoleOutputs={outputs1} />,
+    );
+
+    // Old output is visible
+    expect(screen.getByText("hello world")).toBeInTheDocument();
+
+    // Clear outputs (simulates cell re-run)
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput {...defaultProps} consoleOutputs={[]} />
+      </TooltipProvider>,
+    );
+
+    // Old output should still be visible during debounce period
+    expect(screen.getByText("hello world")).toBeInTheDocument();
+
+    // New outputs arrive before debounce fires
+    const outputs2 = [createOutput("new output")];
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput {...defaultProps} consoleOutputs={outputs2} />
+      </TooltipProvider>,
+    );
+
+    // New output should be shown immediately
+    expect(screen.getByText("new output")).toBeInTheDocument();
+    expect(screen.queryByText("hello world")).not.toBeInTheDocument();
+  });
+
+  it("should clear outputs after debounce period if no new outputs arrive", () => {
+    const outputs1 = [createOutput("old output")];
+
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput {...defaultProps} consoleOutputs={outputs1} />,
+    );
+
+    expect(screen.getByText("old output")).toBeInTheDocument();
+
+    // Clear outputs
+    rerender(
+      <TooltipProvider>
+        <ConsoleOutput {...defaultProps} consoleOutputs={[]} />
+      </TooltipProvider>,
+    );
+
+    // Still visible during debounce
+    expect(screen.getByText("old output")).toBeInTheDocument();
+
+    // Advance past debounce period
+    act(() => {
+      vi.advanceTimersByTime(CONSOLE_CLEAR_DEBOUNCE_MS + 1);
+    });
+
+    // Now the output should be cleared
+    expect(screen.queryByText("old output")).not.toBeInTheDocument();
   });
 });

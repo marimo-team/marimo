@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { CellMessage } from "@/core/kernel/messages";
 import { invariant } from "@/utils/invariant";
 import {
@@ -22,13 +23,13 @@ describe("RunsState Reducer", () => {
   let state: RunsState;
 
   const runId = "run1" as RunId;
-  const cellId = "cell1";
+  const testCellId = cellId("cell1");
   const timestamp = Date.now();
   const code = "print('Hello World')";
 
   const cellNotification: CellMessage = {
     run_id: runId,
-    cell_id: cellId,
+    cell_id: testCellId,
     timestamp,
     status: "queued",
   };
@@ -61,9 +62,9 @@ describe("RunsState Reducer", () => {
       runStartTime: timestamp,
       cellRuns: new Map([
         [
-          cellId,
+          testCellId,
           {
-            cellId,
+            cellId: testCellId,
             code: code.slice(0, MAX_CODE_LENGTH),
             elapsedTime: 0,
             startTime: timestamp,
@@ -98,7 +99,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId2,
-          cell_id: "cell2",
+          cell_id: cellId("cell2"),
           timestamp,
           status: "queued",
         },
@@ -124,7 +125,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp: timestamp + 1000,
           status: "running",
         },
@@ -145,9 +146,9 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp: runStartTimestamp + 5000,
-          status: "success",
+          status: "idle",
         },
         code: "console.log('Hello World');",
       },
@@ -171,8 +172,8 @@ describe("RunsState Reducer", () => {
         type: "addCellNotification",
         payload: {
           cellNotification: {
-            run_id: `run${i}`,
-            cell_id: `cell${i}`,
+            run_id: `run${i}` as RunId,
+            cell_id: cellId(`cell${i}`),
             timestamp: timestamp,
             status: "queued",
           },
@@ -198,7 +199,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp,
           status: "queued",
         },
@@ -220,12 +221,13 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp: errorTimestamp,
           status: "running",
           output: {
             channel: "stderr",
-            text: "Error occurred",
+            data: "Error occurred",
+            mimetype: "text/plain",
           },
         },
         code: "console.log('Hello World');",
@@ -248,12 +250,13 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp: errorTimestamp,
           status: "running",
           output: {
             channel: "marimo-error",
-            text: "Error occurred",
+            data: "Error occurred",
+            mimetype: "text/plain",
           },
         },
         code: "console.log('Hello World');",
@@ -273,10 +276,12 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp,
           output: {
             channel: "marimo-error",
+            data: "",
+            mimetype: "text/plain",
           },
         },
         code: "console.log('Hello World');",
@@ -288,7 +293,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp: timestamp + 2000,
           status: "running", // shouldn't happen
         },
@@ -312,7 +317,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId2,
-          cell_id: "cell2",
+          cell_id: cellId("cell2"),
           timestamp: timestamp + 1000,
           status: "queued",
         },
@@ -325,7 +330,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId3,
-          cell_id: "cell3",
+          cell_id: cellId("cell3"),
           timestamp: timestamp + 2000,
           status: "queued",
         },
@@ -345,7 +350,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: "cell2",
+          cell_id: cellId("cell2"),
           timestamp: timestamp + 1000,
           status: "queued",
         },
@@ -367,7 +372,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp: timestamp + 1000,
           status: "running",
         },
@@ -386,7 +391,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp,
           status: "queued",
         },
@@ -405,7 +410,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: cellId,
+          cell_id: testCellId,
           timestamp,
           status: "queued",
         },
@@ -419,7 +424,7 @@ describe("RunsState Reducer", () => {
       payload: {
         cellNotification: {
           run_id: runId,
-          cell_id: "cell2",
+          cell_id: cellId("cell2"),
           timestamp: timestamp + 1000,
           status: "queued",
         },

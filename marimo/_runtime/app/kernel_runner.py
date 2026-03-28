@@ -15,7 +15,10 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.context.types import get_context
-from marimo._runtime.patches import create_main_module
+from marimo._runtime.patches import (
+    create_main_module,
+    extract_docstring_from_header,
+)
 from marimo._runtime.runner import cell_runner, hook_context
 from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
@@ -119,7 +122,10 @@ class AppKernelRunner:
             stderr=None,
             stdin=None,
             module=create_main_module(
-                filename, input_override=None, print_override=None
+                filename,
+                input_override=None,
+                print_override=None,
+                doc=extract_docstring_from_header(app._app._header),
             ),
             user_config=DEFAULT_CONFIG,
             enqueue_control_request=lambda _: None,

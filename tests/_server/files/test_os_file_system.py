@@ -29,8 +29,18 @@ def test_create_file(test_dir: Path, fs: OSFileSystem) -> None:
     assert expected_path.exists()
 
 
-def test_create_notebook(test_dir: Path, fs: OSFileSystem) -> None:
-    test_notebook_name = "test_notebook.py"
+@pytest.mark.parametrize(
+    ("ext", "expected"),
+    [
+        ("py", "__generated_with"),
+        ("md", "marimo-version:"),
+        ("qmd", "marimo-team/marimo"),
+    ],
+)
+def test_create_notebook(
+    test_dir: Path, fs: OSFileSystem, ext: str, expected: str
+) -> None:
+    test_notebook_name = f"test_notebook.{ext}"
     fs.create_file_or_directory(
         str(test_dir),
         "notebook",
@@ -40,8 +50,7 @@ def test_create_notebook(test_dir: Path, fs: OSFileSystem) -> None:
     expected_path = test_dir / test_notebook_name
     assert expected_path.exists()
     notebook_code = expected_path.read_text("utf-8")
-    assert "import marimo" in notebook_code
-    assert "app.run()" in notebook_code
+    assert expected in notebook_code
 
 
 def test_create_notebook_with_contents(
@@ -167,8 +176,18 @@ def test_open_file(test_dir: Path, fs: OSFileSystem) -> None:
     test_content = "Hello, World!"
     file_path = test_dir / test_file_name
     file_path.write_text(test_content)
-    content = fs.open_file(str(file_path))
-    assert content == test_content
+    result = fs.open_file(str(file_path))
+    assert result == test_content
+    assert isinstance(result, str)
+
+
+def test_open_file_binary(test_dir: Path, fs: OSFileSystem) -> None:
+    file_path = test_dir / "binary.bin"
+    raw_bytes = b"\xff\xfe\xfd"
+    file_path.write_bytes(raw_bytes)
+    result = fs.open_file(str(file_path))
+    assert result == raw_bytes
+    assert isinstance(result, bytes)
 
 
 def test_delete_file(test_dir: Path, fs: OSFileSystem) -> None:
@@ -264,10 +283,29 @@ def test_get_details_nonexistent_file(fs: OSFileSystem) -> None:
 
 def test_get_details_binary_file(test_dir: Path, fs: OSFileSystem) -> None:
     file_path = test_dir / "binfile.bin"
+    # These bytes are valid UTF-8, so no base64 encoding needed
     file_path.write_bytes(b"\x00\x01\x02\x03")
     result = fs.get_details(str(file_path))
 
     assert result.contents == "\x00\x01\x02\x03"
+    assert result.is_base64 is False
+
+
+def test_get_details_non_utf8_binary_file(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    """Binary files that can't be read as UTF-8 are base64-encoded."""
+    import base64
+
+    file_path = test_dir / "data.prof"
+    raw_bytes = b"\xff\xfe\xfd\x00\x01\x80\x81"
+    file_path.write_bytes(raw_bytes)
+    result = fs.get_details(str(file_path))
+
+    assert result.is_base64 is True
+    assert result.contents == base64.b64encode(raw_bytes).decode("utf-8")
+    # Verify round-trip: decoding base64 gives back original bytes
+    assert base64.b64decode(result.contents) == raw_bytes
 
 
 def test_get_details_empty_string_contents(
@@ -309,13 +347,16 @@ def test_get_details_non_utf8_encoding_and_contents(
     file_path.write_bytes(content)
     result = fs.get_details(str(file_path), encoding="latin-1")
     assert result.contents == "café"
+    assert result.is_base64 is False
     base64_content = __import__("base64").b64encode(content).decode("utf-8")
     result_utf8 = fs.get_details(str(file_path), encoding="utf-8")
     assert result_utf8.contents == base64_content
+    assert result_utf8.is_base64 is True
     result2 = fs.get_details(
         str(file_path), encoding="utf-8", contents="override"
     )
     assert result2.contents == "override"
+    assert result2.is_base64 is False
 
 
 class TestIsMarimoFile:

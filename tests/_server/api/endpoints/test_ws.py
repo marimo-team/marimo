@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,11 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
-from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notification import (
-    KernelCapabilitiesNotification,
-    KernelReadyNotification,
-)
+from marimo._messaging.notification import KernelReadyNotification
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
@@ -24,48 +20,18 @@ from marimo._server.codes import WebSocketCodes
 from marimo._server.session_manager import SessionManager
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._utils.parse_dataclass import parse_raw
-from tests._server.conftest import (
-    get_kernel_tasks,
-    get_session_manager,
-    get_user_config_manager,
+from tests._server.api.endpoints.ws_helpers import (
+    HEADERS,
+    assert_kernel_ready_response,
+    assert_parse_ready_response,
+    create_response,
+    headers,
 )
-from tests._server.mocks import token_header
+from tests._server.conftest import get_kernel_tasks, get_user_config_manager
+from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient, WebSocketTestSession
-
-
-def create_response(
-    partial_response: dict[str, Any],
-) -> dict[str, Any]:
-    response: dict[str, Any] = {
-        "cell_ids": ["Hbol"],
-        "codes": ["import marimo as mo"],
-        "names": ["__"],
-        "layout": None,
-        "resumed": False,
-        "ui_values": {},
-        "last_executed_code": {},
-        "last_execution_time": {},
-        "kiosk": False,
-        "configs": [{"disabled": False, "hide_code": False}],
-        "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilitiesNotification()),
-    }
-    response.update(partial_response)
-    return response
-
-
-HEADERS = {
-    **token_header("fake-token"),
-}
-
-
-def headers(session_id: str) -> dict[str, str]:
-    return {
-        "Marimo-Session-Id": session_id,
-        **token_header("fake-token"),
-    }
 
 
 def _create_ws_url(session_id: str) -> str:
@@ -74,30 +40,6 @@ def _create_ws_url(session_id: str) -> str:
 
 WS_URL = _create_ws_url("123")
 OTHER_WS_URL = _create_ws_url("456")
-
-
-def assert_kernel_ready_response(
-    raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
-) -> None:
-    if response is None:
-        response = create_response({})
-    data = parse_raw(raw_data["data"], KernelReadyNotification)
-    expected = parse_raw(response, KernelReadyNotification)
-    assert data.cell_ids == expected.cell_ids
-    assert data.codes == expected.codes
-    assert data.names == expected.names
-    assert data.layout == expected.layout
-    assert data.resumed == expected.resumed
-    assert data.ui_values == expected.ui_values
-    assert data.configs == expected.configs
-    assert data.app_config == expected.app_config
-    assert data.kiosk == expected.kiosk
-    assert data.capabilities == expected.capabilities
-
-
-def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
-    data = parse_raw(raw_data["data"], KernelReadyNotification)
-    assert data is not None
 
 
 def test_ws(client: TestClient) -> None:
@@ -360,7 +302,7 @@ async def test_connects_to_existing_session_with_same_file(
             # This can/may change if implementation changes, but this is a snapshot to
             # make sure it doesn't change when we don't expect it to
             assert len(messages1) == 14
-            assert messages1[0]["op"] == "update-cell-ids"
+            assert messages1[0]["op"] == "notebook-document-transaction"
 
             # Connect second client - should connect to same session
             with client.websocket_connect(ws_2) as websocket2:
@@ -373,11 +315,11 @@ async def test_connects_to_existing_session_with_same_file(
                 assert_parse_ready_response(data2)
                 assert data2["data"]["resumed"] is True
 
-                messages2 = flush_messages(websocket2, at_least=4)
+                messages2 = flush_messages(websocket2, at_least=3)
                 # This can/may change if implementation changes, but this is a snapshot to
                 # make sure it doesn't change when we don't expect it to
-                assert len(messages2) == 4
-                assert messages2[0]["op"] == "update-cell-ids"
+                assert len(messages2) == 3
+                assert messages2[0]["op"] == "variables"
 
 
 def flush_messages(

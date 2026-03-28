@@ -3,6 +3,9 @@
  * Do not make direct changes to the file.
  */
 
+/** Branded string type — compile-time only. */
+type TypedString<T extends string> = string & { __type__: T };
+
 export interface paths {
   "/@file/{filename_and_length}": {
     parameters: {
@@ -445,6 +448,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_sql_schema_list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ListSQLSchemasRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview a list of schemas in an SQL database */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
@@ -511,6 +555,47 @@ export interface paths {
       };
       responses: {
         /** @description Preview a list of tables in an SQL schema */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/document/transaction": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply a document transaction */
         200: {
           headers: {
             [name: string]: unknown;
@@ -1625,6 +1710,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/focus_cell": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["FocusCellRequest"];
+        };
+      };
+      responses: {
+        /** @description Focus a cell in kiosk-mode consumers */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/format": {
     parameters: {
       query?: never;
@@ -2384,47 +2510,6 @@ export interface paths {
       };
       responses: {
         /** @description Send input to the stdin stream */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/sync/cell_ids": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellIdsRequest"];
-        };
-      };
-      responses: {
-        /** @description Sync cell ids */
         200: {
           headers: {
             [name: string]: unknown;
@@ -3347,6 +3432,7 @@ export interface components {
       /** @default null */
       variant?: "danger" | null;
     };
+    Base64String: TypedString<"Base64String">;
     /** BaseResponse */
     BaseResponse: {
       success: boolean;
@@ -3436,6 +3522,7 @@ export interface components {
       /** @default false */
       hide_code?: boolean;
     };
+    CellId: TypedString<"CellId">;
     /**
      * CellNotification
      * @description Updates a cell's state in the frontend.
@@ -3454,7 +3541,7 @@ export interface components {
      *             timestamp: Creation timestamp, auto-set.
      */
     CellNotification: {
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @default null */
       console?:
         | components["schemas"]["CellOutput"][]
@@ -3592,7 +3679,7 @@ export interface components {
     CodeCompletionCommand: {
       cellId: string;
       document: string;
-      id: string;
+      id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "code-completion";
     };
@@ -3600,7 +3687,7 @@ export interface components {
     CodeCompletionRequest: {
       cellId: string;
       document: string;
-      id: string;
+      id: components["schemas"]["RequestId"];
     };
     /**
      * ColumnStats
@@ -3694,6 +3781,22 @@ export interface components {
     CopyNotebookRequest: {
       destination: string;
       source: string;
+    };
+    /**
+     * CreateCell
+     * @description Insert a new cell into the notebook.
+     */
+    CreateCell: {
+      /** @default null */
+      after?: components["schemas"]["CellId"] | null;
+      /** @default null */
+      before?: components["schemas"]["CellId"] | null;
+      cellId: string;
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      name: string;
+      /** @enum {unknown} */
+      type: "create-cell";
     };
     /**
      * CreateNotebookCommand
@@ -3814,7 +3917,7 @@ export interface components {
     DataTable: {
       columns: components["schemas"]["DataTableColumn"][];
       /** @default null */
-      engine?: string | null;
+      engine?: components["schemas"]["VariableName"] | null;
       /** @default null */
       indexes?: string[] | null;
       name: string;
@@ -3830,7 +3933,7 @@ export interface components {
        * @enum {unknown}
        */
       type?: "table" | "view";
-      variable_name: string | null;
+      variable_name: components["schemas"]["VariableName"] | null;
     };
     /**
      * DataTableColumn
@@ -3870,7 +3973,7 @@ export interface components {
     Database: {
       dialect: string;
       /** @default null */
-      engine?: string | null;
+      engine?: components["schemas"]["VariableName"] | null;
       name: string;
       schemas: components["schemas"]["Schema"][];
     };
@@ -3926,6 +4029,15 @@ export interface components {
       cellId: string;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+    };
+    /**
+     * DeleteCell
+     * @description Remove a cell from the notebook.
+     */
+    DeleteCell: {
+      cellId: string;
+      /** @enum {unknown} */
+      type: "delete-cell";
     };
     /**
      * DeleteCellCommand
@@ -4073,9 +4185,14 @@ export interface components {
      *         Attributes:
      *             code: Python code to execute.
      *             request: HTTP request context if available.
+     *             notebook_cells: Snapshot of notebook cells from the session document.
+     *                 Used to populate the document ContextVar so code_mode can read
+     *                 cell ordering, code, names, and configs.
      */
     ExecuteScratchpadCommand: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -4084,6 +4201,8 @@ export interface components {
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
@@ -4179,6 +4298,8 @@ export interface components {
       /** @default null */
       contents?: string | null;
       file: components["schemas"]["FileInfo"];
+      /** @default false */
+      isBase64?: boolean;
       /** @default null */
       mimeType?: string | null;
     };
@@ -4266,9 +4387,13 @@ export interface components {
      *             cell_id: Cell to focus.
      */
     FocusCellNotification: {
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @enum {unknown} */
       op: "focus-cell";
+    };
+    /** FocusCellRequest */
+    FocusCellRequest: {
+      cellId: string;
     };
     /** FormatCellsRequest */
     FormatCellsRequest: {
@@ -4304,7 +4429,7 @@ export interface components {
      *             status: Human-readable success/failure status.
      */
     FunctionCallResultNotification: {
-      function_call_id: string;
+      function_call_id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       op: "function-call-result";
       return_value: unknown;
@@ -4419,9 +4544,18 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             source: Where to install. "kernel" (default) dispatches to the kernel
+     *                     subprocess; "server" installs directly into the server's Python
+     *                     environment (sys.executable), used when the server itself needs
+     *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       /** @enum {unknown} */
       type: "install-packages";
       versions: {
@@ -4431,6 +4565,11 @@ export interface components {
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
       manager: string;
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
       versions: {
         [key: string]: string;
       };
@@ -4564,7 +4703,7 @@ export interface components {
       /** @default false */
       auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
-      cell_ids: string[];
+      cell_ids: components["schemas"]["CellId"][];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       kiosk: boolean;
@@ -4634,6 +4773,7 @@ export interface components {
         | components["schemas"]["PreviewDatasetColumnCommand"]
         | components["schemas"]["PreviewSQLTableCommand"]
         | components["schemas"]["ListSQLTablesCommand"]
+        | components["schemas"]["ListSQLSchemasCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
         | components["schemas"]["StorageListEntriesCommand"]
@@ -4695,6 +4835,7 @@ export interface components {
         | components["schemas"]["DataColumnPreviewNotification"]
         | components["schemas"]["SQLTablePreviewNotification"]
         | components["schemas"]["SQLTableListPreviewNotification"]
+        | components["schemas"]["SQLSchemaListPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
@@ -4704,8 +4845,7 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["UpdateCellCodesNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"];
+        | components["schemas"]["NotebookDocumentTransactionNotification"];
     };
     /**
      * LanguageServersConfig
@@ -4730,6 +4870,25 @@ export interface components {
       type: string;
     };
     /**
+     * LintConfig
+     * @description Configuration for lint rule selection.
+     *
+     *         Follows ruff-inspired semantics for selecting which rules to run
+     *         during ``marimo check``.
+     *
+     *         **Keys.**
+     *
+     *         - ``select``: list of rule code prefixes that replaces the default
+     *           enabled set. Use ``"ALL"`` to select all rules.
+     *           Example: ``["MB", "MR001"]``
+     *         - ``ignore``: list of rule code prefixes to remove from the
+     *           enabled set.
+     */
+    LintConfig: {
+      ignore?: string[];
+      select?: string[];
+    };
+    /**
      * ListDataSourceConnectionCommand
      * @description List data source schemas.
      *
@@ -4750,6 +4909,31 @@ export interface components {
     /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
+    };
+    /**
+     * ListSQLSchemasCommand
+     * @description List schemas in an SQL database.
+     *
+     *         Retrieves names of all schemas in a database. Used by the SQL editor for
+     *         schema selection.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *             database: Database to query.
+     */
+    ListSQLSchemasCommand: {
+      database: string;
+      engine: string;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "list-sql-schemas";
+    };
+    /** ListSQLSchemasRequest */
+    ListSQLSchemasRequest: {
+      database: string;
+      engine: string;
+      requestId: string;
     };
     /**
      * ListSQLTablesCommand
@@ -4889,16 +5073,16 @@ export interface components {
     };
     /** MarimoAncestorPreventedError */
     MarimoAncestorPreventedError: {
-      blamed_cell: string | null;
+      blamed_cell: components["schemas"]["CellId"] | null;
       msg: string;
-      raising_cell: string;
+      raising_cell: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "ancestor-prevented";
     };
     /** MarimoAncestorStoppedError */
     MarimoAncestorStoppedError: {
       msg: string;
-      raising_cell: string;
+      raising_cell: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "ancestor-stopped";
     };
@@ -4916,6 +5100,7 @@ export interface components {
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];
+      lint?: components["schemas"]["LintConfig"];
       mcp?: components["schemas"]["MCPConfig"];
       package_management: components["schemas"]["PackageManagementConfig"];
       runtime: components["schemas"]["RuntimeConfig"];
@@ -4929,7 +5114,7 @@ export interface components {
     MarimoExceptionRaisedError: {
       exception_type: string;
       msg: string;
-      raising_cell: string | null;
+      raising_cell: components["schemas"]["CellId"] | null;
       /** @enum {unknown} */
       type: "exception";
     };
@@ -4986,7 +5171,7 @@ export interface components {
     };
     /** MarimoStrictExecutionError */
     MarimoStrictExecutionError: {
-      blamed_cell: string | null;
+      blamed_cell: components["schemas"]["CellId"] | null;
       msg: string;
       ref: string;
       /** @enum {unknown} */
@@ -5006,13 +5191,21 @@ export interface components {
      *
      *         Attributes:
      *             packages: Missing package names.
-     *             isolated: Whether in isolated environment.
+     *             isolated: Whether auto-install is possible in this environment.
+     *             source: Which Python environment to install into. "kernel" (default)
+     *                     installs in the kernel's venv; "server" installs in the
+     *                     server's own Python env (e.g. for formatter tools like ruff).
      */
     MissingPackageAlertNotification: {
       isolated: boolean;
       /** @enum {unknown} */
       op: "missing-package-alert";
       packages: string[];
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /**
      * ModelClose
@@ -5035,7 +5228,7 @@ export interface components {
      *             token: Unique identifier for deduplication across dual queues.
      */
     ModelCommand: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
@@ -5049,7 +5242,7 @@ export interface components {
      * @description Custom application message.
      */
     ModelCustom: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       content: unknown;
       /** @enum {unknown} */
       method: "custom";
@@ -5092,14 +5285,14 @@ export interface components {
      */
     ModelOpen: {
       buffer_paths: (string | number)[][];
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
     };
     /** ModelRequest */
     ModelRequest: {
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
@@ -5112,7 +5305,7 @@ export interface components {
      */
     ModelUpdate: {
       buffer_paths: (string | number)[][];
-      buffers: string[];
+      buffers: components["schemas"]["Base64String"][];
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -5131,12 +5324,59 @@ export interface components {
       method: "update";
       state: Record<string, any>;
     };
+    /**
+     * MoveCell
+     * @description Reposition a cell in the notebook.
+     */
+    MoveCell: {
+      /** @default null */
+      after?: components["schemas"]["CellId"] | null;
+      /** @default null */
+      before?: components["schemas"]["CellId"] | null;
+      cellId: string;
+      /** @enum {unknown} */
+      type: "move-cell";
+    };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
-      cells: string[];
+      cells: components["schemas"]["CellId"][];
       name: string;
       /** @enum {unknown} */
       type: "multiple-defs";
+    };
+    /**
+     * NotebookCell
+     * @description A single cell in the document. Mutable — owned by the document.
+     */
+    NotebookCell: {
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      id: components["schemas"]["CellId"];
+      name: string;
+    };
+    /**
+     * NotebookDocumentTransactionNotification
+     * @description Broadcasts an applied transaction to the frontend.
+     *
+     *         Sent by the session when the document changes (from any source).
+     *         The frontend applies the ops to update its local state.
+     */
+    NotebookDocumentTransactionNotification: {
+      /** @enum {unknown} */
+      op: "notebook-document-transaction";
+      transaction: components["schemas"]["Transaction"];
+    };
+    /** NotebookDocumentTransactionRequest */
+    NotebookDocumentTransactionRequest: {
+      changes: (
+        | components["schemas"]["CreateCell"]
+        | components["schemas"]["DeleteCell"]
+        | components["schemas"]["MoveCell"]
+        | components["schemas"]["ReorderCells"]
+        | components["schemas"]["SetCode"]
+        | components["schemas"]["SetName"]
+        | components["schemas"]["SetConfig"]
+      )[];
     };
     /**
      * OpenAiConfig
@@ -5409,7 +5649,7 @@ export interface components {
      *             cell_id: Cell whose UI elements should be removed.
      */
     RemoveUIElementsNotification: {
-      cell_id: string;
+      cell_id: components["schemas"]["CellId"];
       /** @enum {unknown} */
       op: "remove-ui-elements";
     };
@@ -5431,6 +5671,19 @@ export interface components {
     RenameNotebookRequest: {
       filename: string;
     };
+    /**
+     * ReorderCells
+     * @description Replace the full cell ordering.
+     *
+     *         Cell IDs present in the document but missing from ``cell_ids``
+     *         are appended at the end. IDs not in the document are ignored.
+     */
+    ReorderCells: {
+      cellIds: string[];
+      /** @enum {unknown} */
+      type: "reorder-cells";
+    };
+    RequestId: TypedString<"RequestId">;
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -5505,6 +5758,18 @@ export interface components {
       watcher_on_save: "autorun" | "lazy";
     };
     /**
+     * SQLDatabaseMetadata
+     * @description SQL database metadata.
+     *
+     *         Attributes:
+     *             connection: Connection identifier.
+     *             database: Database name.
+     */
+    SQLDatabaseMetadata: {
+      connection: string;
+      database: string;
+    };
+    /**
      * SQLMetadata
      * @description SQL database and schema metadata.
      *
@@ -5519,6 +5784,26 @@ export interface components {
       schema: string;
       /** @enum {unknown} */
       type: "sql-metadata";
+    };
+    /**
+     * SQLSchemaListPreviewNotification
+     * @description List of SQL schemas in a database.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             metadata: Database and schema metadata.
+     *             schemas: Schemas in database.
+     *             error: Error message if failed.
+     */
+    SQLSchemaListPreviewNotification: {
+      /** @default null */
+      error?: string | null;
+      metadata: components["schemas"]["SQLDatabaseMetadata"];
+      /** @enum {unknown} */
+      op: "sql-schema-list-preview";
+      request_id: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemas?: components["schemas"]["Schema"][];
     };
     /**
      * SQLTableListPreviewNotification
@@ -5536,7 +5821,7 @@ export interface components {
       metadata: components["schemas"]["SQLMetadata"];
       /** @enum {unknown} */
       op: "sql-table-list-preview";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default [] */
       tables?: components["schemas"]["DataTable"][];
     };
@@ -5556,7 +5841,7 @@ export interface components {
       metadata: components["schemas"]["SQLMetadata"];
       /** @enum {unknown} */
       op: "sql-table-preview";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       table: null | components["schemas"]["DataTable"];
     };
     /** SaveAppConfigurationRequest */
@@ -5622,7 +5907,7 @@ export interface components {
     SecretKeysResultNotification: {
       /** @enum {unknown} */
       op: "secret-keys-result";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       secrets: components["schemas"]["SecretKeysWithProvider"][];
     };
     /** SecretKeysWithProvider */
@@ -5649,6 +5934,42 @@ export interface components {
       browser: "default" | string;
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
+    };
+    SessionId: TypedString<"SessionId">;
+    /**
+     * SetCode
+     * @description Replace a cell's source code.
+     */
+    SetCode: {
+      cellId: string;
+      code: string;
+      /** @enum {unknown} */
+      type: "set-code";
+    };
+    /**
+     * SetConfig
+     * @description Partially update a cell's config. None fields are unchanged.
+     */
+    SetConfig: {
+      cellId: string;
+      /** @default null */
+      column?: number | null;
+      /** @default null */
+      disabled?: boolean | null;
+      /** @default null */
+      hideCode?: boolean | null;
+      /** @enum {unknown} */
+      type: "set-config";
+    };
+    /**
+     * SetName
+     * @description Rename a cell.
+     */
+    SetName: {
+      cellId: string;
+      name: string;
+      /** @enum {unknown} */
+      type: "set-name";
     };
     /** SetupRootError */
     SetupRootError: {
@@ -5918,7 +6239,7 @@ export interface components {
       /** @enum {unknown} */
       backendType: "fsspec" | "obstore";
       displayName: string;
-      name: string;
+      name: components["schemas"]["VariableName"];
       protocol: string;
       rootPath: string;
       storageEntries: components["schemas"]["StorageEntry"][];
@@ -5985,6 +6306,28 @@ export interface components {
       source: "backend" | "frontend" | "mcp";
     };
     /**
+     * Transaction
+     * @description An atomic batch of changes applied to a NotebookDocument.
+     *
+     *         ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
+     *         ``version`` is ``None`` when created and stamped by
+     *         ``NotebookDocument.apply()``.
+     */
+    Transaction: {
+      changes: (
+        | components["schemas"]["CreateCell"]
+        | components["schemas"]["DeleteCell"]
+        | components["schemas"]["MoveCell"]
+        | components["schemas"]["ReorderCells"]
+        | components["schemas"]["SetCode"]
+        | components["schemas"]["SetName"]
+        | components["schemas"]["SetConfig"]
+      )[];
+      source: string;
+      /** @default null */
+      version?: number | null;
+    };
+    /**
      * TyLanguageServerConfig
      * @description Configuration options for Ty Language Server.
      *
@@ -5994,6 +6337,7 @@ export interface components {
     TyLanguageServerConfig: {
       enabled?: boolean;
     };
+    UIElementId: `${components["schemas"]["CellId"]}-${string}`;
     /**
      * UIElementMessageNotification
      * @description Sends a message to a UI element/widget.
@@ -6005,11 +6349,11 @@ export interface components {
      */
     UIElementMessageNotification: {
       /** @default null */
-      buffers?: string[] | null;
+      buffers?: components["schemas"]["Base64String"][] | null;
       message: Record<string, any>;
       /** @enum {unknown} */
       op: "send-ui-element-message";
-      ui_element: string;
+      ui_element: components["schemas"]["UIElementId"];
     };
     /** UnknownError */
     UnknownError: {
@@ -6018,28 +6362,6 @@ export interface components {
       msg: string;
       /** @enum {unknown} */
       type: "unknown";
-    };
-    /**
-     * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
-     *
-     *         Attributes:
-     *             cell_ids: Cells to update.
-     *             codes: New code for each cell.
-     *             code_is_stale: If True, code was not executed on backend (output may not match).
-     *             names: Cell names for each cell (optional, for file reload).
-     *             configs: Cell configs for each cell (optional, for file reload).
-     */
-    UpdateCellCodesNotification: {
-      cell_ids: string[];
-      code_is_stale: boolean;
-      codes: string[];
-      /** @default [] */
-      configs?: components["schemas"]["CellConfig"][];
-      /** @default [] */
-      names?: string[];
-      /** @enum {unknown} */
-      op: "update-cell-codes";
     };
     /**
      * UpdateCellConfigCommand
@@ -6063,22 +6385,6 @@ export interface components {
       configs: {
         [key: string]: Record<string, any>;
       };
-    };
-    /**
-     * UpdateCellIdsNotification
-     * @description Updates cell ordering in notebook.
-     *
-     *         Attributes:
-     *             cell_ids: Complete ordered list of cell IDs.
-     */
-    UpdateCellIdsNotification: {
-      cell_ids: string[];
-      /** @enum {unknown} */
-      op: "update-cell-ids";
-    };
-    /** UpdateCellIdsRequest */
-    UpdateCellIdsRequest: {
-      cellIds: string[];
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {
@@ -6239,10 +6545,11 @@ export interface components {
      *             used_by: Cell IDs that use this variable.
      */
     VariableDeclarationNotification: {
-      declared_by: string[];
+      declared_by: components["schemas"]["CellId"][];
       name: string;
-      used_by: string[];
+      used_by: components["schemas"]["CellId"][];
     };
+    VariableName: TypedString<"VariableName">;
     /**
      * VariableValue
      * @description Variable value and type for variables panel.
@@ -6299,6 +6606,7 @@ export interface components {
       path?: string;
       writable?: boolean;
     };
+    WidgetModelId: TypedString<"WidgetModelId">;
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {
       /** @default false */

@@ -3,8 +3,8 @@
 import { render } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { Tracebacks } from "@/__mocks__/tracebacks";
+import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { CellId } from "@/core/cells/ids";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -14,7 +14,7 @@ import {
   replaceTracebackPrefix,
 } from "../MarimoTracebackOutput";
 
-const cellId = "1" as CellId;
+const cid = cellId("1");
 
 describe("traceback component", () => {
   beforeEach(() => {
@@ -25,7 +25,7 @@ describe("traceback component", () => {
   test("extracts cell-link", () => {
     const traceback = (
       <TooltipProvider>
-        <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+        <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cid} />
       </TooltipProvider>
     );
     const { unmount, getAllByRole } = render(traceback);
@@ -45,7 +45,7 @@ describe("traceback component", () => {
   test("renames File to Cell for relevant lines", () => {
     const traceback = (
       <TooltipProvider>
-        <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cellId} />
+        <MarimoTracebackOutput traceback={Tracebacks.raw} cellId={cid} />
       </TooltipProvider>
     );
     const { unmount, container } = render(traceback);

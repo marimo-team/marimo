@@ -29,6 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
+import { documentTransactionMiddleware } from "./document-changes";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -174,6 +175,7 @@ export interface CreateNewCellAction {
  */
 const {
   reducer,
+  addMiddleware,
   createActions,
   useActions,
   valueAtom: notebookAtom,
@@ -587,7 +589,9 @@ const {
     const serializedEditorState = editorView?.state.toJSON({
       history: historyField,
     });
-    serializedEditorState.doc = state.cellData[cellId].code;
+    if (serializedEditorState) {
+      serializedEditorState.doc = state.cellData[cellId].code;
+    }
 
     // release the granular atom(s) created for this cell
     releaseCellAtoms(cellId);
@@ -755,14 +759,29 @@ const {
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
-    const cellId = message.cell_id as CellId;
-    const nextState = updateCellRuntimeState({
+    const cellId = message.cell_id;
+    let nextState = updateCellRuntimeState({
       state,
       cellId,
       cellReducer: (cell) => {
         return transitionCell(cell, message);
       },
     });
+    // When a cell is queued for execution, snapshot the current code
+    // as lastCodeRun. This clears staleness for cells executed by the
+    // kernel (e.g. via code_mode). If the user edits during execution,
+    // code !== lastCodeRun keeps the cell stale.
+    if (message.status === "queued") {
+      nextState = updateCellData({
+        state: nextState,
+        cellId,
+        cellReducer: (cell) => ({
+          ...cell,
+          lastCodeRun: cell.code.trim(),
+          edited: false,
+        }),
+      });
+    }
     return {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
@@ -1405,6 +1424,11 @@ const {
   },
 });
 
+// We apply the middleware here (rather than inline in createReducerAndAtoms)
+// so that the document transaction middleware can import CellActions and
+// strictly type the dispatched actions without creating a circular dependency.
+addMiddleware(documentTransactionMiddleware);
+
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
     Boolean(state.cellData[cellId].config.hide_code) &&
@@ -1640,6 +1664,12 @@ export const cellsRuntimeAtom = atom((get) => get(notebookAtom).cellRuntime);
 export const notebookIsRunningAtom = atom((get) =>
   notebookIsRunning(get(notebookAtom)),
 );
+export const onlyScratchpadIsRunningAtom = atom((get) => {
+  const { cellRuntime } = get(notebookAtom);
+  return Object.entries(cellRuntime).every(
+    ([id, rt]) => rt.status !== "running" || id === SCRATCH_CELL_ID,
+  );
+});
 export const notebookQueuedOrRunningCountAtom = atom((get) =>
   notebookQueueOrRunningCount(get(notebookAtom)),
 );
@@ -1783,8 +1813,10 @@ export function createTracebackInfoAtom(
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.
  */
-export function useCellActions(): CellActions {
-  return useActions();
+export function useCellActions(
+  options: { skipMiddleware?: boolean } = {},
+): CellActions {
+  return useActions(options);
 }
 
 /**

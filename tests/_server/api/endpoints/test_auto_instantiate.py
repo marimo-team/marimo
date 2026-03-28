@@ -74,7 +74,7 @@ class TestAutoInstantiateRunMode:
         self, client: TestClient
     ) -> None:
         """In run mode, auto_instantiated should be True."""
-        from tests._server.conftest import get_session_manager
+        from tests._server.mocks import get_session_manager
 
         session_manager = get_session_manager(client)
         session_id = "test-run-mode"
@@ -99,7 +99,7 @@ class TestAutoInstantiateRunMode:
         The @requires("edit") decorator checks for edit permissions, and in run mode
         users only have "read" permissions, so they get 401 Unauthorized.
         """
-        from tests._server.conftest import get_session_manager
+        from tests._server.mocks import get_session_manager
 
         session_manager = get_session_manager(client)
         session_id = "test-instantiate-run"

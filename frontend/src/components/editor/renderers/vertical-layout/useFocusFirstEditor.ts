@@ -91,7 +91,7 @@ function focusCellByName(cellName: string) {
 
       // Look for an editor to focus
       const { cellHandles } = getNotebook();
-      const cellId = cellElement.dataset.cellId as CellId | undefined;
+      const cellId = extractCellIdFromDomElement(cellElement);
 
       if (!cellId) {
         Logger.error(`Missing cellId for cell with name ${cellName}`);
@@ -110,4 +110,11 @@ function focusCellByName(cellName: string) {
     // Fall back to focusing the first editor if cell not found
     focusFirstEditor();
   }
+}
+
+function extractCellIdFromDomElement(
+  cellElement: HTMLElement,
+): CellId | undefined {
+  const cellIdStr = cellElement.dataset.cellId ?? undefined;
+  return cellIdStr as CellId | undefined;
 }

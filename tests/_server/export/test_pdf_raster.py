@@ -6,10 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 from marimo._ast.app import App, InternalApp
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.notification import (
-    CellNotification,
-    UpdateCellIdsNotification,
-)
+from marimo._messaging.notification import CellNotification
 from marimo._server.export import _pdf_raster
 from marimo._session.state.session_view import SessionView
 
@@ -102,8 +99,8 @@ def test_collect_pdf_png_fallbacks_mixed_targets_use_static_by_default() -> (
             "text/plain": "vega",
         },
     )
-    session_view.cell_ids = UpdateCellIdsNotification(cell_ids=["3", "2", "1"])
     app = InternalApp(App())
+    app.cell_manager.cell_ids = lambda: ["3", "2", "1"]  # type: ignore[assignment]
     live_capture_mock = AsyncMock(
         side_effect=AssertionError(
             "live capture should not run for default static mode"
@@ -197,8 +194,8 @@ def test_collect_pdf_png_fallbacks_static_only_uses_static_capture() -> None:
             "text/plain": "vega",
         },
     )
-    session_view.cell_ids = UpdateCellIdsNotification(cell_ids=["1"])
     app = InternalApp(App())
+    app.cell_manager.cell_ids = lambda: ["1"]  # type: ignore[assignment]
 
     class _FakeServer:
         base_url = "http://127.0.0.1:1234"
@@ -285,8 +282,8 @@ def test_collect_pdf_png_fallbacks_live_mode_uses_live_capture() -> None:
         mimetype="text/html",
         data="<marimo-slider></marimo-slider>",
     )
-    session_view.cell_ids = UpdateCellIdsNotification(cell_ids=["2", "1"])
     app = InternalApp(App())
+    app.cell_manager.cell_ids = lambda: ["2", "1"]  # type: ignore[assignment]
 
     static_capture_mock = AsyncMock(
         side_effect=AssertionError(
