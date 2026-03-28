@@ -1243,7 +1243,6 @@ class table(
         skip: int,
         take: int,
         total_rows: Union[int, Literal["too_many"]],
-        descending: bool = False,
     ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
@@ -1268,10 +1267,6 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
-            if descending and total_rows != "too_many":
-                row_ids = range(
-                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
-                )
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1285,7 +1280,6 @@ class table(
         skip: int,
         take: int,
         total_rows: Union[int, Literal["too_many"]],
-        descending: bool = False,
     ) -> Optional[dict[RowId, dict[ColumnName, Optional[str]]]]:
         """Calculate hover text for cells in the table (plain strings or None)."""
         if self._hover_cell is None:
@@ -1318,10 +1312,6 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
-            if descending and total_rows != "too_many":
-                row_ids = range(
-                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
-                )
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1422,27 +1412,20 @@ class table(
         # Save the manager to be used for selection
         self._searched_manager = result
 
-        descending = False
-
         if self._lazy:
             total_rows = "too_many"
         else:
             total_rows = result.get_num_rows(force=True) or 0
-
-        if args.sort and (self._style_cell or self._hover_cell):
-            for element in args.sort:
-                if element.descending:
-                    descending = True
 
         formatted_data, raw_data = clamp_rows_and_columns(result)
         return SearchTableResponse(
             data=formatted_data,
             total_rows=total_rows,
             cell_styles=self._style_cells(
-                offset, args.page_size, total_rows, descending
+                offset, args.page_size, total_rows
             ),
             cell_hover_texts=self._hover_cells(
-                offset, args.page_size, total_rows, descending
+                offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
         )
