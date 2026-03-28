@@ -346,6 +346,7 @@ class TestDataframes:
 
         csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
         csv_bytes = from_data_uri(csv_url)[1]
+        # CSV should include BOM
         assert csv_bytes.startswith(b"\xef\xbb\xbf")
         assert "こんにちは" in csv_bytes.decode("utf-8-sig")
 
@@ -503,16 +504,14 @@ class TestDataframes:
         subject = ui.dataframe(my_dataframe)
 
         mock_registry = Mock()
-        mock_registry.bound_names.return_value = ["my_dataframe"]
+        mock_registry.bound_names.return_value = {"my_dataframe"}
 
         mock_ctx = Mock()
         mock_ctx.ui_element_registry = mock_registry
 
         mock_vfile = Mock()
-        mock_vfile.url = "data:text/csv;base64,YXM="
-
-        mock_lifecycle_item = Mock()
-        mock_lifecycle_item.virtual_file = mock_vfile
+        mock_vfile.url = "data:text/csv;base64,dGVzdA=="
+        mock_vfile.filename = "random_name"
 
         with (
             patch(
@@ -528,18 +527,16 @@ class TestDataframes:
                 return_value="utf-8",
             ),
             patch(
-                "marimo._runtime.virtual_file.VirtualFileLifecycleItem",
-                return_value=mock_lifecycle_item,
-            ) as mock_vfile_item,
+                "marimo._output.data.data.csv",
+                return_value=mock_vfile,
+            ),
         ):
             result = subject._download_as(DownloadAsArgs(format="csv"))
-            assert result.url == "data:text/csv;base64,YXM="
-            assert result.filename == "my_dataframe"
-            mock_vfile_item.assert_called_once()
-            call_args = mock_vfile_item.call_args
-            assert "my_dataframe" in call_args.kwargs.get(
-                "ext", call_args.args[0] if call_args.args else ""
-            )
+
+        # The filename should be the bound variable name, not the random mo_data name
+        assert result.filename == "my_dataframe"
+        # The URL should come from mo_data
+        assert result.url == "data:text/csv;base64,dGVzdA=="
 
     @staticmethod
     @pytest.mark.parametrize(

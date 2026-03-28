@@ -196,9 +196,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             label="",
             args={
                 "columns": self._get_column_types(),
-                # dataframe-name is set at init time using infer_variable_name.
-                # For downloads, the actual filename comes from bound_names at
-                # download time via _download_as returning DownloadAsResponse.
+                # dataframe-name is used by the frontend for display purposes.
+                # The download filename is resolved at download time in _download_as()
+                # using get_bound_name(), which correctly handles wrapped/transformed
+                # dataframes where infer_variable_name() would fall back to 'df'.
                 "dataframe-name": dataframe_name,
                 "total": rows,
                 "page-size": page_size,

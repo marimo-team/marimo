@@ -1359,6 +1359,7 @@ def test_download_as_ignores_cell_selection() -> None:
     table._search(SearchTableArgs(query="2", page_size=10, page_number=0))
     # Make a cell selection; download should still include the filtered view
     table._convert_value([{"rowId": "0", "columnName": "a"}])
+    # Use JSON format to avoid optional dependencies
     url = table._download_as(DownloadAsArgs(format="json")).url
     data_bytes = from_data_uri(url)[1]
     rows = json.loads(data_bytes)

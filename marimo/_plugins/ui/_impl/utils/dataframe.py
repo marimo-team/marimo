@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import io
 from typing import Any, TypeVar, Union
 
 from narwhals.typing import IntoDataFrame
@@ -45,44 +44,6 @@ def get_bound_name(element_id: str) -> str | None:
     except Exception:
         LOGGER.debug("Error getting bound names for download filename")
         return None
-
-
-def _create_download_virtual_file(
-    data: Union[str, bytes, io.BytesIO],
-    ext: str,
-    filename: str,
-) -> tuple[str, str]:
-    """Create a virtual file with a custom filename for download.
-
-    Uses VirtualFileLifecycleItem for proper lifecycle management
-    to avoid virtual file leaks. Each download gets a unique internal
-    filename to prevent registry key collisions and stale data.
-
-    Args:
-        data: The file content as string, bytes, or BytesIO.
-        ext: The file extension (csv, json, parquet).
-        filename: The user-facing filename (without extension).
-
-    Returns:
-        tuple: (url, user-facing filename)
-    """
-    import secrets
-
-    from marimo._runtime.virtual_file import VirtualFileLifecycleItem
-
-    if isinstance(data, str):
-        buffer = data.encode("utf-8")
-    elif isinstance(data, io.BytesIO):
-        buffer = data.getvalue()
-    else:
-        buffer = data
-
-    unique_filename = f"{filename}_{secrets.token_hex(4)}.{ext}"
-    item = VirtualFileLifecycleItem(ext=unique_filename, buffer=buffer)
-    item.add_to_cell_lifecycle_registry()
-
-    vfile = item.virtual_file
-    return (vfile.url, filename)
 
 
 def get_default_csv_encoding() -> str:
@@ -143,34 +104,13 @@ def download_as(
 
     Raises:
         ValueError: If unrecognized format.
-        NotImplementedError: If the table format is not supported.
 
     Returns:
-        tuple: (url, user-facing filename) for the downloaded file.
+        tuple: (url, user-facing filename without extension) for the downloaded file.
     """
     if drop_marimo_index:
+        # Remove the selection column if exists
         manager = manager.drop_columns([INDEX_COLUMN_NAME])
-
-    if filename is not None:
-        if ext == "csv":
-            encoding = (
-                csv_encoding
-                if csv_encoding is not None
-                else get_default_csv_encoding()
-            )
-            data = manager.to_csv(encoding=encoding, separator=csv_separator)
-        elif ext == "json":
-            # Use strict JSON to ensure compliance with JSON spec
-            data = manager.to_json(
-                encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
-            )
-        elif ext == "parquet":
-            data = manager.to_parquet()
-        else:
-            raise ValueError(
-                "format must be one of 'csv', 'json', or 'parquet'."
-            )
-        return _create_download_virtual_file(data, ext, filename)
 
     if ext == "csv":
         encoding = (
@@ -181,16 +121,15 @@ def download_as(
         vfile = mo_data.csv(
             manager.to_csv(encoding=encoding, separator=csv_separator)
         )
-        return (vfile.url, vfile.filename)
     elif ext == "json":
         vfile = mo_data.json(
             manager.to_json(
                 encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
             )
         )
-        return (vfile.url, vfile.filename)
     elif ext == "parquet":
         vfile = mo_data.parquet(manager.to_parquet())
-        return (vfile.url, vfile.filename)
     else:
         raise ValueError("format must be one of 'csv', 'json', or 'parquet'.")
+
+    return (vfile.url, filename if filename is not None else vfile.filename)
