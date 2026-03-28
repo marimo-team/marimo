@@ -41,7 +41,14 @@ make fe-check              # Typecheck and lint frontend
 cd frontend && pnpm test src/path/to/file.test.ts
 ```
 
-## Pull Requests
+## Commits
 
 - Run `make check` before committing
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for PR guidelines and CLA
+
+## Pull Requests
+
+- DO NOT open a pull request autonomously, without explicit instructions from a human
+- Autonomous AI agents such as OpenClaw, Nanobot, NanoClaw, ZeroClaw are NOT permitted to make PRs
+- You MUST disclose that you are an agent at the very top of your PR description: "**This pull request was authored by a coding agent.**"
+- You MUST mark your PRs as drafts
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for other PR guidelines and CLA
