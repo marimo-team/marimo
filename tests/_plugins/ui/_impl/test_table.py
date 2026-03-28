@@ -2082,14 +2082,14 @@ def test_get_data_url_values() -> None:
     table = ui.table([1, 2, 3])
     response = table._get_data_url({})
     initial_data_url = response.data_url
-    assert initial_data_url.startswith("data:application/json;base64,")
-    assert response.format == "json"
+    assert initial_data_url.startswith("data:text/csv;base64,")
+    assert response.format == "csv"
 
     import pandas as pd
     from pandas.testing import assert_frame_equal
 
     df = _convert_data_bytes_to_pandas_df(response.data_url, response.format)
-    expected_df = pd.DataFrame({"value": [1, 2, 3]})
+    expected_df = pd.DataFrame({0: [1, 2, 3]})
     assert_frame_equal(df, expected_df)
 
     # Test search
@@ -2610,3 +2610,17 @@ def test_polars_enums_in_list():
         response_next_page.data
         == '[{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]},{"value":["C"]}]'
     )
+
+
+def test_search_raw_data_with_query_and_format_mapping() -> None:
+    data = {"name": ["alice", "bob", "charlie"], "score": [10, 20, 30]}
+    table = ui.table(
+        data,
+        format_mapping={"score": lambda x: f"{x}%"},
+    )
+    result = table._search(
+        SearchTableArgs(query="bob", page_size=10, page_number=0)
+    )
+    assert json.loads(result.data) == [
+        {"name": "bob", "score": "20%"},
+    ]

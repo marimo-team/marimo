@@ -1126,23 +1126,6 @@ class table(
             except Exception as e:
                 LOGGER.error("Unexpected error exporting Arrow: %s", e)
 
-        data = table_manager.data
-        is_simple_list = (
-            isinstance(data, (list, tuple))
-            and len(data) > 0
-            and not isinstance(data[0], (list, tuple, dict))
-        )
-
-        if is_simple_list:
-            try:
-                data_url = mo_data.json(
-                    table_manager.to_json({}, ensure_ascii=True)
-                ).url
-                return data_url, "json"
-            except Exception as e:
-                LOGGER.error("Failed to export table data as JSON: %s", e)
-                raise
-
         try:
             data_url = mo_data.csv(table_manager.to_csv({})).url
             return data_url, "csv"
