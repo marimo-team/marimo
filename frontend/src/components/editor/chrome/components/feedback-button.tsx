@@ -68,6 +68,7 @@ const FeedbackModal: React.FC<{
                   href={Constants.feedbackForm}
                   target="_blank"
                   className="underline"
+                  rel="noopener"
                 >
                   two-minute survey.
                 </a>
@@ -78,6 +79,7 @@ const FeedbackModal: React.FC<{
                   href={Constants.issuesPage}
                   target="_blank"
                   className="underline"
+                  rel="noopener"
                 >
                   GitHub issue.
                 </a>
@@ -88,6 +90,7 @@ const FeedbackModal: React.FC<{
                   href={Constants.discordLink}
                   target="_blank"
                   className="underline"
+                  rel="noopener"
                 >
                   Discord.
                 </a>

@@ -81,8 +81,8 @@ const PanelBadge = ({
 PanelBadge.displayName = "PanelBadge";
 
 export {
+  PanelAccordionContent,
   PanelAccordionItem,
   PanelAccordionTrigger,
-  PanelAccordionContent,
   PanelBadge,
 };

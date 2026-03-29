@@ -45,6 +45,7 @@ export const StaticBanner: React.FC = () => {
           href={Constants.githubPage}
           target="_blank"
           className="text-(--sky-11) font-medium underline"
+          rel="noopener"
         >
           marimo
         </a>{" "}
@@ -89,6 +90,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
                 href={Constants.githubPage}
                 target="_blank"
                 className="text-(--sky-11) hover:underline font-medium"
+                rel="noopener"
               >
                 marimo
               </a>{" "}

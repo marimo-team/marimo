@@ -40,4 +40,4 @@ const PopoverDialog = ({ className, ...props }: AriaDialogProps) => {
   );
 };
 
-export { Popover, PopoverTrigger, PopoverDialog };
+export { Popover, PopoverDialog, PopoverTrigger };

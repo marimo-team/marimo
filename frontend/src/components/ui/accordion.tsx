@@ -63,8 +63,8 @@ const AccordionPrimitiveTrigger = AccordionPrimitive.Trigger;
 
 export {
   Accordion,
-  AccordionItem,
-  AccordionTrigger,
   AccordionContent,
+  AccordionItem,
   AccordionPrimitiveTrigger,
+  AccordionTrigger,
 };

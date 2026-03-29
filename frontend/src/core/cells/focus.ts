@@ -119,7 +119,7 @@ function cellFocusDetails(cellId: CellId, notebookState: NotebookState) {
   };
 }
 
-export { useCellFocusActions, cellFocusAtom };
+export { cellFocusAtom, useCellFocusActions };
 
 export const exportedForTesting = {
   reducer,

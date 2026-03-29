@@ -37,7 +37,12 @@ const ContributeSnippetModal: React.FC<{
         <DialogDescription>
           Have a useful snippet you want to share with the community? Make a
           pull request{" "}
-          <a href={Constants.githubPage} target="_blank" className="underline">
+          <a
+            href={Constants.githubPage}
+            target="_blank"
+            className="underline"
+            rel="noopener"
+          >
             on GitHub
           </a>
           .

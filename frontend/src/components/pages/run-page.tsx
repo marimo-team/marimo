@@ -39,6 +39,7 @@ const Watermark = () => {
         href={Constants.githubPage}
         target="_blank"
         className="text-sm text-(--grass-11) font-bold tracking-wide transition-colors bg-(--grass-4) hover:bg-(--grass-5) border-t border-l border-(--grass-8) px-3 py-1 rounded-tl-md flex items-center gap-2"
+        rel="noopener"
       >
         <span>made with marimo</span>
         <MarimoIcon className="h-4 w-auto" />

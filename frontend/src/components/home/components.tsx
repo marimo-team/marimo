@@ -157,6 +157,7 @@ export const ResourceLinks: React.FC = () => {
             href={resource.url}
             target="_blank"
             className="flex items-start gap-3 py-3 px-3 rounded-lg border hover:bg-accent/20 transition-colors shadow-xs"
+            rel="noopener"
           >
             <resource.icon className="w-5 h-5 mt-1.5 text-primary" />
             <div>

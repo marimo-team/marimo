@@ -19,7 +19,12 @@ export const ExternalLink = ({
   children: React.ReactNode;
 }) => {
   return (
-    <a href={href} target="_blank" className="text-link hover:underline">
+    <a
+      href={href}
+      target="_blank"
+      className="text-link hover:underline"
+      rel="noopener"
+    >
       {children}
     </a>
   );

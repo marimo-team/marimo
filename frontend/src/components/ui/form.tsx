@@ -212,13 +212,13 @@ const FormMessageTooltip = ({ className }: { className: string }) => {
 FormMessageTooltip.displayName = "FormMessageTooltip";
 
 export {
-  useFormField,
   Form,
-  FormItem,
-  FormLabel,
   FormControl,
   FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
   FormMessage,
   FormMessageTooltip,
-  FormField,
+  useFormField,
 };
