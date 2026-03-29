@@ -1444,9 +1444,7 @@ class table(
         return SearchTableResponse(
             data=formatted_data,
             total_rows=total_rows,
-            cell_styles=self._style_cells(
-                offset, args.page_size, total_rows
-            ),
+            cell_styles=self._style_cells(offset, args.page_size, total_rows),
             cell_hover_texts=self._hover_cells(
                 offset, args.page_size, total_rows
             ),
