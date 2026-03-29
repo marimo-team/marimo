@@ -3,15 +3,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
-import { type FormWrapperProps, FormWrapper } from "../FormPlugin";
+import { FormWrapper, type FormWrapperProps } from "../FormPlugin";
 
 beforeAll(() => {
   SetupMocks.resizeObserver();
 });
 
-function renderForm(
-  overrides: Partial<FormWrapperProps<string>> = {},
-) {
+function renderForm(overrides: Partial<FormWrapperProps<string>> = {}) {
   const setValue = vi.fn();
   const validate = vi.fn().mockResolvedValue(null);
 
