@@ -452,14 +452,22 @@ class UIElement(Html, Generic[S, T]):
         Calls the on_change handler with the element's new value as a
         side-effect.
         """
+        self._update_value(value)
+        if self._on_change is not None:
+            self._on_change(self._value)
+
+    def _update_value(self, value: S) -> None:
+        """Update value without triggering the on_change callback.
+
+        Used internally when a parent element (e.g. form) needs to hydrate
+        this element's value as part of its own conversion, without
+        double-firing the element's on_change handler.
+        """
         self._value_frontend = value
         try:
             self._value = self._convert_value(value)
         except MarimoConvertValueException:
             raise
-
-        if self._on_change is not None:
-            self._on_change(self._value)
 
     def _on_update_completion(self) -> bool:
         """Callback to run after the kernel has processed a value update.
