@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { once } from "lodash-es";
+import { once } from "@/utils/once";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";

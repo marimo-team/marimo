@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { usePrevious } from "@uidotdev/usehooks";
-import { isEqual, pick } from "lodash-es";
+import { dequal as isEqual } from "dequal";
 import type * as Plotly from "plotly.js";
 import { useEffect, useState } from "react";
 import { Objects } from "@/utils/objects";
@@ -50,7 +50,7 @@ export function computeLayoutOnFigureChange(
 ): Partial<Plotly.Layout> {
   return {
     ...createInitialLayout(nextFigure),
-    ...pick(prevLayout, PERSISTED_LAYOUT_KEYS),
+    ...Objects.pick(prevLayout, PERSISTED_LAYOUT_KEYS),
   };
 }
 

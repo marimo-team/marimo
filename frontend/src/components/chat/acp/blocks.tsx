@@ -5,7 +5,6 @@ import type {
   ToolCallContent,
   ToolCallLocation,
 } from "@zed-industries/agent-client-protocol";
-import { capitalize } from "lodash-es";
 import {
   BotMessageSquareIcon,
   FileAudio2Icon,
@@ -36,7 +35,7 @@ import {
 import { uniqueByTakeLast } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
-import { Strings } from "@/utils/strings";
+import { capitalize, Strings } from "@/utils/strings";
 import { SimpleAccordion } from "./common";
 import type {
   AgentNotificationEvent,
