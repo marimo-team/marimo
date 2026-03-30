@@ -72,6 +72,7 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
 )
+from marimo._utils.variable_name import infer_variable_name
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -512,6 +513,10 @@ class table(
         self._max_columns: Optional[int] = None
         max_columns_arg: Union[int, str]
 
+        # Infer the variable name before add_selection_column() mutates data,
+        # so the identity check still matches the caller's original variable.
+        self._download_file_name: str | None = infer_variable_name(data, None)
+
         has_stable_row_id = False
         if selection is not None:
             data, has_stable_row_id = add_selection_column(data)
@@ -874,13 +879,15 @@ class table(
             )
 
         if isinstance(manager_candidate, TableManager):
-            bound_filename = get_bound_name(self._id)
+            # Prefer the UI element's bound name; fall back to the
+            # data variable name inferred at init time.
+            name = get_bound_name(self._id) or self._download_file_name
 
             url, filename = download_as(
                 manager_candidate,
                 args.format,
                 drop_marimo_index=True,
-                filename=bound_filename,
+                filename=name,
             )
             return DownloadAsResponse(url=url, filename=filename)
         else:

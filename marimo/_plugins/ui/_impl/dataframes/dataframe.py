@@ -352,7 +352,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         df = self._value
         manager = self._get_cached_table_manager(df, self._limit)
 
-        bound_filename = get_bound_name(self._id)
+        # Prefer the UI element's bound name; fall back to the
+        # data variable name inferred at init time.
+        name = get_bound_name(self._id) or self._dataframe_name
 
         url, filename = download_as(
             manager,
@@ -360,7 +362,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             csv_encoding=self._download_csv_encoding,
             csv_separator=self._download_csv_separator,
             json_ensure_ascii=self._download_json_ensure_ascii,
-            filename=bound_filename,
+            filename=name,
         )
         return DownloadAsResponse(url=url, filename=filename)
 
