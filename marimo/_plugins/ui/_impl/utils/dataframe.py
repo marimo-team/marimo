@@ -22,7 +22,7 @@ LOGGER = _loggers.marimo_logger()
 DEFAULT_CSV_ENCODING = "utf-8"
 
 
-def get_bound_name(element_id: str) -> str | None:
+def get_bound_name(element_id: UIElementId) -> str | None:
     """Get the bound variable name for a UI element.
 
     Looks up the element's bound names from the UI element registry
@@ -37,12 +37,9 @@ def get_bound_name(element_id: str) -> str | None:
     """
     try:
         ctx = get_context()
-        bound = sorted(
-            ctx.ui_element_registry.bound_names(UIElementId(element_id))
-        )
+        bound = sorted(ctx.ui_element_registry.bound_names(element_id))
         return bound[0] if bound else None
     except Exception:
-        LOGGER.debug("Error getting bound names for download filename")
         return None
 
 
@@ -106,7 +103,7 @@ def download_as(
         ValueError: If unrecognized format.
 
     Returns:
-        tuple: (url, user-facing filename without extension) for the downloaded file.
+        tuple: (url, user-facing filename with extension) for the downloaded file.
     """
     if drop_marimo_index:
         # Remove the selection column if exists
@@ -122,6 +119,7 @@ def download_as(
             manager.to_csv(encoding=encoding, separator=csv_separator)
         )
     elif ext == "json":
+        # Use strict JSON to ensure compliance with JSON spec
         vfile = mo_data.json(
             manager.to_json(
                 encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
@@ -132,4 +130,5 @@ def download_as(
     else:
         raise ValueError("format must be one of 'csv', 'json', or 'parquet'.")
 
-    return (vfile.url, filename if filename is not None else vfile.filename)
+    base_name = filename if filename is not None else "download"
+    return (vfile.url, f"{base_name}.{ext}")

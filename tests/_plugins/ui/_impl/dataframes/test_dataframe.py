@@ -533,8 +533,8 @@ class TestDataframes:
         ):
             result = subject._download_as(DownloadAsArgs(format="csv"))
 
-        # The filename should be the bound variable name, not the random mo_data name
-        assert result.filename == "my_dataframe"
+        # The filename should be the bound variable name with extension
+        assert result.filename == "my_dataframe.csv"
         # The URL should come from mo_data
         assert result.url == "data:text/csv;base64,dGVzdA=="
 

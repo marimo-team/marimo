@@ -72,7 +72,6 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
 )
-from marimo._utils.variable_name import infer_variable_name
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -513,10 +512,6 @@ class table(
         self._max_columns: Optional[int] = None
         max_columns_arg: Union[int, str]
 
-        # Infer the variable name before add_selection_column() mutates data,
-        # so the identity check still matches the caller's original variable.
-        download_file_name = infer_variable_name(data, "download")
-
         has_stable_row_id = False
         if selection is not None:
             data, has_stable_row_id = add_selection_column(data)
@@ -749,7 +744,6 @@ class table(
                 "max-height": int(max_height)
                 if max_height is not None
                 else None,
-                "download-file-name": download_file_name,
             },
             on_change=on_change,
             functions=(
@@ -1128,10 +1122,13 @@ class table(
                 data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
                 return data_url, "arrow"
             except NotImplementedError:
-                LOGGER.debug("Arrow export not implemented, falling back.")
+                LOGGER.debug(
+                    "Arrow export not implemented, falling back to CSV."
+                )
             except Exception as e:
                 LOGGER.error("Unexpected error exporting Arrow: %s", e)
 
+        # Try CSV
         try:
             data_url = mo_data.csv(table_manager.to_csv({})).url
             return data_url, "csv"
@@ -1140,6 +1137,7 @@ class table(
         except Exception as e:
             LOGGER.error("Unexpected error exporting CSV: %s", e)
 
+        # Fallback to JSON
         try:
             data_url = mo_data.json(
                 table_manager.to_json({}, ensure_ascii=True)
