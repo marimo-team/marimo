@@ -247,9 +247,10 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells: hideCode
-        ? new Set([...state.untouchedNewCells, newCellId])
-        : state.untouchedNewCells,
+      untouchedNewCells:
+        hideCode && !code
+          ? new Set([...state.untouchedNewCells, newCellId])
+          : state.untouchedNewCells,
     };
   },
   moveCell: (
