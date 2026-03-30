@@ -388,9 +388,12 @@ class BaseLspServer(LspServer):
         try:
             pgid = os.getpgid(self.process.pid)
             os.killpg(pgid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            # Process already exited or we can't signal the group;
-            # fall back to terminating the direct child only.
+        except ProcessLookupError:
+            # Process or process group already exited; nothing to do.
+            return
+        except PermissionError:
+            # We can't signal the group; fall back to terminating
+            # the direct child only.
             self.process.terminate()
 
     def _kill_process_tree(self) -> None:
@@ -402,7 +405,12 @@ class BaseLspServer(LspServer):
         try:
             pgid = os.getpgid(self.process.pid)
             os.killpg(pgid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError:
+            # Process or process group already exited; nothing to do.
+            return
+        except PermissionError:
+            # We can't signal the group; fall back to killing
+            # the direct child only.
             self.process.kill()
 
     def stop(self) -> None:

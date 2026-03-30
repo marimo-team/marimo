@@ -156,11 +156,11 @@ async def test_base_lsp_server_stop_force_kill_on_timeout(
 
 
 @pytest.mark.skipif(is_windows(), reason="Unix-only process group test")
-async def test_base_lsp_server_stop_falls_back_on_process_lookup_error(
+async def test_base_lsp_server_stop_noop_on_process_lookup_error(
     mock_popen: mock.MagicMock,
     mock_process: mock.MagicMock,
 ):
-    """Test that stop() falls back to process.terminate() if killpg fails."""
+    """Test that stop() treats ProcessLookupError as a no-op (already exited)."""
     del mock_popen
 
     server = MockLspServer(port=8000)
@@ -172,8 +172,9 @@ async def test_base_lsp_server_stop_falls_back_on_process_lookup_error(
     mock_process.pid = 12345
     with mock.patch("os.getpgid", side_effect=ProcessLookupError):
         server.stop()
-        # Should fall back to direct terminate
-        mock_process.terminate.assert_called_once()
+        # ProcessLookupError means process already exited; should not
+        # fall back to terminate/kill.
+        mock_process.terminate.assert_not_called()
     assert server.process is None
 
 
