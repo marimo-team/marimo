@@ -33,67 +33,60 @@ import { toast } from "../ui/use-toast";
 
 type DownloadFormat = "csv" | "json" | "parquet";
 
-export interface DownloadActionProps {
+export interface ExportActionProps {
   downloadAs: (req: {
     format: DownloadFormat;
   }) => Promise<{ url: string; filename: string }>;
 }
 
-const options = [
-  {
+const FILE_TYPES = {
+  CSV: {
     label: "CSV",
     format: "csv",
     description: "Comma-separated values",
     icon: TableIcon,
   },
-  {
+  JSON: {
     label: "JSON",
     format: "json",
     description: "Raw JSON data",
     icon: BracesIcon,
   },
-  {
+  PARQUET: {
     label: "Parquet",
     format: "parquet",
     description: "Columnar binary format",
     icon: BrickWallIcon,
   },
-] as const;
-
-const clipboardOptions = [
-  {
+  TSV: {
     label: "TSV",
     format: "tsv",
     description: "Best for Excel and Google Sheets",
     icon: TableIcon,
   },
-  {
-    label: "JSON",
-    format: "json",
-    description: "Raw JSON data",
-    icon: BracesIcon,
-  },
-  {
-    label: "CSV",
-    format: "csv",
-    description: "Comma-separated values",
-    icon: TableIcon,
-  },
-  {
+  MARKDOWN: {
     label: "Markdown",
     format: "markdown",
     description: "Preserves hyperlinks and formatting",
     icon: FileTextIcon,
   },
-] as const;
+} as const;
 
-export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
+const downloadOptions = [FILE_TYPES.CSV, FILE_TYPES.JSON, FILE_TYPES.PARQUET];
+const copyOptions = [
+  FILE_TYPES.TSV,
+  FILE_TYPES.JSON,
+  FILE_TYPES.CSV,
+  FILE_TYPES.MARKDOWN,
+];
+
+export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const { locale } = useLocale();
   const [open, setOpen] = React.useState(false);
 
   const button = (
     <Button
-      data-testid="download-as-button"
+      data-testid="export-button"
       size="xs"
       variant="text"
       className="print:hidden"
@@ -120,7 +113,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   };
 
   const handleClipboardCopy = async (
-    format: (typeof clipboardOptions)[number]["format"],
+    format: (typeof copyOptions)[number]["format"],
   ) => {
     let text: string;
 
@@ -169,7 +162,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           Download
         </DropdownMenuLabel>
-        {options.map((option) => (
+        {downloadOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
             onSelect={async () => {
@@ -192,7 +185,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           Copy to clipboard
         </DropdownMenuLabel>
-        {clipboardOptions.map((option) => (
+        {copyOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
             onSelect={async () => {

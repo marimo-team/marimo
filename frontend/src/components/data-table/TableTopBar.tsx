@@ -18,9 +18,13 @@ import {
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
-import { type DownloadActionProps, DownloadAs } from "./download-actions";
+import { type ExportActionProps, ExportMenu } from "./export-actions";
 
-interface TableTopBarProps extends Partial<DownloadActionProps> {
+const NOOP_ON_SEARCH = () => {
+  /** no-op*/
+};
+
+interface TableTopBarProps extends Partial<ExportActionProps> {
   enableSearch: boolean;
   searchQuery?: string;
   onSearchQueryChange?: (query: string) => void;
@@ -48,25 +52,22 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [internalValue, setInternalValue] = useState(searchQuery || "");
   const debouncedSearch = useDebounce(internalValue, 500);
-  const onSearch = useEvent(
-    onSearchQueryChange ??
-      (() => {
-        /** no-op */
-      }),
-  );
+  const onSearch = useEvent(onSearchQueryChange ?? NOOP_ON_SEARCH);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     onSearch(debouncedSearch);
   }, [debouncedSearch, onSearch]);
 
-  useEffect(() => {
-    if (isSearchExpanded) {
-      inputRef.current?.focus();
-    } else {
-      setInternalValue("");
-    }
-  }, [isSearchExpanded]);
+  const expandSearch = () => {
+    setIsSearchExpanded(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const collapseSearch = () => {
+    setIsSearchExpanded(false);
+    setInternalValue("");
+  };
 
   const hasAnyAction =
     (enableSearch && onSearchQueryChange) ||
@@ -80,7 +81,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
 
   return (
     <div className="flex items-center h-10 px-2 border-b gap-1">
-      {/* Left: Search */}
+      {/* expanding search bar */}
       {onSearchQueryChange && enableSearch && (
         <div className="flex items-center">
           <div
@@ -92,7 +93,9 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             <button
               type="button"
               className="shrink-0 flex items-center justify-center"
-              onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+              onClick={() =>
+                isSearchExpanded ? collapseSearch() : expandSearch()
+              }
             >
               <SearchIcon className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -106,7 +109,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
               value={internalValue}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
-                  setIsSearchExpanded(false);
+                  collapseSearch();
                 }
               }}
               onChange={(e) => setInternalValue(e.target.value)}
@@ -118,7 +121,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
                 variant="text"
                 size="xs"
                 className="h-5 w-5 p-0 shrink-0"
-                onClick={() => setIsSearchExpanded(false)}
+                onClick={collapseSearch}
               >
                 <XIcon className="w-3 h-3 text-muted-foreground" />
               </Button>
@@ -127,7 +130,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
         </div>
       )}
 
-      {/* Right: Actions */}
+      {/* actions: chart builder, sidebar (explorer), export */}
       <div className="ml-auto flex items-center gap-0.5">
         {showChartBuilder && (
           <Tooltip content="Chart builder">
@@ -159,7 +162,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
           </Tooltip>
         )}
         {downloadAs && (
-          <DownloadAs
+          <ExportMenu
             downloadAs={downloadAs}
             downloadFileName={downloadFileName}
           />

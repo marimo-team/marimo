@@ -37,7 +37,7 @@ import type { CellStyleState } from "./cell-styling/types";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { CopyColumnFeature } from "./copy-column/feature";
-import type { DownloadActionProps } from "./download-actions";
+import type { ExportActionProps } from "./export-actions";
 import { FilterPills } from "./filter-pills";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
@@ -53,7 +53,7 @@ import {
 } from "./types";
 import { getStableRowId } from "./utils";
 
-interface DataTableProps<TData> extends Partial<DownloadActionProps> {
+interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
   className?: string;
   maxHeight?: number;
