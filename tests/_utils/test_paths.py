@@ -95,9 +95,9 @@ class TestIsCloudpath:
 
     def test_builtin_cloudpath_detected_via_isinstance(self) -> None:
         """Built-in cloudpathlib paths are detected via isinstance."""
-        from cloudpathlib import S3Path
+        cloudpathlib = pytest.importorskip("cloudpathlib")
 
-        assert is_cloudpath(S3Path("s3://bucket/key"))
+        assert is_cloudpath(cloudpathlib.S3Path("s3://bucket/key"))
 
     def test_custom_cloudpath_subclass_detected(self) -> None:
         """Custom CloudPath subclasses from external packages are detected.
@@ -107,7 +107,8 @@ class TestIsCloudpath:
         We use virtual subclass registration to avoid cloudpathlib's
         metaclass issues with direct subclassing.
         """
-        from cloudpathlib import CloudPath
+        cloudpathlib = pytest.importorskip("cloudpathlib")
+        CloudPath = cloudpathlib.CloudPath
 
         class FakeSMBPath:
             def __init__(self, s: str) -> None:
@@ -149,16 +150,17 @@ def test_normalize_path_skips_cloudpathlib_paths() -> None:
 
     os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
     """
-    from cloudpathlib import S3Path
+    cloudpathlib = pytest.importorskip("cloudpathlib")
 
-    cloud_path = S3Path("s3://bucket/folder/file.txt")
+    cloud_path = cloudpathlib.S3Path("s3://bucket/folder/file.txt")
     result = normalize_path(cloud_path)
     assert result is cloud_path
 
 
 def test_normalize_path_skips_custom_cloudpath_subclass() -> None:
     """Custom CloudPath subclasses should also skip normalization (#8868)."""
-    from cloudpathlib import CloudPath
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    CloudPath = cloudpathlib.CloudPath
 
     class FakeSMBPath:
         def __init__(self, s: str) -> None:

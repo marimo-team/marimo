@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from marimo._dependencies.dependencies import DependencyManager
-
 if TYPE_CHECKING:
     from importlib.abc import Traversable
 
@@ -104,8 +102,13 @@ def is_cloudpath(path: Path) -> bool:
     module-name check so paths still work even when cloudpathlib is not
     installed as a direct dependency.
     """
-    # Return early if cloudpathlib is not installed
-    if not DependencyManager.cloudpathlib.imported():
+    # Quick module-name heuristic — works without importing cloudpathlib.
+    if path.__class__.__module__.startswith("cloudpathlib"):
+        return True
+
+    # If cloudpathlib hasn't been imported yet there's no way a virtual
+    # subclass (CloudPath.register()) could exist, so skip the import.
+    if "cloudpathlib" not in sys.modules:
         return False
 
     try:
@@ -113,7 +116,7 @@ def is_cloudpath(path: Path) -> bool:
 
         return isinstance(path, CloudPath)
     except ImportError:
-        return path.__class__.__module__.startswith("cloudpathlib")
+        return False
 
 
 def normalize_path(path: Path) -> Path:
