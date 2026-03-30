@@ -272,6 +272,8 @@ class TestVirtualFileReplacement:
         assert "data:audio/x-wav;base64," in result
         assert "./@file/1000-small.wav" in replaced
 
-        # Large file should be left as-is
-        assert "./@file/9999999-large.wav" in result
+        # Large file should get a text/plain placeholder instead of the
+        # original (unresolvable) ./@file/ URL
+        assert "./@file/9999999-large.wav" not in result
+        assert "data:text/plain;base64," in result
         assert "./@file/9999999-large.wav" not in replaced
