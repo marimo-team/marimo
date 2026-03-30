@@ -165,12 +165,15 @@ def image(
         ```python3
         # Compare images with consistent intensity scaling
         import numpy as np
+
         dark = np.full((100, 100), 50)
         light = np.full((100, 100), 200)
-        mo.hstack([
-            mo.image(dark, vmin=0, vmax=255),
-            mo.image(light, vmin=0, vmax=255),
-        ])
+        mo.hstack(
+            [
+                mo.image(dark, vmin=0, vmax=255),
+                mo.image(light, vmin=0, vmax=255),
+            ]
+        )
         ```
 
     Args:
