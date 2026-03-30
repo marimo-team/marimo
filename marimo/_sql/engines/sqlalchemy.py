@@ -1,7 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+import functools
+from contextlib import contextmanager
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Union,
+)
 
 from marimo import _loggers
 from marimo._data.models import (
@@ -24,11 +33,53 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import pandas as pd
     import polars as pl
     from sqlalchemy import Engine, Inspector
     from sqlalchemy.engine.cursor import CursorResult
+    from sqlalchemy.engine.interfaces import ReflectedColumn, ReflectedIndex
     from sqlalchemy.sql.type_api import TypeEngine
+
+
+# ------------------------------------------------------------------ #
+#  Decorators                                                         #
+# ------------------------------------------------------------------ #
+
+
+def safe_execute(
+    fallback: Any = None,
+    message: str = "Operation failed",
+    log_level: Literal["debug", "info", "warning", "error"] = "warning",
+    silent_exceptions: tuple[type[BaseException], ...] = (),
+) -> Callable[..., Any]:
+    """Catch exceptions, log them, and return a fallback value.
+
+    Args:
+        fallback: Value returned when the wrapped function raises.
+        message: Message written to the logger on failure.
+        log_level: Logger level – must be one of
+            ``'debug'``, ``'info'``, ``'warning'``, or ``'error'``.
+        silent_exceptions: Exception types that should return *fallback*
+            without any logging.  Useful for expected control-flow
+            exceptions like ``NotImplementedError``.
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except silent_exceptions:
+                return fallback
+            except Exception:
+                getattr(LOGGER, log_level)(message, exc_info=True)
+                return fallback
+
+        return wrapper
+
+    return decorator
 
 
 class SQLAlchemyEngine(SQLConnection["Engine"]):
@@ -51,6 +102,41 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
         self.default_database = self.get_default_database()
         self.default_schema = self.get_default_schema()
+
+    @contextmanager
+    def _get_inspector(self, database: str) -> Iterator[Optional[Inspector]]:
+        """Yield an appropriate SQLAlchemy Inspector for the given database.
+
+        For dialects that require a USE DATABASE command (e.g. Snowflake),
+        this opens a connection, executes the command, and yields an
+        inspector bound to that connection.
+
+        For all other dialects, it yields ``self.inspector`` (which may
+        be ``None``).
+
+        Usage::
+
+            with self._get_inspector(database) as inspector:
+                if inspector is None:
+                    return []
+                return inspector.get_schema_names()
+        """
+
+        import re
+
+        from sqlalchemy import inspect, text
+
+        _use_database_dialect_command: dict[str, str] = {
+            "snowflake": f"""USE DATABASE {f'"{database}"' if re.search(r"[^A-Za-z0-9_]", database) else database}""",
+        }
+        dialect_command = _use_database_dialect_command.get(self.dialect)
+
+        if dialect_command is not None:
+            with self._connection.connect() as connection:
+                connection.execute(text(dialect_command))
+                yield inspect(connection)
+        else:
+            yield self.inspector
 
     @property
     def source(self) -> str:
@@ -108,7 +194,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     @property
     def inference_config(self) -> InferenceConfig:
         return InferenceConfig(
-            auto_discover_schemas=True,
+            auto_discover_schemas="auto",
             auto_discover_tables="auto",
             auto_discover_columns=False,
         )
@@ -166,23 +252,82 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
         return database_name or ""
 
+    @safe_execute(
+        fallback=None,
+        message="Failed to get default schema name",
+        log_level="warning",
+    )
     def get_default_schema(self) -> Optional[str]:
         """Get the default schema name"""
         if self.inspector is None:
             return None
 
-        try:
-            default_schema_name = self.inspector.default_schema_name
-            # https://github.com/marimo-team/marimo/issues/6436.
-            # Upstream bug where default schema name is not a string.
-            if default_schema_name is None or not isinstance(
-                default_schema_name, str
-            ):
-                return None
-            return str(default_schema_name)
-        except Exception:
-            LOGGER.warning("Failed to get default schema name", exc_info=True)
+        default_schema_name = self.inspector.default_schema_name
+        # https://github.com/marimo-team/marimo/issues/6436.
+        # Upstream bug where default schema name is not a string.
+        if default_schema_name is None or not isinstance(
+            default_schema_name, str
+        ):
             return None
+        return str(default_schema_name)
+
+    # -------------------------------------------------------------- #
+    #  Databases resolution                                           #
+    # -------------------------------------------------------------- #
+
+    # Get database names for SNOWFLAKE
+    def _get_snowflake_database_names(self) -> list[str]:
+        """Get database names for Snowflake via 'SHOW DATABASES'.
+
+        If the default database exists in the results, return only that.
+        Otherwise, return all discovered databases.
+        """
+        import re
+
+        from sqlalchemy import text
+
+        with self._connection.connect() as connection:
+            result = connection.execute(text("SHOW DATABASES"))
+            columns = list(result.keys())
+
+            try:
+                name_col_index = columns.index("name")
+            except ValueError as err:
+                raise RuntimeError(
+                    "Unexpected SHOW DATABASES result: "
+                    f"'name' column not found in {columns}"
+                ) from err
+
+            database_names = [
+                str(row[name_col_index])
+                if re.search(r"[^A-Za-z0-9_]", str(row[name_col_index]))
+                else str(row[name_col_index]).lower()
+                for row in result.fetchall()
+            ]
+
+        if self.default_database:
+            default_lower = self.default_database.lower()
+            for db in database_names:
+                if db.lower() == default_lower:
+                    return [str(db).lower()]
+
+        return database_names
+
+    @safe_execute(
+        fallback=[],
+        message="Failed to get database names",
+        log_level="warning",
+    )
+    def _get_database_names(self) -> list[str]:
+        """Get database names using dialect-specific queries.
+
+        Returns a single-element list with the default database when
+        the dialect has no dedicated discovery mechanism.
+        """
+        if self.dialect.lower() == "snowflake":
+            return self._get_snowflake_database_names()
+
+        return [self.default_database] if self.default_database else []
 
     def get_databases(
         self,
@@ -194,43 +339,64 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         """Get all databases from the engine.
 
         Args:
-            include_schemas: Whether to include schema information. If False, databases will have empty schemas.
-            include_tables: Whether to include table information within schemas. If False, schemas will have empty tables.
-            include_table_details: Whether to include each table's detailed information. If False, tables will have empty columns, PK, indexes.
+            include_schemas: Include schema information per database.
+            include_tables: Include table information within each schema.
+            include_table_details: Include columns, PKs, and indexes
+                for each table.
 
         Returns:
             List of Database objects representing the database structure.
 
-        Note: This operation can be performance intensive when fetching full metadata.
+        Note:
+            This operation can be performance-intensive when fetching
+            full metadata.
         """
+        should_include_schemas = self._resolve_should_auto_discover(
+            include_schemas
+        )
+        should_include_tables = self._resolve_should_auto_discover(
+            include_tables
+        )
+        should_include_details = self._resolve_should_auto_discover(
+            include_table_details
+        )
+
         databases: list[Database] = []
 
-        if self.default_database is None:
-            return databases
-        database_name = self.default_database
+        for database_name in self._get_database_names():
+            schemas = (
+                self.get_schemas(
+                    database=database_name,
+                    include_tables=should_include_tables,
+                    include_table_details=should_include_details,
+                )
+                if should_include_schemas
+                else []
+            )
+            databases.append(
+                Database(
+                    name=database_name,
+                    dialect=self.dialect,
+                    schemas=schemas,
+                    engine=self._engine_name,
+                )
+            )
 
-        schemas = (
-            self.get_schemas(
-                database=database_name,
-                include_tables=self._resolve_should_auto_discover(
-                    include_tables
-                ),
-                include_table_details=self._resolve_should_auto_discover(
-                    include_table_details
-                ),
-            )
-            if self._resolve_should_auto_discover(include_schemas)
-            else []
-        )
-        databases.append(
-            Database(
-                name=database_name,
-                dialect=self.dialect,
-                schemas=schemas,
-                engine=self._engine_name,
-            )
-        )
         return databases
+
+    # -------------------------------------------------------------- #
+    #  Schemas resolution                                            #
+    # -------------------------------------------------------------- #
+
+    @safe_execute(
+        fallback=[], message="Failed to get schema names", log_level="warning"
+    )
+    def _get_schema_names(self, database: str) -> list[str]:
+
+        with self._get_inspector(database) as inspector:
+            if inspector is None:
+                return []
+            return inspector.get_schema_names()
 
     def get_schemas(
         self,
@@ -241,13 +407,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
 
-        if self.inspector is None:
-            return []
-        try:
-            schema_names = self.inspector.get_schema_names()
-        except Exception:
-            LOGGER.warning("Failed to get schema names", exc_info=True)
-            return []
+        schema_names = self._get_schema_names(
+            database if database is not None else ""
+        )
+
         schemas: list[Schema] = []
 
         for schema in schema_names:
@@ -269,20 +432,34 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             return ["information_schema", "pg_catalog"]
         return ["information_schema"]
 
+    # -------------------------------------------------------------- #
+    #  Tables resolution                                             #
+    # -------------------------------------------------------------- #
+
+    @safe_execute(
+        fallback=([], []),
+        message="Failed to get tables in schema",
+        log_level="warning",
+    )
+    def _get_table_names(
+        self, schema: str, database: str
+    ) -> tuple[list[str], list[str]]:
+
+        with self._get_inspector(database) as inspector:
+            if inspector is None:
+                return [], []
+            return inspector.get_table_names(
+                schema=schema
+            ), inspector.get_view_names(schema=schema)
+
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        _ = database
 
-        if self.inspector is None:
-            return []
-        try:
-            table_names = self.inspector.get_table_names(schema=schema)
-            view_names = self.inspector.get_view_names(schema=schema)
-        except Exception:
-            LOGGER.warning("Failed to get tables in schema", exc_info=True)
-            return []
+        table_names, view_names = self._get_table_names(
+            schema=schema, database=database
+        )
 
         tables: list[tuple[DataTableType, str]] = []
         for name in table_names:
@@ -319,48 +496,77 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
         return data_tables
 
+    # -------------------------------------------------------------- #
+    #  Table Details resolution                                      #
+    # -------------------------------------------------------------- #
+
+    @safe_execute(
+        fallback=None,
+        message="Failed to get table details",
+        log_level="warning",
+    )
+    def _get_columns(
+        self, table_name: str, schema: str, database: str
+    ) -> Optional[list[ReflectedColumn]]:
+
+        with self._get_inspector(database) as inspector:
+            if inspector is None:
+                return None
+            return inspector.get_columns(table_name, schema=schema)
+
+    @safe_execute(fallback=[], message="Failed to get primary keys")
+    def _fetch_primary_keys(
+        self, table_name: str, schema: str, database: str
+    ) -> list[str]:
+
+        with self._get_inspector(database) as inspector:
+            if inspector is None:
+                return []
+            return inspector.get_pk_constraint(table_name, schema=schema).get(
+                "constrained_columns", []
+            )
+
+    @safe_execute(fallback=[], message="Failed to get indexes")
+    def _fetch_indexes(
+        self, table_name: str, schema: str, database: str
+    ) -> list[str]:
+
+        with self._get_inspector(database) as inspector:
+            if inspector is None:
+                return []
+            indexes = inspector.get_indexes(table_name, schema=schema)
+            return self._extract_index_columns(indexes)
+
+    @staticmethod
+    def _extract_index_columns(indexes: list[ReflectedIndex]) -> list[str]:
+        """Extract and deduplicate column names from a list of index definitions."""
+        index_columns: list[str] = []
+        seen: set[str] = set()
+        for index in indexes:
+            if index_cols := index.get("column_names"):
+                for col in index_cols:
+                    if col is not None and col not in seen:
+                        seen.add(col)
+                        index_columns.append(col)
+        return index_columns
+
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
-        _ = database_name
 
-        if self.inspector is None:
-            return None
-        try:
-            columns = self.inspector.get_columns(
-                table_name, schema=schema_name
-            )
-        except Exception:
-            LOGGER.warning(
-                f"Failed to get table {table_name} in schema {schema_name}",
-                exc_info=True,
-            )
+        columns = self._get_columns(
+            table_name, schema=schema_name, database=database_name
+        )
+        if columns is None:
             return None
 
-        primary_keys: list[str] = []
-        index_list: list[str] = []
-
-        try:
-            primary_keys = self.inspector.get_pk_constraint(
-                table_name, schema=schema_name
-            )["constrained_columns"]
-        except Exception:
-            pass
-
-        # TODO: Handle multi column PK and indexes
-        try:
-            indexes = self.inspector.get_indexes(
-                table_name, schema=schema_name
-            )
-            for index in indexes:
-                if index_cols := index["column_names"]:
-                    index_list.extend(
-                        col for col in index_cols if col is not None
-                    )
-        except Exception:
-            LOGGER.warning("Failed to get indexes", exc_info=True)
-            pass
+        primary_keys = self._fetch_primary_keys(
+            table_name, schema_name, database_name
+        )
+        index_list = self._fetch_indexes(
+            table_name, schema_name, database_name
+        )
 
         cols: list[DataTableColumn] = []
         for col in columns:
@@ -393,29 +599,29 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             indexes=index_list,
         )
 
+    @safe_execute(
+        fallback=None,
+        message="Failed to get column type",
+        log_level="warning",
+        silent_exceptions=(NotImplementedError,),
+    )
     def _get_python_type(
         self, engine_type: TypeEngine[Any]
     ) -> DataType | None:
-        try:
-            col_type = engine_type.python_type
-            return sql_type_to_data_type(str(col_type))
-        except NotImplementedError:
-            return None
-        except Exception:
-            LOGGER.debug("Failed to get python type", exc_info=True)
-            return None
+        col_type = engine_type.python_type
+        return sql_type_to_data_type(str(col_type))
 
+    @safe_execute(
+        fallback=None,
+        message="Failed to get generic type",
+        log_level="debug",
+        silent_exceptions=(NotImplementedError,),
+    )
     def _get_generic_type(
         self, engine_type: TypeEngine[Any]
     ) -> DataType | None:
-        try:
-            col_type = engine_type.as_generic()
-            return sql_type_to_data_type(str(col_type))
-        except NotImplementedError:
-            return None
-        except Exception:
-            LOGGER.debug("Failed to get generic type", exc_info=True)
-            return None
+        col_type = engine_type.as_generic()
+        return sql_type_to_data_type(str(col_type))
 
     def _resolve_should_auto_discover(
         self,
