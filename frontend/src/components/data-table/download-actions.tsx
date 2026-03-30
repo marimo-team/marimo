@@ -3,14 +3,14 @@
 import {
   BracesIcon,
   BrickWallIcon,
-  ChevronDownIcon,
-  ClipboardListIcon,
   FileTextIcon,
+  ShareIcon,
   TableIcon,
 } from "lucide-react";
 import React from "react";
 import { useLocale } from "react-aria";
 import { logNever } from "@/utils/assertNever";
+import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { prettyError } from "@/utils/errors";
@@ -24,12 +24,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 
 type DownloadFormat = "csv" | "json" | "parquet";
@@ -44,16 +43,19 @@ const options = [
   {
     label: "CSV",
     format: "csv",
+    description: "Comma-separated values",
     icon: TableIcon,
   },
   {
     label: "JSON",
     format: "json",
+    description: "Raw JSON data",
     icon: BracesIcon,
   },
   {
     label: "Parquet",
     format: "parquet",
+    description: "Columnar binary format",
     icon: BrickWallIcon,
   },
 ] as const;
@@ -87,15 +89,21 @@ const clipboardOptions = [
 
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   const { locale } = useLocale();
+  const [open, setOpen] = React.useState(false);
 
   const button = (
     <Button
       data-testid="download-as-button"
       size="xs"
-      variant="link"
+      variant="text"
       className="print:hidden"
     >
-      Download <ChevronDownIcon className="w-3 h-3 ml-1" />
+      <ShareIcon
+        className={cn(
+          "w-4 h-4",
+          open ? "text-primary" : "text-muted-foreground",
+        )}
+      />
     </Button>
   );
 
@@ -153,9 +161,14 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   };
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+      <Tooltip content="Export" open={open ? false : undefined}>
+        <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+      </Tooltip>
       <DropdownMenuContent side="bottom" className="print:hidden">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          Download
+        </DropdownMenuLabel>
         {options.map((option) => (
           <DropdownMenuItem
             key={option.label}
@@ -167,42 +180,42 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
             }}
           >
             <option.icon className="mo-dropdown-icon" />
-            {option.label}
+            <div className="flex flex-col">
+              <span>{option.label}</span>
+              <span className="text-xs text-muted-foreground">
+                {option.description}
+              </span>
+            </div>
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <ClipboardListIcon className="mo-dropdown-icon" />
-            Copy to clipboard
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {clipboardOptions.map((option) => (
-              <DropdownMenuItem
-                key={option.label}
-                onSelect={async () => {
-                  try {
-                    await handleClipboardCopy(option.format);
-                  } catch (error) {
-                    toast({
-                      title: "Failed to copy to clipboard",
-                      description: prettyError(error),
-                      variant: "danger",
-                    });
-                  }
-                }}
-              >
-                <option.icon className="mo-dropdown-icon" />
-                <div className="flex flex-col">
-                  <span>{option.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {option.description}
-                  </span>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          Copy to clipboard
+        </DropdownMenuLabel>
+        {clipboardOptions.map((option) => (
+          <DropdownMenuItem
+            key={option.label}
+            onSelect={async () => {
+              try {
+                await handleClipboardCopy(option.format);
+              } catch (error) {
+                toast({
+                  title: "Failed to copy to clipboard",
+                  description: prettyError(error),
+                  variant: "danger",
+                });
+              }
+            }}
+          >
+            <option.icon className="mo-dropdown-icon" />
+            <div className="flex flex-col">
+              <span>{option.label}</span>
+              <span className="text-xs text-muted-foreground">
+                {option.description}
+              </span>
+            </div>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
