@@ -112,7 +112,7 @@ def is_cloudpath(path: Path) -> bool:
         return False
 
     try:
-        from cloudpathlib import CloudPath
+        from cloudpathlib import CloudPath  # type: ignore[import-not-found]
 
         return isinstance(path, CloudPath)
     except ImportError:
