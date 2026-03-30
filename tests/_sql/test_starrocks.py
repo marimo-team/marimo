@@ -162,26 +162,11 @@ class TestExternalSchemas:
 
 
 class TestGetDatabases:
-    def test_returns_catalog_as_database(self) -> None:
+    def test_returns_catalogs_with_empty_schemas(self) -> None:
+        """get_databases() lists catalogs only; schemas are fetched lazily."""
         engine = _make_engine()
-        # Call 1: SHOW CATALOGS
-        # Call 2: SHOW DATABASES IN `default_catalog`
         catalogs_rows = [("default_catalog",), ("hive_catalog",)]
-        db_rows_default = [("tpch",), ("analytics",)]
-        db_rows_hive = [("lake",)]
-
-        conn_ctx = MagicMock()
-        conn = MagicMock()
-        conn_ctx.__enter__ = MagicMock(return_value=conn)
-        conn_ctx.__exit__ = MagicMock(return_value=False)
-        engine._connection.connect = MagicMock(return_value=conn_ctx)
-
-        results = []
-        for rows in [catalogs_rows, db_rows_default, db_rows_hive]:
-            r = MagicMock()
-            r.fetchall = MagicMock(return_value=rows)
-            results.append(r)
-        conn.execute = MagicMock(side_effect=results)
+        _mock_connection_ctx(engine, [catalogs_rows])
 
         databases = engine.get_databases(
             include_schemas=True,
@@ -192,62 +177,60 @@ class TestGetDatabases:
         assert len(databases) == 2
         assert databases[0].name == "default_catalog"
         assert databases[1].name == "hive_catalog"
-        assert [s.name for s in databases[0].schemas] == ["tpch", "analytics"]
-        assert [s.name for s in databases[1].schemas] == ["lake"]
+        # Schemas are always empty — lazy loading handles them
         for db in databases:
+            assert db.schemas == []
             assert db.dialect == "starrocks"
             assert db.engine == "sr"
 
-    def test_no_schemas_when_include_schemas_false(self) -> None:
+    def test_returns_empty_on_error(self) -> None:
         engine = _make_engine()
-        conn_ctx = MagicMock()
-        conn = MagicMock()
-        conn_ctx.__enter__ = MagicMock(return_value=conn)
-        conn_ctx.__exit__ = MagicMock(return_value=False)
-        engine._connection.connect = MagicMock(return_value=conn_ctx)
-
-        catalogs_result = MagicMock()
-        catalogs_result.fetchall = MagicMock(
-            return_value=[("default_catalog",)]
-        )
-        conn.execute = MagicMock(return_value=catalogs_result)
-
+        engine._connection.connect.side_effect = Exception("oops")
         databases = engine.get_databases(
             include_schemas=False,
             include_tables=False,
             include_table_details=False,
         )
+        assert databases == []
 
-        assert len(databases) == 1
-        assert databases[0].name == "default_catalog"
-        assert databases[0].schemas == []
 
-    def test_auto_includes_schemas_excludes_tables(self) -> None:
-        """'auto' should resolve to include_schemas=True, include_tables=False."""
+class TestGetSchemas:
+    def test_external_catalog_returns_schemas(self) -> None:
+        """get_schemas() for an external catalog uses SHOW DATABASES."""
         engine = _make_engine()
-        conn_ctx = MagicMock()
-        conn = MagicMock()
-        conn_ctx.__enter__ = MagicMock(return_value=conn)
-        conn_ctx.__exit__ = MagicMock(return_value=False)
-        engine._connection.connect = MagicMock(return_value=conn_ctx)
+        rows = [
+            ("tpch",),
+            ("analytics",),
+            ("information_schema",),  # excluded
+            ("sys",),  # excluded
+        ]
+        _mock_connection_ctx(engine, [rows])
 
-        # SHOW CATALOGS → 1 catalog; SHOW DATABASES → 1 db
-        r1 = MagicMock()
-        r1.fetchall = MagicMock(return_value=[("default_catalog",)])
-        r2 = MagicMock()
-        r2.fetchall = MagicMock(return_value=[("tpch",)])
-        conn.execute = MagicMock(side_effect=[r1, r2])
-
-        databases = engine.get_databases(
-            include_schemas="auto",
-            include_tables="auto",
-            include_table_details="auto",
+        schemas = engine.get_schemas(
+            database="hive_catalog",
+            include_tables=False,
+            include_table_details=False,
         )
+        assert [s.name for s in schemas] == ["tpch", "analytics"]
 
-        assert len(databases) == 1
-        assert databases[0].schemas[0].name == "tpch"
-        # Tables should NOT be fetched (auto → False for tables)
-        assert databases[0].schemas[0].tables == []
+    def test_returns_empty_for_none_database(self) -> None:
+        engine = _make_engine()
+        schemas = engine.get_schemas(
+            database=None,
+            include_tables=False,
+            include_table_details=False,
+        )
+        assert schemas == []
+
+    def test_returns_empty_on_error(self) -> None:
+        engine = _make_engine()
+        engine._connection.connect.side_effect = Exception("oops")
+        schemas = engine.get_schemas(
+            database="hive_catalog",
+            include_tables=False,
+            include_table_details=False,
+        )
+        assert schemas == []
 
 
 class TestGetTablesInSchema:
@@ -346,21 +329,6 @@ class TestStarRocksQuoting:
             quote_sql_identifier("catalog with spaces", dialect="starrocks")
             == "`catalog with spaces`"
         )
-
-
-class TestResolveAuto:
-    def test_true_stays_true(self) -> None:
-        engine = _make_engine()
-        assert engine._resolve_should_auto_discover(True) is True
-
-    def test_false_stays_false(self) -> None:
-        engine = _make_engine()
-        assert engine._resolve_should_auto_discover(False) is False
-
-    def test_auto_resolves_to_false_for_starrocks(self) -> None:
-        # StarRocks is not in CHEAP_DISCOVERY_DATABASES, so "auto" → False.
-        engine = _make_engine()
-        assert engine._resolve_should_auto_discover("auto") is False
 
 
 class TestSystemConstants:

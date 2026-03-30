@@ -74,55 +74,42 @@ class StarRocksEngine(SQLAlchemyEngine):
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
-        """Return all StarRocks catalogs, each containing its databases as schemas.
-
-        Uses the inherited inspector path for the default catalog and explicit
-        SQL for external catalogs.
-
-        ``"auto"`` resolution:
-          - ``include_schemas``      → ``True``  (always show databases)
-          - ``include_tables``       → ``False`` (StarRocks catalogs can be large)
-          - ``include_table_details``→ ``False``
-        """
-        should_include_schemas = (
-            include_schemas if isinstance(include_schemas, bool) else True
-        )
-        should_include_tables = self._resolve_should_auto_discover(
-            include_tables
-        )
-        should_include_details = self._resolve_should_auto_discover(
-            include_table_details
-        )
-
-        databases: list[Database] = []
-        for catalog in self._list_catalogs():
-            if should_include_schemas:
-                if catalog == self.default_database:
-                    # Inspector-based path (inherited from SQLAlchemyEngine).
-                    schemas = self._get_schemas(
-                        database=catalog,
-                        include_tables=should_include_tables,
-                        include_table_details=should_include_details,
-                    )
-                else:
-                    # SQL fallback for external catalogs.
-                    schemas = self._get_external_schemas(
-                        catalog=catalog,
-                        include_tables=should_include_tables,
-                        include_table_details=should_include_details,
-                    )
-            else:
-                schemas = []
-
-            databases.append(
-                Database(
-                    name=catalog,
-                    dialect=self.dialect,
-                    schemas=schemas,
-                    engine=self._engine_name,
-                )
+        """Return all StarRocks catalogs as databases."""
+        return [
+            Database(
+                name=catalog,
+                dialect=self.dialect,
+                schemas=[],
+                engine=self._engine_name,
             )
-        return databases
+            for catalog in self._list_catalogs()
+        ]
+
+    def get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Return schemas for a catalog, lazily fetched on demand.
+
+        Routes the default catalog through the inherited inspector path;
+        external catalogs use ``SHOW DATABASES IN <catalog>``.
+        """
+        if database == self.default_database:
+            return super().get_schemas(
+                database=database,
+                include_tables=include_tables,
+                include_table_details=include_table_details,
+            )
+        if database is not None:
+            return self._get_external_schemas(
+                catalog=database,
+                include_tables=include_tables,
+                include_table_details=include_table_details,
+            )
+        return []
 
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
@@ -163,26 +150,6 @@ class StarRocksEngine(SQLAlchemyEngine):
             schema_name=schema_name,
             database_name=database_name,
         )
-
-    def _get_schemas(
-        self,
-        *,
-        database: Optional[str],
-        include_tables: bool,
-        include_table_details: bool,
-    ) -> list[Schema]:
-        """Filter system schemas out of the result entirely.
-
-        The parent implementation keeps meta-schemas in the list but skips
-        table discovery for them.  For StarRocks we want them hidden from the
-        sidebar completely.
-        """
-        schemas = super()._get_schemas(
-            database=database,
-            include_tables=include_tables,
-            include_table_details=include_table_details,
-        )
-        return [s for s in schemas if s.name.lower() not in _SYSTEM_SCHEMAS]
 
     def _get_meta_schemas(self) -> list[str]:
         return list(_SYSTEM_SCHEMAS)
