@@ -82,6 +82,7 @@ class GeneralFormattingRule(LintRule):
         # Import the violation constants to check for specific types
         from marimo._ast.parse import (
             EXPECTED_GENERATED_WITH_VIOLATION,
+            SCANNER_UNPARSABLE_CELL_VIOLATION,
             UNEXPECTED_STATEMENT_APP_INIT_VIOLATION,
             UNEXPECTED_STATEMENT_CELL_DEF_VIOLATION,
             UNEXPECTED_STATEMENT_MARIMO_IMPORT_VIOLATION,
@@ -89,6 +90,10 @@ class GeneralFormattingRule(LintRule):
 
         # Extract violations from the notebook serialization
         for violation in ctx.notebook.violations:
+            # Skip scanner-generated unparsable cell violations —
+            # already reported by MB001 (unparsable-cells)
+            if violation.description == SCANNER_UNPARSABLE_CELL_VIOLATION:
+                continue
             # Determine if this violation is fixable
             is_fixable = violation.description in [
                 UNEXPECTED_STATEMENT_CELL_DEF_VIOLATION,
