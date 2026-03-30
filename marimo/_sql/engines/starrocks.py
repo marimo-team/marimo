@@ -75,6 +75,7 @@ class StarRocksEngine(SQLAlchemyEngine):
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
         """Return all StarRocks catalogs as databases."""
+        _, _, _ = include_schemas, include_tables, include_table_details
         return [
             Database(
                 name=catalog,
