@@ -914,6 +914,135 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     assert "https://example.com/external.png" in html
 
 
+def test_export_html_replaces_audio_virtual_files(
+    session_view: SessionView,
+) -> None:
+    """Test that audio virtual file URLs are inlined as data URIs."""
+
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        import marimo as mo
+
+        return mo.audio(src="clip.wav")
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    html_with_audio = '<audio src="./@file/500-clip.wav" controls></audio>'
+
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data=html_with_audio,
+        ),
+        console=[],
+        timestamp=0,
+    )
+    session_view.last_executed_code[cell_ids[0]] = (
+        "import marimo as mo\nreturn mo.audio(src='clip.wav')"
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=True,
+        files=["/@file/500-clip.wav"],
+        include_code=True,
+    )
+
+    with patch(
+        "marimo._convert.common.dom_traversal.read_virtual_file"
+    ) as mock_read:
+        mock_read.return_value = b"fake_audio_data"
+
+        html, filename = exporter.export_as_html(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
+
+    assert filename == "notebook.html"
+    assert "./@file/500-clip.wav" not in html
+    assert "data:audio/x-wav;base64," in html
+
+    expected_b64 = base64.b64encode(b"fake_audio_data").decode()
+    assert expected_b64 in html
+
+
+def test_export_html_skips_oversized_virtual_files(
+    session_view: SessionView,
+) -> None:
+    """Test that virtual files exceeding the size limit are not inlined."""
+
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        import marimo as mo
+
+        return mo.audio(src="huge.wav")
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    # 10_000_000 bytes exceeds the 5 MB limit
+    html_with_large_audio = (
+        '<audio src="./@file/20000000-huge.wav" controls></audio>'
+    )
+
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data=html_with_large_audio,
+        ),
+        console=[],
+        timestamp=0,
+    )
+    session_view.last_executed_code[cell_ids[0]] = (
+        "import marimo as mo\nreturn mo.audio(src='huge.wav')"
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=True,
+        files=["/@file/20000000-huge.wav"],
+        include_code=True,
+    )
+
+    with (
+        patch(
+            "marimo._convert.common.dom_traversal.read_virtual_file"
+        ) as mock_read_dom,
+        patch(
+            "marimo._server.export.exporter.read_virtual_file"
+        ) as mock_read_exporter,
+    ):
+        mock_read_dom.return_value = b"huge_audio"
+        mock_read_exporter.return_value = b"huge_audio"
+
+        html, _filename = exporter.export_as_html(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
+
+    # The large file should NOT be inlined in the HTML output
+    assert "data:audio/x-wav;base64," not in html
+    # It should fall through to the virtual_files dict instead
+    assert "./@file/20000000-huge.wav" in html
+
+
 class TestPDFExport:
     def test_export_as_pdf_requires_dependencies(
         self,

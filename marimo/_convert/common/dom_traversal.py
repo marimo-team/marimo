@@ -270,6 +270,7 @@ def replace_virtual_files_with_data_uris(
     html: str,
     allowed_tags: set[str],
     allowed_attributes: Optional[set[str]] = None,
+    max_inline_bytes: Optional[int] = None,
 ) -> tuple[str, set[str]]:
     """Replace virtual file URLs with data URIs in HTML.
 
@@ -280,6 +281,8 @@ def replace_virtual_files_with_data_uris(
         html: The HTML string to process
         allowed_tags: Set of HTML tag names to process
         allowed_attributes: Set of attribute names to process. Defaults to {"src", "href"}
+        max_inline_bytes: Maximum file size in bytes to inline. Files larger
+            than this limit are skipped. None means no limit.
 
     Returns:
         Tuple of (processed_html, replaced_files) where:
@@ -304,6 +307,17 @@ def replace_virtual_files_with_data_uris(
     def replacer(value: str) -> Optional[str]:
         """Replace virtual file URLs with data URIs."""
         if _is_virtual_file_url(value):
+            if max_inline_bytes is not None:
+                parsed = _parse_virtual_file_url(value)
+                if parsed and parsed[0] > max_inline_bytes:
+                    LOGGER.info(
+                        "Skipping virtual file %s (%d bytes exceeds"
+                        " %d byte inline limit)",
+                        value,
+                        parsed[0],
+                        max_inline_bytes,
+                    )
+                    return None
             result = _virtual_file_to_data_uri(value)
             if result is not None:
                 # Track successfully replaced files

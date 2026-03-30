@@ -1,10 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from marimo._convert.common.dom_traversal import (
     _is_virtual_file_url,
     _parse_virtual_file_url,
     replace_html_attributes,
+    replace_virtual_files_with_data_uris,
 )
 
 
@@ -220,3 +223,55 @@ class TestVirtualFileReplacement:
         # Regular URLs should remain unchanged
         assert 'src="https://example.com/image.png"' in result
         assert 'src="./regular.png"' in result
+
+    def test_audio_and_video_tags_replaced(self) -> None:
+        """Test that audio and video virtual files are replaced."""
+        html = (
+            '<audio src="./@file/500-clip.wav" controls></audio>'
+            '<video src="./@file/600-movie.mp4"></video>'
+            '<img src="./@file/100-pic.png">'
+        )
+
+        with patch(
+            "marimo._convert.common.dom_traversal.read_virtual_file"
+        ) as mock_read:
+            mock_read.return_value = b"fake_data"
+
+            result, replaced = replace_virtual_files_with_data_uris(
+                html, allowed_tags={"img", "audio", "video"}
+            )
+
+        assert "./@file/500-clip.wav" not in result
+        assert "./@file/600-movie.mp4" not in result
+        assert "./@file/100-pic.png" not in result
+        assert "data:audio/x-wav;base64," in result
+        assert "data:video/mp4;base64," in result
+        assert "data:image/png;base64," in result
+        assert len(replaced) == 3
+
+    def test_max_inline_bytes_skips_large_files(self) -> None:
+        """Test that files exceeding max_inline_bytes are not inlined."""
+        html = (
+            '<audio src="./@file/1000-small.wav" controls></audio>'
+            '<audio src="./@file/9999999-large.wav" controls></audio>'
+        )
+
+        with patch(
+            "marimo._convert.common.dom_traversal.read_virtual_file"
+        ) as mock_read:
+            mock_read.return_value = b"audio_data"
+
+            result, replaced = replace_virtual_files_with_data_uris(
+                html,
+                allowed_tags={"audio"},
+                max_inline_bytes=5_000_000,
+            )
+
+        # Small file should be inlined
+        assert "./@file/1000-small.wav" not in result
+        assert "data:audio/x-wav;base64," in result
+        assert "./@file/1000-small.wav" in replaced
+
+        # Large file should be left as-is
+        assert "./@file/9999999-large.wav" in result
+        assert "./@file/9999999-large.wav" not in replaced
