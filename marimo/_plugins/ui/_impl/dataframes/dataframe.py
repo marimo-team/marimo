@@ -13,7 +13,6 @@ from typing import (
     cast,
 )
 
-from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
@@ -56,8 +55,6 @@ from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
 from marimo._utils.variable_name import infer_variable_name
-
-LOGGER = _loggers.marimo_logger()
 
 TOO_MANY_ROWS = 100_000
 
@@ -196,10 +193,6 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             label="",
             args={
                 "columns": self._get_column_types(),
-                # dataframe-name is used by the frontend for display purposes.
-                # The download filename is resolved at download time in _download_as()
-                # using get_bound_name(), which correctly handles wrapped/transformed
-                # dataframes where infer_variable_name() would fall back to 'df'.
                 "dataframe-name": dataframe_name,
                 "total": rows,
                 "page-size": page_size,
