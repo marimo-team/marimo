@@ -133,6 +133,46 @@ def test_vfile(client: TestClient) -> None:
     assert response.json() == {"detail": "Invalid virtual file request"}
 
 
+def test_vfile_large_streaming(client: TestClient) -> None:
+    """Regression test: large virtual files must stream without
+    Content-Length mismatch (h11 LocalProtocolError).
+
+    See https://github.com/marimo-team/marimo/issues/8917
+    """
+    from marimo._runtime.virtual_file.storage import (
+        InMemoryStorage,
+        VirtualFileStorageManager,
+    )
+
+    manager = VirtualFileStorageManager()
+    original_storage = manager.storage
+    storage = InMemoryStorage()
+    manager.storage = storage
+
+    try:
+        # ~2 MB file, similar to a large anywidget ESM bundle
+        data = b"x" * (2 * 1024 * 1024)
+        filename = "test-large.js"
+        storage.store(filename, data)
+        byte_length = len(data)
+
+        response = client.get(
+            f"/@file/{byte_length}-{filename}",
+            headers=token_header(),
+        )
+        assert response.status_code == 200
+        assert response.content == data
+        assert (
+            response.headers.get("content-type") == "text/javascript"
+            or response.headers.get("content-type") == "application/javascript"
+        )
+        # StreamingResponse must NOT set Content-Length to avoid h11
+        # LocalProtocolError with large files
+        assert "content-length" not in response.headers
+    finally:
+        manager.storage = original_storage
+
+
 def test_public_file_serving(client: TestClient) -> None:
     # Setup app state with a mock notebook
     app_state = AppState.from_app(cast(Any, client.app))
