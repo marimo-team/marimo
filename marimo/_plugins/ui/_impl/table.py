@@ -1258,7 +1258,7 @@ class table(
         if response.all_rows or response.error:
             if self._has_stable_row_id:
                 try:
-                    all_ids = self._searched_manager.data[
+                    all_ids: list[int] = self._searched_manager.data[
                         INDEX_COLUMN_NAME
                     ].to_list()
                     return all_ids[skip : skip + take]
