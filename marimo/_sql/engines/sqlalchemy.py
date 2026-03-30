@@ -82,6 +82,11 @@ def safe_execute(
     return decorator
 
 
+# ------------------------------------------------------------------ #
+#  SQLAlchemyEngine                                                   #
+# ------------------------------------------------------------------ #
+
+
 class SQLAlchemyEngine(SQLConnection["Engine"]):
     """SQLAlchemy engine."""
 
