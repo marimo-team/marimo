@@ -26,11 +26,13 @@ from marimo._data.models import (
     DataSourceConnection,
     DataTable,
     DataTableSource,
+    Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
+from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
@@ -487,6 +489,18 @@ class DatasetsNotification(Notification, tag="datasets"):
     clear_channel: Optional[DataTableSource] = None
 
 
+class SQLDatabaseMetadata(msgspec.Struct):
+    """SQL database metadata.
+
+    Attributes:
+        connection: Connection identifier.
+        database: Database name.
+    """
+
+    connection: str
+    database: str
+
+
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
     """SQL database and schema metadata.
 
@@ -570,6 +584,25 @@ class DataColumnPreviewNotification(
     name: ClassVar[str] = "data-column-preview"
     table_name: str
     column_name: str
+
+
+class SQLSchemaListPreviewNotification(
+    Notification, tag="sql-schema-list-preview"
+):
+    """List of SQL schemas in a database.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        metadata: Database and schema metadata.
+        schemas: Schemas in database.
+        error: Error message if failed.
+    """
+
+    name: ClassVar[str] = "sql-schema-list-preview"
+    request_id: RequestId
+    metadata: SQLDatabaseMetadata
+    schemas: list[Schema] = msgspec.field(default_factory=list)
+    error: Optional[str] = None
 
 
 class DataSourceConnectionsNotification(
@@ -712,25 +745,6 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
-class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
-    """Updates cell code contents (kiosk mode and edit-mode file reload).
-
-    Attributes:
-        cell_ids: Cells to update.
-        codes: New code for each cell.
-        code_is_stale: If True, code was not executed on backend (output may not match).
-        names: Cell names for each cell (optional, for file reload).
-        configs: Cell configs for each cell (optional, for file reload).
-    """
-
-    name: ClassVar[str] = "update-cell-codes"
-    cell_ids: list[CellId_t]
-    codes: list[str]
-    code_is_stale: bool
-    names: list[str] = msgspec.field(default_factory=list)
-    configs: list[CellConfig] = msgspec.field(default_factory=list)
-
-
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
     """Available secret keys from secret providers.
 
@@ -774,15 +788,17 @@ class CacheInfoNotification(Notification, tag="cache-info"):
     disk_total: int
 
 
-class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
-    """Updates cell ordering in notebook.
+class NotebookDocumentTransactionNotification(
+    Notification, tag="notebook-document-transaction"
+):
+    """Broadcasts an applied transaction to the frontend.
 
-    Attributes:
-        cell_ids: Complete ordered list of cell IDs.
+    Sent by the session when the document changes (from any source).
+    The frontend applies the ops to update its local state.
     """
 
-    name: ClassVar[str] = "update-cell-ids"
-    cell_ids: list[CellId_t]
+    name: ClassVar[str] = "notebook-document-transaction"
+    transaction: Transaction
 
 
 NotificationMessage = Union[
@@ -820,6 +836,7 @@ NotificationMessage = Union[
     DataColumnPreviewNotification,
     SQLTablePreviewNotification,
     SQLTableListPreviewNotification,
+    SQLSchemaListPreviewNotification,
     DataSourceConnectionsNotification,
     ValidateSQLResultNotification,
     # Storage
@@ -833,6 +850,6 @@ NotificationMessage = Union[
     CacheInfoNotification,
     # Kiosk
     FocusCellNotification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
+    # Document
+    NotebookDocumentTransactionNotification,
 ]

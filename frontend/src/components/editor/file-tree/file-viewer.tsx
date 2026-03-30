@@ -21,6 +21,7 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { deserializeBlob } from "@/utils/blob";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob, downloadByURL } from "@/utils/download";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
@@ -121,9 +122,22 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const handleDownload = () => {
-    if (isMediaMime(mimeType)) {
-      const dataURL = base64ToDataURL(data.contents as Base64String, mimeType);
-      downloadByURL(dataURL, data.file.name);
+    if (data.isBase64 && data.contents) {
+      if (isMediaMime(mimeType)) {
+        const dataURL = base64ToDataURL(
+          data.contents as Base64String,
+          mimeType,
+        );
+        downloadByURL(dataURL, data.file.name);
+      } else {
+        const blob = deserializeBlob(
+          base64ToDataURL(
+            data.contents as Base64String,
+            data.mimeType || "application/octet-stream",
+          ),
+        );
+        downloadBlob(blob, data.file.name);
+      }
       return;
     }
 

@@ -96,6 +96,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
     "@textea/json-viewer": "^4.0.1",
     "@types/humanize-duration": "^3.27.4",
     "@types/js-cookie": "^3.0.6",

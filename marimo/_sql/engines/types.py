@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Generic, Literal, Optional, TypeVar, Union
 
 from marimo._config.config import SqlOutputType
-from marimo._data.models import Database, DataTable
+from marimo._data.models import Database, DataTable, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -108,6 +108,17 @@ class EngineCatalog(BaseEngine[CONN], ABC):
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
         """Return the databases for the engine."""
+        pass
+
+    @abstractmethod
+    def get_schemas(
+        self,
+        *,
+        database: Optional[str],
+        include_tables: bool,
+        include_table_details: bool,
+    ) -> list[Schema]:
+        """Return the schemas for a database in the engine."""
         pass
 
     @abstractmethod

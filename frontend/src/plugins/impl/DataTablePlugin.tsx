@@ -874,10 +874,35 @@ const DataTableComponent = ({
     return memoizedUnclampedFieldTypes.slice(0, maxColumns);
   }, [maxColumns, memoizedUnclampedFieldTypes]);
 
+  // Compute max fractional digits per numeric column for consistent formatting.
+  const computedFractionDigits = useMemo(() => {
+    const result: Record<string, number> = {};
+    if (data && data.length > 0) {
+      for (const [colName, types] of memoizedClampedFieldTypes) {
+        if (types[0] === "number") {
+          let maxDecimals = 0;
+          for (const row of data) {
+            const val = (row as Record<string, unknown>)[colName];
+            if (typeof val === "number" && Number.isFinite(val)) {
+              const str = String(val);
+              const dotIdx = str.indexOf(".");
+              if (dotIdx !== -1) {
+                maxDecimals = Math.max(maxDecimals, str.length - dotIdx - 1);
+              }
+            }
+          }
+          result[colName] = maxDecimals;
+        }
+      }
+    }
+    return result;
+  }, [data, memoizedClampedFieldTypes]);
+
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
+  const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
 
   // If the field types are not set, we don't show them
@@ -898,6 +923,7 @@ const DataTableComponent = ({
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
+        fractionDigitsByColumn: fractionDigitsByColumn,
       }),
     [
       selection,
@@ -909,6 +935,7 @@ const DataTableComponent = ({
       memoizedWrappedColumns,
       headerTooltip,
       calculate_top_k_rows,
+      fractionDigitsByColumn,
     ],
   );
 

@@ -17,6 +17,7 @@ commands
   InvokeFunctionCommand
   ListDataSourceConnectionCommand
   ListOrValue
+  ListSQLSchemasCommand
   ListSQLTablesCommand
   ListSecretKeysCommand
   ModelCommand
@@ -87,13 +88,12 @@ notifications
   ReloadNotification
   RemoveUIElementsNotification
   SQLMetadata
+  SQLSchemaListPreviewNotification
   SQLTableListPreviewNotification
   SQLTablePreviewNotification
   SecretKeysResultNotification
   StartupLogsNotification
   UIElementMessageNotification
-  UpdateCellCodesNotification
-  UpdateCellIdsNotification
   ValidateSQLResultNotification
   VariableDeclarationNotification
   VariableValue

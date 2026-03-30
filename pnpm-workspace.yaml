@@ -5,3 +5,5 @@ packages:
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - "@marimo-team/*"
+  # Renovate security update: yaml@2.8.3
+  - yaml@2.8.3

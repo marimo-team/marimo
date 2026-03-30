@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type {
+  SQLSchemaListPreview,
   SQLTableListPreview,
   SQLTablePreview,
   ValidateSQLResult,
@@ -8,6 +9,7 @@ import { CachingRequestRegistry } from "../network/CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
 import type {
+  ListSQLSchemasRequest,
   ListSQLTablesRequest,
   PreviewSQLTableRequest,
   ValidateSQLRequest,
@@ -23,6 +25,17 @@ export const PreviewSQLTable = new DeferredRequestRegistry<
 >("sql-table-preview", async (requestId, req) => {
   const client = getRequestClient();
   await client.previewSQLTable({
+    requestId: requestId,
+    ...req,
+  });
+});
+
+export const PreviewSQLSchemaList = new DeferredRequestRegistry<
+  Omit<ListSQLSchemasRequest, "requestId">,
+  SQLSchemaListPreview
+>("sql-schema-list-preview", async (requestId, req) => {
+  const client = getRequestClient();
+  await client.previewSQLSchemaList({
     requestId: requestId,
     ...req,
   });

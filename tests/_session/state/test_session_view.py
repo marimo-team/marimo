@@ -25,12 +25,12 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
     ModelUpdate,
+    SQLDatabaseMetadata,
     SQLMetadata,
+    SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
     VariableDeclarationNotification,
     VariablesNotification,
     VariableValue,
@@ -64,19 +64,6 @@ updated_output = CellOutput(
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
-
-
-def test_cell_ids(session_view: SessionView) -> None:
-    assert session_view.cell_ids is None
-
-    session_view.add_notification(
-        UpdateCellIdsNotification(
-            cell_ids=[cell_id],
-        )
-    )
-    operation = session_view.notifications[0]
-    assert isinstance(operation, UpdateCellIdsNotification)
-    assert operation.cell_ids == [cell_id]
 
 
 def test_session_view_cell_notification(session_view: SessionView) -> None:
@@ -901,6 +888,49 @@ def test_add_sql_table_previews() -> None:
         == 10
     )
 
+    # Add sql schema preview list
+    session_view.add_raw_notification(
+        serialize_kernel_message(
+            SQLSchemaListPreviewNotification(
+                metadata=SQLDatabaseMetadata(
+                    connection="connection1", database="db1"
+                ),
+                request_id=RequestId("request_id"),
+                schemas=[
+                    Schema(
+                        name="db1",
+                        tables=[
+                            DataTable(
+                                name="table2",
+                                source_type="connection",
+                                source="db1",
+                                num_rows=20,
+                                num_columns=10,
+                                variable_name=VariableName("var"),
+                                columns=[],
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
+    )
+    assert session_view_connections[0].databases[0].schemas[0].tables == [
+        DataTable(
+            source_type="connection",
+            source="db1",
+            name="table2",
+            num_rows=20,
+            num_columns=10,
+            variable_name=VariableName("var"),
+            columns=[],
+            engine=None,
+            type="table",
+            primary_keys=None,
+            indexes=None,
+        )
+    ]
+
     # Add sql table preview list
     session_view.add_raw_notification(
         serialize_kernel_message(
@@ -1315,48 +1345,6 @@ def test_mark_auto_export(session_view: SessionView):
 
     session_view._touch()
     assert session_view.needs_export("session")
-
-
-def test_stale_code(session_view: SessionView) -> None:
-    """Test that stale code is properly tracked and included in operations."""
-    assert session_view.stale_code is None
-
-    # Add stale code operation
-    stale_code_op = UpdateCellCodesNotification(
-        cell_ids=["cell1"],
-        codes=["print('hello')"],
-        code_is_stale=True,
-    )
-    session_view.add_notification(stale_code_op)
-
-    # Verify stale code is tracked
-    assert session_view.stale_code == stale_code_op
-    assert session_view.stale_code in session_view.notifications
-
-    # Add non-stale code operation
-    non_stale_code_op = UpdateCellCodesNotification(
-        cell_ids=["cell2"],
-        codes=["print('world')"],
-        code_is_stale=False,
-    )
-    session_view.add_notification(non_stale_code_op)
-
-    # Verify non-stale code doesn't affect stale_code tracking
-    assert session_view.stale_code == stale_code_op
-    assert session_view.stale_code in session_view.notifications
-
-    # Update stale code
-    new_stale_code_op = UpdateCellCodesNotification(
-        cell_ids=["cell3"],
-        codes=["print('updated')"],
-        code_is_stale=True,
-    )
-    session_view.add_notification(new_stale_code_op)
-
-    # Verify stale code is updated
-    assert session_view.stale_code == new_stale_code_op
-    assert session_view.stale_code in session_view.notifications
-    assert stale_code_op not in session_view.notifications
 
 
 def test_dataset_filter_by_engine_and_variable(

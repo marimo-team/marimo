@@ -5,15 +5,26 @@ import io
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
+import pytest
+
+import marimo._cli.print as cli_print
+from marimo._cli.tips import CliTip
 from marimo._config.config import merge_default_config
 from marimo._server.print import (
     _colorized_url,
+    _format_startup_tip,
     _get_network_url,
     _utf8,
     print_experimental_features,
     print_shutdown,
     print_startup,
 )
+
+
+@pytest.fixture(autouse=True)
+def _disable_cli_style() -> None:
+    with patch.object(cli_print, "_style", cli_print._noop_style):
+        yield
 
 
 def test_utf8() -> None:
@@ -91,6 +102,28 @@ def test_get_network_url() -> None:
                 mock_getaddrinfo.side_effect = Exception("Test exception")
                 result = _get_network_url("http://localhost:8000")
                 assert result == "http://test-host:8000"
+
+
+def test_format_startup_tip_with_command() -> None:
+    tip = CliTip(
+        text="Install shell completions",
+        command="marimo shell-completion",
+    )
+    summary, action = _format_startup_tip(tip)
+    assert "Tip: Install shell completions" in summary
+    assert action == "$ marimo shell-completion"
+
+
+def test_format_startup_tip_with_link() -> None:
+    tip = CliTip(
+        text="Coming from Jupyter?",
+        link="https://docs.marimo.io/guides/coming_from/jupyter/",
+    )
+    summary, action = _format_startup_tip(tip)
+    assert "Tip: Coming from Jupyter?" in summary
+    assert action == (
+        "Guide: https://docs.marimo.io/guides/coming_from/jupyter/"
+    )
 
 
 def test_print_startup() -> None:
@@ -195,6 +228,95 @@ def test_print_startup() -> None:
             mock_get_network_url.assert_called_once_with(
                 "http://localhost:8000"
             )
+
+
+def test_print_startup_prints_tip_after_url() -> None:
+    tip = CliTip(
+        text="Open the intro tutorial",
+        command="marimo tutorial intro",
+    )
+    with io.StringIO() as buf, redirect_stdout(buf):
+        print_startup(
+            file_name=None,
+            url="http://localhost:8000",
+            run=False,
+            new=False,
+            network=False,
+            startup_tip=tip,
+        )
+        output = buf.getvalue()
+        assert "Tip: Open the intro tutorial" in output
+        assert "$ marimo tutorial intro" in output
+        assert "localhost:8000\n\n        " in output
+        assert output.index("URL") < output.index(
+            "Tip: Open the intro tutorial"
+        )
+        assert output.index("Tip: Open the intro tutorial") < output.index(
+            "$ marimo tutorial intro"
+        )
+
+
+def test_print_startup_prints_tip_after_network() -> None:
+    tip = CliTip(
+        text="Run a notebook as a web app",
+        command="marimo run notebook.py",
+    )
+    with io.StringIO() as buf, redirect_stdout(buf):
+        with patch(
+            "marimo._server.print._get_network_url"
+        ) as mock_get_network_url:
+            mock_get_network_url.return_value = "http://192.168.1.100:8000"
+            print_startup(
+                file_name=None,
+                url="http://localhost:8000",
+                run=False,
+                new=False,
+                network=True,
+                startup_tip=tip,
+            )
+        output = buf.getvalue()
+        assert "Tip: Run a notebook as a web app" in output
+        assert "$ marimo run notebook.py" in output
+        assert "192.168.1.100:8000\n\n        " in output
+        assert output.index("URL") < output.index("Network")
+        assert output.index("Network") < output.index(
+            "Tip: Run a notebook as a web app"
+        )
+
+
+def test_print_startup_omits_tip_when_none() -> None:
+    with io.StringIO() as buf, redirect_stdout(buf):
+        print_startup(
+            file_name=None,
+            url="http://localhost:8000",
+            run=False,
+            new=False,
+            network=False,
+            startup_tip=None,
+        )
+        output = buf.getvalue()
+        assert "Tip:" not in output
+
+
+def test_print_startup_utf8_tip_fallback_omits_emoji() -> None:
+    tip = CliTip(
+        text="Install shell completions",
+        command="marimo shell-completion",
+    )
+    with io.StringIO() as buf, redirect_stdout(buf):
+        with patch("marimo._server.print.UTF8_SUPPORTED", False):
+            print_startup(
+                file_name=None,
+                url="http://localhost:8000",
+                run=False,
+                new=False,
+                network=False,
+                startup_tip=tip,
+            )
+        output = buf.getvalue()
+        assert "Tip: Install shell completions" in output
+        assert "$ marimo shell-completion" in output
+        assert "💡" not in output
 
 
 def test_print_shutdown() -> None:

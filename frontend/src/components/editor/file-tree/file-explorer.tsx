@@ -62,9 +62,11 @@ import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { deserializeBlob } from "@/utils/blob";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob } from "@/utils/download";
+import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
@@ -650,8 +652,20 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             <DropdownMenuItem
               onSelect={async () => {
                 const details = await sendFileDetails({ path: node.data.path });
-                const contents = details.contents || "";
-                downloadBlob(new Blob([contents]), node.data.name);
+                if (details.isBase64 && details.contents) {
+                  const blob = deserializeBlob(
+                    base64ToDataURL(
+                      details.contents as Base64String,
+                      details.mimeType || "application/octet-stream",
+                    ),
+                  );
+                  downloadBlob(blob, node.data.name);
+                } else {
+                  downloadBlob(
+                    new Blob([details.contents || ""]),
+                    node.data.name,
+                  );
+                }
               }}
             >
               <DownloadIcon className={ic} />

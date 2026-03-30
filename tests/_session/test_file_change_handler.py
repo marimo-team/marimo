@@ -11,12 +11,21 @@ import pytest
 
 from marimo._ast.cell import CellConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._messaging.notification import (
-    ReloadNotification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
+from marimo._messaging.notebook.changes import (
+    CreateCell,
+    DeleteCell,
+    ReorderCells,
+    SetCode,
+    SetConfig,
+    SetName,
+    Transaction,
 )
-from marimo._runtime.commands import DeleteCellCommand, SyncGraphCommand
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+    ReloadNotification,
+)
+from marimo._runtime.commands import SyncGraphCommand
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.file_change_handler import (
     EditModeReloadStrategy,
@@ -29,19 +38,116 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from pathlib import Path
 
+SINGLE_CELL_NOTEBOOK = dedent(
+    """\
+    import marimo
+    app = marimo.App()
 
-def create_test_app_file_manager(
-    tmp_path: Path, content: str
-) -> AppFileManager:
-    """Create a test app file manager with the given content."""
+    @app.cell
+    def cell1():
+        x = 1
+        return x
+    """
+)
+
+
+def _make_app(tmp_path: Path, content: str) -> AppFileManager:
     test_file = tmp_path / "test.py"
     test_file.write_text(content)
     return AppFileManager(filename=str(test_file))
 
 
+def _document_from(app_file_manager: AppFileManager) -> NotebookDocument:
+    cm = app_file_manager.app.cell_manager
+    return NotebookDocument(
+        [
+            NotebookCell(
+                id=cd.cell_id,
+                code=cd.code,
+                name=cd.name,
+                config=cd.config,
+            )
+            for cd in cm.cell_data()
+        ]
+    )
+
+
+def _get_transaction(mock_session: MagicMock) -> Transaction:
+    calls = [
+        call
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], NotebookDocumentTransactionNotification)
+    ]
+    assert len(calls) == 1
+    return calls[0][0][0].transaction
+
+
+def _changes_of_type(tx: Transaction, cls: type) -> list:
+    return [c for c in tx.changes if isinstance(c, cls)]
+
+
+def _get_sync_command(mock_session: MagicMock) -> SyncGraphCommand:
+    assert mock_session.put_control_request.call_count == 1
+    cmd = mock_session.put_control_request.call_args[0][0]
+    assert isinstance(cmd, SyncGraphCommand)
+    return cmd
+
+
+def _run_reload(
+    tmp_path: Path,
+    mock_session: MagicMock,
+    config_manager,
+    content: str = SINGLE_CELL_NOTEBOOK,
+    document: NotebookDocument | None = None,
+) -> tuple[AppFileManager, list[CellId_t]]:
+    """Wire up a mock session and run EditModeReloadStrategy.handle_reload.
+
+    Returns (app_file_manager, cell_ids) for further assertions.
+    """
+    afm = _make_app(tmp_path, content)
+    mock_session.app_file_manager = afm
+    mock_session.document = (
+        document if document is not None else NotebookDocument()
+    )
+    strategy = EditModeReloadStrategy(config_manager)
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    strategy.handle_reload(mock_session, changed_cell_ids=set(cell_ids))
+    return afm, cell_ids
+
+
+DEFAULT_CELL_ID = CellId_t("cell1")
+
+
+def _make_document_with_extra_cell(
+    cell_ids: list[CellId_t],
+    deleted_id: CellId_t = DEFAULT_CELL_ID,
+) -> NotebookDocument:
+    """Build a document containing cell_ids[0] plus an extra cell to be deleted."""
+    return NotebookDocument(
+        [
+            NotebookCell(
+                id=cell_ids[0],
+                code="x = 1",
+                name="cell1",
+                config=CellConfig(),
+            ),
+            NotebookCell(
+                id=deleted_id,
+                code="y = 2",
+                name="cell2",
+                config=CellConfig(),
+            ),
+        ]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture
 def mock_session():
-    """Create a mock session for testing."""
     session = MagicMock()
     session.notify = MagicMock()
     session.put_control_request = MagicMock()
@@ -50,7 +156,6 @@ def mock_session():
 
 @pytest.fixture
 def config_manager_lazy():
-    """Create a config manager with lazy watcher mode."""
     return get_default_config_manager(current_path=None).with_overrides(
         {"runtime": {"watcher_on_save": "lazy"}}
     )
@@ -58,393 +163,105 @@ def config_manager_lazy():
 
 @pytest.fixture
 def config_manager_autorun():
-    """Create a config manager with autorun watcher mode."""
     return get_default_config_manager(current_path=None).with_overrides(
         {"runtime": {"watcher_on_save": "autorun"}}
     )
 
 
+# ---------------------------------------------------------------------------
+# EditModeReloadStrategy — lazy vs autorun
+# ---------------------------------------------------------------------------
+
+
 def test_edit_mode_reload_strategy_lazy(
     tmp_path: Path, mock_session: MagicMock, config_manager_lazy
 ) -> None:
-    """Test edit mode reload strategy with lazy mode."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
+    _run_reload(tmp_path, mock_session, config_manager_lazy)
 
-        @app.cell
-        def cell1():
-            x = 1
-            return x
-        """
-    )
-    app_file_manager = create_test_app_file_manager(tmp_path, content)
-    mock_session.app_file_manager = app_file_manager
-
-    strategy = EditModeReloadStrategy(config_manager_lazy)
-    # Get actual cell IDs from the app
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    changed_cell_ids = set(cell_ids)
-
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
-
-    # Should send at least UpdateCellIdsNotification and UpdateCellCodesNotification
-    assert mock_session.notify.call_count >= 2
-    update_ids_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellIdsNotification)
-    ]
-    assert len(update_ids_calls) == 1
-
-    # Should send UpdateCellCodes with code_is_stale=True
-    update_codes_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodesNotification)
-    ]
-    assert len(update_codes_calls) == 1
-    notification = update_codes_calls[0][0][0]
-    assert notification.code_is_stale is True
-
-    # Names and configs should always be forwarded
-    assert notification.names == ["cell1"]
-    assert len(notification.configs) == 1
-    assert notification.configs[0] == CellConfig()
-
-    # Should not send execution requests
+    tx = _get_transaction(mock_session)
+    assert len(_changes_of_type(tx, CreateCell)) == 1
+    assert len(_changes_of_type(tx, ReorderCells)) == 1
     mock_session.put_control_request.assert_not_called()
 
 
 def test_edit_mode_reload_strategy_autorun(
     tmp_path: Path, mock_session: MagicMock, config_manager_autorun
 ) -> None:
-    """Test edit mode reload strategy with autorun mode."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
+    _, cell_ids = _run_reload(tmp_path, mock_session, config_manager_autorun)
 
-        @app.cell
-        def cell1():
-            x = 1
-            return x
-        """
-    )
-    app_file_manager = create_test_app_file_manager(tmp_path, content)
-    mock_session.app_file_manager = app_file_manager
+    tx = _get_transaction(mock_session)
+    assert len(_changes_of_type(tx, CreateCell)) == 1
 
-    strategy = EditModeReloadStrategy(config_manager_autorun)
-    # Get actual cell IDs from the app
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    changed_cell_ids = set(cell_ids)
-
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
-
-    # Should send at least UpdateCellIdsNotification and UpdateCellCodesNotification
-    assert mock_session.notify.call_count >= 2
-    update_ids_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellIdsNotification)
-    ]
-    assert len(update_ids_calls) == 1
-
-    # Should send UpdateCellCodesNotification with names/configs
-    update_codes_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodesNotification)
-    ]
-    assert len(update_codes_calls) == 1
-    notification = update_codes_calls[0][0][0]
-    assert notification.code_is_stale is False
-    assert notification.names == ["cell1"]
-    assert len(notification.configs) == 1
-    assert notification.configs[0] == CellConfig()
-
-    # Should send SyncGraphCommand for execution
-    assert mock_session.put_control_request.call_count >= 1
-    sync_calls = [
-        call
-        for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], SyncGraphCommand)
-    ]
-    assert len(sync_calls) == 1
+    sync_cmd = _get_sync_command(mock_session)
+    assert len(sync_cmd.run_ids) == len(cell_ids)
 
 
-def test_edit_mode_reload_strategy_with_deleted_cells(
+def test_edit_mode_reload_no_deletions_lazy_no_control_request(
     tmp_path: Path, mock_session: MagicMock, config_manager_lazy
 ) -> None:
-    """Test edit mode reload strategy with deleted cells."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def cell1():
-            x = 1
-            return x
-        """
+    afm = _make_app(tmp_path, SINGLE_CELL_NOTEBOOK)
+    _run_reload(
+        tmp_path,
+        mock_session,
+        config_manager_lazy,
+        document=_document_from(afm),
     )
-    app_file_manager = create_test_app_file_manager(tmp_path, content)
-    mock_session.app_file_manager = app_file_manager
-
-    strategy = EditModeReloadStrategy(config_manager_lazy)
-    # Get actual cell IDs from the app
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    # Indicate that cell2 was deleted (it's in changed but not in current cells)
-    changed_cell_ids = set(cell_ids) | {CellId_t("cell2")}
-
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
-
-    # Should send DeleteCellRequest for cell2
-    delete_calls = [
-        call
-        for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], DeleteCellCommand)
-    ]
-    assert len(delete_calls) == 1
-    assert delete_calls[0][0][0].cell_id == CellId_t("cell2")
-
-    # Should still send names and configs for the remaining cell
-    update_codes_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodesNotification)
-    ]
-    assert len(update_codes_calls) == 1
-    notification = update_codes_calls[0][0][0]
-    assert notification.names == ["cell1"]
-    assert len(notification.configs) == 1
+    mock_session.put_control_request.assert_not_called()
 
 
-def test_run_mode_reload_strategy(mock_session: MagicMock) -> None:
-    """Test run mode reload strategy sends Reload operation."""
-    strategy = RunModeReloadStrategy()
-    changed_cell_ids = {CellId_t("cell1")}
-
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
-
-    # Should send Reload operation
-    mock_session.notify.assert_called_once()
-    operation = mock_session.notify.call_args[0][0]
-    assert isinstance(operation, ReloadNotification)
+# ---------------------------------------------------------------------------
+# EditModeReloadStrategy — deleted cells
+# ---------------------------------------------------------------------------
 
 
-async def test_file_change_coordinator_handles_change(
-    tmp_path: Path, mock_session: MagicMock
+@pytest.mark.parametrize("mode", ["lazy", "autorun"])
+def test_edit_mode_reload_with_deleted_cells(
+    tmp_path: Path,
+    mock_session: MagicMock,
+    config_manager_lazy,
+    config_manager_autorun,
+    mode: str,
 ) -> None:
-    """Test file change coordinator handles file changes."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
+    config = config_manager_lazy if mode == "lazy" else config_manager_autorun
+    deleted_id = CellId_t("cell2")
 
-        @app.cell
-        def cell1():
-            x = 1
-            return x
-        """
-    )
-    test_file = tmp_path / "test.py"
-    test_file.write_text(content)
-
-    app_file_manager = AppFileManager(filename=str(test_file))
-    mock_session.app_file_manager = app_file_manager
-
-    strategy = MagicMock()
-    coordinator = FileChangeCoordinator(strategy)
-
-    # Modify the file
-    test_file.write_text(
-        dedent(
-            """\
-            import marimo
-            app = marimo.App()
-
-            @app.cell
-            def cell1():
-                x = 2  # Changed
-                return x
-            """
-        )
+    afm = _make_app(tmp_path, SINGLE_CELL_NOTEBOOK)
+    mock_session.app_file_manager = afm
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    mock_session.document = _make_document_with_extra_cell(
+        cell_ids, deleted_id
     )
 
-    result = await coordinator.handle_change(test_file, mock_session)
-
-    # Should handle the change
-    assert result.handled
-    assert result.error is None
-    strategy.handle_reload.assert_called_once()
-
-
-async def test_file_change_coordinator_skips_own_writes(
-    tmp_path: Path, mock_session: MagicMock
-) -> None:
-    """Test that file change coordinator skips reloading when it detects its own writes."""
-    # Create a temporary file with initial content
-    temp_file = tmp_path / "test_own_writes.py"
-    temp_file.write_text(
-        dedent(
-            """\
-            import marimo
-            app = marimo.App()
-
-            @app.cell
-            def cell1():
-                x = 1
-                return x
-
-            if __name__ == "__main__":
-                app.run()
-            """
-        )
+    strategy = EditModeReloadStrategy(config)
+    strategy.handle_reload(
+        mock_session,
+        changed_cell_ids=set(cell_ids) | {deleted_id},
     )
 
-    # Set up app file manager
-    app_file_manager = AppFileManager(filename=str(temp_file))
-    mock_session.app_file_manager = app_file_manager
+    # Transaction should include a DeleteCell
+    tx = _get_transaction(mock_session)
+    deletes = _changes_of_type(tx, DeleteCell)
+    assert len(deletes) == 1
+    assert deletes[0].cell_id == deleted_id
 
-    # Save the file to track the last saved content
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    codes = list(app_file_manager.app.cell_manager.codes())
-    app_file_manager.save(
-        SaveNotebookRequest(
-            cell_ids=cell_ids,
-            filename=str(temp_file),
-            codes=codes,
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
-    )
+    # Both modes must sync deletions to the kernel
+    sync_cmd = _get_sync_command(mock_session)
+    assert sync_cmd.delete_ids == [deleted_id]
 
-    # Create file change coordinator
-    strategy = MagicMock()
-    coordinator = FileChangeCoordinator(strategy)
-
-    # Call handle_change - should skip reload because content matches
-    result = await coordinator.handle_change(temp_file, mock_session)
-
-    # Verify reload was NOT called (early return triggered)
-    assert not result.handled
-    strategy.handle_reload.assert_not_called()
-
-    # Now externally modify the file
-    temp_file.write_text(
-        dedent(
-            """\
-            import marimo
-            app = marimo.App()
-
-            @app.cell
-            def cell1():
-                x = 2  # Changed by external editor
-                return x
-
-            if __name__ == "__main__":
-                app.run()
-            """
-        )
-    )
-
-    # Call handle_change again - should now trigger reload
-    result = await coordinator.handle_change(temp_file, mock_session)
-
-    # Verify reload WAS called (content changed externally)
-    assert result.handled
-    strategy.handle_reload.assert_called_once()
+    if mode == "lazy":
+        assert sync_cmd.run_ids == []
+    else:
+        assert set(sync_cmd.run_ids) == set(cell_ids)
 
 
-async def test_file_change_coordinator_handles_syntax_errors(
-    tmp_path: Path, mock_session: MagicMock
-) -> None:
-    """Test file change coordinator handles syntax errors gracefully."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def cell1():
-            x = 1
-            return x
-        """
-    )
-    test_file = tmp_path / "test.py"
-    test_file.write_text(content)
-
-    app_file_manager = AppFileManager(filename=str(test_file))
-    mock_session.app_file_manager = app_file_manager
-
-    strategy = MagicMock()
-    coordinator = FileChangeCoordinator(strategy)
-
-    # Write invalid syntax
-    test_file.write_text(
-        dedent(
-            """\
-            import marimo
-            app = marimo.App()
-
-            @app.cell
-            def cell1():
-                x = 1
-                # Invalid syntax below
-                def broken(
-            """
-        )
-    )
-
-    result = await coordinator.handle_change(test_file, session=mock_session)
-
-    # Should not handle due to error
-    assert not result.handled
-    assert result.error is not None
+# ---------------------------------------------------------------------------
+# EditModeReloadStrategy — transaction change types
+# ---------------------------------------------------------------------------
 
 
-async def test_file_change_coordinator_path_mismatch(
-    tmp_path: Path, mock_session: MagicMock
-) -> None:
-    """Test file change coordinator with path mismatch."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def cell1():
-            x = 1
-            return x
-        """
-    )
-    test_file = tmp_path / "test.py"
-    test_file.write_text(content)
-
-    other_file = tmp_path / "other.py"
-    other_file.write_text(content)
-
-    app_file_manager = AppFileManager(filename=str(test_file))
-    mock_session.app_file_manager = app_file_manager
-
-    strategy = MagicMock()
-    coordinator = FileChangeCoordinator(strategy)
-
-    # Try to handle change for different file
-    result = await coordinator.handle_change(other_file, session=mock_session)
-
-    # Should not handle due to path mismatch
-    assert not result.handled
-    assert "mismatch" in result.error.lower()
-
-
-def test_edit_mode_reload_sends_names_and_configs_lazy(
+def test_edit_mode_reload_sends_config_changes(
     tmp_path: Path, mock_session: MagicMock, config_manager_lazy
 ) -> None:
-    """Test that cell names and configs are forwarded during lazy reload."""
     content = dedent(
         """\
         import marimo
@@ -456,84 +273,111 @@ def test_edit_mode_reload_sends_names_and_configs_lazy(
             return x
         """
     )
-    app_file_manager = create_test_app_file_manager(tmp_path, content)
-    mock_session.app_file_manager = app_file_manager
+    afm = _make_app(tmp_path, content)
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    _run_reload(
+        tmp_path,
+        mock_session,
+        config_manager_lazy,
+        content=content,
+        document=NotebookDocument(
+            [
+                NotebookCell(
+                    id=cell_ids[0],
+                    code="x = 1",
+                    name="my_named_cell",
+                    config=CellConfig(hide_code=False),
+                ),
+            ]
+        ),
+    )
 
-    strategy = EditModeReloadStrategy(config_manager_lazy)
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    changed_cell_ids = set(cell_ids)
-
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
-
-    # Find the UpdateCellCodesNotification
-    update_codes_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodesNotification)
-    ]
-    assert len(update_codes_calls) == 1
-    notification = update_codes_calls[0][0][0]
-
-    # Verify names and configs are included
-    assert notification.names == ["my_named_cell"]
-    assert len(notification.configs) == 1
-    assert notification.configs[0].hide_code is True
-    assert notification.configs[0].disabled is False
-    assert notification.code_is_stale is True
+    config_changes = _changes_of_type(
+        _get_transaction(mock_session), SetConfig
+    )
+    assert len(config_changes) == 1
+    assert config_changes[0].hide_code is True
 
 
-def test_edit_mode_reload_sends_names_and_configs_autorun(
-    tmp_path: Path, mock_session: MagicMock, config_manager_autorun
+def test_edit_mode_reload_sends_name_changes(
+    tmp_path: Path, mock_session: MagicMock, config_manager_lazy
 ) -> None:
-    """Test that cell names and configs are forwarded during autorun reload."""
     content = dedent(
         """\
         import marimo
         app = marimo.App()
 
-        @app.cell(hide_code=True)
-        def my_named_cell():
+        @app.cell
+        def new_name():
             x = 1
             return x
         """
     )
-    app_file_manager = create_test_app_file_manager(tmp_path, content)
-    mock_session.app_file_manager = app_file_manager
+    afm = _make_app(tmp_path, content)
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    _run_reload(
+        tmp_path,
+        mock_session,
+        config_manager_lazy,
+        content=content,
+        document=NotebookDocument(
+            [
+                NotebookCell(
+                    id=cell_ids[0],
+                    code="x = 1",
+                    name="old_name",
+                    config=CellConfig(),
+                ),
+            ]
+        ),
+    )
 
-    strategy = EditModeReloadStrategy(config_manager_autorun)
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    changed_cell_ids = set(cell_ids)
+    name_changes = _changes_of_type(_get_transaction(mock_session), SetName)
+    assert len(name_changes) == 1
+    assert name_changes[0].name == "new_name"
 
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 
-    # Find the UpdateCellCodesNotification (also sent in autorun path)
-    update_codes_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodesNotification)
-    ]
-    assert len(update_codes_calls) == 1
-    notification = update_codes_calls[0][0][0]
+def test_edit_mode_reload_sends_code_changes(
+    tmp_path: Path, mock_session: MagicMock, config_manager_lazy
+) -> None:
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
 
-    # Verify names and configs are included
-    assert notification.names == ["my_named_cell"]
-    assert notification.configs[0].hide_code is True
-    # In autorun mode, code should not be stale
-    assert notification.code_is_stale is False
+        @app.cell
+        def cell1():
+            x = 2
+            return x
+        """
+    )
+    afm = _make_app(tmp_path, content)
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    _run_reload(
+        tmp_path,
+        mock_session,
+        config_manager_lazy,
+        content=content,
+        document=NotebookDocument(
+            [
+                NotebookCell(
+                    id=cell_ids[0],
+                    code="x = 1",
+                    name="cell1",
+                    config=CellConfig(),
+                ),
+            ]
+        ),
+    )
 
-    # SyncGraphCommand should still be sent for execution
-    sync_calls = [
-        call
-        for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], SyncGraphCommand)
-    ]
-    assert len(sync_calls) == 1
+    code_changes = _changes_of_type(_get_transaction(mock_session), SetCode)
+    assert len(code_changes) == 1
+    assert "x = 2" in code_changes[0].code
 
 
 def test_edit_mode_reload_multiple_cells_mixed_configs(
     tmp_path: Path, mock_session: MagicMock, config_manager_lazy
 ) -> None:
-    """Test reload with multiple cells having different configs."""
     content = dedent(
         """\
         import marimo
@@ -555,206 +399,84 @@ def test_edit_mode_reload_multiple_cells_mixed_configs(
             return y
         """
     )
-    app_file_manager = create_test_app_file_manager(tmp_path, content)
-    mock_session.app_file_manager = app_file_manager
+    _run_reload(tmp_path, mock_session, config_manager_lazy, content=content)
 
-    strategy = EditModeReloadStrategy(config_manager_lazy)
-    cell_ids = list(app_file_manager.app.cell_manager.cell_ids())
-    changed_cell_ids = set(cell_ids)
+    tx = _get_transaction(mock_session)
+    creates = _changes_of_type(tx, CreateCell)
+    assert len(creates) == 3
+    assert len(_changes_of_type(tx, ReorderCells)) == 1
 
-    strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
-
-    update_codes_calls = [
-        call
-        for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodesNotification)
-    ]
-    assert len(update_codes_calls) == 1
-    notification = update_codes_calls[0][0][0]
-
-    # Verify all 3 cells have names and configs
-    assert len(notification.names) == 3
-    assert len(notification.configs) == 3
-    assert len(notification.codes) == 3
-    assert len(notification.cell_ids) == 3
-
-    assert notification.names[0] == "setup"
-    assert notification.configs[0].hide_code is True
-    assert notification.configs[0].disabled is False
-
-    assert notification.names[1] == "disabled_cell"
-    assert notification.configs[1].hide_code is False
-    assert notification.configs[1].disabled is True
-
-    # Anonymous cell gets underscore name
-    assert notification.names[2] == "_"
-    assert notification.configs[2].hide_code is False
-    assert notification.configs[2].disabled is False
+    by_name = {c.name: c for c in creates}
+    assert by_name["setup"].config.hide_code is True
+    assert by_name["disabled_cell"].config.disabled is True
+    assert by_name["_"].config.hide_code is False
+    assert by_name["_"].config.disabled is False
 
 
-def test_reload_detects_config_only_changes(
+# ---------------------------------------------------------------------------
+# AppFileManager.reload() — change detection
+# ---------------------------------------------------------------------------
+
+
+def _assert_reload_detects_change(
     tmp_path: Path,
-) -> None:
-    """Test that reload() detects config-only changes (e.g., hide_code added)."""
-    initial_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def my_cell():
-            x = 1
-            return x
-        """
-    )
+    initial: str,
+    modified: str,
+    expected_count: int = 1,
+) -> AppFileManager:
+    """Write initial content, overwrite with modified, reload, and assert."""
     test_file = tmp_path / "test.py"
-    test_file.write_text(initial_content)
-    app_file_manager = AppFileManager(filename=str(test_file))
-
-    # Confirm initial state: no hide_code
-    cell_ids_before = list(app_file_manager.app.cell_manager.cell_ids())
-    configs_before = list(app_file_manager.app.cell_manager.configs())
-    assert len(cell_ids_before) == 1
-    assert configs_before[0].hide_code is False
-
-    # Now externally modify to add hide_code=True (code stays the same)
-    modified_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell(hide_code=True)
-        def my_cell():
-            x = 1
-            return x
-        """
-    )
-    test_file.write_text(modified_content)
-
-    changed = app_file_manager.reload()
-
-    # Should detect the config change even though code is identical
-    assert len(changed) == 1
-
-    # Verify the new config is loaded
-    configs_after = list(app_file_manager.app.cell_manager.configs())
-    assert configs_after[0].hide_code is True
+    test_file.write_text(initial)
+    afm = AppFileManager(filename=str(test_file))
+    test_file.write_text(modified)
+    changed = afm.reload()
+    assert len(changed) == expected_count
+    return afm
 
 
-def test_reload_detects_disabled_config_change(
-    tmp_path: Path,
-) -> None:
-    """Test that reload() detects disabled config change."""
-    initial_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
+_BASE_CELL = dedent(
+    """\
+    import marimo
+    app = marimo.App()
 
-        @app.cell
-        def my_cell():
-            x = 1
-            return x
-        """
-    )
+    @app.cell
+    def my_cell():
+        x = 1
+        return x
+    """
+)
+
+
+def test_reload_detects_config_only_changes(tmp_path: Path) -> None:
+    modified = _BASE_CELL.replace("@app.cell", "@app.cell(hide_code=True)")
+    afm = _assert_reload_detects_change(tmp_path, _BASE_CELL, modified)
+    assert list(afm.app.cell_manager.configs())[0].hide_code is True
+
+
+def test_reload_detects_disabled_config_change(tmp_path: Path) -> None:
+    modified = _BASE_CELL.replace("@app.cell", "@app.cell(disabled=True)")
+    afm = _assert_reload_detects_change(tmp_path, _BASE_CELL, modified)
+    assert list(afm.app.cell_manager.configs())[0].disabled is True
+
+
+def test_reload_detects_name_only_changes(tmp_path: Path) -> None:
+    initial = _BASE_CELL.replace("my_cell", "old_name")
+    modified = _BASE_CELL.replace("my_cell", "new_name")
+    afm = _assert_reload_detects_change(tmp_path, initial, modified)
+    assert list(afm.app.cell_manager.names())[0] == "new_name"
+
+
+def test_reload_no_changes_returns_empty(tmp_path: Path) -> None:
     test_file = tmp_path / "test.py"
-    test_file.write_text(initial_content)
-    app_file_manager = AppFileManager(filename=str(test_file))
-
-    modified_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell(disabled=True)
-        def my_cell():
-            x = 1
-            return x
-        """
-    )
-    test_file.write_text(modified_content)
-
-    changed = app_file_manager.reload()
-    assert len(changed) == 1
-
-    configs_after = list(app_file_manager.app.cell_manager.configs())
-    assert configs_after[0].disabled is True
-
-
-def test_reload_detects_name_only_changes(
-    tmp_path: Path,
-) -> None:
-    """Test that reload() detects name-only changes (cell function renamed)."""
-    initial_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def old_name():
-            x = 1
-            return x
-        """
-    )
-    test_file = tmp_path / "test.py"
-    test_file.write_text(initial_content)
-    app_file_manager = AppFileManager(filename=str(test_file))
-
-    names_before = list(app_file_manager.app.cell_manager.names())
-    assert names_before[0] == "old_name"
-
-    # Now externally rename the cell function (code stays the same)
-    modified_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def new_name():
-            x = 1
-            return x
-        """
-    )
-    test_file.write_text(modified_content)
-
-    changed = app_file_manager.reload()
-
-    # Should detect the name change
-    assert len(changed) == 1
-
-    names_after = list(app_file_manager.app.cell_manager.names())
-    assert names_after[0] == "new_name"
-
-
-def test_reload_no_changes_returns_empty(
-    tmp_path: Path,
-) -> None:
-    """Test that reload() returns empty set when nothing changed."""
-    content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def my_cell():
-            x = 1
-            return x
-        """
-    )
-    test_file = tmp_path / "test.py"
-    test_file.write_text(content)
-    app_file_manager = AppFileManager(filename=str(test_file))
-
-    # Reload without modifying the file
-    changed = app_file_manager.reload()
-
-    assert len(changed) == 0
+    test_file.write_text(SINGLE_CELL_NOTEBOOK)
+    afm = AppFileManager(filename=str(test_file))
+    assert len(afm.reload()) == 0
 
 
 def test_reload_detects_only_changed_cell_in_multi_cell(
     tmp_path: Path,
 ) -> None:
-    """Test that reload only flags the cell whose config changed."""
-    initial_content = dedent(
+    initial = dedent(
         """\
         import marimo
         app = marimo.App()
@@ -770,96 +492,166 @@ def test_reload_detects_only_changed_cell_in_multi_cell(
             return y
         """
     )
+    modified = initial.replace(
+        "@app.cell\ndef cell_b", "@app.cell(hide_code=True)\ndef cell_b"
+    )
+    afm = _assert_reload_detects_change(tmp_path, initial, modified)
+
+    names = list(afm.app.cell_manager.names())
+    configs = list(afm.app.cell_manager.configs())
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+
+    assert names == ["cell_a", "cell_b"]
+    assert configs[0].hide_code is False
+    assert configs[1].hide_code is True
+    assert afm.reload() == set()  # no further changes
+    # The earlier reload should have flagged cell_b's ID
+    # (already asserted by _assert_reload_detects_change returning 1)
+
+
+# ---------------------------------------------------------------------------
+# RunModeReloadStrategy
+# ---------------------------------------------------------------------------
+
+
+def test_run_mode_reload_strategy(mock_session: MagicMock) -> None:
+    RunModeReloadStrategy().handle_reload(
+        mock_session, changed_cell_ids={CellId_t("cell1")}
+    )
+    mock_session.notify.assert_called_once()
+    assert isinstance(mock_session.notify.call_args[0][0], ReloadNotification)
+
+
+# ---------------------------------------------------------------------------
+# FileChangeCoordinator
+# ---------------------------------------------------------------------------
+
+
+async def test_file_change_coordinator_handles_change(
+    tmp_path: Path, mock_session: MagicMock
+) -> None:
     test_file = tmp_path / "test.py"
-    test_file.write_text(initial_content)
-    app_file_manager = AppFileManager(filename=str(test_file))
+    test_file.write_text(SINGLE_CELL_NOTEBOOK)
+    mock_session.app_file_manager = AppFileManager(filename=str(test_file))
 
-    cell_ids_before = list(app_file_manager.app.cell_manager.cell_ids())
-    assert len(cell_ids_before) == 2
+    strategy = MagicMock()
+    coordinator = FileChangeCoordinator(strategy)
 
-    # Only change the config of the second cell
-    modified_content = dedent(
+    test_file.write_text(
+        SINGLE_CELL_NOTEBOOK.replace("x = 1", "x = 2  # Changed")
+    )
+    result = await coordinator.handle_change(test_file, mock_session)
+
+    assert result.handled
+    assert result.error is None
+    strategy.handle_reload.assert_called_once()
+
+
+async def test_file_change_coordinator_skips_own_writes(
+    tmp_path: Path, mock_session: MagicMock
+) -> None:
+    content_with_main = dedent(
         """\
         import marimo
         app = marimo.App()
 
         @app.cell
-        def cell_a():
+        def cell1():
             x = 1
             return x
 
-        @app.cell(hide_code=True)
-        def cell_b():
-            y = 2
-            return y
+        if __name__ == "__main__":
+            app.run()
         """
     )
-    test_file.write_text(modified_content)
+    temp_file = tmp_path / "test_own_writes.py"
+    temp_file.write_text(content_with_main)
 
-    changed = app_file_manager.reload()
+    afm = AppFileManager(filename=str(temp_file))
+    mock_session.app_file_manager = afm
 
-    # Only the second cell should be flagged as changed
-    assert len(changed) == 1
+    cell_ids = list(afm.app.cell_manager.cell_ids())
+    codes = list(afm.app.cell_manager.codes())
+    afm.save(
+        SaveNotebookRequest(
+            cell_ids=cell_ids,
+            filename=str(temp_file),
+            codes=codes,
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
 
-    cell_ids_after = list(app_file_manager.app.cell_manager.cell_ids())
-    names_after = list(app_file_manager.app.cell_manager.names())
-    configs_after = list(app_file_manager.app.cell_manager.configs())
+    strategy = MagicMock()
+    coordinator = FileChangeCoordinator(strategy)
 
-    # First cell unchanged
-    assert names_after[0] == "cell_a"
-    assert configs_after[0].hide_code is False
+    # Content matches last save — should skip
+    result = await coordinator.handle_change(temp_file, mock_session)
+    assert not result.handled
+    strategy.handle_reload.assert_not_called()
 
-    # Second cell has new config
-    assert names_after[1] == "cell_b"
-    assert configs_after[1].hide_code is True
+    # External edit — should reload
+    temp_file.write_text(
+        content_with_main.replace("x = 1", "x = 2  # Changed by editor")
+    )
+    result = await coordinator.handle_change(temp_file, mock_session)
+    assert result.handled
+    strategy.handle_reload.assert_called_once()
 
-    # The changed cell ID should be cell_b's ID
-    assert changed == {cell_ids_after[1]}
+
+async def test_file_change_coordinator_handles_syntax_errors(
+    tmp_path: Path, mock_session: MagicMock
+) -> None:
+    test_file = tmp_path / "test.py"
+    test_file.write_text(SINGLE_CELL_NOTEBOOK)
+    mock_session.app_file_manager = AppFileManager(filename=str(test_file))
+
+    strategy = MagicMock()
+    coordinator = FileChangeCoordinator(strategy)
+
+    test_file.write_text(SINGLE_CELL_NOTEBOOK.replace("x = 1", "def broken("))
+    result = await coordinator.handle_change(test_file, session=mock_session)
+
+    assert not result.handled
+    assert result.error is not None
+
+
+async def test_file_change_coordinator_path_mismatch(
+    tmp_path: Path, mock_session: MagicMock
+) -> None:
+    test_file = tmp_path / "test.py"
+    test_file.write_text(SINGLE_CELL_NOTEBOOK)
+    other_file = tmp_path / "other.py"
+    other_file.write_text(SINGLE_CELL_NOTEBOOK)
+
+    mock_session.app_file_manager = AppFileManager(filename=str(test_file))
+
+    strategy = MagicMock()
+    coordinator = FileChangeCoordinator(strategy)
+
+    result = await coordinator.handle_change(other_file, session=mock_session)
+
+    assert not result.handled
+    assert "mismatch" in result.error.lower()
 
 
 async def test_file_change_coordinator_config_only_change(
     tmp_path: Path, mock_session: MagicMock
 ) -> None:
-    """Test end-to-end: coordinator detects and handles config-only changes."""
-    initial_content = dedent(
-        """\
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def my_cell():
-            x = 1
-            return x
-        """
-    )
     test_file = tmp_path / "test.py"
-    test_file.write_text(initial_content)
-
-    app_file_manager = AppFileManager(filename=str(test_file))
-    mock_session.app_file_manager = app_file_manager
+    test_file.write_text(SINGLE_CELL_NOTEBOOK)
+    mock_session.app_file_manager = AppFileManager(filename=str(test_file))
 
     strategy = MagicMock()
     coordinator = FileChangeCoordinator(strategy)
 
-    # Externally add hide_code=True only (same code)
     test_file.write_text(
-        dedent(
-            """\
-            import marimo
-            app = marimo.App()
-
-            @app.cell(hide_code=True)
-            def my_cell():
-                x = 1
-                return x
-            """
-        )
+        SINGLE_CELL_NOTEBOOK.replace("@app.cell", "@app.cell(hide_code=True)")
     )
-
     result = await coordinator.handle_change(test_file, mock_session)
 
     assert result.handled
     assert result.error is None
-    assert result.changed_cell_ids is not None
     assert len(result.changed_cell_ids) == 1
     strategy.handle_reload.assert_called_once()

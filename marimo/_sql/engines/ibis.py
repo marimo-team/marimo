@@ -167,7 +167,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         for database_name in database_names:
             database_name_str = str(database_name)
             if self._resolve_should_auto_discover(include_schemas):
-                schemas = self._get_schemas(
+                schemas = self.get_schemas(
                     database=database_name_str,
                     include_tables=self._resolve_should_auto_discover(
                         include_tables
@@ -190,7 +190,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         return databases
 
-    def _get_schemas(
+    def get_schemas(
         self,
         *,
         database: Optional[str],

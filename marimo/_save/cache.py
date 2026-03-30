@@ -17,6 +17,7 @@ from marimo._save.stubs import (
     CustomStub,
     FunctionStub,
     ModuleStub,
+    ReferenceStub,
     UIElementStub,
     maybe_register_stub,
 )
@@ -106,7 +107,7 @@ class HashMemoCleanup(CellLifecycleItem):
 
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
-MetaKey = Literal["return", "version", "runtime"]
+MetaKey = Literal["return", "version", "runtime", "variable_hashes"]
 # Matches functools
 CacheInfo = namedtuple(
     "CacheInfo", ["hits", "misses", "maxsize", "currsize", "time_saved"]
@@ -220,6 +221,8 @@ class Cache:
             value.clear()
             value.update(result)
             result = value
+        elif isinstance(value, ReferenceStub):
+            result = value.load(scope)
         elif isinstance(value, CustomStub):
             # CustomStub is a placeholder for a custom type, which cannot be
             # restored directly.

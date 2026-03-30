@@ -95,8 +95,6 @@ async def file_details(
                         $ref: "#/components/schemas/FileDetailsResponse"
     """
     body = await parse_request(request, cls=FileDetailsRequest)
-    # This fails if the file isn't encoded as utf-8
-    # TODO: support returning raw bytes
     return file_system.get_details(body.path)
 
 

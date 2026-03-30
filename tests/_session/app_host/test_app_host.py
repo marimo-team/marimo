@@ -442,7 +442,12 @@ class TestAppHostMultipleClients:
                     session_consumer=Mock(),
                     mode=SessionMode.RUN,
                     app_metadata=Mock(),
-                    app_file_manager=Mock(path="/tmp/test_app.py"),
+                    app_file_manager=Mock(
+                        path="/tmp/test_app.py",
+                        app=Mock(
+                            cell_manager=Mock(cell_data=Mock(return_value=[]))
+                        ),
+                    ),
                     config_manager=Mock(
                         with_overrides=Mock(
                             return_value=Mock(
