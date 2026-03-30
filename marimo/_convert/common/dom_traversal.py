@@ -317,7 +317,16 @@ def replace_virtual_files_with_data_uris(
                         parsed[0],
                         max_inline_bytes,
                     )
-                    return None
+                    # Return a text placeholder so users see a clear
+                    # message instead of a broken ./@file/ link.
+                    msg = (
+                        f"File too large to inline "
+                        f"({parsed[0]} bytes, limit {max_inline_bytes})"
+                    )
+                    return build_data_url(
+                        "text/plain",
+                        base64.b64encode(msg.encode("utf-8")),
+                    )
             result = _virtual_file_to_data_uri(value)
             if result is not None:
                 # Track successfully replaced files

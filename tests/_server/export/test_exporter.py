@@ -1037,10 +1037,11 @@ def test_export_html_skips_oversized_virtual_files(
             request=request,
         )
 
-    # The large file should NOT be inlined in the HTML output
+    # The large file should NOT be inlined as audio in the HTML output
     assert "data:audio/x-wav;base64," not in html
-    # The original virtual file URL should remain in the HTML
-    assert "./@file/20000000-huge.wav" in html
+    # A text/plain placeholder should appear instead of the broken URL
+    assert "data:text/plain;base64," in html
+    assert "./@file/20000000-huge.wav" not in html
 
 
 class TestPDFExport:

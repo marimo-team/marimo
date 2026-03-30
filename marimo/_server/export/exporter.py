@@ -61,7 +61,8 @@ ROOT = (marimo_package_path() / "_static").resolve()
 VIRTUAL_FILE_ALLOWED_ATTRIBUTES = {"src"}
 VIRTUAL_FILE_ALLOWED_TAGS = {"img", "audio", "video"}
 # Maximum file size to inline as a data URI in exported HTML (10 MB).
-# Files exceeding this are skipped and should be served from the public/ folder.
+# Files exceeding this limit are replaced with a text/plain placeholder
+# so users see a clear message instead of a broken link.
 MAX_VIRTUAL_FILE_INLINE_BYTES = 10 * 1024 * 1024
 
 
