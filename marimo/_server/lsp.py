@@ -371,47 +371,33 @@ class BaseLspServer(LspServer):
         except Exception as e:
             LOGGER.error(f"Error monitoring {self.id} LSP health: {e}")
 
-    def _terminate_process_tree(self) -> None:
-        """Terminate the process and all its children.
+    def _signal_process_tree(self, sig: signal.Signals) -> None:
+        """Send a signal to the process and all its children.
 
         On Unix/macOS we started the subprocess in its own session
-        (start_new_session=True) so we can kill the whole process group
+        (start_new_session=True) so we can signal the whole process group
         with os.killpg(). This ensures child processes like the copilot
         language-server.cjs are cleaned up on shutdown.
         """
         if self.process is None:
             LOGGER.warning(
-                "LSP server not running, cannot terminate process tree"
+                "LSP server not running, cannot signal process tree"
             )
             return
 
         try:
             pgid = os.getpgid(self.process.pid)
-            os.killpg(pgid, signal.SIGTERM)
+            os.killpg(pgid, sig)
         except ProcessLookupError:
             # Process or process group already exited; nothing to do.
             return
         except PermissionError:
-            # We can't signal the group; fall back to terminating
+            # We can't signal the group; fall back to signalling
             # the direct child only.
-            self.process.terminate()
-
-    def _kill_process_tree(self) -> None:
-        """Force-kill the process and all its children."""
-        if self.process is None:
-            LOGGER.warning("LSP server not running, cannot kill process tree")
-            return
-
-        try:
-            pgid = os.getpgid(self.process.pid)
-            os.killpg(pgid, signal.SIGKILL)
-        except ProcessLookupError:
-            # Process or process group already exited; nothing to do.
-            return
-        except PermissionError:
-            # We can't signal the group; fall back to killing
-            # the direct child only.
-            self.process.kill()
+            if sig == signal.SIGKILL:
+                self.process.kill()
+            else:
+                self.process.terminate()
 
     def stop(self) -> None:
         # Cancel health monitoring task
@@ -427,7 +413,7 @@ class BaseLspServer(LspServer):
             if is_windows():
                 self.process.terminate()
             else:
-                self._terminate_process_tree()
+                self._signal_process_tree(signal.SIGTERM)
 
             try:
                 # Wait for graceful shutdown with timeout
@@ -441,7 +427,7 @@ class BaseLspServer(LspServer):
                 if is_windows():
                     self.process.kill()
                 else:
-                    self._kill_process_tree()
+                    self._signal_process_tree(signal.SIGKILL)
                 try:
                     self.process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
