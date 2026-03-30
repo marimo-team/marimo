@@ -18,4 +18,4 @@ Closes #
 
 - [ ] I have read the [contributor guidelines](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md).
 - [ ] Documentation has been updated where applicable, including docstrings for API changes.
-- [ ] Tests have been added for the changes made, and previous tests pass.
+- [ ] Tests have been added for the changes made.
