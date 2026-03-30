@@ -21,20 +21,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { range } from "@/utils/arrays";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import type { DataTableSelection, PageRange } from "./types";
 
 const MAX_PAGES_BEFORE_CLAMPING = 100;
@@ -153,65 +144,70 @@ export const DataTablePagination = <TData,>({
 
   const renderPageSizeSelector = () => {
     return (
-      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1 print:hidden">
-        <Select
-          value={pageSize.toString()}
-          onValueChange={(value) => table.setPageSize(Number(value))}
-        >
-          <SelectTrigger className="w-11 h-[18px] shadow-none! !hover:shadow-none ring-0! border-border text-xs p-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Rows per page</SelectLabel>
-              {[...pageSizes].map((size) => {
-                const sizeStr = size.toString();
-                return (
-                  <SelectItem key={size} value={sizeStr}>
-                    {sizeStr}
-                  </SelectItem>
-                );
-              })}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <span>/ page</span>
+      <div className="flex items-center text-xs whitespace-nowrap mr-1 print:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild={true}>
+            <button
+              type="button"
+              className="border rounded justify-between pl-1.5 pr-0.5 text-xs items-center hover:bg-accent inline-flex gap-0.5"
+            >
+              {pageSize} / page
+              <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" sideOffset={6}>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Rows per page
+            </DropdownMenuLabel>
+            {[...pageSizes].map((size) => (
+              <DropdownMenuItem
+                key={size}
+                className={cn(
+                  "text-xs cursor-pointer",
+                  size === pageSize && "font-semibold bg-accent",
+                )}
+                onSelect={() => table.setPageSize(size)}
+                onMouseDown={Events.preventFocus}
+              >
+                {size}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-1 items-center justify-between px-2">
-      <div className="flex items-center gap-2">
-        <div className="text-sm text-muted-foreground">{renderTotal()}</div>
-        {showPageSizeSelector && renderPageSizeSelector()}
-      </div>
-
-      <div className="flex items-end space-x-2 print:hidden">
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="first-page-button"
-          className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() => handlePageChange(() => table.setPageIndex(0))}
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanPreviousPage()}
-        >
-          <span className="sr-only">Go to first page</span>
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="previous-page-button"
-          className="h-6 w-6 p-0"
-          onClick={() => handlePageChange(() => table.previousPage())}
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanPreviousPage()}
-        >
-          <span className="sr-only">Go to previous page</span>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+    <div className="flex items-center gap-2 px-2">
+      {showPageSizeSelector && renderPageSizeSelector()}
+      <div className="flex items-center space-x-2 print:hidden">
+        <Tooltip content="First page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="first-page-button"
+            className="hidden h-6 w-6 p-0 lg:flex"
+            onClick={() => handlePageChange(() => table.setPageIndex(0))}
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Previous page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="previous-page-button"
+            className="h-6 w-6 p-0"
+            onClick={() => handlePageChange(() => table.previousPage())}
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        </Tooltip>
         <div className="flex items-center justify-center text-xs font-medium gap-1">
           <span>Page</span>
           <PageSelector
@@ -225,32 +221,36 @@ export const DataTablePagination = <TData,>({
             of {prettyNumber(totalPages, locale)}
           </span>
         </div>
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="next-page-button"
-          className="h-6 w-6 p-0"
-          onClick={() => handlePageChange(() => table.nextPage())}
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanNextPage()}
-        >
-          <span className="sr-only">Go to next page</span>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="last-page-button"
-          className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() =>
-            handlePageChange(() => table.setPageIndex(table.getPageCount() - 1))
-          }
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanNextPage()}
-        >
-          <span className="sr-only">Go to last page</span>
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
+        <Tooltip content="Next page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="next-page-button"
+            className="h-6 w-6 p-0"
+            onClick={() => handlePageChange(() => table.nextPage())}
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanNextPage()}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Last page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="last-page-button"
+            className="hidden h-6 w-6 p-0 lg:flex"
+            onClick={() =>
+              handlePageChange(() =>
+                table.setPageIndex(table.getPageCount() - 1),
+              )
+            }
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanNextPage()}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </Tooltip>
       </div>
     </div>
   );

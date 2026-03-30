@@ -7,6 +7,7 @@ import { useLocale } from "react-aria";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { toast } from "../ui/use-toast";
 import { DataTablePagination, prettifyRowColumnCount } from "./pagination";
+import { CellSelectionStats } from "./range-focus/cell-selection-stats";
 import type { DataTableSelection } from "./types";
 
 interface TableBottomBarProps<TData> {
@@ -77,20 +78,24 @@ export const TableBottomBar = <TData,>({
 
   return (
     <div className="flex items-center shrink-0 pt-1">
-      {pagination ? (
-        <DataTablePagination
-          totalColumns={totalColumns}
-          selection={selection}
-          onSelectAllRowsChange={handleSelectAllRows}
-          table={table}
-          tableLoading={tableLoading}
-          showPageSizeSelector={showPageSizeSelector}
-        />
-      ) : (
-        <span className="text-xs text-muted-foreground px-2">
-          {prettifyRowColumnCount(table.getRowCount(), totalColumns, locale)}
-        </span>
-      )}
+      <div className="flex-1 text-sm text-muted-foreground px-2">
+        {prettifyRowColumnCount(table.getRowCount(), totalColumns, locale)}
+      </div>
+      <div className="flex items-center justify-center">
+        {pagination && (
+          <DataTablePagination
+            totalColumns={totalColumns}
+            selection={selection}
+            onSelectAllRowsChange={handleSelectAllRows}
+            table={table}
+            tableLoading={tableLoading}
+            showPageSizeSelector={showPageSizeSelector}
+          />
+        )}
+      </div>
+      <div className="flex-1 flex justify-end">
+        <CellSelectionStats table={table} className="px-2" />
+      </div>
     </div>
   );
 };

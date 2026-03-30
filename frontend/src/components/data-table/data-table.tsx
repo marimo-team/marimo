@@ -42,7 +42,6 @@ import { FilterPills } from "./filter-pills";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
 import { useScrollContainerHeight } from "./hooks/use-scroll-container-height";
-import { CellSelectionStats } from "./range-focus/cell-selection-stats";
 import { CellSelectionProvider } from "./range-focus/provider";
 import { DataTableBody, renderTableHeader } from "./renderers";
 import { TableBottomBar } from "./TableBottomBar";
@@ -311,18 +310,17 @@ const DataTableInternal = <TData,>({
             />
           </Table>
         </div>
-        <CellSelectionStats table={table} className="px-2 pt-1 ml-auto" />
+        <TableBottomBar
+          totalColumns={totalColumns}
+          pagination={pagination}
+          selection={selection}
+          onRowSelectionChange={onRowSelectionChange}
+          table={table}
+          getRowIds={getRowIds}
+          showPageSizeSelector={showPageSizeSelector}
+          tableLoading={reloading}
+        />
       </CellSelectionProvider>
-      <TableBottomBar
-        totalColumns={totalColumns}
-        pagination={pagination}
-        selection={selection}
-        onRowSelectionChange={onRowSelectionChange}
-        table={table}
-        getRowIds={getRowIds}
-        showPageSizeSelector={showPageSizeSelector}
-        tableLoading={reloading}
-      />
     </div>
   );
 };

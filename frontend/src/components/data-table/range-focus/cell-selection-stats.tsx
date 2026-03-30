@@ -31,7 +31,11 @@ export const CellSelectionStats = <TData,>({
   const dataCellCount = countDataCellsInSelection(selectedCells);
 
   if (dataCellCount < 2) {
-    return null;
+    return (
+      <span className={cn("text-xs text-muted-foreground italic", className)}>
+        Select multiple cells to see stats
+      </span>
+    );
   }
 
   const numericValues = getNumericValuesFromSelectedCells(table, selectedCells);
