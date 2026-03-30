@@ -247,7 +247,7 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells: hideCode
+      untouchedNewCells: hideCode && !code
         ? new Set([...state.untouchedNewCells, newCellId])
         : state.untouchedNewCells,
     };
