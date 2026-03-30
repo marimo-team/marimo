@@ -98,9 +98,9 @@ def notebook_output_dir(notebook_path: Path | str | None) -> Path:
 def is_cloudpath(path: Path) -> bool:
     """Check if a path is a cloudpathlib CloudPath (including subclasses).
 
-    Uses isinstance when cloudpathlib is available, falling back to a
-    module-name check so paths still work even when cloudpathlib is not
-    installed as a direct dependency.
+    Uses a module-name heuristic first, then falls back to isinstance
+    when cloudpathlib is already imported (to catch virtual subclasses
+    registered via CloudPath.register()).
     """
     # Quick module-name heuristic — works without importing cloudpathlib.
     if path.__class__.__module__.startswith("cloudpathlib"):

@@ -93,8 +93,8 @@ class TestIsCloudpath:
     def test_regular_path_is_not_cloudpath(self) -> None:
         assert not is_cloudpath(Path("/tmp/foo"))
 
-    def test_builtin_cloudpath_detected_via_isinstance(self) -> None:
-        """Built-in cloudpathlib paths are detected via isinstance."""
+    def test_builtin_cloudpath_detected(self) -> None:
+        """Built-in cloudpathlib paths are detected as cloud paths."""
         cloudpathlib = pytest.importorskip("cloudpathlib")
 
         assert is_cloudpath(cloudpathlib.S3Path("s3://bucket/key"))
