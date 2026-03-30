@@ -41,7 +41,10 @@ from marimo._session.extensions.extensions import (
     ReplayExtension,
     SessionViewExtension,
 )
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import (
+    ExtensionRegistry,
+    SessionExtension,
+)
 from marimo._session.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
@@ -260,7 +263,8 @@ class SessionImpl(Session):
         )
         self.session_view = SessionView()
         self.config_manager = config_manager
-        self.extensions = extensions
+        self.extensions = ExtensionRegistry()
+        self.extensions.add(*extensions)
         self.scratchpad_lock = asyncio.Lock()
 
         self._kernel_manager.start_kernel()
@@ -306,7 +310,7 @@ class SessionImpl(Session):
         extension: SessionExtension,
     ) -> Iterator[SessionExtension]:
         """Attach an extension for the duration of the context."""
-        self.extensions.append(extension)
+        self.extensions.add(extension)
         extension.on_attach(self, self._event_bus)
         try:
             yield extension
@@ -322,12 +326,9 @@ class SessionImpl(Session):
 
     def flush_messages(self) -> None:
         """Flush any pending messages."""
-        # HACK: Ideally we don't need to reach into this extension directly
-        for extension in self.extensions:
-            if isinstance(extension, NotificationListenerExtension):
-                if extension.distributor is not None:
-                    extension.distributor.flush()
-                return
+        ext = self.extensions.get(NotificationListenerExtension)
+        if ext is not None:
+            ext.flush()
 
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
@@ -390,7 +391,7 @@ class SessionImpl(Session):
         an exception is raised.
         """
         # Consumers are also extensions, so we want to attach them to the session
-        self.extensions.append(session_consumer)
+        self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
         self.room.add_consumer(
             session_consumer,

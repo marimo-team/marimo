@@ -60,7 +60,7 @@ def test_attach_session_with_path(
     # Verify watcher was added
     assert watcher_manager.add_callback.call_count == 1
     call_args = watcher_manager.add_callback.call_args
-    assert call_args[0][0] == Path("/path/to/file.py")
+    assert call_args[0][0] == Path("/path/to/file.py").absolute()
     # Second arg is the callback function
     assert callable(call_args[0][1])
 

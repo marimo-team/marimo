@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
-import type { FileUIPart, ToolUIPart, UIMessage } from "ai";
+import type {
+  ChatAddToolOutputFunction,
+  FileUIPart,
+  ToolUIPart,
+  UIMessage,
+} from "ai";
 import { useState } from "react";
 import useEvent from "react-use-event-hook";
 import type { ProviderId } from "@/core/ai/ids/ids";
@@ -111,12 +116,6 @@ export async function buildCompletionRequestBody(
   };
 }
 
-interface AddToolOutput {
-  tool: string;
-  toolCallId: string;
-  output: unknown;
-}
-
 export async function handleToolCall({
   invokeAiTool,
   addToolOutput, // Important that we don't await addToolOutput to prevent potential deadlocks
@@ -124,7 +123,7 @@ export async function handleToolCall({
   toolContext,
 }: {
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
-  addToolOutput: (output: AddToolOutput) => Promise<void>;
+  addToolOutput: ChatAddToolOutputFunction<UIMessage>;
   toolCall: {
     toolName: string;
     toolCallId: string;

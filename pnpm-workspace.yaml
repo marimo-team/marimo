@@ -7,3 +7,5 @@ minimumReleaseAgeExclude:
   - "@marimo-team/*"
   # Renovate security update: yaml@2.8.3
   - yaml@2.8.3
+  # Renovate security update: path-to-regexp@8.4.0
+  - path-to-regexp@8.4.0
