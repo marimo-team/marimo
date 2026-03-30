@@ -426,12 +426,15 @@ def virtual_file(
 
     chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
+    # Do NOT set Content-Length here. StreamingResponse with an explicit
+    # Content-Length causes h11 LocalProtocolError ("Too little data for
+    # declared Content-Length") for large files. Omitting it lets h11 use
+    # chunked transfer encoding instead. See #8917.
     return StreamingResponse(
         content=chunks,
         media_type=mimetype,
         headers={
             "Cache-Control": "max-age=86400",
-            "Content-Length": byte_length,
         },
     )
 
