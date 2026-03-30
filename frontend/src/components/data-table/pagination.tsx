@@ -2,6 +2,7 @@
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
+import { range } from "lodash-es";
 import {
   ChevronDown,
   ChevronLeft,
@@ -13,14 +14,24 @@ import React from "react";
 import { useLocale } from "react-aria";
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
@@ -266,102 +277,89 @@ export const PageSelector = ({
   onPageChange: (page: number) => void;
 }) => {
   const [open, setOpen] = React.useState(false);
-  const [jumpValue, setJumpValue] = React.useState("");
-  const jumpInputId = React.useId();
 
   const pageRanges = React.useMemo(
     () => getPageRanges(currentPage, totalPages),
     [currentPage, totalPages],
   );
 
-  const handleJump = () => {
-    const page = Number.parseInt(jumpValue, 10);
-    if (page >= 1 && page <= totalPages) {
-      onPageChange(page - 1);
-      setJumpValue("");
-      setOpen(false);
-    }
+  const handleSelect = (page: number) => {
+    onPageChange(page - 1);
+    setOpen(false);
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild={true}>
+    <Popover open={totalPages > 1 ? open : false} onOpenChange={setOpen}>
+      <PopoverTrigger asChild={true} disabled={totalPages <= 1}>
         <button
           type="button"
-          className="border rounded justify-between pl-1.5 pr-0.5 min-w-9 text-xs items-center hover:bg-accent inline-flex gap-0.5"
+          className={cn(
+            "border rounded justify-between pl-1.5 pr-0.5 min-w-9 text-xs items-center inline-flex gap-0.5",
+            totalPages > 1
+              ? "hover:bg-accent cursor-pointer"
+              : "opacity-50 cursor-default",
+          )}
           data-testid="page-select"
+          disabled={totalPages <= 1}
         >
           {currentPage}
           <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-36 overflow-hidden flex flex-col"
-        scrollable={false}
-        align="center"
-        sideOffset={6}
-        style={{ maxHeight: "22rem" }}
-      >
-        <div className="overflow-y-auto flex-1 min-h-0">
-          {pageRanges.map((item) =>
-            item.type === "ellipsis" ? (
-              <DropdownMenuLabel
-                key={item.key}
-                className="text-center text-xs text-muted-foreground"
-              >
-                ...
-              </DropdownMenuLabel>
-            ) : (
-              <DropdownMenuItem
-                key={item.page}
-                data-testid="page-option"
-                className={cn(
-                  "text-xs cursor-pointer",
-                  item.page === currentPage && "font-semibold bg-accent",
-                )}
-                onSelect={() => onPageChange(item.page - 1)}
-                onMouseDown={Events.preventFocus}
-              >
-                {item.page}
-              </DropdownMenuItem>
-            ),
-          )}
-        </div>
-        {totalPages > MAX_PAGES_BEFORE_CLAMPING && (
-          <>
-            <DropdownMenuSeparator />
-            <div
-              className="px-2 pt-0.5 shrink-0"
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <label
-                htmlFor={jumpInputId}
-                className="text-xs text-muted-foreground block mb-1"
-              >
-                Jump to page
-              </label>
-              <Input
-                id={jumpInputId}
-                type="number"
-                min={1}
-                max={totalPages}
-                placeholder={`1-${totalPages}`}
-                value={jumpValue}
-                onChange={(e) => setJumpValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleJump();
-                  }
-                  e.stopPropagation();
-                }}
-                className="h-6 text-xs"
-                data-testid="page-jump-input"
-              />
-            </div>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent className="w-36 p-0" align="center" sideOffset={6}>
+        <Command
+          shouldFilter={true}
+          filter={(value, search) => {
+            return value.startsWith(search) ? 1 : 0;
+          }}
+        >
+          <CommandInput
+            placeholder={`Page (1–${totalPages})`}
+            rootClassName="px-2 h-8"
+            className="text-xs h-8"
+            autoFocus={true}
+            icon={null}
+            onKeyDown={(e) => {
+              // Allow navigation/editing keys, block non-numeric input
+              const allowed = [
+                "Backspace",
+                "Delete",
+                "ArrowLeft",
+                "ArrowRight",
+                "Tab",
+                "Enter",
+                "Escape",
+              ];
+              if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) {
+                e.preventDefault();
+              }
+            }}
+          />
+          <CommandList className="max-h-60">
+            {pageRanges.map((item) =>
+              item.type === "ellipsis" ? null : (
+                <CommandItem
+                  key={item.page}
+                  value={String(item.page)}
+                  data-testid="page-option"
+                  className={cn(
+                    "text-xs cursor-pointer",
+                    item.page === currentPage && "font-semibold bg-accent",
+                  )}
+                  onSelect={() => handleSelect(item.page)}
+                  onMouseDown={Events.preventFocus}
+                >
+                  {item.page}
+                </CommandItem>
+              ),
+            )}
+            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+              No matching page
+            </CommandEmpty>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 };
 
