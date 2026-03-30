@@ -327,7 +327,12 @@ def __():
         assert result["summary"]["errored"] is True
 
     def test_json_format_syntax_error(self, tmp_path):
-        """Test JSON format handling of syntax errors."""
+        """Test JSON format handling of syntax errors.
+
+        A file with a syntax error but no cell boundaries is treated as an
+        empty/unrecognisable notebook and skipped — no JSON issue is emitted.
+        Notebooks with cell boundaries are recovered via scanner fallback.
+        """
         tmpdir = tmp_path
         broken_file = Path(tmpdir) / "broken.py"
         broken_file.write_text("import marimo\ndef broken(\n    pass")
@@ -335,16 +340,11 @@ def __():
         linter = run_check((str(broken_file),), formatter="json")
         result = linter.get_json_result()
 
-        assert len(result["issues"]) == 1
-        error = result["issues"][0]
-        assert error["type"] == "error"
-        assert error["filename"] == str(broken_file)
-        assert "Failed to parse" in error["error"]
-
-        # Check summary includes the error
+        # File has no cell boundaries — skipped, no issues emitted
+        assert len(result["issues"]) == 0
         assert result["summary"]["total_files"] == 1
-        assert result["summary"]["files_with_issues"] == 1
-        assert result["summary"]["errored"] is True
+        assert result["summary"]["files_with_issues"] == 0
+        assert result["summary"]["errored"] is False
 
     def test_json_format_mixed_diagnostics_and_errors(self, tmp_path):
         """Test JSON format with both diagnostics and file errors."""
@@ -380,8 +380,9 @@ if __name__ == "__main__":
         )
         result = linter.get_json_result()
 
-        # Should have 3 issues: 1 diagnostic + 2 errors
-        assert len(result["issues"]) == 3
+        # Should have 2 issues: 1 diagnostic + 1 error (missing.py)
+        # The broken_file has no cell boundaries so is silently skipped
+        assert len(result["issues"]) == 2
 
         # Check diagnostic
         diagnostic_issues = [
@@ -391,15 +392,12 @@ if __name__ == "__main__":
         assert diagnostic_issues[0]["severity"] == "breaking"
         assert "multiple" in diagnostic_issues[0]["message"].lower()
 
-        # Check errors
+        # Check errors — only missing.py, not broken_file (skipped)
         error_issues = [i for i in result["issues"] if i["type"] == "error"]
-        assert len(error_issues) == 2
+        assert len(error_issues) == 1
+        assert error_issues[0]["filename"] == "missing.py"
 
-        filenames = [e["filename"] for e in error_issues]
-        assert str(broken_file) in filenames
-        assert "missing.py" in filenames
-
-        # Check summary
+        # Check summary — broken_file is skipped, not counted as with_issues
         assert result["summary"]["total_files"] == 3
-        assert result["summary"]["files_with_issues"] == 3
+        assert result["summary"]["files_with_issues"] == 2
         assert result["summary"]["errored"] is True
