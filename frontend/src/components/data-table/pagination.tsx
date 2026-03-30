@@ -37,103 +37,23 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
-import type { DataTableSelection, PageRange } from "./types";
+import type { PageRange } from "./types";
 
 const MAX_PAGES_BEFORE_CLAMPING = 100;
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
-  selection?: DataTableSelection;
-  totalColumns: number;
-  onSelectAllRowsChange?: (value: boolean) => void;
   tableLoading?: boolean;
   showPageSizeSelector?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
   table,
-  selection,
-  onSelectAllRowsChange,
-  totalColumns,
   tableLoading,
   showPageSizeSelector,
 }: DataTablePaginationProps<TData>) => {
   const { locale } = useLocale();
 
-  const renderTotal = () => {
-    const { rowSelection, cellSelection } = table.getState();
-    let selected = Object.keys(rowSelection).length;
-    let isAllPageSelected = table.getIsAllPageRowsSelected();
-    const numRows = table.getRowCount();
-    let isAllSelected = selected === numRows;
-
-    const isCellSelection =
-      selection === "single-cell" || selection === "multi-cell";
-    if (isCellSelection) {
-      selected = cellSelection.length;
-      isAllPageSelected = false;
-      isAllSelected = false;
-    }
-
-    if (isAllPageSelected && !isAllSelected) {
-      return (
-        <>
-          <span>{prettyNumber(selected, locale)} selected</span>
-          <Button
-            size="xs"
-            data-testid="select-all-button"
-            variant="link"
-            className="h-4 print:hidden"
-            onMouseDown={Events.preventFocus}
-            onClick={() => {
-              if (onSelectAllRowsChange) {
-                onSelectAllRowsChange(true);
-              } else {
-                table.toggleAllRowsSelected(true);
-              }
-            }}
-          >
-            Select all {prettyNumber(numRows, locale)}
-          </Button>
-        </>
-      );
-    }
-
-    if (selected) {
-      return (
-        <>
-          <span>{prettyNumber(selected, locale)} selected</span>
-          <Button
-            size="xs"
-            data-testid="clear-selection-button"
-            variant="link"
-            className="h-4 print:hidden"
-            onMouseDown={Events.preventFocus}
-            onClick={() => {
-              if (!isCellSelection) {
-                if (onSelectAllRowsChange) {
-                  onSelectAllRowsChange(false);
-                } else {
-                  table.toggleAllRowsSelected(false);
-                }
-              } else if (table.resetCellSelection) {
-                table.resetCellSelection();
-              }
-            }}
-          >
-            Clear selection
-          </Button>
-        </>
-      );
-    }
-
-    const rowColumnCount = prettifyRowColumnCount(
-      numRows,
-      totalColumns,
-      locale,
-    );
-    return <span>{rowColumnCount}</span>;
-  };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
     table.getPageCount(),

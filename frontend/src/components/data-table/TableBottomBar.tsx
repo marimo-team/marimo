@@ -2,9 +2,11 @@
 "use no memo";
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
-import React from "react";
 import { useLocale } from "react-aria";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { Events } from "@/utils/events";
+import { prettyNumber } from "@/utils/numbers";
+import { Button } from "../ui/button";
 import { toast } from "../ui/use-toast";
 import { DataTablePagination, prettifyRowColumnCount } from "./pagination";
 import { CellSelectionStats } from "./range-focus/cell-selection-stats";
@@ -76,17 +78,78 @@ export const TableBottomBar = <TData,>({
     });
   };
 
+  const renderTotal = () => {
+    const { rowSelection, cellSelection } = table.getState();
+    let selected = Object.keys(rowSelection).length;
+    let isAllPageSelected = table.getIsAllPageRowsSelected();
+    const numRows = table.getRowCount();
+    let isAllSelected = selected === numRows;
+
+    const isCellSelection =
+      selection === "single-cell" || selection === "multi-cell";
+    if (isCellSelection) {
+      selected = cellSelection.length;
+      isAllPageSelected = false;
+      isAllSelected = false;
+    }
+
+    if (isAllPageSelected && !isAllSelected) {
+      return (
+        <>
+          <span>{prettyNumber(selected, locale)} selected</span>
+          <Button
+            size="xs"
+            data-testid="select-all-button"
+            variant="link"
+            className="h-4 print:hidden"
+            onMouseDown={Events.preventFocus}
+            onClick={() => handleSelectAllRows(true)}
+          >
+            Select all {prettyNumber(numRows, locale)}
+          </Button>
+        </>
+      );
+    }
+
+    if (selected) {
+      return (
+        <>
+          <span>{prettyNumber(selected, locale)} selected</span>
+          <Button
+            size="xs"
+            data-testid="clear-selection-button"
+            variant="link"
+            className="h-4 print:hidden"
+            onMouseDown={Events.preventFocus}
+            onClick={() => {
+              if (!isCellSelection) {
+                handleSelectAllRows(false);
+              } else if (table.resetCellSelection) {
+                table.resetCellSelection();
+              }
+            }}
+          >
+            Clear selection
+          </Button>
+        </>
+      );
+    }
+
+    return (
+      <span>
+        {prettifyRowColumnCount(table.getRowCount(), totalColumns, locale)}
+      </span>
+    );
+  };
+
   return (
     <div className="flex items-center shrink-0 pt-1">
-      <div className="flex-1 text-sm text-muted-foreground px-2">
-        {prettifyRowColumnCount(table.getRowCount(), totalColumns, locale)}
+      <div className="flex-1 text-sm text-muted-foreground px-2 flex items-center gap-1">
+        {renderTotal()}
       </div>
       <div className="flex items-center justify-center">
         {pagination && (
           <DataTablePagination
-            totalColumns={totalColumns}
-            selection={selection}
-            onSelectAllRowsChange={handleSelectAllRows}
             table={table}
             tableLoading={tableLoading}
             showPageSizeSelector={showPageSizeSelector}
