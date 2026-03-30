@@ -103,6 +103,7 @@ export const ContextAwarePanel: React.FC = () => {
       <div className="pb-7 mb-4 h-full overflow-auto">
         <div className="p-3 border-b flex justify-between items-center">
           {renderModeToggle()}
+          <Slot name={SlotNames.CONTEXT_AWARE_PANEL_HEADER} />
           <Button
             variant="text"
             size="xs"
@@ -132,7 +133,7 @@ export const ContextAwarePanel: React.FC = () => {
         onDragging={handleDragging}
         className="resize-handle border-border z-20 print:hidden border-l"
       />
-      <Panel defaultSize={22} minSize={22} maxSize={80}>
+      <Panel defaultSize={25} minSize={25} maxSize={80}>
         {renderBody()}
       </Panel>
     </>
@@ -156,7 +157,7 @@ interface ResizableComponentProps {
 const ResizableComponent = ({ children }: ResizableComponentProps) => {
   const { resizableDivRef, handleRefs, style } = useResizeHandle({
     startingWidth: 400,
-    minWidth: 300,
+    minWidth: 400,
     maxWidth: 1500,
     onResize: () => {
       raf2(() => {

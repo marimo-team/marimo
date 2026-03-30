@@ -1,13 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { Fill } from "@marimo-team/react-slotz";
 import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
-import { ColumnsIcon, RowsIcon } from "lucide-react";
 import type React from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { SlotNames } from "@/core/slots/slots";
 import type {
   GetRowResult,
   PreviewColumn,
 } from "@/plugins/impl/DataTablePlugin";
+import { cn } from "@/utils/cn";
 import {
   PANEL_TYPES,
   type PanelType,
@@ -37,6 +40,11 @@ export interface TableExplorerPanelProps {
   activeTab: PanelType | null;
   onTabChange: (tab: PanelType) => void;
 }
+
+const tabTriggerClassName =
+  "text-xs uppercase tracking-wide font-semibold cursor-pointer transition-colors";
+const activeClassName = "text-primary";
+const inactiveClassName = "hover:text-foreground";
 
 export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
   // Row viewer
@@ -104,22 +112,37 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
       onValueChange={(value) => onTabChange(value as PanelType)}
       className="h-full flex flex-col min-w-[350px]"
     >
-      <TabsList className="mx-2 mt-2 p-2 shrink-0 w-auto">
-        <TabsTrigger
-          value={PANEL_TYPES.ROW_VIEWER}
-          className="py-1.5 px-5 text-xs uppercase tracking-wide font-bold flex-1 flex items-center justify-center gap-1"
-        >
-          <RowsIcon className="w-3 h-3" />
-          Rows
-        </TabsTrigger>
-        <TabsTrigger
-          value={PANEL_TYPES.COLUMN_EXPLORER}
-          className="py-1.5 px-5 text-xs uppercase tracking-wide font-bold flex-1 flex items-center justify-center gap-1"
-        >
-          <ColumnsIcon className="w-3 h-3" />
-          Columns
-        </TabsTrigger>
-      </TabsList>
+      <Fill name={SlotNames.CONTEXT_AWARE_PANEL_HEADER}>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="text"
+            size="xs"
+            onClick={() => onTabChange(PANEL_TYPES.ROW_VIEWER)}
+            className={cn(
+              tabTriggerClassName,
+              resolvedTab === PANEL_TYPES.ROW_VIEWER
+                ? activeClassName
+                : inactiveClassName,
+            )}
+          >
+            Rows
+          </Button>
+          <span className="text-muted-foreground text-xs">|</span>
+          <Button
+            variant="text"
+            size="xs"
+            onClick={() => onTabChange(PANEL_TYPES.COLUMN_EXPLORER)}
+            className={cn(
+              tabTriggerClassName,
+              resolvedTab === PANEL_TYPES.COLUMN_EXPLORER
+                ? activeClassName
+                : inactiveClassName,
+            )}
+          >
+            Explorer
+          </Button>
+        </div>
+      </Fill>
 
       <TabsContent
         value={PANEL_TYPES.ROW_VIEWER}

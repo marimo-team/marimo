@@ -263,10 +263,11 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
                 id={checkboxId}
                 checked={isRowSelected}
                 onCheckedChange={toggleRowSelection}
+                className="h-3.5 w-3.5"
               />
               <label
                 htmlFor={checkboxId}
-                className="text-sm text-muted-foreground cursor-pointer"
+                className="text-xs text-muted-foreground cursor-pointer"
               >
                 Select
               </label>
