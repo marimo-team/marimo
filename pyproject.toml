@@ -146,6 +146,7 @@ test = [
     "pytest-asyncio~=1.3.0",
     "pytest-picked>=0.5.1",
     "pytest-sugar~=1.1.1",
+    "pytest-xdist~=3.5",
     # Comparison testing
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
