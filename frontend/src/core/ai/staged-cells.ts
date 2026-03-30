@@ -161,6 +161,12 @@ export function useStagedCells(store: JotaiStore) {
       case "tool-output-error":
         Logger.error("Error", chunk.type, { chunk });
         break;
+      case "tool-approval-request":
+        Logger.log("Tool approval request", { chunk });
+        break;
+      case "tool-output-denied":
+        Logger.error("Tool output denied", { chunk });
+        break;
       // These logs are not useful for debugging
       case "start":
       case "start-step":
