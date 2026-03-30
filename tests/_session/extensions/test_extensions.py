@@ -541,9 +541,9 @@ class TestEventAwareExtension:
 
     def test_properties_raise_when_detached(self) -> None:
         ext = EventAwareExtension()
-        with pytest.raises(AssertionError):
+        with pytest.raises(RuntimeError):
             ext.session  # noqa: B018
-        with pytest.raises(AssertionError):
+        with pytest.raises(RuntimeError):
             ext.event_bus  # noqa: B018
 
     def test_detach_without_attach_is_safe(self) -> None:

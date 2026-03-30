@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from marimo._session.events import SessionEventBus
     from marimo._session.session import Session
 
-    _T = TypeVar("_T")
+    _T = TypeVar("_T", bound="SessionExtension")
 
 __all__ = [
     "EventAwareExtension",
@@ -55,12 +55,14 @@ class EventAwareExtension(SessionEventListener):
 
     @property
     def session(self) -> Session:
-        assert self._session is not None
+        if self._session is None:
+            raise RuntimeError("Extension is not attached to a session")
         return self._session
 
     @property
     def event_bus(self) -> SessionEventBus:
-        assert self._event_bus is not None
+        if self._event_bus is None:
+            raise RuntimeError("Extension is not attached to a session")
         return self._event_bus
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
