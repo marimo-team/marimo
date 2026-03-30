@@ -148,6 +148,9 @@ jobs:
         with:
           name: testwheel
 
+      # xdist is disabled for CLI tests because they test process-level
+      # behavior (spawning marimo processes, port binding) that conflicts
+      # with parallel execution.
       - name: Test CLI
         shell: bash
         run: |

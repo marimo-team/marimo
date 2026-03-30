@@ -186,6 +186,18 @@ jobs:
       # Test with base dependencies
       # Exit code 5 = no tests collected (e.g. only CLI test files changed);
       # treat that as success since CLI tests run in a separate workflow.
+      #
+      # TODO: xdist is disabled on Windows because several tests
+      # crash workers. Fix and re-enable. Failing tests:
+      #   - tests/_islands/test_island_generator.py::test_build
+      #   - tests/_islands/test_island_generator.py::test_render
+      #   - tests/_islands/test_island_generator.py::test_render_multiline_markdown
+      #   - tests/_messaging/test_streams.py::test_import_multiprocessing
+      #   - tests/_server/api/endpoints/test_ai.py::TestOpenAiEndpoints::test_completion_without_token
+      #   - tests/_server/test_session_manager.py::test_create_session_new
+      #   - tests/_server/test_session_manager.py::test_create_session_absolute_url
+      #   - tests/_server/test_session_manager.py::test_create_session_with_script_config_overrides
+      #   - tests/_server/test_session_manager.py::test_recents_touch_called_on_session_create
       - name: Test changed with base dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
