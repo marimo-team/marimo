@@ -95,8 +95,8 @@ def _(mo):
     pw_form = mo.ui.text(
         kind="password",
         value="secret-B",
-        placeholder="No initial value...",
-        label="Password (no initial value)",
+        placeholder="With initial value...",
+        label="Password",
     ).form()
     pw_form
     return (pw_form,)

@@ -268,15 +268,16 @@ class UIElement(Html, Generic[S, T]):
                 self._ctx.function_registry.register(
                     namespace=self._id, function=function
                 )
-        self._initial_value_frontend = initial_value
-        self._value_frontend = initial_value
+        frontend_value = self._frontend_initial_value(initial_value)
+        self._initial_value_frontend = frontend_value
+        self._value_frontend = frontend_value
         self._value = self._initial_value = self._convert_value(initial_value)
         self._on_change = on_change
         self._component_args = args
 
         self._inner_text = build_ui_plugin(
             component_name,
-            initial_value,
+            frontend_value,
             label,
             args,
             slotted_html,
@@ -297,6 +298,14 @@ class UIElement(Html, Generic[S, T]):
         frontend, to a value of type `T` for the `UIElement`.
         """
         pass
+
+    def _frontend_initial_value(self, value: S) -> S:
+        """Return the initial value to embed in HTML sent to the frontend.
+
+        Override to sanitize the value for HTML rendering (e.g. masking
+        passwords) while keeping the real value for Python-side state.
+        """
+        return value
 
     def _register_as_view(self, parent: UIElement[Any, Any], key: str) -> None:
         """Register this element as a view of `parent`."""

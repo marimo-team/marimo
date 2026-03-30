@@ -292,23 +292,27 @@ def test_text() -> None:
 
 
 def test_text_password_masking() -> None:
-    # Password with value: Python value is the real password
+    from marimo._plugins.core.web_component import parse_initial_value
+
     t = ui.text(value="secret123", kind="password")
+
+    # Python-side values are the real password
     assert t.value == "secret123"
+    assert t._initial_value == "secret123"
 
-    # HTML should NOT contain the real password
+    # Frontend-facing values are sanitized
     assert "secret123" not in t.text
-    # The frontend initial value must be empty (not the real password)
     assert t._initial_value_frontend == ""
+    assert parse_initial_value(t._inner_text) == ""
 
-    # Password-has-value arg should be set
+    # password-has-value arg is set
     assert t._component_args.get("password-has-value") is True
 
     # Update works normally
     t._update("new_password")
     assert t.value == "new_password"
 
-    # Password without value: normal behavior
+    # Password without value: no masking needed
     t = ui.text(kind="password")
     assert t.value == ""
     assert t._component_args.get("password-has-value") is None
@@ -318,25 +322,41 @@ def test_text_password_masking() -> None:
     assert "hello" in t.text
 
 
+def test_text_password_masking_clone() -> None:
+    from marimo._plugins.core.web_component import parse_initial_value
+
+    t = ui.text(value="secret123", kind="password")
+    clone = t._clone()
+
+    # Clone preserves the real password in Python
+    assert clone.value == "secret123"
+    assert clone._initial_value == "secret123"
+
+    # Clone's HTML is also sanitized
+    assert "secret123" not in clone.text
+    assert clone._initial_value_frontend == ""
+    assert parse_initial_value(clone._inner_text) == ""
+
+
 def test_text_password_masking_form_submit() -> None:
-    # Clone (used by form) preserves the real password
+    # Form wraps a clone — password is preserved
     t = ui.text(value="secret123", kind="password")
     f = t.form()
     assert f.element.value == "secret123"
 
-    # Form submit without editing preserves the real password
+    # Submit without editing: "" is ignored while masked
     f._update("")
     assert f.value == "secret123"
 
-    # Form submit after user types uses the new value
+    # Submit after user types: new value is used
     f2 = ui.text(value="secret123", kind="password").form()
     f2._update("new_password")
     assert f2.value == "new_password"
 
-    # After unmasking then intentionally clearing, "" is accepted
+    # After unmasking, intentionally clearing to "" is accepted
     t2 = ui.text(value="secret123", kind="password")
     t2._update("a")  # unmask
-    t2._update("")  # intentional clear — accepted
+    t2._update("")  # intentional clear
     assert t2.value == ""
 
 
