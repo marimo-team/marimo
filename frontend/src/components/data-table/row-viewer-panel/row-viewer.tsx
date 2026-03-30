@@ -12,16 +12,16 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Info,
-  SearchIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import { ColumnName } from "@/components/datasources/components";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Spinner } from "@/components/icons/spinner";
 import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Command, CommandInput } from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/table";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { useKeydownOnElement } from "@/hooks/useHotkey";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
 import { NAMELESS_COLUMN_PREFIX, renderCellValue } from "../columns";
@@ -68,7 +67,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 }: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const checkboxId = useId();
   const { locale } = useLocale();
 
   const tooManyRows = totalRows === TOO_MANY_ROWS;
@@ -102,26 +101,29 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     setRow(totalRows - 1);
   }
 
-  useKeydownOnElement(panelRef, {
-    ArrowLeft: (e) => {
-      if (e?.target === searchInputRef.current) {
-        return false;
-      }
-      setRow(rowIdx - 1);
-    },
-    ArrowRight: (e) => {
-      if (e?.target === searchInputRef.current) {
-        return false;
-      }
-      setRow(rowIdx + 1);
-    },
-    Space: (e) => {
-      if (e?.target === searchInputRef.current) {
-        return false;
-      }
-      toggleRowSelection();
-    },
-  });
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Don't intercept keys when typing in an input
+    if (e.target instanceof HTMLInputElement) {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowLeft":
+        setRow(rowIdx - 1);
+
+        break;
+
+      case "ArrowRight":
+        setRow(rowIdx + 1);
+
+        break;
+
+      case " ":
+        e.preventDefault();
+        toggleRowSelection();
+
+        break;
+    }
+  };
 
   const buttonStyles = "h-6 w-6 p-0.5";
 
@@ -248,19 +250,29 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
       className="flex flex-col gap-3 mt-4 focus:outline-hidden"
       ref={panelRef}
       tabIndex={-1}
+      onKeyDown={handleKeyDown}
     >
-      <div className="flex flex-row gap-2 items-center mr-2">
+      <div className="flex flex-row gap-2 items-center mr-2 px-2">
         {isSelectable && (
-          <div className="flex flex-row gap-1 items-center">
-            <Button
-              variant="link"
-              size="xs"
-              className="pr-0"
-              onClick={toggleRowSelection}
-            >
-              {isRowSelected ? "Deselect row" : "Select row"}
-            </Button>
-            <KeyboardHotkeys shortcut="Space" />
+          <div
+            className="flex items-center"
+            title="Select/unselect the current row"
+          >
+            <div className="flex items-center gap-1.5">
+              <Checkbox
+                id={checkboxId}
+                checked={isRowSelected}
+                onCheckedChange={toggleRowSelection}
+                className="h-3.5 w-3.5"
+              />
+              <label
+                htmlFor={checkboxId}
+                className="text-xs text-muted-foreground cursor-pointer"
+              >
+                Select
+              </label>
+            </div>
+            <KeyboardHotkeys shortcut="Space" className="scale-75" />
           </div>
         )}
 
@@ -315,17 +327,14 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
         </Button>
       </div>
 
-      <div className="mx-2 -mb-1">
-        <Input
-          ref={searchInputRef}
-          type="text"
+      <Command className="bg-background" shouldFilter={false}>
+        <CommandInput
           placeholder="Search"
-          onChange={(e) => setSearchQuery(e.target.value)}
-          icon={<SearchIcon className="w-4 h-4" />}
-          className="mb-0 border-border"
+          value={searchQuery}
+          onValueChange={setSearchQuery}
           data-testid="selection-panel-search-input"
         />
-      </div>
+      </Command>
       {renderTable()}
     </div>
   );

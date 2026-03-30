@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 import { useLocale } from "react-aria";
 import {
@@ -88,18 +89,21 @@ export const ColumnExplorerPanel = ({
         />
         <CommandList className="max-h-full">
           <CommandEmpty>No results.</CommandEmpty>
-          {filteredColumns?.map(([columnName, [dataType, externalType]]) => {
-            return (
-              <ColumnItem
-                // Tables may have the same column names, hence we use tableId to make it unique
-                key={`${tableId}-${columnName}`}
-                columnName={columnName}
-                dataType={dataType}
-                externalType={externalType}
-                previewColumn={previewColumn}
-              />
-            );
-          })}
+          {filteredColumns?.map(
+            ([columnName, [dataType, externalType]], index) => {
+              return (
+                <ColumnItem
+                  // Tables may have the same column names, hence we use tableId to make it unique
+                  key={`${tableId}-${columnName}`}
+                  columnName={columnName}
+                  dataType={dataType}
+                  externalType={externalType}
+                  previewColumn={previewColumn}
+                  defaultExpanded={index === 0}
+                />
+              );
+            },
+          )}
         </CommandList>
       </Command>
     </div>
@@ -111,13 +115,15 @@ const ColumnItem = ({
   dataType,
   externalType,
   previewColumn,
+  defaultExpanded = false,
 }: {
   columnName: string;
   dataType: DataType;
   externalType: string;
   previewColumn: PreviewColumn;
+  defaultExpanded?: boolean;
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const columnText = (
     <span className={isExpanded ? "font-semibold" : ""}>{columnName}</span>
@@ -130,6 +136,11 @@ const ColumnItem = ({
         onSelect={() => setIsExpanded(!isExpanded)}
         className="flex flex-row items-center gap-1.5 group w-full cursor-pointer"
       >
+        {isExpanded ? (
+          <ChevronDownIcon className="w-3 h-3 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRightIcon className="w-3 h-3 shrink-0 text-muted-foreground" />
+        )}
         <ColumnName columnName={columnText} dataType={dataType} />
         <div className="ml-auto">
           <Tooltip content="Copy column name" delayDuration={400}>

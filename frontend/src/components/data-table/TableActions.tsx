@@ -2,17 +2,15 @@
 "use no memo";
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
-import {
-  ChartColumnStacked,
-  ChartSplineIcon,
-  PanelRightIcon,
-  SearchIcon,
-} from "lucide-react";
+import { ChartSplineIcon, PanelRightIcon, SearchIcon } from "lucide-react";
 import React from "react";
 import { useLocale } from "react-aria";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import {
+  PANEL_TYPES,
+  type PanelType,
+} from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
@@ -35,11 +33,10 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   showChartBuilder?: boolean;
-  showColumnExplorer?: boolean;
-  showRowExplorer?: boolean;
+  showTableExplorer?: boolean;
   showPageSizeSelector?: boolean;
   togglePanel?: (panelType: PanelType) => void;
-  isPanelOpen?: (panelType: PanelType) => boolean;
+  isAnyPanelOpen?: boolean;
   tableLoading?: boolean;
 }
 
@@ -58,11 +55,10 @@ export const TableActions = <TData,>({
   getRowIds,
   toggleDisplayHeader,
   showChartBuilder,
-  showColumnExplorer,
-  showRowExplorer,
+  showTableExplorer,
   showPageSizeSelector,
   togglePanel,
-  isPanelOpen,
+  isAnyPanelOpen,
   tableLoading,
 }: TableActionsProps<TData>) => {
   const { locale } = useLocale();
@@ -136,43 +132,22 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {togglePanel && isPanelOpen !== undefined && (
-        <>
-          {showRowExplorer && (
-            <Tooltip content="Toggle row viewer">
-              <Button
-                variant="text"
-                size="xs"
-                onClick={() => togglePanel("row-viewer")}
-                className="print:hidden"
-              >
-                <PanelRightIcon
-                  className={cn(
-                    "w-4 h-4 text-muted-foreground",
-                    isPanelOpen("row-viewer") && "text-primary",
-                  )}
-                />
-              </Button>
-            </Tooltip>
-          )}
-          {showColumnExplorer && (
-            <Tooltip content="Toggle column explorer">
-              <Button
-                variant="text"
-                size="xs"
-                onClick={() => togglePanel("column-explorer")}
-                className="print:hidden"
-              >
-                <ChartColumnStacked
-                  className={cn(
-                    "w-4 h-4 text-muted-foreground",
-                    isPanelOpen("column-explorer") && "text-primary",
-                  )}
-                />
-              </Button>
-            </Tooltip>
-          )}
-        </>
+      {showTableExplorer && togglePanel && (
+        <Tooltip content="Toggle table explorer">
+          <Button
+            variant="text"
+            size="xs"
+            onClick={() => togglePanel(PANEL_TYPES.ROW_VIEWER)}
+            className="print:hidden"
+          >
+            <PanelRightIcon
+              className={cn(
+                "w-4 h-4 text-muted-foreground",
+                isAnyPanelOpen && "text-primary",
+              )}
+            />
+          </Button>
+        </Tooltip>
       )}
 
       {pagination ? (
