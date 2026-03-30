@@ -47,7 +47,6 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   togglePanel,
   isAnyPanelOpen,
   downloadAs,
-  downloadFileName,
 }) => {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [internalValue, setInternalValue] = useState(searchQuery || "");
@@ -161,12 +160,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             </Button>
           </Tooltip>
         )}
-        {downloadAs && (
-          <ExportMenu
-            downloadAs={downloadAs}
-            downloadFileName={downloadFileName}
-          />
-        )}
+        {downloadAs && <ExportMenu downloadAs={downloadAs} />}
       </div>
     </div>
   );

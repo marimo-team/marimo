@@ -293,7 +293,6 @@ const DataTableInternal = <TData,>({
             togglePanel={togglePanel}
             isAnyPanelOpen={isAnyPanelOpen}
             downloadAs={downloadAs}
-            downloadFileName={downloadFileName}
           />
           <Table className="relative" ref={tableRef}>
             {showLoadingBar && (

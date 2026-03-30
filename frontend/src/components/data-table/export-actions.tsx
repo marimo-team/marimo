@@ -35,8 +35,10 @@ import { toast } from "../ui/use-toast";
 type DownloadFormat = "csv" | "json" | "parquet";
 
 export interface ExportActionProps {
-  downloadAs: (req: { format: DownloadFormat }) => Promise<string>;
-  downloadFileName?: string;
+  downloadAs: (req: { format: DownloadFormat }) => Promise<{
+    url: string;
+    filename: string;
+  }>;
 }
 
 const FILE_TYPES = {
@@ -100,7 +102,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     </Button>
   );
 
-  const getDownloadUrl = (format: DownloadFormat) => {
+  const getDownloadResult = (format: DownloadFormat) => {
     return props.downloadAs({ format }).catch((error) => {
       toast({
         title: "Failed to download",
@@ -117,26 +119,26 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
 
     switch (format) {
       case "tsv": {
-        const downloadUrl = await getDownloadUrl("json");
-        const json = await fetchJson(downloadUrl);
+        const { url } = await getDownloadResult("json");
+        const json = await fetchJson(url);
         text = jsonToTSV(json, locale);
         break;
       }
       case "json": {
-        const downloadUrl = await getDownloadUrl("json");
-        const json = await fetchJson(downloadUrl);
+        const { url } = await getDownloadResult("json");
+        const json = await fetchJson(url);
         text = JSON.stringify(json, null, 2);
         break;
       }
       case "csv": {
-        const downloadUrl = await getDownloadUrl("csv");
-        const csv = await fetchText(downloadUrl);
+        const { url } = await getDownloadResult("csv");
+        const csv = await fetchText(url);
         text = csv;
         break;
       }
       case "markdown": {
-        const downloadUrl = await getDownloadUrl("json");
-        const json = await fetchJson(downloadUrl);
+        const { url } = await getDownloadResult("json");
+        const json = await fetchJson(url);
         text = jsonToMarkdown(json);
         break;
       }
@@ -164,12 +166,12 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
           <DropdownMenuItem
             key={option.label}
             onSelect={async () => {
-              const downloadUrl = await getDownloadUrl(option.format);
+              const { url, filename } = await getDownloadResult(option.format);
               const ext = option.format;
-              const rawName = (props.downloadFileName ?? "").trim();
+              const rawName = (filename ?? "").trim();
               const baseName =
                 Filenames.withoutExtension(rawName) || "download";
-              downloadByURL(downloadUrl, `${baseName}.${ext}`);
+              downloadByURL(url, `${baseName}.${ext}`);
             }}
           >
             <option.icon className="mo-dropdown-icon" />
