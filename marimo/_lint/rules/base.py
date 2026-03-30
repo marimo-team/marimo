@@ -25,7 +25,6 @@ class LintRule(ABC):
     @abstractmethod
     async def check(self, ctx: RuleContext) -> None:
         """Check notebook for violations of this rule using the provided context."""
-        pass
 
 
 class UnsafeFixRule(LintRule):
@@ -44,4 +43,3 @@ class UnsafeFixRule(LintRule):
         Returns:
             Modified notebook serialization
         """
-        pass

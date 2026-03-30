@@ -1525,8 +1525,8 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
 
 export {
   createActions as createNotebookActions,
-  reducer as notebookReducer,
   notebookAtom,
+  reducer as notebookReducer,
 };
 
 /// ATOMS

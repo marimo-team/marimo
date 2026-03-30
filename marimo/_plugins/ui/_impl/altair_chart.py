@@ -86,7 +86,7 @@ def _get_binned_fields(spec: VegaSpec) -> dict[str, Any]:
         return binned_fields
 
     for encoding in spec["encoding"].values():
-        if "bin" in encoding and encoding["bin"]:
+        if encoding.get("bin"):
             # Get the field name
             field = encoding.get("field")
             if field:
@@ -523,7 +523,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     def __init__(
         self,
         chart: AltairChartType,
-        chart_selection: Literal["point"] | Literal["interval"] | bool = True,
+        chart_selection: Literal["point", "interval"] | bool = True,
         legend_selection: list[str] | bool = True,
         *,
         label: str = "",

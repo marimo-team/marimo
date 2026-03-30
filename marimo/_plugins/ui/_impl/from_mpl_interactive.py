@@ -152,8 +152,6 @@ def _get_mpl_js_vfile() -> VirtualFile:
 class ModelIdRef(dict):  # type: ignore[type-arg]
     """Wire-format value: just a model_id reference."""
 
-    pass
-
 
 class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
     """UIElement wrapping an interactive matplotlib figure.

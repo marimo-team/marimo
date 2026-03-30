@@ -184,5 +184,5 @@ const DateRangePicker = <T extends AriaDateValue>({
   );
 };
 
-export { DatePicker, DatePickerContent, DateRangePicker };
 export type { DatePickerProps, DateRangePickerProps };
+export { DatePicker, DatePickerContent, DateRangePicker };

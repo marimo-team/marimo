@@ -70,7 +70,7 @@ def test_rename_to_existing_filename(app_file_manager: AppFileManager) -> None:
     with open(existing_filename, "w") as f:
         f.write("This is a test file.")
     try:
-        with pytest.raises(HTTPException) as e:  # noqa: PT012
+        with pytest.raises(HTTPException) as e:
             app_file_manager.rename(existing_filename)
         assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:
@@ -93,7 +93,7 @@ def test_successful_rename(app_file_manager: AppFileManager) -> None:
 
 def test_rename_exception(app_file_manager: AppFileManager) -> None:
     new_filename = "/invalid/path/new_filename.py"
-    with pytest.raises(HTTPException) as e:  # noqa: PT012
+    with pytest.raises(HTTPException) as e:
         app_file_manager.rename(new_filename)
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
@@ -184,7 +184,7 @@ def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
 )
 def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "/invalid/path/app_config.py"
-    with pytest.raises(HTTPException) as e:  # noqa: PT012
+    with pytest.raises(HTTPException) as e:
         app_file_manager.save_app_config({})
     assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
@@ -194,7 +194,7 @@ def test_save_filename_change_not_allowed(
 ) -> None:
     app_file_manager.filename = "original.py"
     save_request.filename = "new.py"
-    with pytest.raises(HTTPException) as e:  # noqa: PT012
+    with pytest.raises(HTTPException) as e:
         app_file_manager.save(save_request)
     assert e.value.status_code == HTTPStatus.BAD_REQUEST
 
@@ -205,7 +205,7 @@ def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
         f.write("This is a test file.")
     save_request.filename = existing_filename
     try:
-        with pytest.raises(HTTPException) as e:  # noqa: PT012
+        with pytest.raises(HTTPException) as e:
             app_file_manager.save(save_request)
         assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:

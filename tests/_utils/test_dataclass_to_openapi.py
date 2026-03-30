@@ -93,7 +93,7 @@ def test_recursive_dataclass_to_openapi() -> None:
     }
 
 
-Colors = Union[Literal["red"], Literal["green"], Literal["blue"]]
+Colors = Literal["red", "green", "blue"]
 
 
 def test_named_union() -> None:

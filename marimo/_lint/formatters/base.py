@@ -21,4 +21,3 @@ class DiagnosticFormatter(ABC):
         code_lines: list[str] | None = None,
     ) -> str:
         """Format a diagnostic for display."""
-        pass

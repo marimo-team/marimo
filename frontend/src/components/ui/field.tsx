@@ -81,10 +81,10 @@ const FieldGroup = ({ className, variant, ...props }: GroupProps) => {
 };
 
 export {
+  FieldError,
+  FieldGroup,
+  FormDescription,
+  fieldGroupVariants,
   Label,
   labelVariants,
-  FieldGroup,
-  fieldGroupVariants,
-  FieldError,
-  FormDescription,
 };

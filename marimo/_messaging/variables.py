@@ -167,7 +167,7 @@ def get_variable_preview(
                 return f"<unprintable {type_name} object>"
 
     except Exception as e:
-        return f"<error previewing {type_name}: {str(e)}>"
+        return f"<error previewing {type_name}: {e!s}>"
 
 
 def _stringify_variable_value(value: object) -> str:

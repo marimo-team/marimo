@@ -16,7 +16,7 @@ from typing import (
 )
 from urllib.parse import urljoin, urlparse
 
-import starlette.status as status
+from starlette import status
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,

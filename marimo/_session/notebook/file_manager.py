@@ -125,12 +125,14 @@ class AppFileManager:
             else:
                 new_data = self.app.cell_manager.get_cell_data(cell_id)
                 prev_data = prev_cell_manager.get_cell_data(cell_id)
-                if new_data is None or prev_data is None:
-                    changed_cell_ids.add(cell_id)
-                elif (
-                    new_data.code != prev_data.code
-                    or new_data.name != prev_data.name
-                    or new_data.config != prev_data.config
+                if (
+                    new_data is None
+                    or prev_data is None
+                    or (
+                        new_data.code != prev_data.code
+                        or new_data.name != prev_data.name
+                        or new_data.config != prev_data.config
+                    )
                 ):
                     changed_cell_ids.add(cell_id)
 

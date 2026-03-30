@@ -296,7 +296,6 @@ class UIElement(Html, Generic[S, T]):
         This method must convert `value`, the JSON-decoded value sent by the
         frontend, to a value of type `T` for the `UIElement`.
         """
-        pass
 
     def _register_as_view(self, parent: UIElement[Any, Any], key: str) -> None:
         """Register this element as a view of `parent`."""

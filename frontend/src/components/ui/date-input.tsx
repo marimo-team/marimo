@@ -123,5 +123,5 @@ const TimeField = <T extends AriaTimeValue>({
   );
 };
 
-export { DateSegment, DateInput, DateField, TimeField };
-export type { DateInputProps, DateFieldProps, TimeFieldProps };
+export type { DateFieldProps, DateInputProps, TimeFieldProps };
+export { DateField, DateInput, DateSegment, TimeField };

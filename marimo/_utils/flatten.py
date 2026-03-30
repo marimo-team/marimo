@@ -34,7 +34,7 @@ def _flatten_sequence(
     flatten_formattable_subclasses: bool,
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
-    base_type: type[list[Any]] | type[tuple[Any, ...]]
+    base_type: type[list[Any] | tuple[Any, ...]]
     if isinstance(value, list):
         base_type = list
     elif isinstance(value, tuple):

@@ -218,6 +218,7 @@ const RangeCalendar = <T extends AriaDateValue>({
   );
 };
 
+export type { CalendarProps, RangeCalendarProps };
 export {
   Calendar,
   CalendarCell,
@@ -228,4 +229,3 @@ export {
   CalendarHeading,
   RangeCalendar,
 };
-export type { CalendarProps, RangeCalendarProps };

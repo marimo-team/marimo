@@ -324,7 +324,7 @@ const {
   },
 });
 
-export { useCellSelectionReducerActions, cellSelectionStateAtom };
+export { cellSelectionStateAtom, useCellSelectionReducerActions };
 
 export const visibleForTesting = {
   createActions,

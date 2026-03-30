@@ -653,7 +653,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 )
                 and sql
             ):
-                import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+                import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
                 # TODO: Handle other SQL languages
                 # TODO: Get the engine so we can differentiate tables in diff engines

@@ -24,8 +24,6 @@ T = TypeVar("T")
 class EmptyArgs:
     """Utility type for functions that take no arguments."""
 
-    ...
-
 
 @dataclasses.dataclass
 class Function(Generic[S, T]):

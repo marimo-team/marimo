@@ -167,7 +167,7 @@ def patch_finder(
     if module_name != find_spec.__module__:
         # Use the __get__ descriptor to bind find_spec to this finder object,
         # to make sure self/cls gets passed
-        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
+        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]
 
 
 def register_formatters(theme: Theme = "light") -> None:

@@ -26,7 +26,7 @@ class run_id_context:
     def __enter__(self) -> None:
         self.token = RUN_ID_CTX.set(self.run_id)
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         RUN_ID_CTX.reset(self.token)
 
 
@@ -42,7 +42,7 @@ class http_request_context:
     def __enter__(self) -> None:
         self.token = HTTP_REQUEST_CTX.set(self.request)
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         HTTP_REQUEST_CTX.reset(self.token)
 
 

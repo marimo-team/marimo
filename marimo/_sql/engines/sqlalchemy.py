@@ -360,7 +360,6 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                     )
         except Exception:
             LOGGER.warning("Failed to get indexes", exc_info=True)
-            pass
 
         cols: list[DataTableColumn] = []
         for col in columns:

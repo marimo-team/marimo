@@ -192,16 +192,16 @@ const MutatedText = React.forwardRef<
 MutatedText.displayName = "MutatedText";
 
 export {
+  Blockquote,
   H1,
   H2,
   H3,
   H4,
-  P,
-  Blockquote,
-  List,
   InlineCode,
-  Lead,
   LargeText,
-  SmallText,
+  Lead,
+  List,
   MutatedText,
+  P,
+  SmallText,
 };

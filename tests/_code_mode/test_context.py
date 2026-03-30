@@ -361,7 +361,7 @@ class TestCombined:
         with _ctx(k) as ctx:
             _clear_messages(k)
 
-            async with ctx as nb:  # noqa: B018
+            async with ctx as nb:
                 pass
 
             assert _graph_codes(k) == snapshot({"0": "x = 1"})
@@ -456,7 +456,7 @@ class TestSummary:
         self, k: Kernel, capsys: object
     ) -> None:
         with _ctx(k) as ctx:
-            async with ctx as nb:  # noqa: B018
+            async with ctx as nb:
                 pass
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]

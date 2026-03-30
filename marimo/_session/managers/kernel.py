@@ -93,7 +93,7 @@ class KernelManagerImpl(KernelManager):
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
-                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
+                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon
                 daemon=False,
             )
         else:

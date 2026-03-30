@@ -86,9 +86,9 @@ const Tooltip: React.FC<
 
 export {
   Tooltip,
-  TooltipRoot,
-  TooltipTrigger,
   TooltipContent,
   TooltipPortal,
   TooltipProvider,
+  TooltipRoot,
+  TooltipTrigger,
 };
