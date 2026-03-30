@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { ToolUIPart } from "ai";
+import { isEmpty } from "lodash-es";
 import {
   CheckCircleIcon,
   InfoIcon,
@@ -73,12 +74,7 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
       {rest && (
         <div className="space-y-3">
           {Object.entries(rest).map(([key, value]) => {
-            if (
-              value == null ||
-              (typeof value === "object" &&
-                !Array.isArray(value) &&
-                Object.keys(value as Record<string, unknown>).length === 0)
-            ) {
+            if (isEmpty(value)) {
               return null;
             }
             return (
@@ -123,10 +119,7 @@ const ToolArgsRenderer: React.FC<{ input: unknown }> = ({ input }) => {
     return null;
   }
 
-  const isEmptyInput =
-    typeof input === "object" &&
-    !Array.isArray(input) &&
-    Object.keys(input as Record<string, unknown>).length === 0;
+  const isEmptyInput = isEmpty(input);
 
   const isObject =
     typeof input === "object" &&
