@@ -200,7 +200,6 @@ interface Data<T> {
   hasStableRowId: boolean;
   lazy: boolean;
   cellHoverTexts?: Record<string, Record<string, string | null>> | null;
-  downloadFileName?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -286,7 +285,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       // If lazy, this will preload the first page of data
       // without user confirmation.
       preload: z.boolean().default(false),
-      downloadFileName: z.string().optional(),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -822,7 +820,6 @@ const DataTableComponent = ({
   cellStyles,
   hoverTemplate,
   cellHoverTexts,
-  downloadFileName,
   toggleDisplayHeader,
   calculate_top_k_rows,
   preview_column,
@@ -1077,7 +1074,6 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
-            downloadFileName={downloadFileName}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}

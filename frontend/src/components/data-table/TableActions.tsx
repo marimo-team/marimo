@@ -29,7 +29,6 @@ interface TableActionsProps<TData> {
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
-  downloadFileName?: string;
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   showChartBuilder?: boolean;
@@ -51,7 +50,6 @@ export const TableActions = <TData,>({
   onRowSelectionChange,
   table,
   downloadAs,
-  downloadFileName,
   getRowIds,
   toggleDisplayHeader,
   showChartBuilder,
@@ -165,12 +163,7 @@ export const TableActions = <TData,>({
         </span>
       )}
       <div className="ml-auto">
-        {downloadAs && (
-          <DownloadAs
-            downloadAs={downloadAs}
-            downloadFileName={downloadFileName}
-          />
-        )}
+        {downloadAs && <DownloadAs downloadAs={downloadAs} />}
       </div>
     </div>
   );
