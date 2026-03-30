@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from marimo._utils.paths import (
+    is_cloudpath,
     normalize_path,
     notebook_output_dir,
     pretty_path,
@@ -86,35 +87,100 @@ def test_normalize_path_does_not_resolve_symlinks() -> None:
         assert normalized != resolved
 
 
+class TestIsCloudpath:
+    """Tests for is_cloudpath utility."""
+
+    def test_regular_path_is_not_cloudpath(self) -> None:
+        assert not is_cloudpath(Path("/tmp/foo"))
+
+    def test_builtin_cloudpath_detected_via_isinstance(self) -> None:
+        """Built-in cloudpathlib paths are detected via isinstance."""
+        from cloudpathlib import S3Path
+
+        assert is_cloudpath(S3Path("s3://bucket/key"))
+
+    def test_custom_cloudpath_subclass_detected(self) -> None:
+        """Custom CloudPath subclasses from external packages are detected.
+
+        This is the core scenario from issue #8868: a user creates a
+        custom provider whose __module__ does NOT start with 'cloudpathlib'.
+        We use virtual subclass registration to avoid cloudpathlib's
+        metaclass issues with direct subclassing.
+        """
+        from cloudpathlib import CloudPath
+
+        class FakeSMBPath:
+            def __init__(self, s: str) -> None:
+                self._s = s
+
+            def __str__(self) -> str:
+                return self._s
+
+        CloudPath.register(FakeSMBPath)
+
+        path = FakeSMBPath("smb://server/share")
+        assert not FakeSMBPath.__module__.startswith("cloudpathlib")
+        assert is_cloudpath(path)  # type: ignore[arg-type]
+
+    def test_fallback_module_check_when_cloudpathlib_missing(self) -> None:
+        """When cloudpathlib can't be imported, fall back to module name."""
+        from unittest.mock import MagicMock, patch
+
+        mock_path = MagicMock()
+        mock_path.__class__ = type(
+            "S3Path", (), {"__module__": "cloudpathlib.s3.s3path"}
+        )
+
+        with patch.dict("sys.modules", {"cloudpathlib": None}):
+            assert is_cloudpath(mock_path)
+
+    def test_non_cloud_mock_rejected(self) -> None:
+        from unittest.mock import MagicMock
+
+        mock_path = MagicMock()
+        mock_path.__class__ = type(
+            "MyPath", (), {"__module__": "mypackage.paths"}
+        )
+        assert not is_cloudpath(mock_path)
+
+
 def test_normalize_path_skips_cloudpathlib_paths() -> None:
     """Test that cloud paths from cloudpathlib are returned unchanged.
 
     os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
-    This test verifies that cloudpathlib paths bypass normalization.
     """
-    from unittest.mock import MagicMock
+    from cloudpathlib import S3Path
 
-    # Create a mock cloud path that simulates cloudpathlib.S3Path
-    # We can't inherit from PurePosixPath because it normalizes on construction
-    mock_path = MagicMock()
-    mock_path.__class__.__module__ = "cloudpathlib.s3.s3path"
+    cloud_path = S3Path("s3://bucket/folder/file.txt")
+    result = normalize_path(cloud_path)
+    assert result is cloud_path
 
-    # normalize_path should return the path unchanged
-    result = normalize_path(mock_path)
 
-    # Should be the exact same object, returned unchanged
-    assert result is mock_path
+def test_normalize_path_skips_custom_cloudpath_subclass() -> None:
+    """Custom CloudPath subclasses should also skip normalization (#8868)."""
+    from cloudpathlib import CloudPath
+
+    class FakeSMBPath:
+        def __init__(self, s: str) -> None:
+            self._s = s
+
+        def __str__(self) -> str:
+            return self._s
+
+    CloudPath.register(FakeSMBPath)
+
+    path = FakeSMBPath("smb://server/share/folder")
+    result = normalize_path(path)  # type: ignore[arg-type]
+    assert result is path
+    assert "smb://" in str(result)
 
 
 def test_normalize_path_does_not_skip_regular_paths() -> None:
     """Test that regular Path objects are still normalized properly."""
-    # Ensure the cloudpathlib check doesn't affect regular paths
     relative_path = Path("foo") / "bar"
     result = normalize_path(relative_path)
 
-    # Should be converted to absolute
     assert result.is_absolute()
-    # Module should be pathlib, not cloudpathlib
     assert result.__class__.__module__.startswith("pathlib")
 
 

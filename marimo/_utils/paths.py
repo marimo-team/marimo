@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from marimo._dependencies.dependencies import DependencyManager
+
 if TYPE_CHECKING:
     from importlib.abc import Traversable
 
@@ -95,6 +97,25 @@ def notebook_output_dir(notebook_path: Path | str | None) -> Path:
     return parent / MARIMO_DIR_NAME
 
 
+def is_cloudpath(path: Path) -> bool:
+    """Check if a path is a cloudpathlib CloudPath (including subclasses).
+
+    Uses isinstance when cloudpathlib is available, falling back to a
+    module-name check so paths still work even when cloudpathlib is not
+    installed as a direct dependency.
+    """
+    # Return early if cloudpathlib is not installed
+    if not DependencyManager.cloudpathlib.imported():
+        return False
+
+    try:
+        from cloudpathlib import CloudPath
+
+        return isinstance(path, CloudPath)
+    except ImportError:
+        return path.__class__.__module__.startswith("cloudpathlib")
+
+
 def normalize_path(path: Path) -> Path:
     """Normalize a path without resolving symlinks.
 
@@ -117,7 +138,7 @@ def normalize_path(path: Path) -> Path:
     """
     # Skip normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
     # os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
-    if path.__class__.__module__.startswith("cloudpathlib"):
+    if is_cloudpath(path):
         return path
 
     # Make absolute if relative (relative to current working directory)
