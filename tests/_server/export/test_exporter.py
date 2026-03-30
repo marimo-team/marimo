@@ -991,7 +991,7 @@ def test_export_html_skips_oversized_virtual_files(
     file_manager = AppFileManager.from_app(InternalApp(app))
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
-    # 10_000_000 bytes exceeds the 5 MB limit
+    # 20_000_000 bytes (20 MB) exceeds the 10 MB inline limit
     html_with_large_audio = (
         '<audio src="./@file/20000000-huge.wav" controls></audio>'
     )
@@ -1039,7 +1039,7 @@ def test_export_html_skips_oversized_virtual_files(
 
     # The large file should NOT be inlined in the HTML output
     assert "data:audio/x-wav;base64," not in html
-    # It should fall through to the virtual_files dict instead
+    # The original virtual file URL should remain in the HTML
     assert "./@file/20000000-huge.wav" in html
 
 

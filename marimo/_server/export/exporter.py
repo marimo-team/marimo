@@ -270,7 +270,9 @@ class Exporter:
             byte_length = int(byte_length_str)
         except Exception as e:
             LOGGER.warning(
-                "File not found in export: %s. Error: %s", file_url, e
+                "Invalid virtual file URL in export: %s. Error: %s",
+                file_url,
+                e,
             )
             return None
 
