@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import re
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
     from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.engine.interfaces import ReflectedColumn, ReflectedIndex
     from sqlalchemy.sql.type_api import TypeEngine
+
+# Quote if the identifier contains anything other than letters, digits, underscores, or dollar signs.
+_SNOWFLAKE_NEEDS_QUOTING_RE = re.compile(r"[^A-Za-z0-9_$]")
 
 
 # ------------------------------------------------------------------ #
@@ -116,6 +120,23 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         self.default_database = self.get_default_database()
         self.default_schema = self.get_default_schema()
 
+    def _quote_identifier(self, identifier: str) -> str:
+        """Quote an identifier based on the SQL dialect's quoting rules."""
+        dialect_quoting: dict[str, tuple[re.Pattern[str], str, str]] = {
+            "snowflake": (_SNOWFLAKE_NEEDS_QUOTING_RE, '"', '"'),
+        }
+
+        if self.dialect not in dialect_quoting:
+            return identifier
+
+        pattern, open_quote, close_quote = dialect_quoting[self.dialect]
+        if pattern.search(identifier):
+            escaped = identifier.replace(
+                close_quote, close_quote + close_quote
+            )
+            return f"{open_quote}{escaped}{close_quote}"
+        return identifier
+
     @contextmanager
     def _get_inspector(self, database: str) -> Iterator[Optional[Inspector]]:
         """Yield an appropriate SQLAlchemy Inspector for the given database.
@@ -135,12 +156,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 return inspector.get_schema_names()
         """
 
-        import re
-
         from sqlalchemy import inspect, text
 
         _use_database_dialect_command: dict[str, str] = {
-            "snowflake": f"""USE DATABASE {f'"{database}"' if re.search(r"[^A-Za-z0-9_]", database) else database}""",
+            "snowflake": f"""USE DATABASE {self._quote_identifier(database)}""",
         }
         dialect_command = _use_database_dialect_command.get(self.dialect)
 
@@ -294,9 +313,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
         If the default database exists in the results, return only that.
         Otherwise, return all discovered databases.
-        """
-        import re
 
+        Snowflake stores unquoted identifiers in UPPERCASE.
+        Identifiers that need quoting are preserved as-is.
+        """
         from sqlalchemy import text
 
         with self._connection.connect() as connection:
@@ -311,18 +331,21 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                     f"'name' column not found in {columns}"
                 ) from err
 
-            database_names = [
-                str(row[name_col_index])
-                if re.search(r"[^A-Za-z0-9_]", str(row[name_col_index]))
-                else str(row[name_col_index]).lower()
-                for row in result.fetchall()
-            ]
+            database_names: list[str] = []
+            for row in result.fetchall():
+                raw_name = str(row[name_col_index])
+                if _SNOWFLAKE_NEEDS_QUOTING_RE.search(raw_name):
+                    database_names.append(raw_name)
+                else:
+                    # Snowflake normalizes unquoted identifiers to uppercase;
+                    # we store them in uppercase to match.
+                    database_names.append(raw_name.upper())
 
         if self.default_database:
-            default_lower = self.default_database.lower()
+            default_upper = self.default_database.upper()
             for db in database_names:
-                if db.lower() == default_lower:
-                    return [str(db).lower()]
+                if db.upper() == default_upper:
+                    return [db]
 
         return database_names
 
