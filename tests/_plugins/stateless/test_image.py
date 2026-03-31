@@ -212,6 +212,14 @@ def test_image_constructor_pil():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_image_zero_width_array():
+    import numpy as np
+
+    with pytest.raises(ValueError, match="zero-size dimension"):
+        image(np.zeros((100, 0, 3)))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_image_uint8_no_normalization():
     import numpy as np
     from PIL import Image as PILImage

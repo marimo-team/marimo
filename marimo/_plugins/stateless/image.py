@@ -82,6 +82,12 @@ def _normalize_image(
         is_uint8 = src.__array_interface__["typestr"] == "|u1"
         has_bounds = vmin is not None or vmax is not None
 
+        if 0 in src.__array_interface__.get("shape", (0,)):
+            raise ValueError(
+                f"Cannot render an image from an array with a zero-size "
+                f"dimension (shape {src.__array_interface__['shape']!r})."
+            )
+
         if not is_uint8 or has_bounds:
             lo = float(vmin) if vmin is not None else float(src.min())
             hi = float(vmax) if vmax is not None else float(src.max())
