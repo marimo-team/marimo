@@ -39,15 +39,6 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  - repo: local
-    hooks:
-      - id: deptry
-        name: deptry
-        entry: uvx deptry
-        language: system
-        pass_filenames: false
-        args: [marimo]
-
   - repo: https://github.com/biomejs/pre-commit
     rev: v2.3.13
     hooks:

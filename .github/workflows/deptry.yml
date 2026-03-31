@@ -1,0 +1,25 @@
+name: 🔍 Dependency check
+
+# Check for unused, missing, and transitive dependencies with deptry.
+# Runs weekly on Mondays at 8:00 UTC and on every push to main.
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deptry:
+    name: Check dependencies with deptry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+      - name: Run deptry
+        run: uvx deptry marimo
