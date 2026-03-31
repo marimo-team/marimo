@@ -620,7 +620,7 @@ components:
         \        cell_id: Cell where completion is requested."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         document:
           type: string
         id:
@@ -638,7 +638,7 @@ components:
     CodeCompletionRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         document:
           type: string
         id:
@@ -799,7 +799,7 @@ components:
         \ Length of prefix to replace.\n        options: Completion options to display."
       properties:
         completion_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         op:
           enum:
           - completion-result
@@ -841,7 +841,7 @@ components:
           - type: 'null'
           default: null
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           type: string
         config:
@@ -1224,7 +1224,7 @@ components:
         \ to debug.\n        request: HTTP request context if available."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -1241,7 +1241,7 @@ components:
     DebugCellRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -1255,7 +1255,7 @@ components:
       description: Remove a cell from the notebook.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - delete-cell
@@ -1270,7 +1270,7 @@ components:
         \ stale.\n\n    Attributes:\n        cell_id: Cell to delete."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - delete-cell
@@ -1282,7 +1282,7 @@ components:
     DeleteCellRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
       required:
       - cellId
       title: DeleteCellRequest
@@ -1417,7 +1417,7 @@ components:
         \        timestamp: Unix timestamp when command was created."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           type: string
         request:
@@ -1446,7 +1446,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -1472,7 +1472,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -1907,7 +1907,7 @@ components:
     FocusCellRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
       required:
       - cellId
       title: FocusCellRequest
@@ -2194,7 +2194,7 @@ components:
           default: null
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         values:
           type: array
@@ -2252,7 +2252,7 @@ components:
         args:
           type: object
         functionCallId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         functionName:
           type: string
         namespace:
@@ -2273,7 +2273,7 @@ components:
         args:
           type: object
         functionCallId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         functionName:
           type: string
         namespace:
@@ -2711,7 +2711,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - list-sql-schemas
@@ -2729,7 +2729,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - engine
@@ -2749,7 +2749,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
         type:
@@ -2770,7 +2770,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
       required:
@@ -2786,7 +2786,7 @@ components:
         \ for this request."
       properties:
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - list-secret-keys
@@ -2798,7 +2798,7 @@ components:
     ListSecretKeysRequest:
       properties:
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       title: ListSecretKeysRequest
@@ -3090,7 +3090,7 @@ components:
           type: string
         sessionId:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/SessionId'
           - type: 'null'
           default: null
       required:
@@ -3263,7 +3263,7 @@ components:
               update: '#/components/schemas/ModelUpdateMessage'
             propertyName: method
         modelId:
-          type: string
+          $ref: '#/components/schemas/WidgetModelId'
         token:
           type: string
         type:
@@ -3379,7 +3379,7 @@ components:
               update: '#/components/schemas/ModelUpdateMessage'
             propertyName: method
         modelId:
-          type: string
+          $ref: '#/components/schemas/WidgetModelId'
         token:
           type: string
       required:
@@ -3453,7 +3453,7 @@ components:
           - type: 'null'
           default: null
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - move-cell
@@ -3730,7 +3730,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
         tableName:
@@ -3754,7 +3754,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
         tableName:
@@ -3976,7 +3976,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         type:
           enum:
@@ -4244,7 +4244,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -4390,7 +4390,7 @@ components:
       description: Replace a cell's source code.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           type: string
         type:
@@ -4406,7 +4406,7 @@ components:
       description: Partially update a cell's config. None fields are unchanged.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         column:
           anyOf:
           - type: integer
@@ -4434,7 +4434,7 @@ components:
       description: Rename a cell.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         name:
           type: string
         type:
@@ -4485,7 +4485,7 @@ components:
     ShutdownSessionRequest:
       properties:
         sessionId:
-          type: string
+          $ref: '#/components/schemas/SessionId'
       required:
       - sessionId
       title: ShutdownSessionRequest
@@ -4709,7 +4709,7 @@ components:
           default: false
           type: boolean
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - namespace
@@ -4834,7 +4834,7 @@ components:
           - type: 'null'
           default: null
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - namespace
@@ -5148,7 +5148,7 @@ components:
       properties:
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         request:
           anyOf:
@@ -5172,7 +5172,7 @@ components:
       properties:
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         request:
           anyOf:
@@ -5192,7 +5192,7 @@ components:
       properties:
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         values:
           type: array
@@ -5248,7 +5248,7 @@ components:
         query:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - validate-sql
@@ -5276,7 +5276,7 @@ components:
         query:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - query
@@ -5337,7 +5337,7 @@ components:
             $ref: '#/components/schemas/CellId'
           type: array
         name:
-          type: string
+          $ref: '#/components/schemas/VariableName'
         used_by:
           items:
             $ref: '#/components/schemas/CellId'

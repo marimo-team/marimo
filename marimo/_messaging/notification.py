@@ -37,7 +37,13 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
-from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
+from marimo._types.ids import (
+    CellId_t,
+    RequestId,
+    UIElementId,
+    VariableName,
+    WidgetModelId,
+)
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -311,7 +317,7 @@ class CompletionResultNotification(Notification, tag="completion-result"):
     """
 
     name: ClassVar[str] = "completion-result"
-    completion_id: str
+    completion_id: RequestId
     prefix_length: int
     options: list[CompletionOption]
 
@@ -435,7 +441,7 @@ class VariableDeclarationNotification(msgspec.Struct):
         used_by: Cell IDs that use this variable.
     """
 
-    name: str
+    name: VariableName
     declared_by: list[CellId_t]
     used_by: list[CellId_t]
 

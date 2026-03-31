@@ -143,7 +143,9 @@ def _enrich_branded_types(
     for model in models:
         _visit_type(model)
 
-    # Step 3 — walk collected structs and replace inline schemas with $refs
+    # Step 3 — walk collected structs and replace inline schemas with $refs.
+    # Use msgspec.structs.fields() to map Python names → schema keys,
+    # which accounts for rename="camel" and other rename strategies.
     for schema_name, struct_cls in all_structs.items():
         schema = component_schemas.get(schema_name)
         if schema is None:
@@ -156,17 +158,25 @@ def _enrich_branded_types(
         except Exception:
             continue
 
+        field_to_schema_key: dict[str, str] = {}
+        try:
+            for fi in msgspec.structs.fields(struct_cls):
+                field_to_schema_key[fi.name] = fi.encode_name
+        except Exception:
+            field_to_schema_key = {name: name for name in hints}
+
         for field_name, field_type in hints.items():
-            if field_name not in properties:
+            schema_key = field_to_schema_key.get(field_name, field_name)
+            if schema_key not in properties:
                 continue
 
             replacement = resolve(field_type)
             if replacement is not None:
                 # Preserve default value from the original schema
-                existing = properties[field_name]
+                existing = properties[schema_key]
                 if isinstance(existing, dict) and "default" in existing:
                     replacement["default"] = existing["default"]
-                properties[field_name] = replacement
+                properties[schema_key] = replacement
 
     # Step 4 — replace inline {type: string, contentEncoding: base64}
     # with a named $ref. msgspec already emits contentEncoding for

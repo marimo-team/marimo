@@ -4,7 +4,7 @@
  */
 
 /** Branded string type — compile-time only. */
-type TypedString<T extends string> = string & { __type__: T };
+type TypedString<T extends string> = string & { __brand: T };
 
 export interface paths {
   "/@file/{filename_and_length}": {
@@ -3677,7 +3677,7 @@ export interface components {
      *             cell_id: Cell where completion is requested.
      */
     CodeCompletionCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       document: string;
       id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
@@ -3685,7 +3685,7 @@ export interface components {
     };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       document: string;
       id: components["schemas"]["RequestId"];
     };
@@ -3771,7 +3771,7 @@ export interface components {
      *             options: Completion options to display.
      */
     CompletionResultNotification: {
-      completion_id: string;
+      completion_id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       op: "completion-result";
       options: components["schemas"]["CompletionOption"][];
@@ -3791,7 +3791,7 @@ export interface components {
       after?: components["schemas"]["CellId"] | null;
       /** @default null */
       before?: components["schemas"]["CellId"] | null;
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       code: string;
       config: components["schemas"]["CellConfig"];
       name: string;
@@ -4018,7 +4018,7 @@ export interface components {
      *             request: HTTP request context if available.
      */
     DebugCellCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -4026,7 +4026,7 @@ export interface components {
     };
     /** DebugCellRequest */
     DebugCellRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
@@ -4035,7 +4035,7 @@ export interface components {
      * @description Remove a cell from the notebook.
      */
     DeleteCell: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "delete-cell";
     };
@@ -4050,13 +4050,13 @@ export interface components {
      *             cell_id: Cell to delete.
      */
     DeleteCellCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "delete-cell";
     };
     /** DeleteCellRequest */
     DeleteCellRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
     };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
@@ -4137,7 +4137,7 @@ export interface components {
      *             timestamp: Unix timestamp when command was created.
      */
     ExecuteCellCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       code: string;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4159,7 +4159,7 @@ export interface components {
      *             timestamp: Unix timestamp when command was created.
      */
     ExecuteCellsCommand: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4169,7 +4169,7 @@ export interface components {
     };
     /** ExecuteCellsRequest */
     ExecuteCellsRequest: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4393,7 +4393,7 @@ export interface components {
     };
     /** FocusCellRequest */
     FocusCellRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
     };
     /** FormatCellsRequest */
     FormatCellsRequest: {
@@ -4604,7 +4604,7 @@ export interface components {
       codes?: {
         [key: string]: string;
       } | null;
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
     /**
@@ -4642,7 +4642,7 @@ export interface components {
      */
     InvokeFunctionCommand: {
       args: Record<string, any>;
-      functionCallId: string;
+      functionCallId: components["schemas"]["RequestId"];
       functionName: string;
       namespace: string;
       /** @enum {unknown} */
@@ -4651,7 +4651,7 @@ export interface components {
     /** InvokeFunctionRequest */
     InvokeFunctionRequest: {
       args: Record<string, any>;
-      functionCallId: string;
+      functionCallId: components["schemas"]["RequestId"];
       functionName: string;
       namespace: string;
     };
@@ -4925,7 +4925,7 @@ export interface components {
     ListSQLSchemasCommand: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "list-sql-schemas";
     };
@@ -4933,7 +4933,7 @@ export interface components {
     ListSQLSchemasRequest: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * ListSQLTablesCommand
@@ -4951,7 +4951,7 @@ export interface components {
     ListSQLTablesCommand: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
       /** @enum {unknown} */
       type: "list-sql-tables";
@@ -4960,7 +4960,7 @@ export interface components {
     ListSQLTablesRequest: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
     };
     /**
@@ -4973,13 +4973,13 @@ export interface components {
      *             request_id: Unique identifier for this request.
      */
     ListSecretKeysCommand: {
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "list-secret-keys";
     };
     /** ListSecretKeysRequest */
     ListSecretKeysRequest: {
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /** ListSecretKeysResponse */
     ListSecretKeysResponse: {
@@ -5127,7 +5127,7 @@ export interface components {
       name: string;
       path: string;
       /** @default null */
-      sessionId?: string | null;
+      sessionId?: components["schemas"]["SessionId"] | null;
     };
     /**
      * MarimoInternalError
@@ -5232,7 +5232,7 @@ export interface components {
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
-      modelId: string;
+      modelId: components["schemas"]["WidgetModelId"];
       token?: string;
       /** @enum {unknown} */
       type: "model";
@@ -5296,7 +5296,7 @@ export interface components {
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
-      modelId: string;
+      modelId: components["schemas"]["WidgetModelId"];
       token?: string;
     };
     /**
@@ -5333,7 +5333,7 @@ export interface components {
       after?: components["schemas"]["CellId"] | null;
       /** @default null */
       before?: components["schemas"]["CellId"] | null;
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "move-cell";
     };
@@ -5511,7 +5511,7 @@ export interface components {
     PreviewSQLTableCommand: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
       tableName: string;
       /** @enum {unknown} */
@@ -5521,7 +5521,7 @@ export interface components {
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
       tableName: string;
     };
@@ -5679,7 +5679,7 @@ export interface components {
      *         are appended at the end. IDs not in the document are ignored.
      */
     ReorderCells: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       /** @enum {unknown} */
       type: "reorder-cells";
     };
@@ -5866,7 +5866,7 @@ export interface components {
     };
     /** SaveNotebookRequest */
     SaveNotebookRequest: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       filename: string;
@@ -5941,7 +5941,7 @@ export interface components {
      * @description Replace a cell's source code.
      */
     SetCode: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       code: string;
       /** @enum {unknown} */
       type: "set-code";
@@ -5951,7 +5951,7 @@ export interface components {
      * @description Partially update a cell's config. None fields are unchanged.
      */
     SetConfig: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @default null */
       column?: number | null;
       /** @default null */
@@ -5966,7 +5966,7 @@ export interface components {
      * @description Rename a cell.
      */
     SetName: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       name: string;
       /** @enum {unknown} */
       type: "set-name";
@@ -5992,7 +5992,7 @@ export interface components {
     };
     /** ShutdownSessionRequest */
     ShutdownSessionRequest: {
-      sessionId: string;
+      sessionId: components["schemas"]["SessionId"];
     };
     /** Snippet */
     Snippet: {
@@ -6143,7 +6143,7 @@ export interface components {
       path: string;
       /** @default false */
       preview?: boolean;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * StorageEntriesNotification
@@ -6221,7 +6221,7 @@ export interface components {
       namespace: string;
       /** @default null */
       prefix?: string | null;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * StorageNamespace
@@ -6434,7 +6434,7 @@ export interface components {
      *             token: Unique request identifier for deduplication.
      */
     UpdateUIElementCommand: {
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       token?: string;
@@ -6444,7 +6444,7 @@ export interface components {
     };
     /** UpdateUIElementRequest */
     UpdateUIElementRequest: {
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       token?: string;
@@ -6452,7 +6452,7 @@ export interface components {
     };
     /** UpdateUIElementValuesRequest */
     UpdateUIElementValuesRequest: {
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
     /**
@@ -6494,7 +6494,7 @@ export interface components {
       engine?: string | null;
       onlyParse: boolean;
       query: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "validate-sql";
     };
@@ -6506,7 +6506,7 @@ export interface components {
       engine?: string | null;
       onlyParse: boolean;
       query: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * ValidateSQLResultNotification
@@ -6546,7 +6546,7 @@ export interface components {
      */
     VariableDeclarationNotification: {
       declared_by: components["schemas"]["CellId"][];
-      name: string;
+      name: components["schemas"]["VariableName"];
       used_by: components["schemas"]["CellId"][];
     };
     VariableName: TypedString<"VariableName">;

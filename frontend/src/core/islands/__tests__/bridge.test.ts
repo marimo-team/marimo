@@ -1,5 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type base64String,
+  cellId,
+  requestId,
+  uiElementId,
+  widgetModelId,
+} from "@/__tests__/branded";
 
 // Mock browser APIs before any imports
 vi.stubGlobal(
@@ -89,7 +96,7 @@ describe("IslandsPyodideBridge", () => {
   describe("sendComponentValues", () => {
     it("should include type field and token in control request", async () => {
       const request = {
-        objectIds: ["Hbol-0"],
+        objectIds: [uiElementId("Hbol-0")],
         values: [58],
       };
 
@@ -108,7 +115,7 @@ describe("IslandsPyodideBridge", () => {
 
     it("should preserve all request properties", async () => {
       const request = {
-        objectIds: ["slider-1", "slider-2"],
+        objectIds: [uiElementId("slider-1"), uiElementId("slider-2")],
         values: [10, 20],
       };
 
@@ -128,7 +135,7 @@ describe("IslandsPyodideBridge", () => {
   describe("sendFunctionRequest", () => {
     it("should include type field in control request", async () => {
       const request = {
-        functionCallId: "call-123",
+        functionCallId: requestId("call-123"),
         namespace: "test_namespace",
         functionName: "my_function",
         args: { x: 1, y: 2 },
@@ -152,7 +159,7 @@ describe("IslandsPyodideBridge", () => {
   describe("sendRun", () => {
     it("should include type field in control request", async () => {
       const request = {
-        cellIds: ["cell-1", "cell-2"],
+        cellIds: [cellId("cell-1"), cellId("cell-2")],
         codes: ["print('hello')", "print('world')"],
       };
 
@@ -170,7 +177,7 @@ describe("IslandsPyodideBridge", () => {
 
     it("should call loadPackages before putControlRequest", async () => {
       const request = {
-        cellIds: ["cell-1"],
+        cellIds: [cellId("cell-1")],
         codes: ["import pandas"],
       };
 
@@ -190,13 +197,13 @@ describe("IslandsPyodideBridge", () => {
   describe("sendModelValue", () => {
     it("should include type field in control request", async () => {
       const request = {
-        modelId: "widget-1",
+        modelId: widgetModelId("widget-1"),
         message: {
           method: "update" as const,
           state: { value: 42 },
           bufferPaths: [],
         },
-        buffers: [],
+        buffers: [] as ReturnType<typeof base64String>[],
       };
 
       await bridge.sendModelValue(request);
@@ -222,16 +229,16 @@ describe("IslandsPyodideBridge", () => {
       // Test all methods to ensure they include the type field
       await bridge.sendComponentValues({ objectIds: [], values: [] });
       await bridge.sendFunctionRequest({
-        functionCallId: "",
+        functionCallId: requestId(""),
         namespace: "",
         functionName: "",
         args: {},
       });
       await bridge.sendRun({ cellIds: [], codes: [] });
       await bridge.sendModelValue({
-        modelId: "",
+        modelId: widgetModelId(""),
         message: { method: "update", state: {}, bufferPaths: [] },
-        buffers: [],
+        buffers: [] as ReturnType<typeof base64String>[],
       });
 
       // All calls should have the type field

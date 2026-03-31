@@ -18,6 +18,7 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -121,7 +122,7 @@ describe("applyTransactionChanges edge cases", () => {
     apply([
       {
         type: "create-cell",
-        cellId: "new-cell",
+        cellId: cellId("new-cell"),
         code: "configured",
         name: "",
         config: { hide_code: true, disabled: true, column: 1 },
@@ -141,12 +142,12 @@ describe("applyTransactionChanges edge cases", () => {
     apply([
       {
         type: "create-cell",
-        cellId: "new-cell",
+        cellId: cellId("new-cell"),
         code: "new",
         name: "",
         config: {},
       },
-      { type: "move-cell", cellId: "new-cell", before: a },
+      { type: "move-cell", cellId: cellId("new-cell"), before: a },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
@@ -162,12 +163,12 @@ describe("applyTransactionChanges edge cases", () => {
     apply([
       {
         type: "create-cell",
-        cellId: "new-cell",
+        cellId: cellId("new-cell"),
         code: "initial",
         name: "",
         config: {},
       },
-      { type: "set-code", cellId: "new-cell", code: "updated" },
+      { type: "set-code", cellId: cellId("new-cell"), code: "updated" },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
@@ -182,12 +183,12 @@ describe("applyTransactionChanges edge cases", () => {
     apply([
       {
         type: "create-cell",
-        cellId: "ephemeral",
+        cellId: cellId("ephemeral"),
         code: "tmp",
         name: "",
         config: {},
       },
-      { type: "delete-cell", cellId: "ephemeral" },
+      { type: "delete-cell", cellId: cellId("ephemeral") },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
@@ -228,7 +229,7 @@ describe("applyTransactionChanges edge cases", () => {
   it("move-cell with missing after anchor falls back to end", () => {
     setup("a", "b");
     const [a] = state.cellIds.inOrderIds;
-    apply([{ type: "move-cell", cellId: a, after: "nonexistent" as CellId }]);
+    apply([{ type: "move-cell", cellId: a, after: cellId("nonexistent") }]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
       1: 'b'
@@ -240,7 +241,7 @@ describe("applyTransactionChanges edge cases", () => {
   it("move-cell with missing before anchor falls back to start", () => {
     setup("a", "b");
     const [, b] = state.cellIds.inOrderIds;
-    apply([{ type: "move-cell", cellId: b, before: "nonexistent" as CellId }]);
+    apply([{ type: "move-cell", cellId: b, before: cellId("nonexistent") }]);
     expect(pretty(state)).toMatchInlineSnapshot(`
       "
       1: 'b'
@@ -254,8 +255,8 @@ describe("applyTransactionChanges edge cases", () => {
     apply([
       {
         type: "move-cell",
-        cellId: "nonexistent" as CellId,
-        after: "0" as CellId,
+        cellId: cellId("nonexistent"),
+        after: cellId("0"),
       },
     ]);
     expect(pretty(state)).toMatchInlineSnapshot(`

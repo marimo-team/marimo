@@ -25,7 +25,7 @@ const BRANDED_TYPES = {
  * Injected at the top of the generated file so branded schemas can reference it.
  */
 const TYPED_STRING_HELPER =
-  "/** Branded string type — compile-time only. */\ntype TypedString<T extends string> = string & { __type__: T };\n";
+  "/** Branded string type — compile-time only. */\ntype TypedString<T extends string> = string & { __brand: T };\n";
 
 /**
  * Apply post-generation transforms to the TypeScript output.
@@ -56,6 +56,7 @@ function transform(content) {
   // 4. UIElementId is a template literal, not a simple branded string.
   result = result.replace(
     /\bUIElementId: string;/,
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: there is no interpolation here, just raw string
     'UIElementId: `${components["schemas"]["CellId"]}-${string}`;',
   );
 
