@@ -320,6 +320,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
 
 class EnvConfigManager(PartialMarimoConfigReader):
     """Read configuration overrides from environment variables."""
+
     def _maybe_override_from_env(
         self, key: str, path: list[str], config: PartialMarimoConfig
     ) -> None:

@@ -166,6 +166,7 @@ class CellOutput:
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
     """Internal implementation of a notebook cell, including AST, code, and runtime state."""
+
     # hash of code
     key: int
     code: str

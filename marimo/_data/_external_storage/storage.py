@@ -408,6 +408,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
 
     async def download(self, path: str) -> bytes:
         """Download the full contents of the file at the given path."""
+
         # There is no async version of open, so we wrap the synchronous open method
         def _read() -> str | bytes:
             return self.store.open(path).read()  # type: ignore[no-any-return]
