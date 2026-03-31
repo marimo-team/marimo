@@ -244,7 +244,11 @@ class TestVirtualFileReplacement:
         assert "./@file/500-clip.wav" not in result
         assert "./@file/600-movie.mp4" not in result
         assert "./@file/100-pic.png" not in result
-        assert "data:audio/x-wav;base64," in result
+        # mimetypes returns audio/x-wav on macOS/Linux, audio/wav on Windows
+        assert (
+            "data:audio/x-wav;base64," in result
+            or "data:audio/wav;base64," in result
+        )
         assert "data:video/mp4;base64," in result
         assert "data:image/png;base64," in result
         assert len(replaced) == 3
@@ -269,7 +273,11 @@ class TestVirtualFileReplacement:
 
         # Small file should be inlined
         assert "./@file/1000-small.wav" not in result
-        assert "data:audio/x-wav;base64," in result
+        # mimetypes returns audio/x-wav on macOS/Linux, audio/wav on Windows
+        assert (
+            "data:audio/x-wav;base64," in result
+            or "data:audio/wav;base64," in result
+        )
         assert "./@file/1000-small.wav" in replaced
 
         # Large file should get a text/plain placeholder instead of the

@@ -969,7 +969,10 @@ def test_export_html_replaces_audio_virtual_files(
 
     assert filename == "notebook.html"
     assert "./@file/500-clip.wav" not in html
-    assert "data:audio/x-wav;base64," in html
+    # mimetypes returns audio/x-wav on macOS/Linux, audio/wav on Windows
+    assert (
+        "data:audio/x-wav;base64," in html or "data:audio/wav;base64," in html
+    )
 
     expected_b64 = base64.b64encode(b"fake_audio_data").decode()
     assert expected_b64 in html
@@ -1038,7 +1041,9 @@ def test_export_html_skips_oversized_virtual_files(
         )
 
     # The large file should NOT be inlined as audio in the HTML output
+    # mimetypes returns audio/x-wav on macOS/Linux, audio/wav on Windows
     assert "data:audio/x-wav;base64," not in html
+    assert "data:audio/wav;base64," not in html
     # A text/plain placeholder should appear instead of the broken URL
     assert "data:text/plain;base64," in html
     assert "./@file/20000000-huge.wav" not in html
