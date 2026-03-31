@@ -1,12 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+import type { components } from "@marimo-team/marimo-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  type base64String,
   cellId,
   requestId,
   uiElementId,
   widgetModelId,
 } from "@/__tests__/branded";
+
+type Base64String = components["schemas"]["Base64String"];
 
 // Mock browser APIs before any imports
 vi.stubGlobal(
@@ -203,7 +206,7 @@ describe("IslandsPyodideBridge", () => {
           state: { value: 42 },
           bufferPaths: [],
         },
-        buffers: [] as ReturnType<typeof base64String>[],
+        buffers: [] as Base64String[],
       };
 
       await bridge.sendModelValue(request);
@@ -238,7 +241,7 @@ describe("IslandsPyodideBridge", () => {
       await bridge.sendModelValue({
         modelId: widgetModelId(""),
         message: { method: "update", state: {}, bufferPaths: [] },
-        buffers: [] as ReturnType<typeof base64String>[],
+        buffers: [] as Base64String[],
       });
 
       // All calls should have the type field
