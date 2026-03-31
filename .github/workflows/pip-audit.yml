@@ -1,0 +1,24 @@
+name: 🔒 Dependency vulnerability scan
+
+# Scan Python dependencies for known vulnerabilities using pip-audit.
+# Runs weekly on Mondays at 8:00 UTC and on every push to main.
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+      - run: uvx pip-audit
