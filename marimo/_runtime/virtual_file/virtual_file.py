@@ -34,6 +34,7 @@ _ALPHABET = string.ascii_letters + string.digits
 
 
 def random_filename(ext: str) -> str:
+    """Generate a random, thread-safe filename with the given extension."""
     # adapted from: https://stackoverflow.com/questions/13484726/safe-enough-8-character-short-unique-random-string  # noqa: E501
     # TODO(akshayka): should callers redraw if they get a collision?
     try:
@@ -47,6 +48,8 @@ def random_filename(ext: str) -> str:
 
 @dataclasses.dataclass
 class VirtualFile:
+    """An in-memory file served via a virtual URL for use in notebook outputs."""
+
     url: str
     filename: str
     buffer: bytes
@@ -76,6 +79,7 @@ class VirtualFile:
 
     @staticmethod
     def from_external_url(url: str) -> VirtualFile:
+        """Create a VirtualFile that wraps an external URL with an empty buffer."""
         return VirtualFile(
             filename=url,
             buffer=b"",
@@ -126,6 +130,8 @@ EMPTY_VIRTUAL_FILE = VirtualFile(
 
 
 class VirtualFileLifecycleItem(CellLifecycleItem):
+    """Cell lifecycle item that registers and cleans up a virtual file."""
+
     def __init__(self, ext: str, buffer: bytes) -> None:
         self.ext = _without_leading_dot(ext)
         self.buffer = buffer
@@ -133,6 +139,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         self._virtual_file: Optional[VirtualFile] = None
 
     def add_to_cell_lifecycle_registry(self) -> None:
+        """Register this lifecycle item with the current cell's lifecycle registry."""
         from marimo._runtime.context import get_context
 
         try:
@@ -147,6 +154,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
 
     @property
     def virtual_file(self) -> VirtualFile:
+        """The created VirtualFile (available after create() has been called)."""
         assert self._virtual_file is not None
         return self._virtual_file
 
@@ -179,6 +187,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         context.virtual_file_registry.add(self._virtual_file, context)
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
+        """Remove the virtual file from the registry if its refcount is 0 or the cell is deleted."""
         # Remove the file if the refcount is 0, or if the cell is being
         # deleted. (We can't rely on when the refcount will be decremented, so
         # we need to check for deletion explicitly to prevent leaks.)
@@ -194,6 +203,8 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
 
 @dataclasses.dataclass
 class VirtualFileRegistryItem:
+    """Metadata for a virtual file entry, including its reference count."""
+
     # number of HTML objects that are referencing this virtual file
     refcount: int
 
@@ -234,9 +245,11 @@ class VirtualFileRegistry:
         self.shutdown()
 
     def has(self, filename: str) -> bool:
+        """Return True if the given filename is registered."""
         return filename in self.registry
 
     def filenames(self) -> Iterable[str]:
+        """Return all registered virtual file filenames."""
         return self.registry.keys()
 
     def reference(self, filename: str) -> None:
@@ -256,6 +269,7 @@ class VirtualFileRegistry:
         return 0
 
     def add(self, virtual_file: VirtualFile, context: RuntimeContext) -> None:
+        """Add a virtual file to the registry and persist its buffer to storage."""
         if not context.virtual_files_supported:
             return
 
@@ -275,12 +289,14 @@ class VirtualFileRegistry:
         self.registry[key] = VirtualFileRegistryItem(refcount=0)
 
     def remove(self, virtual_file: VirtualFile) -> None:
+        """Remove a virtual file from the registry and delete its stored buffer."""
         key = virtual_file.filename
         if key in self.registry:
             self.storage.remove(key)
             del self.registry[key]
 
     def shutdown(self) -> None:
+        """Remove all registered virtual files and shut down the storage backend."""
         # Try to make this method re-entrant since it's called in the
         # sigterm handler
         #
@@ -300,6 +316,7 @@ def _without_leading_dot(ext: str) -> str:
 
 
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
+    """Read a virtual file's contents, raising HTTP 404 if not found."""
     try:
         return VirtualFileStorageManager().read(filename, byte_length)
     except KeyError as err:

@@ -51,6 +51,7 @@ class CellConfig(msgspec.Struct):
     def from_dict(
         cls, kwargs: dict[str, Any], warn: bool = True
     ) -> CellConfig:
+        """Create a CellConfig from a dictionary, ignoring unknown keys."""
         config = cls(
             **{k: v for k, v in kwargs.items() if k in CellConfigKeys}
         )
@@ -59,9 +60,11 @@ class CellConfig(msgspec.Struct):
         return config
 
     def asdict(self) -> dict[str, Any]:
+        """Serialize this config to a dictionary."""
         return asdict(self)
 
     def asdict_without_defaults(self) -> dict[str, Any]:
+        """Serialize this config to a dictionary, omitting fields with default values."""
         return {
             k: v
             for k, v in self.asdict().items()
@@ -69,6 +72,7 @@ class CellConfig(msgspec.Struct):
         }
 
     def is_different_from_default(self) -> bool:
+        """Return True if this config differs from the default CellConfig."""
         return self != CellConfig()
 
     def configure(self, update: dict[str, Any] | CellConfig) -> None:
@@ -101,6 +105,8 @@ RuntimeStateType = Literal[
 
 @dataclasses.dataclass
 class RuntimeState:
+    """Mutable container for a cell's current runtime execution state."""
+
     state: Optional[RuntimeStateType] = None
 
 
@@ -121,6 +127,8 @@ RunResultStatusType = Literal[
 
 @dataclasses.dataclass
 class RunResultStatus:
+    """Mutable container for the outcome of a cell's last execution attempt."""
+
     state: Optional[RunResultStatusType] = None
     exception: Optional[Exception] = None
 
@@ -143,16 +151,21 @@ def _is_coroutine(code: Optional[CodeType]) -> bool:
 
 @dataclasses.dataclass
 class CellStaleState:
+    """Mutable container tracking whether a cell's outputs are stale."""
+
     state: bool = False
 
 
 @dataclasses.dataclass
 class CellOutput:
+    """Mutable container holding a cell's last computed output."""
+
     output: Any = None
 
 
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
+    """Internal implementation of a notebook cell, including AST, code, and runtime state."""
     # hash of code
     key: int
     code: str
@@ -221,6 +234,7 @@ class CellImpl:
 
     @property
     def run_result_status(self) -> Optional[RunResultStatusType]:
+        """The outcome status of the cell's last execution attempt."""
         return self._run_result_status.state
 
     def _get_sqls(self, raw: bool = False) -> list[str]:
@@ -251,10 +265,12 @@ class CellImpl:
 
     @property
     def stale(self) -> bool:
+        """Whether this cell's outputs are stale and need re-execution."""
         return self._stale.state
 
     @property
     def disabled_transitively(self) -> bool:
+        """Whether this cell is disabled because an ancestor cell is disabled."""
         return self.runtime_state == "disabled-transitively"
 
     @property
@@ -293,6 +309,7 @@ class CellImpl:
         return None
 
     def is_coroutine(self) -> bool:
+        """Return True if this cell's body or last expression is a coroutine."""
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
     @property
@@ -338,6 +355,7 @@ class CellImpl:
 
     @property
     def init_variable_data(self) -> dict[Name, VariableData]:
+        """The first VariableData entry for each defined name."""
         return {key: vs[0] for key, vs in self.variable_data.items()}
 
     def set_runtime_state(
@@ -371,12 +389,14 @@ class CellImpl:
         run_result_status: RunResultStatusType,
         exception: Exception | None = None,
     ) -> None:
+        """Record the outcome of the cell's execution attempt."""
         self._run_result_status.state = run_result_status
         self._run_result_status.exception = exception
 
     def set_stale(
         self, stale: bool, stream: Stream | None = None, broadcast: bool = True
     ) -> None:
+        """Mark the cell as stale or fresh, optionally broadcasting to frontends."""
         from marimo._messaging.notification_utils import CellNotificationUtils
 
         self._stale.state = stale
@@ -386,14 +406,17 @@ class CellImpl:
             )
 
     def set_output(self, output: Any) -> None:
+        """Store the cell's computed output."""
         self._output.output = output
 
     @property
     def output(self) -> Any:
+        """The cell's last computed output value."""
         return self._output.output
 
     @property
     def exception(self) -> Exception | None:
+        """The exception raised during the last execution, or None."""
         return self._run_result_status.exception
 
 
@@ -460,6 +483,7 @@ class Cell:
 
     @property
     def name(self) -> str:
+        """The name of this cell (its function name)."""
         return self._name
 
     @property
@@ -760,6 +784,8 @@ class Cell:
 
 @dataclasses.dataclass
 class SourcePosition:
+    """Source location of a cell within a notebook file."""
+
     filename: str
     lineno: int
     col_offset: int

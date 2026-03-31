@@ -46,16 +46,21 @@ LOGGER = loggers.marimo_logger()
 
 
 class FormatterRegistry:
+    """Registry mapping types to their formatter functions."""
+
     def __init__(self) -> None:
         self.formatters: dict[type[Any], Formatter[Any]] = {}
 
     def is_empty(self) -> bool:
+        """Return True if no formatters have been registered."""
         return not self.formatters
 
     def add_formatter(self, t: type[Any], f: Formatter[Any]) -> None:
+        """Register a formatter function for the given type."""
         self.formatters[t] = f
 
     def get_formatter(self, obj: Any) -> Optional[Formatter[Any]]:
+        """Return the best registered formatter for obj, walking the MRO if needed."""
         top_level_type = type(obj)
         # Top-level formatters
         if top_level_type in self.formatters:
@@ -141,6 +146,7 @@ def get_formatter(
     # (e.g., for pandas, polars, arrow, etc.)
     include_opinionated: Optional[bool] = None,
 ) -> Optional[Formatter[T]]:
+    """Return a formatter for obj, respecting the _display_ and _mime_ protocols and opinionated flag."""
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
@@ -212,6 +218,8 @@ def get_formatter(
 
 @dataclass
 class FormattedOutput:
+    """A rendered output value with its MIME type and optional error information."""
+
     mimetype: KnownMimeType
     data: str
     traceback: Optional[str] = None
@@ -219,12 +227,14 @@ class FormattedOutput:
 
     @staticmethod
     def empty() -> FormattedOutput:
+        """Return an empty FormattedOutput with plain text MIME type."""
         return FormattedOutput(mimetype="text/plain", data="")
 
 
 def try_format(
     obj: Any, include_opinionated: Optional[bool] = None
 ) -> FormattedOutput:
+    """Format obj using the best available formatter, returning a FormattedOutput with any errors captured."""
     if obj is None:
         return FormattedOutput.empty()
 
@@ -326,6 +336,7 @@ def as_dom_node(value: object) -> Html:
 
 
 def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
+    """Convert a (mimetype, data) pair to an Html object for display."""
     if mimetype == "text/html":
         # Using `as_html` to embed multiline HTML content
         # into a multiline markdown string can break Python markdown's

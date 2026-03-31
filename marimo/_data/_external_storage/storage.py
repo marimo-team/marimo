@@ -39,12 +39,15 @@ LOGGER = _loggers.marimo_logger()
 
 
 class Obstore(StorageBackend["ObjectStore"]):
+    """Storage backend implementation using the obstore library."""
+
     def list_entries(
         self,
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
     ) -> list[StorageEntry]:
+        """List entries (files and virtual directories) at the given prefix."""
         result = self.store.list_with_delimiter(prefix=prefix)
 
         storage_entries: list[StorageEntry] = []
@@ -82,6 +85,7 @@ class Obstore(StorageBackend["ObjectStore"]):
         return storage_entries
 
     async def get_entry(self, path: str) -> StorageEntry:
+        """Retrieve metadata for a single object at the given path."""
         entry = await self.store.head_async(path)
         return self._create_storage_entry(entry)
 
@@ -107,6 +111,7 @@ class Obstore(StorageBackend["ObjectStore"]):
         )
 
     async def download(self, path: str) -> bytes:
+        """Download the full contents of the object at the given path."""
         result = await self.store.get_async(path)
         bytes_data = await result.bytes_async()
         return bytes(bytes_data)
@@ -114,6 +119,7 @@ class Obstore(StorageBackend["ObjectStore"]):
     async def read_range(
         self, path: str, *, offset: int = 0, length: int | None = None
     ) -> bytes:
+        """Read a byte range from the object at the given path."""
         if length is None:
             data = await self.download(path)
             return data[offset:]
@@ -128,6 +134,7 @@ class Obstore(StorageBackend["ObjectStore"]):
     async def sign_download_url(
         self, path: str, expiration: int = SIGNED_URL_EXPIRATION
     ) -> str | None:
+        """Return a presigned download URL for the object, or None if not supported."""
         from obstore import sign_async
         from obstore.store import AzureStore, GCSStore, S3Store
 
@@ -158,6 +165,7 @@ class Obstore(StorageBackend["ObjectStore"]):
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
+        """The storage protocol identifier (e.g. 's3', 'gcs', 'azure', 'file')."""
         from obstore.store import (
             AzureStore,
             GCSStore,
@@ -197,10 +205,12 @@ class Obstore(StorageBackend["ObjectStore"]):
 
     @property
     def backend_type(self) -> BackendType:
+        """The backend type identifier."""
         return "obstore"
 
     @property
     def root_path(self) -> str | None:
+        """The root path or bucket name for this store, or None for root/memory stores."""
         from obstore.store import HTTPStore, LocalStore, MemoryStore
 
         if isinstance(self.store, MemoryStore):
@@ -231,6 +241,7 @@ class Obstore(StorageBackend["ObjectStore"]):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if the variable is a compatible obstore ObjectStore instance."""
         if not DependencyManager.obstore.imported():
             return False
 
@@ -242,12 +253,15 @@ class Obstore(StorageBackend["ObjectStore"]):
 # The async implementations has a few unimplemented methods (like ls), so it's better to use synchronous versions and
 # wrap them in asyncio.to_thread
 class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
+    """Storage backend implementation using the fsspec library."""
+
     def list_entries(
         self,
         prefix: str | None,
         *,
         limit: int = DEFAULT_FETCH_LIMIT,
     ) -> list[StorageEntry]:
+        """List entries at the given prefix, handling stale fsspec directory cache."""
         # If no prefix provided, we use empty string to list root entries
         # Else, an error is raised
         if prefix is None:
@@ -348,6 +362,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             return "file"
 
     async def get_entry(self, path: str) -> StorageEntry:
+        """Retrieve metadata for a single file at the given path."""
         entry = await asyncio.to_thread(self.store.info, path)
         if not isinstance(entry, dict):
             raise ValueError(f"Entry at {path} is not a dictionary")
@@ -392,6 +407,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         )
 
     async def download(self, path: str) -> bytes:
+        """Download the full contents of the file at the given path."""
         # There is no async version of open, so we wrap the synchronous open method
         def _read() -> str | bytes:
             return self.store.open(path).read()  # type: ignore[no-any-return]
@@ -404,6 +420,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
     async def read_range(
         self, path: str, *, offset: int = 0, length: int | None = None
     ) -> bytes:
+        """Read a byte range from the file at the given path."""
         end = offset + length if length is not None else None
         data = await asyncio.to_thread(
             self.store.cat_file, path, start=offset, end=end
@@ -415,6 +432,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
     async def sign_download_url(
         self, path: str, expiration: int = SIGNED_URL_EXPIRATION
     ) -> str | None:
+        """Return a presigned download URL, or None if signing is not supported."""
         try:
             url = await asyncio.to_thread(
                 self.store.sign, path, expiration=expiration
@@ -428,6 +446,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
+        """The normalized storage protocol identifier."""
         store_protocol = self.store.protocol
         storage_options = self.store.storage_options
 
@@ -448,14 +467,17 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
 
     @property
     def backend_type(self) -> BackendType:
+        """The backend type identifier."""
         return "fsspec"
 
     @property
     def root_path(self) -> str | None:
+        """The root marker path for this filesystem."""
         return cast(str, self.store.root_marker)
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if the variable is a compatible fsspec AbstractFileSystem instance."""
         if not DependencyManager.fsspec.imported():
             return False
 

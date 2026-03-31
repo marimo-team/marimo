@@ -52,13 +52,16 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
 
     @property
     def source(self) -> str:
+        """The data source name."""
         return "clickhouse"
 
     @property
     def dialect(self) -> str:
+        """The SQL dialect name."""
         return "clickhouse"
 
     def execute(self, query: str) -> Any:
+        """Execute a SQL query and return results in the configured output format."""
         import chdb  # type: ignore
 
         query = query.strip()
@@ -159,6 +162,7 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
+        """Get all databases (not yet implemented for embedded Clickhouse)."""
         _, _, _ = include_schemas, include_tables, include_table_details
         return []
 
@@ -177,13 +181,16 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         return None
 
     def get_default_database(self) -> Optional[str]:
+        """Return the default database (not implemented for embedded Clickhouse)."""
         return None
 
     def get_default_schema(self) -> Optional[str]:
+        """Return the default schema (not applicable for Clickhouse)."""
         return None
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if the variable is a chdb SQLite-like Connection."""
         if not DependencyManager.chdb.imported():
             return False
 
@@ -193,6 +200,7 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Inference config enabling full auto-discovery for local chdb connections."""
         # Because chdb is a local connection, we can auto-discover everything
         return InferenceConfig(
             auto_discover_schemas=True,
@@ -214,13 +222,16 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
     @property
     def source(self) -> str:
+        """The data source name."""
         return "clickhouse"
 
     @property
     def dialect(self) -> str:
+        """The SQL dialect name."""
         return "clickhouse"
 
     def execute(self, query: str) -> Any:
+        """Execute a SQL query against the Clickhouse server and return results."""
         if self._connection is None:
             return None
 
@@ -257,6 +268,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if the variable is a clickhouse_connect Client."""
         if not DependencyManager.clickhouse_connect.imported():
             return False
 
@@ -266,6 +278,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Inference config with selective auto-discovery for Clickhouse server connections."""
         return InferenceConfig(
             auto_discover_schemas=False,
             auto_discover_tables="auto",
@@ -555,6 +568,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         )
 
     def get_default_database(self) -> Optional[str]:
+        """Return the current database from the Clickhouse server, or None on failure."""
         if self._connection is None:
             return None
 
@@ -578,5 +592,6 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         return str(db_name.iloc[0, 0])
 
     def get_default_schema(self) -> Optional[str]:
+        """Return None since ClickHouse does not have schemas."""
         # ClickHouse does not have schemas
         return None

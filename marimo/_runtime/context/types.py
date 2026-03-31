@@ -47,9 +47,11 @@ class GlobalContext:
 
     @property
     def mpl_installed(self) -> bool:
+        """Whether matplotlib has been installed in this context."""
         return self._mpl_installed
 
     def set_mpl_installed(self, mpl_installed: bool) -> None:
+        """Set whether matplotlib has been installed."""
         self._mpl_installed = mpl_installed
 
 
@@ -57,11 +59,14 @@ _GLOBAL_CONTEXT = GlobalContext()
 
 
 def get_global_context() -> GlobalContext:
+    """Return the singleton global context shared across all sessions."""
     return _GLOBAL_CONTEXT
 
 
 @dataclass
 class ExecutionContext:
+    """Per-cell execution state, including the current cell ID and its outputs."""
+
     cell_id: CellId_t
     setting_element_value: bool
     # Cell ID corresponding to local graph object, and not prefixed in script
@@ -75,6 +80,7 @@ class ExecutionContext:
     def with_connection(
         self, connection: duckdb.DuckDBPyConnection
     ) -> Iterator[None]:
+        """Context manager to temporarily set the active DuckDB connection."""
         old_conn = self.duckdb_connection
         self.duckdb_connection = connection
         yield
@@ -83,6 +89,8 @@ class ExecutionContext:
 
 @dataclass
 class RuntimeContext(abc.ABC):
+    """Abstract base class for a session's runtime context, holding all kernel-level state."""
+
     ui_element_registry: UIElementRegistry
     state_registry: StateRegistry
     function_registry: FunctionRegistry
@@ -103,16 +111,19 @@ class RuntimeContext(abc.ABC):
     @property
     @abc.abstractmethod
     def graph(self) -> dataflow.DirectedGraph:
+        """The notebook's reactive dataflow graph."""
         pass
 
     @property
     @abc.abstractmethod
     def globals(self) -> dict[str, Any]:
+        """The kernel's global variable namespace."""
         pass
 
     @property
     @abc.abstractmethod
     def execution_context(self) -> ExecutionContext | None:
+        """The execution context for the currently running cell, if any."""
         pass
 
     @property
@@ -155,40 +166,49 @@ class RuntimeContext(abc.ABC):
 
     @abc.abstractmethod
     def get_ui_initial_value(self, object_id: str) -> Any:
+        """Return the initial value for a UI element by its object ID."""
         pass
 
     @contextmanager
     @abc.abstractmethod
     def provide_ui_ids(self, prefix: str) -> Iterator[None]:
+        """Context manager that scopes UI element ID generation under a prefix."""
         pass
 
     @abc.abstractmethod
     def take_id(self) -> str:
+        """Take and return the next available UI element ID."""
         pass
 
     @abc.abstractmethod
     def register_state_update(self, state: State[Any]) -> None:
+        """Register a state update to be processed after the current cell finishes."""
         pass
 
     @contextmanager
     @abc.abstractmethod
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        """Context manager that sets the currently executing cell ID."""
         pass
 
     def is_embedded(self) -> bool:
+        """Return True if this context is embedded within a parent context."""
         return self.parent is not None
 
     def add_child(self, runtime_context: RuntimeContext) -> None:
+        """Add a child runtime context (for embedded notebooks)."""
         if runtime_context not in self.children:
             self.children.append(runtime_context)
 
     def remove_child(self, runtime_context: RuntimeContext) -> None:
+        """Remove a child runtime context and shut down its virtual file registry."""
         self.children.remove(runtime_context)
         runtime_context.virtual_file_registry.shutdown()
         assert runtime_context not in self.children
 
     @contextmanager
     def install(self) -> Iterator[None]:
+        """Context manager that sets this as the thread-local runtime context."""
         global _THREAD_LOCAL_CONTEXT
         old_ctx = _THREAD_LOCAL_CONTEXT.runtime_context
         try:
@@ -200,6 +220,7 @@ class RuntimeContext(abc.ABC):
     @property
     @abc.abstractmethod
     def app(self) -> InternalApp:
+        """The InternalApp this context is running."""
         pass
 
 
@@ -214,7 +235,7 @@ class _ThreadLocalContext(threading.local):
 
 
 class ContextNotInitializedError(Exception):
-    pass
+    """Raised when the runtime context has not been initialized for this thread."""
 
 
 # Stores session-specific state, which is thread-local (relevant for run
@@ -224,6 +245,7 @@ _THREAD_LOCAL_CONTEXT = _ThreadLocalContext()
 
 
 def initialize_context(runtime_context: RuntimeContext) -> None:
+    """Initialize the thread-local runtime context; raises RuntimeError if already set."""
     try:
         get_context()
         raise RuntimeError("RuntimeContext was already initialized.")
@@ -255,6 +277,7 @@ def safe_get_context() -> Optional[RuntimeContext]:
 
 
 def runtime_context_installed() -> bool:
+    """Return True if a runtime context has been installed in this thread."""
     try:
         get_context()
     except ContextNotInitializedError:

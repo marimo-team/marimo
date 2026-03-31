@@ -39,10 +39,12 @@ UNCLONABLE_MODULES = set(
 
 
 def is_external(value: Any) -> bool:
+    """Return True if the value was defined outside of a marimo cell (i.e., in an external module)."""
     return "_marimo__cell_" not in inspect.getfile(value)
 
 
 def is_primitive(value: Any) -> bool:
+    """Return True if the value is a primitive type (bytes, str, number, None) or a tuple of primitives."""
     # Tuples don't allow for write access
     if isinstance(value, tuple):
         return all(map(is_primitive, value))
@@ -50,14 +52,17 @@ def is_primitive(value: Any) -> bool:
 
 
 def is_primitive_type(value: type) -> bool:
+    """Return True if the given type is a subclass of any primitive type."""
     return any(issubclass(value, primitive) for primitive in PRIMITIVES)
 
 
 def is_clone_primitive(value: Any) -> bool:
+    """Return True if the value is a primitive or a weakref (safe to clone without deep copy)."""
     return isinstance(value, CLONE_PRIMITIVES)
 
 
 def is_data_primitive(value: Any) -> bool:
+    """Return True if the value is a primitive or a numeric array-like (e.g., numpy array, tensor)."""
     if is_primitive(value):
         return True
 
@@ -129,14 +134,17 @@ def _is_primitive_container(
 
 
 def is_data_primitive_container(value: Any) -> bool:
+    """Return True if the value is a nested container whose leaves are all data primitives."""
     return _is_primitive_container(value, is_data_primitive)
 
 
 def is_primitive_container(value: Any) -> bool:
+    """Return True if the value is a nested container whose leaves are all primitives."""
     return _is_primitive_container(value, is_primitive)
 
 
 def is_instance_by_name(obj: object, name: str) -> bool:
+    """Return True if the object's fully-qualified type name matches the given string."""
     if not (hasattr(obj, "__module__") and hasattr(obj, "__class__")):
         return False
     obj_name = f"{obj.__module__}.{obj.__class__.__name__}"
@@ -144,6 +152,7 @@ def is_instance_by_name(obj: object, name: str) -> bool:
 
 
 def is_unclonable_type(obj: object) -> bool:
+    """Return True if the object is a Cell or a known unclonable marimo type."""
     # Cell objects in particular are hidden by functools.wraps.
     if isinstance(obj, Cell):
         return True
@@ -151,6 +160,7 @@ def is_unclonable_type(obj: object) -> bool:
 
 
 def from_unclonable_module(obj: object) -> bool:
+    """Return True if the object's module is in the set of known unclonable modules."""
     obj = obj if hasattr(obj, "__module__") else obj.__class__
     return hasattr(obj, "__module__") and any(
         [obj.__module__.startswith(name) for name in UNCLONABLE_MODULES]
@@ -162,6 +172,7 @@ def is_pure_scope(
     defs: dict[str, Any],
     cache: FN_CACHE_TYPE = None,
 ) -> bool:
+    """Return True if the reference is a module or a pure function in the given scope."""
     return inspect.ismodule(defs[ref]) or is_pure_function(
         ref, defs[ref], defs, cache
     )
@@ -174,6 +185,7 @@ def is_pure_function(
     cache: FN_CACHE_TYPE = None,
     graph: Optional[DirectedGraph] = None,
 ) -> bool:
+    """Return True if the callable only depends on other pure functions and modules (no external mutable state)."""
     if cache is None:
         cache = {}
     # Explicit removal of __hash__ indicates this is potentially mutable.

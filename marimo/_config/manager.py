@@ -69,6 +69,8 @@ def get_default_config_manager(
 
 
 class MarimoConfigReader:
+    """Base class for reading marimo configuration."""
+
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, optionally hiding secrets"""
@@ -82,40 +84,49 @@ class MarimoConfigReader:
 
     @property
     def default_width(self) -> WidthType:
+        """The default display width for notebooks."""
         return self._config["display"]["default_width"]
 
     @property
     def default_auto_download(self) -> list[ExportType]:
+        """The list of export formats to auto-download on notebook completion."""
         return self._config["runtime"].get("default_auto_download", [])
 
     @property
     def default_sql_output(self) -> SqlOutputType:
+        """The default output format for SQL cells."""
         return self._config["runtime"]["default_sql_output"]
 
     @property
     def theme(self) -> Theme:
+        """The UI theme (light, dark, or system)."""
         return self._config["display"]["theme"]
 
     @property
     def package_manager(self) -> PackageManagerKind:
+        """The package manager to use for installing dependencies."""
         return self._config["package_management"]["manager"]
 
     @property
     def completion(self) -> CompletionConfig:
+        """The code completion configuration."""
         return self._config["completion"]
 
     @property
     def language_servers(self) -> LanguageServersConfig:
+        """The language server configuration."""
         if "language_servers" in self._config:
             return self._config["language_servers"]
         return {}
 
     @property
     def is_auto_save_enabled(self) -> bool:
+        """Whether auto-save after delay is enabled."""
         return self._config["save"]["autosave"] == "after_delay"
 
     @property
     def experimental(self) -> ExperimentalConfigType:
+        """The experimental feature flags configuration."""
         if "experimental" in self._config:
             return self._config["experimental"]
         return {}
@@ -192,6 +203,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     # it is ok to expect updates to be reflected after a server restart.
     @lru_cache(maxsize=2)  # noqa: B019
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
+        """Get the project configuration from the nearest pyproject.toml."""
         try:
             if self.pyproject_path is None:
                 return {}
@@ -307,6 +319,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
 
 
 class EnvConfigManager(PartialMarimoConfigReader):
+    """Read configuration overrides from environment variables."""
     def _maybe_override_from_env(
         self, key: str, path: list[str], config: PartialMarimoConfig
     ) -> None:
@@ -353,6 +366,7 @@ class ScriptConfigManager(PartialMarimoConfigReader):
     # it is ok to expect updates to be reflected after a server restart.
     @lru_cache(maxsize=2)  # noqa: B019
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
+        """Get the configuration from PEP 723 script metadata."""
         if self.filename is None:
             return {}
         try:
@@ -393,6 +407,7 @@ class UserConfigManager(MarimoConfigReader):
     def save_config(
         self, config: Union[MarimoConfig, PartialMarimoConfig]
     ) -> MarimoConfig:
+        """Save the configuration to the user config file."""
         import tomlkit
 
         config_path = self.get_config_path()
@@ -409,6 +424,7 @@ class UserConfigManager(MarimoConfigReader):
         return merge_default_config(merged)
 
     def save_config_if_missing(self) -> None:
+        """Save the default configuration if no config file exists."""
         try:
             config_path = self.get_config_path()
             if not os.path.exists(config_path):
@@ -417,12 +433,14 @@ class UserConfigManager(MarimoConfigReader):
             LOGGER.warning("Failed to save config: %s", e)
 
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
+        """Get the user configuration, optionally masking secrets."""
         current_config = self._load_config()
         if hide_secrets:
             return mask_secrets(current_config)
         return current_config
 
     def get_config_path(self) -> str:
+        """Get the path to the user config file, creating it if needed."""
         return get_or_create_user_config_path()
 
     def _load_config(self) -> MarimoConfig:
@@ -458,6 +476,7 @@ class MarimoConfigReaderWithOverrides(PartialMarimoConfigReader):
         self.override_config = override_config
 
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
+        """Get the override configuration, optionally masking secrets."""
         if hide_secrets:
             return mask_secrets_partial(self.override_config)
         return self.override_config

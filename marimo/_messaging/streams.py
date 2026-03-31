@@ -54,6 +54,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def output_max_bytes() -> int:
+    """Return the configured maximum cell output size in bytes (default 5 MB)."""
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
@@ -63,6 +64,7 @@ def output_max_bytes() -> int:
 
 
 def std_stream_max_bytes() -> int:
+    """Return the configured maximum stdout/stderr message size in bytes (default 1 MB)."""
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
     try:
@@ -72,15 +74,21 @@ def std_stream_max_bytes() -> int:
 
 
 class PipeProtocol(Protocol):
+    """Protocol for objects that can send kernel messages."""
+
     def send(self, obj: KernelMessage) -> None:
+        """Send a kernel message."""
         pass
 
 
 class QueuePipe:
+    """A PipeProtocol implementation backed by a queue."""
+
     def __init__(self, queue: QueueType[KernelMessage]):
         self._queue = queue
 
     def send(self, obj: KernelMessage) -> None:
+        """Enqueue a kernel message without blocking."""
         self._queue.put_nowait(obj)
 
 
@@ -118,6 +126,7 @@ class ThreadSafeStream(Stream):
         self.input_queue = input_queue
 
     def write(self, data: KernelMessage) -> None:
+        """Send a kernel message through the pipe, swallowing OSErrors on broken pipes."""
         with self.stream_lock:
             try:
                 self.pipe.send(data)
@@ -201,6 +210,7 @@ class Watcher:
         self.thread.start()
 
     def start(self) -> None:
+        """Redirect the OS-level file descriptor to the write end of the pipe."""
         # Save the file for the standard stream by opening a new file
         # descriptor for it
         self.fd_dup = os.dup(self.fd)
@@ -210,6 +220,7 @@ class Watcher:
         os.dup2(self.write_fd, self.fd)
 
     def pause(self) -> None:
+        """Restore the original OS-level file descriptor, pausing redirection."""
         # Restore the original file descriptor to point to the standard
         # stream file
         os.dup2(self.fd_dup, self.fd)
@@ -217,6 +228,7 @@ class Watcher:
         self.standard_stream._set_fileno(None)
 
     def stop(self) -> None:
+        """Close the pipe and signal the forwarding thread to exit."""
         os.close(self.write_fd)
         os.close(self.read_fd)
         self._should_exit.set()
@@ -225,6 +237,8 @@ class Watcher:
 # NB: Python doesn't provide a standard out class to inherit from, so
 # we inherit from TextIOBase.
 class ThreadSafeStdout(Stdout):
+    """Thread-safe stdout that routes writes to the marimo frontend via a stream."""
+
     encoding = sys.stdout.encoding
     errors = sys.stdout.errors
     _fileno: int | None = None
@@ -247,6 +261,7 @@ class ThreadSafeStdout(Stdout):
         self._watcher.stop()
 
     def fileno(self) -> int:
+        """Return the OS file descriptor for the redirected stream."""
         if self._fileno is not None:
             return self._fileno
         raise io.UnsupportedOperation("Stream not redirected, no fileno.")
@@ -255,12 +270,15 @@ class ThreadSafeStdout(Stdout):
         self._fileno = fileno
 
     def writable(self) -> bool:
+        """Return True — stdout is writable."""
         return True
 
     def readable(self) -> bool:
+        """Return False — stdout is not readable."""
         return False
 
     def seekable(self) -> bool:
+        """Return False — stdout is not seekable."""
         return False
 
     def flush(self) -> None:
@@ -295,11 +313,14 @@ class ThreadSafeStdout(Stdout):
 
     # Buffer type not available python < 3.12, hence type ignore
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        """Write each string in the sequence to stdout."""
         for line in sequence:
             self.write(line)
 
 
 class ThreadSafeStderr(Stderr):
+    """Thread-safe stderr that routes writes to the marimo frontend via a stream."""
+
     encoding = sys.stderr.encoding
     errors = sys.stderr.errors
     _fileno: int | None = None
@@ -371,6 +392,7 @@ class ThreadSafeStderr(Stderr):
         return len(data)
 
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        """Write each string in the sequence to stderr."""
         for line in sequence:
             self.write(line)
 
@@ -390,9 +412,11 @@ class ThreadSafeStdin(Stdin):
         )
 
     def writable(self) -> bool:
+        """Return False — stdin is not writable."""
         return False
 
     def readable(self) -> bool:
+        """Return True — stdin is readable."""
         return True
 
     def _readline_with_prompt(
@@ -431,12 +455,14 @@ class ThreadSafeStdin(Stdin):
         return self._stream.input_queue.get()
 
     def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
+        """Read a line of input from the frontend with an empty prompt."""
         # size only included for compatibility with sys.stdin.readline API;
         # we don't support it.
         del size
         return self._readline_with_prompt(prompt="")
 
     def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]  # noqa: E501
+        """Read input from the frontend and return it split into lines."""
         # Just an alias for readline.
         #
         # hint only included for compatibility with sys.stdin.readlines API;

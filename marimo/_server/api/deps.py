@@ -43,81 +43,99 @@ class AppStateBase:
 
     @property
     def session_manager(self) -> SessionManager:
+        """The session manager for this server."""
         return self.state.session_manager
 
     @property
     def mode(self) -> SessionMode:
+        """The session mode (edit or run)."""
         return self.session_manager.mode
 
     @property
     def quiet(self) -> bool:
+        """Whether the server is running in quiet mode."""
         return self.state.quiet
 
     @property
     def host(self) -> str:
+        """The server host."""
         return self.state.host
 
     @property
     def port(self) -> int:
+        """The server port."""
         return self.state.port
 
     @property
     def maybe_port(self) -> Optional[int]:
+        """The server port, or None if not set."""
         return getattr(self.state, "port", None)
 
     @property
     def base_url(self) -> str:
+        """The base URL prefix for the server."""
         return self.state.base_url
 
     @property
     def server(self) -> Server:
+        """The underlying uvicorn server instance."""
         return self.state.server
 
     @property
     def config_manager(self) -> MarimoConfigManager:
+        """The marimo configuration manager."""
         return self.state.config_manager
 
     @property
     def headless(self) -> bool:
+        """Whether the server is running in headless mode."""
         return self.state.headless
 
     @property
     def skew_protection(self) -> bool:
+        """Whether skew protection is enabled."""
         return self.state.skew_protection
 
     @property
     def skew_protection_token(self) -> SkewProtectionToken:
+        """The skew protection token for validating requests."""
         return self.session_manager.skew_protection_token
 
     @property
     def remote_url(self) -> Optional[str]:
+        """The remote URL, if the server is proxied."""
         if hasattr(self.state, "remote_url"):
             return self.state.remote_url
         return None
 
     @property
     def mcp_server_enabled(self) -> bool:
+        """Whether the MCP server is enabled."""
         return self.state.mcp_server_enabled
 
     @property
     def asset_url(self) -> Optional[str]:
+        """The URL for serving static assets, or None to use the default."""
         if hasattr(self.state, "asset_url"):
             return self.state.asset_url
         return None
 
     @property
     def enable_auth(self) -> bool:
+        """Whether authentication is enabled."""
         if hasattr(self.state, "enable_auth"):
             return self.state.enable_auth
         return True
 
     @property
     def startup_tip(self) -> CliTip | None:
+        """A startup tip to display, or None."""
         startup_tip = getattr(self.state, "startup_tip", None)
         return cast(CliTip | None, startup_tip)
 
     @property
     def html_head(self) -> Optional[str]:
+        """Custom HTML to inject into the page head, or None."""
         if hasattr(self.state, "html_head"):
             return cast(Optional[str], self.state.html_head)
         return None
@@ -187,6 +205,7 @@ class AppState(AppStateBase):
     # This could have custom config in the script metadata.
     @property
     def app_config_manager(self) -> MarimoConfigManager:
+        """Config manager for the currently running marimo file, including script-level overrides."""
         session = self.require_current_session()
         return session.config_manager
 
@@ -194,6 +213,7 @@ class AppState(AppStateBase):
     # create one.
     # Use this file to override the config manager.
     def config_manager_at_file(self, path: str) -> MarimoConfigManager:
+        """Get a config manager with overrides from the script at the given path."""
         return super().config_manager.with_overrides(
             ScriptConfigManager(path).get_config()
         )

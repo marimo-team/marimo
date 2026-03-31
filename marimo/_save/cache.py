@@ -99,9 +99,11 @@ class HashMemoCleanup(CellLifecycleItem):
         return isinstance(other, HashMemoCleanup)
 
     def create(self, context: RuntimeContext | None) -> None:
+        """No-op lifecycle hook called when the cell is first created."""
         pass
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:  # noqa: ARG002
+        """Clear all memoized content hashes when the defining cell is re-executed."""
         context.cache.hash_memo.clear()
         return True
 
@@ -121,6 +123,8 @@ class CacheException(BaseException):
 
 @dataclass
 class Cache:
+    """A cache entry holding variable definitions, metadata, and hit/miss state."""
+
     defs: dict[Name, Any]
     hash: str
     cache_type: CacheType
@@ -414,6 +418,7 @@ class Cache:
 
     @property
     def key(self) -> HashKey:
+        """The HashKey identifying this cache entry."""
         from marimo._save.hash import HashKey
 
         return HashKey(hash=self.hash, cache_type=self.cache_type)
@@ -422,6 +427,7 @@ class Cache:
     def empty(
         cls, *, key: HashKey, defs: set[str], stateful_refs: set[str]
     ) -> Cache:
+        """Create an empty (miss) Cache entry for the given key and definition names."""
         return Cache(
             defs={d: None for d in defs},
             hash=key.hash,
@@ -435,6 +441,7 @@ class Cache:
     def new(
         cls, *, loaded: Cache, key: HashKey, stateful_refs: set[str]
     ) -> Cache:
+        """Create a Cache entry from a loaded (hit) cache with a new key."""
         return Cache(
             defs=loaded.defs,
             hash=key.hash,
@@ -454,6 +461,7 @@ class CacheContext(abc.ABC):
 
     # Match functools api
     def cache_info(self) -> CacheInfo:
+        """Return a CacheInfo namedtuple with hit/miss/size/time statistics."""
         return CacheInfo(
             hits=self.hits,
             misses=self.misses,
@@ -464,26 +472,31 @@ class CacheContext(abc.ABC):
 
     @property
     def loader(self) -> Loader:
+        """The underlying cache loader."""
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         return self._loader()
 
     def cache_clear(self) -> None:
+        """Clear all entries from the cache loader."""
         if self._loader is not None:
             self.loader.clear()
 
     @property
     def hits(self) -> int:
+        """The number of cache hits."""
         if self._loader is None:
             return 0
         return self.loader.hits
 
     @property
     def misses(self) -> int:
+        """The number of cache misses (always 0 as misses are not recorded)."""
         # Not something explicitly recorded.
         return 0
 
     @property
     def maxsize(self) -> int | None:
+        """The maximum number of entries the cache can hold, or None for unlimited."""
         if self._loader is None:
             return None
         maxsize = getattr(self.loader, "_max_size", -1)
@@ -493,6 +506,7 @@ class CacheContext(abc.ABC):
 
     @property
     def currsize(self) -> int:
+        """The current number of entries in the cache."""
         if self._loader is None:
             return 0
         # Use current_size if available, otherwise fall back to misses
@@ -503,6 +517,7 @@ class CacheContext(abc.ABC):
 
     @property
     def time_saved(self) -> float:
+        """Total time saved by cache hits, in seconds."""
         if self._loader is None:
             return 0.0
         return self.loader.time_saved

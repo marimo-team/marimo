@@ -38,10 +38,14 @@ DISALLOWED_NAMES = [
 
 
 class OSFileSystem(FileSystem):
+    """FileSystem implementation backed by the local OS filesystem."""
+
     def get_root(self) -> str:
+        """Return the current working directory as the filesystem root."""
         return os.getcwd()
 
     def list_files(self, path: str) -> list[FileInfo]:
+        """List files and directories at the given path, sorted with directories first."""
         files: list[FileInfo] = []
         folders: list[FileInfo] = []
         try:
@@ -95,6 +99,7 @@ class OSFileSystem(FileSystem):
         encoding: str | None = None,
         contents: str | None = None,
     ) -> FileDetailsResponse:
+        """Return detailed file info and contents, base64-encoding binary files."""
         file_info = self._get_file_info(path)
         is_base64 = False
         actual_contents: str | bytes | None
@@ -127,6 +132,7 @@ class OSFileSystem(FileSystem):
         return is_marimo_app(path)
 
     def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
+        """Read a file as text (UTF-8 by default) or bytes if decoding fails."""
         file_path = Path(path)
         try:
             return file_path.read_text(encoding=encoding or "utf-8")
@@ -140,6 +146,7 @@ class OSFileSystem(FileSystem):
         name: str,
         contents: Optional[bytes],
     ) -> FileInfo:
+        """Create a file, directory, or new notebook at path/name, auto-incrementing the name if it exists."""
         if name in DISALLOWED_NAMES:
             raise ValueError(
                 f"Cannot create file or directory with name {name}"
@@ -191,6 +198,7 @@ class OSFileSystem(FileSystem):
         ).file
 
     def delete_file_or_directory(self, path: str) -> bool:
+        """Delete a file or directory tree and return True on success."""
         if os.path.isdir(path):
             safe_rmtree(path)
         else:
@@ -198,6 +206,7 @@ class OSFileSystem(FileSystem):
         return True
 
     def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+        """Move or rename a file/directory to new_path, raising if the destination exists."""
         file_name = os.path.basename(new_path)
         # Disallow renaming to . or ..
         if file_name in DISALLOWED_NAMES:
@@ -211,6 +220,7 @@ class OSFileSystem(FileSystem):
         return self.get_details(new_path).file
 
     def update_file(self, path: str, contents: str) -> FileInfo:
+        """Write contents to the file at path and return its updated FileInfo."""
         file_path = Path(path)
         file_path.write_text(contents, encoding="utf-8")
         return self.get_details(path, contents=contents).file
@@ -346,6 +356,7 @@ class OSFileSystem(FileSystem):
         return results[:limit]
 
     def open_in_editor(self, path: str, line_number: int | None) -> bool:
+        """Open the file in the user's editor, falling back to the OS default. Returns True on success."""
         try:
             # First try to get editor from environment variable
             editor = os.environ.get("EDITOR")
@@ -386,6 +397,7 @@ class OSFileSystem(FileSystem):
 def editor_open_file_in_line_args(
     editor: str, path: str, line_number: int
 ) -> list[str]:
+    """Return the CLI args needed to open a file at a specific line for the given editor."""
     if editor == "code":
         return ["--goto", f"{path}:{line_number}"]
     elif editor == "subl":
@@ -395,6 +407,7 @@ def editor_open_file_in_line_args(
 
 
 def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:
+    """Return a sort key for natural (human-friendly) ordering of FileInfo by name."""
     return natural_sort(file.name)
 
 

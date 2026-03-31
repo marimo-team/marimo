@@ -10,6 +10,8 @@ from marimo._server.models.models import BaseResponse
 
 
 class FileInfo(msgspec.Struct, rename="camel"):
+    """Metadata about a file or directory entry."""
+
     id: str
     path: str
     name: str
@@ -21,28 +23,38 @@ class FileInfo(msgspec.Struct, rename="camel"):
 
 
 class FileListRequest(msgspec.Struct, rename="camel"):
+    """Request to list files in a directory."""
+
     # The directory path to list files from
     # If None, the root directory will be used
     path: Optional[str] = None
 
 
 class FileDetailsRequest(msgspec.Struct, rename="camel"):
+    """Request for details about a specific file or directory."""
+
     # The path of the file or directory
     path: str
 
 
 class FileOpenRequest(msgspec.Struct, rename="camel"):
+    """Request to open a file in an external editor."""
+
     # The path of the file to open
     path: str
     line_number: Optional[int] = None
 
 
 class FileTreeRequest(msgspec.Struct, rename="camel"):
+    """Request to fetch a file tree rooted at the given path."""
+
     # The root directory path for the tree
     path: str
 
 
 class FileCreateRequest(msgspec.Struct, rename="camel"):
+    """Request to create a new file, directory, or notebook."""
+
     # The path where to create the file or directory
     path: str
     # 'file', 'directory', or 'notebook'
@@ -54,6 +66,8 @@ class FileCreateRequest(msgspec.Struct, rename="camel"):
 
 
 class FileSearchRequest(msgspec.Struct, rename="camel"):
+    """Request to search for files matching a query string."""
+
     # The search query string
     query: str
     # The root directory path to search from (optional, defaults to root)
@@ -69,11 +83,15 @@ class FileSearchRequest(msgspec.Struct, rename="camel"):
 
 
 class FileDeleteRequest(msgspec.Struct, rename="camel"):
+    """Request to delete a file or directory."""
+
     # The path of the file or directory to delete
     path: str
 
 
 class FileMoveRequest(msgspec.Struct, rename="camel"):
+    """Request to move or rename a file or directory."""
+
     # The current path of the file or directory
     path: str
     # The new path or name for the file or directory
@@ -81,6 +99,8 @@ class FileMoveRequest(msgspec.Struct, rename="camel"):
 
 
 class FileUpdateRequest(msgspec.Struct, rename="camel"):
+    """Request to update the contents of a file."""
+
     # The current path of the file or directory
     path: str
     # The new contents of the file
@@ -88,11 +108,15 @@ class FileUpdateRequest(msgspec.Struct, rename="camel"):
 
 
 class FileListResponse(msgspec.Struct, rename="camel"):
+    """Response containing a list of files and the filesystem root."""
+
     files: list[FileInfo]
     root: str
 
 
 class FileDetailsResponse(msgspec.Struct, rename="camel"):
+    """Response containing detailed information about a file."""
+
     file: FileInfo
     contents: Optional[str] = None
     mime_type: Optional[str] = None
@@ -100,29 +124,39 @@ class FileDetailsResponse(msgspec.Struct, rename="camel"):
 
 
 class FileCreateResponse(BaseResponse):
+    """Response for a file creation request."""
+
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None
 
 
 class FileDeleteResponse(BaseResponse):
+    """Response for a file deletion request."""
+
     # Additional information, e.g., error message
     message: Optional[str] = None
 
 
 class FileUpdateResponse(BaseResponse):
+    """Response for a file update request."""
+
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None
 
 
 class FileMoveResponse(BaseResponse):
+    """Response for a file move/rename request."""
+
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None
 
 
 class FileSearchResponse(msgspec.Struct, rename="camel"):
+    """Response containing search results."""
+
     files: list[FileInfo]
     query: str
     total_found: int
