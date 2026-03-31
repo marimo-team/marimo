@@ -224,10 +224,11 @@ const pyrightClient = once((_: LSPConfig) => {
     await resyncCallback?.();
   });
 
+  const rootUri = getLSPDocumentRootUri();
   const lspClientOpts = {
     transport,
-    rootUri: getLSPDocumentRootUri(),
-    workspaceFolders: [],
+    rootUri,
+    workspaceFolders: [{ uri: rootUri, name: "marimo" }],
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
