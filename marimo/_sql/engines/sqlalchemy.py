@@ -443,9 +443,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     ) -> list[Schema]:
         """Get all schemas and optionally their tables. Keys are schema names."""
 
-        schema_names = self._get_schema_names(
-            database if database is not None else ""
-        )
+        if database is None:
+            schema_names: list[str] = []
+        else:
+            schema_names = self._get_schema_names(database)
 
         schemas: list[Schema] = []
 
