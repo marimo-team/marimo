@@ -130,7 +130,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             return identifier
 
         pattern, open_quote, close_quote = dialect_quoting[self.dialect]
-        if pattern.search(identifier):
+        if pattern.search(identifier) or identifier != identifier.lower():
             escaped = identifier.replace(
                 close_quote, close_quote + close_quote
             )
@@ -159,7 +159,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         from sqlalchemy import inspect, text
 
         _use_database_dialect_command: dict[str, str] = {
-            "snowflake": f"""USE DATABASE {self._quote_identifier(database)}""",
+            "snowflake": f"USE DATABASE {self._quote_identifier(database)}",
         }
         dialect_command = _use_database_dialect_command.get(self.dialect)
 
@@ -334,7 +334,10 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             database_names: list[str] = []
             for row in result.fetchall():
                 raw_name = str(row[name_col_index])
-                if _SNOWFLAKE_NEEDS_QUOTING_RE.search(raw_name):
+                if (
+                    _SNOWFLAKE_NEEDS_QUOTING_RE.search(raw_name)
+                    or raw_name != raw_name.upper()
+                ):
                     database_names.append(raw_name)
                 else:
                     database_names.append(raw_name.lower())
