@@ -55,9 +55,9 @@ describe("utils", () => {
       );
 
       expect(getLSPDocument()).toBe(
-        "file://C:\\Users\\marimo\\project\\notebooks\\subdir\\app.py",
+        "file:///C:/Users/marimo/project/notebooks/subdir/app.py",
       );
-      expect(getLSPDocumentRootUri()).toBe("file://C:\\Users\\marimo\\project");
+      expect(getLSPDocumentRootUri()).toBe("file:///C:/Users/marimo/project");
     });
   });
 
