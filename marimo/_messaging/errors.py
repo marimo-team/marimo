@@ -10,89 +10,122 @@ from marimo._types.ids import CellId_t
 
 
 class SetupRootError(msgspec.Struct, tag="setup-refs"):
+    """Error raised when the setup cell has references to other cells."""
+
     edges_with_vars: tuple[EdgeWithVar, ...]
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return "The setup cell cannot have references"
 
 
 class CycleError(msgspec.Struct, tag="cycle"):
+    """Error raised when a cell is part of a dependency cycle."""
+
     edges_with_vars: tuple[EdgeWithVar, ...]
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return "This cell is in a cycle"
 
 
 class MultipleDefinitionError(msgspec.Struct, tag="multiple-defs"):
+    """Error raised when a variable is defined by more than one cell."""
+
     name: str
     cells: tuple[CellId_t, ...]
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return f"The variable '{self.name}' was defined by another cell"
 
 
 class ImportStarError(msgspec.Struct, tag="import-star"):
+    """Error raised when a cell uses a wildcard import (``import *``)."""
+
     msg: str
     lineno: Optional[int] = None
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
 class MarimoInterruptionError(msgspec.Struct, tag="interruption"):
+    """Error raised when a cell execution is interrupted by the user."""
+
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return "This cell was interrupted and needs to be re-run"
 
 
 class MarimoAncestorPreventedError(msgspec.Struct, tag="ancestor-prevented"):
+    """Error raised when an ancestor cell called ``mo.stop``, preventing execution."""
+
     msg: str
     raising_cell: CellId_t
     blamed_cell: Optional[CellId_t]
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
 class MarimoAncestorStoppedError(msgspec.Struct, tag="ancestor-stopped"):
+    """Error raised when an ancestor cell raised an exception, stopping execution."""
+
     msg: str
     raising_cell: CellId_t
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
 class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
+    """Error raised when a cell or its ancestor raises a Python exception."""
+
     msg: str
     exception_type: str
     # None for if raising_cell is the current cell
     raising_cell: Optional[CellId_t]
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
 class MarimoSyntaxError(msgspec.Struct, tag="syntax"):
+    """Error raised when a cell contains a Python syntax error."""
+
     msg: str
     lineno: Optional[int] = None
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
 class UnknownError(msgspec.Struct, tag="unknown"):
+    """Error raised for unclassified or unexpected runtime errors."""
+
     msg: str
     error_type: Optional[str] = None
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
 class MarimoStrictExecutionError(msgspec.Struct, tag="strict-exception"):
+    """Error raised in strict execution mode when a cell references an undefined variable."""
+
     msg: str
     ref: str
     blamed_cell: Optional[CellId_t]
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
@@ -112,6 +145,7 @@ class MarimoInternalError(msgspec.Struct, tag="internal"):
         self.msg = f"An internal error occurred: {self.error_id}"
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 
@@ -131,6 +165,7 @@ class MarimoSQLError(msgspec.Struct, tag="sql-error"):
     node_col_offset: int = 0
 
     def describe(self) -> str:
+        """Return a human-readable description of the error."""
         return self.msg
 
 

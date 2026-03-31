@@ -22,6 +22,7 @@ USER_AGENT_HEADER = {"User-Agent": requests.MARIMO_USER_AGENT}
 
 
 def is_github_src(url: str, ext: str) -> bool:
+    """Return True if the URL points to a GitHub source file with the given extension."""
     if not is_url(url):
         return False
 
@@ -35,6 +36,7 @@ def is_github_src(url: str, ext: str) -> bool:
 
 
 def get_github_src_url(url: str) -> str:
+    """Convert a GitHub blob URL to its raw.githubusercontent.com equivalent."""
     # Change hostname to raw.githubusercontent.com
     path = urllib.parse.urlparse(url).path
     path = path.replace("/blob/", "/", 1)
@@ -42,6 +44,7 @@ def get_github_src_url(url: str) -> str:
 
 
 def is_gist_src(url: str) -> bool:
+    """Return True if the URL points to a GitHub Gist."""
     if not is_url(url):
         return False
 
@@ -55,6 +58,7 @@ def is_gist_src(url: str) -> bool:
 
 
 def get_gist_src_url(url: str) -> str:
+    """Return the raw download URL for a Python or Markdown file in a GitHub Gist."""
     # Return url if it's a direct link to a raw file,
     # or get the first python or markdown file of the gist
     # by getting the raw_url from api.github.com
@@ -88,8 +92,11 @@ def get_gist_src_url(url: str) -> str:
 
 
 class FileReader(abc.ABC):
+    """Abstract base class for reading file content from various sources."""
+
     @abc.abstractmethod
     def can_read(self, name: str) -> bool:
+        """Return True if this reader can handle the given file path or URL."""
         pass
 
     @abc.abstractmethod
@@ -99,10 +106,14 @@ class FileReader(abc.ABC):
 
 
 class LocalFileReader(FileReader):
+    """Reads files from the local filesystem."""
+
     def can_read(self, name: str) -> bool:
+        """Return True if the name is not a URL (i.e. a local path)."""
         return not is_url(name)
 
     def read(self, name: str) -> tuple[str, str]:
+        """Read a local file and return its content and filename."""
         file_path = Path(name)
         # Is directory
         if file_path.is_dir():
@@ -112,12 +123,16 @@ class LocalFileReader(FileReader):
 
 
 class GitHubIssueReader(FileReader):
+    """Reads Python code embedded in a marimo GitHub issue body."""
+
     def can_read(self, name: str) -> bool:
+        """Return True if the URL is a marimo GitHub issue."""
         return is_url(name) and name.startswith(
             "https://github.com/marimo-team/marimo/issues/"
         )
 
     def read(self, name: str) -> tuple[str, str]:
+        """Fetch a GitHub issue and extract the first Python code block from its body."""
         issue_number = name.split("/")[-1]
         api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
         response = requests.get(api_url)
@@ -142,6 +157,8 @@ class GitHubIssueReader(FileReader):
 
 
 class StaticNotebookReader(FileReader):
+    """Reads Python source code embedded in a static marimo HTML notebook."""
+
     CODE_TAG = r"marimo-code"
     CODE_REGEX = re.compile(
         r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>\s*(.*?)\s*<"
@@ -152,9 +169,11 @@ class StaticNotebookReader(FileReader):
     DEFAULT_FILENAME = "notebook.py"
 
     def can_read(self, name: str) -> bool:
+        """Return True if the path or URL points to a static marimo notebook."""
         return self._is_static_marimo_notebook_url(name)[0]
 
     def read(self, name: str) -> tuple[str, str]:
+        """Extract and return the embedded code and filename from a static marimo notebook."""
         _, file_contents = self._is_static_marimo_notebook_url(name)
         code = self._extract_code_from_static_notebook(file_contents)
         filename = self._extract_filename_from_static_notebook(file_contents)
@@ -224,10 +243,14 @@ class StaticNotebookReader(FileReader):
 
 
 class GitHubSourceReader(FileReader):
+    """Reads Python or Markdown source files directly from GitHub."""
+
     def can_read(self, name: str) -> bool:
+        """Return True if the URL is a GitHub .py or .md source file."""
         return is_github_src(name, ext=".py") or is_github_src(name, ext=".md")
 
     def read(self, name: str) -> tuple[str, str]:
+        """Download a GitHub source file and return its content and basename."""
         url = get_github_src_url(name)
         response = requests.get(url, headers=USER_AGENT_HEADER)
         response.raise_for_status()
@@ -236,10 +259,14 @@ class GitHubSourceReader(FileReader):
 
 
 class GistSourceReader(FileReader):
+    """Reads Python or Markdown files from a GitHub Gist."""
+
     def can_read(self, name: str) -> bool:
+        """Return True if the URL points to a GitHub Gist."""
         return is_gist_src(name) or is_gist_src(name)
 
     def read(self, name: str) -> tuple[str, str]:
+        """Download a Gist file and return its content and basename."""
         url = get_gist_src_url(name)
         response = requests.get(url, headers=USER_AGENT_HEADER)
         response.raise_for_status()
@@ -248,10 +275,14 @@ class GistSourceReader(FileReader):
 
 
 class GenericURLReader(FileReader):
+    """Reads any file reachable via HTTP/HTTPS URL."""
+
     def can_read(self, name: str) -> bool:
+        """Return True if the name is any valid URL."""
         return is_url(name)
 
     def read(self, name: str) -> tuple[str, str]:
+        """Download a URL and return its content and the basename of the path."""
         response = requests.get(name, headers=USER_AGENT_HEADER)
         response.raise_for_status()
         content = response.text()
@@ -261,6 +292,8 @@ class GenericURLReader(FileReader):
 
 
 class FileContentReader:
+    """Dispatches file reading to the appropriate FileReader based on the source type."""
+
     def __init__(self) -> None:
         self.readers = [
             LocalFileReader(),
@@ -291,28 +324,36 @@ class FileContentReader:
 
 
 class FileHandler(abc.ABC):
+    """Abstract base class for resolving a file name to a local path suitable for marimo."""
+
     @abc.abstractmethod
     def can_handle(self, name: str) -> bool:
+        """Return True if this handler can process the given file name."""
         pass
 
     @abc.abstractmethod
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
     ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+        """Resolve the file name to a local path, returning the path and optional temp dir."""
         pass
 
 
 class LocalFileHandler(FileHandler):
+    """Handles local file paths, validating type and existence before opening."""
+
     def __init__(self, allow_new_file: bool, allow_directory: bool):
         self.allow_new_file = allow_new_file
         self.allow_directory = allow_directory
 
     def can_handle(self, name: str) -> bool:
+        """Return True if the name is a local (non-URL) path."""
         return not is_url(name)
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
     ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+        """Validate a local file path and return it, converting HTML notebooks if needed."""
         import click
 
         path = Path(name)
@@ -372,15 +413,19 @@ class LocalFileHandler(FileHandler):
 
 
 class RemoteFileHandler(FileHandler):
+    """Handles remote URLs by downloading content to a temporary local file."""
+
     def __init__(self) -> None:
         self.reader = FileContentReader()
 
     def can_handle(self, name: str) -> bool:
+        """Return True if the name is a URL."""
         return is_url(name)
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
     ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+        """Download the remote file to a temp directory and return its local path."""
         try:
             content, filename = self.reader.read_file(name)
         except HTTPError as e:

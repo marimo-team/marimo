@@ -22,8 +22,11 @@ REPLACE_DF_COMMENT = "# <-- replace with data"
 
 @abc.abstractmethod
 class ChartBuilder:
+    """Abstract base class for building Altair charts for a single data column."""
+
     @abc.abstractmethod
     def altair(self, data: Any, column: str) -> Any:
+        """Build and return an Altair chart for the given data and column."""
         raise NotImplementedError
 
     def altair_json(self, data: Any, column: str) -> str:
@@ -56,6 +59,8 @@ class ChartBuilder:
 
 @dataclass
 class ChartParams:
+    """Parameters identifying the data source and column for a chart."""
+
     table_name: str
     column: str
 
@@ -83,11 +88,15 @@ COMMON_CONFIG = 'properties(width="container").configure_view(stroke=None)'
 
 
 def add_common_config(chart: alt.Chart | alt.LayerChart) -> alt.Chart:
+    """Apply standard width and borderless view configuration to an Altair chart."""
     return chart.properties(width="container").configure_view(stroke=None)  # type: ignore
 
 
 class NumberChartBuilder(ChartBuilder):
+    """Builds a binned histogram for floating-point numeric columns."""
+
     def altair(self, data: Any, column: str) -> Any:
+        """Return a binned bar chart of value counts for a numeric column."""
         import altair as alt
 
         chart = (
@@ -116,6 +125,7 @@ class NumberChartBuilder(ChartBuilder):
         return add_common_config(chart)
 
     def altair_code(self, data: str, column: str, simple: bool) -> str:
+        """Return Altair code for a binned histogram of a numeric column."""
         mark_bar = (
             """.mark_bar()"""
             if simple
@@ -151,12 +161,15 @@ class NumberChartBuilder(ChartBuilder):
 
 
 class StringChartBuilder(ChartBuilder):
+    """Builds a horizontal bar chart showing value counts for string columns, optionally limited to top 10."""
+
     def __init__(self, should_limit_to_10_items: bool) -> None:
         self.should_limit_to_10_items = should_limit_to_10_items
         self.theme = get_current_theme()
         super().__init__()
 
     def altair(self, data: Any, column: str) -> Any:
+        """Return a ranked horizontal bar chart with percentage labels for a string column."""
         import altair as alt
 
         _base_chart = (
@@ -213,6 +226,7 @@ class StringChartBuilder(ChartBuilder):
         )
 
     def altair_code(self, data: str, column: str, simple: bool) -> str:
+        """Return simple or complex Altair code for a string column bar chart."""
         return (
             self.simple_altair_code(data, column)
             if simple
@@ -220,6 +234,7 @@ class StringChartBuilder(ChartBuilder):
         )
 
     def simple_altair_code(self, data: str, column: str) -> str:
+        """Return minimal Altair code for a top-10 bar chart of a string column."""
         properties_config = (
             f""".properties(title="Top 10 {column}", width="container")"""
             if self.should_limit_to_10_items
@@ -259,6 +274,7 @@ class StringChartBuilder(ChartBuilder):
         """
 
     def complex_altair_code(self, data: str, column: str) -> str:
+        """Return full Altair code with percentage text labels and theme-aware colors for a string column."""
         text_color = "white" if self.theme == "dark" else "black"
         base_chart_code = dedent(f"""
         _base_chart = (
@@ -334,6 +350,8 @@ TimeUnitOptions = Literal[
 
 
 class DateChartBuilder(ChartBuilder):
+    """Builds a time-series area chart for date, datetime, or time columns."""
+
     DEFAULT_DATE_FORMAT = "%Y-%m-%d"
     DEFAULT_TIME_UNIT: TimeUnitOptions = "yearmonthdate"
 
@@ -387,6 +405,7 @@ class DateChartBuilder(ChartBuilder):
             )
 
     def altair(self, data: Any, column: str) -> Any:
+        """Return a layered area chart with interactive hover for a date/time column."""
         import altair as alt
 
         _, time_unit = self._guess_date_format(data, column)
@@ -464,6 +483,7 @@ class DateChartBuilder(ChartBuilder):
         return chart
 
     def altair_code(self, data: str, column: str, simple: bool = True) -> str:
+        """Return simple or complex Altair code for a date/time area chart."""
         return (
             self.simple_altair_code(data, column)
             if simple
@@ -471,7 +491,7 @@ class DateChartBuilder(ChartBuilder):
         )
 
     def simple_altair_code(self, data: str, column: str) -> str:
-        """Offer simple charts for users to copy"""
+        """Return minimal Altair area chart code for a date/time column."""
         _, time_unit = self._guess_date_format(data, column)
         new_field = f"_{column}"
 
@@ -573,11 +593,14 @@ class DateChartBuilder(ChartBuilder):
 
 
 class BooleanChartBuilder(ChartBuilder):
+    """Builds a pie chart with percentage labels for boolean columns."""
+
     PIE_RADIUS = 85
     TEXT_RADIUS = 110
     TEXT_SIZE = 13
 
     def altair(self, data: Any, column: str) -> Any:
+        """Return a pie chart showing the distribution of true/false values."""
         import altair as alt
 
         base = (
@@ -617,6 +640,7 @@ class BooleanChartBuilder(ChartBuilder):
         return (pie + text).properties(width="container")
 
     def altair_code(self, data: str, column: str, simple: bool) -> str:
+        """Return simple or complex Altair code for a boolean pie chart."""
         return (
             self.simple_altair_code(data, column)
             if simple
@@ -624,6 +648,7 @@ class BooleanChartBuilder(ChartBuilder):
         )
 
     def complex_altair_code(self, data: str, column: str) -> str:
+        """Return full Altair pie chart code with explicit color scheme for a boolean column."""
         return f"""
         _base = (
             alt.Chart({data})
@@ -698,7 +723,10 @@ class BooleanChartBuilder(ChartBuilder):
 
 
 class IntegerChartBuilder(ChartBuilder):
+    """Builds a binned histogram for integer columns."""
+
     def altair(self, data: Any, column: str) -> Any:
+        """Return a binned bar chart of value counts for an integer column."""
         import altair as alt
 
         chart = (
@@ -723,6 +751,7 @@ class IntegerChartBuilder(ChartBuilder):
         return add_common_config(chart)
 
     def altair_code(self, data: str, column: str, simple: bool = True) -> str:
+        """Return Altair code for a binned histogram of an integer column."""
         mark_bar = (
             """.mark_bar()"""
             if simple
@@ -757,7 +786,10 @@ class IntegerChartBuilder(ChartBuilder):
 
 
 class UnknownChartBuilder(ChartBuilder):
+    """Builds a nominal bar chart for columns with an unrecognised data type."""
+
     def altair(self, data: Any, column: str) -> Any:
+        """Return a nominal count bar chart for an unknown-typed column."""
         import altair as alt
 
         chart = (
@@ -777,6 +809,7 @@ class UnknownChartBuilder(ChartBuilder):
         return add_common_config(chart)
 
     def altair_code(self, data: str, column: str, _simple: bool = True) -> str:
+        """Return Altair code for a nominal count bar chart."""
         return f"""
         _chart = (
             alt.Chart({data})
@@ -795,15 +828,19 @@ class UnknownChartBuilder(ChartBuilder):
 
 
 class WrapperChartBuilder(ChartBuilder):
+    """Wraps a ChartBuilder to escape special characters in column names before delegating."""
+
     def __init__(self, delegate: ChartBuilder):
         self.delegate = delegate
 
     def altair(self, data: Any, column: str) -> Any:
+        """Delegate to the wrapped builder after escaping special path characters in the column name."""
         return self.delegate.altair(
             data, _escape_special_path_characters(str(column))
         )
 
     def altair_code(self, data: str, column: str, simple: bool = True) -> str:
+        """Delegate to the wrapped builder and dedent the resulting code string."""
         return dedent(
             self.delegate.altair_code(
                 data, _escape_special_path_characters(str(column)), simple
@@ -814,6 +851,7 @@ class WrapperChartBuilder(ChartBuilder):
 def get_chart_builder(
     column_type: DataType, should_limit_to_10_items: bool = False
 ) -> ChartBuilder:
+    """Return the appropriate ChartBuilder for the given column data type."""
     if column_type == "number":
         return WrapperChartBuilder(NumberChartBuilder())
     if column_type == "string":
