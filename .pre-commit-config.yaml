@@ -39,7 +39,7 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  - repo: https://github.com/fpgmaas/deptry
+  - repo: https://github.com/deptry/deptry
     rev: "0.25.1"
     hooks:
       - id: deptry
