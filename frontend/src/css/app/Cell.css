@@ -99,8 +99,17 @@
     /* Special case for particular components */
 
     .output-area:has(> .output > marimo-ui-element > marimo-table) {
+      padding: 0 0 5px;
       max-height: none;
       overflow: hidden;
+
+      /* Flush table: remove border, add edge padding to first/last cells */
+      --marimo-table-edge-padding: 0.75rem;
+
+      marimo-table::part(table-wrapper) {
+        border: none;
+        border-radius: 0;
+      }
     }
 
     & > :first-child {

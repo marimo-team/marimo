@@ -1,5 +1,14 @@
 @reference "../css/globals.css";
 
+/* Edge padding for flush tables (--marimo-table-edge-padding inherits through shadow DOM) */
+[part="table-wrapper"] th:first-child {
+  padding-left: var(--marimo-table-edge-padding, 0.5rem);
+}
+
+[part="table-wrapper"] td:first-child {
+  padding-left: var(--marimo-table-edge-padding, 0.375rem);
+}
+
 .markdown table,
 table.dataframe {
   display: block;
