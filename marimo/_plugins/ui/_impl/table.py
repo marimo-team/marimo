@@ -54,6 +54,7 @@ from marimo._plugins.ui._impl.utils.dataframe import (
     ListOrTuple,
     TableData,
     download_as,
+    get_bound_name,
 )
 from marimo._plugins.validators import (
     validate_no_integer_columns,
@@ -71,7 +72,6 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
 )
-from marimo._utils.variable_name import infer_variable_name
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -90,6 +90,12 @@ class TableSearchError(Exception):
 @dataclass
 class DownloadAsArgs:
     format: Literal["csv", "json", "parquet"]
+
+
+@dataclass
+class DownloadAsResponse:
+    url: str
+    filename: str
 
 
 @dataclass
@@ -506,10 +512,6 @@ class table(
         self._max_columns: Optional[int] = None
         max_columns_arg: Union[int, str]
 
-        # Infer the variable name before add_selection_column() mutates data,
-        # so the identity check still matches the caller's original variable.
-        download_file_name = infer_variable_name(data, "download")
-
         has_stable_row_id = False
         if selection is not None:
             data, has_stable_row_id = add_selection_column(data)
@@ -742,7 +744,6 @@ class table(
                 "max-height": int(max_height)
                 if max_height is not None
                 else None,
-                "download-file-name": download_file_name,
             },
             on_change=on_change,
             functions=(
@@ -837,7 +838,7 @@ class table(
                 )
             return unwrap_narwhals_dataframe(self._selected_manager.data)  # type: ignore[no-any-return]
 
-    def _download_as(self, args: DownloadAsArgs) -> str:
+    def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the table data in the specified format.
 
         For cell-selection modes ("single-cell"/"multi-cell"), selection is
@@ -851,7 +852,7 @@ class table(
                 format must be one of 'csv' or 'json'.
 
         Returns:
-            str: URL to download the data file.
+            DownloadAsResponse: URL and filename for the downloaded file.
 
         Raises:
             ValueError: If format is not 'csv' or 'json'.
@@ -872,11 +873,16 @@ class table(
                 else self._searched_manager
             )
 
-        # Remove the selection column before downloading
         if isinstance(manager_candidate, TableManager):
-            return download_as(
-                manager_candidate, args.format, drop_marimo_index=True
+            bound_filename = get_bound_name(self._id)
+
+            url, filename = download_as(
+                manager_candidate,
+                args.format,
+                drop_marimo_index=True,
+                filename=bound_filename,
             )
+            return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(
                 "Download is not supported for this table format."

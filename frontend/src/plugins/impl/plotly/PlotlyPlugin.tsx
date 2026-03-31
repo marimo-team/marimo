@@ -8,12 +8,13 @@ import type { Figure } from "./Plot";
 
 import "./plotly.css";
 import "./mapbox.css";
-import { pick, set } from "lodash-es";
+import { set } from "lodash-es";
 import { type JSX, lazy, memo, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
 import { Arrays } from "@/utils/arrays";
+import { Objects } from "@/utils/objects";
 import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
 import { usePlotlyLayout } from "./usePlotlyLayout";
 
@@ -179,7 +180,9 @@ export const PlotlyComponent = memo(
 
           setValue((prev) => ({
             ...prev,
-            points: evt.points.map((point) => pick(point, TREE_MAP_DATA_KEYS)),
+            points: evt.points.map((point) =>
+              Objects.pick(point, TREE_MAP_DATA_KEYS),
+            ),
           }));
         })}
         onSunburstClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
@@ -189,7 +192,9 @@ export const PlotlyComponent = memo(
 
           setValue((prev) => ({
             ...prev,
-            points: evt.points.map((point) => pick(point, SUNBURST_DATA_KEYS)),
+            points: evt.points.map((point) =>
+              Objects.pick(point, SUNBURST_DATA_KEYS),
+            ),
           }));
         })}
         config={plotlyConfig}
@@ -264,7 +269,7 @@ function extractPoints(
   let parser: PlotlyTemplateParser | undefined;
 
   return points.map((point) => {
-    const standardPointFields = pick(point, STANDARD_POINT_KEYS);
+    const standardPointFields = Objects.pick(point, STANDARD_POINT_KEYS);
 
     // Get the first hovertemplate
     const hovertemplate = Array.isArray(point.data.hovertemplate)

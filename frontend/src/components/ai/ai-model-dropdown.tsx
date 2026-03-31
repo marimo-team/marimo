@@ -2,7 +2,6 @@
 
 import type { Role } from "@marimo-team/llm-info";
 import { useAtomValue } from "jotai";
-import { capitalize } from "lodash-es";
 import {
   BotIcon,
   BrainIcon,
@@ -19,6 +18,7 @@ import {
 } from "@/core/ai/ids/ids";
 import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
 import { aiAtom, completionAtom } from "@/core/config/config";
+import { capitalize } from "@/utils/strings";
 import { useOpenSettingsToTab } from "../app-config/state";
 import {
   DropdownMenu,

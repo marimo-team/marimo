@@ -105,4 +105,18 @@ export const Objects = {
     const set = new Set<K>(keys);
     return Objects.filter(obj, (_, key) => !set.has(key));
   },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pick<V extends Record<string, any>, K extends string>(
+    obj: V,
+    keys: readonly K[],
+  ): Pick<V, K & keyof V> {
+    const result = {} as Record<string, unknown>;
+    for (const key of keys) {
+      if (Object.hasOwn(obj, key)) {
+        result[key] = obj[key];
+      }
+    }
+    return result as Pick<V, K & keyof V>;
+  },
 };

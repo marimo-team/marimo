@@ -259,6 +259,7 @@ class DependencyManager:
     # Storage
     obstore = Dependency("obstore")
     fsspec = Dependency("fsspec")
+    cloudpathlib = Dependency("cloudpathlib")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

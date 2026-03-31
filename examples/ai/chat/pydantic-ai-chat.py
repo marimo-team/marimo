@@ -1,6 +1,14 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "httpx==0.28.1",
+#     "marimo>=0.21.1",
+#     "pydantic==2.12.5",
+# ]
+# ///
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.21.1"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):

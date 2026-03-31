@@ -870,17 +870,15 @@ class AsyncCodeModeContext:
         self, ops: list[_Op], explicit_run: set[CellId_t] | None = None
     ) -> None:
         """Validate, plan, format, and apply a batch of operations."""
-        existing_ids = list(self.graph.cells.keys())
+        existing_ids = list(self._document)
         plan = _build_plan(existing_ids, ops)
 
         # Auto-format new/changed code.
         plan = await self._format_plan(plan)
 
-        # Diff the plan against the current graph.
-        existing_id_set = set(self.graph.cells.keys())
-        existing_code = {
-            cid: self.graph.cells[cid].code for cid in existing_id_set
-        }
+        # Diff the plan against the current document.
+        existing_id_set = set(self._document)
+        existing_code = {cell.id: cell.code for cell in self._document.cells}
         plan_ids = {e.cell_id for e in plan}
 
         # Classify each entry.
@@ -922,6 +920,7 @@ class AsyncCodeModeContext:
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
+            if cid in self.graph.cells
         ]
         cells_to_run = self._kernel.mutate_graph(
             execution_requests, deletion_requests
@@ -972,9 +971,7 @@ class AsyncCodeModeContext:
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code in the plan with the default formatter."""
-        existing_code = {
-            cid: self.graph.cells[cid].code for cid in self.graph.cells
-        }
+        existing_code = {cell.id: cell.code for cell in self._document.cells}
 
         to_format: dict[CellId_t, str] = {}
         for entry in plan:

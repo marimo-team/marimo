@@ -41,7 +41,7 @@ export const DataFrame: StoryObj = {
         search={Functions.THROW}
         host={document.body}
         showDownload={false}
-        download_as={async () => ""}
+        download_as={async () => ({ url: "", filename: "" })}
         lazy={false}
       />
     );

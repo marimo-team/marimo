@@ -13,6 +13,8 @@ from marimo._messaging.types import KernelMessage
 from marimo._types.ids import ConsumerId, SessionId
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from marimo._runtime import commands
     from marimo._session.session import Session
 
@@ -96,76 +98,84 @@ class SessionEventBus:
         if listener in self._listeners:
             self._listeners.remove(listener)
 
-    async def emit_session_created(self, session: Session) -> None:
-        """Emit a session created event."""
-        for listener in self._listeners:
+    def _emit(
+        self,
+        event_name: str,
+        call: Callable[[SessionEventListener], None],
+    ) -> None:
+        """Dispatch a synchronous event to all listeners."""
+        for listener in list(self._listeners):
             try:
-                await listener.on_session_created(session)
+                call(listener)
             except Exception as e:
                 LOGGER.error(
-                    "Error handling session created event for listener %s: %s",
+                    "Error handling %s for listener %s: %s",
+                    event_name,
                     listener,
                     e,
                 )
-                continue
+
+    async def _emit_async(
+        self,
+        event_name: str,
+        call: Callable[[SessionEventListener], Awaitable[None]],
+    ) -> None:
+        """Dispatch an async event to all listeners."""
+        for listener in list(self._listeners):
+            try:
+                await call(listener)
+            except Exception as e:
+                LOGGER.error(
+                    "Error handling %s for listener %s: %s",
+                    event_name,
+                    listener,
+                    e,
+                )
+
+    async def emit_session_created(self, session: Session) -> None:
+        """Emit a session created event."""
+        await self._emit_async(
+            "session_created",
+            lambda listener: listener.on_session_created(session),
+        )
 
     async def emit_session_closed(self, session: Session) -> None:
         """Emit a session closed event."""
-        for listener in self._listeners:
-            try:
-                await listener.on_session_closed(session)
-            except Exception as e:
-                LOGGER.error(
-                    "Error handling session closed event for listener %s: %s",
-                    listener,
-                    e,
-                )
-                continue
+        await self._emit_async(
+            "session_closed",
+            lambda listener: listener.on_session_closed(session),
+        )
 
     async def emit_session_resumed(
         self, session: Session, old_id: SessionId
     ) -> None:
         """Emit a session resumed event."""
-        for listener in self._listeners:
-            try:
-                await listener.on_session_resumed(session, old_id)
-            except Exception as e:
-                LOGGER.error(
-                    "Error handling session resumed event for listener %s: %s",
-                    listener,
-                    e,
-                )
-                continue
+        await self._emit_async(
+            "session_resumed",
+            lambda listener: listener.on_session_resumed(session, old_id),
+        )
 
     async def emit_session_notebook_renamed(
         self, session: Session, old_path: str | None
     ) -> None:
         """Emit a session renamed event."""
-        for listener in self._listeners:
-            try:
-                await listener.on_session_notebook_renamed(session, old_path)
-            except Exception as e:
-                LOGGER.error(
-                    "Error handling session notebook renamed event for listener %s: %s",
-                    listener,
-                    e,
-                )
-                continue
+        await self._emit_async(
+            "session_notebook_renamed",
+            lambda listener: listener.on_session_notebook_renamed(
+                session, old_path
+            ),
+        )
 
     def emit_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
         """Emit a notification sent event."""
-        for listener in self._listeners:
-            try:
-                listener.on_notification_sent(session, notification)
-            except Exception as e:
-                LOGGER.error(
-                    "Error handling notification sent event for listener %s: %s",
-                    listener,
-                    e,
-                )
-                continue
+        self._emit(
+            "notification_sent",
+            lambda listener: listener.on_notification_sent(
+                session, notification
+            ),
+        )
 
     def emit_received_command(
         self,
@@ -174,28 +184,16 @@ class SessionEventBus:
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Emit a received command event."""
-        for listener in self._listeners:
-            try:
-                listener.on_received_command(
-                    session, request, from_consumer_id
-                )
-            except Exception as e:
-                LOGGER.error(
-                    "Error handling received command event for listener %s: %s",
-                    listener,
-                    e,
-                )
-                continue
+        self._emit(
+            "received_command",
+            lambda listener: listener.on_received_command(
+                session, request, from_consumer_id
+            ),
+        )
 
     def emit_received_stdin(self, session: Session, stdin: str) -> None:
         """Emit a received stdin event."""
-        for listener in self._listeners:
-            try:
-                listener.on_received_stdin(session, stdin)
-            except Exception as e:
-                LOGGER.error(
-                    "Error handling received stdin event for listener %s: %s",
-                    listener,
-                    e,
-                )
-                continue
+        self._emit(
+            "received_stdin",
+            lambda listener: listener.on_received_stdin(session, stdin),
+        )

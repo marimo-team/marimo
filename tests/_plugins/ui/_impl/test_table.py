@@ -1094,12 +1094,6 @@ class TestTableGetValueCounts:
         assert value_counts == [ValueCount(value="1", count=2)]
 
 
-def test_table_download_file_name() -> None:
-    my_data = {"a": [1, 2, 3]}
-    t = ui.table(my_data)
-    assert t._component_args["download-file-name"] == "my_data"
-
-
 def test_table_with_frozen_columns() -> None:
     data = {
         "a": list(range(20)),
@@ -1276,7 +1270,7 @@ def test_download_as(df: Any) -> None:
         """Helper to download and convert table data to DataFrame."""
         download_str = table_instance._download_as(
             DownloadAsArgs(format=format_type)
-        )
+        ).url
         data_bytes = from_data_uri(download_str)[1]
         buffer = io.BytesIO(data_bytes)
 
@@ -1360,7 +1354,7 @@ def test_download_as_ignores_cell_selection() -> None:
     # Make a cell selection; download should still include the filtered view
     table._convert_value([{"rowId": "0", "columnName": "a"}])
     # Use JSON format to avoid optional dependencies
-    url = table._download_as(DownloadAsArgs(format="json"))
+    url = table._download_as(DownloadAsArgs(format="json")).url
     data_bytes = from_data_uri(url)[1]
     rows = json.loads(data_bytes)
     assert isinstance(rows, list)

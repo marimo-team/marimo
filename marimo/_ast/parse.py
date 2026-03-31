@@ -521,15 +521,27 @@ class Parser:
     def __init__(self, contents: str, filepath: str = "<marimo>"):
         self.extractor = Extractor(contents=contents)
         self.filepath = filepath
+        self._scanner_generated_lines: frozenset[int] = frozenset()
 
     def node_stack(self) -> PeekStack[Node]:
-        """Parse the notebook source and return a peekable iterator over top-level AST nodes."""
-        tree = ast_parse(
-            self.extractor.contents or "",
-            filename=self.filepath,
-            suppress_warnings=False,
-        )
-        return PeekStack(iter(tree.body))
+        try:
+            tree = ast_parse(
+                self.extractor.contents or "",
+                filename=self.filepath,
+                suppress_warnings=False,
+            )
+            return PeekStack(iter(tree.body))
+        except SyntaxError:
+            # File has syntax errors — use scanner to recover individual cells.
+            # Never re-raise: parse_notebook must return a best-effort result
+            # so --watch and IPC are never broken by a syntax error.
+            from marimo._ast.scanner import scan_parse_fallback
+
+            nodes, scanner_lines = scan_parse_fallback(
+                self.extractor.contents or "", self.filepath
+            )
+            self._scanner_generated_lines = scanner_lines
+            return PeekStack(iter(nodes))
 
     def parse_header(self, body: PeekStack[Node]) -> ParseResult[Header]:
         """Extract the notebook header (leading docstrings and comments) from the AST body."""
@@ -679,7 +691,20 @@ class Parser:
             if is_body_cell(node):
                 cell_result = self.extractor.to_cell(node)
                 violations.extend(cell_result.violations)
-                cells.append(cell_result.unwrap())
+                cell = cell_result.unwrap()
+                # Scanner-generated unparsable cells indicate a syntax
+                # error in the original cell source.
+                if (
+                    isinstance(cell, UnparsableCell)
+                    and node.lineno in self._scanner_generated_lines
+                ):
+                    violations.append(
+                        Violation(
+                            SCANNER_UNPARSABLE_CELL_VIOLATION,
+                            lineno=node.lineno,
+                        )
+                    )
+                cells.append(cell)
             elif is_run_guard(node):
                 break
             else:
@@ -1187,6 +1212,9 @@ UNEXPECTED_KEYWORD_VALUE_VIOLATION = "Unexpected value for keyword argument"
 ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
 NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
 EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
+SCANNER_UNPARSABLE_CELL_VIOLATION = (
+    "Cell contains a syntax error and could not be parsed"
+)
 
 # Soft violations are auto-corrected on save with no data loss.
 # Any violation NOT in this set is considered "hard" (potential data loss).
