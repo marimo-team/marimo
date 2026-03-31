@@ -29,29 +29,16 @@ class MatplotlibSelection(Protocol):
 
 
 def _to_numeric(arr: NDArray[Any]) -> NDArray[Any]:
-    """Convert a numpy array to numeric, handling datetime types.
+    """Convert a numpy array to matplotlib's numeric representation.
 
-    Datetime arrays (``datetime.datetime``, ``datetime.date``,
-    ``numpy.datetime64``) are converted to matplotlib's internal float
-    representation via ``matplotlib.dates.date2num`` so they can be
-    compared with selection bounds sent from the frontend.
+    Only called on the slow path when a direct comparison raises
+    ``TypeError`` (e.g. datetime vs float).  Uses
+    ``matplotlib.dates.date2num`` which handles ``datetime.datetime``,
+    ``datetime.date``, and ``numpy.datetime64``.
     """
-    import numpy as np
+    from matplotlib.dates import date2num  # type: ignore[import-untyped]
 
-    if np.issubdtype(arr.dtype, np.datetime64):
-        from matplotlib.dates import date2num  # type: ignore[import-untyped]
-
-        return date2num(arr)  # type: ignore[no-any-return,no-untyped-call]
-    if arr.dtype == object and arr.size > 0:
-        from datetime import date
-
-        if isinstance(arr.flat[0], date):
-            from matplotlib.dates import (
-                date2num,  # type: ignore[import-untyped]
-            )
-
-            return date2num(arr)  # type: ignore[no-any-return,no-untyped-call]
-    return arr
+    return date2num(arr)  # type: ignore[no-any-return,no-untyped-call]
 
 
 @dataclass(frozen=True)
@@ -83,14 +70,24 @@ class BoxSelection:
         """
         import numpy as np
 
-        x_arr = _to_numeric(np.asarray(x))
-        y_arr = _to_numeric(np.asarray(y))
-        return (
-            (x_arr >= self.x_min)
-            & (x_arr <= self.x_max)
-            & (y_arr >= self.y_min)
-            & (y_arr <= self.y_max)
-        )
+        x_arr = np.asarray(x)
+        y_arr = np.asarray(y)
+        try:
+            return (
+                (x_arr >= self.x_min)
+                & (x_arr <= self.x_max)
+                & (y_arr >= self.y_min)
+                & (y_arr <= self.y_max)
+            )
+        except TypeError:
+            x_arr = _to_numeric(x_arr)
+            y_arr = _to_numeric(y_arr)
+            return (
+                (x_arr >= self.x_min)
+                & (x_arr <= self.x_max)
+                & (y_arr >= self.y_min)
+                & (y_arr <= self.y_max)
+            )
 
 
 @dataclass(frozen=True)
@@ -117,11 +114,17 @@ class LassoSelection:
         import numpy as np
         from matplotlib.path import Path  # type: ignore[import-untyped]
 
-        x_arr = _to_numeric(np.asarray(x))
-        y_arr = _to_numeric(np.asarray(y))
+        x_arr = np.asarray(x)
+        y_arr = np.asarray(y)
         path = Path(self.vertices)
-        points = np.column_stack([x_arr, y_arr])
-        return path.contains_points(points)
+        try:
+            points = np.column_stack([x_arr, y_arr])
+            return path.contains_points(points)
+        except TypeError:
+            x_arr = _to_numeric(x_arr)
+            y_arr = _to_numeric(y_arr)
+            points = np.column_stack([x_arr, y_arr])
+            return path.contains_points(points)
 
 
 @dataclass(frozen=True)
