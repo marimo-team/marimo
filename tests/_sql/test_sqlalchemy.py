@@ -716,7 +716,7 @@ def test_sqlalchemy_engine_get_cursor_metadata(
 
 
 def test_returns_function_result_on_success():
-    @safe_execute()
+    @safe_execute(fallback=None)
     def add(a, b):
         return a + b
 
@@ -731,17 +731,11 @@ def test_returns_fallback_on_exception():
     assert fail() == "oops"
 
 
-def test_returns_none_fallback_by_default():
-    @safe_execute()
-    def fail():
-        raise RuntimeError
-
-    assert fail() is None
-
-
 @mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
 def test_logs_on_exception(mock_logger):
-    @safe_execute(message="something broke", log_level="warning")
+    @safe_execute(
+        fallback=None, message="something broke", log_level="warning"
+    )
     def fail():
         raise TypeError("bad type")
 
@@ -754,7 +748,7 @@ def test_logs_on_exception(mock_logger):
 
 @mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
 def test_respects_log_level_debug(mock_logger):
-    @safe_execute(message="debug msg", log_level="debug")
+    @safe_execute(fallback=None, message="debug msg", log_level="debug")
     def fail():
         raise RuntimeError
 
@@ -765,7 +759,7 @@ def test_respects_log_level_debug(mock_logger):
 
 @mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
 def test_respects_log_level_error(mock_logger):
-    @safe_execute(message="error msg", log_level="error")
+    @safe_execute(fallback=None, message="error msg", log_level="error")
     def fail():
         raise RuntimeError
 
@@ -810,7 +804,7 @@ def test_silent_exceptions_still_logs_other_errors(mock_logger):
 
 
 def test_preserves_function_metadata():
-    @safe_execute()
+    @safe_execute(fallback=None)
     def my_func():
         """My docstring."""
         pass
@@ -820,7 +814,7 @@ def test_preserves_function_metadata():
 
 
 def test_passes_args_and_kwargs():
-    @safe_execute()
+    @safe_execute(fallback=None)
     def greet(name, greeting="Hello"):
         return f"{greeting}, {name}!"
 
@@ -968,13 +962,13 @@ def test_get_inspector_executes_use_database():
     with mock.patch(
         "sqlalchemy.inspect", return_value=mock_command
     ) as patched_inspect:
-        with engine._get_inspector("MY_DB$MYDB") as inspector:
+        with engine._get_inspector("MY_DB@MYDB") as inspector:
             assert inspector is mock_command
             patched_inspect.assert_called_once_with(mock_conn)
 
     # Verify USE DATABASE was executed
     executed = mock_conn.execute.call_args[0][0]
-    assert str(executed) == 'USE DATABASE "MY_DB$MYDB"'
+    assert str(executed) == 'USE DATABASE "MY_DB@MYDB"'
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -1179,13 +1173,13 @@ def test_get_snowflake_database_names_lowercases_unless_special_characters(
         rows=[
             ("2025-01-01", "DB_A", "N", "N", ""),
             ("2025-01-02", "DB_B", "N", "Y", ""),
-            ("2025-01-02", "USER$snow", "N", "Y", ""),
+            ("2025-01-02", "USER@snow", "N", "Y", ""),
         ],
     )
     assert engine._get_snowflake_database_names() == [
         "db_a",
         "db_b",
-        "USER$snow",
+        "USER@snow",
     ]
 
 

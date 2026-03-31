@@ -314,7 +314,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         If the default database exists in the results, return only that.
         Otherwise, return all discovered databases.
 
-        Snowflake stores unquoted identifiers in UPPERCASE.
+        Unquoted identifiers are normalized to lowercase for consistency.
         Identifiers that need quoting are preserved as-is.
         """
         from sqlalchemy import text
@@ -337,14 +337,12 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 if _SNOWFLAKE_NEEDS_QUOTING_RE.search(raw_name):
                     database_names.append(raw_name)
                 else:
-                    # Snowflake normalizes unquoted identifiers to uppercase;
-                    # we store them in uppercase to match.
-                    database_names.append(raw_name.upper())
+                    database_names.append(raw_name.lower())
 
         if self.default_database:
-            default_upper = self.default_database.upper()
+            default_lower = self.default_database.lower()
             for db in database_names:
-                if db.upper() == default_upper:
+                if db.lower() == default_lower:
                     return [db]
 
         return database_names
