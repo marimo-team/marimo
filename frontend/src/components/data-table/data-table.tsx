@@ -98,6 +98,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   onViewedRowChange?: OnChangeFn<number>;
   // Others
   showChartBuilder?: boolean;
+  isChartBuilderOpen?: boolean;
   showPageSizeSelector?: boolean;
   showTableExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
@@ -142,6 +143,7 @@ const DataTableInternal = <TData,>({
   freezeColumnsRight,
   toggleDisplayHeader,
   showChartBuilder,
+  isChartBuilderOpen,
   showPageSizeSelector,
   showTableExplorer,
   togglePanel,
@@ -288,6 +290,7 @@ const DataTableInternal = <TData,>({
             onSearchQueryChange={onSearchQueryChange}
             reloading={reloading}
             showChartBuilder={showChartBuilder}
+            isChartBuilderOpen={isChartBuilderOpen}
             toggleDisplayHeader={toggleDisplayHeader}
             showTableExplorer={showTableExplorer}
             togglePanel={togglePanel}

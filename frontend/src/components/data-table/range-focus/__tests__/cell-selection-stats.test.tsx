@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { I18nProvider } from "react-aria";
 import { describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { SELECT_COLUMN_ID } from "../../types";
 import { useCellSelectionReducerActions } from "../atoms";
 import { CellSelectionStats } from "../cell-selection-stats";
@@ -23,9 +24,11 @@ const TestHarness = ({
     actions.setSelectedCells(selectedCellIds);
   }, [actions, selectedCellIds]);
   return (
-    <I18nProvider locale="en-US">
-      <CellSelectionStats table={table} />
-    </I18nProvider>
+    <TooltipProvider>
+      <I18nProvider locale="en-US">
+        <CellSelectionStats table={table} />
+      </I18nProvider>
+    </TooltipProvider>
   );
 };
 
@@ -43,9 +46,7 @@ describe("CellSelectionStats", () => {
       </CellSelectionProvider>,
     );
 
-    expect(
-      screen.getByText("Select multiple cells to see stats"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No selection")).toBeInTheDocument();
     expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 
@@ -197,9 +198,7 @@ describe("CellSelectionStats", () => {
       </CellSelectionProvider>,
     );
 
-    expect(
-      screen.getByText("Select multiple cells to see stats"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No selection")).toBeInTheDocument();
     expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 
@@ -322,9 +321,7 @@ describe("CellSelectionStats", () => {
       </CellSelectionProvider>,
     );
 
-    expect(
-      screen.getByText("Select multiple cells to see stats"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No selection")).toBeInTheDocument();
     expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 

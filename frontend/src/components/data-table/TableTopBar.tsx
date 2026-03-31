@@ -17,7 +17,6 @@ import {
 } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
-import { Tooltip } from "../ui/tooltip";
 import { type ExportActionProps, ExportMenu } from "./export-actions";
 
 const NOOP_ON_SEARCH = () => {
@@ -30,6 +29,7 @@ interface TableTopBarProps extends Partial<ExportActionProps> {
   onSearchQueryChange?: (query: string) => void;
   reloading?: boolean;
   showChartBuilder?: boolean;
+  isChartBuilderOpen?: boolean;
   toggleDisplayHeader?: () => void;
   showTableExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
@@ -42,13 +42,13 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   onSearchQueryChange,
   reloading,
   showChartBuilder,
+  isChartBuilderOpen,
   toggleDisplayHeader,
   showTableExplorer,
   togglePanel,
   isAnyPanelOpen,
   downloadAs,
 }) => {
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [internalValue, setInternalValue] = useState(searchQuery || "");
   const debouncedSearch = useDebounce(internalValue, 500);
   const onSearch = useEvent(onSearchQueryChange ?? NOOP_ON_SEARCH);
@@ -57,16 +57,6 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   useEffect(() => {
     onSearch(debouncedSearch);
   }, [debouncedSearch, onSearch]);
-
-  const expandSearch = () => {
-    setIsSearchExpanded(true);
-    requestAnimationFrame(() => inputRef.current?.focus());
-  };
-
-  const collapseSearch = () => {
-    setIsSearchExpanded(false);
-    setInternalValue("");
-  };
 
   const hasAnyAction =
     (enableSearch && onSearchQueryChange) ||
@@ -79,48 +69,33 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   }
 
   return (
-    <div className="flex items-center h-10 px-2 border-b gap-1">
-      {/* expanding search bar */}
+    <div className="flex items-center h-10 px-2 border-b gap-3">
+      {/* always-visible search */}
       {onSearchQueryChange && enableSearch && (
         <div className="flex items-center">
-          <div
-            className={cn(
-              "flex items-center gap-1 rounded-full border px-2 transition-all duration-200 ease-in-out overflow-hidden",
-              isSearchExpanded ? "w-56" : "w-8 border-transparent",
-            )}
-          >
-            <button
-              type="button"
-              className="shrink-0 flex items-center justify-center"
-              onClick={() =>
-                isSearchExpanded ? collapseSearch() : expandSearch()
-              }
-            >
-              <SearchIcon className="w-4 h-4 text-muted-foreground" />
-            </button>
+          <div className="flex items-center gap-1 rounded-full border px-2 w-56">
+            <SearchIcon className="w-4 h-4 text-muted-foreground shrink-0" />
             <input
               ref={inputRef}
               type="text"
-              className={cn(
-                "h-6 border-none bg-transparent focus:outline-hidden text-sm transition-all duration-200",
-                isSearchExpanded ? "w-full opacity-100" : "w-0 opacity-0",
-              )}
+              className="h-6 border-none bg-transparent focus:outline-hidden text-sm w-full min-w-0"
               value={internalValue}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
-                  collapseSearch();
+                  setInternalValue("");
+                  inputRef.current?.blur();
                 }
               }}
               onChange={(e) => setInternalValue(e.target.value)}
               placeholder="Search..."
             />
-            {isSearchExpanded && reloading && <Spinner size="small" />}
-            {isSearchExpanded && (
+            {reloading && <Spinner size="small" />}
+            {internalValue && (
               <Button
                 variant="text"
                 size="xs"
                 className="h-5 w-5 p-0 shrink-0"
-                onClick={collapseSearch}
+                onClick={() => setInternalValue("")}
               >
                 <XIcon className="w-3 h-3 text-muted-foreground" />
               </Button>
@@ -129,36 +104,35 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
         </div>
       )}
 
-      {/* actions: chart builder, sidebar (explorer), export */}
-      <div className="ml-auto flex items-center gap-0.5">
+      {/* actions grouped together */}
+      <div className="flex items-center gap-1 shrink-0">
         {showChartBuilder && (
-          <Tooltip content="Chart builder">
-            <Button
-              variant="text"
-              size="xs"
-              className="print:hidden"
-              onClick={toggleDisplayHeader}
-            >
-              <ChartSplineIcon className="w-4 h-4 text-muted-foreground" />
-            </Button>
-          </Tooltip>
+          <Button
+            variant="text"
+            size="xs"
+            className={cn(
+              "print:hidden text-xs gap-1",
+              isChartBuilderOpen ? "text-primary" : "text-muted-foreground",
+            )}
+            onClick={toggleDisplayHeader}
+          >
+            <ChartSplineIcon className="w-3.5 h-3.5" />
+            Chart Builder
+          </Button>
         )}
         {showTableExplorer && togglePanel && (
-          <Tooltip content="Toggle table explorer">
-            <Button
-              variant="text"
-              size="xs"
-              className="print:hidden"
-              onClick={() => togglePanel(PANEL_TYPES.ROW_VIEWER)}
-            >
-              <PanelRightIcon
-                className={cn(
-                  "w-4 h-4 text-muted-foreground",
-                  isAnyPanelOpen && "text-primary",
-                )}
-              />
-            </Button>
-          </Tooltip>
+          <Button
+            variant="text"
+            size="xs"
+            className={cn(
+              "print:hidden text-xs gap-1",
+              isAnyPanelOpen ? "text-primary" : "text-muted-foreground",
+            )}
+            onClick={() => togglePanel(PANEL_TYPES.ROW_VIEWER)}
+          >
+            <PanelRightIcon className="w-3.5 h-3.5" />
+            Table Explorer
+          </Button>
         )}
         {downloadAs && <ExportMenu downloadAs={downloadAs} />}
       </div>

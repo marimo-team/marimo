@@ -3,8 +3,8 @@
 import {
   BracesIcon,
   BrickWallIcon,
+  DownloadIcon,
   FileTextIcon,
-  ShareIcon,
   TableIcon,
 } from "lucide-react";
 import React from "react";
@@ -91,14 +91,13 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
       data-testid="export-button"
       size="xs"
       variant="text"
-      className="print:hidden"
+      className={cn(
+        "print:hidden text-xs gap-1",
+        open ? "text-primary" : "text-muted-foreground",
+      )}
     >
-      <ShareIcon
-        className={cn(
-          "w-4 h-4",
-          open ? "text-primary" : "text-muted-foreground",
-        )}
-      />
+      <DownloadIcon className="w-3.5 h-3.5" />
+      Export
     </Button>
   );
 

@@ -143,11 +143,12 @@ export const TableBottomBar = <TData,>({
   };
 
   return (
-    <div className="flex items-center shrink-0 pt-1">
-      <div className="flex-1 text-sm text-muted-foreground px-2 flex items-center gap-1">
-        {renderTotal()}
+    <div className="flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center shrink-0 pt-1">
+      <div className="flex flex-col text-sm text-muted-foreground px-2 shrink-0">
+        <div className="flex items-center gap-1">{renderTotal()}</div>
+        <CellSelectionStats table={table} className="lg:hidden" />
       </div>
-      <div className="flex items-center justify-center">
+      <div className="ml-auto lg:ml-0 lg:justify-self-center flex items-center shrink-0">
         {pagination && (
           <DataTablePagination
             table={table}
@@ -156,7 +157,7 @@ export const TableBottomBar = <TData,>({
           />
         )}
       </div>
-      <div className="flex-1 flex justify-end">
+      <div className="hidden lg:flex justify-end">
         <CellSelectionStats table={table} className="px-2" />
       </div>
     </div>

@@ -80,7 +80,7 @@ export const DataTablePagination = <TData,>({
           <DropdownMenuTrigger asChild={true}>
             <button
               type="button"
-              className="border rounded justify-between pl-1.5 pr-0.5 text-xs items-center hover:bg-accent inline-flex gap-0.5"
+              className="border rounded justify-between pl-1.5 pr-0.5 h-6 text-xs items-center hover:bg-accent inline-flex gap-0.5"
             >
               {pageSize} / page
               <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
@@ -110,15 +110,17 @@ export const DataTablePagination = <TData,>({
   };
 
   return (
-    <div className="flex items-center gap-2 px-2">
-      {showPageSizeSelector && renderPageSizeSelector()}
-      <div className="flex items-center space-x-2 print:hidden">
+    <div className="flex flex-col lg:flex-row items-center gap-0.5 lg:gap-1 px-2">
+      <div className="order-2 lg:order-first">
+        {showPageSizeSelector && renderPageSizeSelector()}
+      </div>
+      <div className="order-1 lg:order-last flex items-center print:hidden">
         <Tooltip content="First page">
           <Button
             size="xs"
             variant="text"
             data-testid="first-page-button"
-            className="hidden h-6 w-6 p-0 lg:flex"
+            className="hidden h-6 w-5 p-0 lg:flex"
             onClick={() => handlePageChange(() => table.setPageIndex(0))}
             onMouseDown={Events.preventFocus}
             disabled={!table.getCanPreviousPage()}
@@ -131,7 +133,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="previous-page-button"
-            className="h-6 w-6 p-0"
+            className="h-6 w-5 p-0"
             onClick={() => handlePageChange(() => table.previousPage())}
             onMouseDown={Events.preventFocus}
             disabled={!table.getCanPreviousPage()}
@@ -157,7 +159,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="next-page-button"
-            className="h-6 w-6 p-0"
+            className="h-6 w-5 p-0"
             onClick={() => handlePageChange(() => table.nextPage())}
             onMouseDown={Events.preventFocus}
             disabled={!table.getCanNextPage()}
@@ -170,7 +172,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             variant="text"
             data-testid="last-page-button"
-            className="hidden h-6 w-6 p-0 lg:flex"
+            className="hidden h-6 w-5 p-0 lg:flex"
             onClick={() =>
               handlePageChange(() =>
                 table.setPageIndex(table.getPageCount() - 1),
@@ -214,7 +216,7 @@ export const PageSelector = ({
         <button
           type="button"
           className={cn(
-            "border rounded justify-between pl-1.5 pr-0.5 min-w-9 text-xs items-center inline-flex gap-0.5",
+            "border rounded justify-between pl-1.5 pr-0.5 h-6 min-w-9 text-xs items-center inline-flex gap-0.5",
             totalPages > 1
               ? "hover:bg-accent cursor-pointer"
               : "opacity-50 cursor-default",
