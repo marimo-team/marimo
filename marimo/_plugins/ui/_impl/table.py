@@ -1263,14 +1263,17 @@ class table(
         if response.all_rows:
             if self._has_stable_row_id:
                 try:
-                    # Slice to the requested page via take(), then collect
-                    # to an eager frame. This avoids materializing the full
+                    # Slice to the requested page via take(), then read
+                    # the index column. This avoids materializing the full
                     # index column and handles lazy backends (polars
                     # LazyFrame, duckdb, ibis) that do not support direct
                     # slice indexing on the data attribute.
-                    page_data = self._searched_manager.take(
-                        take, skip
-                    ).as_frame()
+                    page_manager = self._searched_manager.take(take, skip)
+                    page_frame = getattr(page_manager, "as_frame", None)
+                    if page_frame is not None:
+                        page_data = page_frame()
+                    else:
+                        page_data = page_manager.data
                     return cast(
                         list[int],
                         page_data[INDEX_COLUMN_NAME].to_list(),
