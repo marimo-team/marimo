@@ -753,6 +753,7 @@ class text(UIElement[str, str]):
         on_change: Optional[Callable[[str], None]] = None,
         full_width: bool = False,
     ) -> None:
+        self._masked: bool = kind == "password" and bool(value)
         super().__init__(
             component_name=text._name,
             initial_value=value,
@@ -764,9 +765,26 @@ class text(UIElement[str, str]):
                 "full-width": full_width,
                 "disabled": disabled,
                 "debounce": debounce,
+                "password-has-value": self._masked or None,
             },
             on_change=on_change,
         )
+
+    def _frontend_initial_value(self, value: str) -> str:
+        if self._masked:
+            return ""
+        return value
+
+    def _update(self, value: str) -> None:
+        # While the frontend is in masked state it sends "" (user never typed).
+        # Ignore that to preserve the real backend password. Once the user
+        # sends a non-empty value we unmask, so a subsequent "" (intentional
+        # clear) is accepted normally.
+        if self._masked:
+            if value == "":
+                return
+            self._masked = False
+        super()._update(value)
 
     def _convert_value(self, value: str) -> str:
         return value
