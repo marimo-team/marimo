@@ -8,7 +8,7 @@ msgspec>=0.20.0
 narwhals>=2.0.0
 packaging
 psutil>=5.0
-pygments>=2.19,<3
+pygments>=2.20,<3
 pymdown-extensions>=10.15,<11
 pyyaml>=6.0.1
 pyzmq>=27.1.0; python_version < '3.15'
