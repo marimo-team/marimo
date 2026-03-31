@@ -9,7 +9,7 @@ from marimo._types.ids import CellId_t
 
 
 class CellIdGenerator:
-    def __init__(self, prefix: str = "", seed: int = 42) -> None:
+    def __init__(self, prefix: str = "", seed: int | None = None) -> None:
         self.prefix = prefix
         self.random_seed = random.Random(seed)
         self.seen_ids: set[CellId_t] = set()

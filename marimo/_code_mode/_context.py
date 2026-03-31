@@ -250,11 +250,10 @@ class AsyncCodeModeContext:
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
         self._pending_adds: dict[CellId_t, _AddOp] = {}
-        # ID generator for new cells — use a different seed than the
-        # default (42) so we don't replay the same ID sequence that
-        # created the notebook's existing cells.  Also seed seen_ids
-        # with graph + document IDs to avoid collisions.
-        self._id_generator = CellIdGenerator(seed=7)
+        # ID generator for new cells — seed=None uses OS entropy so we
+        # never replay a prior session's ID sequence.  seen_ids from the
+        # document prevents collisions with cells already on disk.
+        self._id_generator = CellIdGenerator(seed=None)
         self._id_generator.seen_ids = set(document.cell_ids)
         self._packages_to_install: list[str] = []
         self._ui_updates: list[tuple[UIElementId, Any]] = []
