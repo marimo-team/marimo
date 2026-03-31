@@ -878,9 +878,7 @@ class AsyncCodeModeContext:
 
         # Diff the plan against the current document.
         existing_id_set = set(self._document)
-        existing_code = {
-            cell.id: cell.code for cell in self._document.cells
-        }
+        existing_code = {cell.id: cell.code for cell in self._document.cells}
         plan_ids = {e.cell_id for e in plan}
 
         # Classify each entry.
@@ -973,9 +971,7 @@ class AsyncCodeModeContext:
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code in the plan with the default formatter."""
-        existing_code = {
-            cell.id: cell.code for cell in self._document.cells
-        }
+        existing_code = {cell.id: cell.code for cell in self._document.cells}
 
         to_format: dict[CellId_t, str] = {}
         for entry in plan:
