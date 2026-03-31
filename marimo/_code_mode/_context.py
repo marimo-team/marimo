@@ -870,7 +870,7 @@ class AsyncCodeModeContext:
         self, ops: list[_Op], explicit_run: set[CellId_t] | None = None
     ) -> None:
         """Validate, plan, format, and apply a batch of operations."""
-        existing_ids = list(self.graph.cells.keys())
+        existing_ids = list(self._document)
         plan = _build_plan(existing_ids, ops)
 
         # Auto-format new/changed code.

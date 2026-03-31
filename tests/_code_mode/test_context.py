@@ -21,19 +21,28 @@ from marimo._messaging.notebook.document import (
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
+from marimo._ast.cell import CellConfig
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
 
 
 @contextmanager
-def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
-    """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
-    doc = NotebookDocument(
-        [
-            NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
-            for cid, cell in k.graph.cells.items()
-        ]
-    )
+def _ctx(
+    k: Kernel,
+    extra_doc_cells: list[NotebookCell] | None = None,
+) -> Generator[AsyncCodeModeContext, None, None]:
+    """Build an AsyncCodeModeContext with a document snapshot from the kernel.
+
+    ``extra_doc_cells`` adds cells to the document that are *not* in the
+    kernel graph, simulating cells that exist on disk but were never run.
+    """
+    cells = [
+        NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
+        for cid, cell in k.graph.cells.items()
+    ]
+    if extra_doc_cells:
+        cells.extend(extra_doc_cells)
+    doc = NotebookDocument(cells)
     with notebook_document_context(doc):
         yield AsyncCodeModeContext(k)
 
@@ -649,3 +658,19 @@ class TestAutorunStaleState:
                 nb.run_cell("0")
 
         assert k.globals["x"] == 42
+
+
+class TestDocumentKernelDivergence:
+    """Tests for cells that exist in the document but not in the kernel graph."""
+
+    async def test_delete_doc_only_cell(self, k: Kernel) -> None:
+        """Deleting a cell that is in the document but not the kernel
+        graph should succeed without KeyError."""
+        ghost = NotebookCell(id="ghost", code="y = 99", name="", config=CellConfig())
+        with _ctx(k, extra_doc_cells=[ghost]) as ctx:
+            async with ctx as nb:
+                nb.delete_cell("ghost")
+
+        # The ghost cell should not appear in the graph.
+        assert "ghost" not in k.graph.cells
+
