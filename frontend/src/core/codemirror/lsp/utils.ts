@@ -9,7 +9,7 @@ import { PathBuilder, Paths } from "@/utils/paths";
  * current notebook's absolute directory (cwd) and its relative path from the
  * workspace root.
  */
-function getWorkspaceRoot(): string | null {
+function getWorkspaceRoot() {
   const cwd = store.get(cwdAtom);
   const filename = getFilenameFromDOM();
 
