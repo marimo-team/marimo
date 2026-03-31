@@ -20,12 +20,14 @@ import {
 import { Logger } from "@/utils/Logger";
 import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
 import { notebookAtom } from "./core/cells/cells";
+import type { UIElementId } from "./core/cells/ids";
 import { notebookStateFromSession } from "./core/cells/session";
 import {
   parseAppConfig,
   parseConfigOverrides,
   parseUserConfig,
 } from "./core/config/config-schema";
+import { UI_ELEMENT_REGISTRY } from "./core/dom/uiregistry";
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
@@ -340,6 +342,16 @@ function initStore(options: unknown) {
   );
   if (notebook) {
     store.set(notebookAtom, notebook);
+  }
+
+  // Restore widget state from session snapshot in static mode
+  if (isStaticNotebook()) {
+    const uiValues = parsedOptions.data.session?.ui_values;
+    if (uiValues) {
+      for (const [objectId, value] of Object.entries(uiValues)) {
+        UI_ELEMENT_REGISTRY.set(objectId as UIElementId, value);
+      }
+    }
   }
 }
 

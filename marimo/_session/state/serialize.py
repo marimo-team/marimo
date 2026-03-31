@@ -163,6 +163,7 @@ def serialize_session_view(
             script_metadata_hash=script_metadata_hash,
         ),
         cells=cells,
+        ui_values=dict(view.ui_values),
     )
 
 
