@@ -674,3 +674,14 @@ class TestDocumentKernelDivergence:
         # The ghost cell should not appear in the graph.
         assert "ghost" not in k.graph.cells
 
+    async def test_edit_and_run_doc_only_cell(self, k: Kernel) -> None:
+        """A cell present only in the document can be edited and run,
+        bringing it into the kernel graph."""
+        ghost = NotebookCell(id="ghost", code="z = 0", name="", config=CellConfig())
+        with _ctx(k, extra_doc_cells=[ghost]) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("ghost", code="z = 42")
+                nb.run_cell("ghost")
+
+        assert k.globals["z"] == 42
+
