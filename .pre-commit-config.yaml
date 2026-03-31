@@ -39,6 +39,13 @@ repos:
       # Run the formatter
       - id: ruff-format
 
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+      - id: interrogate
+        args: [--config=pyproject.toml]
+        pass_filenames: false
+
   - repo: https://github.com/biomejs/pre-commit
     rev: v2.3.13
     hooks:

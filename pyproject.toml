@@ -412,6 +412,19 @@ exempt-modules = ["typing", "typing_extensions"]
 [tool.ruff.format]
 docstring-code-format = true
 
+[tool.interrogate]
+ignore-init-method = true
+ignore-magic = true
+ignore-private = true
+ignore-semiprivate = true
+ignore-module = true
+fail-under = 40
+paths = ["marimo"]
+exclude = ["marimo/_tutorials"]
+verbose = 0
+quiet = false
+color = true
+
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
