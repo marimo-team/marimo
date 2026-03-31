@@ -9,6 +9,8 @@ from typing import (
     Callable,
     Literal,
     Optional,
+    ParamSpec,
+    TypeVar,
     Union,
 )
 
@@ -48,12 +50,18 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------ #
 
 
+T = TypeVar("T")
+P = ParamSpec("P")
+F = TypeVar("F")
+
+
 def safe_execute(
-    fallback: Any = None,
+    *,
+    fallback: F,
     message: str = "Operation failed",
     log_level: Literal["debug", "info", "warning", "error"] = "warning",
     silent_exceptions: tuple[type[BaseException], ...] = (),
-) -> Callable[..., Any]:
+) -> Callable[[Callable[P, T]], Callable[P, T | F]]:
     """Catch exceptions, log them, and return a fallback value.
 
     Args:
@@ -66,9 +74,9 @@ def safe_execute(
             exceptions like ``NotImplementedError``.
     """
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T | F]:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | F:
             try:
                 return func(*args, **kwargs)
             except silent_exceptions:
