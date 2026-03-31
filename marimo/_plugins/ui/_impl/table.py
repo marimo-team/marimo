@@ -1263,18 +1263,23 @@ class table(
         if response.all_rows:
             if self._has_stable_row_id:
                 try:
-                    # Slice to just the requested page first, then read IDs
-                    # to avoid materializing the entire index column for
-                    # large tables.
-                    page_data = self._searched_manager.data[skip : skip + take]
+                    # Slice to the requested page via take(), then collect
+                    # to an eager frame. This avoids materializing the full
+                    # index column and handles lazy backends (polars
+                    # LazyFrame, duckdb, ibis) that do not support direct
+                    # slice indexing on the data attribute.
+                    page_data = self._searched_manager.take(
+                        take, skip
+                    ).as_frame()
                     return cast(
                         list[int],
                         page_data[INDEX_COLUMN_NAME].to_list(),
                     )
                 except Exception:
                     LOGGER.warning(
-                        "Failed to read row IDs for page; "
-                        "falling back to positional indexing"
+                        "Failed to read %s from searched manager; "
+                        "falling back to positional indices",
+                        INDEX_COLUMN_NAME,
                     )
                     return range(skip, skip + take)
             return range(skip, skip + take)

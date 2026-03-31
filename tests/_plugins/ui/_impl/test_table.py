@@ -1964,7 +1964,7 @@ def test_cell_styles_descending_non_index_column(df: Any):
     table = ui.table(df, style_cell=style)
 
     # Sort by Score descending: 4.0 (row 0), 3.0 (row 2), 2.0 (row 3), 1.0 (row 1)
-    # Row IDs on page should be [0, 2, 3, 1] — NOT reversed sequential [3, 2, 1, 0]
+    # Row IDs on page should be [0, 2, 3, 1] - NOT reversed sequential [3, 2, 1, 0]
     page = table._search(
         SearchTableArgs(
             page_size=10,
