@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cellId, requestId, uiElementId } from "@/__tests__/branded";
 import type { RuntimeManager } from "../../runtime/runtime";
 import { createLazyRequests } from "../requests-lazy";
 import type { EditRequests, RunRequests } from "../types";
@@ -59,7 +60,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    await lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] });
+    await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
 
     expect(mockInit).toHaveBeenCalledTimes(1);
   });
@@ -70,10 +71,13 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    await lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] });
-    await lazyRequests.sendInstantiate({ objectIds: ["obj1"], values: [] });
+    await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
+    await lazyRequests.sendInstantiate({
+      objectIds: [uiElementId("obj1")],
+      values: [],
+    });
     await lazyRequests.sendFunctionRequest({
-      functionCallId: "func1",
+      functionCallId: requestId("func1"),
       functionName: "testFunc",
       args: {},
       namespace: "test",
@@ -89,7 +93,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    await lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] });
+    await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
 
     expect(waitForConnectionOpen).toHaveBeenCalled();
   });
@@ -100,7 +104,7 @@ describe("createLazyRequests", () => {
       mockGetRuntimeManager,
     );
 
-    const args = { cellIds: ["cell1"], codes: ["code"] };
+    const args = { cellIds: [cellId("cell1")], codes: ["code"] };
     await lazyRequests.sendRun(args);
 
     expect(mockDelegate.sendRun).toHaveBeenCalledWith(args);
@@ -113,7 +117,7 @@ describe("createLazyRequests", () => {
     );
 
     const result = await lazyRequests.sendFunctionRequest({
-      functionCallId: "func1",
+      functionCallId: requestId("func1"),
       functionName: "testFunc",
       args: {},
       namespace: "test",
@@ -143,7 +147,7 @@ describe("createLazyRequests", () => {
     );
 
     await expect(
-      lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] }),
+      lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] }),
     ).rejects.toThrow("Init failed");
   });
 
@@ -157,7 +161,7 @@ describe("createLazyRequests", () => {
     );
 
     await expect(
-      lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] }),
+      lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] }),
     ).rejects.toThrow("Request failed");
   });
 
@@ -169,7 +173,10 @@ describe("createLazyRequests", () => {
       );
 
       // First request with first runtime manager
-      await lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] });
+      await lazyRequests.sendRun({
+        cellIds: [cellId("cell1")],
+        codes: ["code"],
+      });
       expect(mockInit).toHaveBeenCalledTimes(1);
 
       // Create a new runtime manager
@@ -187,7 +194,10 @@ describe("createLazyRequests", () => {
       );
 
       // Second request with second runtime manager
-      await lazyRequests2.sendRun({ cellIds: ["cell2"], codes: ["code2"] });
+      await lazyRequests2.sendRun({
+        cellIds: [cellId("cell2")],
+        codes: ["code2"],
+      });
 
       // Both inits should have been called
       expect(mockInit).toHaveBeenCalledTimes(1);
@@ -201,9 +211,15 @@ describe("createLazyRequests", () => {
       );
 
       // Multiple requests
-      await lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] });
-      await lazyRequests.sendDeleteCell({ cellId: "cell2" });
-      await lazyRequests.sendInstantiate({ objectIds: ["obj1"], values: [] });
+      await lazyRequests.sendRun({
+        cellIds: [cellId("cell1")],
+        codes: ["code"],
+      });
+      await lazyRequests.sendDeleteCell({ cellId: cellId("cell2") });
+      await lazyRequests.sendInstantiate({
+        objectIds: [uiElementId("obj1")],
+        values: [],
+      });
 
       // Init should only be called once
       expect(mockInit).toHaveBeenCalledTimes(1);

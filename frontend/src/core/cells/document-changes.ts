@@ -425,7 +425,7 @@ export function fromDocumentChanges(
             cellId,
             before,
             code: change.code,
-            newCellId: change.cellId as CellId,
+            newCellId: change.cellId,
             autoFocus: false,
             hideCode: change.config?.hide_code ?? false,
           },
@@ -433,14 +433,14 @@ export function fromDocumentChanges(
         if (change.name) {
           actions.push({
             type: "updateCellName",
-            payload: { cellId: change.cellId as CellId, name: change.name },
+            payload: { cellId: change.cellId, name: change.name },
           });
         }
         if (change.config?.disabled != null || change.config?.column != null) {
           actions.push({
             type: "updateCellConfig",
             payload: {
-              cellId: change.cellId as CellId,
+              cellId: change.cellId,
               config: {
                 ...(change.config.disabled != null && {
                   disabled: change.config.disabled,
@@ -460,7 +460,7 @@ export function fromDocumentChanges(
       case "delete-cell":
         actions.push({
           type: "deleteCell",
-          payload: { cellId: change.cellId as CellId },
+          payload: { cellId: change.cellId },
         });
         break;
 
@@ -471,7 +471,7 @@ export function fromDocumentChanges(
       // missing. No-ops if the cell itself doesn't exist.
       case "move-cell": {
         const ids = [...getCurrentCellIds()];
-        const cellId = change.cellId as CellId;
+        const cellId = change.cellId;
         const idx = ids.indexOf(cellId);
         if (idx < 0) {
           break;
@@ -507,7 +507,7 @@ export function fromDocumentChanges(
       case "reorder-cells":
         actions.push({
           type: "setCellIds",
-          payload: { cellIds: change.cellIds as CellId[] },
+          payload: { cellIds: change.cellIds },
         });
         break;
 
@@ -518,7 +518,7 @@ export function fromDocumentChanges(
         actions.push({
           type: "setCellCodes",
           payload: {
-            ids: [change.cellId as CellId],
+            ids: [change.cellId],
             codes: [change.code],
             codeIsStale: true,
           },
@@ -530,7 +530,7 @@ export function fromDocumentChanges(
       case "set-name":
         actions.push({
           type: "updateCellName",
-          payload: { cellId: change.cellId as CellId, name: change.name },
+          payload: { cellId: change.cellId, name: change.name },
         });
         break;
 
@@ -542,7 +542,7 @@ export function fromDocumentChanges(
         actions.push({
           type: "updateCellConfig",
           payload: {
-            cellId: change.cellId as CellId,
+            cellId: change.cellId,
             config: {
               ...(change.hideCode != null && { hide_code: change.hideCode }),
               ...(change.disabled != null && { disabled: change.disabled }),

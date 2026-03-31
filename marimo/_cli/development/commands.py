@@ -54,18 +54,21 @@ def _enrich_branded_types(
         WidgetModelId,
     )
 
-    branded: dict[Any, str] = {
-        CellId_t: "CellId",
-        UIElementId: "UIElementId",
-        SessionId: "SessionId",
-        VariableName: "VariableName",
-        RequestId: "RequestId",
-        WidgetModelId: "WidgetModelId",
+    branded: dict[Any, tuple[str, str]] = {
+        CellId_t: ("CellId", "cell-id"),
+        UIElementId: ("UIElementId", "ui-element-id"),
+        SessionId: ("SessionId", "session-id"),
+        VariableName: ("VariableName", "variable-name"),
+        RequestId: ("RequestId", "request-id"),
+        WidgetModelId: ("WidgetModelId", "widget-model-id"),
     }
 
     # Step 1 — add named schemas for each branded type
-    for schema_name in branded.values():
-        component_schemas[schema_name] = {"type": "string"}
+    for schema_name, format_value in branded.values():
+        component_schemas[schema_name] = {
+            "type": "string",
+            "format": format_value,
+        }
 
     def make_ref(name: str) -> dict[str, str]:
         return {"$ref": f"#/components/schemas/{name}"}
@@ -76,7 +79,7 @@ def _enrich_branded_types(
     def resolve(ty: Any) -> dict[str, Any] | None:
         """Produce a branded schema for *ty*, or ``None``."""
         if ty in branded:
-            return make_ref(branded[ty])
+            return make_ref(branded[ty][0])
 
         origin = typing.get_origin(ty)
         args = typing.get_args(ty)
@@ -143,7 +146,9 @@ def _enrich_branded_types(
     for model in models:
         _visit_type(model)
 
-    # Step 3 — walk collected structs and replace inline schemas with $refs
+    # Step 3 — walk collected structs and replace inline schemas with $refs.
+    # Use msgspec.structs.fields() to map Python names → schema keys,
+    # which accounts for rename="camel" and other rename strategies.
     for schema_name, struct_cls in all_structs.items():
         schema = component_schemas.get(schema_name)
         if schema is None:
@@ -156,17 +161,25 @@ def _enrich_branded_types(
         except Exception:
             continue
 
+        field_to_schema_key: dict[str, str] = {}
+        try:
+            for fi in msgspec.structs.fields(struct_cls):
+                field_to_schema_key[fi.name] = fi.encode_name
+        except Exception:
+            field_to_schema_key = {name: name for name in hints}
+
         for field_name, field_type in hints.items():
-            if field_name not in properties:
+            schema_key = field_to_schema_key.get(field_name, field_name)
+            if schema_key not in properties:
                 continue
 
             replacement = resolve(field_type)
             if replacement is not None:
                 # Preserve default value from the original schema
-                existing = properties[field_name]
+                existing = properties[schema_key]
                 if isinstance(existing, dict) and "default" in existing:
                     replacement["default"] = existing["default"]
-                properties[field_name] = replacement
+                properties[schema_key] = replacement
 
     # Step 4 — replace inline {type: string, contentEncoding: base64}
     # with a named $ref. msgspec already emits contentEncoding for
@@ -174,6 +187,7 @@ def _enrich_branded_types(
     # can brand it.
     component_schemas["Base64String"] = {
         "type": "string",
+        "format": "base64",
         "contentEncoding": "base64",
     }
 

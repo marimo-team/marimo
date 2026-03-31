@@ -186,7 +186,7 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "completion-result":
-        AUTOCOMPLETER.resolve(msg.data.completion_id as RequestId, msg.data);
+        AUTOCOMPLETER.resolve(msg.data.completion_id, msg.data);
         return;
       case "function-call-result":
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
@@ -207,20 +207,14 @@ export function useMarimoKernelConnection(opts: {
       case "variables":
         setVariables(
           msg.data.variables.map((v) => ({
-            name: v.name as VariableName,
+            name: v.name,
             declaredBy: v.declared_by,
             usedBy: v.used_by,
           })),
         );
-        filterDatasetsFromVariables(
-          msg.data.variables.map((v) => v.name as VariableName),
-        );
-        filterDataSourcesFromVariables(
-          msg.data.variables.map((v) => v.name as VariableName),
-        );
-        filterStorageFromVariables(
-          msg.data.variables.map((v) => v.name as VariableName),
-        );
+        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
+        filterDataSourcesFromVariables(msg.data.variables.map((v) => v.name));
+        filterStorageFromVariables(msg.data.variables.map((v) => v.name));
         return;
       case "variable-values":
         setMetadata(
