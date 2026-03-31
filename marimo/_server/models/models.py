@@ -264,6 +264,7 @@ class CodeCompletionRequest(CodeCompletionCommand, tag=False):
 
 class UpdateUIElementValuesRequest(msgspec.Struct, rename="camel"):
     """Request to batch-update the values of multiple UI elements by object ID."""
+
     object_ids: list[UIElementId]
     values: list[Any]
 
@@ -343,6 +344,7 @@ class FocusCellRequest(msgspec.Struct, rename="camel"):
 
 class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
     """Request to register and execute one or more cells by ID."""
+
     # ids of cells to run
     cell_ids: list[CellId_t]
     # code to register/run for each cell
