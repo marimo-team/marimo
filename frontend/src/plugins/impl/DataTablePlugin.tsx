@@ -466,6 +466,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   hoverTemplate?: string | null;
   cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   toggleDisplayHeader?: () => void;
+  isChartBuilderOpen?: boolean;
   host: HTMLElement;
   cellId?: CellId | null;
 }
@@ -749,6 +750,7 @@ export const LoadingDataTableComponent = memo(
           > | null
         }
         toggleDisplayHeader={toggleDisplayHeader}
+        isChartBuilderOpen={displayHeader}
         getRow={getRow}
         cellId={cellId}
         maxHeight={props.maxHeight}
@@ -821,6 +823,7 @@ const DataTableComponent = ({
   hoverTemplate,
   cellHoverTexts,
   toggleDisplayHeader,
+  isChartBuilderOpen,
   calculate_top_k_rows,
   preview_column,
   getRow,
@@ -1088,6 +1091,7 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             showChartBuilder={showChartBuilder}
+            isChartBuilderOpen={isChartBuilderOpen}
             showPageSizeSelector={showPageSizeSelector}
             // Hidden in VSCode (for now) because we don't have a panel to show
             // the table explorer.

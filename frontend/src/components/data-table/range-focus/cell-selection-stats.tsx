@@ -3,6 +3,7 @@
 import type { Table } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import { useLocale } from "react-aria";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { selectedCellsAtom } from "./atoms";
 import {
@@ -31,7 +32,13 @@ export const CellSelectionStats = <TData,>({
   const dataCellCount = countDataCellsInSelection(selectedCells);
 
   if (dataCellCount < 2) {
-    return null;
+    return (
+      <Tooltip content="Select multiple cells to see stats">
+        <span className={cn("text-sm text-muted-foreground italic", className)}>
+          No selection
+        </span>
+      </Tooltip>
+    );
   }
 
   const numericValues = getNumericValuesFromSelectedCells(table, selectedCells);
@@ -39,7 +46,7 @@ export const CellSelectionStats = <TData,>({
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-3 text-xs text-muted-foreground shrink-0",
+        "flex items-center justify-end gap-3 text-sm text-muted-foreground shrink-0",
         className,
       )}
     >

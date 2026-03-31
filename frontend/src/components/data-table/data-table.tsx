@@ -37,16 +37,15 @@ import type { CellStyleState } from "./cell-styling/types";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { CopyColumnFeature } from "./copy-column/feature";
-import type { DownloadActionProps } from "./download-actions";
+import type { ExportActionProps } from "./export-actions";
 import { FilterPills } from "./filter-pills";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
 import { useScrollContainerHeight } from "./hooks/use-scroll-container-height";
-import { CellSelectionStats } from "./range-focus/cell-selection-stats";
 import { CellSelectionProvider } from "./range-focus/provider";
 import { DataTableBody, renderTableHeader } from "./renderers";
-import { SearchBar } from "./SearchBar";
-import { TableActions } from "./TableActions";
+import { TableBottomBar } from "./TableBottomBar";
+import { TableTopBar } from "./TableTopBar";
 import {
   type DataTableSelection,
   MIN_ROWS_TO_VIRTUALIZE,
@@ -54,7 +53,7 @@ import {
 } from "./types";
 import { getStableRowId } from "./utils";
 
-interface DataTableProps<TData> extends Partial<DownloadActionProps> {
+interface DataTableProps<TData> extends Partial<ExportActionProps> {
   wrapperClassName?: string;
   className?: string;
   maxHeight?: number;
@@ -99,6 +98,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   onViewedRowChange?: OnChangeFn<number>;
   // Others
   showChartBuilder?: boolean;
+  isChartBuilderOpen?: boolean;
   showPageSizeSelector?: boolean;
   showTableExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
@@ -143,6 +143,7 @@ const DataTableInternal = <TData,>({
   freezeColumnsRight,
   toggleDisplayHeader,
   showChartBuilder,
+  isChartBuilderOpen,
   showPageSizeSelector,
   showTableExplorer,
   togglePanel,
@@ -151,7 +152,6 @@ const DataTableInternal = <TData,>({
   viewedRowIdx,
   onViewedRowChange,
 }: DataTableProps<TData>) => {
-  const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
   const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
   const { locale } = useLocale();
 
@@ -284,15 +284,19 @@ const DataTableInternal = <TData,>({
       <FilterPills filters={filters} table={table} />
       <CellSelectionProvider>
         <div className={cn(className || "rounded-md border overflow-hidden")}>
-          {onSearchQueryChange && enableSearch && (
-            <SearchBar
-              value={searchQuery || ""}
-              onHide={() => setIsSearchEnabled(false)}
-              handleSearch={onSearchQueryChange}
-              hidden={!isSearchEnabled}
-              reloading={reloading}
-            />
-          )}
+          <TableTopBar
+            enableSearch={enableSearch}
+            searchQuery={searchQuery}
+            onSearchQueryChange={onSearchQueryChange}
+            reloading={reloading}
+            showChartBuilder={showChartBuilder}
+            isChartBuilderOpen={isChartBuilderOpen}
+            toggleDisplayHeader={toggleDisplayHeader}
+            showTableExplorer={showTableExplorer}
+            togglePanel={togglePanel}
+            isAnyPanelOpen={isAnyPanelOpen}
+            downloadAs={downloadAs}
+          />
           <Table className="relative" ref={tableRef}>
             {showLoadingBar && (
               <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
@@ -308,28 +312,17 @@ const DataTableInternal = <TData,>({
             />
           </Table>
         </div>
-        <CellSelectionStats table={table} className="px-2 pt-1 ml-auto" />
+        <TableBottomBar
+          totalColumns={totalColumns}
+          pagination={pagination}
+          selection={selection}
+          onRowSelectionChange={onRowSelectionChange}
+          table={table}
+          getRowIds={getRowIds}
+          showPageSizeSelector={showPageSizeSelector}
+          tableLoading={reloading}
+        />
       </CellSelectionProvider>
-      <TableActions
-        enableSearch={enableSearch}
-        totalColumns={totalColumns}
-        onSearchQueryChange={onSearchQueryChange}
-        isSearchEnabled={isSearchEnabled}
-        setIsSearchEnabled={setIsSearchEnabled}
-        pagination={pagination}
-        selection={selection}
-        onRowSelectionChange={onRowSelectionChange}
-        table={table}
-        downloadAs={downloadAs}
-        getRowIds={getRowIds}
-        toggleDisplayHeader={toggleDisplayHeader}
-        showChartBuilder={showChartBuilder}
-        showPageSizeSelector={showPageSizeSelector}
-        showTableExplorer={showTableExplorer}
-        togglePanel={togglePanel}
-        isAnyPanelOpen={isAnyPanelOpen}
-        tableLoading={reloading}
-      />
     </div>
   );
 };
