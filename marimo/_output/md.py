@@ -35,7 +35,7 @@ class PyconDetectorExtension(markdown.Extension):
     def extendMarkdown(self, md: markdown.Markdown) -> None:
         """Add the preprocessor to the markdown instance."""
         processor = PyconDetectorPreprocessor(md)
-        md.preprocessors.register(processor, "pycon_detector", 30)
+        md.preprocessors.register(processor, "pycon_detector", 175)
 
 
 class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
@@ -53,9 +53,12 @@ class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
 
     def __init__(self, md: markdown.Markdown) -> None:
         super().__init__(md)
-        # Pattern to match fenced code blocks
+        # Pattern to match fenced code blocks (backreference \2 ensures the
+        # closing fence matches the opening fence marker, preventing greedy
+        # over-consumption of adjacent fenced blocks)
         self.fence_pattern = re.compile(
-            r"^(\s*)```(\w*)\s*\n(.*?)^(\s*)```\s*$", re.MULTILINE | re.DOTALL
+            r"^(\s*)(```+|~~~+)(\w*)\s*\n(.*?)^\s*\2\s*$",
+            re.MULTILINE | re.DOTALL,
         )
 
     def run(self, lines: list[str]) -> list[str]:
@@ -64,14 +67,14 @@ class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
 
         def replace_fence(match: re.Match[str]) -> str:
             indent = match.group(1)
-            language = match.group(2) or ""
-            code = match.group(3)
+            fence = match.group(2)
+            language = match.group(3) or ""
+            code = match.group(4)
 
             # Only process if no language is specified
-            if not language:
-                if self._detect_pycon(code):
-                    # Replace with pycon language
-                    return f"{indent}```pycon\n{code}{indent}```"
+            if not language and self._detect_pycon(code):
+                # Replace with pycon language
+                return f"{indent}{fence}pycon\n{code}{indent}{fence}"
 
             # Return original
             return match.group(0)
@@ -250,7 +253,10 @@ class _md(Html):
             text,
             extensions=_get_extensions(),
             extension_configs=_get_extension_configs(),
-        ).strip()
+        )
+        if html_text is None:
+            html_text = ""
+        html_text = html_text.strip()
         # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
         html_text = html_text.replace(
             "<p>", '<span class="paragraph">'
