@@ -39,6 +39,12 @@ repos:
       # Run the formatter
       - id: ruff-format
 
+  - repo: https://github.com/fpgmaas/deptry
+    rev: "0.25.1"
+    hooks:
+      - id: deptry
+        args: [marimo]
+
   - repo: https://github.com/biomejs/pre-commit
     rev: v2.3.13
     hooks:

@@ -412,6 +412,69 @@ exempt-modules = ["typing", "typing_extensions"]
 [tool.ruff.format]
 docstring-code-format = true
 
+[tool.deptry]
+# Scan only the main package; tutorials/smoke-tests/snippets import local notebooks
+# as modules and are not real packages
+exclude = ["marimo/_tutorials", "marimo/_smoke_tests", "marimo/_snippets"]
+
+[tool.deptry.package_module_name_map]
+# Packages whose PyPI name differs from the importable module name
+pyyaml = "yaml"
+pyzmq = "zmq"
+"pymdown-extensions" = "pymdownx"
+Pillow = "PIL"
+"python-dotenv" = "dotenv"
+"scikit-learn" = "sklearn"
+"pydantic-ai-slim" = "pydantic_ai"
+matplotlib = "mpl_toolkits"
+
+[tool.deptry.per_rule_ignores]
+# DEP001: imported but not declared — all are intentional optional integrations
+# imported conditionally (inside try/except or TYPE_CHECKING blocks)
+DEP001 = [
+    # AI / LLM providers
+    "anthropic", "openai", "google", "groq", "pydantic_ai", "pydantic_core",
+    "any_llm", "boto3", "botocore",
+    # Data science
+    "numpy", "dask", "xarray", "scipy", "arviz", "pymc", "ibis",
+    "connectorx", "pyspark", "redis", "sqlmodel", "fastapi",
+    "databricks", "opentelemetry",
+    # Visualisation / widgets
+    "altair_upset", "bokeh", "drawdata", "holoviews", "IPython", "ipywidgets", "matplotlib",
+    "jscatter", "keplergl", "lets_plot", "lonboard", "manim_slides", "maplibre",
+    "mohtml", "mosaic_widget", "mpl_toolkits", "palettable", "param",
+    "plotly_resampler", "pyecharts", "pyfiglet", "pygwalker", "pymde",
+    "pyodide_http", "pyviz_comms", "quak", "seaborn", "shapely", "sklearn",
+    "svg", "tikz", "transformers", "treescope", "uchimata", "vega_datasets",
+    "vl_convert", "xarray", "keras", "python_gcode",
+    # Jupyter / Pyodide / WASM ecosystem
+    "traitlets", "micropip", "js", "geodatasets",
+    # Other optional runtime deps
+    "black", "docstring_to_markdown", "dotenv", "humanize", "parso", "PIL",
+    "playwright", "pyrefly", "pytz", "requests", "rich", "tqdm",
+    "watchdog", "websocket", "ell", "ty",
+    # Dev/test tooling imported in non-test source paths
+    "_pytest",
+]
+# DEP004: declared as dev dep but imported in source — all optional integrations
+# that live in optional/dev dep groups rather than core deps
+DEP004 = [
+    "anywidget", "boto3", "chdb", "clickhouse_connect", "cloudpathlib",
+    "dotenv", "geopandas", "httpx", "hvplot", "leafmap", "nbconvert", "pandas",
+    "panel", "plotly", "pyarrow", "pytest", "redshift_connector", "sympy",
+    "torch", "vegafusion",
+]
+# DEP002: declared but never imported — CLI tools called via subprocess/pre-commit,
+# transitive runtime deps, or packages only used outside the marimo/ tree
+DEP002 = [
+    "ruff",                   # CLI linter, not imported
+    "uv",                     # CLI tool, not imported
+    "python-lsp-server",      # CLI LSP server, not imported
+    "python-lsp-ruff",        # LSP plugin, not imported
+    "itsdangerous",           # transitive dep of starlette
+    "pymdown-extensions",     # used in docs/, not in marimo/
+]
+
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
