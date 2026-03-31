@@ -83,7 +83,7 @@ class TestAddCell:
                 [
                     {
                         "type": "create-cell",
-                        "cellId": "Hbol",
+                        "cellId": 'qhHd',
                         "code": "x = 1",
                         "name": "",
                         "config": {
@@ -94,7 +94,7 @@ class TestAddCell:
                         "before": None,
                         "after": None,
                     },
-                    {"type": "reorder-cells", "cellIds": ("Hbol",)},
+                    {"type": "reorder-cells", "cellIds": ('qhHd',)},
                 ]
             )
 
@@ -440,7 +440,7 @@ class TestSummary:
                 nb.create_cell("x = 1", name="my_cell")
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]
-            assert captured.out == snapshot("created cell 'Hbol' (my_cell)\n")
+            assert captured.out == snapshot("created cell 'qhHd' (my_cell)\n")
 
     async def test_edit_prints_summary(
         self, k: Kernel, capsys: object
@@ -501,8 +501,8 @@ class TestSummary:
             captured = capsys.readouterr()  # type: ignore[attr-defined]
             assert captured.out == snapshot("""\
 deleted cell '1'
-created and ran cell 'Hbol' (new_cell)
-created cell 'MJUe' (staged)
+created and ran cell 'qhHd' (new_cell)
+created cell 'BtdA' (staged)
 edited code of cell '0' and ran
 re-ran cell '2'
 """)
@@ -691,3 +691,29 @@ class TestDocumentKernelDivergence:
                 nb.run_cell("ghost")
 
         assert k.globals["z"] == 42
+
+    async def test_create_cell_no_collision_with_doc_only_ids(
+        self, k: Kernel
+    ) -> None:
+        """create_cell must not generate IDs that collide with cells
+        that exist in the document but not in the kernel graph (B4)."""
+        # Build a large set of document-only cells whose IDs come from
+        # the same deterministic generator used by AsyncCodeModeContext.
+        from marimo._ast.cell_id import CellIdGenerator
+
+        gen = CellIdGenerator()
+        doc_only: list[NotebookCell] = []
+        for _ in range(60):
+            cid = gen.create_cell_id()
+            doc_only.append(
+                NotebookCell(
+                    id=cid, code="pass", name="", config=CellConfig()
+                )
+            )
+
+        with _ctx(k, extra_doc_cells=doc_only) as ctx:
+            async with ctx as nb:
+                # Should not raise ValueError from ID collision.
+                new_id = nb.create_cell("x = 1")
+
+        assert new_id not in {c.id for c in doc_only}
