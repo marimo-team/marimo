@@ -54,18 +54,21 @@ def _enrich_branded_types(
         WidgetModelId,
     )
 
-    branded: dict[Any, str] = {
-        CellId_t: "CellId",
-        UIElementId: "UIElementId",
-        SessionId: "SessionId",
-        VariableName: "VariableName",
-        RequestId: "RequestId",
-        WidgetModelId: "WidgetModelId",
+    branded: dict[Any, tuple[str, str]] = {
+        CellId_t: ("CellId", "cell-id"),
+        UIElementId: ("UIElementId", "ui-element-id"),
+        SessionId: ("SessionId", "session-id"),
+        VariableName: ("VariableName", "variable-name"),
+        RequestId: ("RequestId", "request-id"),
+        WidgetModelId: ("WidgetModelId", "widget-model-id"),
     }
 
     # Step 1 — add named schemas for each branded type
-    for schema_name in branded.values():
-        component_schemas[schema_name] = {"type": "string"}
+    for schema_name, format_value in branded.values():
+        component_schemas[schema_name] = {
+            "type": "string",
+            "format": format_value,
+        }
 
     def make_ref(name: str) -> dict[str, str]:
         return {"$ref": f"#/components/schemas/{name}"}
@@ -76,7 +79,7 @@ def _enrich_branded_types(
     def resolve(ty: Any) -> dict[str, Any] | None:
         """Produce a branded schema for *ty*, or ``None``."""
         if ty in branded:
-            return make_ref(branded[ty])
+            return make_ref(branded[ty][0])
 
         origin = typing.get_origin(ty)
         args = typing.get_args(ty)
@@ -184,6 +187,7 @@ def _enrich_branded_types(
     # can brand it.
     component_schemas["Base64String"] = {
         "type": "string",
+        "format": "base64",
         "contentEncoding": "base64",
     }
 

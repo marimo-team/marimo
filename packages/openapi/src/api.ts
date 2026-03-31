@@ -3432,6 +3432,7 @@ export interface components {
       /** @default null */
       variant?: "danger" | null;
     };
+    /** Format: base64 */
     Base64String: TypedString<"Base64String">;
     /** BaseResponse */
     BaseResponse: {
@@ -3522,6 +3523,7 @@ export interface components {
       /** @default false */
       hide_code?: boolean;
     };
+    /** Format: cell-id */
     CellId: TypedString<"CellId">;
     /**
      * CellNotification
@@ -5683,6 +5685,7 @@ export interface components {
       /** @enum {unknown} */
       type: "reorder-cells";
     };
+    /** Format: request-id */
     RequestId: TypedString<"RequestId">;
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
@@ -5935,6 +5938,7 @@ export interface components {
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
     };
+    /** Format: session-id */
     SessionId: TypedString<"SessionId">;
     /**
      * SetCode
@@ -6337,6 +6341,7 @@ export interface components {
     TyLanguageServerConfig: {
       enabled?: boolean;
     };
+    /** Format: ui-element-id */
     UIElementId: `${components["schemas"]["CellId"]}-${string}`;
     /**
      * UIElementMessageNotification
@@ -6549,6 +6554,7 @@ export interface components {
       name: components["schemas"]["VariableName"];
       used_by: components["schemas"]["CellId"][];
     };
+    /** Format: variable-name */
     VariableName: TypedString<"VariableName">;
     /**
      * VariableValue
@@ -6606,6 +6612,7 @@ export interface components {
       path?: string;
       writable?: boolean;
     };
+    /** Format: widget-model-id */
     WidgetModelId: TypedString<"WidgetModelId">;
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {

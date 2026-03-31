@@ -258,6 +258,7 @@ components:
       type: object
     Base64String:
       contentEncoding: base64
+      format: base64
       type: string
     BaseResponse:
       properties:
@@ -370,6 +371,7 @@ components:
       title: CellConfig
       type: object
     CellId:
+      format: cell-id
       type: string
     CellNotification:
       description: "Updates a cell's state in the frontend.\n\n    Only fields that\
@@ -3987,6 +3989,7 @@ components:
       title: ReorderCells
       type: object
     RequestId:
+      format: request-id
       type: string
     RunningNotebooksResponse:
       properties:
@@ -4385,6 +4388,7 @@ components:
       title: ServerConfig
       type: object
     SessionId:
+      format: session-id
       type: string
     SetCode:
       description: Replace a cell's source code.
@@ -5027,6 +5031,7 @@ components:
       title: TyLanguageServerConfig
       type: object
     UIElementId:
+      format: ui-element-id
       type: string
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
@@ -5349,6 +5354,7 @@ components:
       title: VariableDeclarationNotification
       type: object
     VariableName:
+      format: variable-name
       type: string
     VariableValue:
       description: "Variable value and type for variables panel.\n\n    Attributes:\n\
@@ -5419,6 +5425,7 @@ components:
       title: VenvConfig
       type: object
     WidgetModelId:
+      format: widget-model-id
       type: string
     WorkspaceFilesRequest:
       properties:
