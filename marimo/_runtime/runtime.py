@@ -429,9 +429,7 @@ def notebook_dir() -> pathlib.Path | None:
 
 
 class URLPath(pathlib.PurePosixPath):
-    """
-    Wrapper around pathlib.Path that preserves the "://" in the URL protocol.
-    """
+    """PurePosixPath subclass that preserves the double slash in URL protocol prefixes (e.g. ``https://``)."""
 
     def __str__(self) -> str:
         return super().__str__().replace(":/", "://")
@@ -686,6 +684,7 @@ class Kernel:
             asyncio.run(self._lifespan.__aexit__(None, None, None))
 
     def lazy(self) -> bool:
+        """Return True if the kernel is configured for lazy (manual) reactive execution."""
         return self.reactive_execution_mode == "lazy"
 
     def _execute_stale_cells_callback(self) -> None:
@@ -730,10 +729,12 @@ class Kernel:
 
     @property
     def globals(self) -> dict[Any, Any]:
+        """Return the global namespace dictionary of the kernel's execution module."""
         return self._module.__dict__
 
     @contextlib.contextmanager
     def lock_globals(self) -> Iterator[None]:
+        """Context manager that acquires the globals lock only when a completion worker is active."""
         # The only other thread accessing globals is the completion worker. If
         # we haven't started a completion worker, there's no need to lock
         # globals.
@@ -766,6 +767,7 @@ class Kernel:
     def code_completion(
         self, request: CodeCompletionCommand, docstrings_limit: int
     ) -> None:
+        """Synchronously compute and stream code completions for the given request."""
         from marimo._runtime.complete import complete
 
         complete(
@@ -1717,6 +1719,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("pdb_request")
     async def pdb_request(self, cell_id: CellId_t) -> None:
+        """Launch post-mortem debugging for the last traceback of the specified cell."""
         if (
             self.debugger is None
             or cell_id not in self.debugger._last_tracebacks
@@ -1729,6 +1732,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
+        """Update the notebook filename in globals and re-run cells that reference ``__file__``."""
         self.globals["__file__"] = filename
         self.app_metadata.filename = filename
         roots: set[CellId_t] = set()
@@ -1739,6 +1743,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run_scratchpad")
     async def run_scratchpad(self, code: str) -> None:
+        """Execute code in an isolated scratchpad cell that shares globals but does not modify the graph."""
         roots = {SCRATCH_CELL_ID}
 
         # If cannot compile, don't run
@@ -1792,6 +1797,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run_stale_cells")
     async def run_stale_cells(self) -> None:
+        """Run all cells currently marked as stale, including any uninstantiated cells."""
         cells_to_run: set[CellId_t] = set()
         if self._uninstantiated_execution_requests:
             cells_to_run |= set(self._uninstantiated_execution_requests.keys())
@@ -1843,6 +1849,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("set_user_config")
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
+        """Apply updated user configuration to the running kernel."""
         self._update_runtime_from_user_config(request.config)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
@@ -2039,6 +2046,7 @@ class Kernel:
         return self.ui_initializers[object_id]
 
     def reset_ui_initializers(self) -> None:
+        """Clear all stored UIElement initial values."""
         self.ui_initializers = {}
 
     @kernel_tracer.start_as_current_span("function_call_request")
@@ -2259,6 +2267,7 @@ class Kernel:
             del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
+        """Load all dotenv files listed in the user config into the process environment."""
         dotenvs = self.user_config["runtime"].get("dotenv", [])
         if not isinstance(dotenvs, list):
             LOGGER.warning("dotenv configuration is not a list")
@@ -2275,6 +2284,7 @@ class Kernel:
 
     @cached_property
     def request_handler(self) -> RequestHandler:
+        """Lazily built RequestHandler that maps command types to their async handler functions."""
         handler = RequestHandler()
 
         async def handle_instantiate(request: CreateNotebookCommand) -> None:
@@ -2493,6 +2503,8 @@ class Kernel:
 
 
 class DatasetCallbacks:
+    """Handles dataset-related kernel requests such as column previews and SQL table inspection."""
+
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
@@ -2791,6 +2803,8 @@ class DatasetCallbacks:
 
 
 class ExternalStorageCallbacks:
+    """Handles external storage kernel requests such as listing entries and downloading files."""
+
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
@@ -2979,6 +2993,8 @@ class ExternalStorageCallbacks:
 
 
 class SqlCallbacks:
+    """Handles SQL validation kernel requests."""
+
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
@@ -3092,10 +3108,13 @@ class SqlCallbacks:
 
 
 class SecretsCallbacks:
+    """Handles secrets-related kernel requests such as listing and refreshing secret keys."""
+
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
     async def list_secrets(self, request: ListSecretKeysCommand) -> None:
+        """Broadcast the available secret keys to the frontend."""
         secrets = get_secret_keys(
             self._kernel.user_config, self._kernel._original_environ
         )
@@ -3106,16 +3125,20 @@ class SecretsCallbacks:
         )
 
     async def refresh_secrets(self, request: RefreshSecretsCommand) -> None:
+        """Reload dotenv files to refresh the available secrets."""
         del request
         self._kernel.load_dotenv()
 
 
 class PackagesCallbacks:
+    """Handles package management kernel requests including installation and missing-package alerts."""
+
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
         self.package_manager: PackageManager | None = None
 
     def update_package_manager(self, package_manager: str) -> None:
+        """Switch to the specified package manager, creating a new instance if needed."""
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
@@ -3129,6 +3152,7 @@ class PackagesCallbacks:
             self._maybe_add_marimo_to_script_metadata()
 
     def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
+        """Broadcast a missing-package alert for packages that have not yet been attempted."""
         if self.package_manager is None:
             return
 
@@ -3152,6 +3176,7 @@ class PackagesCallbacks:
     def missing_packages_hook(
         self, ctx: hook_context.OnFinishHookContext
     ) -> None:
+        """Post-run hook that detects import errors and alerts the frontend about missing packages."""
         module_not_found_errors = [
             e
             for e in ctx.exceptions.values()
@@ -3375,6 +3400,7 @@ class PackagesCallbacks:
             self.update_script_metadata(["marimo"])
 
     def should_update_script_metadata(self) -> bool:
+        """Return True if inline script metadata management is enabled and applicable."""
         return (
             GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
             and self._kernel.app_metadata.filename is not None
@@ -3384,6 +3410,7 @@ class PackagesCallbacks:
     def update_script_metadata(
         self, import_namespaces_to_add: list[str]
     ) -> None:
+        """Add the given import namespaces to the notebook's inline script metadata."""
         filename = self._kernel.app_metadata.filename
 
         if not filename or not self.package_manager:
@@ -3405,10 +3432,13 @@ class PackagesCallbacks:
 
 
 class CacheCallbacks:
+    """Handles cache management kernel requests such as clearing and inspecting cache state."""
+
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
     async def clear_cache(self, request: ClearCacheCommand) -> None:
+        """Clear all persistent cache loaders in the kernel context and notify the frontend."""
         del request
         from marimo._save.cache import CacheContext
         from marimo._save.loaders import BasePersistenceLoader
@@ -3423,6 +3453,7 @@ class CacheCallbacks:
         broadcast_notification(CacheClearedNotification(bytes_freed=saved))
 
     async def get_cache_info(self, request: GetCacheInfoCommand) -> None:
+        """Collect aggregate cache hit/miss/time statistics and broadcast them to the frontend."""
         del request
         from marimo._save.cache import CacheContext
 
@@ -3452,6 +3483,8 @@ class CacheCallbacks:
 
 
 class RequestHandler:
+    """Registry that maps command message types to their async handler callables."""
+
     def __init__(self) -> None:
         self._handlers: dict[
             type[CommandMessage],
@@ -3463,9 +3496,11 @@ class RequestHandler:
         request_type: type[CommandMessage],
         handler: Callable[[Any], Awaitable[None]],
     ) -> None:
+        """Register an async handler for the given command message type."""
         self._handlers[request_type] = handler
 
     async def handle(self, request: CommandMessage) -> None:
+        """Dispatch the request to its registered handler, raising ValueError if none is found."""
         handler = self._handlers.get(type(request))
         if handler:
             return await handler(request)
@@ -3490,6 +3525,7 @@ def launch_kernel(
     log_level: int | None = None,
     is_ipc: bool = False,
 ) -> None:
+    """Initialize and run the kernel control loop, blocking until a StopKernelCommand is received."""
     if log_level is not None:
         _loggers.set_level(log_level)
     LOGGER.debug("Launching kernel")

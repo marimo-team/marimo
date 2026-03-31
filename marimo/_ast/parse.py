@@ -49,6 +49,7 @@ U = TypeVar("U")
 def ast_parse(
     contents: str, suppress_warnings: bool = True, **kwargs: Any
 ) -> ast.Module:
+    """Parse Python source code into an AST module, optionally suppressing SyntaxWarnings."""
     if not suppress_warnings:
         return cast(ast.Module, ast.parse(contents, **kwargs))
     with warnings.catch_warnings():
@@ -78,6 +79,7 @@ def fixed_dedent(text: str) -> str:
 
 
 def extract_lineno(node: Node) -> int:
+    """Return the effective line number for an AST node, accounting for decorators."""
     if not isinstance(
         node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
     ):
@@ -92,11 +94,11 @@ def extract_lineno(node: Node) -> int:
 
 
 class MarimoFileError(Exception):
-    pass
+    """Raised when a marimo file cannot be parsed or has an invalid structure."""
 
 
 class NonMarimoPythonScriptError(Exception):
-    pass
+    """Raised when a file is a Python script that is not a marimo notebook."""
 
 
 class Extractor:
@@ -104,6 +106,7 @@ class Extractor:
 
     @staticmethod
     def from_file(filename: Union[str, Path]) -> Extractor:
+        """Create an Extractor by reading the contents of a file."""
         return Extractor(contents=Path(filename).read_text(encoding="utf-8"))
 
     def __init__(self, contents: str):
@@ -117,6 +120,7 @@ class Extractor:
         end_lineno: int,
         end_col_offset: Optional[int],
     ) -> str:
+        """Extract a slice of source text using zero-indexed line and column offsets."""
         if lineno == end_lineno:
             return self.lines[lineno][col_offset:end_col_offset]
         if lineno + 1 == end_lineno:
@@ -135,6 +139,7 @@ class Extractor:
         )
 
     def extract_from_code(self, node: Node) -> ParseResult[str]:
+        """Extract the dedented source code for an AST node, including trailing comments."""
         # NB. Ast line reference and col index is on a 1-indexed basis.
         lineno = node.lineno
         col_offset = node.col_offset
@@ -237,6 +242,7 @@ class Extractor:
     def to_cell_def(
         self, node: FnNode, kwargs: dict[str, Any]
     ) -> ParseResult[CellDef]:
+        """Convert a function AST node decorated with @app.cell into a CellDef."""
         # A general note on the apparent brittleness of this code:
         #    - Ast line reference and col index is on a 1-indexed basis
         #    - Multiline statements need to be accounted for
@@ -365,6 +371,7 @@ class Extractor:
         )
 
     def to_setup_cell(self, node: Node) -> ParseResult[SetupCell]:
+        """Convert a `with app.setup:` AST node into a SetupCell."""
         kwargs, _violations = _maybe_kwargs(node.items[0].context_expr)  # type: ignore
         code_result = self.extract_from_code(node)
         _violations.extend(code_result.violations)
@@ -486,12 +493,14 @@ class ParseResult(Generic[V]):
 
     @property
     def violations(self) -> list[Violation]:
+        """Return the list of violations accumulated during parsing."""
         return self._violations
 
     def __bool__(self) -> bool:
         return self._value is not None
 
     def unwrap(self) -> V:
+        """Return the parsed value, casting away Optional."""
         return cast(V, self._value)
 
 
@@ -503,6 +512,7 @@ class Parser:
 
     @staticmethod
     def from_file(filename: Union[str, Path]) -> Parser:
+        """Create a Parser by reading notebook source from a file."""
         return Parser(
             contents=Path(filename).read_text(encoding="utf-8"),
             filepath=str(filename),
@@ -513,6 +523,7 @@ class Parser:
         self.filepath = filepath
 
     def node_stack(self) -> PeekStack[Node]:
+        """Parse the notebook source and return a peekable iterator over top-level AST nodes."""
         tree = ast_parse(
             self.extractor.contents or "",
             filename=self.filepath,
@@ -521,6 +532,7 @@ class Parser:
         return PeekStack(iter(tree.body))
 
     def parse_header(self, body: PeekStack[Node]) -> ParseResult[Header]:
+        """Extract the notebook header (leading docstrings and comments) from the AST body."""
         # header? = (docstring | comments)*
         while node := next(body):
             # Just string, comments are stripped
@@ -555,6 +567,7 @@ class Parser:
         )
 
     def parse_import(self, body: PeekStack[Node]) -> ParseResult[Node]:
+        """Parse the `import marimo` statement from the notebook AST body."""
         # app = import marimo + __generated_with + App(kwargs*)
         violations: list[Violation] = []
 
@@ -580,6 +593,7 @@ class Parser:
         return ParseResult(violations=violations)
 
     def parse_version(self, body: PeekStack[Node]) -> ParseResult[str]:
+        """Parse the `__generated_with` version string from the notebook AST body."""
         # __generated_with not being correctly set should not break marimo.
         violations: list[Violation] = []
         next(body)
@@ -601,6 +615,7 @@ class Parser:
     def parse_app(
         self, body: PeekStack[Node], import_alias: str = "marimo"
     ) -> ParseResult[AppInstantiation]:
+        """Parse the `app = marimo.App(...)` instantiation from the notebook AST body."""
         # app = import marimo + __generated_with + App(kwargs*)
         violations: list[Violation] = []
         node = body.last
@@ -626,6 +641,7 @@ class Parser:
         return ParseResult(violations=violations)
 
     def parse_setup(self, body: PeekStack[Node]) -> ParseResult[SetupCell]:
+        """Parse the optional `with app.setup:` block from the notebook AST body."""
         # setup? = Async?With(kwargs*, stmt*)
         violations: list[Violation] = []
         node = body.last
@@ -654,6 +670,7 @@ class Parser:
         return ParseResult(violations=violations)
 
     def parse_body(self, body: PeekStack[Node]) -> ParseResult[list[CellDef]]:
+        """Parse all cell definitions from the remaining notebook AST body."""
         # Continue with remainder of body
         cells = []
         violations: list[Violation] = []
@@ -698,6 +715,7 @@ class PeekStack(Generic[U]):
         return self.last
 
     def peek(self) -> Optional[U]:
+        """Return the next item without consuming it from the iterator."""
         if self._next:
             return self._next
         try:
@@ -778,6 +796,7 @@ def _none_to_0(n: Optional[int]) -> int:
 def extract_offsets_post_colon(
     function_code: str, block_start: str = "def"
 ) -> tuple[int, int]:
+    """Return the (line, col) offset of the first token in a function or class body after the colon."""
     # tokenize to find the start of the function body, including
     # comments --- we have to use tokenize because the ast treats the first
     # line of code as the starting line of the function body, whereas we
@@ -895,6 +914,7 @@ def is_equal_ast(
 def get_valid_decorator(
     node: CellNode,
 ) -> Optional[Union[ast.Attribute, ast.Call]]:
+    """Return the first marimo cell decorator (@app.cell, @app.function, @app.class_definition) on a node, or None."""
     valid_decorators = (
         "cell",
         "function",
@@ -913,10 +933,12 @@ def get_valid_decorator(
 
 
 def is_marimo_import(node: ast.Import) -> bool:
+    """Return True if the import node imports the `marimo` module."""
     return node.names[0].name == "marimo"
 
 
 def is_string(node: Node) -> bool:
+    """Return True if the AST node is a standalone string expression (e.g. a docstring)."""
     return (
         isinstance(node, ast.Expr)
         and isinstance(node.value, ast.Constant)
@@ -925,6 +947,7 @@ def is_string(node: Node) -> bool:
 
 
 def is_app_def(node: Node, import_alias: str = "marimo") -> bool:
+    """Return True if the node is an `app = marimo.App(...)` assignment."""
     # Expected Ast:
     #
     #    Assign(
@@ -962,6 +985,7 @@ def is_cell_decorator(
     *,
     allowed: tuple[str, ...],
 ) -> bool:
+    """Return True if the decorator expression is one of the allowed `@app.<attr>` cell decorators."""
     if isinstance(decorator, ast.Attribute):
         return (
             isinstance(decorator.value, ast.Name)
@@ -974,6 +998,7 @@ def is_cell_decorator(
 
 
 def is_unparsable_cell(node: Node) -> bool:
+    """Return True if the node is an `app._unparsable_cell(...)` call."""
     return (
         isinstance(node, ast.Expr)
         and isinstance(node.value, ast.Call)
@@ -986,6 +1011,7 @@ def is_unparsable_cell(node: Node) -> bool:
 
 
 def is_body_cell(node: Node) -> bool:
+    """Return True if the node is a decorated cell body (@app.cell, @app.function, @app.class_definition) or an unparsable cell."""
     # should have decorator @app.cell, @app.function, @app.class_definition
     return (
         isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef))
@@ -1017,6 +1043,7 @@ def _is_setup_call(node: Node) -> bool:
 
 
 def is_setup_cell(node: Node) -> bool:
+    """Return True if the node is a `with app.setup:` block."""
     return (
         isinstance(node, (ast.AsyncWith, ast.With))
         and len(node.items) == 1
@@ -1025,10 +1052,12 @@ def is_setup_cell(node: Node) -> bool:
 
 
 def is_cell(node: Optional[Node]) -> bool:
+    """Return True if the node is any kind of marimo cell (setup or body)."""
     return bool(node and (is_setup_cell(node) or is_body_cell(node)))
 
 
 def is_run_guard(node: Optional[Node]) -> bool:
+    """Return True if the node is an `if __name__ == "__main__": app.run()` guard."""
     basis = ast_parse('if __name__ == "__main__": app.run()').body[0]
     return bool(node and is_equal_ast(basis, node))
 
@@ -1036,6 +1065,7 @@ def is_run_guard(node: Optional[Node]) -> bool:
 def parse_notebook(
     contents: str, filepath: str = "<marimo>"
 ) -> Optional[NotebookSerialization]:
+    """Parse a marimo notebook's source into a NotebookSerialization IR, or None if the content is empty."""
     parser = Parser(contents, filepath=filepath)
     if not parser.extractor.contents:
         return None
@@ -1175,6 +1205,7 @@ def all_violations_soft(violations: list[Violation]) -> bool:
 
 
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
+    """Return True if the parsed notebook contains non-marimo Python content beyond the header."""
     return any(
         (v.description == NON_MARIMO_PYTHON_SCRIPT_VIOLATION)
         for v in notebook.violations

@@ -36,6 +36,8 @@ Language = Literal["python", "sql"]
 
 @dataclass
 class ImportData:
+    """Metadata about an import statement, including module, definition name, and symbol."""
+
     # full module name
     # e.g., a.b.c.
     module: str
@@ -53,6 +55,8 @@ class ImportData:
 
 @dataclass
 class AnnotationData:
+    """Stores the string representation and referenced names for a type annotation."""
+
     # How the annotation is set
     repr: str
     # Which references are related to the annotation.
@@ -61,6 +65,8 @@ class AnnotationData:
 
 @dataclass
 class VariableData:
+    """Metadata associated with a defined variable, including its kind and dependency refs."""
+
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Union[
         Literal[
@@ -101,6 +107,7 @@ class VariableData:
 
     @property
     def language(self) -> Language:
+        """Return the language of the variable, either 'sql' for SQL kinds or 'python' otherwise."""
         return (
             "sql"
             if (
@@ -129,6 +136,7 @@ class Block:
     is_comprehension: bool = False
 
     def is_defined(self, name: str) -> bool:
+        """Return True if the given name has been defined in this block."""
         return name in self.defs
 
 
@@ -174,10 +182,13 @@ NamedNode = Union[
 # since this can be called for each SQL cell on save.
 @lru_cache(maxsize=200)
 def find_sql_refs_cached(sql_statement: str) -> set[SQLRef]:
+    """Return cached SQL references extracted from the given SQL statement string."""
     return find_sql_refs(sql_statement)
 
 
 class ScopedVisitor(ast.NodeVisitor):
+    """AST visitor that tracks variable definitions and references within scoped blocks."""
+
     def __init__(
         self,
         mangle_prefix: Optional[str] = None,
@@ -577,6 +588,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
+        """Visit a class definition, registering its name as a def with dependency refs."""
         node.name = self._if_local_then_mangle(node.name)
         refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
@@ -591,6 +603,7 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
+        """Visit an async function definition, registering its name as a def with dependency refs."""
         node.name = self._if_local_then_mangle(node.name)
         refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
@@ -605,6 +618,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """Visit a function definition, registering its name as a def with dependency refs."""
         node.name = self._if_local_then_mangle(node.name)
         refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
@@ -619,6 +633,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Call(self, node: ast.Call) -> ast.Call:
+        """Visit a function call, detecting SQL calls to extract table refs and defs."""
         # If the call name is sql and has one argument, and the argument is
         # a string literal, then it's likely to be a SQL query.
         # It must also come from the `mo` or `duckdb` module.
@@ -773,6 +788,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Lambda(self, node: ast.Lambda) -> ast.Lambda:
+        """Visit a lambda expression, injecting a sentinel ref to mark callable scope."""
         # Inject the dummy name `_lambda` into ref scope to denote there's a
         # callable that might require additional refs.
         self.ref_stack[-1].add("_lambda")
@@ -780,6 +796,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_arg(self, node: ast.arg) -> ast.arg:
+        """Visit a function argument, registering it as a definition in the current block."""
         node.arg = self._if_local_then_mangle(node.arg)
         self._define(node, node.arg, VariableData(kind="variable"))
         if node.annotation is not None:
@@ -787,6 +804,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_arguments(self, node: ast.arguments) -> ast.arguments:
+        """Visit function arguments, processing default value refs before argument defs."""
         # process potential refs before defs, to handle patterns like
         #
         # def f(x=x):
@@ -811,6 +829,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
+        """Visit an assignment, registering the RHS refs before recording the LHS defs."""
         # Visit the value first, to handle cases like
         #
         # class A:
@@ -826,6 +845,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_AugAssign(self, node: ast.AugAssign) -> ast.AugAssign:
+        """Visit an augmented assignment (e.g., x += 1), recording both its ref and def."""
         # Augmented assign (has op)
         # e.g., x += 1
         self.ref_stack.append(set())
@@ -836,6 +856,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
+        """Visit an annotated assignment, capturing annotation refs and attaching them to the variable."""
         # Annotated assign
         # e.g., x: int = 0
         #       ^   ^    ^
@@ -882,6 +903,7 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_comprehension(
         self, node: ast.comprehension
     ) -> ast.comprehension:
+        """Visit a comprehension generator, processing iter refs before target defs."""
         # process potential refs before defs, to handle patterns like
         #
         # [ ... for x in x]

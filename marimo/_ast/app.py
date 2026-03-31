@@ -187,11 +187,15 @@ class _SetupContext:
 
 @dataclass
 class AppEmbedResult:
+    """Result returned by `App.embed()`, containing the notebook's visual output and its definitions."""
+
     output: Html
     defs: Mapping[str, object]
 
 
 class AppKernelRunnerRegistry:
+    """Registry mapping threads to their per-app kernel runners, isolating embed() sessions."""
+
     def __init__(self) -> None:
         # Mapping from thread to its kernel runners, so that app.embed() calls are
         # isolated across run sessions.
@@ -199,9 +203,11 @@ class AppKernelRunnerRegistry:
 
     @property
     def size(self) -> int:
+        """Return the number of threads that currently have active kernel runners."""
         return len(self._runners)
 
     def get_runner(self, app: App) -> AppKernelRunner:
+        """Return the AppKernelRunner for the given app in the current thread, creating one if needed."""
         app_runners = self._runners.setdefault(threading.get_ident(), {})
         runner = app_runners.get(app, None)
         if runner is None:
@@ -210,6 +216,7 @@ class AppKernelRunnerRegistry:
         return runner
 
     def remove_runner(self, app: App) -> None:
+        """Remove the kernel runner for the given app in the current thread, cleaning up the thread entry if empty."""
         app_runners = self._runners.get(tid := threading.get_ident(), {})
         if app in app_runners:
             del app_runners[app]
@@ -217,6 +224,7 @@ class AppKernelRunnerRegistry:
             del self._runners[tid]
 
     def shutdown(self) -> None:
+        """Clear all kernel runners across all threads."""
         self._runners.clear()
 
 
@@ -951,44 +959,54 @@ class InternalApp:
 
     @property
     def config(self) -> _AppConfig:
+        """Return the app's configuration."""
         return self._app._config
 
     @property
     def cell_manager(self) -> CellManager:
+        """Return the app's cell manager."""
         return self._app._cell_manager
 
     @property
     def filename(self) -> str | None:
+        """Return the source filename of the app, or None if not available."""
         return self._app._filename
 
     @property
     def graph(self) -> dataflow.DirectedGraph:
+        """Return the app's dataflow graph, initializing the app if necessary."""
         self._app._maybe_initialize()
         return self._app._graph
 
     @property
     def execution_order(self) -> list[CellId_t]:
+        """Return the topologically sorted list of cell IDs, initializing the app if necessary."""
         self._app._maybe_initialize()
         return self._app._execution_order
 
     @property
     def execution_context(self) -> ExecutionContext | None:
+        """Return the current execution context, or None if not set."""
         return self._app._execution_context
 
     def set_execution_context(
         self, execution_context: ExecutionContext | None
     ) -> None:
+        """Set the current execution context."""
         self._app._execution_context = execution_context
 
     @property
     def runner(self) -> dataflow.Runner:
+        """Return the dataflow runner, initializing the app if necessary."""
         self._app._maybe_initialize()
         return self._app._runner
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
+        """Apply a dict of updates to the app config and return the updated config."""
         return self.config.update(updates)
 
     def inline_layout_file(self) -> InternalApp:
+        """Encode the layout file as a base64 data URI inline in the app config, if one is set."""
         if self.config.layout_file:
             layout_path = Path(self.config.layout_file)
             if self._app._filename:
@@ -1009,6 +1027,7 @@ class InternalApp:
         names: Iterable[str],
         configs: Iterable[CellConfig],
     ) -> InternalApp:
+        """Replace the app's cell manager with one built from the provided cell data and return self."""
         new_cell_manager = CellManager()
         for cell_id, code, name, config in zip(
             cell_ids, codes, names, configs
@@ -1031,21 +1050,25 @@ class InternalApp:
     async def run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
+        """Run a single cell asynchronously and return its output and definitions."""
         return await self._app._run_cell_async(cell, kwargs)
 
     def run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
+        """Run a single cell synchronously and return its output and definitions."""
         return self._app._run_cell_sync(cell, kwargs)
 
     async def set_ui_element_value(
         self, request: UpdateUIElementCommand
     ) -> bool:
+        """Update a UI element's value and trigger reactive re-execution."""
         return await self._app._set_ui_element_value(request)
 
     async def function_call(
         self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        """Invoke a registered function and return the status, result, and success flag."""
         return await self._app._function_call(request)
 
     def overrides(self) -> dict[str, Any] | None:
@@ -1053,6 +1076,7 @@ class InternalApp:
         return self._app._get_kernel_runner()._previously_seen_defs
 
     def to_ir(self) -> NotebookSerializationV1:
+        """Serialize the app to the NotebookSerializationV1 intermediate representation."""
         return NotebookSerializationV1(
             header=Header(value=self._app._header)
             if self._app._header
@@ -1072,4 +1096,5 @@ class InternalApp:
         )
 
     def to_py(self) -> str:
+        """Serialize the app to a Python source string."""
         return MarimoConvert.from_ir(self.to_ir()).to_py()

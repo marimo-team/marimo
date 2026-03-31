@@ -58,12 +58,15 @@ class NarwhalsTableManager(
         Union[nw.DataFrame[IntoDataFrameT], nw.LazyFrame[IntoLazyFrameT]]
     ]
 ):
+    """TableManager implementation backed by the Narwhals dataframe abstraction layer."""
+
     type = "narwhals"
 
     @staticmethod
     def from_dataframe(
         data: Union[IntoDataFrameT, IntoLazyFrameT],
     ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
+        """Construct a NarwhalsTableManager from a native dataframe or lazy frame."""
         return NarwhalsTableManager(nw.from_native(data, pass_through=False))
 
     @cached_property
@@ -73,9 +76,11 @@ class NarwhalsTableManager(
         return self.data
 
     def as_frame(self) -> nw.DataFrame[Any]:
+        """Return the data as a collected Narwhals DataFrame."""
         return self._collected_frame
 
     def as_lazy_frame(self) -> nw.LazyFrame[Any]:
+        """Return the data as a Narwhals LazyFrame."""
         if is_narwhals_lazyframe(self.data):
             return self.data
         return self.data.lazy()
@@ -83,6 +88,7 @@ class NarwhalsTableManager(
     def with_new_data(
         self, data: nw.DataFrame[Any] | nw.LazyFrame[Any]
     ) -> TableManager[Any]:
+        """Return a new manager of the same type wrapping the given data."""
         if type(self) is NarwhalsTableManager:
             return NarwhalsTableManager(data)
         # If this call comes from a subclass, we need to call the constructor
@@ -94,6 +100,7 @@ class NarwhalsTableManager(
         format_mapping: Optional[FormatMapping] = None,
         separator: str | None = None,
     ) -> str:
+        """Serialize the table to a CSV-formatted string, applying optional formatting."""
         _data = self.apply_formatting(format_mapping).as_frame()
         return dataframe_to_csv(_data, separator=separator)
 
@@ -103,6 +110,7 @@ class NarwhalsTableManager(
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
+        """Serialize the table to a JSON-formatted string, applying optional formatting."""
         del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()
         return sanitize_json_bigint(
@@ -110,6 +118,7 @@ class NarwhalsTableManager(
         )
 
     def to_parquet(self) -> bytes:
+        """Serialize the table to Parquet format bytes."""
         stream = io.BytesIO()
         self.as_frame().write_parquet(stream)
         return stream.getvalue()
@@ -117,6 +126,7 @@ class NarwhalsTableManager(
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
     ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
+        """Apply a column format mapping and return a new manager with formatted values."""
         if not format_mapping:
             return self
 
@@ -132,11 +142,13 @@ class NarwhalsTableManager(
         )
 
     def supports_filters(self) -> bool:
+        """Return True since Narwhals-backed tables support column filtering."""
         return True
 
     def select_rows(
         self, indices: list[int]
     ) -> TableManager[Union[IntoDataFrameT, IntoLazyFrameT]]:
+        """Return a new manager containing only the rows at the given indices."""
         if not indices:
             return self.with_new_data(self.data.head(0))
 
@@ -151,9 +163,11 @@ class NarwhalsTableManager(
         return self.with_new_data(df[indices])
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        """Return a new manager containing only the specified columns."""
         return self.with_new_data(self.data.select(columns))
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        """Return the cell values at the given row/column coordinates."""
         if not cells:
             return []
 
@@ -179,15 +193,18 @@ class NarwhalsTableManager(
             ]
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        """Return a new manager with the specified columns removed."""
         return self.with_new_data(self.data.drop(columns, strict=False))
 
     def get_row_headers(self) -> FieldTypes:
+        """Return an empty list since Narwhals tables have no row-header columns."""
         return []
 
     @functools.lru_cache(maxsize=5)  # noqa: B019
     def calculate_top_k_rows(
         self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
+        """Return the top-k most frequent values and their counts for the given column."""
         if column not in self.get_column_names():
             raise ValueError(f"Column {column} not found in table.")
 
@@ -255,15 +272,18 @@ class NarwhalsTableManager(
 
     @staticmethod
     def is_type(value: Any) -> bool:
+        """Return True if the value can be handled by Narwhals."""
         return can_narwhalify(value)
 
     @cached_property
     def nw_schema(self) -> nw.Schema:
+        """Return the collected Narwhals schema for the underlying data."""
         return cast(nw.Schema, self.data.collect_schema())
 
     def get_field_type(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
+        """Return the marimo field type and external type string for the given column."""
         dtype = self.nw_schema[column_name]
         dtype_string = str(dtype)
         if is_narwhals_string_type(dtype):
@@ -288,6 +308,7 @@ class NarwhalsTableManager(
             return ("unknown", dtype_string)
 
     def take(self, count: int, offset: int) -> TableManager[Any]:
+        """Return a new manager with at most `count` rows starting at `offset`."""
         if count < 0:
             raise ValueError("Count must be a positive integer")
         if offset < 0:
@@ -305,6 +326,7 @@ class NarwhalsTableManager(
                 return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
+        """Return a new manager with rows whose values contain the search query."""
         query = query.lower()
 
         expressions: list[Any] = []
@@ -340,6 +362,7 @@ class NarwhalsTableManager(
         return NarwhalsTableManager(filtered)
 
     def get_stats(self, column: str) -> ColumnStats:
+        """Return summary statistics for the given column with values normalized to Python builtins."""
         stats = self._get_stats_internal(column)
         import warnings
 
@@ -543,6 +566,7 @@ class NarwhalsTableManager(
         return ColumnStats(**stats_dict)
 
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+        """Return histogram bin values for the given column."""
         if column not in self.nw_schema:
             LOGGER.error(f"Column {column} not found in schema")
             return []
@@ -681,6 +705,7 @@ class NarwhalsTableManager(
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
+        """Return the row count, collecting lazy data when force=True, or None if unknown."""
         # If force is true, collect the data and get the number of rows
         if force:
             return self.as_frame().shape[0]
@@ -697,15 +722,18 @@ class NarwhalsTableManager(
             return None
 
     def get_num_columns(self) -> int:
+        """Return the number of non-index columns in the table."""
         return len(self.get_column_names())
 
     def get_column_names(self) -> list[str]:
+        """Return the list of column names, excluding the internal index column."""
         column_names = self.nw_schema.names()
         if INDEX_COLUMN_NAME in column_names:
             column_names.remove(INDEX_COLUMN_NAME)
         return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        """Return the unique values present in the given column."""
         frame = self.data.select(nw.col(column))
         if is_narwhals_lazyframe(frame):
             frame = frame.collect()
@@ -718,6 +746,7 @@ class NarwhalsTableManager(
             return frame[column].cast(nw.String).unique().to_list()
 
     def get_sample_values(self, column: str) -> list[str | int | float]:
+        """Return up to three representative primitive values from the given column."""
         # Skip lazy frames
         if is_narwhals_lazyframe(self.data):
             return []
@@ -768,6 +797,7 @@ class NarwhalsTableManager(
             return []
 
     def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
+        """Return a new manager with rows sorted by the given columns and directions."""
         if not by:
             return self
 

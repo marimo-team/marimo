@@ -33,12 +33,16 @@ FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
 
 
 class TableCoordinate(NamedTuple):
+    """Identifies a single cell in a table by row ID and column name."""
+
     row_id: Union[int, str]
     column_name: str
 
 
 @dataclass
 class TableCell:
+    """Represents a single cell value at a specific row and column."""
+
     row: Union[int, str]
     column: str
     value: Any | None
@@ -51,6 +55,8 @@ class TableCell:
 
 
 class TableManager(abc.ABC, Generic[T]):
+    """Abstract base class defining the interface for all table backend managers."""
+
     # Upper limit for column summaries
     # The only sets the default to show column summaries,
     # but it can be overridden by the user
@@ -71,26 +77,32 @@ class TableManager(abc.ABC, Generic[T]):
         self.data = data
 
     def supports_download(self) -> bool:
+        """Return whether the table supports file download."""
         return True
 
     def supports_selection(self) -> bool:
+        """Return whether the table supports row selection."""
         return True
 
     def supports_altair(self) -> bool:
+        """Return whether the table data can be passed to Altair for charting."""
         return True
 
     @abc.abstractmethod
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
     ) -> TableManager[Any]:
+        """Apply a format mapping to the table and return the formatted manager."""
         pass
 
     @abc.abstractmethod
     def supports_filters(self) -> bool:
+        """Return whether the table backend supports column filtering."""
         pass
 
     @abc.abstractmethod
     def sort_values(self, by: list[SortArgs]) -> TableManager[Any]:
+        """Return a new manager with rows sorted according to the given sort arguments."""
         pass
 
     @abc.abstractmethod
@@ -99,6 +111,7 @@ class TableManager(abc.ABC, Generic[T]):
         format_mapping: Optional[FormatMapping] = None,
         separator: str | None = None,
     ) -> str:
+        """Serialize the table to a CSV-formatted string."""
         pass
 
     def to_csv(
@@ -107,12 +120,14 @@ class TableManager(abc.ABC, Generic[T]):
         encoding: str | None = "utf-8",
         separator: str | None = None,
     ) -> bytes:
+        """Serialize the table to CSV bytes using the given encoding."""
         resolved_encoding = encoding or "utf-8"
         return self.to_csv_str(format_mapping, separator=separator).encode(
             resolved_encoding
         )
 
     def to_arrow_ipc(self) -> bytes:
+        """Serialize the table to Arrow IPC format bytes."""
         raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
@@ -122,6 +137,7 @@ class TableManager(abc.ABC, Generic[T]):
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
+        """Serialize the table to a JSON-formatted string."""
         pass
 
     def to_json(
@@ -131,6 +147,7 @@ class TableManager(abc.ABC, Generic[T]):
         encoding: str | None = "utf-8",
         ensure_ascii: bool = True,
     ) -> bytes:
+        """Serialize the table to JSON bytes using the given encoding."""
         resolved_encoding = encoding or "utf-8"
         return self.to_json_str(
             format_mapping=format_mapping,
@@ -140,35 +157,43 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:
+        """Serialize the table to Parquet format bytes."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
+        """Return a new manager containing only the rows at the given indices."""
         pass
 
     @abc.abstractmethod
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        """Return a new manager containing only the specified columns."""
         pass
 
     @abc.abstractmethod
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        """Return the cell values at the given row/column coordinates."""
         pass
 
     @abc.abstractmethod
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        """Return a new manager with the specified columns removed."""
         pass
 
     @abc.abstractmethod
     def get_row_headers(self) -> FieldTypes:
+        """Return field type information for the row-header columns."""
         pass
 
     @abc.abstractmethod
     def get_field_type(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
+        """Return the marimo field type and external type string for a column."""
         pass
 
     def get_field_types(self) -> FieldTypes:
+        """Return field type information for all columns, converting names to strings."""
         # Some column names may be non-string (sqlalchemy quoted names), so we convert them to strings
         return [
             (str(column_name), self.get_field_type(column_name))
@@ -177,53 +202,64 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:
+        """Return a new manager with at most `count` rows starting at `offset`."""
         pass
 
     @abc.abstractmethod
     def search(self, query: str) -> TableManager[Any]:
+        """Return a new manager with rows that match the search query."""
         pass
 
     @staticmethod
     @abc.abstractmethod
     def is_type(value: Any) -> bool:
+        """Return True if the given value is a type handled by this manager."""
         pass
 
     @abc.abstractmethod
     def get_stats(self, column: str) -> ColumnStats:
+        """Return summary statistics for the given column."""
         pass
 
     @abc.abstractmethod
     def get_bin_values(
         self, column: ColumnName, num_bins: int
     ) -> list[BinValue]:
+        """Return histogram bin values for the given column."""
         pass
 
     @abc.abstractmethod
     def get_num_rows(self, force: bool = True) -> Optional[int]:
+        """Return the number of rows, or None if unknown without forcing collection."""
         # This can be expensive to compute,
         # so we allow optionals
         pass
 
     @abc.abstractmethod
     def get_num_columns(self) -> int:
+        """Return the number of columns in the table."""
         pass
 
     @abc.abstractmethod
     def get_column_names(self) -> list[str]:
+        """Return the list of column names in the table."""
         pass
 
     @abc.abstractmethod
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        """Return the unique values present in the given column."""
         pass
 
     @abc.abstractmethod
     def get_sample_values(self, column: str) -> list[Any]:
+        """Return a small sample of representative values from the given column."""
         pass
 
     @abc.abstractmethod
     def calculate_top_k_rows(
         self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
+        """Return the top-k most frequent values and their counts for the given column."""
         pass
 
     def __repr__(self) -> str:
@@ -235,12 +271,16 @@ class TableManager(abc.ABC, Generic[T]):
 
 
 class TableManagerFactory(abc.ABC):
+    """Abstract factory for creating TableManager instances for a specific package."""
+
     @staticmethod
     @abc.abstractmethod
     def package_name() -> str:
+        """Return the name of the package this factory supports."""
         pass
 
     @staticmethod
     @abc.abstractmethod
     def create() -> type[TableManager[Any]]:
+        """Return the TableManager class for this factory's package."""
         pass

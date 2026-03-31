@@ -31,33 +31,42 @@ LOGGER = _loggers.marimo_logger()
 
 
 class LspServer(ABC):
+    """Abstract base class defining the interface for LSP server implementations."""
+
     port: int
     id: str
 
     @abstractmethod
     async def start(self) -> Optional[AlertNotification]:
+        """Start the LSP server, returning an alert notification on failure."""
         pass
 
     @abstractmethod
     def stop(self) -> None:
+        """Stop the LSP server process."""
         pass
 
     @abstractmethod
     def is_running(self) -> bool:
+        """Return True if the LSP server process is currently running."""
         pass
 
     @abstractmethod
     async def get_health(self) -> LspHealthResponse:
+        """Return the current health status of the LSP server."""
         pass
 
     @abstractmethod
     async def restart(
         self, server_ids: Optional[list[LspServerId]] = None
     ) -> LspRestartResponse:
+        """Restart the LSP server, optionally filtering by server IDs."""
         pass
 
 
 class BaseLspServer(LspServer):
+    """Concrete base implementation of LspServer with process lifecycle management and health monitoring."""
+
     def __init__(self, port: int) -> None:
         self.port = port
         self.process: Optional[subprocess.Popen[str]] = None
@@ -69,6 +78,7 @@ class BaseLspServer(LspServer):
 
     @server_tracer.start_as_current_span("lsp_server.start")
     async def start(self) -> Optional[AlertNotification]:
+        """Start the LSP server process, acquiring a lock to prevent concurrent start races."""
         # Use lock to prevent race conditions when start() is called concurrently
         # (e.g., user rapidly toggles LSP settings)
         async with self._start_lock:
@@ -207,6 +217,7 @@ class BaseLspServer(LspServer):
         return False
 
     def is_running(self) -> bool:
+        """Return True if the underlying subprocess is still alive."""
         if self.process is None:
             return False
         # check if the process is still running
@@ -365,6 +376,7 @@ class BaseLspServer(LspServer):
             LOGGER.error(f"Error monitoring {self.id} LSP health: {e}")
 
     def stop(self) -> None:
+        """Terminate the LSP server process, forcibly killing it if it does not exit gracefully."""
         # Cancel health monitoring task
         if (
             self._health_check_task is not None
@@ -394,16 +406,21 @@ class BaseLspServer(LspServer):
             LOGGER.debug("LSP server not running")
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
+        """Validate that all prerequisites for starting the server are met; return True or an error string."""
         raise NotImplementedError()
 
     def get_command(self) -> list[str]:
+        """Return the command-line arguments used to launch the LSP server process."""
         raise NotImplementedError()
 
     def missing_binary_alert(self) -> AlertNotification:
+        """Return an AlertNotification describing the missing binary or dependency."""
         raise NotImplementedError()
 
 
 class CopilotLspServer(BaseLspServer):
+    """LSP server implementation that wraps the GitHub Copilot language server via Node.js."""
+
     id = "copilot"
 
     def __init__(self, port: int) -> None:
@@ -411,6 +428,7 @@ class CopilotLspServer(BaseLspServer):
         self.log_file = _loggers.get_log_directory() / "github-copilot-lsp.log"
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
+        """Validate that Node.js >= 20 is installed; return True on success or an error string."""
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
 
@@ -456,6 +474,7 @@ class CopilotLspServer(BaseLspServer):
         return self._lsp_dir() / "index.cjs"
 
     def get_command(self) -> list[str]:
+        """Return the Node.js command to launch the Copilot language server."""
         lsp_bin = self._lsp_bin()
         # Check if the LSP binary exists
         if not lsp_bin.exists():
@@ -480,6 +499,7 @@ class CopilotLspServer(BaseLspServer):
         ]
 
     def missing_binary_alert(self) -> AlertNotification:
+        """Return an alert notification prompting the user to install Node.js for Copilot."""
         return AlertNotification(
             title="GitHub Copilot: Connection Error",
             description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",
@@ -500,6 +520,7 @@ class PyLspServer(BaseLspServer):
     id = "pylsp"
 
     async def start(self) -> Optional[AlertNotification]:
+        """Start the pylsp server, silently skipping if pylsp is not installed."""
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
             LOGGER.info(
@@ -509,6 +530,7 @@ class PyLspServer(BaseLspServer):
         return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
+        """Validate that pylsp is installed and runnable; return True or an error string."""
         if not DependencyManager.pylsp.has():
             return "pylsp is missing. Install it with `pip install python-lsp-server`."
 
@@ -532,6 +554,7 @@ class PyLspServer(BaseLspServer):
             return f"Failed to validate pylsp: {e}"
 
     def get_command(self) -> list[str]:
+        """Return the command to launch pylsp as a WebSocket server."""
         import sys
 
         return [
@@ -548,6 +571,7 @@ class PyLspServer(BaseLspServer):
         ]
 
     def missing_binary_alert(self) -> AlertNotification:
+        """Return an alert notification prompting the user to install python-lsp-server."""
         return AlertNotification(
             title="Python LSP: Connection Error",
             description=f"<span><a class='hyperlink' href='https://github.com/python-lsp/python-lsp-server'>Install python-lsp-server</a> for Python language support. If already installed, check {self.log_file} or disable pylsp in Settings > Editor > Language Servers.</span>",
@@ -556,6 +580,8 @@ class PyLspServer(BaseLspServer):
 
 
 class BasedpyrightServer(BaseLspServer):
+    """LSP server implementation that wraps basedpyright for Python type checking."""
+
     id = "basedpyright"
 
     def __init__(self, port: int) -> None:
@@ -563,6 +589,7 @@ class BasedpyrightServer(BaseLspServer):
         self.log_file = _loggers.get_log_directory() / "basedpyright-lsp.log"
 
     async def start(self) -> Optional[AlertNotification]:
+        """Start the basedpyright server, silently skipping if basedpyright is not installed."""
         # basedpyright is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.basedpyright.has():
             LOGGER.debug("basedpyright is not installed. Skipping LSP server.")
@@ -570,6 +597,7 @@ class BasedpyrightServer(BaseLspServer):
         return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
+        """Validate that basedpyright and Node.js are installed; return True or an error string."""
         if not DependencyManager.basedpyright.has():
             return "basedpyright is missing. Install it with `pip install basedpyright`."
 
@@ -579,6 +607,7 @@ class BasedpyrightServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
+        """Return the Node.js command to launch the basedpyright language server."""
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
 
         return [
@@ -593,6 +622,7 @@ class BasedpyrightServer(BaseLspServer):
         ]
 
     def missing_binary_alert(self) -> AlertNotification:
+        """Return an alert notification prompting the user to install basedpyright."""
         return AlertNotification(
             title="basedpyright: Connection Error",
             description="<span><a class='hyperlink' href='https://docs.basedpyright.com'>Install basedpyright</a> for type checking support.</span>",
@@ -601,6 +631,8 @@ class BasedpyrightServer(BaseLspServer):
 
 
 class TyServer(BaseLspServer):
+    """LSP server implementation that wraps the ty type checker from Astral."""
+
     id = "ty"
 
     def __init__(self, port: int) -> None:
@@ -608,6 +640,7 @@ class TyServer(BaseLspServer):
         self.log_file = _loggers.get_log_directory() / "ty-lsp.log"
 
     async def start(self) -> Optional[AlertNotification]:
+        """Start the ty server, silently skipping if ty is not installed."""
         # ty is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.ty.has():
             LOGGER.debug("ty is not installed. Skipping LSP server.")
@@ -615,6 +648,7 @@ class TyServer(BaseLspServer):
         return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
+        """Validate that ty and Node.js are installed; return True or an error string."""
         if not DependencyManager.ty.has():
             return "ty is missing. Install it with `pip install ty`."
 
@@ -624,6 +658,7 @@ class TyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
+        """Return the Node.js command to launch the ty language server."""
         from ty.__main__ import find_ty_bin  # type: ignore
 
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
@@ -643,6 +678,7 @@ class TyServer(BaseLspServer):
         ]
 
     def missing_binary_alert(self) -> AlertNotification:
+        """Return an alert notification prompting the user to install ty."""
         return AlertNotification(
             title="Ty: Connection Error",
             description="<span><a class='hyperlink' href='https://github.com/astral-sh/ty'>Install ty</a> for type checking support.</span>",
@@ -651,6 +687,8 @@ class TyServer(BaseLspServer):
 
 
 class PyreflyServer(BaseLspServer):
+    """LSP server implementation that wraps Meta's Pyrefly type checker."""
+
     id = "pyrefly"
 
     def __init__(self, port: int) -> None:
@@ -658,6 +696,7 @@ class PyreflyServer(BaseLspServer):
         self.log_file = _loggers.get_log_directory() / "pyrefly-lsp.log"
 
     async def start(self) -> Optional[AlertNotification]:
+        """Start the Pyrefly server, silently skipping if Pyrefly is not installed."""
         # Pyrefly is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pyrefly.has():
             LOGGER.debug("Pyrefly is not installed. Skipping LSP server.")
@@ -665,6 +704,7 @@ class PyreflyServer(BaseLspServer):
         return await super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
+        """Validate that Pyrefly and Node.js are installed; return True or an error string."""
         if not DependencyManager.pyrefly.has():
             return "Pyrefly is missing. Install it with `pip install pyrefly`."
         if not DependencyManager.which("node"):
@@ -672,6 +712,7 @@ class PyreflyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
+        """Return the Node.js command to launch the Pyrefly language server."""
         from pyrefly.__main__ import get_pyrefly_bin  # type: ignore
 
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
@@ -688,6 +729,7 @@ class PyreflyServer(BaseLspServer):
         ]
 
     def missing_binary_alert(self) -> AlertNotification:
+        """Return an alert notification prompting the user to install Pyrefly."""
         return AlertNotification(
             title="Pyrefly: Connection Error",
             description="<span><a class='hyperlink' href='https://github.com/facebook/pyrefly'>Install pyrefly</a> for type checking support.</span>",
@@ -696,29 +738,38 @@ class PyreflyServer(BaseLspServer):
 
 
 class NoopLspServer(LspServer):
+    """No-op LSP server implementation used when no real server is configured."""
+
     port: int = 0
     id: str = "noop"
 
     async def start(self) -> None:
+        """No-op start; does nothing."""
         pass
 
     def stop(self) -> None:
+        """No-op stop; does nothing."""
         pass
 
     def is_running(self) -> bool:
+        """Always returns False as this server never runs."""
         return False
 
     async def get_health(self) -> LspHealthResponse:
+        """Return a healthy response with no servers."""
         return LspHealthResponse(status="healthy", servers=[])
 
     async def restart(
         self, server_ids: Optional[list[LspServerId]] = None
     ) -> LspRestartResponse:
+        """No-op restart; always reports success."""
         del server_ids  # Unused
         return LspRestartResponse(success=True, restarted=[], errors={})
 
 
 class CompositeLspServer(LspServer):
+    """LSP server that manages multiple language server instances as a single unit."""
+
     LANGUAGE_SERVERS = {
         "pylsp": PyLspServer,
         "basedpyright": BasedpyrightServer,
@@ -761,6 +812,7 @@ class CompositeLspServer(LspServer):
         )
 
     async def start(self) -> Optional[AlertNotification]:
+        """Start all enabled LSP servers in parallel, returning the first alert on failure."""
         # .get_config() should not be cached, as it may be updated by the user
         config = self.config_reader.get_config()
         tasks: list[asyncio.Task[Optional[AlertNotification]]] = []
@@ -780,10 +832,12 @@ class CompositeLspServer(LspServer):
         return alerts[0] if alerts else None
 
     def stop(self) -> None:
+        """Stop all managed LSP servers."""
         for server in self.servers.values():
             server.stop()
 
     def is_running(self) -> bool:
+        """Return True if at least one managed LSP server is running."""
         return any(server.is_running() for server in self.servers.values())
 
     async def get_health(self) -> LspHealthResponse:
@@ -893,6 +947,7 @@ class CompositeLspServer(LspServer):
 
 
 def any_lsp_server_running(config: MarimoConfig) -> bool:
+    """Return True if any language server or Copilot is enabled in the given config."""
     # Check if any language servers or copilot are enabled
     copilot_enabled = config["completion"]["copilot"]
     language_servers = config.get("language_servers", {})
