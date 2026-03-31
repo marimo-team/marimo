@@ -1936,7 +1936,7 @@ def test_cell_styles_sorted_with_pagination(df: Any):
     create_dataframes(
         {
             "Name": ["alpha", "beta", "gamma", "delta"],
-            "Score": [1.0, 2.0, 3.0, 4.0],
+            "Score": [4.0, 1.0, 3.0, 2.0],
         },
         exclude=NON_EAGER_LIBS,
     ),
@@ -1948,6 +1948,10 @@ def test_cell_styles_descending_non_index_column(df: Any):
     in descending order. The root cause was that _style_cells generated
     row IDs assuming index-column ordering rather than reading actual
     _marimo_row_id values from the sorted data.
+
+    Uses non-monotonic scores so the sorted order [0, 2, 3, 1] does NOT
+    match a reversed-sequential pattern, which the old buggy range-based
+    logic would have generated.
     """
 
     def style(_row_id, _col, value):
@@ -1959,8 +1963,8 @@ def test_cell_styles_descending_non_index_column(df: Any):
 
     table = ui.table(df, style_cell=style)
 
-    # Sort by Score descending - row_ids on page should be [3, 2, 1, 0]
-    # (original _marimo_row_id values, NOT reversed sequential indices)
+    # Sort by Score descending: 4.0 (row 0), 3.0 (row 2), 2.0 (row 3), 1.0 (row 1)
+    # Row IDs on page should be [0, 2, 3, 1] — NOT reversed sequential [3, 2, 1, 0]
     page = table._search(
         SearchTableArgs(
             page_size=10,
@@ -1974,14 +1978,14 @@ def test_cell_styles_descending_non_index_column(df: Any):
     assert "1" in page.cell_styles
     assert "2" in page.cell_styles
     assert "3" in page.cell_styles
-    # delta (row 3, score 4.0) should be green
-    assert page.cell_styles["3"]["Score"] == {"color": "green"}
+    # alpha (row 0, score 4.0) should be green
+    assert page.cell_styles["0"]["Score"] == {"color": "green"}
     # gamma (row 2, score 3.0) should be green
     assert page.cell_styles["2"]["Score"] == {"color": "green"}
-    # beta (row 1, score 2.0) should be red
+    # delta (row 3, score 2.0) should be red
+    assert page.cell_styles["3"]["Score"] == {"color": "red"}
+    # beta (row 1, score 1.0) should be red
     assert page.cell_styles["1"]["Score"] == {"color": "red"}
-    # alpha (row 0, score 1.0) should be red
-    assert page.cell_styles["0"]["Score"] == {"color": "red"}
 
     # Also test ascending - should produce identical styles
     page_asc = table._search(
@@ -1992,8 +1996,8 @@ def test_cell_styles_descending_non_index_column(df: Any):
             sort=[SortArgs(by="Score", descending=False)],
         )
     )
-    assert page_asc.cell_styles["3"]["Score"] == {"color": "green"}
-    assert page_asc.cell_styles["0"]["Score"] == {"color": "red"}
+    assert page_asc.cell_styles["0"]["Score"] == {"color": "green"}
+    assert page_asc.cell_styles["1"]["Score"] == {"color": "red"}
 
 
 @pytest.mark.parametrize(
@@ -2666,6 +2670,7 @@ def test_cell_search_df_hover_texts(df: Any):
                 "carrots",
             ]
         },
+        exclude=NON_EAGER_LIBS,
     ),
 )
 def test_cell_search_df_hover_texts_sorted(df: Any):

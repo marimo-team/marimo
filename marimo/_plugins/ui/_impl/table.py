@@ -1255,18 +1255,28 @@ class table(
         indices are returned since both the backend and frontend use
         positional indexing.
         """
-        if response.all_rows or response.error:
+        # If there was an error computing row IDs (e.g. lazy/unknown-row-count),
+        # fall back to positional indexing without attempting to read from data.
+        if response.error:
+            return range(skip, skip + take)
+
+        if response.all_rows:
             if self._has_stable_row_id:
                 try:
-                    all_ids = cast(
+                    # Slice to just the requested page first, then read IDs
+                    # to avoid materializing the entire index column for
+                    # large tables.
+                    page_data = self._searched_manager.data[skip : skip + take]
+                    return cast(
                         list[int],
-                        self._searched_manager.data[
-                            INDEX_COLUMN_NAME
-                        ].to_list(),
+                        page_data[INDEX_COLUMN_NAME].to_list(),
                     )
-                    return all_ids[skip : skip + take]
                 except Exception:
-                    pass
+                    LOGGER.warning(
+                        "Failed to read row IDs for page; "
+                        "falling back to positional indexing"
+                    )
+                    return range(skip, skip + take)
             return range(skip, skip + take)
         return response.row_ids[skip : skip + take]
 
