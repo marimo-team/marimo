@@ -46,6 +46,12 @@ class TestQuoteSqlIdentifier:
             ("table", "bigquery", "`table`"),
             ("my table", "bigquery", "`my table`"),
             ("has`backtick", "bigquery", "`has``backtick`"),
+            # StarRocks uses backtick style
+            ("table", "starrocks", "`table`"),
+            ("my table", "starrocks", "`my table`"),
+            ("nested.namespace", "starrocks", "`nested.namespace`"),
+            ("has`backtick", "starrocks", "`has``backtick`"),
+            ('has"quotes', "starrocks", '`has"quotes`'),
             # Unknown dialect returns unquoted
             ("table", "sqlite", "table"),
             ("my table", "unknown", "my table"),
@@ -98,6 +104,24 @@ class TestQuoteSqlIdentifier:
         inner = quoted[1:-1]
         assert inner.replace("``", "`") == identifier
 
+    @pytest.mark.parametrize(
+        "identifier",
+        [
+            "simple",
+            "with spaces",
+            "with.dots",
+            "with`backticks",
+            'with"quotes',
+        ],
+    )
+    def test_starrocks_roundtrip_safe(self, identifier: str) -> None:
+        """Verify that quoting an identifier produces valid StarRocks syntax."""
+        quoted = quote_sql_identifier(identifier, dialect="starrocks")
+        assert quoted.startswith("`")
+        assert quoted.endswith("`")
+        inner = quoted[1:-1]
+        assert inner.replace("``", "`") == identifier
+
 
 class TestQuoteQualifiedName:
     @pytest.mark.parametrize(
@@ -126,6 +150,12 @@ class TestQuoteQualifiedName:
                 ("catalog", "schema", "table"),
                 "redshift",
                 '"catalog"."schema"."table"',
+            ),
+            # StarRocks 3-part name (catalog.database.table)
+            (
+                ("iceberg_catalog", "tpch", "orders"),
+                "starrocks",
+                "`iceberg_catalog`.`tpch`.`orders`",
             ),
             # Single part
             (
