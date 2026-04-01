@@ -8,4 +8,5 @@ name = "marimo_docs"
 version = "0.1.0"
 
 [tool.uv.build-backend]
+module-name = "blocks"
 module-root = ""
