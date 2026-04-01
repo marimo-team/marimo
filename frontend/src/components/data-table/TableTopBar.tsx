@@ -71,7 +71,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   return (
     <div className="flex items-center h-10 px-2 border-b gap-2">
       {onSearchQueryChange && enableSearch && (
-        <div className="flex flex-1 items-center gap-1 px-2">
+        <div className="flex flex-1 items-center gap-1 px-2 rounded-sm focus-within:ring-1 focus-within:ring-border transition-shadow">
           <SearchIcon className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
