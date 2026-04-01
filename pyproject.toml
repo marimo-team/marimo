@@ -17,10 +17,10 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
-    # Pinned to specific version for introduction of codeblock handling.
-    "pymdown-extensions>=10.15,<11",
+    # 10.21.2+ required for compatibility with pygments>=2.20 (filename=None fix).
+    "pymdown-extensions>=10.21.2,<11",
     # syntax highlighting of code in markdown
-    "pygments>=2.19,<3",
+    "pygments>=2.20,<3",
     # for reading, writing configs
     "tomlkit>=0.12.0",
     # for managing frontmatter headers in markdown
