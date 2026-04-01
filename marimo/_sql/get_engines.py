@@ -22,7 +22,6 @@ from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
 from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.engines.starrocks import StarRocksEngine
 from marimo._sql.engines.types import (
     BaseEngine,
     EngineCatalog,
@@ -34,7 +33,6 @@ LOGGER = _loggers.marimo_logger()
 # TODO: this is O(n) and can be O(1) using similar logic to the
 # formatters, but order does matter here
 SUPPORTED_ENGINES: list[type[BaseEngine[Any]]] = [
-    StarRocksEngine,
     SQLAlchemyEngine,
     IbisEngine,
     DuckDBEngine,
