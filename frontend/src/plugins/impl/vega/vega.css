@@ -5,7 +5,7 @@
 }
 
 .vega-embed[data-container-width="container"],
-.vega-embed:has(.chart-wrapper.fit-x) {
+.vega-embed:has(> .chart-wrapper.fit-x) {
   width: 100%;
 }
 

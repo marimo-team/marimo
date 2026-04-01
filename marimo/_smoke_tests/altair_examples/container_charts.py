@@ -12,8 +12,7 @@ with app.setup:
 @app.cell
 def _():
     cars = data.cars()
-
-    chart = (
+    base = (
         alt.Chart(cars)
         .mark_point()
         .encode(
@@ -21,17 +20,50 @@ def _():
             y="Miles_per_Gallon",
             color="Origin",
         )
-        .interactive()
-        .properties(width="container")
     )
-    mo.hstack([chart, chart.configure_axis(grid=False)], widths="equal")
-    return (chart,)
+    # 1. Unit chart — width at top level, getContainerWidth works
+    base.properties(width="container")
+    return base, cars
 
 
 @app.cell
-def _(chart):
+def _(base):
+    # facet — width nested under spec
+    base.properties(width="container").facet(column="Origin:N")
+    return
+
+
+@app.cell
+def _(cars):
+    # with vegafusion enabled. This will use vega instead of vega-lite
+    # The chart should be fully expanded
+    alt.data_transformers.enable("vegafusion")
+
+    _base = (
+        alt.Chart(cars)
+        .mark_point()
+        .encode(
+            x="Horsepower",
+            y="Miles_per_Gallon",
+            color="Origin",
+        )
+        .properties(width="container")
+    )
+    _base
+    return
+
+
+@app.cell
+def _(base):
+    # This should not stretch the entire width
+    base.properties(autosize=alt.AutoSizeParams(type="fit-x"))
+    return
+
+
+@app.cell
+def _(base):
     # Broken
-    chart.properties(height="container")
+    base.properties(height="container")
     return
 
 
