@@ -146,6 +146,7 @@ class StderrRule(LintRule):
     fixable = False
 
     async def check(self, ctx: RuleContext) -> None:
+        """Process captured stderr and create a diagnostic if any content was captured."""
         # Process stderr content
         if ctx.stderr:
             await ctx.add_diagnostic(

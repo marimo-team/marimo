@@ -56,19 +56,24 @@ class _AppHostPushQueue(QueueType[_T]):
         block: bool = True,
         timeout: float | None = None,
     ) -> None:
+        """Send item over the ZMQ channel; block and timeout arguments are ignored."""
         del block, timeout
         self._app_host.send_command(self._session_id, self._channel, item)
 
     def put_nowait(self, item: _T, /) -> None:
+        """Send item over the ZMQ channel immediately."""
         self.put(item)
 
     def get(self, block: bool = True, timeout: float | None = None) -> _T:
+        """Not implemented; this queue is write-only."""
         raise NotImplementedError("_AppHostPushQueue is write-only")
 
     def get_nowait(self) -> _T:
+        """Not implemented; this queue is write-only."""
         raise NotImplementedError("_AppHostPushQueue is write-only")
 
     def empty(self) -> bool:
+        """Always return True; write-only queues have no readable items."""
         return True
 
 
@@ -102,6 +107,7 @@ class AppHostQueueManager(QueueManagerProto):
         app_host.register_stream(session_id, self.stream_queue)
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
+        """Route a control request to the appropriate ZMQ channel queue."""
         route_control_request(
             request,
             self.control_queue,
@@ -110,9 +116,11 @@ class AppHostQueueManager(QueueManagerProto):
         )
 
     def put_input(self, text: str) -> None:
+        """Put a stdin input string onto the input channel."""
         self.input_queue.put(text)
 
     def close_queues(self) -> None:
+        """Unregister the stream and signal the queue distributor to stop."""
         self._app_host.unregister_stream(self._session_id)
         self.stream_queue.put(None)  # Signal QueueDistributor to stop
 
@@ -126,16 +134,20 @@ class _AppHostLike(ProcessLike):
 
     @property
     def pid(self) -> int | None:
+        """Return the PID of the app host process."""
         return self._app_host.pid
 
     def is_alive(self) -> bool:
+        """Return True if the session is still active in the app host."""
         return self._app_host.has_active_session(self._session_id)
 
     def terminate(self) -> None:
+        """No-op; kernel threads inside the app host cannot be forcibly terminated."""
         # We can't forcibly terminate a kernel thread
         pass
 
     def join(self, timeout: float | None = None) -> None:
+        """No-op; kernel threads are cleaned up independently."""
         # We never join kernel threads, just let them get cleaned up
         # on their own
         pass
@@ -176,6 +188,7 @@ class AppHostKernelManager(KernelManager):
         self.kernel_task: ProcessLike | threading.Thread | None = None
 
     def start_kernel(self) -> None:
+        """Create a kernel thread in the app host for this session."""
         response = self._app_host.create_kernel(
             session_id=self._session_id,
             configs=self._configs,
@@ -197,25 +210,31 @@ class AppHostKernelManager(KernelManager):
 
     @property
     def pid(self) -> int | None:
+        """Return the PID of the app host process."""
         return self._app_host.pid
 
     @property
     def profile_path(self) -> str | None:
+        """Return None; profiling is not supported for app host kernels."""
         return None
 
     def is_alive(self) -> bool:
+        """Return True if the session is still active in the app host."""
         return self._app_host.has_active_session(self._session_id)
 
     def interrupt_kernel(self) -> None:
+        """No-op; run-mode kernel threads cannot be interrupted."""
         # Run-mode threads can't be interrupted
         pass
 
     def close_kernel(self) -> None:
+        """Close the queue and stop the kernel thread in the app host."""
         self.queue_manager.close_queues()
         self._app_host.stop_kernel(self._session_id)
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
+        """Not implemented; app host kernels use stream_queue instead."""
         # App host kernels use stream_queue, not kernel_connection
         raise NotImplementedError(
             "App host kernel uses stream_queue, not kernel_connection"

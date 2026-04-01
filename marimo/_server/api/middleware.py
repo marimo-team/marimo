@@ -83,6 +83,8 @@ def create_proxy_error_handler(
 
 
 class AuthBackend(AuthenticationBackend):
+    """Authentication backend that validates cookies, access tokens, and basic auth."""
+
     def __init__(self, should_authenticate: bool = True) -> None:
         self.should_authenticate = should_authenticate
 
@@ -114,6 +116,8 @@ class AuthBackend(AuthenticationBackend):
 
 
 class SkewProtectionMiddleware:
+    """Middleware that rejects POST requests with a missing or stale server token."""
+
     HEADER_NAME: Final[str] = "Marimo-Server-Token"
 
     def __init__(self, app: ASGIApp) -> None:
@@ -175,6 +179,8 @@ class SkewProtectionMiddleware:
 
 
 class OpenTelemetryMiddleware(BaseHTTPMiddleware):
+    """Middleware that creates OpenTelemetry server spans for HTTP requests."""
+
     def __init__(
         self, app: ASGIApp, dispatch: DispatchFunction | None = None
     ) -> None:
@@ -228,6 +234,8 @@ class _URLRequest:
 
 
 class _AsyncHTTPResponse:
+    """Async wrapper around a synchronous HTTPResponse for streaming use."""
+
     def __init__(self, response: HTTPResponse):
         self.raw_response = response
         self.status_code = response.status
@@ -250,6 +258,8 @@ class _AsyncHTTPResponse:
 
 
 class _AsyncHTTPClient:
+    """Minimal async HTTP client built on stdlib HTTPConnection for proxy use."""
+
     def __init__(self, base_url: str, timeout: float = 30.0):
         self.base_url = base_url.rstrip("/")
         parsed = urlparse(base_url)
@@ -363,6 +373,8 @@ class _AsyncHTTPClient:
 
 
 class ProxyMiddleware:
+    """ASGI middleware that proxies HTTP and WebSocket requests to a target URL."""
+
     def __init__(
         self,
         app: ASGIApp,
@@ -624,6 +636,8 @@ class ProxyMiddleware:
 
 
 class TimeoutMiddleware(BaseHTTPMiddleware):
+    """Middleware that shuts down the server after a period of HTTP inactivity."""
+
     def __init__(
         self,
         app: ASGIApp,
@@ -653,6 +667,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
         return await self.app(scope, receive, send)
 
     async def monitor(self) -> None:
+        """Background loop that checks for inactivity and triggers shutdown."""
         while True:
             LOGGER.debug("Checking inactivity timeout")
             timeout_at = (
@@ -670,6 +685,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             await asyncio.sleep(timeout_at - now + 1)
 
     def shutdown(self) -> None:
+        """Shut down all sessions and the uvicorn server."""
         manager = self.app_state.session_manager
 
         manager.shutdown()

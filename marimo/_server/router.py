@@ -24,6 +24,8 @@ DecoratedCallable = TypeVar("DecoratedCallable", bound=Callable[..., Any])
 
 @dataclass
 class APIRouter(Router):
+    """Starlette Router subclass with decorator-based route registration and automatic JSON encoding."""
+
     def __init__(self, prefix: str = "") -> None:
         self.prefix = prefix
         super().__init__()

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 
 def get_script_metadata_hash(path: str | Path | None) -> str | None:
+    """Return the PEP 723 script metadata hash for the given notebook path, or None."""
     if path is None:
         return None
     return script_metadata_hash_from_filename(str(path))
@@ -41,6 +42,7 @@ def _hash_code_for_session_compare(code: str | None) -> str | None:
 def current_notebook_code_hashes(
     notebook: MarimoPath,
 ) -> tuple[str | None, ...]:
+    """Return a tuple of code hashes for all cells in the notebook, in cell order."""
     file_router = AppFileRouter.from_filename(notebook)
     file_key = file_router.get_unique_file_key()
     if file_key is None:
@@ -61,6 +63,7 @@ def serialize_session_snapshot(
     notebook_path: str | Path | None,
     cell_ids: Iterable[CellId_t],
 ) -> NotebookSessionV1:
+    """Serialize a SessionView to a NotebookSessionV1 schema, including script metadata hash."""
     return serialize_session_view(
         view,
         cell_ids=cell_ids,
@@ -73,6 +76,7 @@ def write_session_snapshot(
     notebook_path: str | Path,
     snapshot: NotebookSessionV1,
 ) -> Path:
+    """Write a serialized session snapshot to the notebook's cache file and return the path."""
     output = get_session_cache_file(Path(notebook_path))
     maybe_make_dirs(output)
     output.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
@@ -85,6 +89,7 @@ def persist_session_view_to_cache(
     notebook_path: str | Path | None,
     cell_ids: Iterable[CellId_t],
 ) -> Path | None:
+    """Serialize and write the session view to the notebook's cache file, or return None if no path is given."""
     if notebook_path is None:
         return None
     snapshot = serialize_session_snapshot(

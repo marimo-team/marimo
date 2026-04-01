@@ -1459,6 +1459,8 @@ T = TypeVar("T")
 
 @dataclasses.dataclass
 class ValueArgs:
+    """Arguments dataclass for a form's value submission."""
+
     value: Optional[JSONType] = None
 
 

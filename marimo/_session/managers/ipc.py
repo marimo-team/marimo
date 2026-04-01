@@ -76,30 +76,35 @@ class IPCQueueManagerImpl(QueueManager):
     def control_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.CommandMessage]:
+        """Return the IPC control command queue."""
         return self._ipc.control_queue
 
     @property
     def set_ui_element_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.BatchableCommand]:
+        """Return the IPC UI element update queue."""
         return self._ipc.set_ui_element_queue
 
     @property
     def completion_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.CodeCompletionCommand]:
+        """Return the IPC code completion queue."""
         return self._ipc.completion_queue
 
     @property
     def input_queue(  # type: ignore[override]
         self,
     ) -> QueueType[str]:
+        """Return the IPC stdin input queue."""
         return self._ipc.input_queue
 
     @property
     def stream_queue(  # type: ignore[override]
         self,
     ) -> QueueType[Union[KernelMessage, None]]:
+        """Return the IPC kernel message stream queue."""
         return cast(
             QueueType[Union[KernelMessage, None]],
             self._ipc.stream_queue,
@@ -109,12 +114,15 @@ class IPCQueueManagerImpl(QueueManager):
     def win32_interrupt_queue(  # type: ignore[override]
         self,
     ) -> Optional[QueueType[bool]]:
+        """Return the Windows-only interrupt signal queue, or None on other platforms."""
         return self._ipc.win32_interrupt_queue
 
     def close_queues(self) -> None:
+        """Close all IPC queues."""
         self._ipc.close_queues()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
+        """Route a control request to the appropriate IPC queue."""
         route_control_request(
             request,
             self.control_queue,
@@ -123,6 +131,7 @@ class IPCQueueManagerImpl(QueueManager):
         )
 
     def put_input(self, text: str) -> None:
+        """Put a stdin input string onto the input queue."""
         self.input_queue.put(text)
 
 
@@ -206,6 +215,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._venv_python: str | None = None
 
     def start_kernel(self) -> None:
+        """Launch the kernel subprocess and wait for it to signal readiness."""
         from marimo._cli.print import echo, muted
         from marimo._ipc.types import KernelArgs
 
@@ -360,12 +370,14 @@ class IPCKernelManagerImpl(KernelManager):
 
     @property
     def pid(self) -> int | None:
+        """Return the PID of the kernel subprocess, or None if not started."""
         if self._process is None:
             return None
         return self._process.pid
 
     @property
     def profile_path(self) -> str | None:
+        """Return None; profiling is not supported for IPC kernels."""
         # Profiling not currently supported with IPC kernel
         return None
 
@@ -375,11 +387,13 @@ class IPCKernelManagerImpl(KernelManager):
         return self._venv_python
 
     def is_alive(self) -> bool:
+        """Return True if the kernel subprocess is still running."""
         if self._process is None:
             return False
         return self._process.poll() is None
 
     def interrupt_kernel(self) -> None:
+        """Send an interrupt signal to the kernel subprocess."""
         if self._process is None:
             return
 
@@ -393,6 +407,7 @@ class IPCKernelManagerImpl(KernelManager):
                 os.kill(self._process.pid, signal.SIGINT)
 
     def close_kernel(self) -> None:
+        """Gracefully stop the kernel subprocess and clean up sandbox resources."""
         if self._process is not None:
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
@@ -413,6 +428,7 @@ class IPCKernelManagerImpl(KernelManager):
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
+        """Not implemented; IPC kernels use stream_queue instead."""
         # IPC kernel uses stream_queue instead of kernel_connection
         raise NotImplementedError(
             "IPC kernel uses stream_queue, not kernel_connection"
@@ -427,16 +443,21 @@ class _SubprocessWrapper(ProcessLike):
 
     @property
     def pid(self) -> int | None:
+        """Return the PID of the wrapped subprocess."""
         return self._process.pid
 
     def is_alive(self) -> bool:
+        """Return True if the subprocess is still running."""
         return self._process.poll() is None
 
     def terminate(self) -> None:
+        """Send SIGTERM to the subprocess."""
         self._process.terminate()
 
     def kill(self) -> None:
+        """Send SIGKILL to the subprocess."""
         self._process.kill()
 
     def join(self, timeout: Optional[float] = None) -> None:
+        """Wait for the subprocess to exit."""
         self._process.wait(timeout=timeout)

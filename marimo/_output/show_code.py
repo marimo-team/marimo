@@ -13,6 +13,7 @@ from marimo._runtime.context.types import ContextNotInitializedError
 
 
 def substitute_show_code_with_arg(code: str) -> str:
+    """Strip ``mo.show_code(...)`` wrappers from cell code, leaving only the inner expression."""
     pattern = r"mo\.show_code\((.*)\)"
     modified_code = re.sub(pattern, r"\1", code, flags=re.DOTALL).strip()
     # Remove position=above or position=below from the end

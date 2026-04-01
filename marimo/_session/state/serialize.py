@@ -429,6 +429,8 @@ class SessionCacheWriter(AsyncBackgroundTask):
 
 @dataclass
 class SessionCacheKey:
+    """Cache key used to detect whether a persisted session is still valid for the current notebook."""
+
     codes: tuple[str | None, ...]
     marimo_version: str
     cell_ids: tuple[CellId_t, ...]
@@ -488,6 +490,7 @@ class SessionCacheManager:
     def is_cache_hit(
         self, notebook_session: NotebookSessionV1, key: SessionCacheKey
     ) -> bool:
+        """Return True if the persisted session matches the given cache key."""
         metadata = notebook_session.get("metadata")
         if not isinstance(metadata, dict):
             return False

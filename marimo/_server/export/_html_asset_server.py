@@ -40,6 +40,8 @@ class _HtmlAssetHTTPServer(ThreadingHTTPServer):
 
 
 class HtmlAssetServer(AbstractContextManager["HtmlAssetServer"]):
+    """A threaded HTTP server that serves static assets and a single dynamically updatable HTML page."""
+
     def __init__(self, *, directory: Path, route: str) -> None:
         self._directory = directory
         self._route = route if route.startswith("/") else f"/{route}"
@@ -48,6 +50,7 @@ class HtmlAssetServer(AbstractContextManager["HtmlAssetServer"]):
 
     @property
     def base_url(self) -> str:
+        """Return the base URL of the running server."""
         if self._server is None:
             raise RuntimeError("HTML asset server is not running")
         host, port = self._server.server_address[:2]
@@ -57,9 +60,11 @@ class HtmlAssetServer(AbstractContextManager["HtmlAssetServer"]):
 
     @property
     def page_url(self) -> str:
+        """Return the full URL of the dynamically served HTML page."""
         return f"{self.base_url}{self._route}"
 
     def set_html(self, html: str) -> None:
+        """Update the HTML content served at the dynamic route."""
         if self._server is None:
             raise RuntimeError("HTML asset server is not running")
         with self._server.dynamic_html_lock:

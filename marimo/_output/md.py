@@ -110,6 +110,7 @@ class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
 
 @cache
 def _get_extension_configs() -> dict[str, dict[str, Any]]:
+    """Return the cached configuration dictionary for all registered markdown extensions."""
     extension_configs: dict[str, dict[str, Any]] = {
         "pymdownx.arithmatex": {
             # Use "generic" mode, no preview, since we don't use MathJax
@@ -160,6 +161,7 @@ MarkdownSize = Literal["sm", "base", "lg", "xl", "2xl"]
 
 
 def _has_module(module_name: str) -> bool:
+    """Return True if the given module is importable, False otherwise."""
     try:
         return find_spec(module_name) is not None
     except Exception:
@@ -168,6 +170,7 @@ def _has_module(module_name: str) -> bool:
 
 @cache
 def _get_extensions() -> list[Union[str, markdown.Extension]]:
+    """Return the cached list of markdown extensions used for rendering."""
     extensions: list[Union[str, markdown.Extension]] = [
         # Syntax highlighting
         PyconDetectorExtension(),  # Python console detection (run before highlight)
@@ -233,6 +236,8 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
 
 
 class _md(Html):
+    """Internal Html subclass that stores and exposes the original markdown text."""
+
     def __init__(
         self,
         text: str,

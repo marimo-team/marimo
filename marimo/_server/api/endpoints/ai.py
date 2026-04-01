@@ -97,6 +97,7 @@ async def safe_stream_wrapper(
 
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
+    """Extract the AI config section from a MarimoConfig, raising HTTPException if not configured."""
     ai_config = config.get("ai", None)
     LOGGER.debug(f"ai_config: {ai_config}")
     if ai_config is None:

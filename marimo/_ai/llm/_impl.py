@@ -223,6 +223,7 @@ class anthropic(ChatModel):
     """
 
     def supports_temperature(self, model: str) -> bool:
+        """Return True if the given model supports the temperature parameter."""
         # Reasoning models (>4.0) don't support temperature
         return model.startswith("claude-3")
 

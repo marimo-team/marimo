@@ -9,6 +9,8 @@ from marimo._types.ids import CellId_t
 
 @dataclasses.dataclass
 class CellLifecycleRegistry:
+    """Registry that manages lifecycle items for each cell in the notebook."""
+
     registry: dict[CellId_t, set[CellLifecycleItem]] = dataclasses.field(
         default_factory=dict
     )

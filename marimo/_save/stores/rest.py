@@ -13,6 +13,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class RestStore(Store):
+    """A cache store backed by a REST API, using Bearer token authentication."""
+
     def __init__(
         self, *, base_url: str, api_key: str, project_id: Optional[str] = None
     ) -> None:
@@ -32,6 +34,7 @@ class RestStore(Store):
         self.context = ssl.create_default_context()
 
     def get(self, key: str) -> Optional[bytes]:
+        """Fetch the cached value for the given key via HTTP GET, or return None on miss or error."""
         url = self._get_url(key)
         req = urllib.request.Request(url, headers=self.headers)
         try:
@@ -53,6 +56,7 @@ class RestStore(Store):
         return None
 
     def put(self, key: str, value: bytes) -> bool:
+        """Store the value for the given key via HTTP PUT, returning True on success."""
         url = self._get_url(key)
         req = urllib.request.Request(
             url,
@@ -77,6 +81,7 @@ class RestStore(Store):
         return False
 
     def hit(self, key: str) -> bool:
+        """Check whether a value exists for the given key via HTTP HEAD request."""
         url = self._get_url(key)
         req = urllib.request.Request(url, headers=self.headers, method="HEAD")
         try:
@@ -93,6 +98,7 @@ class RestStore(Store):
             return False
 
     def _get_url(self, key: str) -> str:
+        """Build the full URL for the given cache key."""
         url = self.base_url
         if self.project_id:
             url = f"{url}/{self.project_id}"

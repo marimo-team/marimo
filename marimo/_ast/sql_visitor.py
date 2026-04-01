@@ -39,6 +39,7 @@ class SQLVisitor(ast.NodeVisitor):
         self._raw = raw
 
     def visit_Call(self, node: ast.Call) -> None:
+        """Collect SQL string from .execute() or .sql() method call arguments."""
         # Check if the call is a method call and the method is named
         # either 'execute' or 'sql'
         if isinstance(node.func, ast.Attribute) and node.func.attr in (
@@ -71,6 +72,7 @@ class SQLVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def get_sqls(self) -> list[str]:
+        """Return all SQL strings collected during AST traversal."""
         return self._sqls
 
 

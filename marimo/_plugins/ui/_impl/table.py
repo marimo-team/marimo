@@ -82,6 +82,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class TableSearchError(Exception):
+    """Raised when a table search or filter operation fails."""
+
     def __init__(self, error: str):
         self.error = error
         super().__init__(error)
@@ -89,21 +91,28 @@ class TableSearchError(Exception):
 
 @dataclass
 class DownloadAsArgs:
+    """Arguments for the download_as table function."""
+
     format: Literal["csv", "json", "parquet"]
 
 
 @dataclass
 class DownloadAsResponse:
+    """Response returned by the download_as table function containing the download URL and filename."""
+
     url: str
     filename: str
 
 
 @dataclass
-class ColumnSummariesArgs: ...
+class ColumnSummariesArgs:
+    """Arguments for the get_column_summaries table function."""
 
 
 @dataclass
 class ColumnSummaries:
+    """Column summary data including stats, bin values, and chart data for each column."""
+
     # If precomputed aggregations fail, we fallback to chart data
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
@@ -128,12 +137,16 @@ MaxColumnsType = Union[int, None, MaxColumnsNotProvided]
 
 @dataclass(frozen=True)
 class SortArgs:
+    """Arguments specifying a sort key and direction for table sorting."""
+
     by: ColumnName
     descending: bool
 
 
 @dataclass(frozen=True)
 class SearchTableArgs:
+    """Arguments for a table search/filter/sort/pagination request."""
+
     page_size: int
     page_number: int
     query: Optional[str] = None
@@ -150,6 +163,8 @@ CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
 
 @dataclass(frozen=True)
 class SearchTableResponse:
+    """Response returned by the search table function containing paginated data and metadata."""
+
     data: str
     total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
@@ -164,6 +179,8 @@ class SearchTableResponse:
 
 @dataclass
 class GetRowIdsResponse:
+    """Response containing the visible row IDs after filtering, or a flag indicating all rows."""
+
     row_ids: list[int]
     all_rows: bool
     error: Optional[str] = None
@@ -171,23 +188,31 @@ class GetRowIdsResponse:
 
 @dataclass
 class GetDataUrlResponse:
+    """Response containing the data URL and format for charting the full table."""
+
     data_url: Union[str, object]
     format: Literal["csv", "json", "arrow"]
 
 
 @dataclass
 class CalculateTopKRowsArgs:
+    """Arguments for the calculate_top_k_rows table function."""
+
     column: ColumnName
     k: int
 
 
 @dataclass
 class CalculateTopKRowsResponse:
+    """Response containing the top-k (value, count) pairs for a column."""
+
     data: list[tuple[str, int]]
 
 
 @dataclass
 class PreviewColumnArgs:
+    """Arguments for the preview_column table function."""
+
     column: ColumnName
 
 
@@ -1519,6 +1544,7 @@ class table(
 
     @functools.cached_property
     def default_page_size(self) -> int:
+        """Return the default number of rows per page from the user's configuration."""
         return get_default_table_page_size()
 
     def __hash__(self) -> int:

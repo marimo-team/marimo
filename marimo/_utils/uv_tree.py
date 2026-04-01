@@ -7,11 +7,15 @@ import msgspec
 
 
 class DependencyTag(msgspec.Struct, rename="camel"):
+    """A tag attached to a dependency node (e.g., extra or group markers)."""
+
     kind: str
     value: str
 
 
 class DependencyTreeNode(msgspec.Struct, rename="camel"):
+    """A node in the parsed dependency tree produced by `uv tree`."""
+
     name: str
     version: Optional[str]
     # List of {"kind": "extra"|"group", "value": str}

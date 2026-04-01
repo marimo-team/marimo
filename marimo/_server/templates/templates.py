@@ -38,6 +38,7 @@ def _html_escape(text: str) -> str:
 
 
 def json_script(data: Any) -> str:
+    """Serialize data to a JSON string safe for embedding inside HTML script tags."""
     # See https://github.com/django/django/blob/main/django/utils/html.py#L88C1-L92C2
     # Only escape values that can break out of a script tag
     return json.dumps(data, sort_keys=True).translate(_json_script_escapes)
@@ -107,6 +108,7 @@ def home_page_template(
     mode: SessionMode,
     asset_url: Optional[str] = None,
 ) -> str:
+    """Render the home/gallery page HTML by injecting the mount config and user settings."""
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ filename }}", "")
@@ -228,6 +230,7 @@ def notebook_page_template(
     asset_url: Optional[str] = None,
     html_head: Optional[str] = None,
 ) -> str:
+    """Render the notebook edit/run page HTML by injecting mount config, CSS, and OpenGraph tags."""
     html = html.replace("{{ base_url }}", base_url)
 
     # When we have a remote URL, let's pre-populate the index.html page
@@ -341,6 +344,7 @@ def static_notebook_template(
     model_notifications: Optional[list[ModelLifecycleNotification]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
+    """Render a self-contained static HTML export with embedded notebook code and CDN assets."""
     if asset_url is None:
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
@@ -545,7 +549,7 @@ def wasm_notebook_template(
 
 
 def inject_script(html: str, script: str) -> str:
-    """Inject a script into the HTML before the closing body tag."""
+    """Inject a JavaScript snippet into the HTML before the closing body tag."""
     script_tag = f"<script>{script}</script>"
     return html.replace("</body>", f"{script_tag}</body>")
 
@@ -563,6 +567,7 @@ def _del_none_or_empty(d: Any) -> Any:
 
 
 def get_version() -> str:
+    """Return the marimo version string, appending '(editable)' for editable installs."""
     return (
         f"{__version__} (editable)" if is_editable("marimo") else __version__
     )

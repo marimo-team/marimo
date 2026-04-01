@@ -15,6 +15,8 @@ ShortModelId = NewType("ShortModelId", str)
 
 @dataclass
 class AiModelId:
+    """Structured representation of an AI model ID split into provider and model name."""
+
     provider: AiProviderId
     model: ShortModelId
 
@@ -26,6 +28,7 @@ class AiModelId:
 
     @staticmethod
     def from_model(model_id: str) -> AiModelId:
+        """Parse a qualified model ID string (``provider/model``) into an AiModelId."""
         if "/" not in model_id:
             LOGGER.warning(
                 f"Invalid model ID: {model_id}. Model ID must be in the format <provider>/<model>"

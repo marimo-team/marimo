@@ -11,6 +11,8 @@ from marimo._types.ids import SessionId
 
 
 class MarimoFile(msgspec.Struct, rename="camel"):
+    """Metadata about a marimo notebook file, optionally with an active session."""
+
     # Name of the file
     name: str
     # Absolute path to the file
@@ -25,22 +27,32 @@ class MarimoFile(msgspec.Struct, rename="camel"):
 
 
 class RecentFilesResponse(msgspec.Struct, rename="camel"):
+    """Response containing the list of recently accessed marimo files."""
+
     files: list[MarimoFile]
 
 
 class RunningNotebooksResponse(msgspec.Struct, rename="camel"):
+    """Response containing the list of currently running notebooks."""
+
     files: list[MarimoFile]
 
 
 class OpenTutorialRequest(msgspec.Struct, rename="camel"):
+    """Request to open a built-in marimo tutorial notebook."""
+
     tutorial_id: Tutorial
 
 
 class WorkspaceFilesRequest(msgspec.Struct, rename="camel"):
+    """Request to list files in the current workspace directory."""
+
     include_markdown: bool = False
 
 
 class WorkspaceFilesResponse(msgspec.Struct, rename="camel"):
+    """Response containing workspace file listing with pagination metadata."""
+
     root: str
     files: list[FileInfo]
     # Indicates if limit was reached
@@ -50,4 +62,6 @@ class WorkspaceFilesResponse(msgspec.Struct, rename="camel"):
 
 
 class ShutdownSessionRequest(msgspec.Struct, rename="camel"):
+    """Request to shut down a specific notebook session by ID."""
+
     session_id: SessionId

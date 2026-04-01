@@ -106,6 +106,7 @@ class _Progress(Html):
         output.flush()
 
     def clear(self) -> None:
+        """Remove this progress indicator from the cell output."""
         if self.closed:
             raise RuntimeError(
                 "Progress indicators cannot be updated after exiting "
@@ -114,6 +115,7 @@ class _Progress(Html):
         output.remove(self)
 
     def close(self) -> None:
+        """Flush the final state and mark the progress indicator as closed."""
         output.flush()  # Flush one last time before closing
         self.closed = True
 
@@ -161,6 +163,8 @@ class _Progress(Html):
 
 
 class ProgressBar(_Progress):
+    """A progress bar with a known total, supporting incremental updates."""
+
     def __init__(
         self,
         title: str | None,
@@ -183,6 +187,7 @@ class ProgressBar(_Progress):
         title: str | None = None,
         subtitle: str | None = None,
     ) -> None:
+        """Increment the progress bar and optionally update the title or subtitle."""
         super().update_progress(
             increment=increment, title=title, subtitle=subtitle
         )

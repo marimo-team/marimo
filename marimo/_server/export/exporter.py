@@ -65,6 +65,8 @@ VIRTUAL_FILE_ALLOWED_TAGS = {"img"}
 
 
 class Exporter:
+    """Converts marimo notebooks to HTML, WASM, ipynb, and PDF formats."""
+
     # Virtual file URL format constants
     _VIRTUAL_FILE_PATTERN = "./@file/"
     _VIRTUAL_FILE_PREFIX_WITH_SLASH = "/@file/"
@@ -78,6 +80,7 @@ class Exporter:
         display_config: DisplayConfig,
         request: ExportAsHTMLRequest,
     ) -> tuple[str, str]:
+        """Export the notebook as a static HTML string, returning (html, download_filename)."""
         index_html = get_html_contents()
         filename = get_filename(filename)
 
@@ -191,7 +194,7 @@ class Exporter:
         return app_code
 
     def _normalize_virtual_file_url(self, url: str) -> str:
-        """Normalize virtual file URL format from /@file/ to ./@file/."""
+        """Normalize a virtual file URL from /@file/ to ./@file/ format."""
         if url.startswith(self._VIRTUAL_FILE_PATTERN):
             return url
         return url.replace(
@@ -576,6 +579,7 @@ class Exporter:
         return pdf_data
 
     def export_assets(self, directory: Path) -> None:
+        """Copy static frontend assets to the given directory."""
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
         LOGGER.debug(f"Copying assets to {dirpath}")
@@ -594,6 +598,7 @@ class Exporter:
     def export_public_folder(
         self, directory: Path, marimo_file: MarimoPath
     ) -> bool:
+        """Copy the notebook's public/ folder alongside the export directory; returns True if found."""
         FOLDER_NAME = "public"
         public_dir = marimo_file.path.parent / FOLDER_NAME
 
@@ -622,6 +627,8 @@ class Exporter:
 
 
 class AutoExporter:
+    """Automatically saves exported notebook formats (HTML, Markdown, ipynb) to disk asynchronously."""
+
     def __init__(self) -> None:
         # Cache directories we've already created to avoid redundant checks
         self._created_dirs: set[Path] = set()
@@ -647,12 +654,15 @@ class AutoExporter:
         )
 
     async def save_html(self, filename: Optional[str], html: str) -> None:
+        """Save HTML export to the notebook's output directory."""
         await self._save_file(filename, html, "html")
 
     async def save_md(self, filename: Optional[str], markdown: str) -> None:
+        """Save Markdown export to the notebook's output directory."""
         await self._save_file(filename, markdown, "md")
 
     async def save_ipynb(self, filename: Optional[str], ipynb: str) -> None:
+        """Save ipynb export to the notebook's output directory."""
         await self._save_file(filename, ipynb, "ipynb")
 
     def _write_file_sync(self, filepath: Path, content: str) -> None:
@@ -678,6 +688,7 @@ class AutoExporter:
 
 
 def get_html_contents() -> str:
+    """Return the contents of the frontend index.html, fetching from CDN in development mode."""
     if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
         import marimo._utils.requests as requests
 

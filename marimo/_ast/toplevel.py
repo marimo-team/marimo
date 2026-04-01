@@ -57,6 +57,7 @@ HINT_VALID: Literal["Valid"] = "Valid"
 
 
 def has_trailing_comment(code: str) -> bool:
+    """Return True if the code ends with a non-indented comment at the top level."""
     # Requires tokenization because multiline strings can start a line with #.
     tokens = tokenize(BytesIO(code.strip().encode("utf-8")).readline)
     for token in reversed(list(tokens)):
@@ -74,6 +75,8 @@ def has_trailing_comment(code: str) -> bool:
 
 
 class TopLevelType(Enum):
+    """Classification of a cell for top-level (importable) serialization."""
+
     CELL = "cell"
     TOPLEVEL = "toplevel"
     UNPARSABLE = "unparsable"
@@ -108,6 +111,7 @@ class TopLevelStatus:
     def from_cell(
         cls, cell: CellImpl, allowed_refs: set[Name]
     ) -> TopLevelStatus:
+        """Create a TopLevelStatus from an existing CellImpl."""
         return cls(cell.cell_id, cell.code, "_", CellConfig(), allowed_refs)
 
     def update(
@@ -117,6 +121,7 @@ class TopLevelStatus:
         potential_refs: set[Name] | None = None,
         toplevel: set[Name] | None = None,
     ) -> None:
+        """Re-evaluate this cell's top-level eligibility given the current allowed refs."""
         if potential_refs is None:
             potential_refs = set()
         if unresolved is None:
@@ -187,23 +192,27 @@ class TopLevelStatus:
         self.demote(HINT_HAS_REFS.format(defined_refs))
 
     def demote(self, hint: TopLevelInvalidHints) -> None:
+        """Mark this cell as a regular cell (not top-level) with the given hint."""
         self.type = TopLevelType.CELL
         self.hint = hint
 
     @property
     def defs(self) -> set[Name]:
+        """Return the set of names defined by this cell."""
         if self._cell is None:
             return set()
         return self._cell.defs
 
     @property
     def refs(self) -> set[Name]:
+        """Return the set of names referenced by this cell."""
         if self._cell is None:
             return set()
         return self._cell.refs
 
     @property
     def type(self) -> TopLevelType:
+        """Return the current TopLevelType classification of this cell."""
         return self._type
 
     @type.setter
@@ -213,18 +222,22 @@ class TopLevelStatus:
 
     @property
     def is_toplevel(self) -> bool:
+        """Return True if this cell qualifies as a top-level (importable) definition."""
         return self.type == TopLevelType.TOPLEVEL
 
     @property
     def is_cell(self) -> bool:
+        """Return True if this cell is a regular (non-top-level) cell."""
         return self.type == TopLevelType.CELL
 
     @property
     def is_unresolved(self) -> bool:
+        """Return True if this cell's top-level eligibility is unresolved."""
         return self.type == TopLevelType.UNRESOLVED
 
     @property
     def is_unparsable(self) -> bool:
+        """Return True if this cell's code could not be parsed."""
         return self.type == TopLevelType.UNPARSABLE
 
 
@@ -368,6 +381,7 @@ class TopLevelExtraction:
 
     @property
     def variables(self) -> dict[Name, VariableData]:
+        """Return variable data for all cells, including top-level definitions."""
         # Grabs all initial variable data from cells for use in annotations.
         if self._variables is not None:
             return self._variables
@@ -394,6 +408,7 @@ class TopLevelExtraction:
         graph: GraphTopology,
         cell: CellImpl | None = None,
     ) -> TopLevelExtraction:
+        """Create a TopLevelExtraction from a graph topology, optionally scoped to a single cell's ancestors."""
         if cell:
             ancestors = graph.ancestors(cell.cell_id)
             deps = {cid: graph.cells[cid] for cid in ancestors}
@@ -413,6 +428,7 @@ class TopLevelExtraction:
     def from_cells(
         cls, cells: list[CellImpl], setup: Optional[CellImpl] = None
     ) -> TopLevelExtraction:
+        """Create a TopLevelExtraction from a list of CellImpl objects with an optional setup cell."""
         codes = [cell.code for cell in cells]
         names = ["_" for _ in cells]
         cell_configs = [cell.config for cell in cells]
@@ -423,6 +439,7 @@ class TopLevelExtraction:
 
     @classmethod
     def from_app(cls, app: InternalApp) -> TopLevelExtraction:
+        """Create a TopLevelExtraction from an InternalApp instance."""
         codes = list(app.cell_manager.codes())
         names = list(app.cell_manager.names())
         cell_configs = list(app.cell_manager.configs())

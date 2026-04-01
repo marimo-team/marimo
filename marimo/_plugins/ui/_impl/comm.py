@@ -25,14 +25,18 @@ LOGGER = marimo_logger()
 
 @dataclass
 class MarimoCommManager:
+    """Registry that maps widget model IDs to their MarimoComm instances."""
+
     comms: dict[WidgetModelId, MarimoComm] = field(default_factory=dict)
 
     def register_comm(self, comm: MarimoComm) -> str:
+        """Register a comm and return its comm_id."""
         comm_id = comm.comm_id
         self.comms[comm_id] = comm
         return comm_id
 
     def unregister_comm(self, comm: MarimoComm) -> MarimoComm:
+        """Remove and return the comm with the given comm_id."""
         return self.comms.pop(comm.comm_id)
 
     def receive_comm_message(
@@ -131,6 +135,8 @@ def _create_model_message(
 # Also note that `ipywidgets.widgets.Widget` is responsible to
 #  calling these methods when need be.
 class MarimoComm:
+    """ipykernel-compatible Comm backed by marimo's notification system instead of a Jupyter kernel."""
+
     # `ipywidgets.widgets.Widget` does some checks for
     # `if self.comm.kernel is not None`
     kernel = "marimo"
@@ -181,6 +187,7 @@ class MarimoComm:
         buffers: BufferType = None,
         **keys: object,
     ) -> None:
+        """Public alias for _open, provided for ipywidgets compatibility."""
         del metadata, keys  # unused
         self._open(data=data, buffers=buffers)
 
@@ -237,12 +244,15 @@ class MarimoComm:
     # This is the method that ipywidgets.widgets.Widget uses to respond to
     # client-side changes
     def on_msg(self, callback: MsgCallback) -> None:
+        """Register a callback to be invoked when the frontend sends a message."""
         self._msg_callback = callback
 
     def on_close(self, callback: MsgCallback) -> None:
+        """Register a callback to be invoked when the comm is closed."""
         self._close_callback = callback
 
     def handle_msg(self, msg: Msg) -> None:
+        """Dispatch an incoming message to the registered on_msg callback."""
         LOGGER.debug("Handling message for comm %s", self.comm_id)
         if self._msg_callback is not None:
             self._msg_callback(msg)
@@ -253,6 +263,7 @@ class MarimoComm:
             )
 
     def handle_close(self, msg: Msg) -> None:
+        """Dispatch an incoming close message to the registered on_close callback."""
         if self._close_callback is not None:
             self._close_callback(msg)
         else:

@@ -44,28 +44,34 @@ class KernelRuntimeContext(RuntimeContext):
 
     @property
     def graph(self) -> DirectedGraph:
+        """Return the kernel's cell dependency graph."""
         return self._kernel.graph
 
     @property
     def globals(self) -> dict[str, Any]:
+        """Return the kernel's global namespace dictionary."""
         return self._kernel.globals
 
     @property
     def execution_context(self) -> ExecutionContext | None:
+        """Return the current cell execution context, or None."""
         return self._execution_context
 
     @execution_context.setter
     def execution_context(
         self, execution_context: ExecutionContext | None
     ) -> None:
+        """Set the current cell execution context."""
         self._execution_context = execution_context
 
     @property
     def marimo_config(self) -> MarimoConfig:
+        """Return the user's marimo configuration."""
         return self._kernel.user_config
 
     @property
     def lazy(self) -> bool:
+        """Return True if the kernel is in lazy execution mode."""
         return self._kernel.lazy()
 
     @property
@@ -97,6 +103,7 @@ class KernelRuntimeContext(RuntimeContext):
 
     @contextmanager
     def provide_ui_ids(self, prefix: str) -> Iterator[None]:
+        """Context manager that temporarily installs an ID provider with the given prefix."""
         old_id_provider = self._id_provider
         try:
             self._id_provider = IDProvider(prefix)
@@ -105,18 +112,22 @@ class KernelRuntimeContext(RuntimeContext):
             self._id_provider = old_id_provider
 
     def take_id(self) -> str:
+        """Return the next available UI element ID from the current provider."""
         if self._id_provider is None:
             raise NoIDProviderException
         return self._id_provider.take_id()
 
     def get_ui_initial_value(self, object_id: str) -> Any:
+        """Return the initial value for a UI element by its object ID."""
         return self._kernel.get_ui_initial_value(object_id)
 
     def register_state_update(self, state: State[Any]) -> None:
+        """Register a state update to be processed after the current cell finishes."""
         return self._kernel.register_state_update(state)
 
     @contextmanager
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        """Context manager that sets the active execution context to the given cell ID."""
         old = self.execution_context
         try:
             if old is not None:
@@ -133,6 +144,7 @@ class KernelRuntimeContext(RuntimeContext):
 
     @property
     def app(self) -> InternalApp:
+        """Return the InternalApp associated with this context."""
         assert self._app is not None
         return self._app
 
@@ -148,6 +160,7 @@ def create_kernel_context(
     app: InternalApp | None = None,
     parent: KernelRuntimeContext | None = None,
 ) -> KernelRuntimeContext:
+    """Build and return a KernelRuntimeContext without installing it as the active context."""
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.state import StateRegistry
     from marimo._runtime.virtual_file import (

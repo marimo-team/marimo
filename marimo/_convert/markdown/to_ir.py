@@ -51,12 +51,14 @@ ConvertKeys = Literal["marimo-ir"]
 
 
 def backwards_compatible_sanitization(line: str) -> str:
+    """Return the line unchanged; exists for backwards-compatible hook."""
     return line
 
 
 def extract_attribs(
     line: str, fence_start: Optional[re.Match[str]] = None
 ) -> dict[str, str]:
+    """Extract key=value attributes from a fenced code block header line."""
     # Extract attributes from the code block.
     # Blocks are expected to be like this:
     # python {.marimo disabled="true"}
@@ -145,6 +147,7 @@ def app_config_from_root(root: Element) -> dict[str, Any]:
 
 
 def get_source_from_tag(tag: Element) -> str:
+    """Extract and convert the source code string from a parsed XML tag element."""
     source = tag.text if tag.text else ""
     if tag.tag == MARIMO_MD:
         # Only check here to allow for empty code blocks.
@@ -164,6 +167,7 @@ def get_source_from_tag(tag: Element) -> str:
 
 
 def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
+    """Build a CellConfig from a parsed XML tag element's attributes."""
     # Known boolean attributes.
     extracted_attrs: dict[str, bool | int] = {
         **defaults,
@@ -188,9 +192,12 @@ T = TypeVar("T")
 # better idea than all these little work arounds.
 @dataclass
 class SafeWrap(Generic[T]):
+    """Thin wrapper that satisfies the Markdown library's strip() interface."""
+
     inner: T
 
     def strip(self) -> T:
+        """Return the wrapped value unchanged."""
         return self.inner
 
 
@@ -367,6 +374,7 @@ class FrontMatterPreprocessor(Preprocessor):
         self.md: MarimoMdParser = md
 
     def run(self, lines: list[str]) -> list[str]:
+        """Extract YAML front matter from lines and store it in md.meta."""
         if not lines:
             return lines
 
@@ -389,6 +397,7 @@ class SanitizeProcessor(Preprocessor):
     stash: dict[str, Any]
 
     def run(self, lines: list[str]) -> list[str]:
+        """Sanitize lines by wrapping any executable code blocks as marimo code."""
         # Note, an empty stash is not sufficient since partially open code
         # blocks could be in the text.
         if not lines:
@@ -421,9 +430,11 @@ class IdentityProcessor(BlockProcessor):
     """Leaves markdown unchanged."""
 
     def test(*_args: Any) -> bool:
+        """Return True to match every block."""
         return True
 
     def run(self, parent: Element, blocks: list[str]) -> None:
+        """Concatenate all blocks into the parent element and clear the queue."""
         parent.text = "\n\n".join(blocks)
         blocks.clear()
 
@@ -434,9 +445,11 @@ class ExpandAndClassifyProcessor(BlockProcessor):
     stash: dict[str, Any]
 
     def test(*_args: Any) -> bool:
+        """Return True to match every block."""
         return True
 
     def run(self, parent: Element, blocks: list[str]) -> None:
+        """Classify and append code or markdown child elements to the parent."""
         # Copy app metadata to the parent element.
         assert isinstance(self.parser.md, MarimoMdParser)
         for key, value in self.parser.md.meta.items():
@@ -500,6 +513,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 def convert_from_md_to_marimo_ir(
     text: str, filepath: Optional[str] = None
 ) -> NotebookSerializationV1:
+    """Convert a Markdown notebook string to a NotebookSerializationV1 IR."""
     if not text.strip():
         return NotebookSerializationV1(
             app=AppInstantiation(options={}), filename=filepath
@@ -518,6 +532,7 @@ def convert_from_md_to_marimo_ir(
 
 
 def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """Parse and return YAML front matter from a Markdown document, along with the remaining body."""
     from marimo._utils import yaml
 
     result = yaml.YAML_FRONT_MATTER_REGEX.match(text)
@@ -537,10 +552,12 @@ def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 
 def sanitize_markdown(text: str) -> str:
+    """Sanitize a Markdown string by wrapping any executable code blocks as marimo code."""
     return SanitizeParser(output_format="identity").convert(text)
 
 
 def is_sanitized_markdown(text: str) -> bool:
+    """Return True if the Markdown string contains no unintended executable code blocks."""
     # "Unsanitized" markdown contains potentially unintended executatable code
     # block, which require backticks.
     return "```" not in text or sanitize_markdown(text) == text

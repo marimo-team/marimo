@@ -79,6 +79,8 @@ Backend = TypeVar("Backend")
 
 
 class StorageBackend(abc.ABC, Generic[Backend]):
+    """Abstract interface for external storage backends (filesystem or object storage)."""
+
     def __init__(self, store: Backend, variable_name: VariableName) -> None:
         self.store = store
         self.variable_name = variable_name
@@ -144,6 +146,7 @@ class StorageBackend(abc.ABC, Generic[Backend]):
 
     @property
     def display_name(self) -> str:
+        """Human-readable display name derived from the storage protocol."""
         protocol = self.protocol
         if protocol not in get_args(KNOWN_STORAGE_TYPES):
             return protocol.capitalize()

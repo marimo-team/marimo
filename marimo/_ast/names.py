@@ -8,5 +8,6 @@ TOPLEVEL_CELL_PREFIX = "*"
 
 
 def is_internal_cell_name(name: str) -> bool:
+    """Return True if the cell name is an auto-generated internal name (``_`` or ``__``)."""
     # Include "__" (for backwards compatibility)
     return name == DEFAULT_CELL_NAME or name == "__"

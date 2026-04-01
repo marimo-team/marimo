@@ -10,10 +10,12 @@ TAB = "        "
 
 
 def print_tabbed(string: str, n_tabs: int = 1) -> None:
+    """Print a string indented by n_tabs levels using space-based tabs."""
     print_(f"{TAB * n_tabs}{string}")
 
 
 def print_(*args: Any, **kwargs: Any) -> None:
+    """Print using click.echo when available, falling back to the built-in print."""
     try:
         import click
 

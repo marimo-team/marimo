@@ -16,6 +16,7 @@ STORAGE_BACKENDS: list[type[StorageBackend[Any]]] = [Obstore, FsspecFilesystem]
 def get_storage_backends_from_variables(
     variables: list[tuple[VariableName, object]],
 ) -> list[tuple[VariableName, StorageBackend[Any]]]:
+    """Scan variables and return those that wrap a recognized external storage backend."""
     storage_backends: list[tuple[VariableName, StorageBackend[Any]]] = []
     for variable_name, value in variables:
         for storage_backend in STORAGE_BACKENDS:

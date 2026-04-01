@@ -28,6 +28,7 @@ def print_startup(
     network: bool,
     startup_tip: CliTip | None = None,
 ) -> None:
+    """Print the marimo server startup message, including the URL and an optional tip."""
     print_()
     if file_name is not None and not run:
         print_tabbed(
@@ -65,6 +66,7 @@ def print_startup(
 
 
 def print_shutdown() -> None:
+    """Print the marimo server shutdown message."""
     print_()
     print_tabbed(
         "\033[32mThanks for using marimo!\033[0m {}".format(_utf8("🌊🍃"))
@@ -159,6 +161,7 @@ def _format_startup_tip(tip: CliTip) -> tuple[str, str | None]:
 
 
 def print_experimental_features(config: MarimoConfig) -> None:
+    """Print a summary of any active experimental features that have not yet been released."""
     if "experimental" not in config:
         return
 
@@ -217,6 +220,7 @@ def print_mcp_server(mcp_url: str, server_token: str | None) -> None:
 
 
 def print_mcp_client(config: MCPConfig) -> None:
+    """Print the list of configured MCP servers and presets."""
     keys = set(config.get("mcpServers", {}).keys()) | set(
         config.get("presets", [])
     )

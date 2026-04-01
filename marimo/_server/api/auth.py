@@ -34,6 +34,7 @@ TOKEN_QUERY_PARAM = "access_token"
 def validate_auth(
     conn: HTTPConnection, form_dict: Optional[dict[str, str]] = None
 ) -> bool:
+    """Validate incoming request auth via session cookie, query param, form data, or Basic auth header."""
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
 
@@ -102,6 +103,7 @@ def _parse_basic_auth_header(
 
 
 def raise_basic_auth_error() -> HTTPException:
+    """Return a 401 HTTPException with a WWW-Authenticate Basic challenge header."""
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authorization header required",
@@ -112,6 +114,7 @@ def raise_basic_auth_error() -> HTTPException:
 def on_auth_error(
     request: HTTPConnection, error: AuthenticationError
 ) -> JSONResponse:
+    """Return a 401 JSON response when authentication middleware raises an error."""
     del request
     del error
     return JSONResponse(
@@ -134,17 +137,21 @@ class CookieSession:
         self.session_state = session_state
 
     def get_access_token(self) -> str:
+        """Return the access token stored in the session, or empty string if absent."""
         access_token: str = self.session_state.get("access_token", "")
         return access_token
 
     def get_username(self) -> str:
+        """Return the username stored in the session, or empty string if absent."""
         username: str = self.session_state.get("username", "")
         return username
 
     def set_access_token(self, token: str) -> None:
+        """Store an access token in the session."""
         self.session_state["access_token"] = token
 
     def set_username(self, username: str) -> None:
+        """Store a username in the session."""
         self.session_state["username"] = username
 
 
@@ -223,6 +230,8 @@ class CustomSessionMiddleware(SessionMiddleware):
 # restore the 'user' key in the request object if one was
 # set by prior middleware
 class CustomAuthenticationMiddleware(AuthenticationMiddleware):
+    """AuthenticationMiddleware subclass that preserves a developer-defined user in the request scope."""
+
     KEY = "_marimo_prev_user"
 
     def __init__(self, app: ASGIApp, *args: Any, **kwargs: Any) -> None:

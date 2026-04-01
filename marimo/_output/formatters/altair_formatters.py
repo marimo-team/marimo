@@ -24,6 +24,8 @@ LOGGER = marimo_logger()
 
 
 class AltairFormatter(FormatterFactory):
+    """Registers formatters for Altair chart objects."""
+
     @staticmethod
     def package_name() -> str:
         return "altair"
@@ -105,6 +107,7 @@ class AltairFormatter(FormatterFactory):
             )
 
     def apply_theme(self, theme: Theme) -> None:
+        """No-op: Altair theme is applied in the vega-lite frontend component."""
         del theme
         # We don't need to apply this here because the theme is set in the
         # vega-lite component

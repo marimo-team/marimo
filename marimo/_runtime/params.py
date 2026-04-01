@@ -188,6 +188,7 @@ class QueryParams(State[SerializedQueryParams]):
         self._set_value(self._params)
 
     def to_dict(self) -> dict[str, Union[str, list[str]]]:
+        """Return the underlying query parameters as a plain dictionary."""
         return self._params
 
 
@@ -262,10 +263,13 @@ class CLIArgs:
         return tree(self._params)._mime_()
 
     def to_dict(self) -> SerializedCLIArgs:
+        """Return the underlying CLI args as a plain dictionary."""
         return self._params
 
     def items(self) -> Iterable[tuple[str, ListOrValue[Primitive]]]:
+        """Return the CLI args as (key, value) pairs."""
         return self._params.items()
 
     def keys(self) -> Iterable[str]:
+        """Return the names of all CLI arg keys."""
         return self._params.keys()

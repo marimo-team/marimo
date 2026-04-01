@@ -16,6 +16,7 @@ _SPLIT_NUMBERS = re.compile(r"([0-9]+)").split
 
 
 def natural_sort(filename: str) -> list[Union[int, str]]:
+    """Return a sort key for natural (human-friendly) ordering of filenames."""
     return [
         int(c) if c.isdigit() else c.lower() for c in _SPLIT_NUMBERS(filename)
     ]

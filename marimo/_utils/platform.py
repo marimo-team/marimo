@@ -6,10 +6,12 @@ from uuid import uuid4
 
 
 def is_windows() -> bool:
+    """Return True if the current platform is Windows or Cygwin."""
     return sys.platform == "win32" or sys.platform == "cygwin"
 
 
 def is_pyodide() -> bool:
+    """Return True if running inside a Pyodide (WebAssembly) environment."""
     return "pyodide" in sys.modules
 
 

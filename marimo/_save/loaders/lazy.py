@@ -41,6 +41,7 @@ def to_item(
     loader: Optional[str] = None,
     hash: Optional[str] = "",  # noqa: A002
 ) -> Item:
+    """Convert a Python value to an Item descriptor for serialization, choosing pickle, primitive, stub, or reference storage."""
     if value is None:
         return Item()
 
@@ -64,6 +65,7 @@ def to_item(
 
 
 def from_item(item: Item) -> Any:
+    """Reconstruct a Python value from an Item descriptor, returning stubs for deferred references."""
     if item.reference is not None:
         return ImmediateReferenceStub(
             ReferenceStub(item.reference, hash_value=item.hash or "")
@@ -81,10 +83,15 @@ def from_item(item: Item) -> Any:
     return None
 
 
-class LazyStore(FileStore): ...
+class LazyStore(FileStore):
+    """File-backed store used by LazyLoader for content-addressed cache blobs."""
+
+    ...
 
 
 class LazyLoader(BasePersistenceLoader):
+    """Cache loader that reads and writes blobs lazily using background threads."""
+
     def __init__(
         self,
         name: str,
@@ -102,6 +109,7 @@ class LazyLoader(BasePersistenceLoader):
         self._pending.clear()
 
     def load_cache(self, key: HashKey) -> Optional[Cache]:
+        """Load a cache entry from the store, returning None if not found or on error."""
         try:
             blob: Optional[bytes] = self.store.get(str(self.build_path(key)))
             if not blob:
@@ -112,6 +120,7 @@ class LazyLoader(BasePersistenceLoader):
             return None
 
     def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
+        """Deserialize a JSON-Lines blob into a Cache, loading referenced pickle files in parallel."""
         cache_data = msgspec.json.decode(blob, type=CacheSchema)
         base = Path(self.name) / cache_data.hash
 
@@ -201,6 +210,7 @@ class LazyLoader(BasePersistenceLoader):
         )
 
     def save_cache(self, cache: Cache) -> bool:
+        """Serialize and persist the cache to the store in a background thread, returning True immediately."""
         # Reap completed threads
         self._pending = [t for t in self._pending if t.is_alive()]
 
@@ -283,6 +293,7 @@ class LazyLoader(BasePersistenceLoader):
         return True
 
     def to_blob(self, cache: Cache) -> Optional[bytes]:
+        """Not used by LazyLoader; save_cache handles persistence directly."""
         # Not used — save_cache is overridden. Kept for interface compliance.
         del cache
         return None

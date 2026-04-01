@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 def construct_interrupt_handler(
     context: KernelRuntimeContext,
 ) -> Callable[[int, Any], None]:
+    """Return a SIGINT handler that raises MarimoInterrupt and interrupts any running DuckDB query."""
     def interrupt_handler(signum: int, frame: Any) -> None:
         """Tries to interrupt the kernel."""
         del signum
@@ -52,6 +53,7 @@ def construct_interrupt_handler(
 
 
 def construct_sigterm_handler(kernel: Kernel) -> Callable[[int, Any], None]:
+    """Return a SIGTERM handler that cleans up the virtual file registry and exits the process."""
     del kernel
 
     @dataclass

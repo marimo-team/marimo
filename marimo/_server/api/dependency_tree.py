@@ -5,6 +5,7 @@ from marimo._utils.uv_tree import DependencyTag, DependencyTreeNode
 
 
 def parse_name_version(content: str) -> tuple[str, str | None]:
+    """Split a 'name v1.2.3' string into a (name, version) tuple, returning None for version if absent."""
     if " v" in content:
         name, version = content.split(" v", 1)
         return name.strip(), version.split()[0]  # Take only version part

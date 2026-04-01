@@ -30,6 +30,7 @@ class ChartBuilder:
         raise NotImplementedError
 
     def altair_json(self, data: Any, column: str) -> str:
+        """Serialize the Altair chart for a column to a JSON string."""
         import altair as alt
 
         if alt.data_transformers.active.startswith("vegafusion"):

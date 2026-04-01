@@ -20,6 +20,7 @@ class AppDefaults:
 
     @staticmethod
     def from_config_manager(config: MarimoConfigManager) -> AppDefaults:
+        """Create AppDefaults populated from a MarimoConfigManager."""
         return AppDefaults(
             width=config.default_width,
             auto_download=config.default_auto_download,

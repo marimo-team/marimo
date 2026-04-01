@@ -16,6 +16,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class PyProjectReader:
+    """Reads and exposes PEP 723 inline script metadata (pyproject) from a notebook or script."""
+
     def __init__(
         self,
         project: dict[str, Any],
@@ -29,6 +31,7 @@ class PyProjectReader:
 
     @staticmethod
     def from_filename(name: str) -> PyProjectReader:
+        """Create a PyProjectReader by reading pyproject metadata from a file."""
         return PyProjectReader(
             name=name,
             project=_get_pyproject_from_filename(name) or {},
@@ -37,6 +40,7 @@ class PyProjectReader:
 
     @staticmethod
     def from_script(script: str) -> PyProjectReader:
+        """Create a PyProjectReader from inline script metadata in a source string."""
         return PyProjectReader(
             project=read_pyproject_from_script(script) or {},
             config_path=None,
@@ -45,6 +49,7 @@ class PyProjectReader:
 
     @property
     def extra_index_urls(self) -> list[str]:
+        """Return the list of extra PyPI index URLs from uv configuration."""
         # See https://docs.astral.sh/uv/reference/settings/#pip_extra-index-url
         return (  # type: ignore[no-any-return]
             self.project.get("tool", {})
@@ -54,11 +59,13 @@ class PyProjectReader:
 
     @property
     def index_configs(self) -> list[dict[str, str]]:
+        """Return the list of index configurations from uv settings."""
         # See https://docs.astral.sh/uv/reference/settings/#index
         return self.project.get("tool", {}).get("uv", {}).get("index", [])  # type: ignore[no-any-return]
 
     @property
     def index_url(self) -> str | None:
+        """Return the primary PyPI index URL from uv configuration, or None."""
         # See https://docs.astral.sh/uv/reference/settings/#pip_index-url
         return (  # type: ignore[no-any-return]
             self.project.get("tool", {}).get("uv", {}).get("index-url", None)
@@ -66,6 +73,7 @@ class PyProjectReader:
 
     @property
     def python_version(self) -> str | None:
+        """Return the required Python version specifier, or None if not specified."""
         try:
             version = self.project.get("requires-python")
             # Only return string version requirements
@@ -78,6 +86,7 @@ class PyProjectReader:
 
     @property
     def dependencies(self) -> list[str]:
+        """Return the list of package dependencies declared in the project metadata."""
         return self.project.get("dependencies", [])  # type: ignore[no-any-return]
 
     @property
@@ -204,6 +213,7 @@ def _pyproject_toml_to_requirements_txt(
 
 
 def is_marimo_dependency(dependency: str) -> bool:
+    """Return True if the dependency string refers to the marimo package."""
     # Split on any version specifier
     without_version = re.split(r"[=<>~]+", dependency)[0]
     # Match marimo and marimo[extras], but not marimo-<something-else>
@@ -211,6 +221,7 @@ def is_marimo_dependency(dependency: str) -> bool:
 
 
 def get_headers_from_markdown(contents: str) -> dict[str, str]:
+    """Extract pyproject and header strings from a Markdown notebook's frontmatter."""
     from marimo._convert.markdown.to_ir import extract_frontmatter
 
     frontmatter, _ = extract_frontmatter(contents)
@@ -220,6 +231,7 @@ def get_headers_from_markdown(contents: str) -> dict[str, str]:
 def get_headers_from_frontmatter(
     frontmatter: dict[str, Any],
 ) -> dict[str, str]:
+    """Extract and normalize pyproject and header strings from a parsed frontmatter dict."""
     from marimo._utils.scripts import wrap_script_metadata
 
     headers = {"pyproject": "", "header": ""}
@@ -252,6 +264,7 @@ def has_marimo_in_script_metadata(filepath: str) -> bool | None:
 
 
 def script_metadata_hash_from_filename(name: str) -> str | None:
+    """Return a deterministic hash of a file's pyproject metadata, or None if unavailable."""
     project = _get_pyproject_from_filename(name)
     if project is None:
         return None

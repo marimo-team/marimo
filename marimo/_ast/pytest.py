@@ -44,6 +44,7 @@ def build_stub_fn(
     basis: None | Callable[..., Any] = None,
     allowed: None | list[str] = None,
 ) -> Callable[..., Any]:
+    """Build a stub function from an AST function definition for pytest to discover and call."""
     # Avoid declaring the function in the global scope, since it may cause
     # issues with meta-analysis tools like cxfreeze (see #3828).
     PYTEST_BASE = ast_parse(inspect.getsource(_pytest_scaffold))
@@ -109,6 +110,7 @@ def build_stub_fn(
 
 
 def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
+    """Wrap a top-level test cell function so that pytest can collect and run it correctly."""
     func_ast = ast_parse(inspect.getsource(func))
     func_body = func_ast.body[0]
     if not isinstance(func_body, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -422,6 +424,7 @@ def build_test_class(
 
 
 def process_for_pytest(func: Fn, cell: Cell) -> None:
+    """Register test functions and classes from a marimo cell with pytest."""
     # Check if it is considered a __test__ cell.
     if not cell.__test__:
         return

@@ -38,6 +38,7 @@ if sys.platform == "win32":
 
 
 def get_tmpdir() -> str:
+    """Return a process-specific temporary directory path under the system temp dir."""
     return os.path.join(
         _convert_to_long_pathname(tempfile.gettempdir()),
         "marimo_" + str(os.getpid()),

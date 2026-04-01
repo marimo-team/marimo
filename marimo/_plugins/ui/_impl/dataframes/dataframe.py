@@ -61,6 +61,8 @@ TOO_MANY_ROWS = 100_000
 
 @dataclass
 class GetDataFrameResponse:
+    """Response payload returned when the frontend requests dataframe data and metadata."""
+
     url: str
     total_rows: Union[int, Literal["too_many"]]
     # Columns that are actually row headers
@@ -75,22 +77,30 @@ class GetDataFrameResponse:
 
 @dataclass
 class GetColumnValuesArgs:
+    """Arguments for requesting unique values from a specific dataframe column."""
+
     column: str
 
 
 @dataclass
 class GetColumnValuesResponse:
+    """Response containing unique column values and a flag if too many exist to return all."""
+
     values: list[str | int | float]
     too_many_values: bool
 
 
 class ColumnNotFound(Exception):
+    """Raised when a requested column does not exist in the dataframe."""
+
     def __init__(self, column: str):
         self.column = column
         super().__init__(f"Column {column} does not exist")
 
 
 class GetDataFrameError(Exception):
+    """Raised when an error occurs while retrieving dataframe data."""
+
     def __init__(self, error: str):
         self.error = error
         super().__init__(error)

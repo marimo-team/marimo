@@ -5,6 +5,8 @@ from enum import IntEnum
 
 
 class WebSocketCodes(IntEnum):
+    """WebSocket close codes used by the marimo server."""
+
     ALREADY_CONNECTED = 1003
     NORMAL_CLOSE = 1000
     FORBIDDEN = 1008

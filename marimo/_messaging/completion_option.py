@@ -9,6 +9,8 @@ import msgspec
 
 
 class CompletionOption(msgspec.Struct):
+    """A single code-completion suggestion with its name, type, and optional documentation."""
+
     # completed symbol name
     name: str
     # type of symbol

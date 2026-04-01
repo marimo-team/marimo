@@ -6,6 +6,7 @@ from typing import Any
 
 
 def restore_signals() -> None:
+    """Restore SIGTERM and SIGINT to their system default handlers."""
     # Restore the system default signal handlers.
     #
     # The server process may register signal handlers (uvicorn does this),
@@ -20,6 +21,7 @@ def restore_signals() -> None:
 
 
 def get_signals() -> dict[int, Any]:
+    """Return a mapping of SIGTERM and SIGINT signal numbers to their current handlers."""
     return {
         signal.SIGTERM: signal.getsignal(signal.SIGTERM),
         signal.SIGINT: signal.getsignal(signal.SIGINT),

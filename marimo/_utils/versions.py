@@ -26,10 +26,12 @@ def is_editable(pkg_name: str) -> bool:
 
 
 def without_version_specifier(package: str) -> str:
+    """Strip any version specifier from a package name (e.g., 'requests>=2.0' -> 'requests')."""
     return re.split(r"[!<>=~]+", package)[0].strip()
 
 
 def without_extras(package: str) -> str:
+    """Strip extras from a package name (e.g., 'requests[security]' -> 'requests')."""
     if "[" not in package:
         return package
     return package.split("[")[0]
@@ -43,4 +45,5 @@ def extract_extras(package: str) -> str:
 
 
 def has_version_specifier(package: str) -> bool:
+    """Return True if the package string includes a version specifier."""
     return re.search(r"[!<>=~]+", package) is not None

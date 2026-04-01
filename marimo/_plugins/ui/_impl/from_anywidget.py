@@ -60,11 +60,13 @@ class WeakCache(Generic[K, V]):
         self._finalizers: dict[int, weakref.finalize[[int], K]] = {}
 
     def add(self, k: K, v: V) -> None:
+        """Add an entry mapping key k to value v, automatically cleaned up when k is garbage collected."""
         oid: int = id(k)  # finalize will be called before id is reused
         self._data[oid] = v
         self._finalizers[oid] = weakref.finalize(k, self._cleanup, oid)
 
     def get(self, k: K) -> V | None:
+        """Return the cached value for k, or None if not present."""
         return self._data.get(id(k))
 
     def __len__(self) -> int:

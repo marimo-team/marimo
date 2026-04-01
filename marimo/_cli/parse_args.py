@@ -78,4 +78,5 @@ def parse_args(
 
 
 def args_from_argv() -> SerializedCLIArgs:
+    """Parse command-line arguments from ``sys.argv`` into a serialized dict."""
     return parse_args(sys.argv[1:])

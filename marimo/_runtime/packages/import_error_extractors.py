@@ -25,6 +25,7 @@ def extract_missing_module_from_cause_chain(
 
 
 def strip_quotes(s: str) -> str:
+    """Strip matching surrounding single or double quotes from a string."""
     if len(s) >= 2 and s[0] == s[-1] and s[0] in {"'", '"'}:
         return s[1:-1]
     return s

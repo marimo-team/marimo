@@ -6,11 +6,15 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
 class LetsPlotFormatter(FormatterFactory):
+    """Formatter factory for lets-plot chart objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "lets_plot"
 
     def register(self) -> None:
+        """Register formatters for lets_plot PlotSpec and SupPlotsSpec."""
         import lets_plot.plot.core  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         import lets_plot.plot.subplots  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 

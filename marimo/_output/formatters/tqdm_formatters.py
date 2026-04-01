@@ -11,6 +11,8 @@ S = TypeVar("S")
 
 
 class ProgressBarTqdmPatch(progress_bar[S]):
+    """Drop-in replacement for tqdm.notebook.tqdm that renders marimo's native progress bar."""
+
     def __init__(self, *args: Any, **kwargs: Any):
         # Partial translation from tqdm to our native progress bar;
         # uses API of tqdm v4.66.4, likely backward compatible.
@@ -70,16 +72,21 @@ class ProgressBarTqdmPatch(progress_bar[S]):
 
 
 class ProgressBarTrangePatch(ProgressBarTqdmPatch[S]):
+    """Drop-in replacement for tqdm.notebook.trange that wraps a range in a marimo progress bar."""
+
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(range(*args), **kwargs)
 
 
 class TqdmFormatter(FormatterFactory):
+    """Formatter factory that patches tqdm.notebook to use marimo's native progress bar."""
+
     @staticmethod
     def package_name() -> str:
         return "tqdm"
 
     def register(self) -> None:
+        """Patch tqdm.notebook.tqdm and trange with marimo's progress bar implementations."""
         if running_in_notebook():
             # Import tqdm.notebook for notebook-specific progress bar implementation
             import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501

@@ -114,6 +114,7 @@ class LogFormatter(logging.Formatter):
             self._normal = ""
 
     def format(self, record: Any) -> str | Any:
+        """Format a log record into a color-coded, timestamped string with exception info if present."""
         try:
             message = record.getMessage()
             assert isinstance(message, str)  # guaranteed by logging

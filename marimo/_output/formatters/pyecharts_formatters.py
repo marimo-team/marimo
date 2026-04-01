@@ -9,11 +9,15 @@ from marimo._output.utils import flatten_string
 
 
 class PyechartsFormatter(FormatterFactory):
+    """Formatter factory for pyecharts chart objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "pyecharts"
 
     def register(self) -> None:
+        """Register formatter for pyecharts Base chart objects."""
         from pyecharts.charts.base import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
             Base,
         )

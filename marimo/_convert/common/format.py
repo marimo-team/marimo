@@ -15,6 +15,7 @@ DEFAULT_MARKDOWN_PREFIX = "r"
 def markdown_to_marimo(
     source: str, prefix: str = DEFAULT_MARKDOWN_PREFIX
 ) -> str:
+    """Convert a markdown string to a marimo ``mo.md(...)`` call string."""
     # NB. This should be kept in sync with the logic in
     # frontend/src/core/codemirror/language/languages/markdown.ts
     # ::transformOut
@@ -32,6 +33,7 @@ def sql_to_marimo(
     hide_output: bool = False,
     engine: str | None = None,
 ) -> str:
+    """Convert a SQL query string to a marimo ``mo.sql(...)`` call string."""
     terminal_options = [codegen.indent_text('"""')]
     if hide_output:
         terminal_options.append(codegen.indent_text("output=False"))

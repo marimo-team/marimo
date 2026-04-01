@@ -15,11 +15,14 @@ from marimo._runtime.context.utils import running_in_notebook
 
 
 class PlotlyFormatter(FormatterFactory):
+    """Registers marimo formatters and patches Plotly's Figure.show for notebook use."""
+
     @staticmethod
     def package_name() -> str:
         return "plotly"
 
     def register(self) -> None:
+        """Register the Plotly figure formatter and patch Figure.show."""
         import plotly.graph_objects  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
@@ -71,6 +74,7 @@ class PlotlyFormatter(FormatterFactory):
     def render_plotly_dict(
         json: dict[Any, Any], config: dict[str, Any] | None = None
     ) -> Html:
+        """Render a Plotly figure JSON dict as a marimo Html web component."""
         import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         resolved_config: dict[str, Any] = {}
@@ -100,6 +104,7 @@ class PlotlyFormatter(FormatterFactory):
         )
 
     def apply_theme(self, theme: Theme) -> None:
+        """Apply a dark or light Plotly template to the global renderer."""
         import plotly.io as pio  # type: ignore
 
         pio.templates.default = "plotly_dark" if theme == "dark" else "plotly"

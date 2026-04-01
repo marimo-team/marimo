@@ -51,11 +51,15 @@ class Item(msgspec.Struct):
 
 
 class Meta(msgspec.Struct):
+    """Metadata stored alongside a lazy cache entry, including the schema version and optional return value."""
+
     version: int
     return_value: Optional[Item] = None
 
 
 class Cache(msgspec.Struct):
+    """Top-level msgspec schema for a serialized lazy cache entry."""
+
     hash: str
     cache_type: CacheType
     defs: dict[str, Item]
@@ -75,6 +79,7 @@ class ReferenceStub:
         self.hash = hash_value
 
     def load(self, glbls: dict[str, Any]) -> Any:
+        """Unpickle and return the referenced blob from the store."""
         del glbls
         blob = self.to_bytes()
         if not blob:
@@ -82,6 +87,7 @@ class ReferenceStub:
         return pickle.loads(blob)
 
     def to_bytes(self) -> bytes:
+        """Fetch the raw bytes for this reference from the store."""
         maybe_bytes = get_store().get(self.name)
         return maybe_bytes if maybe_bytes else b""
 
@@ -93,11 +99,14 @@ class ImmediateReferenceStub(CustomStub):
         self.reference = reference
 
     def load(self, glbls: dict[str, Any]) -> Any:
+        """Delegate loading to the wrapped ReferenceStub."""
         return self.reference.load(glbls)
 
     @staticmethod
     def get_type() -> type:
+        """Return the underlying stub type (ReferenceStub) for stub registry lookup."""
         return ReferenceStub
 
     def to_bytes(self) -> bytes:
+        """Return the raw bytes of the wrapped reference stub."""
         return self.reference.to_bytes()

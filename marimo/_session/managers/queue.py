@@ -66,6 +66,7 @@ class QueueManagerImpl(QueueManager):
             self.stream_queue = queue.Queue()
 
     def close_queues(self) -> None:
+        """Close and drain all queues, signalling the kernel thread to stop."""
         if isinstance(self.control_queue, MPQueue):
             # cancel join thread because we don't care if the queues still have
             # things in it: don't want to make the child process wait for the

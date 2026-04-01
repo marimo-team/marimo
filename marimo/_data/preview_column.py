@@ -36,6 +36,7 @@ ALTAIR_MISSING_PACKAGES = ["altair"]
 
 
 def get_table_manager(item: object) -> TableManager[Any] | None:
+    """Return a TableManager for the given item, logging and returning None on failure."""
     try:
         table = get_table_manager_or_none(item)
         return table

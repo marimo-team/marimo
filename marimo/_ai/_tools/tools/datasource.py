@@ -22,12 +22,16 @@ if TYPE_CHECKING:
 
 @dataclass
 class GetDatabaseTablesArgs:
+    """Arguments for the GetDatabaseTables tool."""
+
     session_id: SessionId
     query: Optional[str] = None
 
 
 @dataclass
 class TableDetails:
+    """Details about a single database table including its connection, schema, and a sample query."""
+
     connection: str
     database: str
     schema: str
@@ -37,6 +41,8 @@ class TableDetails:
 
 @dataclass
 class GetDatabaseTablesOutput(SuccessResult):
+    """Output of the GetDatabaseTables tool containing matched table details."""
+
     tables: list[TableDetails] = field(default_factory=list)
 
 
@@ -69,6 +75,7 @@ class GetDatabaseTables(
     )
 
     def handle(self, args: GetDatabaseTablesArgs) -> GetDatabaseTablesOutput:
+        """Retrieve database table details, optionally filtered by a fuzzy query."""
         session_id = args.session_id
         session = self.context.get_session(session_id)
 

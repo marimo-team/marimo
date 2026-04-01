@@ -49,10 +49,12 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def graph(self) -> DirectedGraph:
+        """Return the cell dependency graph for the running app."""
         return self._app.graph
 
     @property
     def globals(self) -> dict[str, Any]:
+        """Return the merged global namespace of __main__ and a fresh module."""
         with patch_main_module_context(
             create_main_module(
                 file=None, input_override=None, print_override=None
@@ -64,6 +66,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def execution_context(self) -> ExecutionContext | None:
+        """Return the currently active cell execution context, if any."""
         return self._app.execution_context
 
     @cached_property
@@ -74,6 +77,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def marimo_config(self) -> MarimoConfig:
+        """Return the resolved marimo configuration for this script."""
         return self._cached_config
 
     @property
@@ -101,23 +105,28 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._query_params
 
     def get_ui_initial_value(self, object_id: str) -> Any:
+        """Not supported in script context; always raises KeyError."""
         del object_id
         raise KeyError
 
     @contextmanager
     def provide_ui_ids(self, prefix: str) -> Iterator[None]:
+        """No-op context manager; UI ID provision is unsupported in script mode."""
         del prefix
         yield
 
     def take_id(self) -> str:
+        """Raises NoIDProviderException; UI IDs are not available in script mode."""
         raise NoIDProviderException
 
     def register_state_update(self, state: State[Any]) -> None:
+        """No-op; state updates are not tracked in script mode."""
         del state
         return
 
     @contextmanager
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
+        """Context manager that sets the active cell_id for the duration of the block."""
         old = self.execution_context
         try:
             if old is not None:
@@ -136,6 +145,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def app(self) -> InternalApp:
+        """Return the InternalApp being executed."""
         return self._app
 
 

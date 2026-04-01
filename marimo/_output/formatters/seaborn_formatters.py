@@ -6,11 +6,15 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
 class SeabornFormatter(FormatterFactory):
+    """Formatter factory for seaborn grid objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "seaborn"
 
     def register(self) -> None:
+        """Register formatters for seaborn grid types."""
         from typing import Any, cast
 
         # unused-ignore is needed since in development we may sometimes have

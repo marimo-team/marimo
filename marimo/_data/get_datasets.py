@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 def get_datasets_from_variables(
     variables: list[tuple[VariableName, object]],
 ) -> list[DataTable]:
+    """Extract DataTable descriptors from a list of named Python variables."""
     tables: list[DataTable] = []
     for variable_name, value in variables:
         table = _get_data_table(value, variable_name)
@@ -89,6 +90,7 @@ _STATEMENT_TYPES = frozenset(
 
 
 def has_updates_to_datasource(query: str) -> bool:
+    """Return True if the SQL query modifies a datasource (ATTACH, DETACH, ALTER, CREATE)."""
     import duckdb
 
     try:
@@ -131,6 +133,7 @@ def get_databases_from_duckdb(
     connection: Optional[duckdb.DuckDBPyConnection],
     engine_name: Optional[VariableName] = None,
 ) -> list[Database]:
+    """Return a list of Database objects from a DuckDB connection, or an empty list on error."""
     try:
         return _get_databases_from_duckdb_internal(connection, engine_name)
     except Exception:
@@ -306,6 +309,7 @@ def form_databases_from_dict(
     engine_name: Optional[VariableName],
     backfill_empty_databases: bool,
 ) -> list[Database]:
+    """Build a list of Database objects from a grouped dict of tables, optionally backfilling empty databases."""
     # Convert grouped data into Database objects
     databases: list[Database] = []
     for database, schemas_dict in databases_dict.items():

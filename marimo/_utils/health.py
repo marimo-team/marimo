@@ -50,6 +50,7 @@ CGROUP_V1_MEMORY_UNLIMITED_THRESHOLD = 2**60
 
 
 def get_node_version() -> Optional[str]:
+    """Return the installed Node.js version string, or None if not found."""
     try:
         process = subprocess.Popen(
             ["node", "--version"],
@@ -69,6 +70,7 @@ def get_node_version() -> Optional[str]:
 
 
 def get_uv_version() -> Optional[str]:
+    """Return the installed uv version string, or None if not found."""
     from marimo._utils.uv import find_uv_bin
 
     try:
@@ -91,6 +93,7 @@ def get_uv_version() -> Optional[str]:
 
 
 def get_required_modules_list() -> dict[str, str]:
+    """Return a dict of required package names to installed version strings (or 'missing')."""
     packages = [
         "click",
         "docutils",
@@ -113,6 +116,7 @@ def get_required_modules_list() -> dict[str, str]:
 
 
 def get_optional_modules_list() -> dict[str, str]:
+    """Return a dict of optional package names to installed version strings, omitting missing packages."""
     # List of common libraries we integrate with
     packages = [
         "altair",
@@ -159,6 +163,7 @@ def _get_versions(
 
 
 def get_chrome_version() -> Optional[str]:
+    """Return the installed Google Chrome version string, or None if not found."""
     def get_chrome_version_windows() -> Optional[str]:
         process = subprocess.Popen(
             [
@@ -230,12 +235,14 @@ def get_chrome_version() -> Optional[str]:
 
 
 def get_python_version() -> str:
+    """Return the current Python version string."""
     return sys.version.split()[0]
 
 
 def communicate_with_timeout(
     process: subprocess.Popen[str], timeout: float = TIMEOUT
 ) -> tuple[str, str]:
+    """Wait for a subprocess to finish, killing it and returning an error string if it times out."""
     try:
         return process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:

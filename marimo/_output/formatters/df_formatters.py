@@ -25,6 +25,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def include_opinionated() -> bool:
+    """Return True if rich/opinionated dataframe formatting should be applied."""
     from marimo._runtime.context import (
         get_context,
         runtime_context_installed,
@@ -77,11 +78,15 @@ def polars_dot_to_mermaid(dot: str) -> str:
 
 
 class PolarsFormatter(FormatterFactory):
+    """Formatter factory that registers rich display formatters for Polars DataFrames, Series, and LazyFrames."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "polars"
 
     def register(self) -> Unregister | None:
+        """Register opinionated Polars formatters; returns an unregister callback."""
         import polars as pl
 
         from marimo._output import formatting
@@ -141,11 +146,15 @@ class PolarsFormatter(FormatterFactory):
 
 
 class PyArrowFormatter(FormatterFactory):
+    """Formatter factory that registers rich display formatters for PyArrow Tables."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "pyarrow"
 
     def register(self) -> None:
+        """Register opinionated PyArrow formatters."""
         import pyarrow as pa  # type: ignore[import-not-found]
 
         from marimo._output import formatting
@@ -161,11 +170,15 @@ class PyArrowFormatter(FormatterFactory):
 
 
 class PySparkFormatter(FormatterFactory):
+    """Formatter factory that registers rich display formatters for PySpark DataFrames."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "pyspark"
 
     def register(self) -> None:
+        """Register opinionated PySpark formatters."""
         try:
             from pyspark.sql.connect.dataframe import (  # type: ignore[import-not-found]
                 DataFrame as pyspark_connect_DataFrame,
@@ -225,9 +238,11 @@ class IbisFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "ibis"
 
     def register(self) -> None:
+        """Register opinionated Ibis expression formatters."""
         import ibis  # type: ignore[import-not-found]
         import ibis.expr.types as ir  # type: ignore[import-not-found]
         from ibis.backends.sql import (  # type: ignore[import-not-found]

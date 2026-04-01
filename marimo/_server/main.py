@@ -41,11 +41,12 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class LspPorts:
+    """Port numbers for optional LSP servers (pylsp and Copilot)."""
+
     pylsp: Optional[int]
     copilot: Optional[int]
 
 
-# Create app
 def create_starlette_app(
     *,
     base_url: str,
@@ -58,6 +59,7 @@ def create_starlette_app(
     skew_protection: bool = True,
     timeout: Optional[float] = None,
 ) -> Starlette:
+    """Build and return the Starlette application with all middleware and routes configured."""
     final_middlewares: list[Middleware] = []
 
     if allow_origins is None:

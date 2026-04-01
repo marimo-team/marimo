@@ -231,6 +231,7 @@ def broadcast_storage_backends(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
+    """Broadcast storage namespace notifications for any storage backends defined by this cell."""
     del run_result
 
     if not ctx.should_broadcast_data:
@@ -420,6 +421,7 @@ def render_toplevel_defs(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
+    """Broadcast a serialized representation of a top-level cell variable for the frontend."""
     del run_result
     variable = cell.toplevel_variable
     if variable is not None:
@@ -437,6 +439,7 @@ def attempt_pytest(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
+    """Run pytest on the cell's test definitions if the cell is marked as a test cell."""
     del run_result
     if cell._test:
         try:

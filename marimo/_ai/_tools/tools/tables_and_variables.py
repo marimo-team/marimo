@@ -14,6 +14,8 @@ from marimo._types.ids import SessionId
 
 @dataclass
 class TablesAndVariablesArgs:
+    """Arguments for the GetTablesAndVariables tool."""
+
     session_id: SessionId
     variable_names: list[str]
 
@@ -43,6 +45,8 @@ class DataTableMetadata:
 
 @dataclass
 class TablesAndVariablesOutput(SuccessResult):
+    """Output returned by the GetTablesAndVariables tool."""
+
     tables: dict[str, DataTableMetadata] = field(default_factory=dict)
     variables: dict[str, VariableValue] = field(default_factory=dict)
 
@@ -74,6 +78,7 @@ class GetTablesAndVariables(
     )
 
     def handle(self, args: TablesAndVariablesArgs) -> TablesAndVariablesOutput:
+        """Execute the tool by retrieving tables and variables from the session."""
         session = self.context.get_session(args.session_id)
         return self._get_tables_and_variables(session, args.variable_names)
 

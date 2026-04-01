@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 def generate_id(prefix: str) -> str:
+    """Generate a unique ID string with the given prefix."""
     return f"{prefix}_{uuid.uuid4().hex}"
 
 
@@ -115,6 +116,7 @@ def convert_to_pydantic_messages(
 
 
 def create_simple_prompt(text: str) -> UIMessage:
+    """Create a UIMessage representing a simple user text prompt."""
     from pydantic_ai.ui.vercel_ai.request_types import TextUIPart, UIMessage
 
     parts: list[UIMessagePart] = [TextUIPart(text=text)] if text else []

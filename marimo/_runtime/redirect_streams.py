@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
+    """Read bytes from a file descriptor and write them to a stream object until EOF."""
     while True:
         data = os.read(fd, 1024)
         if not data:
@@ -59,6 +60,7 @@ def redirect_streams(
     stderr: Stderr | None,
     stdin: Stdin | None,
 ) -> Iterator[None]:
+    """Context manager that redirects the stream, sys.stdout/stderr/stdin, and OS-level fds to a cell."""
     cell_id_old = stream.cell_id
 
     # In a nested context, generally NOOP so messages reach the top-level

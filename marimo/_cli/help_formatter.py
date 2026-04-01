@@ -62,6 +62,7 @@ class ColoredCommand(click.Command):
     """Click Command with colored help output (cargo-style)."""
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        """Parse args, augmenting short-option error messages with suggestions."""
         try:
             return super().parse_args(ctx, args)
         except click.NoSuchOption as error:
@@ -71,6 +72,7 @@ class ColoredCommand(click.Command):
     def format_usage(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
+        """Write a colored Usage: line to the help formatter."""
         pieces = self.collect_usage_pieces(ctx)
         formatter.write_usage(
             ctx.command_path,
@@ -81,6 +83,7 @@ class ColoredCommand(click.Command):
     def format_options(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
+        """Write colored Options section to the help formatter."""
         opts = []
         for param in self.get_params(ctx):
             rv = param.get_help_record(ctx)
@@ -99,6 +102,7 @@ class ColoredGroup(click.Group):
     command_class = ColoredCommand
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        """Parse args, augmenting short-option error messages with suggestions."""
         try:
             return super().parse_args(ctx, args)
         except click.NoSuchOption as error:
@@ -146,6 +150,7 @@ class ColoredGroup(click.Group):
     def format_usage(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
+        """Write a colored Usage: line to the help formatter."""
         pieces = self.collect_usage_pieces(ctx)
         formatter.write_usage(
             ctx.command_path,
@@ -156,6 +161,7 @@ class ColoredGroup(click.Group):
     def format_options(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
+        """Write colored Options section and Commands section to the help formatter."""
         opts = []
         for param in self.get_params(ctx):
             rv = param.get_help_record(ctx)

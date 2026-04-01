@@ -89,6 +89,7 @@ class ScratchCellListener(EventAwareExtension):
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
+        """Enqueue scratch cell notifications; put a sentinel when the cell becomes idle."""
         del session
         msg = deserialize_kernel_message(notification)
         if not isinstance(msg, CellNotification):

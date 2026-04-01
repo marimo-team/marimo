@@ -34,6 +34,7 @@ class Room:
 
     @property
     def size(self) -> int:
+        """Return the number of consumers currently in the room."""
         return len(self.consumers)
 
     def add_consumer(
@@ -45,6 +46,7 @@ class Room:
         # We only allow one main consumer, the rest are kiosk consumers
         main: bool,
     ) -> None:
+        """Add a consumer to the room, optionally designating it as the main consumer."""
         self.consumers[consumer] = consumer_id
         if main:
             assert self.main_consumer is None, (
@@ -53,6 +55,7 @@ class Room:
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:
+        """Remove a consumer from the room and detach it."""
         if consumer not in self.consumers:
             LOGGER.debug(
                 "Attempted to remove a consumer that was not in room."
@@ -78,6 +81,7 @@ class Room:
                 consumer.notify(notification)
 
     def close(self) -> None:
+        """Remove all consumers from the room without detaching them."""
         # We don't need to detach consumers here because
         # they will be detached when the session is closed.
         self.consumers = {}

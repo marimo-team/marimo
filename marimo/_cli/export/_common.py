@@ -18,10 +18,12 @@ if TYPE_CHECKING:
 
 
 def is_multi_target(paths: list[Path]) -> bool:
+    """Return True if paths contains more than one entry or any directories."""
     return len(paths) > 1 or any(path.is_dir() for path in paths)
 
 
 def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
+    """Recursively collect all marimo notebook paths from files and directories, deduplicated and sorted."""
     notebooks: dict[str, MarimoPath] = {}
 
     for path in paths:
@@ -46,10 +48,13 @@ def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
 
 
 class SandboxVenvPool:
+    """A pool that reuses sandbox virtual environments for notebooks with identical requirements."""
+
     def __init__(self) -> None:
         self._envs: dict[tuple[str, ...], tuple[str, str]] = {}
 
     def get_python(self, notebook_path: str) -> str:
+        """Return the Python executable for a notebook's sandbox venv, building it if needed."""
         from marimo._cli.sandbox import (
             build_sandbox_venv,
             get_sandbox_requirements,
@@ -65,6 +70,7 @@ class SandboxVenvPool:
         return venv_python
 
     def close(self) -> None:
+        """Clean up all sandbox directories managed by this pool."""
         from marimo._cli.sandbox import cleanup_sandbox_dir
 
         for sandbox_dir, _ in self._envs.values():
@@ -79,6 +85,7 @@ def run_python_subprocess(
     payload: dict[str, Any],
     action: str,
 ) -> str:
+    """Run a Python script in a subprocess, passing payload as JSON; return stdout or raise ClickException."""
     result = subprocess.run(
         [venv_python, "-c", script, json.dumps(payload)],
         check=False,

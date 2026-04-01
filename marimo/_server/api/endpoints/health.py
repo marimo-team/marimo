@@ -30,6 +30,7 @@ router = APIRouter()
 
 
 def health_check(request: Request) -> JSONResponse:
+    """Return a simple healthy status response."""
     del request  # Unused
     return JSONResponse({"status": "healthy"})
 

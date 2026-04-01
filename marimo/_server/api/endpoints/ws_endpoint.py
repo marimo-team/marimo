@@ -173,6 +173,7 @@ class WebSocketHandler(SessionConsumer):
         return self._consumer_id
 
     def notify(self, notification: KernelMessage) -> None:
+        """Enqueue a kernel message to be sent to the frontend."""
         self.message_queue.put_nowait(notification)
 
     def _serialize_and_notify(self, notification: NotificationMessage) -> None:
@@ -467,11 +468,13 @@ class WebSocketHandler(SessionConsumer):
             )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Called when this consumer is attached to a session; no-op for WebSocket handlers."""
         del session
         del event_bus
         return None
 
     def on_detach(self) -> None:
+        """Close the WebSocket and cancel the message loop when detached from the session."""
         # If the websocket is open, send a close message
         is_connected = (
             self.status == ConnectionState.OPEN
@@ -488,6 +491,7 @@ class WebSocketHandler(SessionConsumer):
             self.ws_future.cancel()
 
     def connection_state(self) -> ConnectionState:
+        """Return the current connection state of this WebSocket handler."""
         return self.status
 
     def _check_status_update(self) -> None:

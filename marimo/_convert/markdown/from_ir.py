@@ -27,6 +27,7 @@ def convert_from_ir_to_markdown(
     notebook: NotebookSerializationV1,
     filename: str | None = None,
 ) -> str:
+    """Convert a notebook IR to a Markdown (or Quarto .qmd) document."""
     from marimo._ast.app_config import _AppConfig
     from marimo._ast.compiler import compile_cell
     from marimo._convert.markdown.to_ir import (
@@ -182,6 +183,7 @@ def convert_from_ir_to_markdown(
 
 
 def _format_filename_title(filename: str) -> str:
+    """Derive a human-readable title from a filename by replacing hyphens/underscores and title-casing."""
     basename = os.path.basename(filename)
     name, _ext = os.path.splitext(basename)
     title = re.sub("[-_]", " ", name)
@@ -189,6 +191,7 @@ def _format_filename_title(filename: str) -> str:
 
 
 def _get_sql_options_from_cell(code: str) -> dict[str, str] | None:
+    """Extract SQL code-block options (query variable name, output flag, etc.) from cell source."""
     # Note frontend/src/core/codemirror/language/sql.ts
     # also extracts options via ast. Ideally, these should be synced.
     options = {}

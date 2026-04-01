@@ -35,6 +35,7 @@ FigureCanvas = FigureCanvasAgg
 
 
 def close_figures() -> None:
+    """Close all open matplotlib figures."""
     if Gcf.get_all_fig_managers():
         plt.close("all")
 
@@ -130,11 +131,15 @@ def _internal_show(canvas: FigureCanvasBase) -> None:
 
 
 class FigureManager(FigureManagerBase):
+    """Marimo's matplotlib figure manager that renders figures as cell output."""
+
     def show(self) -> None:
+        """Render the figure as marimo cell output."""
         _internal_show(self.canvas)
 
 
 def show(*, block: Optional[bool] = None) -> None:
+    """Show all open matplotlib figures as marimo cell output."""
     del block
     for manager in Gcf.get_all_fig_managers():
         _internal_show(manager.canvas)

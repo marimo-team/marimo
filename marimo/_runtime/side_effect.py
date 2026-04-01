@@ -11,11 +11,14 @@ if TYPE_CHECKING:
 
 
 class SideEffect(CellLifecycleItem):
+    """A cell lifecycle item that records that a side effect occurred, identified by a key."""
+
     def __init__(self, key: str | bytes) -> None:
         self._key = key
 
     @property
     def key(self) -> bytes:
+        """The raw key bytes for this side effect."""
         assert self._key is not None
         if isinstance(self._key, bytes):
             return self._key
@@ -52,6 +55,7 @@ class CellHash(CellLifecycleItem):
 
     @property
     def key(self) -> bytes:
+        """The raw key bytes for this cell hash."""
         assert self._key is not None
         if isinstance(self._key, bytes):
             return self._key

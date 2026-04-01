@@ -10,11 +10,15 @@ from marimo._output.utils import flatten_string
 
 
 class LeafmapFormatter(FormatterFactory):
+    """Formatter factory for leafmap map objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "leafmap"
 
     def register(self) -> None:
+        """Register formatters for leafmap folium, kepler, and default map backends."""
         # Different backends
         # plotly is handled by PlotlyFormatter
         import leafmap.foliumap as leafmap_folium  # type: ignore[import-untyped]

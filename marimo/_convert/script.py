@@ -41,6 +41,7 @@ def _header_for_script(ir: NotebookSerialization) -> str:
 
 
 def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
+    """Convert a notebook IR to a flat Python script with ``# %%`` cell separators."""
     app = InternalApp(load_notebook_ir(ir))
 
     # Check if any code is async, if so, raise an error

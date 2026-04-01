@@ -29,26 +29,36 @@ class AddPackageRequest(msgspec.Struct, rename="camel"):
 
 
 class RemovePackageRequest(msgspec.Struct, rename="camel"):
+    """Request to remove an installed package."""
+
     package: str
     group: Optional[str] = None
 
 
 class ListPackagesResponse(msgspec.Struct, rename="camel"):
+    """Response containing a list of installed package descriptions."""
+
     packages: list[PackageDescription]
 
 
 class DependencyTreeResponse(msgspec.Struct, rename="camel"):
+    """Response containing the optional dependency tree."""
+
     tree: Optional[DependencyTreeNode]
 
 
 class PackageOperationResponse(msgspec.Struct, rename="camel"):
+    """Response indicating whether a package install/remove operation succeeded."""
+
     success: bool
     error: Optional[str] = None
 
     @staticmethod
     def of_success() -> PackageOperationResponse:
+        """Create a successful PackageOperationResponse."""
         return PackageOperationResponse(success=True, error=None)
 
     @staticmethod
     def of_failure(error: str) -> PackageOperationResponse:
+        """Create a failed PackageOperationResponse with the given error message."""
         return PackageOperationResponse(success=False, error=error)

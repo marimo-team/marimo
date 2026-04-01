@@ -92,6 +92,8 @@ class ChatModelConfigDict(TypedDict, total=False):
 
 @dataclass
 class ChatAttachment:
+    """A file or URL attachment associated with a chat message."""
+
     # The URL of the attachment. It can either be a URL to a hosted file or a
     # [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs).
     url: str
@@ -128,6 +130,8 @@ class ReasoningPart:
 
 @dataclass
 class ReasoningDetails:
+    """Detail entry within a reasoning content part."""
+
     type: Literal["text"]
     text: str
     signature: Optional[str] = None
@@ -145,6 +149,7 @@ class ToolInvocationPart:
 
     @property
     def tool_name(self) -> str:
+        """Return the tool name extracted from the type string (strips the 'tool-' prefix)."""
         return self.type.split("-", 1)[1]
 
 
@@ -160,17 +165,23 @@ class FilePart:
 
 @dataclass
 class ReasoningData:
+    """Payload for a reasoning signature, carrying the signature string."""
+
     signature: str
 
 
 @dataclass
 class DataReasoningPart:
+    """A data-reasoning-signature part from the AI SDK stream protocol."""
+
     type: Literal["data-reasoning-signature"]
     data: ReasoningData
 
 
 @dataclass
 class StepStartPart:
+    """A step-start marker part from the AI SDK stream protocol."""
+
     type: Literal["step-start"]
 
 
@@ -320,6 +331,8 @@ class ChatMessage(msgspec.Struct):
 
 @dataclass
 class ChatModelConfig:
+    """Configuration parameters for controlling a chat model's generation behavior."""
+
     # Maximum number of tokens.
     max_tokens: Optional[int] = None
 
@@ -340,6 +353,8 @@ class ChatModelConfig:
 
 
 class ChatModel(abc.ABC):
+    """Abstract base class for chat model implementations used in mo.ui.chat."""
+
     @abc.abstractmethod
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig

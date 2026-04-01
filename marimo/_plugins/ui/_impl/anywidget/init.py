@@ -20,13 +20,17 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 
 
 class CommLifecycleItem(CellLifecycleItem):
+    """A lifecycle item that closes a MarimoComm when the owning cell is deleted or re-executed."""
+
     def __init__(self, comm: MarimoComm) -> None:
         self._comm = comm
 
     def create(self, context: RuntimeContext) -> None:
+        """No-op: comm is initialized externally."""
         del context
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
+        """Close the comm to notify the frontend that the widget has been removed."""
         del context, deletion
         self._comm.close()
         return True
@@ -34,6 +38,7 @@ class CommLifecycleItem(CellLifecycleItem):
 
 # Initialize ipywidgets using a MarimoComm
 def init_marimo_widget(w: ipywidgets.Widget) -> None:
+    """Initialize an ipywidget with a MarimoComm so that its state is synced to the marimo frontend."""
     DependencyManager.ipywidgets.require("for anywidget support.")
     import ipywidgets  # type: ignore
 

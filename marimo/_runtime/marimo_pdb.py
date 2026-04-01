@@ -18,6 +18,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def try_restart() -> bool:
+    """Attempt to re-queue the currently executing cell for re-execution; return True on success."""
     from marimo._runtime.commands import ExecuteCellsCommand
     from marimo._runtime.context import (
         ContextNotInitializedError,
@@ -50,6 +51,8 @@ def try_restart() -> bool:
 
 
 class MarimoPdb(Pdb):
+    """Marimo-aware subclass of Pdb that routes I/O through marimo streams."""
+
     # Because we are patching Pdb, we need copy the exact constructor signature
     def __init__(
         self,
@@ -80,6 +83,7 @@ class MarimoPdb(Pdb):
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:
+        """Start debugging at frame, optionally printing a header first."""
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
@@ -100,9 +104,11 @@ class MarimoPdb(Pdb):
     do_restart = do_run
 
     def post_mortem_by_cell_id(self, cell_id: CellId_t) -> None:
+        """Enter post-mortem debugging for the most recent exception in the given cell."""
         return self.post_mortem(t=self._last_tracebacks.get(cell_id))
 
     def post_mortem(self, t: Optional[TracebackType] = None) -> None:
+        """Enter post-mortem debugging for the given traceback, defaulting to the last seen one."""
         if t is None:
             t = self._last_traceback
 
@@ -134,6 +140,7 @@ def set_trace(
     frame: FrameType | None = None,
     header: str | None = None,
 ) -> None:
+    """Set a trace point in the debugger, defaulting the frame to the caller's frame."""
     if frame is None:
         # make sure the frame points to user code
         current_frame = inspect.currentframe()

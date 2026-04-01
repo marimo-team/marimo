@@ -93,25 +93,31 @@ class sidebar(Html):
 
     # Not supported
     def batch(self, *args: Any, **kwargs: Any) -> Any:
+        """Not supported on mo.sidebar; raises TypeError."""
         del args, kwargs
         raise TypeError(".batch() is not supported on mo.sidebar")
 
     def center(self, *args: Any, **kwargs: Any) -> Html:
+        """Not supported on mo.sidebar; raises TypeError."""
         del args, kwargs
         raise TypeError(".center() is not supported on mo.sidebar")
 
     def right(self, *args: Any, **kwargs: Any) -> Html:
+        """Not supported on mo.sidebar; raises TypeError."""
         del args, kwargs
         raise TypeError(".right() is not supported on mo.sidebar")
 
     def left(self, *args: Any, **kwargs: Any) -> Html:
+        """Not supported on mo.sidebar; raises TypeError."""
         del args, kwargs
         raise TypeError(".left() is not supported on mo.sidebar")
 
     def callout(self, *args: Any, **kwargs: Any) -> Html:
+        """Not supported on mo.sidebar; raises TypeError."""
         del args, kwargs
         raise TypeError(".callout() is not supported on mo.sidebar")
 
     def style(self, *args: Any, **kwargs: Any) -> Html:
+        """Not supported on mo.sidebar; raises TypeError."""
         del args, kwargs
         raise TypeError(".style() is not supported on mo.sidebar")

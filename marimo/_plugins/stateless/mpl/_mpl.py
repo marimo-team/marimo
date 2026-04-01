@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 def new_figure_manager_given_figure(
     num: int, figure: Union[Figure, SubFigure, Axes]
 ) -> Any:
+    """Create a WebAgg figure manager for an existing matplotlib figure."""
     from matplotlib.backends.backend_webagg_core import (
         FigureCanvasWebAggCore,
         FigureManagerWebAgg as CoreFigureManagerWebAgg,
@@ -79,6 +80,8 @@ def png_bytes(figure: Union[Figure, SubFigure, Axes]) -> bytes:
 
 
 class NonInteractiveMplHtml(Html):
+    """Static PNG fallback for a matplotlib figure when interactive rendering is unavailable."""
+
     def __init__(self, figure: Union[Figure, SubFigure, Axes]) -> None:
         self._figure = figure
         super().__init__(as_html(figure).text)
@@ -182,6 +185,7 @@ select.mpl-widget,
 
 
 def patch_javascript(javascript: str) -> str:
+    """Patch matplotlib's WebAgg JavaScript to prevent focus stealing inside marimo."""
     # Comment out canvas.focus() and canvas_div.focus() calls
     # https://github.com/matplotlib/matplotlib/blob/4c345b42048811a2122ba0db68551c6ea4ddaf6a/lib/matplotlib/backends/web_backend/js/mpl.js#L338-L343
     javascript = javascript.replace(

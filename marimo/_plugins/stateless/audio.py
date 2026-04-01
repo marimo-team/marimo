@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 def convert_numpy_to_wav(
     data: NDArray[np.int16], rate: int, normalize: bool
 ) -> bytes:
+    """Convert a numpy audio array to WAV bytes, optionally normalizing amplitude."""
     import numpy as np
 
     def get_normalization_factor(

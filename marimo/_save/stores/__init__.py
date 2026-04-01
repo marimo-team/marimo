@@ -31,6 +31,7 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 
 
 def get_store(current_path: Optional[str] = None) -> Store:
+    """Return a configured Store instance based on the current marimo config."""
     from marimo._config.manager import get_default_config_manager
 
     cache_config: Optional[CacheConfig] = (

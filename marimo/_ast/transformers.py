@@ -22,6 +22,7 @@ class BlockException(Exception):
 
 
 def compiled_ast(block: Sequence[ast.AST | ast.stmt]) -> ast.Module:
+    """Compile a list of AST statements into a Module with top-level await support."""
     return cast(
         ast.Module,
         compile(
@@ -95,6 +96,7 @@ def _get_decorator_name(node: ast.expr) -> Optional[str]:
 def get_hashable_ast(
     fn: Callable[..., Any], skip_decorators: Optional[set[str]] = None
 ) -> ast.Module:
+    """Return a normalized AST module from a function suitable for stable cache hashing."""
     code, _ = inspect.getsourcelines(fn)
     args = set(fn.__code__.co_varnames)
     function_ast = ast_parse(textwrap.dedent("".join(code)))
@@ -132,6 +134,8 @@ def get_hashable_ast(
 
 
 class NameTransformer(ast.NodeTransformer):
+    """AST transformer that naively remaps variable and definition names."""
+
     def __init__(self, name_substitutions: dict[str, str]) -> None:
         """Remaps names in an AST.
 
@@ -276,6 +280,8 @@ class RemoveImportTransformer(ast.NodeTransformer):
 
 
 class ExtractWithBlock(ast.NodeTransformer):
+    """AST transformer that extracts the pre-block and body of a `with` statement at a given line."""
+
     def __init__(
         self,
         line: int,
@@ -391,6 +397,8 @@ class ExtractWithBlock(ast.NodeTransformer):
 
 
 class ExtractSkippableWithBlock(ExtractWithBlock):
+    """ExtractWithBlock variant that raises if the block body starts with a try statement."""
+
     def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
         pre_block, with_block = super().generic_visit(node)
         # We should fail if the first node in with_block is a try.
@@ -410,12 +418,16 @@ class ExtractSkippableWithBlock(ExtractWithBlock):
 
 
 class CacheExtractWithBlock(ExtractSkippableWithBlock):
+    """Block extractor configured for cache contexts, allowing With and If nesting."""
+
     def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
         name = kwargs.pop("name", "cache")
         super().__init__(line, (ast.With, ast.If), *arg, name=name, **kwargs)
 
 
 class ContainedExtractWithBlock(ExtractWithBlock):
+    """Block extractor for app.setup contexts that permits nesting inside most block types."""
+
     def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
         name = kwargs.pop("name", "app.setup")
         super().__init__(
@@ -467,6 +479,8 @@ class DeprivateVisitor(ast.NodeTransformer):
 
 
 class RemoveReturns(ast.NodeTransformer):
+    """AST transformer that replaces return statements with expression or assignment nodes."""
+
     def __init__(self) -> None:
         self._has_name = False
 

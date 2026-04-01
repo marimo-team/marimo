@@ -16,21 +16,28 @@ LOGGER = _loggers.marimo_logger()
 
 
 class SnippetSection(msgspec.Struct, rename="camel"):
+    """A single section within a snippet, containing either rendered HTML or raw code."""
+
     id: str
     html: Optional[str] = None
     code: Optional[str] = None
 
 
 class Snippet(msgspec.Struct, rename="camel"):
+    """A named snippet made up of one or more sections."""
+
     title: str
     sections: list[SnippetSection]
 
 
 class Snippets(msgspec.Struct, rename="camel"):
+    """Collection of all available snippets."""
+
     snippets: list[Snippet]
 
 
 async def read_snippets(config: MarimoConfig) -> Snippets:
+    """Load all snippets from the configured paths, executing markdown cells to produce HTML."""
     snippets: list[Snippet] = []
 
     for file in read_snippet_filenames_from_config(config):
@@ -72,10 +79,12 @@ async def read_snippets(config: MarimoConfig) -> Snippets:
 
 
 def should_ignore_code(code: str) -> bool:
+    """Return True if the cell code should be excluded from snippet output (e.g. boilerplate imports)."""
     return code == "import marimo as mo"
 
 
 def get_title_from_code(code: str) -> str:
+    """Extract the first markdown heading from a cell's source code."""
     # We intentionally avoid AST parsing here to avoid the overhead
     if not code:
         return ""
@@ -99,12 +108,14 @@ def get_title_from_code(code: str) -> str:
 
 
 def is_markdown(code: str) -> bool:
+    """Return True if the cell code is a marimo markdown cell (starts with mo.md)."""
     return code.strip().startswith("mo.md")
 
 
 def read_snippet_filenames_from_config(
     config: MarimoConfig,
 ) -> Generator[str, Any, None]:
+    """Yield snippet file paths according to the marimo config (custom paths and default snippets)."""
     # Get custom snippets path from config if present
     custom_paths = config.get("snippets", {}).get("custom_paths", [])
     include_default_snippets = config.get("snippets", {}).get(
@@ -116,6 +127,7 @@ def read_snippet_filenames_from_config(
 def read_snippet_filenames(
     include_default_snippets: bool, custom_paths: list[str]
 ) -> Generator[str, Any, None]:
+    """Yield .py snippet file paths from the default and/or custom directories."""
     paths: list[Path] = []
     if include_default_snippets:
         paths.append(marimo_package_path() / "_snippets" / "data")

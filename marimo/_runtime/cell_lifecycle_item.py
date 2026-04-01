@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
 
 class CellLifecycleItem(abc.ABC):
+    """Abstract base for objects that hook into a cell's create/dispose lifecycle."""
+
     @abc.abstractmethod
     def create(self, context: RuntimeContext) -> None:
         """Create this item

@@ -20,6 +20,7 @@ LOGGER = _loggers.marimo_logger()
 def prompt_run_in_docker_container(
     name: str | None, trusted: Optional[bool] = None
 ) -> bool:
+    """Ask the user whether to run a remote notebook in a Docker container, returning their answer."""
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
@@ -72,6 +73,7 @@ def _check_docker_running() -> bool:
 
 
 def echo_red(text: str) -> None:
+    """Print text to the terminal formatted in red."""
     echo(red(text))
 
 
@@ -101,6 +103,7 @@ def run_in_docker(
     port: Optional[int],
     debug: bool = False,
 ) -> None:
+    """Launch a marimo notebook inside a Docker container and stream its logs."""
     echo(f"Starting {green('containerized')} marimo notebook")
 
     host = "0.0.0.0"

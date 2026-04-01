@@ -95,6 +95,8 @@ class VersionMap:
 
 
 class PypiPackageManager(CanonicalizingPackageManager):
+    """Base package manager for PyPI-compatible package sources."""
+
     def _construct_module_name_mapping(self) -> dict[str, str]:
         return module_name_to_pypi_name()
 
@@ -119,6 +121,8 @@ class PypiPackageManager(CanonicalizingPackageManager):
 
 
 class PipPackageManager(PypiPackageManager):
+    """Package manager implementation using pip."""
+
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
@@ -157,6 +161,7 @@ class PipPackageManager(PypiPackageManager):
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
+        """Return the pip install command for the given package."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return [
@@ -171,6 +176,7 @@ class PipPackageManager(PypiPackageManager):
     async def uninstall(
         self, package: str, group: Optional[str] = None
     ) -> bool:
+        """Uninstall a package using pip."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -187,6 +193,7 @@ class PipPackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        """List installed packages using pip list --format=json."""
         cmd = [
             self._python_exe,
             "-m",
@@ -198,15 +205,19 @@ class PipPackageManager(PypiPackageManager):
 
 
 class MicropipPackageManager(PypiPackageManager):
+    """Package manager implementation using micropip for Pyodide/WASM environments."""
+
     name = "micropip"
     docs_url = "https://micropip.pyodide.org/"
 
     def should_auto_install(self) -> bool:
+        """Return False to prevent automatic installation without user consent."""
         # We don't auto-install packages with micropip without the user's consent,
         # since it can install unwanted packages.
         return False
 
     def is_manager_installed(self) -> bool:
+        """Return True if running in a Pyodide environment."""
         return is_pyodide()
 
     async def _install(
@@ -245,6 +256,7 @@ class MicropipPackageManager(PypiPackageManager):
     async def uninstall(
         self, package: str, group: Optional[str] = None
     ) -> bool:
+        """Uninstall a package using micropip in a Pyodide environment."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         assert is_pyodide()
@@ -257,6 +269,7 @@ class MicropipPackageManager(PypiPackageManager):
             return False
 
     def list_packages(self) -> list[PackageDescription]:
+        """List installed packages using micropip in a Pyodide environment."""
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -268,10 +281,13 @@ class MicropipPackageManager(PypiPackageManager):
         return sorted(packages, key=lambda pkg: pkg.name)
 
     def check_available(self) -> bool:
+        """Return True if running in a Pyodide environment."""
         return is_pyodide()
 
 
 class UvPackageManager(PypiPackageManager):
+    """Package manager implementation using uv, with support for uv projects and inline script metadata."""
+
     name = "uv"
     docs_url = "https://docs.astral.sh/uv/"
 
@@ -294,11 +310,13 @@ class UvPackageManager(PypiPackageManager):
         )
 
     def is_manager_installed(self) -> bool:
+        """Return True if the uv binary is available."""
         return self._uv_bin != "uv" or super().is_manager_installed()
 
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
+        """Return the uv install command, adapting for uv project vs uv pip install mode."""
         install_cmd: list[str]
         if self.is_in_uv_project:
             install_cmd = [self._uv_bin, "add"]
@@ -622,6 +640,7 @@ class UvPackageManager(PypiPackageManager):
     async def uninstall(
         self, package: str, group: Optional[str] = None
     ) -> bool:
+        """Uninstall a package using uv remove or uv pip uninstall depending on the environment."""
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
@@ -638,6 +657,7 @@ class UvPackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        """List installed packages, preferring uv tree output and falling back to uv pip list."""
         # First try with `uv tree`
         tree = self.dependency_tree()
         if tree is not None:
@@ -717,12 +737,15 @@ class UvPackageManager(PypiPackageManager):
 
 
 class RyePackageManager(PypiPackageManager):
+    """Package manager implementation using rye."""
+
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
+        """Return the rye install command for the given package."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return [
@@ -734,6 +757,7 @@ class RyePackageManager(PypiPackageManager):
     async def uninstall(
         self, package: str, group: Optional[str] = None
     ) -> bool:
+        """Uninstall a package using rye remove."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
@@ -741,11 +765,14 @@ class RyePackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        """List installed packages using rye list --format=json."""
         cmd = ["rye", "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
 
 class PoetryPackageManager(PypiPackageManager):
+    """Package manager implementation using poetry."""
+
     name = "poetry"
     docs_url = "https://python-poetry.org/docs/"
 
@@ -762,6 +789,7 @@ class PoetryPackageManager(PypiPackageManager):
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
+        """Return the poetry install command for the given package."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return [
@@ -774,6 +802,7 @@ class PoetryPackageManager(PypiPackageManager):
     async def uninstall(
         self, package: str, group: Optional[str] = None
     ) -> bool:
+        """Uninstall a package using poetry remove."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
@@ -846,6 +875,7 @@ class PoetryPackageManager(PypiPackageManager):
         return ["poetry", "show"]
 
     def list_packages(self) -> list[PackageDescription]:
+        """List installed packages using poetry show."""
         version = self._get_poetry_version()
         cmd = self._generate_list_packages_cmd(version)
         return self._list_packages_from_cmd(cmd)

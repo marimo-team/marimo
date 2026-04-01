@@ -19,6 +19,7 @@ from marimo._config.reader import find_nearest_pyproject_toml
     cls=ColoredGroup, help="""Various commands for the marimo config."""
 )
 def config() -> None:
+    """Entry point for the ``marimo config`` command group."""
     pass
 
 

@@ -27,10 +27,12 @@ class ConfigReader:
 
     @staticmethod
     def for_filename(filename: str) -> ConfigReader:
+        """Create a ConfigReader for the given filename in the marimo state directory."""
         filepath = ROOT_DIR / filename
         return ConfigReader(filepath)
 
     def read_toml(self, cls: type[T], *, fallback: T) -> T:
+        """Read a TOML config file and parse it into an instance of cls; return fallback on error."""
         try:
             data = toml_reader.read(self.filepath)
             return parse_raw(data, cls, allow_unknown_keys=True)
@@ -38,6 +40,7 @@ class ConfigReader:
             return fallback
 
     def write_toml(self, data: Any) -> None:
+        """Serialize a dataclass to TOML and write it to the config file."""
         import tomlkit
 
         self.filepath.parent.mkdir(parents=True, exist_ok=True)

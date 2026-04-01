@@ -104,6 +104,7 @@ class AsyncQueueManager:
         self.input_queue = asyncio.Queue[str](maxsize=1)
 
     def close_queues(self) -> None:
+        """Send a stop command to the control queue to shut down the kernel."""
         # kernel thread cleans up read/write conn and IOloop handler on
         # exit; we don't join the thread because we don't want to block
         self.control_queue.put_nowait(commands.StopKernelCommand())
@@ -139,6 +140,7 @@ class PyodideSession:
             consumer(msg)
 
     async def start(self) -> None:
+        """Launch the Pyodide kernel and begin processing messages."""
         self.kernel_task = _launch_pyodide_kernel(
             control_queue=self._queue_manager.control_queue,
             set_ui_element_queue=self._queue_manager.set_ui_element_queue,
@@ -153,6 +155,7 @@ class PyodideSession:
         await self.kernel_task.start()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
+        """Enqueue a control command to be processed by the kernel."""
         self._queue_manager.control_queue.put_nowait(request)
         if isinstance(
             request,
@@ -163,9 +166,11 @@ class PyodideSession:
     def put_completion_request(
         self, request: commands.CodeCompletionCommand
     ) -> None:
+        """Enqueue a code completion request to be processed by the kernel."""
         self._queue_manager.completion_queue.put_nowait(request)
 
     def put_input(self, text: str) -> None:
+        """Send a text input to the kernel's input queue."""
         self._queue_manager.input_queue.put_nowait(text)
 
     def find_packages(self, code: str) -> list[str]:
@@ -249,6 +254,8 @@ def parse_command(request: str) -> commands.CommandMessage:
 
 
 class PyodideBridge:
+    """Bridge between the JavaScript frontend and the Pyodide kernel session."""
+
     def __init__(
         self,
         session: PyodideSession,
@@ -257,26 +264,32 @@ class PyodideBridge:
         self.file_system = OSFileSystem()
 
     def put_control_request(self, request: str) -> None:
+        """Parse and forward a JSON-encoded control command to the kernel."""
         parsed = parse_command(request)
         self.session.put_control_request(parsed)
 
     def put_input(self, text: str) -> None:
+        """Forward user input text to the kernel."""
         self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
+        """Parse and forward a JSON-encoded code completion request to the kernel."""
         parsed = self._parse(request, commands.CodeCompletionCommand)
         self.session.put_completion_request(parsed)
 
     def read_code(self) -> str:
+        """Read and return the notebook source code as a JSON-encoded response."""
         contents: str = self.session.app_manager.read_file()
         response = ReadCodeResponse(contents=contents)
         return self._dump(response)
 
     async def read_snippets(self) -> str:
+        """Load and return available code snippets as a JSON-encoded response."""
         snippets = await read_snippets(self.session._initial_user_config)
         return self._dump(snippets)
 
     async def format(self, request: str) -> str:
+        """Format cell code and return a JSON-encoded response."""
         parsed = self._parse(request, FormatCellsRequest)
         formatter = DefaultFormatter(line_length=parsed.line_length)
 
@@ -284,14 +297,17 @@ class PyodideBridge:
         return self._dump(response)
 
     def save(self, request: str) -> None:
+        """Save the notebook using the JSON-encoded save request."""
         parsed = self._parse(request, SaveNotebookRequest)
         self.session.app_manager.save(parsed)
 
     def save_app_config(self, request: str) -> None:
+        """Save application configuration from a JSON-encoded request."""
         parsed = self._parse(request, SaveAppConfigurationRequest)
         self.session.app_manager.save_app_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
+        """Update user configuration by sending a command to the kernel."""
         parsed = self._parse(request, SaveUserConfigurationRequest)
         config = merge_default_config(cast(PartialMarimoConfig, parsed.config))
         self.session.put_control_request(
@@ -299,12 +315,14 @@ class PyodideBridge:
         )
 
     def rename_file(self, filename: str) -> None:
+        """Rename the current notebook file to the given filename."""
         self.session.app_manager.rename(filename)
 
     def list_files(
         self,
         request: str,
     ) -> str:
+        """List files at the requested path and return a JSON-encoded response."""
         body = self._parse(request, FileListRequest)
         root = body.path or self.file_system.get_root()
         files = self.file_system.list_files(root)
@@ -315,6 +333,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
+        """Search for files matching the query and return a JSON-encoded response."""
         body = self._parse(request, FileSearchRequest)
         files = self.file_system.search(
             query=body.query,
@@ -333,6 +352,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
+        """Return details for a specific file as a JSON-encoded response."""
         body = self._parse(request, FileDetailsRequest)
         response = self.file_system.get_details(body.path)
         return self._dump(response)
@@ -341,6 +361,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
+        """Create a file or directory from the JSON-encoded request and return the result."""
         body = self._parse(request, FileCreateRequest)
         try:
             # If we need to eliminate the overhead associated with
@@ -363,6 +384,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
+        """Delete a file or directory and return a JSON-encoded result."""
         body = self._parse(request, FileDeleteRequest)
         success = self.file_system.delete_file_or_directory(body.path)
         response = FileDeleteResponse(success=success)
@@ -372,6 +394,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
+        """Move a file or directory and return a JSON-encoded result."""
         body = self._parse(request, FileMoveRequest)
         try:
             info = self.file_system.move_file_or_directory(
@@ -386,6 +409,7 @@ class PyodideBridge:
         self,
         request: str,
     ) -> str:
+        """Write new file contents from the JSON-encoded request and return the result."""
         body = self._parse(request, FileUpdateRequest)
         try:
             Path(body.path).write_text(body.contents, encoding="utf-8")
@@ -395,6 +419,7 @@ class PyodideBridge:
         return self._dump(response)
 
     def export_html(self, request: str) -> str:
+        """Export the notebook as an HTML string."""
         parsed = self._parse(request, ExportAsHTMLRequest)
         html, _filename = Exporter().export_as_html(
             app=self.session.app_manager.app,
@@ -406,6 +431,7 @@ class PyodideBridge:
         return json.dumps(html)
 
     def export_markdown(self, request: str) -> str:
+        """Export the notebook as a Markdown string."""
         del request
         md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
         return json.dumps(md)

@@ -40,6 +40,7 @@ background_tasks: set[asyncio.Task[Any]] = set()
 
 @contextlib.asynccontextmanager
 async def lsp(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan that starts the LSP server in the background during edit mode."""
     state = AppState.from_app(app)
     user_config = state.config_manager.get_config()
     session_mgr = state.session_manager
@@ -72,6 +73,7 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def tool_manager(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan that initializes the AI tool manager and attaches it to app state."""
     try:
         # Initialize and attach to app state
         setup_tool_manager(app)
@@ -84,6 +86,7 @@ async def tool_manager(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def mcp(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan that connects to configured MCP servers in the background during edit mode."""
     if TYPE_CHECKING:
         from marimo._server.ai.mcp import MCPClient
 
@@ -140,6 +143,7 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan that opens the app URL in a web browser shortly after startup."""
     state = AppState.from_app(app)
     if not state.headless:
         url = _startup_url(state)
@@ -155,6 +159,7 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def logging(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan that prints startup and shutdown messages to the console."""
     state = AppState.from_app(app)
     manager: SessionManager = state.session_manager
     quiet = state.quiet
@@ -192,6 +197,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def signal_handler(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan that registers a SIGINT handler to gracefully shut down the server."""
     state = AppState.from_app(app)
     manager = state.session_manager
 
@@ -253,6 +259,7 @@ async def server_registry(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def etc(app: Starlette) -> AsyncIterator[None]:
+    """Lifespan for miscellaneous initialization tasks (e.g. registering extra MIME types)."""
     del app
     # Mimetypes
     initialize_mimetypes()
@@ -284,6 +291,7 @@ def _pretty_host(host: str, port: int) -> str:
 
 
 def _startup_url(state: AppStateBase) -> str:
+    """Build the URL to display at startup, including the access token if auth is enabled."""
     host = state.host.strip(
         "[]"
     )  # normalize: remove brackets if user passed [addr]
@@ -313,6 +321,7 @@ def _startup_url(state: AppStateBase) -> str:
 
 
 def _mcp_startup_url(state: AppStateBase) -> str:
+    """Build the MCP server endpoint URL to display at startup."""
     host = state.host.strip(
         "[]"
     )  # normalize: remove brackets if user passed [addr]

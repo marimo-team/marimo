@@ -14,6 +14,8 @@ def _valid_path(path: Path) -> bool:
 
 
 class FileStore(Store):
+    """Persistent on-disk cache store that reads and writes files under a configurable directory."""
+
     def __init__(self, save_path: Optional[str] = None) -> None:
         # Defer default path resolution until first use so that the runtime
         # context (and __file__) is available.
@@ -24,6 +26,7 @@ class FileStore(Store):
 
     @property
     def save_path(self) -> Path:
+        """The directory path where cached files are stored."""
         if self._resolved_save_path is None:
             self._resolved_save_path = self._default_save_path()
         return self._resolved_save_path
@@ -38,6 +41,7 @@ class FileStore(Store):
         self.save_path.mkdir(parents=True, exist_ok=True)
 
     def get(self, key: str) -> Optional[bytes]:
+        """Return the bytes stored for key, or None if the file does not exist or is empty."""
         if not self._initialized:
             self._init_save_path()
         self._initialized = True
@@ -47,6 +51,7 @@ class FileStore(Store):
         return path.read_bytes()
 
     def put(self, key: str, value: bytes) -> bool:
+        """Write value to disk under key and return True."""
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)
         self._initialized = True
@@ -54,10 +59,12 @@ class FileStore(Store):
         return True
 
     def hit(self, key: str) -> bool:
+        """Return True if a non-empty file exists on disk for key."""
         path = self.save_path / key
         return _valid_path(path)
 
     def clear(self, key: str) -> bool:
+        """Delete the cached file for key; return True if it existed, False otherwise."""
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)
         if not _valid_path(path):

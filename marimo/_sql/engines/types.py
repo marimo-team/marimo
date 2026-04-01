@@ -29,6 +29,8 @@ NO_SCHEMA_NAME = ""
 
 @dataclass
 class InferenceConfig(ABC):
+    """Configuration controlling automatic schema/table/column discovery for an engine."""
+
     auto_discover_schemas: Union[bool, Literal["auto"]]
     auto_discover_tables: Union[bool, Literal["auto"]]
     auto_discover_columns: Union[bool, Literal["auto"]]
@@ -145,6 +147,7 @@ class QueryEngine(BaseEngine[CONN], ABC):
         pass
 
     def sql_output_format(self) -> SqlOutputType:
+        """Return the SQL output format configured in the current runtime context."""
         if runtime_context_installed():
             try:
                 ctx = get_context()

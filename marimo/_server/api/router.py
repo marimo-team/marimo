@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 # Define the app routes
 def build_routes(base_url: str = "") -> list[BaseRoute]:
+    """Build and return the full list of Starlette routes for the marimo API server."""
     app_router = APIRouter(prefix=base_url)
     app_router.include_router(
         execution_router, prefix="/api/kernel", name="execution"

@@ -227,6 +227,7 @@ async def _fetch_index_html_from_url(asset_url: str) -> str:
 @router.get("/")
 @requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
+    """Serve the main notebook or home page HTML."""
     app_state = AppState(request)
     index_html = root / "index.html"
 
@@ -507,6 +508,7 @@ async def serve_public_file(request: Request) -> Response:
 # Catch all for serving static files
 @router.get("/{path:path}")
 async def serve_static(request: Request) -> FileResponse:
+    """Serve known static files (favicon, manifest, icons) from the root."""
     path = str(request.path_params["path"])
     if any(re.match(pattern, path) for pattern in STATIC_FILES):
         return FileResponse(root / path)

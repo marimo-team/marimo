@@ -65,38 +65,49 @@ class ThreadLocalStreamProxy(io.TextIOBase):
 
     @property
     def name(self) -> str:
+        """Return the name of this stream proxy."""
         return self._name
 
     @property
     def encoding(self) -> str:  # type: ignore[override]
+        """Return the encoding of the active thread-local stream."""
         return getattr(self._get_stream(), "encoding", "utf-8")
 
     @property
     def errors(self) -> str | None:  # type: ignore[override]
+        """Return the error handling mode of the active thread-local stream."""
         return getattr(self._get_stream(), "errors", None)
 
     def write(self, data: str) -> int:
+        """Write data to the active thread-local stream."""
         return self._get_stream().write(data)
 
     def writelines(self, lines: Iterable[str]) -> None:  # type: ignore[override]
+        """Write each line to the active thread-local stream."""
         self._get_stream().writelines(lines)
 
     def flush(self) -> None:
+        """Flush the active thread-local stream."""
         self._get_stream().flush()
 
     def fileno(self) -> int:
+        """Return the file descriptor of the original stream."""
         return self._original.fileno()
 
     def isatty(self) -> bool:
+        """Return whether the original stream is a TTY."""
         return self._original.isatty()
 
     def readable(self) -> bool:
+        """Return False since this proxy is write-only."""
         return False
 
     def writable(self) -> bool:
+        """Return True since this proxy supports writing."""
         return True
 
     def seekable(self) -> bool:
+        """Return False since this proxy does not support seeking."""
         return False
 
 

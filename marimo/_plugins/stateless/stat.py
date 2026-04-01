@@ -64,6 +64,7 @@ def stat(
 
 
 def try_convert_to_html(slot: Any) -> Optional[Html]:
+    """Convert an object to an Html instance, returning None on failure or if slot is None."""
     if slot is None:
         return None
 

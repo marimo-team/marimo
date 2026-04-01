@@ -9,6 +9,7 @@ from marimo._utils.paths import normalize_path
 
 
 def create_cloudflare_files(title: str, out_dir: Path) -> None:
+    """Generate Cloudflare Pages deployment files (``index.js`` and ``wrangler.jsonc``) alongside the export directory."""
     echo("\n" + _utf8("☁️☁️☁️☁️☁️☁️") + "\n")
 
     parent_dir = out_dir.parent

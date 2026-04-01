@@ -29,6 +29,7 @@ class Lifespans(Generic[T]):
         self._lifespans = lifespans
 
     def has_lifespans(self) -> bool:
+        """Return True if at least one lifespan is registered."""
         return bool(self._lifespans)
 
     @contextlib.asynccontextmanager

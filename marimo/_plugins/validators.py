@@ -11,6 +11,7 @@ def validate_range(
     min_value: int | float | None,
     max_value: int | float | None,
 ) -> None:
+    """Raise ValueError if min_value or max_value are not numbers or if min > max."""
     if min_value is not None:
         validate_number(min_value)
     if max_value is not None:
@@ -28,6 +29,7 @@ def validate_between_range(
     min_value: int | float | None,
     max_value: int | float | None,
 ) -> None:
+    """Raise ValueError if value is outside [min_value, max_value]."""
     if value is None:
         return
 
@@ -41,11 +43,13 @@ def validate_between_range(
 def validate_number(
     value: Any,
 ) -> None:
+    """Raise TypeError if value is not an int or float."""
     if not isinstance(value, (int, float)):
         raise TypeError("Value must be a number")
 
 
 def warn_js_safe_number(*values: int | float | None) -> None:
+    """Warn if any value exceeds JavaScript's Number.MAX_SAFE_INTEGER."""
     # Number.MAX_SAFE_INTEGER in JavaScript
     MAX_SAFE_INTEGER = 9007199254740991
 
@@ -62,6 +66,7 @@ def warn_js_safe_number(*values: int | float | None) -> None:
 
 
 def validate_no_integer_columns(df: Any) -> None:
+    """Warn if a pandas DataFrame has integer column names, which are unsupported."""
     if not DependencyManager.pandas.imported():
         return
 
@@ -81,6 +86,7 @@ def validate_no_integer_columns(df: Any) -> None:
 
 # issue: https://github.com/marimo-team/marimo/issues/3407
 def validate_page_size(page_size: int) -> None:
+    """Raise ValueError if page_size exceeds the maximum allowed value of 200."""
     if page_size > 200:
         raise ValueError(
             "Page size limited to 200 rows. If you'd like this increased, please file an issue"
@@ -88,5 +94,6 @@ def validate_page_size(page_size: int) -> None:
 
 
 def validate_one_of(value: Any, options: list[Any]) -> None:
+    """Raise ValueError if value is not in the options list."""
     if value not in options:
         raise ValueError(f"Value must be one of {options}")

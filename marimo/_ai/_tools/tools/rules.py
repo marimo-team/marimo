@@ -20,6 +20,8 @@ MARIMO_RULES_PATH = marimo_package_path() / "_static" / "CLAUDE.md"
 
 @dataclass
 class GetMarimoRulesOutput(SuccessResult):
+    """Output returned by the GetMarimoRules tool, containing the rules content and its source URL."""
+
     rules_content: Optional[str] = None
     source_url: str = MARIMO_RULES_URL
 
@@ -41,6 +43,7 @@ class GetMarimoRules(ToolBase[EmptyArgs, GetMarimoRulesOutput]):
     )
 
     def handle(self, args: EmptyArgs) -> GetMarimoRulesOutput:
+        """Load marimo rules from the bundled file, falling back to a URL fetch."""
         del args
 
         # First, try to load from the bundled file

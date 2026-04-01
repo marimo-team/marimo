@@ -15,6 +15,8 @@ from marimo._utils.print import (
 
 
 class InterruptHandler:
+    """Handles SIGINT to prompt the user before shutting down the server."""
+
     def __init__(self, quiet: bool, shutdown: Callable[[], None]) -> None:
         self.quiet = quiet
         self.shutdown = shutdown
@@ -91,4 +93,5 @@ class InterruptHandler:
         self._add_interrupt_handler()
 
     def register(self) -> None:
+        """Register the interrupt handler with the event loop."""
         self._add_interrupt_handler()

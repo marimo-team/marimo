@@ -23,6 +23,7 @@ def _highlight_traceback(traceback: str) -> str:
 
 
 def write_traceback(traceback: str) -> None:
+    """Write a traceback to stderr, highlighting it for the UI when running in kernel mode."""
     if isinstance(sys.stderr, Stderr) and not is_code_mode_request():
         # Strip marimo's internal executor.py frame and highlight for the UI
         trimmed = _trim_traceback(traceback)
@@ -54,4 +55,5 @@ def _trim_traceback(traceback: str) -> str:
 
 
 def is_code_highlighting(value: str) -> bool:
+    """Return True if the string contains a syntax-highlighted code block."""
     return 'class="codehilite"' in value

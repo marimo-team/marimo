@@ -13,6 +13,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class HoloViewsFormatter(FormatterFactory):
+    """Registers formatters for HoloViews plot objects."""
+
     @staticmethod
     def package_name() -> str:
         return "holoviews"
@@ -51,6 +53,7 @@ class HoloViewsFormatter(FormatterFactory):
                 return ("text/html", html.text)
 
     def apply_theme(self, theme: Theme) -> None:
+        """Apply a marimo theme to HoloViews' bokeh and plotly renderers."""
         import holoviews as hv  # type: ignore
 
         # TODO: checking for has() imports the library, which is not ideal,

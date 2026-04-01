@@ -50,6 +50,7 @@ class StdioTransportConnector(MCPTransportConnector):
     async def connect(
         self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
     ) -> TransportConnectorResponse:
+        """Launch the server as a subprocess and return its stdio read/write streams."""
         # Import MCP SDK components for stdio transport
         from mcp import StdioServerParameters
         from mcp.client.stdio import stdio_client
@@ -83,6 +84,7 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
     async def connect(
         self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
     ) -> TransportConnectorResponse:
+        """Open a streamable HTTP connection to the server and return its read/write streams."""
         # Import MCP SDK components for streamable HTTP transport
         from mcp.client.streamable_http import streamablehttp_client
 

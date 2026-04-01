@@ -8,6 +8,7 @@ import click
 
 
 def base_url(ctx: Any, param: Any, value: Optional[str]) -> str:
+    """Validate and normalize a base URL click parameter (must start with / and not end with /)."""
     del ctx
     del param
     if value is None or value == "":
@@ -25,6 +26,7 @@ def base_url(ctx: Any, param: Any, value: Optional[str]) -> str:
 
 
 def is_file_path(ctx: Any, param: Any, value: Optional[str]) -> str:
+    """Validate that a click parameter value is a path to an existing file."""
     del ctx
     del param
     if not value:

@@ -34,7 +34,7 @@ class CancelledCells:
         self._all: set[CellId_t] = set()
 
     def add(self, raising_cell: CellId_t, descendants: set[CellId_t]) -> None:
-        """Record that raising_cell caused descendants to be cancelled."""
+        """Record that raising_cell caused the given descendant cells to be cancelled."""
         if raising_cell in self._by_raising_cell:
             self._by_raising_cell[raising_cell].update(descendants)
         else:
@@ -59,6 +59,8 @@ class CancelledCells:
 
 @dataclass(frozen=True)
 class PreparationHookContext:
+    """Context passed to hooks that run before the cell execution queue is built."""
+
     graph: DirectedGraph
     execution_mode: OnCellChangeType
     cells_to_run: Sequence[CellId_t]
@@ -66,12 +68,16 @@ class PreparationHookContext:
 
 @dataclass(frozen=True)
 class PreExecutionHookContext:
+    """Context passed to hooks that run immediately before each cell executes."""
+
     graph: DirectedGraph
     execution_mode: OnCellChangeType
 
 
 @dataclass(frozen=True)
 class PostExecutionHookContext:
+    """Context passed to hooks that run immediately after each cell finishes executing."""
+
     graph: DirectedGraph
     glbls: dict[str, Any]
     execution_context: ExecutionContextManager | None
@@ -87,6 +93,8 @@ class PostExecutionHookContext:
 
 @dataclass(frozen=True)
 class OnFinishHookContext:
+    """Context passed to hooks that run after all cells in a run batch have finished."""
+
     graph: DirectedGraph
     cells_to_run: Sequence[CellId_t]
     interrupted: bool

@@ -46,6 +46,7 @@ class _RunAccumulator(Generic[A, B]):
         self._result: list[A | B] = []
 
     def push(self, cmd: A | B) -> None:
+        """Add a command to the current run, flushing if the type changes."""
         cmd_type = (
             self._type_a if isinstance(cmd, self._type_a) else self._type_b
         )
@@ -68,6 +69,7 @@ class _RunAccumulator(Generic[A, B]):
         self._current_type = None
 
     def finish(self) -> list[A | B]:
+        """Flush the final run and return the merged result list."""
         self._flush()
         return self._result
 
@@ -153,6 +155,7 @@ def _merge_model_commands(
 def merge_batchable_commands(
     commands: list[BatchableCommand],
 ) -> list[BatchableCommand]:
+    """Merge contiguous runs of same-type batchable commands using last-write-wins semantics."""
     if not commands:
         return []
 
@@ -166,6 +169,8 @@ def merge_batchable_commands(
 
 
 class SetUIElementRequestManager:
+    """Manages batching and deduplication of UI element update and model commands."""
+
     def __init__(
         self,
         set_ui_element_queue: (

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 
 class NoIDProviderException(Exception):
+    """Raised when a UI element requires an IDProvider but none is available."""
     pass
 
 

@@ -11,6 +11,7 @@ from marimo._utils.url import is_url
 
 
 def load_external_file(file_path: str, ext: str) -> str:
+    """Load a notebook file from a local path, a URL, or a GitHub source URL."""
     notebook: str = ""
     if is_github_src(file_path, ext=ext):
         notebook = (

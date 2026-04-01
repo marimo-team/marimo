@@ -14,6 +14,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def initialize_signals() -> None:
+    """Install a no-op SIGINT handler for uvicorn >=0.29.0 to prevent re-thrown signals from causing ungraceful shutdowns."""
     from packaging import version
 
     # 0.29.0 changed how uvicorn handles signals
@@ -36,6 +37,7 @@ def initialize_signals() -> None:
 
 
 def close_uvicorn(server: uvicorn.Server) -> None:
+    """Gracefully shut down a running uvicorn server."""
     from packaging import version
 
     LOGGER.debug("Shutting down uvicorn")

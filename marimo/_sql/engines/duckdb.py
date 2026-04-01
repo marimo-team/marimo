@@ -41,6 +41,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     def _install_connection(
         self, connection: duckdb.DuckDBPyConnection
     ) -> Iterator[None]:
+        """Context manager that installs connection into the execution context if available."""
         try:
             ctx = get_context()
         except ContextNotInitializedError:
@@ -57,10 +58,12 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     @property
     def source(self) -> str:
+        """Return the engine source identifier."""
         return "duckdb"
 
     @property
     def dialect(self) -> str:
+        """Return the SQL dialect identifier."""
         return "duckdb"
 
     @staticmethod
@@ -75,6 +78,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         return duckdb.sql(query, params=params)
 
     def execute(self, query: str) -> Any:
+        """Execute a SQL query and return a DataFrame, relation, or None depending on the output format."""
         relation = wrapped_sql(query, self._connection)
 
         # Invalid / empty query
@@ -92,6 +96,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if var is a duckdb.DuckDBPyConnection."""
         if not DependencyManager.duckdb.imported():
             return False
 

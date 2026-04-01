@@ -653,6 +653,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @property
     def selections(self) -> ChartSelection:
+        """The raw selection dictionary from the Vega frontend."""
         return self._chart_selection
 
     @staticmethod
@@ -807,6 +808,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @property
     def value(self) -> ChartDataType:
+        """The chart data filtered by the current selection."""
         from altair import InlineData, InlineDataset, Undefined
 
         value = super().value

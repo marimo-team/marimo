@@ -10,8 +10,10 @@ def deprecated(reason: str) -> Callable[[Any], Any]:
     """A decorator that emits a deprecation warning."""
 
     def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        """Wrap a function to emit a deprecation warning on every call."""
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+            """Emit a deprecation warning then delegate to the original function."""
             # stacklevel=2 shows the line number in the call site
             warnings.warn(
                 message=reason,

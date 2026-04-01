@@ -14,6 +14,7 @@ FormatMapping = dict[str, Union[str, Callable[..., JSONType]]]
 def format_value(
     col: str, value: JSONType, format_mapping: FormatMapping
 ) -> JSONType:
+    """Apply the format mapping to a single cell value, returning the formatted result."""
     if format_mapping is None:
         return value
 
@@ -52,6 +53,7 @@ def format_value(
 def format_row(
     row: dict[str, JSONType], format_mapping: FormatMapping
 ) -> dict[str, JSONType]:
+    """Apply the format mapping to every cell in a row dict and return the formatted row."""
     # Return None if the format mapping is None
     if format_mapping is None:
         return row
@@ -65,6 +67,7 @@ def format_row(
 def format_column(
     col: str, values: list[JSONType], format_mapping: FormatMapping
 ) -> list[JSONType]:
+    """Apply the format mapping to every value in a column list and return the formatted list."""
     # Return None if the format mapping is None
     if format_mapping is None:
         return values

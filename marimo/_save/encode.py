@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 
 def type_sign(value: bytes, label: str) -> bytes:
+    """Append length and type label to bytes, disambiguating the value from other types."""
     # Appending all strings with a key disambiguates it from other types. e.g.
     # when the string value is the same as a float pack, or is the literal
     # ":none". If our content strings take the form: integrity + delimiter then
@@ -46,12 +47,14 @@ def type_sign(value: bytes, label: str) -> bytes:
 
 
 def iterable_sign(value: Iterable[Any], label: str) -> bytes:
+    """Concatenate encoded items and append length and type label, disambiguating container types."""
     values = list(value)
     length = struct.pack("!Q", len(values))
     return b"".join([b"".join(values), length, bytes(":" + label, "utf-8")])
 
 
 def standardize_tensor(tensor: Tensor) -> Tensor:
+    """Convert any array-like object (torch, jax, scipy sparse, etc.) to a NumPy array."""
     if (
         hasattr(tensor, "__array__")
         or hasattr(tensor, "toarray")
@@ -94,10 +97,12 @@ def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
 
 
 def data_to_buffer(data: Tensor) -> bytes:
+    """Return a type-signed byte representation of a tensor/array for hashing."""
     return type_sign(_contiguous_tensor_bytes(data), "data")
 
 
 def primitive_to_bytes(value: Any) -> bytes:
+    """Encode a primitive Python value (None, str, float, int, tuple, bytes) to type-signed bytes."""
     if value is None:
         return b":none"
     if isinstance(value, str):
@@ -112,6 +117,7 @@ def primitive_to_bytes(value: Any) -> bytes:
 
 
 def common_container_to_bytes(value: Any) -> bytes:
+    """Recursively encode dicts, lists, sets, tuples, primitives, and tensors to canonical bytes."""
     visited: dict[int, int] = {}
 
     def recurse_container(value: Any) -> bytes:
@@ -140,6 +146,7 @@ def common_container_to_bytes(value: Any) -> bytes:
 
 
 def attempt_signed_bytes(value: bytes, label: str) -> bytes:
+    """Attempt to type-sign a value via common_container_to_bytes, falling back to the raw value on failure."""
     # Prevents hash collisions like:
     # >>> fib(1)
     # >>> s, _ = state(1)

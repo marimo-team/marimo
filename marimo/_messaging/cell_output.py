@@ -30,6 +30,8 @@ class CellChannel(str, Enum):
 
 
 class CellOutput(msgspec.Struct):
+    """Represents a single output item from a cell, including its channel, mimetype, and data."""
+
     # descriptive name about the kind of output: e.g., stdout, stderr, ...
     channel: CellChannel
     mimetype: KnownMimeType
@@ -40,12 +42,14 @@ class CellOutput(msgspec.Struct):
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
 
     def asdict(self) -> dict[str, Any]:
+        """Serialize this CellOutput to a plain dictionary."""
         return asdict(self)
 
     @staticmethod
     def stdout(
         data: str, mimetype: ConsoleMimeType = "text/plain"
     ) -> CellOutput:
+        """Create a stdout CellOutput."""
         return CellOutput(
             channel=CellChannel.STDOUT,
             mimetype=mimetype,
@@ -56,6 +60,7 @@ class CellOutput(msgspec.Struct):
     def stderr(
         data: str, mimetype: ConsoleMimeType = "text/plain"
     ) -> CellOutput:
+        """Create a stderr CellOutput."""
         return CellOutput(
             channel=CellChannel.STDERR,
             mimetype=mimetype,
@@ -64,6 +69,7 @@ class CellOutput(msgspec.Struct):
 
     @staticmethod
     def stdin(data: str, password: bool = False) -> CellOutput:
+        """Create a stdin CellOutput, optionally using password mimetype."""
         return CellOutput(
             channel=CellChannel.STDIN,
             mimetype="text/password" if password else "text/plain",
@@ -72,6 +78,7 @@ class CellOutput(msgspec.Struct):
 
     @staticmethod
     def empty() -> CellOutput:
+        """Create an empty output CellOutput."""
         return CellOutput(
             channel=CellChannel.OUTPUT,
             mimetype="text/plain",
@@ -80,6 +87,7 @@ class CellOutput(msgspec.Struct):
 
     @staticmethod
     def errors(data: list[Error]) -> CellOutput:
+        """Create an error CellOutput from a list of Error objects."""
         return CellOutput(
             channel=CellChannel.MARIMO_ERROR,
             mimetype="application/vnd.marimo+error",

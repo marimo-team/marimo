@@ -17,6 +17,7 @@ def python_print_transforms(
     transforms: list[Transform],
     print_transform: Callable[[str, list[str], Transform], str],
 ) -> str:
+    """Render a sequence of transforms as a Python code string."""
     df_next_name = f"{df_name}_next"
     strs: list[str] = []
     for transform in transforms:
@@ -29,6 +30,7 @@ def python_print_transforms(
 def python_print_pandas(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
+    """Render a single transform as a pandas Python expression string."""
     def generate_where_clause(df_name: str, where: Condition) -> str:
         column_id, operator, value = (
             where.column_id,
@@ -285,6 +287,7 @@ def python_print_pandas(
 def python_print_polars(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
+    """Render a single transform as a Polars Python expression string."""
     def generate_where_clause_polars(where: Condition) -> str:
         column_id, operator, value = (
             where.column_id,
@@ -502,6 +505,7 @@ def python_print_polars(
 def python_print_ibis(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
+    """Render a single transform as an Ibis Python expression string."""
     def generate_where_clause(df_name: str, where: Condition) -> str:
         column_id, operator, value = (
             where.column_id,

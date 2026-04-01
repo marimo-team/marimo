@@ -25,6 +25,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
+    """Print an upgrade notice and release notes when a newer marimo version is available."""
     message = f"Update available {current_version} → {state.latest_version}"
     echo(orange(message))
     upgrade_commands = get_upgrade_commands("marimo")
@@ -49,6 +50,7 @@ def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
 def check_for_updates(
     on_update: Callable[[str, MarimoCLIState], None],
 ) -> None:
+    """Check PyPI/marimo.io for a newer version and call on_update if one is found."""
     try:
         _check_for_updates_internal(on_update)
     except Exception as e:

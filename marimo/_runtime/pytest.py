@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class MarimoPytestResult:
+    """Aggregated results from running pytest inside a marimo notebook."""
+
     passed: int = 0
     failed: int = 0
     errors: int = 0
@@ -36,6 +38,7 @@ class MarimoPytestResult:
 
     @property
     def total(self) -> int:
+        """Return the total number of tests run."""
         return (
             self.passed
             + self.failed
@@ -47,6 +50,7 @@ class MarimoPytestResult:
 
     @property
     def summary(self) -> str:
+        """Return a one-line human-readable summary of the test results."""
         parts = [
             f"Total: {self.total}",
             f"Passed: {self.passed}",
@@ -148,8 +152,7 @@ def _sub_function(
 
 
 class ReplaceStubPlugin:
-    """Allows pytest to run in the runtime, by replacing the statically
-    collected stubs with the runtime relevant implementations."""
+    """A pytest plugin that replaces statically collected test stubs with live cell implementations at runtime."""
 
     def __init__(
         self,
@@ -332,6 +335,7 @@ def run_pytest(
     lcls: dict[str, Any] | None = None,
     notebook_path: Path | str | None = None,
 ) -> MarimoPytestResult:
+    """Run pytest against the current notebook and return aggregated results."""
     # Note, there does seem to be a bit of a race condition if the file hasn't
     # saved yet...
     # But I think this may only be noticeable with rapidly adding, renaming, and

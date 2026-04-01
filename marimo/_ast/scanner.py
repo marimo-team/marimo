@@ -23,6 +23,8 @@ CELL_TYPES = frozenset({"cell", "function", "class_definition"})
 
 @dataclass
 class ScannedCell:
+    """A cell boundary scanned from notebook source, before full AST parsing."""
+
     kind: str  # "cell", "function", "class_definition", "setup", "unparsable"
     name: str | None  # function/class name from def/class line
     source: str  # full raw source (decorator + def + body)
@@ -32,6 +34,8 @@ class ScannedCell:
 
 @dataclass
 class ScanResult:
+    """Result of scanning a notebook source for cell boundaries."""
+
     preamble: str  # everything before first cell boundary
     cells: list[ScannedCell]  # scanned cells in file order
     run_guard_line: int | None  # line number of `if __name__` guard
@@ -82,6 +86,7 @@ class _BoundaryDetector:
         self._paren_depth = 0
 
     def feed(self, tok: tokenize_mod.TokenInfo) -> None:
+        """Advance the state machine with the next token."""
         ttype = tok.type
         tstr = tok.string
         row, col = tok.start

@@ -9,6 +9,8 @@ from marimo._types.ids import CellId_t
 
 
 class UnmagledLocal(NamedTuple):
+    """The result of unmangling a cell-local variable name."""
+
     name: str
     cell: CellId_t
 
@@ -35,6 +37,7 @@ BUILTINS = set(
 
 
 def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
+    """Mangle a cell-local variable name with the cell ID; return ref unchanged if not local."""
     if is_local(ref):
         if is_mangled_local(ref):
             return ref
@@ -45,6 +48,7 @@ def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
 def unmangle_local(
     name: str, cell_id: CellId_t = _EMPTY_CELL_ID
 ) -> UnmagledLocal:
+    """Reverse the mangling of a cell-local name, returning the original name and its owning cell ID."""
     if not is_mangled_local(name, cell_id):
         return UnmagledLocal(name, CellId_t(""))
     private_prefix = r"^_cell_\w+?_"
@@ -56,15 +60,18 @@ def unmangle_local(
 
 
 def is_mangled_local(name: str, cell_id: CellId_t = _EMPTY_CELL_ID) -> bool:
+    """Return True if name is a mangled cell-local variable for the given cell."""
     return name.startswith(f"_cell_{cell_id}")
 
 
 def is_local(name: str) -> bool:
+    """Return True if name is a cell-local variable (single leading underscore or exactly __)."""
     return name == "__" or (name.startswith("_") and not name.startswith("__"))
 
 
 def get_cell_from_local(
     name: str, cell_id: CellId_t = _EMPTY_CELL_ID
 ) -> Optional[CellId_t]:
+    """Return the cell ID embedded in a cell-local variable name, or None."""
     local = unmangle_local(if_local_then_mangle(name, cell_id)).cell
     return local if local else None

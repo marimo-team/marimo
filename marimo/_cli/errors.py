@@ -13,6 +13,7 @@ class MarimoCLIError(click.ClickException):
     """Base class for marimo CLI errors."""
 
     def show(self, file: Any = None) -> None:
+        """Print the error message in red to stderr (or the given file)."""
         if file is None:
             file = click.get_text_stream("stderr")
 

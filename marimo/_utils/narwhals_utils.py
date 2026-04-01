@@ -165,9 +165,7 @@ def is_narwhals_string_type(
 
 
 def unwrap_narwhals_dataframe(df: Any) -> Any:
-    """
-    Unwrap a narwhals dataframe.
-    """
+    """Return the native backend dataframe from a narwhals DataFrame or LazyFrame."""
     if is_narwhals_dataframe(df):
         return df.to_native()  # type: ignore[return-value]
     if is_narwhals_lazyframe(df):
@@ -176,10 +174,7 @@ def unwrap_narwhals_dataframe(df: Any) -> Any:
 
 
 def unwrap_py_scalar(value: Any) -> Any:
-    """
-    Convert a narwhals value to a python scalar if possible, otherwise return
-    the value as is.
-    """
+    """Convert a narwhals value to a Python scalar if possible, otherwise return the value as-is."""
     try:
         return nw.to_py_scalar(value)
     except ValueError:
@@ -187,9 +182,7 @@ def unwrap_py_scalar(value: Any) -> Any:
 
 
 def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
-    """
-    Check if the given object is a narwhals lazyframe.
-    """
+    """Return True if the object can be converted to a narwhals LazyFrame."""
     try:
         nw_df = nw.from_native(df, pass_through=False, eager_only=False)
         return is_narwhals_lazyframe(nw_df)

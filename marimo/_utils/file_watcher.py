@@ -19,8 +19,11 @@ Callback = Callable[[Path], Coroutine[None, None, None]]
 
 
 class FileWatcher(ABC):
+    """Abstract file watcher that invokes a callback when the watched file changes."""
+
     @staticmethod
     def create(path: Path, callback: Callback) -> FileWatcher:
+        """Create the best available watcher for path (watchdog if installed, else polling)."""
         if DependencyManager.watchdog.has():
             LOGGER.debug("Using watchdog file watcher")
             return _create_watchdog(path, callback, asyncio.get_event_loop())
@@ -39,19 +42,22 @@ class FileWatcher(ABC):
         self.callback = callback
 
     async def on_file_changed(self) -> None:
+        """Log the file change and invoke the registered callback."""
         LOGGER.debug(f"File at {self.path} was modified.")
         await self.callback(self.path)
 
     @abstractmethod
     def start(self) -> None:
-        pass
+        """Start watching the file for changes."""
 
     @abstractmethod
     def stop(self) -> None:
-        pass
+        """Stop watching the file."""
 
 
 class PollingFileWatcher(FileWatcher):
+    """File watcher that detects changes by polling the file's mtime every second."""
+
     POLL_SECONDS = 1.0  # Poll every 1s
 
     def __init__(
@@ -66,10 +72,12 @@ class PollingFileWatcher(FileWatcher):
         self.last_modified: Optional[float] = self._get_modified()
 
     def start(self) -> None:
+        """Start the polling loop as an asyncio task."""
         self._running = True
         self.loop.create_task(self._poll())
 
     def stop(self) -> None:
+        """Stop the polling loop on the next iteration."""
         self._running = False
 
     def _get_modified(self) -> Optional[float]:

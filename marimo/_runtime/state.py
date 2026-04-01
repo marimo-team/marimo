@@ -37,6 +37,8 @@ def contextualize_name(key: str, context: Optional[str]) -> str:
 
 
 class StateRegistry:
+    """Registry mapping variable names to reactive State instances for the current context."""
+
     def __init__(self) -> None:
         # variable name -> state
         # State registry is pruned based on the variable definitions in scope.
@@ -52,6 +54,7 @@ class StateRegistry:
         name: Optional[str] = None,
         context: Optional[str] = None,
     ) -> None:
+        """Register a State instance under an optional variable name and context qualifier."""
         if name is None:
             name = str(uuid4())
         name = contextualize_name(name, context)
@@ -95,6 +98,7 @@ class StateRegistry:
         state: Optional[State[T]] = None,
         context: Optional[str] = None,
     ) -> None:
+        """Remove a State by name (and optional context) from the registry."""
         name = contextualize_name(name, context)
         saved_state = self._states.pop(name, None)
         state_id = id(state)
@@ -129,12 +133,14 @@ class StateRegistry:
     def lookup(
         self, name: str, context: Optional[str] = None
     ) -> Optional[State[T]]:
+        """Return the State registered under the given name and context, or None if absent."""
         name = contextualize_name(name, context)
         if name in self._states:
             return self._states[name].ref()
         return None
 
     def bound_names(self, state: State[T]) -> set[str]:
+        """Return all variable names currently bound to the given State instance."""
         if id(state) in self._inv_states:
             return self._inv_states[id(state)]
         return set()

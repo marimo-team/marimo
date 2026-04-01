@@ -9,6 +9,8 @@ from marimo._utils.config.config import ConfigReader
 
 @dataclass
 class MarimoCLIState:
+    """Persistent CLI state stored between marimo invocations."""
+
     latest_version: Optional[str] = None
     last_checked_at: Optional[str] = None
     accepted_text_to_notebook_terms_at: Optional[str] = None
@@ -19,6 +21,7 @@ FILE_NAME = "state.toml"
 
 
 def get_cli_state() -> MarimoCLIState:
+    """Read the CLI state from disk, returning defaults if no state file exists."""
     config_reader = ConfigReader.for_filename(FILE_NAME)
     # Load the state file or create a default state if it doesn't exist
     state = config_reader.read_toml(MarimoCLIState, fallback=MarimoCLIState())
@@ -26,5 +29,6 @@ def get_cli_state() -> MarimoCLIState:
 
 
 def write_cli_state(state: MarimoCLIState) -> None:
+    """Persist the CLI state to disk."""
     config_reader = ConfigReader.for_filename(FILE_NAME)
     config_reader.write_toml(state)

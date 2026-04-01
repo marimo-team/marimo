@@ -7,6 +7,7 @@ from typing import Any
 
 
 def to_camel_case(snake_str: str) -> str:
+    """Convert a snake_case string to camelCase."""
     if snake_str == "":
         return ""
 
@@ -18,6 +19,7 @@ def to_camel_case(snake_str: str) -> str:
 
 
 def to_snake_case(string: str) -> str:
+    """Convert a CamelCase or kebab-case string to snake_case."""
     if string == "":
         return ""
 
@@ -27,6 +29,7 @@ def to_snake_case(string: str) -> str:
 
 
 def deep_to_camel_case(snake_dict: Any) -> dict[str, Any]:
+    """Recursively convert all keys in a nested dict from snake_case to camelCase."""
     if isinstance(snake_dict, list):
         return [deep_to_camel_case(item) for item in snake_dict]  # type: ignore  # noqa: E501
     if isinstance(snake_dict, str):

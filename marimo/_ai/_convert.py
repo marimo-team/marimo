@@ -59,6 +59,7 @@ def get_openai_messages_from_parts(
     role: Literal["system", "user", "assistant"],
     parts: list[ChatPart],
 ) -> list[dict[str, Any]]:
+    """Convert a list of ChatPart objects into OpenAI message dicts for a given role."""
     messages: list[dict[str, Any]] = []
     for part in parts:
         if isinstance(part, TextPart):
@@ -96,6 +97,7 @@ def get_openai_messages_from_parts(
 def convert_to_openai_messages(
     messages: list[ChatMessage],
 ) -> list[ChatCompletionMessageParam]:
+    """Convert a list of marimo ChatMessages to the OpenAI chat completions message format."""
     openai_messages: list[ChatCompletionMessageParam] = []
 
     for message in messages:
@@ -194,6 +196,7 @@ AnthropicParts = Union[
 def convert_to_anthropic_messages(
     messages: list[ChatMessage],
 ) -> list[MessageParam]:
+    """Convert a list of marimo ChatMessages to the Anthropic messages format."""
     anthropic_messages: list[MessageParam] = []
 
     for message in messages:
@@ -323,6 +326,7 @@ def convert_to_anthropic_messages(
 def convert_to_groq_messages(
     messages: list[ChatMessage],
 ) -> list[dict[Any, Any]]:
+    """Convert a list of marimo ChatMessages to the Groq messages format (text only)."""
     groq_messages: list[dict[Any, Any]] = []
 
     for message in messages:
@@ -362,6 +366,7 @@ def get_google_messages_from_parts(
     role: Literal["system", "user", "assistant"],
     parts: list[ChatPart],
 ) -> list[ContentDict]:
+    """Convert a list of ChatPart objects into Google GenAI ContentDict messages for a given role."""
     messages: list[ContentDict] = []
 
     for part in parts:
@@ -429,6 +434,7 @@ def get_google_messages_from_parts(
 def convert_to_google_messages(
     messages: list[ChatMessage],
 ) -> list[ContentUnionDict]:
+    """Convert a list of marimo ChatMessages to the Google GenAI messages format."""
     google_messages: list[ContentUnionDict] = []
 
     for message in messages:
@@ -454,6 +460,7 @@ def convert_to_google_messages(
 
 
 def extract_text(url: str) -> str:
+    """Decode base64-encoded text from a data URL, or return the URL as-is."""
     if url.startswith("data:"):
         # extract base64 encoding from url
         data = url.split(",")[1]

@@ -17,6 +17,7 @@ class JsonLoader(BasePersistenceLoader):
         super().__init__(name, "json", **kwargs)
 
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
+        """Deserialize a Cache object from a JSON blob."""
         del key
         cache = json.loads(blob)
         # Handle unserializable stateful_refs
@@ -30,6 +31,7 @@ class JsonLoader(BasePersistenceLoader):
             ) from e
 
     def to_blob(self, cache: Cache) -> bytes:
+        """Serialize a Cache object to an indented JSON blob."""
         dump = dataclasses.asdict(cache)
         dump["stateful_refs"] = list(dump["stateful_refs"])
         return json.dumps(dump, indent=4).encode("utf-8")

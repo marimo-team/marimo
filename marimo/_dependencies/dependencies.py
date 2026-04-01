@@ -13,6 +13,8 @@ from marimo._dependencies.errors import ManyModulesNotFoundError
 
 @dataclass
 class Dependency:
+    """Represents an optional Python package with optional version constraints."""
+
     pkg: str
     min_version: str | None = None
     max_version: str | None = None
@@ -43,6 +45,7 @@ class Dependency:
         max_version: str | None = None,
         quiet: bool = False,
     ) -> bool:
+        """Return True if the package is installed and satisfies the given version bounds."""
         if not self.has(quiet=quiet):
             return False
         return _version_check(
@@ -54,6 +57,7 @@ class Dependency:
         )
 
     def has_required_version(self, quiet: bool = False) -> bool:
+        """Return True if the package is installed and meets its declared version constraints."""
         return self.has_at_version(
             min_version=self.min_version,
             max_version=self.max_version,
@@ -61,6 +65,7 @@ class Dependency:
         )
 
     def imported(self) -> bool:
+        """Return True if the package has already been imported into sys.modules."""
         return self.pkg in sys.modules
 
     def require(self, why: str) -> None:
@@ -106,6 +111,7 @@ class Dependency:
         min_version: str | None,
         max_version: str | None = None,
     ) -> None:
+        """Raise if the package is missing or does not satisfy the given version bounds."""
         self.require(why)
 
         _version_check(
@@ -117,6 +123,7 @@ class Dependency:
         )
 
     def get_version(self) -> str | None:
+        """Return the installed version string of the package, or None if unavailable."""
         try:
             return importlib.metadata.version(self.pkg)
         except importlib.metadata.PackageNotFoundError:
@@ -130,6 +137,7 @@ class Dependency:
         min_version: str | None = None,
         max_version: str | None = None,
     ) -> bool:
+        """Log a warning to stderr and return False if the installed version is outside the given range."""
         return _version_check(
             pkg=self.pkg,
             v=self.get_version(),
@@ -143,6 +151,7 @@ class Dependency:
         min_version: str | None = None,
         max_version: str | None = None,
     ) -> None:
+        """Raise a RuntimeError if the installed version is outside the given range."""
         _version_check(
             pkg=self.pkg,
             v=self.get_version(),

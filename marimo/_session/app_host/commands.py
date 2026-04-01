@@ -60,15 +60,18 @@ _resp_decoder = msgspec.json.Decoder(MgmtResponse)
 
 
 def encode_mgmt_command(cmd: MgmtCommand) -> bytes:
+    """Serialize a management command to JSON bytes."""
     return msgspec.json.encode(cmd)
 
 
 def decode_mgmt_command(data: bytes) -> MgmtCommand:
+    """Deserialize a management command from JSON bytes."""
     result: MgmtCommand = _cmd_decoder.decode(data)
     return result
 
 
 def encode_mgmt_response(resp: MgmtResponse) -> bytes:
+    """Serialize a management response to JSON bytes."""
     return msgspec.json.encode(resp)
 
 
@@ -94,10 +97,12 @@ class AppHostArgs(msgspec.Struct):
     log_level: int
 
     def encode_json(self) -> bytes:
+        """Serialize these args to JSON bytes for IPC with the app host process."""
         return msgspec.json.encode(self)
 
     @classmethod
     def decode_json(cls, buf: bytes) -> AppHostArgs:
+        """Deserialize AppHostArgs from JSON bytes."""
         return msgspec.json.decode(buf, type=cls)
 
 

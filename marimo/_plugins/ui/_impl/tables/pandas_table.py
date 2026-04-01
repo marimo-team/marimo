@@ -83,13 +83,17 @@ def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
 
 
 class PandasTableManagerFactory(TableManagerFactory):
+    """Factory that creates a TableManager implementation for pandas DataFrames."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this factory handles."""
         return "pandas"
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
+        """Return the PandasTableManager class (created once and cached)."""
         import pandas as pd
 
         class PandasTableManager(NarwhalsTableManager[pd.DataFrame, Any]):
@@ -104,6 +108,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             @cached_property
             def schema(self) -> pd.Series[Any]:
+                """Return the dtypes series for the underlying pandas DataFrame."""
                 return self._original_data.dtypes  # type: ignore
 
             # We override narwhals's to_csv_str to handle pandas
@@ -113,6 +118,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 format_mapping: Optional[FormatMapping] = None,
                 separator: str | None = None,
             ) -> str:
+                """Serialize the DataFrame to a CSV string, including row headers."""
                 has_headers = len(self.get_row_headers()) > 0
                 resolved_separator = (
                     separator if separator is not None else ","
@@ -129,6 +135,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
+                """Serialize the DataFrame to a JSON string, handling complex dtypes and multi-indexes."""
                 def to_json(
                     result: pd.DataFrame,
                 ) -> list[dict[str, Any]] | str:
@@ -237,6 +244,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return pd.api.types.infer_dtype(self._original_data[column])
 
             def to_arrow_ipc(self) -> bytes:
+                """Serialize the DataFrame to Arrow IPC (Feather) bytes."""
                 out = io.BytesIO()
                 try:
                     self._original_data.to_feather(
@@ -261,6 +269,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]
             ) -> PandasTableManager:
+                """Return a new PandasTableManager with the format_mapping applied to each column."""
                 if not format_mapping:
                     return self
 
@@ -329,6 +338,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             # We override the default implementation to use pandas
             # headers
             def get_row_headers(self) -> FieldTypes:
+                """Return row header field types based on the DataFrame's index."""
                 return self._get_row_headers_for_index(
                     self._original_data.index
                 )
@@ -339,6 +349,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return not _trivial_range_index(index)
 
             def search(self, query: str) -> PandasTableManager:
+                """Filter the DataFrame to rows matching query, including index columns in search."""
                 # If there's a non-trivial index, include it in the search
                 # by resetting the index first
                 if self._has_non_trivial_index():
@@ -371,6 +382,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def is_type(value: Any) -> bool:
+                """Return True if value is a pandas DataFrame."""
                 return isinstance(value, pd.DataFrame)
 
             def _get_row_headers_for_index(
@@ -400,6 +412,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_field_type(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
+                """Return the FieldType and external dtype string for a column."""
                 dtype = self.schema[column_name]
                 return self._map_dtype_to_field_type(dtype)
 
@@ -447,6 +460,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
+                """Return a list of unique values in the given column."""
                 return self._original_data[column].unique().tolist()  # type: ignore[return-value,no-any-return]
 
         return PandasTableManager

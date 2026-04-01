@@ -31,6 +31,8 @@ class Stream(abc.ABC):
 
 
 class NoopStream(Stream):
+    """Stream implementation that silently discards all messages."""
+
     def write(self, data: KernelMessage) -> None:
         pass
 
@@ -59,6 +61,8 @@ def _ensure_plain_str(s: str) -> str:
 
 # These streams are not stoppable by users (we don't implement stop).
 class Stdout(io.TextIOBase):
+    """TextIOBase implementation that writes to the marimo cell's stdout channel."""
+
     name = "stdout"
 
     @abc.abstractmethod
@@ -78,6 +82,8 @@ class Stdout(io.TextIOBase):
 
 
 class Stderr(io.TextIOBase):
+    """TextIOBase implementation that writes to the marimo cell's stderr channel."""
+
     name = "stderr"
 
     @abc.abstractmethod
@@ -97,6 +103,8 @@ class Stderr(io.TextIOBase):
 
 
 class Stdin(io.TextIOBase):
+    """TextIOBase implementation representing the marimo cell's stdin channel."""
+
     name = "stdin"
 
     def _stop(self) -> None:

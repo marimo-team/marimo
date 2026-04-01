@@ -9,23 +9,31 @@ from marimo._server.ai.tools.types import ToolDefinition
 
 
 class SchemaColumn(msgspec.Struct, rename="camel"):
+    """A single column in a database schema table, including sample values."""
+
     name: str
     type: str
     sample_values: list[Any]
 
 
 class SchemaTable(msgspec.Struct, rename="camel"):
+    """A database table schema, including all of its columns."""
+
     name: str
     columns: list[SchemaColumn]
 
 
 class VariableContext(msgspec.Struct, rename="camel"):
+    """Context about a notebook variable, including its type and a preview of its value."""
+
     name: str
     value_type: str
     preview_value: Any
 
 
 class AiCompletionContext(msgspec.Struct, rename="camel"):
+    """Contextual information provided to the AI for code completion."""
+
     schema: list[SchemaTable] = msgspec.field(default_factory=list)
     variables: list[Union[VariableContext, str]] = msgspec.field(
         default_factory=list
@@ -55,6 +63,8 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
 
 
 class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
+    """Request for inline AI code completion given the text before and after the cursor."""
+
     prefix: str
     suffix: str
     language: Language = "python"

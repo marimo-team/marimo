@@ -18,6 +18,8 @@ from marimo._types.ids import CellId_t, SessionId
 
 @dataclass
 class GetCellDependencyGraphArgs:
+    """Arguments for the GetCellDependencyGraph tool."""
+
     session_id: SessionId
     cell_id: CellId_t | None = None
     depth: int | None = None
@@ -25,6 +27,8 @@ class GetCellDependencyGraphArgs:
 
 @dataclass
 class VariableInfo:
+    """Basic information about a variable defined in a cell."""
+
     name: str
     kind: str
     datatype: str | None = None
@@ -32,6 +36,8 @@ class VariableInfo:
 
 @dataclass
 class CellDependencyInfo:
+    """Dependency information for a single cell, including its defs, refs, and graph relationships."""
+
     cell_id: str
     cell_name: str
     defs: list[VariableInfo]
@@ -42,12 +48,16 @@ class CellDependencyInfo:
 
 @dataclass
 class CycleInfo:
+    """Information about a dependency cycle in the notebook graph."""
+
     cell_ids: list[str]
     edges: list[list[str]]
 
 
 @dataclass
 class GetCellDependencyGraphOutput(SuccessResult):
+    """Output of the GetCellDependencyGraph tool containing cells, owners, and issues."""
+
     cells: list[CellDependencyInfo] = field(default_factory=list)
     variable_owners: dict[str, list[str]] = field(default_factory=dict)
     multiply_defined: list[str] = field(default_factory=list)
@@ -97,6 +107,7 @@ class GetCellDependencyGraph(
     def handle(
         self, args: GetCellDependencyGraphArgs
     ) -> GetCellDependencyGraphOutput:
+        """Build and return the cell dependency graph for the given session."""
         session = self.context.get_session(args.session_id)
         variable_values = session.session_view.variable_values
         app = session.app_file_manager.app

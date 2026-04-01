@@ -48,6 +48,7 @@ DepFeatures = Literal["lsp", "recommended"]
 
 
 def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
+    """Prompt the user to run in a sandbox if the notebook has inlined dependencies; return True if they agree."""
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         return False
 
@@ -215,6 +216,7 @@ def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
 
 
 def get_marimo_dir() -> Path:
+    """Return the root directory of the marimo package."""
     return Path(__file__).parent.parent.parent
 
 
@@ -224,6 +226,7 @@ def construct_uv_flags(
     additional_features: list[DepFeatures],
     additional_deps: list[str],
 ) -> list[str]:
+    """Build the uv flag list for running a notebook in an isolated sandbox environment."""
     # NB. Used in quarto plugin
 
     # If name if a filepath, parse the dependencies from the file
@@ -293,6 +296,7 @@ def construct_uv_command(
     additional_features: list[DepFeatures],
     additional_deps: list[str],
 ) -> list[str]:
+    """Construct the full `uv run` command that re-invokes marimo inside a sandboxed environment."""
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")

@@ -141,6 +141,7 @@ async def login_submit(request: Request) -> Response:
 
 @router.get("/login", name="login_page")
 async def login_page(request: Request) -> HTMLResponse:
+    """Serve the HTML login page for password-based authentication."""
     base_url = AppState(request).base_url
     base_url = _with_trailing_slash(base_url)
     return HTMLResponse(

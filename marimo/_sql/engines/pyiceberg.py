@@ -37,14 +37,17 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
     @property
     def source(self) -> str:
+        """Return the source identifier string for this engine."""
         return "iceberg"
 
     @property
     def dialect(self) -> str:
+        """Return the SQL dialect identifier for this engine."""
         return "iceberg"
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if var is a PyIceberg Catalog instance."""
         if not DependencyManager.pyiceberg.imported():
             return False
 
@@ -54,6 +57,7 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Return the schema/table auto-discovery configuration for this engine."""
         return InferenceConfig(
             auto_discover_schemas=True,
             auto_discover_tables="auto",
@@ -61,10 +65,12 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
         )
 
     def get_default_database(self) -> Optional[str]:
+        """Return None; Iceberg does not use a traditional default database."""
         return None
 
     def get_default_schema(self) -> Optional[str]:
-        return None  # Iceberg doesn't have schemas in the traditional sense
+        """Return None; Iceberg does not have schemas in the traditional sense."""
+        return None
 
     # TODO: The following methods are currently not implemented.
     # We should consider implementing these in the future for better performance when users don't want to fetch everything.

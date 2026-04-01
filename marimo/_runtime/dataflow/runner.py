@@ -77,6 +77,7 @@ class Runner:
                 )
 
     def is_coroutine(self, cell_id: CellId_t) -> bool:
+        """Return True if the cell or any of its unsubstituted ancestors are async."""
         return self._graph.cells[cell_id].is_coroutine() or any(
             self._graph.cells[cid].is_coroutine()
             for cid in self._get_ancestors(

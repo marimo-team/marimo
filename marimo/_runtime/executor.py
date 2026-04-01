@@ -75,6 +75,8 @@ def _raise_name_error(
 
 
 class Executor(ABC):
+    """Abstract cell executor that can be composed via the decorator pattern."""
+
     def __init__(self, base: Optional[Executor] = None) -> None:
         self.base = base
 
@@ -85,7 +87,7 @@ class Executor(ABC):
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
-        pass
+        """Execute a cell synchronously and return its last expression value."""
 
     @abstractmethod
     async def execute_cell_async(
@@ -94,10 +96,12 @@ class Executor(ABC):
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
-        pass
+        """Execute a cell asynchronously and return its last expression value."""
 
 
 class DefaultExecutor(Executor):
+    """Executor that runs cell code directly in the provided globals dict."""
+
     async def execute_cell_async(
         self,
         cell: CellImpl,
@@ -144,6 +148,8 @@ class DefaultExecutor(Executor):
 
 
 class StrictExecutor(Executor):
+    """Executor that isolates cell inputs via deep-copy before delegating to the base executor."""
+
     async def execute_cell_async(
         self,
         cell: CellImpl,
@@ -194,6 +200,7 @@ class StrictExecutor(Executor):
         refs: set[str],
         glbls: dict[str, Any],
     ) -> dict[str, Any]:
+        """Deep-copy referenced variables into a clean local namespace, returning the original globals as a backup."""
         # Some attributes should remain global
         lcls = {
             key: glbls[key]
@@ -264,6 +271,7 @@ class StrictExecutor(Executor):
         glbls: dict[str, Any],
         backup: dict[str, Any],
     ) -> None:
+        """Restore the global namespace from backup and propagate cell outputs into it."""
         # NOTE: After execution, restore global state and update outputs.
         lcls = {**glbls}
         glbls.clear()

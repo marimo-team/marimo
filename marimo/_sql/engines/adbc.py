@@ -32,6 +32,8 @@ AdbcGetObjectsDepth = Literal[
 
 
 class AdbcDbApiCursor(Protocol):
+    """Protocol for an ADBC DB-API cursor."""
+
     description: Any
 
     def execute(
@@ -139,6 +141,7 @@ class AdbcConnectionCatalog:
         self._engine_name = engine_name
 
     def get_default_database(self) -> Optional[str]:
+        """Return the current catalog name, or None if unavailable."""
         try:
             return self._adbc_connection.adbc_current_catalog
         except Exception:
@@ -148,6 +151,7 @@ class AdbcConnectionCatalog:
             return None
 
     def get_default_schema(self) -> Optional[str]:
+        """Return the current schema name, or None if unavailable."""
         try:
             return self._adbc_connection.adbc_current_db_schema
         except Exception:
@@ -168,6 +172,7 @@ class AdbcConnectionCatalog:
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
+        """Return all databases, optionally including schemas, tables, and column details."""
         databases: list[Database] = []
         include_schemas_bool = self._resolve_should_auto_discover(
             include_schemas
@@ -269,6 +274,7 @@ class AdbcConnectionCatalog:
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
+        """Return all tables within a given schema and database."""
         tables: list[DataTable] = []
         objects_pylist = (
             self._adbc_connection.adbc_get_objects(
@@ -322,6 +328,7 @@ class AdbcConnectionCatalog:
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
+        """Return column-level details for a single table, or None on failure."""
         _ = database_name
         try:
             schema = self._adbc_connection.adbc_get_table_schema(
@@ -384,10 +391,12 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
 
     @property
     def source(self) -> str:
+        """Return the source identifier for this engine."""
         return "adbc"
 
     @property
     def dialect(self) -> str:
+        """Return the SQL dialect inferred from the ADBC driver metadata."""
         try:
             info = self._connection.adbc_get_info()
             if isinstance(info, dict):
@@ -398,6 +407,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if the given object looks like an ADBC DB-API connection."""
         if isinstance(var, ModuleType):
             return False
 
@@ -451,6 +461,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Return the inference configuration for this engine."""
         return InferenceConfig(
             auto_discover_schemas=True,
             auto_discover_tables="auto",
@@ -458,9 +469,11 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         )
 
     def get_default_database(self) -> Optional[str]:
+        """Return the current catalog/database name."""
         return self._catalog.get_default_database()
 
     def get_default_schema(self) -> Optional[str]:
+        """Return the current schema name."""
         return self._catalog.get_default_schema()
 
     # TODO: The following methods are currently not implemented.
@@ -483,6 +496,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
+        """Return all databases, delegating to the catalog implementation."""
         return self._catalog.get_databases(
             include_schemas=include_schemas,
             include_tables=include_tables,
@@ -492,6 +506,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
+        """Return all tables in the given schema, delegating to the catalog implementation."""
         return self._catalog.get_tables_in_schema(
             schema=schema,
             database=database,
@@ -501,6 +516,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
+        """Return column-level details for a single table."""
         return self._catalog.get_table_details(
             table_name=table_name,
             schema_name=schema_name,
@@ -510,6 +526,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def execute(
         self, query: str, parameters: Optional[Sequence[Any]] = None
     ) -> Any:
+        """Execute a SQL query and return the result as a DataFrame or None for non-SELECT queries."""
         sql_output_format = self.sql_output_format()
         cursor = self._connection.cursor()
 

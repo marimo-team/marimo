@@ -8,6 +8,8 @@ from marimo._secrets.models import SecretProvider
 
 
 class EnvSecretsProvider(SecretProvider):
+    """Read-only secrets provider backed by the process environment variables."""
+
     type = "env"
 
     def __init__(self, original_environ: dict[str, str]):
@@ -15,21 +17,27 @@ class EnvSecretsProvider(SecretProvider):
 
     @property
     def name(self) -> str:
+        """Human-readable provider name."""
         return "Environment variables"
 
     def get_keys(self) -> set[str]:
+        """Return the set of available environment variable names."""
         return set(self.original_environ.keys())
 
     def write_key(self, key: str, value: str) -> None:
+        """Not supported; raises NotImplementedError."""
         del key, value
         raise NotImplementedError("Cannot set keys for env provider")
 
     def delete_key(self, key: str) -> None:
+        """Not supported; raises NotImplementedError."""
         del key
         raise NotImplementedError("Cannot delete keys for env provider")
 
 
 class DotEnvSecretsProvider(SecretProvider):
+    """Secrets provider backed by a .env file that supports reading and writing keys."""
+
     type = "dotenv"
 
     def __init__(self, file: str):
@@ -37,13 +45,16 @@ class DotEnvSecretsProvider(SecretProvider):
 
     @property
     def name(self) -> str:
+        """Human-readable provider name derived from the filename."""
         return Path(self.file).name
 
     def get_keys(self) -> set[str]:
+        """Return all keys defined in the .env file."""
         env_dict = read_dotenv_with_fallback(self.file)
         return set(env_dict.keys())
 
     def write_key(self, key: str, value: str) -> None:
+        """Append a new key=value pair to the .env file, creating it if necessary."""
         filepath = Path(self.file)
         if not filepath.exists():
             # If is `.env`, then create it.
@@ -69,5 +80,6 @@ class DotEnvSecretsProvider(SecretProvider):
             f.write(f'{key}="{escaped_value}"\n')
 
     def delete_key(self, key: str) -> None:
+        """Not implemented; raises NotImplementedError."""
         del key
         raise NotImplementedError

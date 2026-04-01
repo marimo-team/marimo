@@ -20,6 +20,7 @@ from marimo._ai._types import (
 
 
 def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
+    """Convert a ChatMessageDict (or ChatMessage) into a typed ChatMessage instance."""
     if isinstance(d, ChatMessage):
         return d
 

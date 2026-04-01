@@ -10,6 +10,8 @@ from marimo._types.ids import CellId_t
 
 
 class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
+    """Request to export a notebook as an HTML file."""
+
     download: bool
     files: list[str]
     include_code: bool
@@ -17,14 +19,20 @@ class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
 
 
 class ExportAsScriptRequest(msgspec.Struct, rename="camel"):
+    """Request to export a notebook as a Python script."""
+
     download: bool
 
 
 class ExportAsIPYNBRequest(msgspec.Struct, rename="camel"):
+    """Request to export a notebook as a Jupyter .ipynb file."""
+
     download: bool
 
 
 class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
+    """Request to export a notebook as a Markdown file."""
+
     download: bool
 
 
@@ -32,6 +40,8 @@ ExportPDFPreset = Literal["document", "slides"]
 
 
 class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
+    """Request to export a notebook as a PDF file."""
+
     webpdf: bool
     preset: ExportPDFPreset = "document"
     include_inputs: bool = False
@@ -41,4 +51,6 @@ class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
 
 
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):
+    """Request to update the stored outputs for specific cells."""
+
     cell_ids_to_output: dict[CellId_t, MimeBundleTuple]

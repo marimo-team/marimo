@@ -9,6 +9,8 @@ from marimo._types.ids import CellId_t
 
 
 class CellIdGenerator:
+    """Generates short, unique cell IDs with an optional prefix."""
+
     def __init__(self, prefix: str = "") -> None:
         self.prefix = prefix
         self.random_seed = random.Random(42)

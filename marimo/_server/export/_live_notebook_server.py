@@ -36,10 +36,12 @@ class LiveNotebookServer(AbstractContextManager["LiveNotebookServer"]):
 
     @property
     def page_url(self) -> str:
+        """Base URL of the running live notebook server."""
         return f"http://127.0.0.1:{self._port}"
 
     @property
     def health_url(self) -> str:
+        """URL of the server's health endpoint."""
         return f"{self.page_url}/health"
 
     def __enter__(self) -> LiveNotebookServer:

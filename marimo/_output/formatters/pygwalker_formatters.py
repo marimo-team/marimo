@@ -6,11 +6,15 @@ from marimo._runtime.context.utils import running_in_notebook
 
 
 class PygWalkerFormatter(FormatterFactory):
+    """Formatter factory for pygwalker objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "pygwalker"
 
     def register(self) -> None:
+        """Register pygwalker integration by monkey-patching pygwalker.walk."""
         if running_in_notebook():
             # monkey-patch pygwalker.walk to work in marimo;
             # older versions of marimo may not have api.marimo, and not sure

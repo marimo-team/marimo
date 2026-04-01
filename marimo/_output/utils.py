@@ -6,12 +6,14 @@ from typing import Optional, Union
 
 
 def flatten_string(text: str) -> str:
+    """Strip each line and join them into a single string."""
     return "".join([line.strip() for line in text.split("\n")])
 
 
 def create_style(
     pairs: dict[str, Union[str, int, float, None]],
 ) -> Optional[str]:
+    """Build a CSS style string from a dict of property/value pairs, ignoring None values."""
     if not pairs:
         return None
 

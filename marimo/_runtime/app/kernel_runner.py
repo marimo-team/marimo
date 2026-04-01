@@ -157,9 +157,11 @@ class AppKernelRunner:
 
     @property
     def outputs(self) -> dict[CellId_t, Any]:
+        """Mapping from cell ID to the cell's most recent output."""
         return self._outputs
 
     def are_outputs_cached(self, defs: dict[str, Any] | None) -> bool:
+        """Return True if outputs are already cached for the given defs mapping."""
         # The equality check is brittle but hashing isn't great either ...
         return (
             _defs_equal(defs, self._previously_seen_defs)
@@ -167,13 +169,16 @@ class AppKernelRunner:
         )
 
     def register_defs(self, defs: dict[str, Any] | None) -> None:
+        """Record the current defs mapping so future calls can detect changes."""
         self._previously_seen_defs = defs
 
     @property
     def globals(self) -> dict[str, Any]:
+        """The kernel's global namespace dictionary."""
         return self._kernel.globals
 
     async def run(self, cells_to_run: set[CellId_t]) -> RunOutput:
+        """Execute the specified cells and return their outputs and globals."""
         execution_requests = [
             ExecuteCellCommand(cell_id=cid, code=cell._cell.code, request=None)
             for cid in cells_to_run
@@ -201,11 +206,13 @@ class AppKernelRunner:
     async def set_ui_element_value(
         self, request: UpdateUIElementCommand
     ) -> bool:
+        """Update a UI element's value and trigger reactive re-execution."""
         with self._runtime_context.install():
             return await self._kernel.set_ui_element_value(request)
 
     async def function_call(
         self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
+        """Invoke a registered function and return its status, result, and success flag."""
         with self._runtime_context.install():
             return await self._kernel.function_call_request(request)

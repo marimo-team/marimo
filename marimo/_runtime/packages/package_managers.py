@@ -25,6 +25,7 @@ PACKAGE_MANAGERS = {
 def create_package_manager(
     name: str, python_exe: str | None = None
 ) -> PackageManager:
+    """Instantiate a PackageManager by name, falling back to micropip in Pyodide environments."""
     if is_pyodide():
         # user config has name "pip", but micropip's name is "micropip" ...
         return MicropipPackageManager()

@@ -18,6 +18,7 @@ class ExternalLinksTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore[
     """
 
     def run(self, root: Element) -> None:
+        """Add target="_blank" and rel="noopener noreferrer" to all external links in the tree."""
         for element in root.iter():
             if element.tag != "a":
                 continue
@@ -32,7 +33,10 @@ class ExternalLinksTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore[
 
 
 class ExternalLinksExtension(Extension):  # type: ignore[misc]
+    """Markdown extension that adds target="_blank" to external links."""
+
     def extendMarkdown(self, md: Markdown) -> None:
+        """Register the ExternalLinksTreeProcessor with the Markdown instance."""
         md.treeprocessors.register(
             ExternalLinksTreeProcessor(md),
             "external_links",

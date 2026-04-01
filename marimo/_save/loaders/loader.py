@@ -114,6 +114,7 @@ class Loader(ABC):
         self._time_saved = 0.0
 
     def build_path(self, key: HashKey) -> Path:
+        """Build the storage path for a cache entry from its hash key."""
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
         return Path(f"{prefix}{key.hash}")
 
@@ -123,6 +124,7 @@ class Loader(ABC):
         key: HashKey,
         stateful_refs: set[Name],
     ) -> Cache:
+        """Attempt to load a cache hit; return an empty Cache on miss."""
         start_time = time.time()
         loaded = self.load_cache(key)
         if not loaded:
@@ -150,14 +152,17 @@ class Loader(ABC):
 
     @property
     def hits(self) -> int:
+        """Total number of cache hits recorded by this loader."""
         return self._hits
 
     @property
     def time_saved(self) -> float:
+        """Cumulative seconds saved by cache hits (original runtime minus load time)."""
         return self._time_saved
 
     @classmethod
     def partial(cls, **kwargs: Any) -> LoaderPartial:
+        """Create a LoaderPartial for deferred construction of this loader."""
         return LoaderPartial(cls, **kwargs)
 
     @classmethod
@@ -217,19 +222,23 @@ class BasePersistenceLoader(Loader):
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
+        """Build the namespaced file path for a cache entry."""
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
         return Path(self.name) / f"{prefix}{key.hash}.{self.suffix}"
 
     def cache_hit(self, key: HashKey) -> bool:
+        """Return True if a cache file exists for the given key."""
         return self.store.hit(str(self.build_path(key)))
 
     def save_cache(self, cache: Cache) -> bool:
+        """Serialize and write the cache to persistent storage."""
         blob = self.to_blob(cache)
         if blob is None:
             return False
         return self.store.put(str(self.build_path(cache.key)), blob)
 
     def load_cache(self, key: HashKey) -> Optional[Cache]:
+        """Load and deserialize a cache entry from persistent storage."""
         try:
             blob: Optional[bytes] = self.store.get(str(self.build_path(key)))
             if not blob:

@@ -54,6 +54,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return self._normalize_display_math_spacing(text.split("\n"))
 
     def _contains_math_syntax(self, text: str) -> bool:
+        """Return True if the text contains any recognized math syntax."""
         return (
             "$$" in text
             or ".. math::" in text
@@ -100,6 +101,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return "".join(converted_segments)
 
     def _normalize_display_math_spacing(self, lines: list[str]) -> list[str]:
+        """Ensure blank lines surround $$...$$ display math blocks."""
         result: list[str] = []
         i = 0
         in_multiline = False
@@ -289,11 +291,13 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return normalized
 
     def _count_indent(self, line: str) -> int:
+        """Return the visual indentation width of the line (tabs expanded to 4 spaces)."""
         # Matches leading whitespace used to compute visual indentation.
         match = re.match(r"^[ \t]*", line)
         return len(match.group(0).expandtabs(4)) if match else 0
 
     def _to_display_math(self, math: str) -> str:
+        """Wrap a math expression in $$...$$ with surrounding blank lines."""
         math = math.strip()
         if not math:
             return ""
@@ -307,6 +311,7 @@ class DisplayMathExtension(Extension):  # type: ignore[misc]
     """
 
     def extendMarkdown(self, md: Markdown) -> None:
+        """Register the DisplayMathPreprocessor with the markdown instance."""
         md.preprocessors.register(
             DisplayMathPreprocessor(md),
             "display_math_preproc",

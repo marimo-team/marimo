@@ -352,6 +352,7 @@ def supports_terminal() -> bool:
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
+    """Accept a WebSocket connection and attach a PTY-backed terminal session."""
     app_state = AppState(websocket)
     if app_state.mode != SessionMode.EDIT:
         await websocket.close(

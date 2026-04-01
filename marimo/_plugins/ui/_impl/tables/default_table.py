@@ -49,6 +49,8 @@ VALUE = "value"
 
 
 class DefaultTableManager(TableManager[JsonTableData]):
+    """TableManager for JSON-serializable data structures (lists, dicts, sequences)."""
+
     type = "dictionary"
 
     def __init__(self, data: JsonTableData):
@@ -56,6 +58,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         self.is_column_oriented = _is_column_oriented(data)
 
     def supports_download(self) -> bool:
+        """Return True if a supported table library is available to convert data for download."""
         # If we have pandas/polars/pyarrow, we can convert to CSV or JSON
         return (
             DependencyManager.pandas.has()
@@ -66,6 +69,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
     ) -> TableManager[JsonTableData]:
+        """Apply column format functions and return a new DefaultTableManager with formatted data."""
         if not format_mapping:
             return self
 
@@ -88,6 +92,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return self
 
     def supports_filters(self) -> bool:
+        """Return False since column-based filters are not supported for generic JSON data."""
         return False
 
     def to_csv_str(
@@ -125,6 +130,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return self._as_table_manager().to_parquet()
 
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
+        """Return a new DefaultTableManager containing only the rows at the given indices."""
         if isinstance(self.data, dict):
             # Column major data
             if self.is_column_oriented:
@@ -141,6 +147,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return DefaultTableManager([self.data[i] for i in indices])
 
     def select_columns(self, columns: list[str]) -> DefaultTableManager:
+        """Return a new DefaultTableManager containing only the specified columns."""
         column_set = set(columns)
         # Column major data
         if isinstance(self.data, dict):
@@ -159,6 +166,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        """Return the values at the specified (row, column) coordinates."""
         if not cells:
             return []
 
@@ -213,11 +221,13 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return selected_cells
 
     def drop_columns(self, columns: list[str]) -> DefaultTableManager:
+        """Return a new DefaultTableManager with the specified columns removed."""
         return self.select_columns(
             list(set(self.get_column_names()) - set(columns))
         )
 
     def take(self, count: int, offset: int) -> DefaultTableManager:
+        """Return a new DefaultTableManager with at most count rows starting from offset."""
         if count < 0:
             raise ValueError("Count must be a positive integer")
         if offset < 0:
@@ -242,6 +252,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return DefaultTableManager(self.data[offset : offset + count])
 
     def search(self, query: str) -> DefaultTableManager:
+        """Return a new DefaultTableManager with only the rows that contain query as a substring."""
         query = query.lower()
         if isinstance(self.data, dict) and self.is_column_oriented:
             mask: list[bool] = [
@@ -269,6 +280,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def get_row_headers(self) -> FieldTypes:
+        """Return an empty list since JSON data has no named row headers."""
         return []
 
     @functools.lru_cache(maxsize=5)  # noqa: B019
@@ -309,12 +321,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_field_type(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
+        """Return unknown field type since generic JSON data has no type information."""
         del column_name
         return ("unknown", "object")
 
     # By default, don't provide any field types
     # so the frontend can infer them
     def get_field_types(self) -> FieldTypes:
+        """Return an empty list, letting the frontend infer column types."""
         return []
 
     def _as_table_manager(self) -> TableManager[Any]:
@@ -337,14 +351,17 @@ class DefaultTableManager(TableManager[JsonTableData]):
         raise ValueError("No supported table libraries found.")
 
     def get_stats(self, column: str) -> ColumnStats:
+        """Return empty column stats since statistical analysis is not supported for generic JSON data."""
         del column
         return ColumnStats()
 
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+        """Return an empty list since histogram binning is not supported for generic JSON data."""
         del column, num_bins
         return []
 
     def get_num_rows(self, force: bool = True) -> int:
+        """Return the number of rows in the data."""
         del force
         if isinstance(self.data, dict):
             if self.is_column_oriented:
@@ -355,9 +372,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return len(self.data)
 
     def get_num_columns(self) -> int:
+        """Return the number of columns in the data."""
         return len(self.data) if isinstance(self.data, dict) else 1
 
     def get_column_names(self) -> list[str]:
+        """Return the column names inferred from the data structure."""
         if isinstance(self.data, dict):
             if not self.is_column_oriented:
                 return [KEY, VALUE]
@@ -366,14 +385,17 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return list(first.keys()) if isinstance(first, dict) else ["value"]
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        """Return sorted unique values for the given column."""
         return sorted(
             self._as_table_manager().get_unique_column_values(column)
         )
 
     def get_sample_values(self, column: str) -> list[Any]:
+        """Return sample values for the given column by delegating to a typed table manager."""
         return self._as_table_manager().get_sample_values(column)
 
     def sort_values(self, by: list[SortArgs]) -> DefaultTableManager:
+        """Return a new DefaultTableManager with rows sorted according to the given sort arguments."""
         if not by:
             return self
 
@@ -453,6 +475,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     @staticmethod
     def is_type(value: Any) -> bool:
+        """Return True if the value is a list, tuple, or dict."""
         return isinstance(value, (list, tuple, dict))
 
     @staticmethod

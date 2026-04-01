@@ -5,6 +5,7 @@ from marimo._cli.print import orange
 
 
 def highlight_toml_headers(toml_string: str) -> str:
+    """Return the TOML string with section headers colored orange for terminal display."""
     lines = toml_string.splitlines()
     highlighted_lines: list[str] = []
 

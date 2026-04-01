@@ -34,6 +34,7 @@ def is_win11() -> bool:
 
 
 def get_experimental_flags() -> dict[str, Union[str, bool, dict[str, Any]]]:
+    """Return the experimental flags from the current marimo configuration."""
     try:
         config = get_default_config_manager(current_path=None).get_config()
         experimental_config = config.get("experimental", {})
@@ -48,6 +49,7 @@ def get_experimental_flags() -> dict[str, Union[str, bool, dict[str, Any]]]:
 
 
 def get_default_locale() -> str:
+    """Return the system's default locale string, or '--' if it cannot be determined."""
     try:
         import locale
 
@@ -77,6 +79,7 @@ def get_default_locale() -> str:
 
 
 def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
+    """Collect and return system, dependency, and configuration information for diagnostics."""
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"

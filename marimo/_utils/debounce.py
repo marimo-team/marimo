@@ -15,10 +15,12 @@ def debounce(wait_time: float) -> Callable[[F], F]:
     """
 
     def decorator(func: F) -> F:
+        """Wrap a function with debounce logic."""
         last_called: float = 0
 
         @wraps(func)
         def wrapped(*args: Any, **kwargs: Any) -> None:
+            """Call the wrapped function only if enough time has elapsed since the last call."""
             nonlocal last_called
             current_time = time.time()
             if current_time - last_called >= wait_time:

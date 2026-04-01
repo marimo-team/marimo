@@ -28,13 +28,17 @@ LOGGER = _loggers.marimo_logger()
 
 
 class PolarsTableManagerFactory(TableManagerFactory):
+    """Factory that creates a TableManager implementation for Polars DataFrames and LazyFrames."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this factory handles."""
         return "polars"
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
+        """Return the PolarsTableManager class (created once and cached)."""
         import polars as pl
 
         class PolarsTableManager(
@@ -49,6 +53,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 super().__init__(nw.from_native(data))
 
             def collect(self) -> pl.DataFrame:
+                """Collect the underlying LazyFrame or return the DataFrame as-is."""
                 native: Any = self._original_data
                 if isinstance(native, pl.LazyFrame):
                     return native.collect()
@@ -58,12 +63,14 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
+                """Return the schema dict mapping column names to Polars data types."""
                 if isinstance(self._original_data, pl.LazyFrame):
                     # Less expensive operation
                     return self._original_data.collect_schema()
                 return self._original_data.schema
 
             def to_arrow_ipc(self) -> bytes:
+                """Serialize the DataFrame to Arrow IPC bytes."""
                 out = io.BytesIO()
                 self.collect().write_ipc(out)
                 return out.getvalue()
@@ -75,6 +82,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 format_mapping: Optional[FormatMapping] = None,
                 separator: str | None = None,
             ) -> str:
+                """Serialize the DataFrame to a CSV string, converting nested types as needed."""
                 resolved_separator = (
                     separator if separator is not None else ","
                 )
@@ -117,6 +125,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
+                """Serialize the DataFrame to a JSON string, handling special Polars dtype edge cases."""
                 def to_json(
                     result: pl.DataFrame,
                 ) -> list[dict[str, Any]] | str:
@@ -233,6 +242,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]
             ) -> PolarsTableManager:
+                """Return a new PolarsTableManager with the format_mapping applied to each column."""
                 if not format_mapping:
                     return self
 
@@ -252,9 +262,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def is_type(value: Any) -> bool:
+                """Return True if value is a Polars DataFrame or LazyFrame."""
                 return isinstance(value, (pl.DataFrame, pl.LazyFrame))
 
             def search(self, query: str) -> PolarsTableManager:
+                """Filter the DataFrame to rows where any string or numeric column matches query."""
                 query = query.lower()
 
                 expressions: list[pl.Expr] = []
@@ -289,6 +301,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def get_field_type(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
+                """Return the FieldType and external dtype string for a Polars column."""
                 dtype = self.schema[column_name]
                 try:
                     dtype_string = dtype._string_repr()

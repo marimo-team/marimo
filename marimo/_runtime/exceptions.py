@@ -17,6 +17,8 @@ class MarimoNameError(NameError):
 
 
 class MarimoMissingRefError(BaseException):
+    """Raised when a cell references a variable that is not defined in the graph."""
+
     def __init__(
         self, ref: str, name_error: Optional[NameError] = None
     ) -> None:

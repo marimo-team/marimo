@@ -36,6 +36,8 @@ _UNION_ORIGINS = (Union, types.UnionType)
 
 
 class PythonTypeToOpenAPI:
+    """Converts Python type annotations to OpenAPI schema dictionaries."""
+
     def __init__(self, *, name_overrides: dict[Any, str], camel_case: bool):
         self.name_overrides = name_overrides
         self.camel_case = camel_case
@@ -333,6 +335,7 @@ def _is_optional(field: dataclasses.Field[Any]) -> bool:
 
 
 def is_typeddict_subclass(cls: Any) -> bool:
+    """Return True if cls is a TypedDict subclass."""
     return (
         isinstance(cls, type)
         and issubclass(cls, dict)

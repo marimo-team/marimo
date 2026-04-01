@@ -26,6 +26,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MiddlewareFactory(Protocol):
+    """Protocol for a callable that wraps an ASGI app with middleware."""
+
     def __call__(self, app: ASGIApp) -> ASGIApp: ...  # pragma: no cover
 
 
@@ -98,6 +100,8 @@ ValidateCallback: TypeAlias = Callable[
 
 
 class DynamicDirectoryMiddleware:
+    """ASGI middleware that dynamically loads and caches marimo notebook apps from a directory based on URL path."""
+
     def __init__(
         self,
         app: ASGIApp,

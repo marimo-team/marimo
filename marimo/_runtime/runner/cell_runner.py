@@ -104,6 +104,7 @@ class RunResult:
 def should_show_traceback(
     exception: Optional[ExceptionOrError],
 ) -> bool:
+    """Return True if a Python traceback should be displayed for the given exception."""
     if exception is None:
         return True
 
@@ -184,6 +185,7 @@ class Runner:
         excluded_cells: set[CellId_t],
         execution_mode: OnCellChangeType,
     ) -> list[CellId_t]:
+        """Compute the ordered list of cells to run, including stale ancestors and (in autorun mode) descendants."""
         # Runner always runs stale ancestors, if any.
         cells_to_run = roots.union(
             dataflow.transitive_closure(

@@ -153,6 +153,7 @@ class EntryPointRegistry(Generic[T]):
 
 
 def get_entry_points(group: KnownEntryPoint) -> EntryPoints:
+    """Return all installed entry points for the given group."""
     ep = entry_points()
     if hasattr(ep, "select"):
         return ep.select(group=group)

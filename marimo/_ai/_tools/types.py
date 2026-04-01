@@ -12,6 +12,8 @@ StatusValue = Literal["success", "error", "warning"]
 
 @dataclass
 class SuccessResult:
+    """Result returned by a successful AI tool call, with optional action URL and metadata."""
+
     status: StatusValue = "success"
     auth_required: bool = False
     next_steps: Optional[list[str]] = None
@@ -22,6 +24,8 @@ class SuccessResult:
 
 @dataclass
 class EmptyArgs:
+    """Placeholder argument class for AI tools that take no parameters."""
+
     pass
 
 
@@ -38,6 +42,8 @@ class ToolGuidelines:
 
 @dataclass
 class MarimoNotebookInfo:
+    """Metadata about a running marimo notebook session."""
+
     name: str
     path: str
     session_id: SessionId
@@ -45,6 +51,8 @@ class MarimoNotebookInfo:
 
 @dataclass
 class MarimoCellErrors:
+    """Errors and stderr output collected from a single notebook cell."""
+
     cell_id: CellId_t
     errors: list[MarimoErrorDetail] = field(default_factory=list)
     stderr: list[str] = field(default_factory=list)
@@ -52,6 +60,8 @@ class MarimoCellErrors:
 
 @dataclass
 class MarimoErrorDetail:
+    """Structured representation of a single error with its type, message, and traceback."""
+
     type: str
     message: str
     traceback: list[str]
@@ -59,17 +69,23 @@ class MarimoErrorDetail:
 
 @dataclass
 class MarimoCellConsoleOutputs:
+    """Captured stdout and stderr output from a notebook cell."""
+
     stdout: list[str] = field(default_factory=list)
     stderr: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ListSessionsResult:
+    """Result listing all currently running marimo notebook sessions."""
+
     sessions: list[MarimoNotebookInfo] = field(default_factory=list)
 
 
 @dataclass
 class CodeExecutionResult:
+    """Result of executing code in a marimo notebook cell, including output and error information."""
+
     success: bool
     output: Optional[str] = None
     stdout: list[str] = field(default_factory=list)

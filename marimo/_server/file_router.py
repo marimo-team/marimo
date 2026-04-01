@@ -153,18 +153,25 @@ class AppFileRouter(abc.ABC):
 
 
 class NewFileAppFileRouter(AppFileRouter):
+    """AppFileRouter for a new (unsaved) file."""
+
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
+        """Return the sentinel key for a new file."""
         return AppFileRouter.NEW_FILE
 
     def maybe_get_single_file(self) -> Optional[MarimoFile]:
+        """Return None since there is no backing file."""
         return None
 
     @property
     def files(self) -> list[FileInfo]:
+        """Return an empty file list."""
         return []
 
 
 class ListOfFilesAppFileRouter(AppFileRouter):
+    """AppFileRouter backed by an explicit list of MarimoFile entries."""
+
     def __init__(
         self,
         files: list[MarimoFile],
@@ -240,11 +247,13 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         )
 
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
+        """Return the unique file key when the router has exactly one file."""
         if self._allow_single_file_key and len(self._files) == 1:
             return self._files[0].path
         return None
 
     def maybe_get_single_file(self) -> Optional[MarimoFile]:
+        """Return the single file when the router has exactly one file."""
         if self._allow_single_file_key and len(self._files) == 1:
             return self._files[0]
         return None
@@ -264,6 +273,8 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
 
 class LazyListOfFilesAppFileRouter(AppFileRouter):
+    """AppFileRouter that lazily scans a directory for marimo notebooks."""
+
     def __init__(self, directory: str, include_markdown: bool) -> None:
         # Make directory absolute but don't resolve symlinks to preserve user paths
         abs_directory = Path(directory).absolute()
@@ -283,6 +294,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
     def toggle_markdown(
         self, include_markdown: bool
     ) -> LazyListOfFilesAppFileRouter:
+        """Return a new router with the markdown inclusion flag toggled, or self if unchanged."""
         # Only create a new instance if the include_markdown flag is different
         if include_markdown != self.include_markdown:
             return LazyListOfFilesAppFileRouter(
@@ -291,6 +303,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         return self
 
     def mark_stale(self) -> None:
+        """Invalidate the cached file list so it will be rescanned on next access."""
         self._lazy_files = None
 
     def register_temp_dir(self, temp_dir: str) -> None:
@@ -379,14 +392,17 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         return self._lazy_files
 
     def get_unique_file_key(self) -> str | None:
+        """Return None since a directory router does not have a unique file key."""
         return None
 
     def maybe_get_single_file(self) -> MarimoFile | None:
+        """Return None since a directory router does not have a single file."""
         return None
 
 
 # Count total marimo files (not directories)
 def count_files(file_list: list[FileInfo]) -> int:
+    """Recursively count non-directory FileInfo entries in the list."""
     count = 0
     for item in file_list:
         if not item.is_directory:

@@ -56,6 +56,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class ExportResult:
+    """Encapsulates the result of a notebook export operation."""
+
     contents: bytes | str
     download_filename: str
     did_error: bool
@@ -88,6 +90,7 @@ def _as_ir(path: MarimoPath) -> NotebookSerialization:
 
 
 def export_as_script(path: MarimoPath) -> ExportResult:
+    """Export a marimo notebook to a plain Python script."""
     from marimo._convert.script import convert_from_ir_to_script
 
     ir = _as_ir(path)
@@ -99,6 +102,7 @@ def export_as_script(path: MarimoPath) -> ExportResult:
 
 
 def export_as_md(path: MarimoPath) -> ExportResult:
+    """Export a marimo notebook to a Markdown file."""
     ir = _as_ir(path)
     return ExportResult(
         contents=MarimoConvert.from_ir(ir).to_markdown(),
@@ -110,6 +114,7 @@ def export_as_md(path: MarimoPath) -> ExportResult:
 def export_as_ipynb(
     path: MarimoPath, sort_mode: Literal["top-down", "topological"]
 ) -> ExportResult:
+    """Export a marimo notebook to a Jupyter notebook (.ipynb) file."""
     app = load_app(path.absolute_name)
     if app is None:
         return ExportResult(
@@ -150,6 +155,7 @@ def export_as_wasm(
     show_code: bool,
     asset_url: Optional[str] = None,
 ) -> ExportResult:
+    """Export a marimo notebook as a self-contained WebAssembly HTML file."""
     _app = load_app(path.absolute_name)
     if _app is None:
         return ExportResult(
@@ -205,6 +211,7 @@ async def run_app_then_export_as_ipynb(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> ExportResult:
+    """Run the notebook to completion and export the executed result as an ipynb file."""
     file_router = AppFileRouter.from_filename(filepath)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
@@ -243,6 +250,7 @@ async def run_app_then_export_as_pdf(
     include_inputs: bool = True,
     rasterization_options: PDFRasterizationOptions | None = None,
 ) -> tuple[bytes | None, bool]:
+    """Run the notebook to completion and export the executed result as a PDF."""
     file_router = AppFileRouter.from_filename(filepath)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
@@ -307,6 +315,7 @@ async def run_app_then_export_as_html(
     *,
     asset_url: str | None = None,
 ) -> ExportResult:
+    """Run the notebook to completion and export the executed result as HTML."""
     # Create a file router and file manager
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
@@ -394,6 +403,7 @@ async def run_app_then_export_as_reactive_html(
     path: MarimoPath,
     include_code: bool,
 ) -> ExportResult:
+    """Run the notebook and export it as a reactive (islands) HTML file."""
     from marimo._islands._island_generator import MarimoIslandGenerator
 
     generator = MarimoIslandGenerator.from_file(
@@ -417,6 +427,7 @@ async def run_app_until_completion(
     quiet: bool = False,
     persist_session: bool = True,
 ) -> tuple[SessionView, bool]:
+    """Run a notebook to completion and return its session view and error status."""
     from marimo._session.consumer import SessionConsumer
     from marimo._session.events import SessionEventBus
     from marimo._session.session import SessionImpl

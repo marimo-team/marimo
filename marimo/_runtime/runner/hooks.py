@@ -63,11 +63,13 @@ class _HookList:
     )
 
     def add(self, hook: Callable[..., None], priority: Priority) -> None:
+        """Add a hook with the given priority and invalidate the sorted cache."""
         self._entries.append(_HookEntry(hook, priority))
         self._sorted = None
 
     @property
     def sorted_hooks(self) -> Sequence[Callable[..., None]]:
+        """Return hooks sorted by ascending priority, rebuilding the cache if needed."""
         if self._sorted is None:
             self._sorted = [
                 e.hook for e in sorted(self._entries, key=lambda e: e.priority)
@@ -75,6 +77,7 @@ class _HookList:
         return self._sorted
 
     def copy(self) -> _HookList:
+        """Return a shallow copy of this hook list."""
         return _HookList(self._entries.copy())
 
 
@@ -103,40 +106,49 @@ class NotebookCellHooks:
     def add_preparation(
         self, hook: PreparationHook, priority: Priority = Priority.NORMAL
     ) -> None:
+        """Register a preparation hook with the given priority."""
         self._preparation.add(hook, priority)
 
     def add_pre_execution(
         self, hook: PreExecutionHook, priority: Priority = Priority.NORMAL
     ) -> None:
+        """Register a pre-execution hook with the given priority."""
         self._pre_execution.add(hook, priority)
 
     def add_post_execution(
         self, hook: PostExecutionHook, priority: Priority = Priority.NORMAL
     ) -> None:
+        """Register a post-execution hook with the given priority."""
         self._post_execution.add(hook, priority)
 
     def add_on_finish(
         self, hook: OnFinishHook, priority: Priority = Priority.NORMAL
     ) -> None:
+        """Register an on-finish hook with the given priority."""
         self._on_finish.add(hook, priority)
 
     @property
     def preparation_hooks(self) -> Sequence[PreparationHook]:
+        """Return preparation hooks in priority order."""
         return self._preparation.sorted_hooks
 
     @property
     def pre_execution_hooks(self) -> Sequence[PreExecutionHook]:
+        """Return pre-execution hooks in priority order."""
         return self._pre_execution.sorted_hooks
 
     @property
     def post_execution_hooks(self) -> Sequence[PostExecutionHook]:
+        """Return post-execution hooks in priority order."""
         return self._post_execution.sorted_hooks
 
     @property
     def on_finish_hooks(self) -> Sequence[OnFinishHook]:
+        """Return on-finish hooks in priority order."""
         return self._on_finish.sorted_hooks
 
     def copy(self) -> NotebookCellHooks:
+        """Return a shallow copy of all hook lists."""
         return NotebookCellHooks(
             _preparation=self._preparation.copy(),
             _pre_execution=self._pre_execution.copy(),

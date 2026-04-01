@@ -28,6 +28,8 @@ LogCallback = Callable[[str], None]
 
 
 class PackageDescription(msgspec.Struct, rename="camel"):
+    """Name and version of an installed package."""
+
     name: str
     version: str
 
@@ -191,6 +193,7 @@ class PackageManager(abc.ABC):
         import_namespaces_to_remove: Optional[list[str]] = None,
         upgrade: bool,
     ) -> bool:
+        """Add or remove inline script metadata in the marimo notebook following PEP 723."""
         del (
             filepath,
             packages_to_add,
@@ -199,16 +202,6 @@ class PackageManager(abc.ABC):
             import_namespaces_to_remove,
             upgrade,
         )
-        """
-        Add or remove inline script metadata metadata
-        in the marimo notebook.
-
-        For packages_to_add, packages_to_remove, we use the package name as-is.
-        For import_namespaces_to_add, import_namespaces_to_remove, we canonicalize
-        to the module name based on popular packages on PyPI.
-
-        This follows PEP 723 https://peps.python.org/pep-0723/
-        """
         return True
 
     @abc.abstractmethod

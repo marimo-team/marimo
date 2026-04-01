@@ -26,14 +26,17 @@ class AuthToken:
 
     @staticmethod
     def random() -> AuthToken:
+        """Generate a cryptographically random AuthToken."""
         return AuthToken(secrets.token_urlsafe(16))
 
     @staticmethod
     def from_code(code: str) -> AuthToken:
+        """Create an AuthToken derived from a hash of the given code string."""
         return AuthToken(str(hash("auth:" + code)))
 
     @staticmethod
     def is_empty(token: AuthToken) -> bool:
+        """Return True if the token holds an empty string."""
         return str(token) == ""
 
 
@@ -51,10 +54,12 @@ class SkewProtectionToken:
 
     @staticmethod
     def from_code(code: str) -> SkewProtectionToken:
+        """Create a SkewProtectionToken derived from a hash of the given code string."""
         return SkewProtectionToken(str(hash("skew:" + code)))
 
     @staticmethod
     def random() -> SkewProtectionToken:
+        """Generate a cryptographically random SkewProtectionToken."""
         return SkewProtectionToken(secrets.token_urlsafe(16))
 
     def __str__(self) -> str:

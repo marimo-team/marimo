@@ -234,6 +234,7 @@ class data_editor(
     def data(
         self,
     ) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
+        """The original, unedited data passed to the editor."""
         return self._data
 
     def _convert_value(
@@ -251,6 +252,7 @@ def apply_edits(
     edits: DataEdits,
     schema: Optional[nw.Schema] = None,
 ) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
+    """Apply a set of DataEdits to row-oriented, column-oriented, or DataFrame data and return the result."""
     if len(edits["edits"]) == 0:
         return data
     # If row-oriented, apply edits to the data

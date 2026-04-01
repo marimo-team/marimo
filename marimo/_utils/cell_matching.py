@@ -38,6 +38,7 @@ def similarity_score(s1: str, s2: str) -> float:
 def group_lookup(
     ids: Sequence[CellId_t], codes: Sequence[str]
 ) -> dict[str, list[tuple[int, CellId_t]]]:
+    """Build a mapping from code string to a list of (index, cell_id) pairs."""
     lookup: dict[str, list[tuple[int, CellId_t]]] = {}
     for idx, (cell_id, code) in enumerate(zip(ids, codes)):
         lookup.setdefault(code, []).append((idx, cell_id))
@@ -47,6 +48,7 @@ def group_lookup(
 def extract_order(
     codes: list[str], lookup: dict[str, list[tuple[int, CellId_t]]]
 ) -> list[list[int]]:
+    """Return, for each code entry, the list of global indices assigned to that code."""
     offset = 0
     order: list[list[int]] = [[]] * len(codes)
     for i, code in enumerate(codes):
@@ -59,6 +61,7 @@ def extract_order(
 def get_unique(
     codes: Sequence[str], available: dict[str, list[tuple[int, CellId_t]]]
 ) -> list[str]:
+    """Return unique codes from `codes` that are not already in `available`, preserving order."""
     # Order matters, required opposed to using set()
     seen = set(codes) - set(available.keys())
     unique_codes = []

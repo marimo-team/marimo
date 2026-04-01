@@ -42,10 +42,12 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
     @property
     def source(self) -> str:
+        """Return the source identifier string for this engine."""
         return "ibis"
 
     @property
     def dialect(self) -> str:
+        """Return the dialect name for the underlying Ibis backend."""
         dialect_registry = self._connection.dialect.classes
         # reverse lookup
         for dialect_name, dialect_class in dialect_registry.items():
@@ -56,6 +58,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         return str(self._connection.dialect)
 
     def execute(self, query: str) -> Any:
+        """Execute a SQL query string and return the result in the configured output format."""
         query_expr = self._connection.sql(query)
 
         sql_output_format = self.sql_output_format()
@@ -69,6 +72,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if var is an Ibis SQLBackend instance."""
         if not DependencyManager.ibis.imported():
             return False
 
@@ -84,6 +88,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Return the schema/table auto-discovery configuration for this engine."""
         return InferenceConfig(
             auto_discover_schemas=True,
             auto_discover_tables="auto",

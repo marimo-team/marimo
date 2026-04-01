@@ -19,6 +19,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class AppHostPool:
+    """Manages a pool of AppHosts, creating and shutting them down as notebooks are opened and closed."""
+
     def __init__(self, sandbox: bool = False) -> None:
         self._workers: dict[str, AppHost] = {}
         self._lock = threading.Lock()
@@ -40,6 +42,7 @@ class AppHostPool:
             worker.shutdown()
 
     def get_or_create(self, file_path: str) -> AppHost:
+        """Return an existing live AppHost for the file, or create a new one."""
         abs_path = os.path.abspath(file_path)
 
         if self._sandbox:
@@ -108,6 +111,7 @@ class AppHostPool:
         return worker
 
     def shutdown(self) -> None:
+        """Shut down all AppHosts in the pool."""
         # Collect and clear under the lock, then shut down outside
         # it. worker.shutdown() can trigger _on_empty callbacks that
         # call _remove_and_shutdown, which also acquires self._lock;

@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class LayoutConfig:
+    """Configuration for a marimo app layout, storing the layout type and its data."""
+
     # type of layout
     type: str
     # data for layout

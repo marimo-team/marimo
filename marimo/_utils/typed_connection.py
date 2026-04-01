@@ -24,20 +24,26 @@ class TypedConnection(Generic[T]):
         return delegate  # type: ignore[return-value]
 
     def send(self, obj: T) -> None:
+        """Send a typed object through the connection."""
         self._delegate.send(obj)
 
     def recv(self) -> T:
+        """Receive and return a typed object from the connection."""
         return self._delegate.recv()  # type: ignore[no-any-return]
 
     def poll(self) -> bool:
+        """Return True if data is available to receive without blocking."""
         return self._delegate.poll()
 
     def fileno(self) -> int:
+        """Return the file descriptor of the underlying connection."""
         return self._delegate.fileno()
 
     @property
     def closed(self) -> bool:
+        """True if the underlying connection has been closed."""
         return self._delegate.closed
 
     def close(self) -> None:
+        """Close the underlying connection."""
         self._delegate.close()

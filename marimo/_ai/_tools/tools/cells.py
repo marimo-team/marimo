@@ -29,6 +29,8 @@ if TYPE_CHECKING:
 
 
 class SupportedCellType(str, Enum):
+    """Enumeration of cell types recognized by the AI tools."""
+
     CODE = "code"
     MARKDOWN = "markdown"
     SQL = "sql"
@@ -36,12 +38,16 @@ class SupportedCellType(str, Enum):
 
 @dataclass
 class GetLightweightCellMapArgs:
+    """Arguments for get_lightweight_cell_map."""
+
     session_id: SessionId
     preview_lines: int = 3  # random default value
 
 
 @dataclass
 class LightweightCellInfo:
+    """Lightweight summary of a single notebook cell for navigation purposes."""
+
     cell_id: str
     preview: str
     line_count: int
@@ -54,6 +60,8 @@ class LightweightCellInfo:
 
 @dataclass
 class GetLightweightCellMapOutput(SuccessResult):
+    """Output of get_lightweight_cell_map containing cell previews and notebook metadata."""
+
     session_id: str = ""
     notebook_name: str = ""
     cells: list[LightweightCellInfo] = field(default_factory=list)
@@ -63,6 +71,8 @@ class GetLightweightCellMapOutput(SuccessResult):
 
 @dataclass
 class CellRuntimeMetadata:
+    """Runtime status and execution timing for a single cell."""
+
     # String form of the runtime state (see marimo._ast.cell.RuntimeStateType);
     # keep as str for py39/Pydantic compatibility and to avoid Literal/Enum
     # validation issues in models.
@@ -77,6 +87,8 @@ CellVariables = dict[str, VariableValue]
 
 @dataclass
 class GetCellRuntimeDataData:
+    """Runtime data for a single cell including code, errors, and variables."""
+
     session_id: str
     cell_id: str
     code: Optional[str] = None
@@ -87,12 +99,16 @@ class GetCellRuntimeDataData:
 
 @dataclass
 class GetCellRuntimeDataArgs:
+    """Arguments for get_cell_runtime_data."""
+
     session_id: SessionId
     cell_ids: list[CellId_t] = field(default_factory=list)
 
 
 @dataclass
 class GetCellRuntimeDataOutput(SuccessResult):
+    """Output of get_cell_runtime_data containing per-cell runtime data."""
+
     data: list[GetCellRuntimeDataData] = field(default_factory=list)
 
 
@@ -106,6 +122,8 @@ class CellVisualOutput:
 
 @dataclass
 class CellOutputData:
+    """Visual and console output data for a single cell."""
+
     cell_id: str
     visual_output: CellVisualOutput = field(default_factory=CellVisualOutput)
     console_outputs: MarimoCellConsoleOutputs = field(
@@ -115,12 +133,16 @@ class CellOutputData:
 
 @dataclass
 class GetCellOutputArgs:
+    """Arguments for get_cell_outputs."""
+
     session_id: SessionId
     cell_ids: list[CellId_t] = field(default_factory=list)
 
 
 @dataclass
 class GetCellOutputOutput(SuccessResult):
+    """Output of get_cell_outputs containing per-cell display and console data."""
+
     cells: list[CellOutputData] = field(default_factory=list)
 
 
@@ -160,6 +182,7 @@ class GetLightweightCellMap(
     def handle(
         self, args: GetLightweightCellMapArgs
     ) -> GetLightweightCellMapOutput:
+        """Return a lightweight map of all cells with previews and runtime status."""
         session_id = args.session_id
         context = self.context
         session = context.get_session(session_id)
@@ -301,6 +324,7 @@ class GetCellRuntimeData(
     )
 
     def handle(self, args: GetCellRuntimeDataArgs) -> GetCellRuntimeDataOutput:
+        """Return runtime data (code, errors, variables) for the specified cells."""
         session_id = args.session_id
         context = self.context
         session = context.get_session(session_id)
@@ -427,6 +451,7 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
     )
 
     def handle(self, args: GetCellOutputArgs) -> GetCellOutputOutput:
+        """Return visual and console outputs for the specified cells."""
         context = self.context
         session = context.get_session(args.session_id)
         session_view = session.session_view

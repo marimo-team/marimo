@@ -25,6 +25,7 @@ _TEST_SLEEP_INTERVAL: float | None = None
 
 
 def walk(path: Path) -> Iterable[tuple[Path, list[str], list[str]]]:
+    """Walk the directory tree rooted at path, using Path.walk on Python 3.12+."""
     if sys.version_info >= (3, 12):
         return path.walk()
     return os.walk(path)
@@ -40,6 +41,7 @@ def _hashable_walk(
 
 
 def hashable_walk(path: Path) -> set[tuple[Path, tuple[str], tuple[str]]]:
+    """Return a hashable snapshot of the directory tree for change detection."""
     return _hashable_walk(walk(path))
 
 

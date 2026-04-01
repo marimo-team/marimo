@@ -108,6 +108,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     other_cell_codes: Optional[str],
     context: Optional[AiCompletionContext],
 ) -> str:
+    """Build the system prompt for refactoring or inserting notebook cell code."""
     if cell_code:
         system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
     elif support_multiple_cells:
@@ -215,6 +216,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 
 
 def get_inline_system_prompt(*, language: Language) -> str:
+    """Build the system prompt for inline (FIM) code completion."""
     return (
         f"You are a {language} code completion assistant. "
         f"Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality."
@@ -282,6 +284,7 @@ def get_chat_system_prompt(
     mode: CopilotMode,
     session_id: SessionId,
 ) -> str:
+    """Build the system prompt for the Marimo Copilot chat interface."""
     system_prompt: str = f"""
 {_get_mode_intro_message(mode)}
 {_get_session_info(session_id)}

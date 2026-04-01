@@ -159,6 +159,7 @@ class AppHost:
                 LOGGER.warning("Error in stream receiver", exc_info=True)
 
     def start(self) -> None:
+        """Launch the app host subprocess and wait for it to signal readiness."""
         conn, args = AppHostConnection.create(self._file_path)
         self._conn = conn
 
@@ -255,6 +256,7 @@ class AppHost:
         redirect_console_to_browser: bool,
         log_level: int,
     ) -> KernelCreatedResponse:
+        """Request the app host to create a kernel thread for the given session."""
         conn = self._conn
         if conn is None or self._closed.is_set():
             raise RuntimeError("App host not started")
@@ -304,6 +306,7 @@ class AppHost:
             raise
 
     def stop_kernel(self, session_id: str) -> None:
+        """Send a stop request to the app host for the given session's kernel."""
         conn = self._conn
         if conn is None or self._closed.is_set():
             return
@@ -325,13 +328,16 @@ class AppHost:
         )
 
     def is_alive(self) -> bool:
+        """Return True if the app host subprocess is still running."""
         return self._process is not None and self._process.poll() is None
 
     @property
     def pid(self) -> int | None:
+        """Process ID of the app host subprocess, or None if not started."""
         return self._process.pid if self._process else None
 
     def shutdown(self) -> None:
+        """Gracefully shut down the app host subprocess and release all resources."""
         import zmq
 
         if self._closed.is_set():

@@ -73,6 +73,7 @@ class ModelReplayState:
 
     @staticmethod
     def from_open(model_id: WidgetModelId, msg: ModelOpen) -> ModelReplayState:
+        """Create a ModelReplayState from an initial ModelOpen message."""
         buffers = {tuple(p): b for p, b in zip(msg.buffer_paths, msg.buffers)}
         return ModelReplayState(
             model_id=model_id,
@@ -95,6 +96,7 @@ class ModelReplayState:
             self.buffers[tuple(path)] = buf
 
     def to_notification(self) -> ModelLifecycleNotification:
+        """Convert this snapshot back to a ModelLifecycleNotification for replay."""
         paths = list(self.buffers.keys())
         bufs = list(self.buffers.values())
         return ModelLifecycleNotification(
@@ -109,21 +111,26 @@ class ModelReplayState:
 
 @dataclass
 class AutoExportState:
+    """Tracks which auto-export formats are up to date for the current session."""
+
     html: bool = False
     md: bool = False
     ipynb: bool = False
     session: bool = False
 
     def mark_all_stale(self) -> None:
+        """Mark all export formats as stale (needing re-export)."""
         self.html = False
         self.md = False
         self.ipynb = False
         self.session = False
 
     def is_stale(self, export_type: ExportType) -> bool:
+        """Return True if the given export format is stale."""
         return not getattr(self, export_type)
 
     def mark_exported(self, export_type: ExportType) -> None:
+        """Mark the given export format as up to date."""
         setattr(self, export_type, True)
 
 
@@ -195,11 +202,13 @@ class SessionView:
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
+        """Deserialize a raw kernel message and add it to the session view."""
         self._touch()
         # Type ignore because NotificationMessage is a Union, not a class
         self.add_notification(deserialize_kernel_message(raw_notification))  # type: ignore[arg-type]
 
     def add_control_request(self, request: CommandMessage) -> None:
+        """Update session state based on a control command (e.g., UI value updates, cell runs)."""
         self._touch()
 
         if isinstance(request, UpdateUIElementCommand):
@@ -218,9 +227,9 @@ class SessionView:
                 self._add_last_run_code(execution_request)
 
     def add_stdin(self, stdin: str) -> None:
+        """Add stdin text to the first waiting stdin console output."""
         self._touch()
 
-        """Add a stdin request to the session view."""
         # Find the first cell that is waiting for stdin.
         for cell_notif in self.cell_notifications.values():
             console_outputs: list[CellOutput] = as_list(cell_notif.console)
@@ -463,6 +472,7 @@ class SessionView:
     def update_cell_outputs(
         self, cell_id_to_output: dict[CellId_t, MimeBundleTuple]
     ) -> None:
+        """Update cell outputs with new mimebundle data, merging into existing outputs."""
         self._touch()  # Mark all auto-export states as stale
 
         for cell_id, output in cell_id_to_output.items():
@@ -528,6 +538,7 @@ class SessionView:
 
     @property
     def notifications(self) -> list[NotificationMessage]:
+        """Return all stored notifications in the correct replay order."""
         all_notifications: list[NotificationMessage] = []
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
@@ -570,24 +581,30 @@ class SessionView:
         ]
 
     def is_empty(self) -> bool:
+        """Return True if no cell has any output or console data."""
         return all(
             notif.output is None and notif.console is None
             for notif in self.cell_notifications.values()
         )
 
     def mark_auto_export_html(self) -> None:
+        """Mark the HTML auto-export as up to date."""
         self.auto_export_state.mark_exported("html")
 
     def mark_auto_export_md(self) -> None:
+        """Mark the Markdown auto-export as up to date."""
         self.auto_export_state.mark_exported("md")
 
     def mark_auto_export_ipynb(self) -> None:
+        """Mark the Jupyter notebook auto-export as up to date."""
         self.auto_export_state.mark_exported("ipynb")
 
     def mark_auto_export_session(self) -> None:
+        """Mark the session auto-export as up to date."""
         self.auto_export_state.mark_exported("session")
 
     def needs_export(self, export_type: ExportType) -> bool:
+        """Return True if the given export type is stale and needs to be regenerated."""
         return self.auto_export_state.is_stale(export_type)
 
     def _touch(self) -> None:

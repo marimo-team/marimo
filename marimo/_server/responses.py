@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
 
 class StructResponse(starlette.responses.Response):
+    """JSON response that serializes a msgspec Struct using the marimo encoder."""
+
     media_type = "application/json"
 
     def __init__(self, struct: msgspec.Struct) -> None:

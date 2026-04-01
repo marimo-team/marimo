@@ -13,11 +13,14 @@ from marimo._output.utils import flatten_string
 
 
 class BokehFormatter(FormatterFactory):
+    """Registers marimo formatters and monkey-patches Bokeh's show/output_notebook."""
+
     @staticmethod
     def package_name() -> str:
         return "bokeh"
 
     def register(self) -> Callable[[], None]:
+        """Patch Bokeh's show/output_notebook and register HTML formatters; return unpatch callable."""
         import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
@@ -110,6 +113,7 @@ class BokehFormatter(FormatterFactory):
         return unpatch
 
     def apply_theme(self, theme: Theme) -> None:
+        """Apply a dark or light Bokeh theme to the current document."""
         from bokeh.io import curdoc  # type: ignore
 
         curdoc().theme = "dark_minimal" if theme == "dark" else None  # type: ignore

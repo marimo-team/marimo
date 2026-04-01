@@ -11,12 +11,14 @@ if TYPE_CHECKING:
 
 
 def import_files(filename: str) -> Traversable:
+    """Return a Traversable for the given package or resource name via importlib."""
     from importlib.resources import files as importlib_files
 
     return importlib_files(filename)
 
 
 def marimo_package_path() -> Path:
+    """Return the filesystem path to the marimo package directory."""
     return Path(str(import_files("marimo")))
 
 

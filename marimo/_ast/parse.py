@@ -59,7 +59,7 @@ def ast_parse(
 
 
 def fixed_dedent(text: str) -> str:
-    """Manually edited code, can dedent"""
+    """Dedent text, reindenting lines that lost their leading whitespace due to manual edits."""
     # Added robustness for AI generated code
     lines = text.splitlines()
     for line in lines:
@@ -94,7 +94,7 @@ def extract_lineno(node: Node) -> int:
 
 
 class MarimoFileError(Exception):
-    """Raised when a marimo file cannot be parsed or has an invalid structure."""
+    """Raised when a marimo notebook file cannot be parsed or has an invalid structure."""
 
 
 class NonMarimoPythonScriptError(Exception):
@@ -524,6 +524,7 @@ class Parser:
         self._scanner_generated_lines: frozenset[int] = frozenset()
 
     def node_stack(self) -> PeekStack[Node]:
+        """Parse the notebook contents into a peekable AST node iterator, recovering from syntax errors."""
         try:
             tree = ast_parse(
                 self.extractor.contents or "",

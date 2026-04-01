@@ -60,16 +60,20 @@ if TYPE_CHECKING:
 
 @dataclass
 class ToolContext:
+    """Provides access to the running Starlette app and helper methods for tool execution."""
+
     app: Optional[Starlette] = None
 
     @property
     def session_manager(self) -> SessionManager:
+        """Return the SessionManager from the app state."""
         app = self.get_app()
         state = AppStateBase.from_app(app)
         session_manager = state.session_manager
         return session_manager
 
     def get_app(self) -> Starlette:
+        """Return the Starlette app, raising ToolExecutionError if not available."""
         app = self.app
         if app is None:
             raise ToolExecutionError(
@@ -81,6 +85,7 @@ class ToolContext:
         return app
 
     def get_session(self, session_id: SessionId) -> Session:
+        """Return the Session for the given ID, raising ToolExecutionError if not found."""
         session = self.session_manager.get_session(session_id)
         if session is None:
             raise ToolExecutionError(
@@ -95,6 +100,7 @@ class ToolContext:
     def get_cell_notification(
         self, session_id: SessionId, cell_id: CellId_t
     ) -> CellNotification:
+        """Return the CellNotification for the given cell, raising ToolExecutionError if missing."""
         session_view = self.get_session(session_id).session_view
         if cell_id not in session_view.cell_notifications:
             raise ToolExecutionError(

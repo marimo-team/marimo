@@ -8,6 +8,7 @@ T = TypeVar("T")
 
 
 def first(iterable: Union[Iterable[T], T]) -> T:
+    """Return the first element of an iterable, or the value itself if not iterable."""
     if isinstance(iterable, Iterable):
         return next(iter(iterable))  # type: ignore[no-any-return]
     else:
@@ -15,6 +16,7 @@ def first(iterable: Union[Iterable[T], T]) -> T:
 
 
 def as_list(value: Union[T, Optional[T], list[T]]) -> list[T]:
+    """Wrap a value in a list, return an empty list for None, or return an existing list unchanged."""
     if value is None:
         return []
     return value if isinstance(value, list) else [value]  # type: ignore[no-any-return]

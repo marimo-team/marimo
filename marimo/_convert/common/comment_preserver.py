@@ -10,6 +10,8 @@ from typing import Callable
 
 @dataclass
 class CommentToken:
+    """A comment token extracted from source code, with its text and position."""
+
     text: str
     line: int
     col: int

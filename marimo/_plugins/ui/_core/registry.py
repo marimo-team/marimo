@@ -19,6 +19,8 @@ LensValue: TypeAlias = T | dict[str, "LensValue[T]"]
 
 
 class UIElementRegistry:
+    """Tracks all registered UIElement instances and their variable bindings."""
+
     def __init__(self) -> None:
         # mapping from object id to UIElement object that has that id
         self._objects: dict[UIElementId, weakref.ref[UIElement[Any, Any]]] = {}
@@ -32,6 +34,7 @@ class UIElementRegistry:
         object_id: UIElementId,
         ui_element: UIElement[Any, Any],
     ) -> None:
+        """Register a UIElement with the registry under the given object ID."""
         execution_context = get_context().execution_context
         if object_id in self._objects:
             # on cell re-run, a UI element may be (re)-registered before
@@ -50,6 +53,7 @@ class UIElementRegistry:
             del self._bindings[object_id]
 
     def bound_names(self, object_id: UIElementId) -> Iterable[str]:
+        """Return all variable names bound to the UIElement with the given ID."""
         if object_id not in self._bindings:
             self._register_bindings(object_id)
         return self._bindings[object_id]
@@ -104,6 +108,7 @@ class UIElementRegistry:
     def register_scope(
         self, glbls: dict[str, Any], defs: Optional[set[str]] = None
     ) -> None:
+        """Register variable bindings for all UIElements found in glbls."""
         if defs is None:
             defs = set(glbls.keys())
         for binding in defs:
@@ -112,12 +117,14 @@ class UIElementRegistry:
                 self._register_bindings(lookup._id, glbls)
 
     def lookup(self, name: str) -> Optional[UIElement[Any, Any]]:
+        """Return the UIElement bound to the given variable name, or None."""
         for object_id, bindings in self._bindings.items():
             if name in bindings:
                 return self.get_object(object_id)
         return None
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
+        """Return the UIElement registered under object_id, raising KeyError if not found."""
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
         obj = self._objects[object_id]()
@@ -125,6 +132,7 @@ class UIElementRegistry:
         return obj
 
     def get_cell(self, object_id: UIElementId) -> CellId_t:
+        """Return the cell ID of the cell that constructed the given UIElement."""
         return self._constructing_cells[object_id]
 
     def resolve_lens(

@@ -27,11 +27,15 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class ListDirectoryArgs:
+    """Arguments for listing the contents of a directory path."""
+
     path: str
 
 
 @dataclass
 class FileBrowserFileInfo:
+    """Metadata about a single file or directory entry in the file browser."""
+
     id: str
     path: Path
     name: str
@@ -39,6 +43,8 @@ class FileBrowserFileInfo:
 
 
 class TypedFileBrowserFileInfo(TypedDict):
+    """TypedDict wire format for a file browser entry sent to/from the frontend."""
+
     id: str
     path: str
     name: str
@@ -47,6 +53,8 @@ class TypedFileBrowserFileInfo(TypedDict):
 
 @dataclass
 class ListDirectoryResponse:
+    """Response containing the list of file entries and pagination metadata for a directory."""
+
     files: list[TypedFileBrowserFileInfo]
     total_count: int
     is_truncated: bool = False  # Whether results were truncated due to limit

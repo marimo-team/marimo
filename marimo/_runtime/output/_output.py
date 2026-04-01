@@ -12,6 +12,7 @@ from marimo._types.ids import CellId_t
 
 
 def write_internal(cell_id: CellId_t, value: object) -> None:
+    """Format and broadcast a value as the output for the given cell."""
     output = formatting.try_format(value)
     if output.traceback is not None:
         write_traceback(output.traceback)

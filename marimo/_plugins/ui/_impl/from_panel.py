@@ -31,6 +31,8 @@ T = TypeVar("T", bound=dict[str, Any])
 
 @dataclass
 class SendToWidgetArgs:
+    """Arguments for sending a message to a Panel widget."""
+
     message: Any
     buffers: Optional[list[Any]] = None
 

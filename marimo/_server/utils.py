@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 
 def initialize_mimetypes() -> None:
+    """Register common MIME types that may be missing or incorrect on some platforms."""
     import mimetypes
 
     # Fixes an issue with invalid mimetypes on windows:

@@ -45,6 +45,7 @@ class MemoryLoader(Loader):
             self._maybe_lock(lambda: self._cache.update(cache))
 
     def _maybe_lock(self, fn: Callable[..., T]) -> T:
+        """Execute fn under the cache lock if LRU mode is enabled."""
         if self._cache_lock is not None:
             with self._cache_lock:
                 return fn()
@@ -52,10 +53,12 @@ class MemoryLoader(Loader):
             return fn()
 
     def cache_hit(self, key: HashKey) -> bool:
+        """Return True if an entry for key exists in the in-memory cache."""
         path = self.build_path(key)
         return self._maybe_lock(lambda: path in self._cache)
 
     def load_cache(self, key: HashKey) -> Optional[Cache]:
+        """Return the cached value for key, or None if not present."""
         if not self.cache_hit(key):
             return None
         path = self.build_path(key)
@@ -67,6 +70,7 @@ class MemoryLoader(Loader):
         return self._cache[path]
 
     def save_cache(self, cache: Cache) -> bool:
+        """Store a cache entry, evicting the least-recently-used entry if at capacity."""
         path = self.build_path(cache.key)
         # LRU
         if self.is_lru:
@@ -81,6 +85,7 @@ class MemoryLoader(Loader):
         return True
 
     def resize(self, max_size: int) -> None:
+        """Resize the cache, evicting entries as needed when shrinking."""
         if not self.is_lru:
             self.is_lru = max_size > 0
             if self.is_lru:
@@ -102,6 +107,7 @@ class MemoryLoader(Loader):
 
     @property
     def max_size(self) -> int:
+        """Maximum number of entries the cache will hold before evicting."""
         return self._max_size
 
     @max_size.setter
@@ -110,6 +116,7 @@ class MemoryLoader(Loader):
 
     @property
     def current_size(self) -> int:
+        """Number of entries currently held in the cache."""
         return len(self._cache)
 
     def clear(self) -> None:

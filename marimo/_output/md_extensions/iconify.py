@@ -21,6 +21,7 @@ class IconifyPattern(inlinepatterns.InlineProcessor):
     def handleMatch(  # type: ignore
         self, m: re.Match[str], data: str
     ) -> tuple[Element, int, int]:
+        """Return an iconify-icon Element for the matched icon pattern."""
         del data
         icon_name = m.group(1)
         return (
@@ -31,7 +32,10 @@ class IconifyPattern(inlinepatterns.InlineProcessor):
 
 
 class IconifyExtension(Extension):
+    """Markdown extension that converts ::icon-set:icon-name:: syntax to iconify-icon elements."""
+
     def extendMarkdown(self, md: Markdown) -> None:
+        """Register the IconifyPattern inline processor with high priority."""
         # Add IconifyPattern with high priority (200) to
         # handle it before other inline patterns
         md.inlinePatterns.register(

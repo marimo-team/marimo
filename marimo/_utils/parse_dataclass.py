@@ -34,6 +34,7 @@ _UNION_ORIGINS = (Union, types.UnionType)
 
 
 def to_snake(string: str) -> str:
+    """Convert a camelCase string to snake_case."""
     # basic conversion of javascript camel case to snake
     # does not handle contiguous caps
     return "".join(
@@ -42,6 +43,8 @@ def to_snake(string: str) -> str:
 
 
 class _DataclassParser:
+    """Parses raw dict/JSON values into typed Python dataclass instances."""
+
     def __init__(self, allow_unknown_keys: bool = False):
         self.allow_unknown_keys = allow_unknown_keys
 

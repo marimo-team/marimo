@@ -8,4 +8,5 @@ T = TypeVar("T")
 
 
 def remove_none_values(d: dict[S, T]) -> dict[S, T]:
+    """Return a copy of the dictionary with all None-valued entries removed."""
     return {k: v for k, v in d.items() if v is not None}

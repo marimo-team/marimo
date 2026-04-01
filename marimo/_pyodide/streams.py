@@ -40,10 +40,13 @@ class PyodideStream(Stream):
         self.input_queue = input_queue
 
     def write(self, data: KernelMessage) -> None:
+        """Write a kernel message to the pipe."""
         self.pipe(data)
 
 
 class PyodideStdout(Stdout):
+    """Stdout replacement that broadcasts output through the Pyodide message stream."""
+
     encoding = sys.stdout.encoding
     errors = sys.stdout.errors
     _fileno: int | None = None
@@ -52,12 +55,15 @@ class PyodideStdout(Stdout):
         self.stream = stream
 
     def writable(self) -> bool:
+        """Return True since this stream supports writing."""
         return True
 
     def readable(self) -> bool:
+        """Return False since stdout is not readable."""
         return False
 
     def seekable(self) -> bool:
+        """Return False since stdout does not support seeking."""
         return False
 
     def _write_with_mimetype(
@@ -85,11 +91,14 @@ class PyodideStdout(Stdout):
 
     # Buffer type not available python < 3.12, hence type ignore
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        """Write each string in the sequence to stdout."""
         for line in sequence:
             self.write(line)
 
 
 class PyodideStderr(Stderr):
+    """Stderr replacement that broadcasts error output through the Pyodide message stream."""
+
     encoding = sys.stderr.encoding
     errors = sys.stderr.errors
     _fileno: int | None = None
@@ -98,12 +107,15 @@ class PyodideStderr(Stderr):
         self.stream = stream
 
     def writable(self) -> bool:
+        """Return True since this stream supports writing."""
         return True
 
     def readable(self) -> bool:
+        """Return False since stderr is not readable."""
         return False
 
     def seekable(self) -> bool:
+        """Return False since stderr does not support seeking."""
         return False
 
     def _write_with_mimetype(
@@ -132,11 +144,14 @@ class PyodideStderr(Stderr):
         return len(data)
 
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        """Write each string in the sequence to stderr."""
         for line in sequence:
             self.write(line)
 
 
 class PyodideStdin(Stdin):
+    """Stdin replacement that reads user input from the Pyodide async input queue."""
+
     encoding = sys.stdin.encoding
     errors = sys.stdin.errors
 
@@ -144,9 +159,11 @@ class PyodideStdin(Stdin):
         self.stream = stream
 
     def writable(self) -> bool:
+        """Return False since stdin is not writable."""
         return False
 
     def readable(self) -> bool:
+        """Return True since this stream supports reading."""
         return True
 
     def _readline_with_prompt(
@@ -181,12 +198,14 @@ class PyodideStdin(Stdin):
         return loop.run_until_complete(self.stream.input_queue.get())
 
     def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
+        """Read a line of input from the user via the input queue."""
         # size only included for compatibility with sys.stdin.readline API;
         # we don't support it.
         del size
         return self._readline_with_prompt(prompt="")
 
     def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]  # noqa: E501
+        """Read lines of input from the user, splitting on newlines."""
         # Just an alias for readline.
         #
         # hint only included for compatibility with sys.stdin.readlines API;

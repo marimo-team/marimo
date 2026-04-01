@@ -45,6 +45,7 @@ def _is_api_request(request: Request) -> bool:
 # In the case of a ModuleNotFoundError, we try to send a MissingPackageAlert to the client
 # to install the missing package
 async def handle_error(request: Request, response: Any) -> Any:
+    """Convert exception types into appropriate JSON error responses, including missing-package alerts."""
     if isinstance(response, HTTPException):
         # Turn 403s into 401s to collect auth
         if response.status_code == 403:

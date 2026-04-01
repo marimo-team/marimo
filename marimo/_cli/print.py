@@ -119,38 +119,47 @@ _style: _StyleFn = _resolve_style()
 
 
 def bold(text: str) -> str:
+    """Return text styled as bold."""
     return _style(text, bold=True)
 
 
 def green(text: str, bold: bool = False) -> str:
+    """Return text styled in green."""
     return _style(text, fg="green", bold=bold)
 
 
 def bright_green(text: str, bold: bool = False) -> str:
+    """Return text styled in bright green."""
     return _style(text, fg="bright_green", bold=bold)
 
 
 def yellow(text: str, bold: bool = False) -> str:
+    """Return text styled in yellow."""
     return _style(text, fg="yellow", bold=bold)
 
 
 def orange(text: str, bold: bool = False) -> str:
+    """Return text styled in orange (rendered as yellow)."""
     return _style(text, fg="yellow", bold=bold)
 
 
 def red(text: str, bold: bool = False) -> str:
+    """Return text styled in red."""
     return _style(text, fg="red", bold=bold)
 
 
 def cyan(text: str, bold: bool = False) -> str:
+    """Return text styled in cyan (bright blue)."""
     return _style(text, fg="bright_blue", bold=bold)
 
 
 def light_blue(text: str, bold: bool = False) -> str:
+    """Return text styled in light blue (bright cyan)."""
     return _style(text, fg="bright_cyan", bold=bold)
 
 
 def muted(text: str) -> str:
+    """Return text styled as dim white."""
     return _style(text, fg="white", dim=True)
 
 
@@ -164,6 +173,7 @@ def _echo_or_print(*args: Any, **kwargs: Any) -> None:
 
 
 def echo(*args: Any, **kwargs: Any) -> None:
+    """Print a message unless the QUIET global setting is enabled, with ASCII fallback for non-UTF-8 terminals."""
     if GLOBAL_SETTINGS.QUIET:
         return
 

@@ -29,6 +29,8 @@ class EmptyArgs:
 
 @dataclasses.dataclass
 class Function(Generic[S, T]):
+    """A named callable registered in a cell, with typed arguments and an associated cell ID."""
+
     name: str
     arg_cls: type[S]
     function: Callable[[S], T] | Callable[[S], Coroutine[Any, Any, T]]
@@ -63,25 +65,32 @@ class Function(Generic[S, T]):
 
 @dataclasses.dataclass
 class FunctionNamespace:
+    """A named collection of Function objects belonging to the same namespace."""
+
     namespace: str
     functions: dict[str, Function[Any, Any]] = dataclasses.field(
         default_factory=dict
     )
 
     def add(self, function: Function[Any, Any]) -> None:
+        """Register a function under its name in this namespace."""
         self.functions[function.name] = function
 
     def get(self, name: str) -> Function[Any, Any] | None:
+        """Return the function with the given name, or None if not found."""
         if name in self.functions:
             return self.functions[name]
         return None
 
 
 class FunctionRegistry:
+    """Registry of named function namespaces for cross-cell function invocation."""
+
     def __init__(self) -> None:
         self.namespaces: dict[str, FunctionNamespace] = {}
 
     def register(self, namespace: str, function: Function[Any, Any]) -> None:
+        """Add a function to the specified namespace, creating the namespace if necessary."""
         if namespace not in self.namespaces:
             self.namespaces[namespace] = FunctionNamespace(namespace=namespace)
         self.namespaces[namespace].add(function)
@@ -89,10 +98,12 @@ class FunctionRegistry:
     def get_function(
         self, namespace: str, function_name: str
     ) -> Function[Any, Any] | None:
+        """Return the named function from the given namespace, or None if not found."""
         if namespace in self.namespaces:
             return self.namespaces[namespace].get(function_name)
         return None
 
     def delete(self, namespace: str) -> None:
+        """Remove the entire namespace and all its functions from the registry."""
         if namespace in self.namespaces:
             del self.namespaces[namespace]

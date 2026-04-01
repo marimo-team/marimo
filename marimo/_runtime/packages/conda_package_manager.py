@@ -14,6 +14,8 @@ from marimo._runtime.packages.utils import split_packages
 
 
 class CondaPackageManager(CanonicalizingPackageManager):
+    """Package manager implementation for conda environments."""
+
     name = "conda"
     docs_url = "https://docs.conda.io/projects/conda/"
 
@@ -22,11 +24,14 @@ class CondaPackageManager(CanonicalizingPackageManager):
 
 
 class PixiPackageManager(CondaPackageManager):
+    """Package manager implementation for pixi environments."""
+
     name = "pixi"
 
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
+        """Return the pixi command to install or upgrade the given package."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return [
@@ -38,6 +43,7 @@ class PixiPackageManager(CondaPackageManager):
     async def uninstall(
         self, package: str, group: Optional[str] = None
     ) -> bool:
+        """Remove the given package using pixi."""
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
@@ -45,6 +51,7 @@ class PixiPackageManager(CondaPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        """Return all packages installed in the current pixi environment."""
         import json
         import subprocess
 

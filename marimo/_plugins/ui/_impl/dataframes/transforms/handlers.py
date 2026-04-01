@@ -56,10 +56,13 @@ DataFrame = nw.LazyFrame[IntoLazyFrame]
 
 
 class NarwhalsTransformHandler(TransformHandler[DataFrame]):
+    """Transform handler that applies dataframe transformations via the Narwhals API."""
+
     @staticmethod
     def handle_column_conversion(
         df: DataFrame, transform: ColumnConversionTransform
     ) -> DataFrame:
+        """Cast a column to the specified data type."""
         # Convert numpy dtype string to narwhals dtype
         data_type_str = transform.data_type.replace("_", "").lower()
 
@@ -107,12 +110,14 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_rename_column(
         df: DataFrame, transform: RenameColumnTransform
     ) -> DataFrame:
+        """Rename a column to the specified new name."""
         return df.rename({transform.column_id: str(transform.new_column_id)})
 
     @staticmethod
     def handle_sort_column(
         df: DataFrame, transform: SortColumnTransform
     ) -> DataFrame:
+        """Sort the dataframe by the specified column."""
         result = df.sort(
             transform.column_id,
             descending=not transform.ascending,
@@ -124,6 +129,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_filter_rows(
         df: DataFrame, transform: FilterRowsTransform
     ) -> DataFrame:
+        """Keep or remove rows matching the specified filter conditions."""
         if not transform.where:
             return df
 
@@ -290,6 +296,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_group_by(
         df: DataFrame, transform: GroupByTransform
     ) -> DataFrame:
+        """Group the dataframe by specified columns and apply an aggregation function."""
         aggs: list[Expr] = []
         group_by_column_id_set = set(transform.column_ids)
         columns = (
@@ -326,6 +333,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_aggregate(
         df: DataFrame, transform: AggregateTransform
     ) -> DataFrame:
+        """Aggregate specified columns with one or more aggregation functions."""
         selected_df = df.select(transform.column_ids)
 
         agg_list: list[Expr] = []
@@ -353,12 +361,14 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_select_columns(
         df: DataFrame, transform: SelectColumnsTransform
     ) -> DataFrame:
+        """Select a subset of columns from the dataframe."""
         return df.select(transform.column_ids)
 
     @staticmethod
     def handle_shuffle_rows(
         df: DataFrame, transform: ShuffleRowsTransform
     ) -> DataFrame:
+        """Shuffle the rows of the dataframe using the specified random seed."""
         # Note: narwhals sample requires collecting first for shuffle with seed
         collected_df, undo = collect_and_preserve_type(df)
         result = collected_df.sample(fraction=1, seed=transform.seed)
@@ -368,6 +378,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_sample_rows(
         df: DataFrame, transform: SampleRowsTransform
     ) -> DataFrame:
+        """Randomly sample N rows from the dataframe."""
         # Note: narwhals sample requires collecting first for shuffle with seed
         collected_df, undo = collect_and_preserve_type(df)
         result = collected_df.sample(
@@ -381,16 +392,19 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_explode_columns(
         df: DataFrame, transform: ExplodeColumnsTransform
     ) -> DataFrame:
+        """Explode list-type columns so each element becomes its own row."""
         return df.explode(transform.column_ids)
 
     @staticmethod
     def handle_expand_dict(
         df: DataFrame, transform: ExpandDictTransform
     ) -> DataFrame:
+        """Expand a dict-type column into separate rows."""
         return df.explode(transform.column_id)
 
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
+        """Deduplicate rows by the specified columns using the given keep strategy."""
         keep = transform.keep
         if keep == "any" or keep == "none":
             return df.unique(subset=transform.column_ids, keep=keep)
@@ -405,6 +419,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
     @staticmethod
     def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
+        """Pivot the dataframe by spreading unique column values into new columns."""
         # Since ibis does not have a native pivot, and pivot is not supported for LazyFrame
         # we implement it manually
         # pivot results are also highly inconsistent across backends, so we standardize the output here
@@ -499,6 +514,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         columns: list[str],
         transforms: list[Transform],
     ) -> str | None:
+        """Return Python code that replicates the given transforms on the named dataframe."""
         native_df = df.to_native()
         if nw.dependencies.is_ibis_table(native_df):
             return python_print_transforms(
@@ -519,6 +535,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
     @staticmethod
     def as_sql_code(transformed_df: DataFrame) -> str | None:
+        """Return the SQL query for a transformed Ibis dataframe, or None for non-SQL backends."""
         native_df = transformed_df.to_native()
         if nw.dependencies.is_ibis_table(native_df):
             import ibis  # type: ignore[import-not-found]

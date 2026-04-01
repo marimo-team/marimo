@@ -6,6 +6,8 @@ from typing import Optional
 
 
 class HTTPStatus(IntEnum):
+    """Common HTTP status codes used across the marimo server."""
+
     OK = 200
     NOT_MODIFIED = 304
     BAD_REQUEST = 400
@@ -19,6 +21,8 @@ class HTTPStatus(IntEnum):
 
 
 class HTTPException(Exception):
+    """Exception raised for HTTP error responses, carrying a status code and optional detail."""
+
     def __init__(
         self,
         status_code: int,
@@ -29,4 +33,5 @@ class HTTPException(Exception):
 
 
 def is_client_error(status_code: int) -> bool:
+    """Return True if the status code is a 4xx client error."""
     return 400 <= status_code < 500

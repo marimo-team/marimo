@@ -42,11 +42,14 @@ def sympy_as_html(obj: Any) -> tuple[KnownMimeType, str]:
 
 
 class SympyFormatter(FormatterFactory):
+    """Registers formatters for SymPy Printable objects by monkey-patching _mime_."""
+
     @staticmethod
     def package_name() -> str:
         return "sympy"
 
     def register(self) -> None:
+        """Patch sympy.core.basic.Printable with a _mime_ method for LaTeX rendering."""
         from sympy.core.basic import Printable  # type: ignore
 
         # We will monkey-patch the Printable class so most Sympy constructs

@@ -85,6 +85,8 @@ class DataTable(BaseStruct):
 
 
 class Schema(BaseStruct):
+    """Represents a named schema containing a list of data tables."""
+
     name: str
     tables: list[DataTable]
 

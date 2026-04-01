@@ -5,6 +5,7 @@ import base64
 
 
 def build_data_url(mimetype: str, data: bytes) -> str:
+    """Build a base64-encoded data URI from a MIME type and raw bytes."""
     assert mimetype is not None
     # `data` must be base64 encoded
     str_repr = data.decode("utf-8").replace("\n", "")
@@ -13,6 +14,7 @@ def build_data_url(mimetype: str, data: bytes) -> str:
 
 # Format: data:mime_type;base64,data
 def from_data_uri(data: str) -> tuple[str, bytes]:
+    """Parse a data URI and return its MIME type and decoded bytes."""
     assert isinstance(data, str)
     assert data.startswith("data:")
     mime_type, data = data.split(",", 1)

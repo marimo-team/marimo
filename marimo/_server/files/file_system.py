@@ -8,6 +8,8 @@ from marimo._server.models.files import FileDetailsResponse, FileInfo
 
 
 class FileSystem(ABC):
+    """Abstract interface for file system operations used by the file explorer API."""
+
     @abstractmethod
     def get_root(self) -> str:
         """Get the root path."""

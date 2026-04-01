@@ -16,14 +16,17 @@ class CellOutputList:
         self._lock = threading.RLock()
 
     def append(self, item: Html) -> None:
+        """Append an Html item to the output list."""
         with self._lock:
             self._items.append(item)
 
     def clear(self) -> None:
+        """Remove all items from the output list."""
         with self._lock:
             self._items.clear()
 
     def replace_at_index(self, item: Html, idx: int) -> None:
+        """Replace the item at the given index, or append if idx equals the current length."""
         with self._lock:
             if idx > len(self._items):
                 raise IndexError(
@@ -35,6 +38,7 @@ class CellOutputList:
                 self._items[idx] = item
 
     def remove(self, value: object) -> None:
+        """Remove the item with the given identity from the output list."""
         with self._lock:
             self._items[:] = [
                 item for item in self._items if item is not value

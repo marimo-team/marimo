@@ -18,9 +18,15 @@ if TYPE_CHECKING:
 
 
 class DBAPIConnection(Protocol):
-    def cursor(self) -> Any: ...
+    """Minimal DB-API 2.0 connection protocol (PEP 249)."""
 
-    def commit(self) -> None: ...
+    def cursor(self) -> Any:
+        """Return a new cursor object."""
+        ...
+
+    def commit(self) -> None:
+        """Commit the current transaction."""
+        ...
 
 
 class DBAPIEngine(QueryEngine[DBAPIConnection]):
@@ -28,10 +34,12 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
 
     @property
     def source(self) -> str:
+        """Return the engine source identifier."""
         return "dbapi"
 
     @property
     def dialect(self) -> str:
+        """Return the SQL dialect, attempting to read it from the connection."""
         # Try to get dialect from connection
         try:
             return str(self._connection.dialect)  # type: ignore[attr-defined]
@@ -41,6 +49,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
     def execute(
         self, query: str, parameters: Optional[Sequence[Any]] = None
     ) -> Any:
+        """Execute a SQL query and return a DataFrame or cursor depending on the output format."""
         sql_output_format = self.sql_output_format()
 
         cursor = self._connection.cursor()

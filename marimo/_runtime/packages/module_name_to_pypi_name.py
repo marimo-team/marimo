@@ -5,6 +5,7 @@ from __future__ import annotations
 # Mapping from a module name to the corresponding package name
 # on PyPI
 def module_name_to_pypi_name() -> dict[str, str]:
+    """Return a mapping from Python module names to their PyPI package names."""
     return {
         "AFQ": "pyAFQ",
         "AG_fft_tools": "agpy",

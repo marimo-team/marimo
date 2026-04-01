@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 
 class IbisTableManagerFactory(TableManagerFactory):
+    """Factory that creates an IbisTableManager for ibis.Table objects."""
+
     @staticmethod
     def package_name() -> str:
         return "ibis"

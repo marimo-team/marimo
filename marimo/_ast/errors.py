@@ -3,24 +3,24 @@ from __future__ import annotations
 
 
 class SetupRootError(Exception):
-    pass
+    """Raised when a setup cell appears as a non-root node in the dependency graph."""
 
 
 class CycleError(Exception):
-    pass
+    """Raised when the cell dependency graph contains a cycle."""
 
 
 class ImportStarError(SyntaxError):
-    pass
+    """Raised when a cell uses a wildcard import (``from module import *``)."""
 
 
 class MultipleDefinitionError(Exception):
-    pass
+    """Raised when the same variable is defined in more than one cell."""
 
 
 class UnparsableError(Exception):
-    pass
+    """Raised when a cell's code cannot be parsed by the AST parser."""
 
 
 class IncompleteRefsError(Exception):
-    pass
+    """Raised when a cell references variables that have not been fully resolved."""

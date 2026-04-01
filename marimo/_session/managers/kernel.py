@@ -63,6 +63,7 @@ class KernelManagerImpl(KernelManager):
         self._virtual_files_supported = virtual_files_supported
 
     def start_kernel(self) -> None:
+        """Start the kernel as a Process (edit mode) or Thread (run mode)."""
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client session
@@ -161,7 +162,7 @@ class KernelManagerImpl(KernelManager):
 
     @property
     def pid(self) -> int | None:
-        """Get the PID of the kernel."""
+        """Return the kernel process PID, or None for thread-based kernels."""
         if self.kernel_task is None:
             return None
         if isinstance(self.kernel_task, threading.Thread):
@@ -170,6 +171,7 @@ class KernelManagerImpl(KernelManager):
 
     @property
     def profile_path(self) -> str | None:
+        """Return the profiling output path if PROFILE_DIR is configured, otherwise None."""
         self._profile_path: str | None
 
         if hasattr(self, "_profile_path"):
@@ -190,9 +192,11 @@ class KernelManagerImpl(KernelManager):
         return self._profile_path
 
     def is_alive(self) -> bool:
+        """Return True if the kernel process or thread is still running."""
         return self.kernel_task is not None and self.kernel_task.is_alive()
 
     def interrupt_kernel(self) -> None:
+        """Send a SIGINT (or win32 interrupt) to the kernel process; no-op for thread kernels."""
         if self.kernel_task is None:
             return
 
@@ -210,6 +214,7 @@ class KernelManagerImpl(KernelManager):
                 os.kill(self.kernel_task.pid, signal.SIGINT)
 
     def close_kernel(self) -> None:
+        """Shut down the kernel process or thread and release associated resources."""
         assert self.kernel_task is not None, "kernel not started"
 
         if isinstance(self.kernel_task, threading.Thread):
@@ -245,5 +250,6 @@ class KernelManagerImpl(KernelManager):
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
+        """Return the IPC connection used to read kernel messages (edit mode only)."""
         assert self._read_conn is not None, "connection not started"
         return self._read_conn

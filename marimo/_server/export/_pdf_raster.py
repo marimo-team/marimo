@@ -76,6 +76,8 @@ WAIT_FOR_NEXT_PAINT = r"""
 
 @dataclass(frozen=True)
 class PDFRasterizationOptions:
+    """Configuration options for PNG rasterization of dynamic cell outputs during PDF export."""
+
     enabled: bool = True
     scale: float = 4.0
     server_mode: str = "static"

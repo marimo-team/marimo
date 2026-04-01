@@ -14,6 +14,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class AsyncBackgroundTask(ABC):
+    """Abstract base class for long-running asyncio background tasks with start/stop lifecycle management."""
+
     def __init__(self) -> None:
         self.task: Optional[asyncio.Task[None]] = None
         self.running: bool = False

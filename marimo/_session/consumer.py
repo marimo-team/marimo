@@ -22,10 +22,16 @@ class SessionConsumer(ABC, SessionExtension):
 
     @property
     @abstractmethod
-    def consumer_id(self) -> ConsumerId: ...
+    def consumer_id(self) -> ConsumerId:
+        """The unique identifier for this consumer."""
+        ...
 
     @abstractmethod
-    def notify(self, notification: KernelMessage) -> None: ...
+    def notify(self, notification: KernelMessage) -> None:
+        """Deliver a kernel message to this consumer."""
+        ...
 
     @abstractmethod
-    def connection_state(self) -> ConnectionState: ...
+    def connection_state(self) -> ConnectionState:
+        """Return the current connection state of this consumer."""
+        ...

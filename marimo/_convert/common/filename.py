@@ -7,12 +7,14 @@ from urllib.parse import quote
 
 
 def get_filename(filename: Optional[str], default: str = "notebook.py") -> str:
+    """Return filename if provided, otherwise return the default."""
     if not filename:
         filename = default
     return filename
 
 
 def get_download_filename(filename: Optional[str], extension: str) -> str:
+    """Return a basename with the specified extension, defaulting to ``notebook.<extension>``."""
     filename = filename or f"notebook.{extension}"
     basename = os.path.basename(filename)
     if basename.endswith(f".{extension}"):

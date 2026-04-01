@@ -6,6 +6,8 @@ from typing import Optional
 
 
 class Store(ABC):
+    """Abstract base class for cache stores."""
+
     @abstractmethod
     def get(self, key: str) -> Optional[bytes]:
         """Get the bytes of a cache from the store"""

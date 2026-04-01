@@ -71,6 +71,7 @@ class WindowsSafeRotatingFileHandler(TimedRotatingFileHandler):
 
 
 def log_level_string_to_int(level: str) -> int:
+    """Convert a log level string (e.g. 'DEBUG') to its integer constant."""
     level = level.upper()
     if level == "DEBUG":
         return logging.DEBUG
@@ -175,12 +176,14 @@ def marimo_logger() -> logging.Logger:
 
 
 def get_log_directory() -> Path:
+    """Return the directory where marimo log files are stored."""
     from marimo._utils.xdg import marimo_log_dir
 
     return marimo_log_dir()
 
 
 def make_log_directory() -> None:
+    """Create the marimo log directory if it does not already exist."""
     try:
         log_dir = get_log_directory()
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -229,6 +232,7 @@ class ListHandler(logging.Handler):
         self.records: list[logging.LogRecord] = []
 
     def emit(self, record: logging.LogRecord) -> None:
+        """Append the log record to the internal list."""
         self.records.append(record)
 
 

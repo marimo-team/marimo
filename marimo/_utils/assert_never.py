@@ -13,8 +13,10 @@ def _form_error_message(value: Any) -> str:
 
 
 def assert_never(value: NoReturn) -> NoReturn:
+    """Raise an AssertionError for values that should never be reached (exhaustiveness check)."""
     raise AssertionError(_form_error_message(value))
 
 
 def log_never(value: NoReturn) -> None:
+    """Log a warning for values that should never be reached (soft exhaustiveness check)."""
     LOGGER.warning(_form_error_message(value))

@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 
 class SkipContext(ABC):
+    """Abstract context manager that can skip execution of the ``with`` block body via tracing."""
+
     def __init__(self) -> None:
         # For an implementation sibling regarding the block skipping, see
         # `withhacks` in pypi.
@@ -58,6 +60,7 @@ class SkipContext(ABC):
         return result
 
     def skip(self) -> NoReturn:
+        """Raise SkipWithBlock to skip execution of the with block body."""
         raise SkipWithBlock()
 
     def _trace(
@@ -75,13 +78,16 @@ class SkipContext(ABC):
 
     @abstractmethod
     def trace(self, with_frame: FrameType) -> None:
+        """Handle the trace event at the with block frame entry."""
         pass
 
     @property
     def entered_trace(self) -> bool:
+        """True if the trace function has been entered at least once."""
         return self._entered_trace
 
     def teardown(self) -> None:
+        """Restore the previous sys trace function after skipping the block."""
         sys.settrace(self._sys_trace)  # Clear to previous set trace.
 
 

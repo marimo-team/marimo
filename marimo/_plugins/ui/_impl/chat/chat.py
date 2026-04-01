@@ -41,7 +41,7 @@ DONE_CHUNK: Final[str] = "[DONE]"
 
 
 def require_vercel_ai_sdk_support() -> None:
-    """Only Pydantic AI >=1.52.0 supports AI SDK v6. So, we require it."""
+    """Require pydantic_ai >=1.52.0, which is needed for Vercel AI SDK v6 support."""
     DependencyManager.pydantic_ai.require_at_version(
         why="for Vercel AI SDK support", min_version="1.52.0"
     )
@@ -49,17 +49,23 @@ def require_vercel_ai_sdk_support() -> None:
 
 @dataclass
 class SendMessageRequest:
+    """Request from the frontend to send a list of messages to the chat model."""
+
     messages: list[ChatMessage]
     config: ChatModelConfig
 
 
 @dataclass
 class GetChatHistoryResponse:
+    """Response containing the full chat message history."""
+
     messages: list[ChatMessage]
 
 
 @dataclass
 class DeleteChatMessageRequest:
+    """Request from the frontend to delete a chat message at a specific index."""
+
     index: int
 
 

@@ -50,6 +50,7 @@ def pop_setup_cell(
     names: list[str],
     configs: list[CellConfig],
 ) -> Optional[CellImpl]:
+    """Find the setup cell, compile it, remove it from all lists, and return it."""
     # Find the cell named setup, compile, and remove the index from all lists.
     if SETUP_CELL_NAME not in names:
         return None
@@ -67,6 +68,7 @@ def pop_setup_cell(
 
 
 def indent_text(text: str) -> str:
+    """Indent all lines in text by one level."""
     return textwrap.indent(text, INDENT)
 
 
@@ -154,6 +156,7 @@ def to_decorator(
     config: Optional[CellConfig],
     fn: Decorators = "cell",
 ) -> str:
+    """Return the decorator string for a cell function definition."""
     if config is None or not config.is_different_from_default():
         return f"@app.{fn}"
 
@@ -168,6 +171,7 @@ def to_decorator(
 
 
 def format_markdown(cell: CellImpl) -> str:
+    """Serialize a markdown cell's code with preserved comments and quote style."""
     markdown = cell.markdown or ""
     # AST does not preserve string quote types or types, so directly use
     # tokenize.
@@ -216,6 +220,7 @@ def format_markdown(cell: CellImpl) -> str:
 
 
 def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
+    """Build the mo.md(...) call string from markdown content and quote style."""
     return "\n".join(
         [
             f"mo.md({tag}{quote}",
@@ -226,6 +231,7 @@ def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
 
 
 def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
+    """Serialize the setup cell as a with-block section string."""
     if setup_cell is None:
         return ""
     block = setup_cell.code
@@ -287,6 +293,7 @@ def to_functiondef(
     fn: Literal["cell"] = "cell",
     variable_data: Optional[dict[str, VariableData]] = None,
 ) -> str:
+    """Generate the decorated function definition string for a cell."""
     # allowed refs are a combination of top level imports and unshadowed
     # builtins.
     # unshadowed builtins is the set of builtins that haven't been
@@ -374,6 +381,7 @@ def to_functiondef(
 def to_top_functiondef(
     cell: CellImpl, allowed_refs: Optional[set[str]] = None
 ) -> str:
+    """Generate the top-level (non-wrapped) function or class definition string for a cell."""
     # For the top-level function criteria to be satisfied,
     # the cell, it must pass basic checks in the cell impl.
     if allowed_refs is None:
@@ -396,6 +404,7 @@ def to_top_functiondef(
 def generate_unparsable_cell(
     code: str, name: Optional[str], config: CellConfig
 ) -> str:
+    """Generate an app._unparsable_cell(...) call string for a cell that cannot be parsed."""
     text = ["app._unparsable_cell("]
     # If code contains triple quotes, we can't use raw strings with delimiters
     # Instead, use a normal string with proper escaping
@@ -430,6 +439,7 @@ def generate_unparsable_cell(
 def serialize_cell(
     extraction: TopLevelExtraction, status: TopLevelStatus
 ) -> str:
+    """Serialize a cell to its Python source string based on its extraction and status."""
     if status.is_unparsable:
         return generate_unparsable_cell(
             code=status.code, config=status.cell_config, name=status.name
@@ -474,6 +484,7 @@ def safe_serialize_cell(
 
 
 def generate_app_constructor(config: Optional[_AppConfig]) -> str:
+    """Generate the marimo.App(...) constructor call string from an app config."""
     updates = {}
     # only include a config setting if it's not a default setting, to
     # avoid unnecessary edits to the app file
@@ -487,6 +498,7 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 
 
 def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+    """Generate the full Python file contents from a notebook IR object."""
     # Markdown frontmatter may contain non-config metadata (e.g., author,
     # description). Suppress warnings for unrecognized keys from markdown.
     silent = (

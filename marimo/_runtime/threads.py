@@ -188,6 +188,7 @@ def current_thread() -> Thread:
 
 
 def is_marimo_thread() -> bool:
+    """Return True if the caller is running inside a marimo Thread."""
     try:
         current_thread()
         return True

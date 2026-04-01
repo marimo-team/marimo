@@ -667,11 +667,15 @@ def format(module: torch.nn.Module) -> Html:  # noqa: A001
 
 
 class PyTorchFormatter(FormatterFactory):
+    """Formatter factory for PyTorch nn.Module objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "torch"
 
     def register(self) -> None:
+        """Register formatter for torch.nn.Module."""
         import torch.nn  # type: ignore[import-not-found,import-untyped,unused-ignore]  # noqa: E501
 
         from marimo._messaging.mimetypes import KnownMimeType

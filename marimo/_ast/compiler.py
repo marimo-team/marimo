@@ -38,6 +38,7 @@ Cls: TypeAlias = type
 
 
 def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
+    """Compile an AST node or source string, suppressing SyntaxWarnings."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=SyntaxWarning)
         # The SyntaxWarning is suppressed only inside this `with` block
@@ -45,6 +46,7 @@ def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
 
 
 def module_compile(code: str) -> ast.Module:
+    """Parse a code string into an ast.Module with top-level await support."""
     # Overloads on compile are strange, cast for proper typing.
     return cast(
         ast.Module,
@@ -60,6 +62,7 @@ def module_compile(code: str) -> ast.Module:
 
 
 def code_key(code: str) -> int:
+    """Return a hash of the code string for use as a cell key."""
     return hash(code)
 
 
@@ -126,6 +129,7 @@ def contains_only_tests(tree: ast.Module) -> bool:
 
 
 def cache(filename: str, code: str) -> None:
+    """Register a cell's source code in Python's linecache for debugger support."""
     # Generate a cache entry in Python's linecache
     linecache.cache[filename] = (
         len(code),
@@ -136,6 +140,7 @@ def cache(filename: str, code: str) -> None:
 
 
 def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
+    """Adjust all line and column offsets in an AST node by the given source position."""
     # NOTE: This function closely mirrors python's native ast.increment_lineno
     # however, utilized here to also increment the col_offset of the node.
     # See https://docs.python.org/3/library/ast.html#ast.increment_lineno
@@ -185,6 +190,7 @@ def _extract_const_string(args: list[ast.expr]) -> str:
 
 
 def const_or_id(args: ast.stmt) -> str:
+    """Return the string representation of an AST constant or name node."""
     if hasattr(args, "value"):
         return f"{args.value}"  # type: ignore[attr-defined]
     return f"{args.id}"  # type: ignore[attr-defined]
@@ -228,6 +234,7 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
 
 
 def extract_markdown(code: str) -> Optional[str]:
+    """Extract the markdown string from a cell that contains a single mo.md() call."""
     code = code.strip()
     count = 0
     # Early quitting for markdown extraction.
@@ -253,6 +260,7 @@ def compile_cell(
     test_rewrite: bool = False,
     filename: Optional[str] = None,
 ) -> CellImpl:
+    """Compile a cell's source code string into a CellImpl."""
     if filename is not None and source_position is None:
         source_position = solve_source_position(
             code,
@@ -436,6 +444,7 @@ def _build_source_position_map(
 def solve_source_position(
     code: str, filename: str
 ) -> Optional[SourcePosition]:
+    """Resolve the SourcePosition of a cell's code within a notebook file."""
     entries = _build_source_position_map(filename)
 
     if not entries:
@@ -463,6 +472,7 @@ def solve_source_position(
 def get_source_position(
     f: Cls | Callable[..., Any], lineno: int, col_offset: int
 ) -> Optional[SourcePosition]:
+    """Return the SourcePosition for a callable or class in its source file, or None if not a script."""
     # Fallback won't capture embedded scripts
     if inspect.isclass(f):
         is_script = f.__module__ == "__main__"
@@ -495,6 +505,7 @@ def context_cell_factory(
     frame: FrameType,
     anonymous_file: bool = False,
 ) -> Cell:
+    """Build a Cell from a with-block context frame."""
     # Frame is from the initiating context block.
     _, lnum = inspect.getsourcelines(frame)
     source = inspect.getsource(frame)
@@ -596,6 +607,7 @@ def toplevel_cell_factory(
 def ir_cell_factory(
     cell_def: CellDef, cell_id: CellId_t, filename: Optional[str] = None
 ) -> Cell:
+    """Build a Cell from a serialized CellDef IR object."""
     # NB. no need for test rewrite, anonymous file, etc.
     # Because this is never invoked in script mode.
     source_position = None

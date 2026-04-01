@@ -68,6 +68,7 @@ class CellNotificationUtils:
     def maybe_truncate_output(
         mimetype: KnownMimeType, data: str
     ) -> tuple[KnownMimeType, str]:
+        """Replace oversized output with a warning callout; returns (mimetype, data) unchanged if within limits."""
         if (size := sys.getsizeof(data)) > output_max_bytes():
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
@@ -115,6 +116,7 @@ class CellNotificationUtils:
         status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
+        """Broadcast a cell output notification, truncating if necessary."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
@@ -144,6 +146,7 @@ class CellNotificationUtils:
         status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
+        """Broadcast an empty cell output notification (clears the cell output)."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
@@ -169,6 +172,7 @@ class CellNotificationUtils:
         status: Optional[RuntimeStateType],
         stream: Stream | None = None,
     ) -> None:
+        """Broadcast a console (stdout/stderr) output notification for a cell."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
@@ -198,6 +202,7 @@ class CellNotificationUtils:
         status: RuntimeStateType,
         stream: Stream | None = None,
     ) -> None:
+        """Broadcast a cell status update notification."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
@@ -218,6 +223,7 @@ class CellNotificationUtils:
         clear_console: bool,
         cell_id: CellId_t,
     ) -> None:
+        """Broadcast error output for a cell, sanitizing sensitive errors in run mode."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
@@ -255,6 +261,7 @@ class CellNotificationUtils:
     def broadcast_stale(
         cell_id: CellId_t, stale: bool, stream: Stream | None = None
     ) -> None:
+        """Broadcast a stale-inputs notification for a cell."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 
@@ -268,6 +275,7 @@ class CellNotificationUtils:
         serialization: TopLevelStatus,
         stream: Stream | None = None,
     ) -> None:
+        """Broadcast a cell serialization (top-level hint) notification."""
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
 

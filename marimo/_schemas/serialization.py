@@ -28,11 +28,15 @@ class Node:
 
 @dataclass
 class Header(Node):
+    """Represents a notebook header (docstring or comments at the top of the file)."""
+
     value: str = ""
 
 
 @dataclass
 class AppInstantiation(Node):
+    """Represents the App(...) instantiation call as read from the notebook."""
+
     # NB. differs from InternalApp and App, because this is what's directly read
     # from the notebook.
     options: dict[str, Any] = field(default_factory=dict)
@@ -40,6 +44,8 @@ class AppInstantiation(Node):
 
 @dataclass
 class CellDef(Node):
+    """Represents a cell definition as extracted from a notebook script."""
+
     code: str = ""
     name: str = DEFAULT_CELL_NAME
     options: dict[str, Any] = field(default_factory=dict)
@@ -72,16 +78,20 @@ class CellDef(Node):
                 self.name = getattr(self._ast, "name", DEFAULT_CELL_NAME)
 
 
-class SetupCell(CellDef): ...
+class SetupCell(CellDef):
+    """A setup cell (async with block) that runs before regular cells."""
 
 
-class FunctionCell(CellDef): ...
+class FunctionCell(CellDef):
+    """A cell that defines a standalone function (decorated with @function or similar)."""
 
 
-class ClassCell(CellDef): ...
+class ClassCell(CellDef):
+    """A cell that defines a class (decorated with @class_definition or similar)."""
 
 
-class UnparsableCell(CellDef): ...
+class UnparsableCell(CellDef):
+    """A cell whose code could not be parsed by the notebook serializer."""
 
 
 @dataclass

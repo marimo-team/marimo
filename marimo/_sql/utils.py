@@ -28,6 +28,7 @@ def wrapped_sql(
     query: str,
     connection: Optional[duckdb.DuckDBPyConnection],
 ) -> duckdb.DuckDBPyRelation:
+    """Execute a DuckDB SQL query with access to the kernel's global namespace."""
     DependencyManager.duckdb.require("to execute sql")
 
     # In Python globals() are scoped to modules; since this function
@@ -200,6 +201,7 @@ def convert_to_output(
 
 
 def raise_df_import_error(pkg: str) -> None:
+    """Raise a ModuleNotFoundError indicating pandas or polars is required."""
     raise ModuleNotFoundError(
         "pandas or polars is required to execute sql. "
         + "You can install them with 'pip install pandas polars'",

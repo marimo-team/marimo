@@ -224,6 +224,8 @@ def watch_modules(
 
 
 class ModuleWatcher:
+    """Background thread that watches for module changes and marks affected cells as stale."""
+
     def __init__(
         self,
         graph: dataflow.DirectedGraph,
@@ -263,4 +265,5 @@ class ModuleWatcher:
         ).start()
 
     def stop(self) -> None:
+        """Signal the watcher thread to exit."""
         self.should_exit.set()

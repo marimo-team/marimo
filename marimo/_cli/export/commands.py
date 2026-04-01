@@ -67,6 +67,7 @@ def watch_and_export(
     *,
     initial_export_in_watch: bool = False,
 ) -> None:
+    """Run export_callback once or watch the notebook file and re-export on every change."""
     if watch and not output:
         raise click.UsageError(
             "Cannot use --watch without providing "

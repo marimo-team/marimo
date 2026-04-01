@@ -23,6 +23,7 @@ from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
 def get_default_result_limit() -> Optional[int]:
+    """Return the default SQL result row limit from the MARIMO_SQL_DEFAULT_LIMIT environment variable, or None if unset."""
     limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
     return int(limit) if limit is not None else None
 

@@ -13,11 +13,14 @@ if TYPE_CHECKING:
 
 
 class ArviZFormatter(FormatterFactory):
+    """Formatter factory that registers marimo output formatters for ArviZ numpy arrays and figures."""
+
     @staticmethod
     def package_name() -> str:
         return "arviz"
 
     def register(self) -> None:
+        """Register formatters for numpy arrays of axes and matplotlib figures."""
         import matplotlib.pyplot as plt  # type: ignore
         import numpy as np  # type: ignore
 
@@ -37,6 +40,7 @@ class ArviZFormatter(FormatterFactory):
 
     @classmethod
     def format_numpy_axes(cls, arr: np.ndarray) -> tuple[KnownMimeType, str]:  # type: ignore
+        """Render a numpy array of matplotlib Axes objects as an HTML image, or fall back to plain text."""
         import matplotlib.pyplot as plt  # type: ignore
 
         # Check if array contains axes (to render plots) or not
@@ -91,6 +95,7 @@ class ArviZFormatter(FormatterFactory):
 
     @classmethod
     def format_figure(cls, fig: Figure) -> tuple[KnownMimeType, str]:  # type: ignore
+        """Render a matplotlib Figure as an HTML image and close it."""
         import matplotlib.pyplot as plt  # type: ignore
 
         plot_html = cls._get_plot_html(fig)

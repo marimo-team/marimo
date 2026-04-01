@@ -18,6 +18,7 @@ class PickleLoader(BasePersistenceLoader):
         super().__init__(name, "pickle", **kwargs)
 
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
+        """Deserialize a Cache object from a pickle blob."""
         del key
         cache = pickle.loads(blob)
         if not isinstance(cache, Cache):
@@ -25,4 +26,5 @@ class PickleLoader(BasePersistenceLoader):
         return cache
 
     def to_blob(self, cache: Cache) -> bytes:
+        """Serialize a Cache object to a pickle blob."""
         return pickle.dumps(cache, protocol=pickle.HIGHEST_PROTOCOL)

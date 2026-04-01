@@ -20,6 +20,8 @@ FLATTEN_RET_TYPE = tuple[list[Any], UNFLATTEN_TYPE]
 
 
 class CyclicStructureError(Exception):
+    """Raised when a nested structure contains a cyclic reference."""
+
     pass
 
 
@@ -249,6 +251,7 @@ def flatten(
     )
 
     def unflatten_with_validation(vector: list[Any]) -> STRUCT_TYPE:
+        """Validate the input list length then repack it into the original structure."""
         if type(vector) != list:  # noqa: E721
             raise ValueError(
                 "unflatten function requires a list as input, "

@@ -64,6 +64,7 @@ def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
     series = series.drop_nulls()
 
     def validate_number(value: Any) -> float:
+        """Unwrap and coerce a scalar to float, raising if conversion fails."""
         value = unwrap_py_scalar(value)
         value = float(value)
         if not isinstance(value, (int, float)):
@@ -102,6 +103,7 @@ def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     series = series.drop_nulls()
 
     def validate_date(value: Any) -> str:
+        """Unwrap and format a scalar as an ISO date string (YYYY-MM-DD)."""
         value = unwrap_py_scalar(value)
         if isinstance(value, datetime.date):
             return value.strftime("%Y-%m-%d")
@@ -126,6 +128,7 @@ def get_datetime_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     series = series.drop_nulls()
 
     def validate_datetime(value: Any) -> str:
+        """Unwrap and format a scalar as an ISO datetime string."""
         value = unwrap_py_scalar(value)
         if isinstance(value, datetime.datetime):
             return value.strftime("%Y-%m-%dT%H:%M:%S")

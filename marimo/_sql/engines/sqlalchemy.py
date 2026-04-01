@@ -172,13 +172,16 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     @property
     def source(self) -> str:
+        """Return the engine source identifier."""
         return "sqlalchemy"
 
     @property
     def dialect(self) -> str:
+        """Return the SQLAlchemy dialect name for this connection."""
         return str(self._connection.dialect.name)
 
     def execute(self, query: str) -> Any:
+        """Execute a SQL query and return results in the configured output format."""
         sql_output_format = self.sql_output_format()
 
         from sqlalchemy import text
@@ -216,6 +219,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if var is a SQLAlchemy Engine instance."""
         if not DependencyManager.sqlalchemy.imported():
             return False
 
@@ -225,6 +229,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Return the inference configuration for schema discovery."""
         return InferenceConfig(
             auto_discover_schemas="auto",
             auto_discover_tables="auto",
@@ -674,6 +679,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
     @staticmethod
     def is_cursor_result(result: Any) -> bool:
+        """Return True if result is a SQLAlchemy CursorResult."""
         if not DependencyManager.sqlalchemy.has():
             return False
 
@@ -685,6 +691,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     def get_cursor_metadata(
         result: CursorResult[Any],
     ) -> dict[str, Any]:
+        """Extract metadata (column info, row count, statement type) from a CursorResult."""
         try:
             column_info = None
             if result.cursor is not None:

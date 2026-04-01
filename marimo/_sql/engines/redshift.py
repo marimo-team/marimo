@@ -41,14 +41,17 @@ class RedshiftEngine(SQLConnection["Connection"]):
 
     @property
     def source(self) -> str:
+        """Return the engine source identifier."""
         return "redshift"
 
     @property
     def dialect(self) -> str:
+        """Return the SQL dialect identifier."""
         return "redshift"
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Return True if var is a redshift_connector Connection."""
         if not DependencyManager.redshift_connector.imported():
             return False
 
@@ -58,6 +61,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Return the schema inference configuration for Redshift."""
         return InferenceConfig(
             auto_discover_schemas=True,
             auto_discover_tables=False,
@@ -65,6 +69,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
         )
 
     def _try_commit(self) -> None:
+        """Attempt to commit the current transaction, ignoring errors."""
         try:
             self._connection.commit()
         except Exception as e:
@@ -107,6 +112,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
             LOGGER.debug("Failed to rollback. Reason: %s.", e)
 
     def execute(self, query: str) -> Any:
+        """Execute a SQL query and return a DataFrame or cursor depending on the output format."""
         sql_output_format = self.sql_output_format()
 
         with self._connection.cursor() as cursor:
@@ -147,6 +153,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
             return cursor_result
 
     def get_default_database(self) -> Optional[str]:
+        """Return the name of the current catalog, or None on failure."""
         with self._connection.cursor() as cursor:
             try:
                 return str(cursor.cur_catalog())
@@ -155,6 +162,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 return None
 
     def get_default_schema(self) -> Optional[str]:
+        """Return the name of the current schema, or None on failure."""
         with self._connection.cursor() as cursor:
             try:
                 result = cursor.execute("SELECT current_schema()")
@@ -403,9 +411,11 @@ class RedshiftEngine(SQLConnection["Connection"]):
             )
 
     def _resolve_table_type(self, table_type: str) -> DataTableType:
+        """Map a Redshift table_type string to a DataTableType literal."""
         return "view" if table_type == "VIEW" else "table"
 
     def _get_data_type(self, data_type: str) -> Optional[DataType]:
+        """Convert a Redshift-specific type string to a DataType, or None if unrecognized."""
         data_type = data_type.lower()
         if "cardinal_number" in data_type:
             return "number"
@@ -416,6 +426,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
     def _resolve_should_auto_discover(
         self, value: Union[bool, Literal["auto"]]
     ) -> bool:
+        """Resolve an "auto" discovery flag to a concrete bool (defaults to False for Redshift)."""
         # Opt to not auto-discover for now
         if value == "auto":
             return False

@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class BaseStruct(msgspec.Struct):
+    """Base msgspec Struct with Pydantic v2 compatibility via a custom core schema."""
+
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: GetCoreSchemaHandler

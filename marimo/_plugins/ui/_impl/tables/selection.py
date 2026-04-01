@@ -12,6 +12,7 @@ T = TypeVar("T")
 
 
 def add_selection_column(data: T) -> tuple[T, bool]:
+    """Add a row-index column for selection tracking; returns (data, added) where added is True if supported."""
     if nw.dependencies.is_into_dataframe(data):
         df = nw.from_native(cast(IntoDataFrame, data), pass_through=False)
         if INDEX_COLUMN_NAME not in df.columns:
@@ -21,6 +22,7 @@ def add_selection_column(data: T) -> tuple[T, bool]:
 
 
 def remove_selection_column(data: T) -> T:
+    """Remove the row-index selection column from a dataframe if present."""
     if nw.dependencies.is_into_dataframe(data):
         df = nw.from_native(cast(IntoDataFrame, data), pass_through=False)
         if INDEX_COLUMN_NAME in df.columns:

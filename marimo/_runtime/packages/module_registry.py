@@ -25,6 +25,8 @@ def _is_module_installed(module_name: str) -> bool:
 
 
 class ModuleRegistry:
+    """Registry that tracks imported modules across notebook cells and identifies missing ones."""
+
     def __init__(
         self, graph: GraphTopology, excluded_modules: set[str] | None = None
     ) -> None:

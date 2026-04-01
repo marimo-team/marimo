@@ -365,6 +365,7 @@ class _cache_call(CacheContext, Generic[P, R]):
 
     @property
     def misses(self) -> int:
+        """Return the number of cache misses since the cache was created."""
         if self._loader is None:
             return 0
         return self._misses
@@ -635,6 +636,8 @@ class _cache_call_async(_cache_call[P, R]):
 
 
 class _cache_context(SkipContext, CacheContext):
+    """Context manager implementation of the marimo cache for code blocks."""
+
     def __init__(
         self,
         name: str,
@@ -660,9 +663,11 @@ class _cache_context(SkipContext, CacheContext):
 
     @property
     def hit(self) -> bool:
+        """Return True if the cache was hit on the most recent execution."""
         return self._cache is not None and self._cache.hit
 
     def trace(self, with_frame: FrameType) -> None:
+        """Trace callback invoked on the first line of the with-block to compute and check the cache hash."""
         # General flow is as follows:
         #   1) Follow the stack trace backwards to the first instance of a
         # "<module>" function call, which corresponds to a cell level block.
@@ -950,7 +955,9 @@ def cache(
     fn: Callable[P, Coroutine[Any, Any, R]],
     pin_modules: bool = False,
     loader: LoaderPartial | LoaderType = MemoryLoader,
-) -> _cache_call_async[P, R]: ...
+) -> _cache_call_async[P, R]:
+    """Cache an async function."""
+    ...
 
 
 @overload
@@ -958,7 +965,9 @@ def cache(
     fn: Callable[P, R],
     pin_modules: bool = False,
     loader: LoaderPartial | LoaderType = MemoryLoader,
-) -> _cache_call[P, R]: ...
+) -> _cache_call[P, R]:
+    """Cache a sync function."""
+    ...
 
 
 @overload
@@ -966,7 +975,9 @@ def cache(
     fn: None = None,
     pin_modules: bool = False,
     loader: LoaderPartial | LoaderType = MemoryLoader,
-) -> _cache_call[Any, Any]: ...
+) -> _cache_call[Any, Any]:
+    """Return a deferred cache decorator."""
+    ...
 
 
 @overload
@@ -974,7 +985,9 @@ def cache(
     name: str,
     pin_modules: bool = False,
     loader: LoaderPartial | Loader | LoaderType = MemoryLoader,
-) -> _cache_context: ...
+) -> _cache_context:
+    """Return a cache context manager for a named block."""
+    ...
 
 
 def cache(  # type: ignore[misc]
@@ -1075,7 +1088,9 @@ def lru_cache(
     fn: Callable[P, Coroutine[Any, Any, R]],
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_call_async[P, R]: ...
+) -> _cache_call_async[P, R]:
+    """LRU-cache an async function."""
+    ...
 
 
 @overload
@@ -1083,7 +1098,9 @@ def lru_cache(
     fn: Callable[P, R],
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_call[P, R]: ...
+) -> _cache_call[P, R]:
+    """LRU-cache a sync function."""
+    ...
 
 
 @overload
@@ -1091,7 +1108,9 @@ def lru_cache(
     fn: None = None,
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_call[Any, Any]: ...
+) -> _cache_call[Any, Any]:
+    """Return a deferred LRU-cache decorator."""
+    ...
 
 
 @overload
@@ -1099,7 +1118,9 @@ def lru_cache(
     name: str,
     maxsize: int = 128,
     pin_modules: bool = False,
-) -> _cache_context: ...
+) -> _cache_context:
+    """Return an LRU-cache context manager for a named block."""
+    ...
 
 
 def lru_cache(  # type: ignore[misc]
@@ -1174,7 +1195,9 @@ def persistent_cache(
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     pin_modules: bool = False,
-) -> _cache_call_async[P, R]: ...
+) -> _cache_call_async[P, R]:
+    """Persistently cache an async function to disk."""
+    ...
 
 
 @overload
@@ -1183,7 +1206,9 @@ def persistent_cache(
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     pin_modules: bool = False,
-) -> _cache_call[P, R]: ...
+) -> _cache_call[P, R]:
+    """Persistently cache a sync function to disk."""
+    ...
 
 
 @overload
@@ -1192,7 +1217,9 @@ def persistent_cache(
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     pin_modules: bool = False,
-) -> _cache_call[Any, Any]: ...
+) -> _cache_call[Any, Any]:
+    """Return a deferred persistent cache decorator."""
+    ...
 
 
 @overload
@@ -1201,7 +1228,9 @@ def persistent_cache(
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     pin_modules: bool = False,
-) -> _cache_context: ...
+) -> _cache_context:
+    """Return a persistent cache context manager for a named block."""
+    ...
 
 
 def persistent_cache(  # type: ignore[misc]

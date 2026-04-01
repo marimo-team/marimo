@@ -31,7 +31,7 @@ class BreaklessListsPreprocessor(preprocessors.Preprocessor):  # type: ignore[mi
         super().__init__(md)
 
     def run(self, lines: list[str]) -> list[str]:
-        """Process the lines and insert blank lines before lists that follow paragraphs."""
+        """Insert blank lines before list items that immediately follow paragraph text."""
         if not lines:
             return lines
 
@@ -71,6 +71,7 @@ class BreaklessListsTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore
     LIST_TAGS = {"ul", "ol"}
 
     def run(self, root: Element) -> None:
+        """Unwrap single-paragraph list items to produce compact list output."""
         for element in root.iter(tag="li"):
             self._unwrap_single_paragraph(element)
 
@@ -113,6 +114,7 @@ class BreaklessListsExtension(Extension):  # type: ignore[misc]
     """
 
     def extendMarkdown(self, md: Markdown) -> None:
+        """Register the preprocessor and tree processor with the Markdown instance."""
         # Register preprocessor to enable list interruption
         md.preprocessors.register(
             BreaklessListsPreprocessor(md),

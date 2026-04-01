@@ -105,12 +105,15 @@ async def ruff(
 
 
 class Formatter:
+    """Base code formatter that returns code unchanged."""
+
     def __init__(self, line_length: int) -> None:
         self.line_length = line_length
 
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
+        """Return codes unchanged; subclasses override to apply formatting."""
         del stdin_filename
         return codes
 
@@ -139,6 +142,8 @@ class DefaultFormatter(Formatter):
 
 
 class RuffFormatter(Formatter):
+    """Code formatter that uses ruff to format cell code."""
+
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
@@ -152,6 +157,8 @@ class RuffFormatter(Formatter):
 
 
 class BlackFormatter(Formatter):
+    """Code formatter that uses black to format cell code."""
+
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
@@ -176,4 +183,4 @@ class BlackFormatter(Formatter):
 
 
 class FormatError(Exception):
-    pass
+    """Raised when a code formatter fails to format a cell."""

@@ -48,6 +48,7 @@ SUPPORTED_ENGINES: list[type[BaseEngine[Any]]] = [
 def get_engines_from_variables(
     variables: list[tuple[VariableName, object]],
 ) -> list[tuple[VariableName, BaseEngine[Any]]]:
+    """Return a list of (variable_name, engine) pairs for each variable that is a supported SQL engine."""
     engines: list[tuple[VariableName, BaseEngine[Any]]] = []
 
     for variable_name, value in variables:
@@ -69,6 +70,7 @@ def get_engines_from_variables(
 def engine_to_data_source_connection(
     variable_name: VariableName, engine: BaseEngine[Any]
 ) -> DataSourceConnection:
+    """Convert a SQL engine to a DataSourceConnection, introspecting its databases and schemas."""
     databases: list[Database] = []
     default_database: Optional[str] = None
     default_schema: Optional[str] = None
@@ -120,6 +122,7 @@ def engine_to_data_source_connection(
 
 
 def get_datasources_config() -> DatasourcesConfig:
+    """Return the datasources config from the current runtime context or the default config file."""
     try:
         return get_context().marimo_config.get("datasources", {})
     except ContextNotInitializedError:

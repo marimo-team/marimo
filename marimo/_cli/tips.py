@@ -13,6 +13,8 @@ from click.core import ParameterSource
 
 @dataclass(frozen=True)
 class CliTip:
+    """A startup tip that may include an example command or documentation link."""
+
     text: str
     command: str | None = None
     link: str | None = None
@@ -60,6 +62,8 @@ CLI_STARTUP_TIPS: Final[tuple[CliTip, ...]] = (
 
 @dataclass(frozen=True)
 class InvocationSignature:
+    """Represents a CLI invocation by its subcommand path and explicitly-set options."""
+
     command_path: tuple[str, ...]
     enabled_options: frozenset[str]
 
@@ -68,6 +72,7 @@ def choose_startup_tip(
     ctx: click.Context,
     tips: tuple[CliTip, ...] | None = None,
 ) -> CliTip | None:
+    """Select a random tip that is relevant to the current CLI invocation, or None if not a TTY."""
     if not sys.stdout.isatty():
         return None
 
@@ -89,6 +94,7 @@ def get_relevant_startup_tips(
     current: InvocationSignature,
     root: click.Group,
 ) -> tuple[CliTip, ...]:
+    """Filter tips to those relevant to the current invocation, falling back to all tips if none match."""
     relevant = tuple(
         tip for tip in tips if _is_relevant_startup_tip(tip, current, root)
     )
@@ -98,6 +104,7 @@ def get_relevant_startup_tips(
 
 
 def signature_from_click_context(ctx: click.Context) -> InvocationSignature:
+    """Build an InvocationSignature from a Click context by extracting the command path and set options."""
     contexts = _context_chain(ctx)
     command_path = tuple(
         _context_command_name(context) for context in contexts[1:]
@@ -117,6 +124,7 @@ def signature_from_command_example(
     root: click.Group,
     command: str,
 ) -> InvocationSignature | None:
+    """Parse an example command string into an InvocationSignature, returning None on failure."""
     try:
         tokens = shlex.split(command)
     except ValueError:

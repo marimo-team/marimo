@@ -49,6 +49,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_openai(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the OpenAI provider."""
         fallback_key = cls.os_key("OPENAI_API_KEY")
         return cls._for_openai_like(
             config,
@@ -60,6 +61,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_azure(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the Azure OpenAI provider."""
         fallback_key = cls.os_key("AZURE_API_KEY")
         return cls._for_openai_like(
             config,
@@ -71,6 +73,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_openai_compatible(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for an OpenAI-compatible third-party provider."""
         return cls._for_openai_like(
             config, "open_ai_compatible", "OpenAI Compatible"
         )
@@ -101,6 +104,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_ollama(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the local Ollama provider."""
         default_base_url = "http://127.0.0.1:11434/v1"
         return cls._for_openai_like(
             config,
@@ -112,6 +116,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_github(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for GitHub Copilot."""
         fallback_key = cls.os_key("GITHUB_TOKEN")
         result = cls._for_openai_like(
             config,
@@ -140,6 +145,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_openrouter(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the OpenRouter provider."""
         fallback_key = cls.os_key("OPENROUTER_API_KEY")
         return cls._for_openai_like(
             config,
@@ -153,6 +159,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_wandb(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the Weights & Biases provider."""
         fallback_key = cls.os_key("WANDB_API_KEY")
         return cls._for_openai_like(
             config,
@@ -201,6 +208,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_anthropic(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the Anthropic provider."""
         ai_config = _get_ai_config(config, "anthropic")
         fallback_key = cls.os_key("ANTHROPIC_API_KEY")
         key = _get_key(
@@ -217,6 +225,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_google(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the Google Generative AI provider."""
         fallback_key = cls.os_key("GEMINI_API_KEY") or cls.os_key(
             "GOOGLE_API_KEY"
         )
@@ -236,6 +245,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the Amazon Bedrock provider."""
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
         return cls(
@@ -246,6 +256,7 @@ class AnyProviderConfig:
 
     @classmethod
     def for_model(cls, model: str, config: AiConfig) -> AnyProviderConfig:
+        """Build an AnyProviderConfig for the given model, dispatching to the appropriate provider."""
         model_id = AiModelId.from_model(model)
         if model_id.provider == "anthropic":
             return cls.for_anthropic(config)
@@ -284,6 +295,7 @@ class AnyProviderConfig:
 
     @classmethod
     def os_key(cls, key: str) -> Optional[str]:
+        """Return the value of an environment variable, or None if not set."""
         import os
 
         return os.environ.get(key)
@@ -334,6 +346,7 @@ def get_autocomplete_model(
 
 
 def get_max_tokens(config: MarimoConfig) -> int:
+    """Return the configured max tokens for AI completions, defaulting to DEFAULT_MAX_TOKENS."""
     if "ai" not in config:
         return DEFAULT_MAX_TOKENS
     if "max_tokens" not in config["ai"]:

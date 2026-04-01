@@ -193,6 +193,7 @@ BIGINT_KEY = "$bigint"
 
 
 def is_bigint(value: int | float) -> bool:
+    """Return True if value falls outside JavaScript's safe integer range."""
     return value > MAX_SAFE_INTEGER or value < MIN_SAFE_INTEGER
 
 
@@ -208,6 +209,7 @@ def sanitize_json_bigint(
     from json import dumps, loads
 
     def convert_key(key: Any) -> Any:
+        """Ensure dict keys are JSON-compatible types, stringifying others."""
         # Keys must be str, int, float, bool, or None
         if key is None:
             return key
@@ -216,6 +218,7 @@ def sanitize_json_bigint(
         return str(key)
 
     def convert_bigint(obj: Any) -> Any:
+        """Recursively replace integers outside JS safe range with a $bigint wrapper object."""
         if isinstance(obj, dict):
             return {convert_key(k): convert_bigint(v) for k, v in obj.items()}  # type: ignore
         elif isinstance(obj, list):

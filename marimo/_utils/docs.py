@@ -239,6 +239,8 @@ def google_docstring_to_markdown(docstring: str) -> str:
 
 # See https://github.com/python-lsp/docstring-to-markdown?tab=readme-ov-file#extensibility
 class MarimoConverter:
+    """docstring-to-markdown converter that handles Google-style docstrings."""
+
     priority = 100
 
     def __init__(self) -> None:
@@ -247,9 +249,11 @@ class MarimoConverter:
     SECTION_HEADERS = ["Args", "Returns", "Raises", "Examples"]
 
     def convert(self, docstring: str) -> str:
+        """Convert a Google-style docstring to Markdown."""
         return google_docstring_to_markdown(docstring)
 
     def can_convert(self, docstring: str) -> bool:
+        """Return True if the docstring contains a recognizable Google-style section header."""
         for section in self.SECTION_HEADERS:
             if re.search(rf"{section}:\n", docstring):
                 return True

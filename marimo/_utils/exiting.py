@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 @dataclass
 class Exiting:
+    """Mutable flag set to True when Python begins its shutdown sequence."""
+
     value: bool = False
 
 
@@ -16,6 +18,7 @@ _PYTHON_EXITING = Exiting()
 # bind the global _PYTHON_EXITING to ensure it still exists
 # at Python destruction time; for graceful exits when running as a script
 def python_exiting(_exiting: Exiting = _PYTHON_EXITING) -> bool:
+    """Return True if Python is currently shutting down."""
     return _exiting.value
 
 

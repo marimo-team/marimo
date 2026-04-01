@@ -171,6 +171,7 @@ class AppScriptRunner:
         return outputs, glbls
 
     def run(self) -> RunOutput:
+        """Execute all notebook cells in order and return their outputs and globals."""
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 
 def canonicalize_filename(filename: str) -> str:
+    """Ensure filename has a valid .py or .md extension and expand user home directory."""
     # If its not a valid Python or Markdown file, then add .py
     if not MarimoPath.is_valid_path(filename):
         filename += ".py"

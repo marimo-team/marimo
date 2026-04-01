@@ -14,12 +14,16 @@ from marimo._ai._tools.types import (
 
 @dataclass
 class SummaryInfo:
+    """Summary statistics for all active notebook sessions."""
+
     total_notebooks: int
     active_connections: int
 
 
 @dataclass
 class GetActiveNotebooksData:
+    """Payload returned by GetActiveNotebooks containing summary and per-notebook details."""
+
     summary: SummaryInfo
     notebooks: list[MarimoNotebookInfo]
 
@@ -33,6 +37,8 @@ def _default_active_notebooks_data() -> GetActiveNotebooksData:
 
 @dataclass
 class GetActiveNotebooksOutput(SuccessResult):
+    """Output of the GetActiveNotebooks tool."""
+
     data: GetActiveNotebooksData = field(
         default_factory=_default_active_notebooks_data
     )
@@ -54,6 +60,7 @@ class GetActiveNotebooks(ToolBase[EmptyArgs, GetActiveNotebooksOutput]):
     )
 
     def handle(self, args: EmptyArgs) -> GetActiveNotebooksOutput:
+        """Return summary and detail info for all active marimo notebook sessions."""
         del args
         context = self.context
         session_manager = context.session_manager

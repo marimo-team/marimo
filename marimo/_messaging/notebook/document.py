@@ -94,6 +94,7 @@ class NotebookDocument:
 
     @property
     def version(self) -> int:
+        """Monotonically increasing document version, incremented on each applied transaction."""
         return self._version
 
     def get_cell(self, cell_id: CellId_t) -> NotebookCell:

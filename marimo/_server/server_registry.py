@@ -69,6 +69,7 @@ class ServerRegistryEntry:
         port: int,
         base_url: str,
     ) -> ServerRegistryEntry:
+        """Create a ServerRegistryEntry for the current process."""
         from marimo._version import __version__
 
         return ServerRegistryEntry(
@@ -91,6 +92,7 @@ class ServerRegistryWriter:
         self._registered = False
 
     def register(self) -> None:
+        """Write the server registry entry to disk and schedule deregistration at exit."""
         servers_dir = _servers_dir()
         servers_dir.mkdir(parents=True, exist_ok=True)
 
@@ -117,6 +119,7 @@ class ServerRegistryWriter:
         LOGGER.debug("Registered server: %s", self._path)
 
     def deregister(self) -> None:
+        """Remove the server registry file from disk."""
         if not self._registered:
             return
         try:

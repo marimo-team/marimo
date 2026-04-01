@@ -6,11 +6,15 @@ from marimo._plugins.ui._impl.anywidget.init import init_marimo_widget
 
 
 class IPyWidgetsFormatter(FormatterFactory):
+    """Formatter factory that integrates ipywidgets with marimo."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "ipywidgets"
 
     def register(self) -> None:
+        """Register marimo's widget initializer as an ipywidgets construction callback."""
         import ipywidgets  # type:ignore
 
         Widget = ipywidgets.Widget

@@ -11,6 +11,8 @@ from marimo._utils.config.config import ConfigReader
 
 @dataclass
 class RecentFilesState:
+    """Persisted state tracking recently opened notebook file paths."""
+
     files: list[str] = field(default_factory=list)
 
 
@@ -27,6 +29,8 @@ def _is_tmp_file(filename: str) -> bool:
 
 
 class RecentFilesManager:
+    """Manages the list of recently opened notebook files, persisted to a TOML file."""
+
     MAX_FILES = 5
     LOCATION = "recent_files.toml"
 
@@ -34,6 +38,7 @@ class RecentFilesManager:
         self.config = ConfigReader.for_filename(self.LOCATION)
 
     def touch(self, filename: str) -> None:
+        """Record a file as recently accessed, moving it to the top of the list."""
         if _is_tmp_file(filename):
             return
 
@@ -62,6 +67,7 @@ class RecentFilesManager:
             LOGGER.error(str(e))
 
     def rename(self, old_filename: str, new_filename: str) -> None:
+        """Update the stored path for a file that has been renamed."""
         if not self.config:
             return
 
@@ -78,6 +84,7 @@ class RecentFilesManager:
     def get_recents(
         self, directory: pathlib.Path | None = None
     ) -> list[MarimoFile]:
+        """Return recently accessed notebooks that exist within the given directory."""
         if not self.config:
             return []
 

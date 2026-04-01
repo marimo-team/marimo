@@ -78,11 +78,15 @@ def nav_menu(
 
 @dataclass
 class NavMenu:
+    """Represents the top-level navigation menu with a list of links or groups."""
+
     items: list[Union[NavMenuItemLink, NavMenuItemGroup]]
 
 
 @dataclass
 class NavMenuItemLink:
+    """A single navigation link with a label, href, and optional description."""
+
     label: str
     href: str
     description: Optional[str] = None
@@ -90,6 +94,8 @@ class NavMenuItemLink:
 
 @dataclass
 class NavMenuItemGroup:
+    """A labeled group of navigation links forming a submenu."""
+
     label: str
     items: list[NavMenuItemLink]
 

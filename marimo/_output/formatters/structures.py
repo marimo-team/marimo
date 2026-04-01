@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 def is_structures_formatter(
     formatter: formatting.Formatter[object] | None,
 ) -> bool:
+    """Return True if the formatter is the structures formatter."""
     return formatter is formatting.get_formatter(tuple())
 
 
@@ -109,6 +110,8 @@ def _format_single_figure(
 
 
 class StructuresFormatter(FormatterFactory):
+    """Registers formatters for built-in Python structures and function types."""
+
     @staticmethod
     def package_name() -> None:
         return None

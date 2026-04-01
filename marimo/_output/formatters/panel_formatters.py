@@ -9,11 +9,15 @@ from marimo._plugins.ui._impl.from_panel import panel as from_panel
 
 
 class PanelFormatter(FormatterFactory):
+    """Formatter factory for Panel viewable objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "panel"
 
     def register(self) -> None:
+        """Register formatters for Panel Viewable and param reactive objects."""
         import panel  # type: ignore
         import param  # type: ignore
 

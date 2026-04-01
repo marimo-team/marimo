@@ -27,10 +27,12 @@ MANAGERS: list[TableManagerFactory] = [
 
 
 def get_table_manager(data: Any) -> TableManager[Any]:
+    """Return a TableManager for the given data, falling back to DefaultTableManager."""
     return get_table_manager_or_none(data) or DefaultTableManager(data)
 
 
 def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
+    """Return a TableManager for the given data, or None if no suitable manager is found."""
     if data is None:
         return None
 

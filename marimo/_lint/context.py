@@ -121,7 +121,7 @@ class LintContext:
             return new_diagnostics
 
     def _group_initial_logs(self) -> None:
-        """Group initial log records by rule code."""
+        """Group initial log records by rule code for later retrieval."""
         for record in self._log_records:
             # Check if record has lint_rule metadata
             lint_rule = getattr(record, "lint_rule", None)
@@ -141,7 +141,7 @@ class LintContext:
         cell_id: str,
         cell_lineno: int,
     ) -> None:
-        """Enhance log records with cell information and store globally."""
+        """Annotate log records with cell position metadata and add them to the global log store."""
         for record in cell_logs:
             # Add cell information to the log record
             if hasattr(record, "__dict__"):
@@ -292,6 +292,7 @@ class RuleContext:
         return self.global_context.stderr
 
     def get_errors(self, key: str) -> list[tuple[Exception, CellDef]]:
+        """Return compilation errors stored under the given key (e.g. 'SyntaxError')."""
         return self.global_context._errors.get(key, [])
 
     def get_logs(

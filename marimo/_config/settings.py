@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 @dataclass
 class GlobalSettings:
+    """Process-level feature flags and runtime settings for the marimo server."""
+
     DEVELOPMENT_MODE: bool = False
     QUIET: bool = False
     YES: bool = False

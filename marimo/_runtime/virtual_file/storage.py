@@ -83,6 +83,7 @@ class SharedMemoryStorage(VirtualFileStorage):
 
     @property
     def stale(self) -> bool:
+        """Return True if this storage has been shut down and is no longer usable."""
         return self._stale
 
     def store(self, key: str, buffer: bytes) -> None:
@@ -167,6 +168,7 @@ class SharedMemoryStorage(VirtualFileStorage):
                 shm.close()
 
     def remove(self, key: str) -> None:
+        """Unlink and remove a shared memory block by key."""
         if key in self._storage:
             if sys.platform == "win32":
                 self._storage[key].close()
@@ -174,6 +176,7 @@ class SharedMemoryStorage(VirtualFileStorage):
             del self._storage[key]
 
     def shutdown(self, keys: Iterable[str] | None = None) -> None:
+        """Unlink all shared memory blocks and mark storage as stale."""
         del keys  # Always clear all - not shared
         if self._shutting_down:
             return
@@ -189,6 +192,7 @@ class SharedMemoryStorage(VirtualFileStorage):
             self._shutting_down = False
 
     def has(self, key: str) -> bool:
+        """Return True if a shared memory block with the given key exists."""
         return key in self._storage
 
 
@@ -203,12 +207,15 @@ class InMemoryStorage(VirtualFileStorage):
 
     @property
     def stale(self) -> bool:
+        """Return False since in-memory storage is never stale."""
         return False  # Never stale - can be shared
 
     def store(self, key: str, buffer: bytes) -> None:
+        """Store buffer bytes under the given key."""
         self._storage[key] = buffer
 
     def read(self, key: str, byte_length: int) -> bytes:
+        """Read up to byte_length bytes for the given key."""
         if key not in self._storage:
             raise KeyError(f"Virtual file not found: {key}")
         return self._storage[key][:byte_length]
@@ -219,6 +226,7 @@ class InMemoryStorage(VirtualFileStorage):
         byte_length: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> Iterator[bytes]:
+        """Yield byte chunks for the given key without allocating the full buffer at once."""
         if key not in self._storage:
             raise KeyError(f"Virtual file not found: {key}")
         buffer = self._storage[key]
@@ -227,10 +235,12 @@ class InMemoryStorage(VirtualFileStorage):
             yield buffer[i : min(i + chunk_size, end)]
 
     def remove(self, key: str) -> None:
+        """Remove a stored buffer by key."""
         if key in self._storage:
             del self._storage[key]
 
     def shutdown(self, keys: Iterable[str] | None = None) -> None:
+        """Remove specified keys or clear all storage."""
         if keys is not None:
             for key in keys:
                 self.remove(key)
@@ -238,6 +248,7 @@ class InMemoryStorage(VirtualFileStorage):
             self._storage.clear()
 
     def has(self, key: str) -> bool:
+        """Return True if the given key exists in storage."""
         return key in self._storage
 
 
@@ -254,6 +265,7 @@ class VirtualFileStorageManager:
 
     @property
     def storage(self) -> VirtualFileStorage | None:
+        """Return the current storage backend, clearing it if stale."""
         if self._storage is not None and self._storage.stale:
             self._storage = None
         return self._storage

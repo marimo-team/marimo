@@ -7,11 +7,14 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
 class MatplotlibFormatter(FormatterFactory):
+    """Formatter factory that registers marimo's matplotlib backend and output formatters."""
+
     @staticmethod
     def package_name() -> str:
         return "matplotlib"
 
     def register(self) -> None:
+        """Set up the marimo matplotlib backend and monkey-patch Artist for MIME rendering."""
         import matplotlib  # type: ignore
 
         from marimo._runtime.context import (
@@ -49,6 +52,7 @@ class MatplotlibFormatter(FormatterFactory):
                 return ("text/plain", str(bc))
 
     def apply_theme(self, theme: Theme) -> None:
+        """Apply the dark_background matplotlib style when the marimo theme is dark."""
         import matplotlib.style  # type: ignore
 
         # Note: we don't set to "default", because that overwrites all

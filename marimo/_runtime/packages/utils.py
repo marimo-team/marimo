@@ -22,14 +22,17 @@ def in_virtual_environment() -> bool:
 
 
 def in_conda_env() -> bool:
+    """Return True if a Conda environment is currently active."""
     return "CONDA_DEFAULT_ENV" in os.environ
 
 
 def is_dockerized() -> bool:
+    """Return True if running inside a Docker container."""
     return os.path.exists("/.dockerenv")
 
 
 def is_modal_image() -> bool:
+    """Return True if running inside a Modal task image."""
     return os.environ.get("MODAL_TASK_ID") is not None
 
 
@@ -116,7 +119,7 @@ class PackageRequirement:
 
     @classmethod
     def parse(cls, requirement: str) -> PackageRequirement:
-        """Parse a package requirement string into name and extras."""
+        """Parse a package requirement string (e.g. 'requests[security]') into name and extras."""
         match = re.match(r"^([^\[\]]+)(?:\[([^\[\]]+)\])?$", requirement)
         if not match:
             return cls(name=requirement)

@@ -15,6 +15,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class LoroDocManager:
+    """Manages Loro CRDT documents and their connected client queues for real-time collaboration."""
+
     def __init__(self) -> None:
         self.loro_docs: dict[MarimoFileKey, LoroDoc] = {}
         self.loro_docs_lock = asyncio.Lock()

@@ -63,6 +63,7 @@ class MarimoIslandStub:
 
     @property
     def output(self) -> Optional[CellOutput]:
+        """Return the cell's output, resolving it from the session view if needed."""
         # Leave output accessible for direct use for non-interactive cases e.g.
         # pdf.
         if self._output is None:
@@ -73,6 +74,7 @@ class MarimoIslandStub:
 
     @property
     def code(self) -> str:
+        """Return the source code for this island stub."""
         return self._code
 
     def render(
@@ -589,4 +591,5 @@ class MarimoIslandGenerator:
 
 
 def remove_empty_lines(text: str) -> str:
+    """Remove blank lines from a multi-line string."""
     return "\n".join([line for line in text.split("\n") if line.strip() != ""])

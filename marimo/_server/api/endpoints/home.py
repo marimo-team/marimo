@@ -190,7 +190,7 @@ async def workspace_files(
 
 
 def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
-    """Get list of active sessions with prettified paths."""
+    """Return a list of currently open or orphaned sessions with prettified file paths."""
     # Get directory from file router for path relativization
     base_dir = app_state.session_manager.file_router.directory
 

@@ -14,11 +14,15 @@ LOGGER = marimo_logger()
 
 
 class PandasFormatter(FormatterFactory):
+    """Formatter factory for pandas DataFrame and Series objects."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "pandas"
 
     def register(self) -> None:
+        """Register formatters for pandas DataFrame and Series."""
         import pandas as pd
 
         pd.set_option("display.max_rows", 10)

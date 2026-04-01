@@ -17,6 +17,7 @@ from marimo._server.tokens import AuthToken
 
 
 def prompt_to_overwrite(path: Path) -> bool:
+    """Prompt the user to confirm overwriting a file; return True if overwrite is allowed."""
     if GLOBAL_SETTINGS.YES:
         return True
 
@@ -40,6 +41,7 @@ def resolve_token(
     token_password: Optional[str],
     token_password_file: Optional[str],
 ) -> Optional[AuthToken]:
+    """Resolve CLI token arguments into an AuthToken, or None to use a generated token."""
     token_password = resolve_token_password(
         token_password=token_password,
         token_password_file=token_password_file,
@@ -127,6 +129,7 @@ def resolve_token_password(
 
 
 def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
+    """Validate a notebook file, raising a ClickException or prompting the user on issues."""
     try:
         status = get_notebook_status(filename).status
     except (SyntaxError, MarimoFileError):
@@ -189,6 +192,7 @@ def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
 
 
 def check_app_correctness_or_convert(filename: str) -> None:
+    """Validate the notebook file; auto-convert it to a marimo notebook if it is not one."""
     from marimo._convert.converters import MarimoConvert
 
     file = Path(filename)

@@ -69,6 +69,7 @@ class LintNotebook(ToolBase[LintNotebookArgs, LintNotebookOutput]):
     )
 
     async def handle(self, args: LintNotebookArgs) -> LintNotebookOutput:  # type: ignore[override]
+        """Run the linting engine on the notebook identified by ``args.session_id`` and return diagnostics."""
         session = self.context.get_session(args.session_id)
         notebook_ir = session.app_file_manager.app.to_ir()
 

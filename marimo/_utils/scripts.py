@@ -13,6 +13,7 @@ REGEX = (
 
 
 def with_python_version_requirement(project: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of the project dict with a requires-python lower bound set to the current interpreter version."""
     # TODO(akshayka): consider locking the Python version for greater
     # reproducibility, instead of returning a lowerbound
     project = project.copy()

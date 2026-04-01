@@ -37,6 +37,8 @@ Transform = Callable[[list[str]], list[str]]
 
 @dataclass
 class CodeCell:
+    """Intermediate representation of a notebook code cell before serialization."""
+
     source: str
     name: str = field(default_factory=lambda: DEFAULT_CELL_NAME)
     config: CellConfig = field(default_factory=CellConfig)
@@ -1001,6 +1003,8 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
 
 
 class Renamer:
+    """Renames variables in AST nodes according to per-cell remapping dictionaries."""
+
     def __init__(self, cell_remappings: dict[int, dict[str, str]]) -> None:
         self.cell_remappings = cell_remappings
         self.made_changes = False
@@ -1022,6 +1026,7 @@ class Renamer:
     def rename_named_node(
         self, cell: int, node: NamedNode, is_reference: bool
     ) -> None:
+        """Apply the remapping for the given cell to a named AST node in-place."""
         name: str | None = None
         new_name: str | None = None
 

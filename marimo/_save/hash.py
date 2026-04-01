@@ -62,6 +62,8 @@ DEFAULT_HASH = "sha256"
 
 # NamedTuple over dataclass for unpacking.
 class SerialRefs(NamedTuple):
+    """Result of reference serialization containing remaining refs, content bytes, and stateful refs."""
+
     refs: set[Name]
     content_serialization: dict[Name, bytes]
     stateful_refs: set[Name]
@@ -70,6 +72,7 @@ class SerialRefs(NamedTuple):
 def hash_module(
     code: Optional[CodeType], hash_type: str = DEFAULT_HASH
 ) -> bytes:
+    """Hash a code object by recursively processing its constants, names, and bytecode."""
     hash_alg = hashlib.new(hash_type, usedforsecurity=False)
     if not code:
         # Hash of zeros, in the case of no code object as a recognizable noop.
@@ -97,6 +100,7 @@ def hash_module(
 def hash_wrapped_functions(
     wrapped: Callable[..., Any], hash_type: str = DEFAULT_HASH
 ) -> bytes:
+    """Hash a callable and its wrapped chain, handling circular references."""
     seen = set()
 
     # there is a chance for a circular reference
@@ -119,6 +123,7 @@ def hash_wrapped_functions(
 def hash_raw_module(
     module: ast.Module, hash_type: str = DEFAULT_HASH
 ) -> bytes:
+    """Compile an AST module (deprivatized) and return its hash bytes."""
     # AST has to be compiled to code object prior to process.
     return hash_module(
         compile(
@@ -132,6 +137,7 @@ def hash_raw_module(
 
 
 def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
+    """Hash both the body and last expression of a cell implementation."""
     return hash_module(cell.body, hash_type) + hash_module(
         cell.last_expr, hash_type
     )
@@ -140,6 +146,7 @@ def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
 def hash_function(
     fn: Callable[..., Any], hash_type: str = DEFAULT_HASH
 ) -> bytes:
+    """Return a hash of a Python function based on its deprivatized AST."""
     return hash_raw_module(
         DeprivateVisitor().visit(get_hashable_ast(fn)), hash_type
     )
@@ -150,6 +157,7 @@ def hash_cell_group(
     graph: GraphTopology,
     hash_type: str = DEFAULT_HASH,
 ) -> bytes:
+    """Hash a group of cells by combining their individual hashes in sorted order."""
     hash_alg = hashlib.new(hash_type, usedforsecurity=False)
     hashes = []
     for cell_id in cell_ids:
@@ -165,6 +173,7 @@ def hash_cell_group(
 def hash_cell_execution(
     cell_id: CellId_t, graph: GraphTopology, hash_type: str = DEFAULT_HASH
 ) -> bytes:
+    """Hash all ancestor cells of a given cell to represent its execution path."""
     ancestors = graph.ancestors(cell_id)
     return hash_cell_group(ancestors, graph, hash_type)
 
@@ -198,11 +207,15 @@ def get_and_update_context_from_scope(
 
 @dataclasses.dataclass
 class HashKey:
+    """A cache key consisting of a hash string and its associated cache type."""
+
     hash: str
     cache_type: CacheType
 
 
 class BlockHasher:
+    """Computes a deterministic cache hash for a code block using refs, scope, and the dataflow graph."""
+
     def __init__(
         self,
         module: ast.Module,
@@ -379,6 +392,7 @@ class BlockHasher:
     def from_parent(
         parent: BlockHasher,
     ) -> BlockHasher:
+        """Create a new BlockHasher sharing state with a parent, used for deferred hashing."""
         # Use a previous block as the basis of a new block.
         block = BlockHasher.__new__(BlockHasher)
         block.module = parent.module
@@ -403,11 +417,13 @@ class BlockHasher:
 
     @property
     def raw_hash(self) -> bytes:
+        """Return the raw digest bytes of the current hash state."""
         assert self.hash_alg is not None, "Hash algorithm not initialized."
         return self.hash_alg.digest()
 
     @property
     def hash(self) -> str:
+        """Return the URL-safe base64-encoded hash string."""
         if self._hash is None:
             assert self.hash_alg is not None, "Hash algorithm not initialized."
             self._hash = (
@@ -419,6 +435,7 @@ class BlockHasher:
 
     @property
     def exe_hash(self) -> str:
+        """Return the URL-safe base64-encoded execution-path hash string."""
         if self._exe_hash is None:
             assert self.exe_alg is not None, "Hash algorithm not initialized."
             self._exe_hash = (
@@ -433,6 +450,7 @@ class BlockHasher:
 
     @property
     def key(self) -> HashKey:
+        """Return a HashKey combining the hash string and cache type."""
         return HashKey(
             hash=self.hash,
             cache_type=self.cache_type,
@@ -467,6 +485,7 @@ class BlockHasher:
         scoped_refs: set[Name],
         apply_hash: bool = True,
     ) -> SerialRefs:
+        """Serialize content-addressable references and apply them to the hash."""
         self._hash = None
         refs, content_serialization, _ = (
             self.serialize_and_dequeue_content_refs(refs, scope, ctx)
@@ -554,6 +573,7 @@ class BlockHasher:
         refs: set[Name],
         scope: dict[str, Any],
     ) -> tuple[set[Name], set[Name]]:
+        """Partition refs into those present in scope and those that are missing."""
         _refs = set(refs)
         missing = set()
         for ref in refs:
@@ -996,6 +1016,7 @@ class BlockHasher:
         self.hash_alg.update(b"".join(sorted(side_effects)))
 
     def cells_from_refs(self, refs: set[Name]) -> set[CellId_t]:
+        """Return the set of ancestor cell IDs whose definitions match the given refs."""
         refs = set(refs)
         # Execution path works by just analyzing the input cells to hash.
         ancestors = self.graph.ancestors(self.cell_id)

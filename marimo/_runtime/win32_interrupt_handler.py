@@ -12,12 +12,15 @@ if TYPE_CHECKING:
 
 
 class Win32InterruptHandler(threading.Thread):
+    """Background thread that forwards interrupt signals to the main thread on Windows."""
+
     def __init__(self, interrupt_queue: QueueType[bool]) -> None:
         super().__init__()
         self.daemon = True
         self.interrupt_queue = interrupt_queue
 
     def run(self) -> None:
+        """Drain the interrupt queue and raise KeyboardInterrupt in the main thread."""
         while True:
             self.interrupt_queue.get()
             try:

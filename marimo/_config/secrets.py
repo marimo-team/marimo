@@ -12,10 +12,12 @@ SECRET_PLACEHOLDER = "********"
 
 
 def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
+    """Return a copy of a partial config with all secret fields replaced by the placeholder."""
     return cast(PartialMarimoConfig, mask_secrets(cast(MarimoConfig, config)))
 
 
 def mask_secrets(config: MarimoConfig) -> MarimoConfig:
+    """Return a copy of the config with all known secret fields replaced by the placeholder."""
     def deep_remove_from_path(path: list[str], obj: dict[str, Any]) -> None:
         if not path:
             return
@@ -64,6 +66,7 @@ T = TypeVar("T")
 
 
 def remove_secret_placeholders(config: T) -> T:
+    """Return a copy of the config with all placeholder values removed or set to None."""
     def deep_remove(obj: Any) -> Any:
         if isinstance(obj, dict):
             # Filter all keys with value SECRET_PLACEHOLDER

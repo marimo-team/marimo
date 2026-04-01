@@ -41,8 +41,10 @@ class KernelArgs(msgspec.Struct):
     redirect_console_to_browser: bool = True
 
     def encode_json(self) -> bytes:
+        """Serialize this KernelArgs instance to JSON bytes."""
         return encode_json_bytes(self)
 
     @classmethod
     def decode_json(cls, buf: bytes) -> KernelArgs:
+        """Deserialize a KernelArgs instance from JSON bytes."""
         return msgspec.json.decode(buf, type=cls)

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 
 class MockSpan:
+    """No-op span that satisfies the OpenTelemetry span interface without emitting any traces."""
+
     @contextmanager
     def as_current_span(self, *args: Any, **kwargs: Any) -> Any:
         del args, kwargs
@@ -68,6 +70,8 @@ class MockSpan:
 
 
 class MockTracer:
+    """No-op tracer that satisfies the OpenTelemetry tracer interface without emitting any traces."""
+
     @contextmanager
     def start_span(self, *args: Any, **kwargs: Any) -> Any:
         del args, kwargs

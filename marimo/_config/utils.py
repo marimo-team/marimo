@@ -122,6 +122,7 @@ def get_user_config_path() -> Optional[str]:
 
 
 def deep_copy(obj: Any) -> Any:
+    """Recursively deep-copy a dict/list structure (leaves non-container values as-is)."""
     if isinstance(obj, dict):
         return {k: deep_copy(v) for k, v in obj.items()}  # type: ignore
     if isinstance(obj, list):

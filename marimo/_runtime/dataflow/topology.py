@@ -27,19 +27,31 @@ class GraphTopology(Protocol):
     """
 
     @property
-    def cells(self) -> Mapping[CellId_t, CellImpl]: ...
+    def cells(self) -> Mapping[CellId_t, CellImpl]:
+        """Return a mapping from cell ID to CellImpl for all nodes in the graph."""
+        ...
 
     @property
-    def children(self) -> Mapping[CellId_t, set[CellId_t]]: ...
+    def children(self) -> Mapping[CellId_t, set[CellId_t]]:
+        """Return a mapping from each cell ID to the set of its child cell IDs."""
+        ...
 
     @property
-    def parents(self) -> Mapping[CellId_t, set[CellId_t]]: ...
+    def parents(self) -> Mapping[CellId_t, set[CellId_t]]:
+        """Return a mapping from each cell ID to the set of its parent cell IDs."""
+        ...
 
-    def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]: ...
+    def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
+        """Return a list of edges forming a path from source to dst, or empty if none exists."""
+        ...
 
-    def ancestors(self, cell_id: CellId_t) -> set[CellId_t]: ...
+    def ancestors(self, cell_id: CellId_t) -> set[CellId_t]:
+        """Return all ancestor cell IDs of the given cell."""
+        ...
 
-    def descendants(self, cell_id: CellId_t) -> set[CellId_t]: ...
+    def descendants(self, cell_id: CellId_t) -> set[CellId_t]:
+        """Return all descendant cell IDs of the given cell."""
+        ...
 
 
 @dataclass
@@ -64,14 +76,17 @@ class MutableGraphTopology(GraphTopology):
 
     @property
     def cells(self) -> Mapping[CellId_t, CellImpl]:
+        """Return a mapping from cell ID to CellImpl for all nodes in the graph."""
         return self._cells
 
     @property
     def children(self) -> Mapping[CellId_t, set[CellId_t]]:
+        """Return a mapping from each cell ID to the set of its child cell IDs."""
         return self._children
 
     @property
     def parents(self) -> Mapping[CellId_t, set[CellId_t]]:
+        """Return a mapping from each cell ID to the set of its parent cell IDs."""
         return self._parents
 
     def ancestors(self, cell_id: CellId_t) -> set[CellId_t]:

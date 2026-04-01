@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
 
 def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
+    """Patch the pdb module to use marimo's custom debugger."""
     import pdb
 
     # Patch Pdb so manually instantiated debuggers create our debugger
@@ -37,6 +38,7 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
 
 
 def patch_webbrowser() -> None:
+    """Patch the webbrowser module to use marimo's fallback browser in unsupported environments."""
     import webbrowser
 
     try:
@@ -56,10 +58,12 @@ def patch_webbrowser() -> None:
 
 
 def patch_sys_module(module: types.ModuleType) -> None:
+    """Register a module into sys.modules under its __name__."""
     sys.modules[module.__name__] = module
 
 
 def patch_pyodide_networking() -> None:
+    """Patch networking libraries to work in the Pyodide WASM environment."""
     import pyodide_http  # type: ignore
 
     pyodide_http.patch_all()
@@ -188,6 +192,7 @@ def create_main_module(
     print_override: Callable[[Any], None] | None,
     doc: str | None = None,
 ) -> types.ModuleType:
+    """Create a fresh __main__ module with optional input/print overrides and a __file__ attribute."""
     # Every kernel gets its own main module, whose __dict__ attribute
     # serves as the global namespace
     _module = types.ModuleType(
@@ -248,6 +253,7 @@ def patch_main_module(
 def patch_main_module_context(
     module: types.ModuleType,
 ) -> Iterator[types.ModuleType]:
+    """Context manager that temporarily replaces sys.modules['__main__'] with the given module."""
     main = sys.modules["__main__"]
     try:
         sys.modules["__main__"] = module
@@ -257,6 +263,7 @@ def patch_main_module_context(
 
 
 def patch_jedi_parameter_completion() -> None:
+    """Patch jedi's parameter completion to show comments above dataclass fields and filter None values."""
     import re
 
     from jedi.inference.compiled import (  # type: ignore[import-untyped]

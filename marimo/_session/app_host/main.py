@@ -53,7 +53,7 @@ class _KernelInfo:
 
 
 class _TaggedStreamQueue:
-    """Queue that tags messages with session_id and puts in shared outbox.
+    """Write-only queue that tags kernel stream messages with a session ID before forwarding to a shared outbox.
 
     Passed to launch_kernel as stream_queue. The kernel calls put() to send
     output; messages are tagged with session_id and forwarded to the shared
@@ -73,22 +73,27 @@ class _TaggedStreamQueue:
         block: bool = True,
         timeout: float | None = None,
     ) -> None:
+        """Tag item with session_id and forward to the shared outbox queue."""
         self._outbox.put(
             (self._session_id, item), block=block, timeout=timeout
         )
 
     def put_nowait(self, item: object, /) -> None:
+        """Tag item with session_id and forward to the shared outbox without blocking."""
         self._outbox.put_nowait((self._session_id, item))
 
     def get(
         self, block: bool = True, timeout: float | None = None
     ) -> typing.Any:
+        """Not supported; TaggedStreamQueue is write-only."""
         raise NotImplementedError("TaggedStreamQueue is write-only")
 
     def get_nowait(self) -> typing.Any:
+        """Not supported; TaggedStreamQueue is write-only."""
         raise NotImplementedError("TaggedStreamQueue is write-only")
 
     def empty(self) -> bool:
+        """Always return True since this queue is write-only and never holds items locally."""
         return True
 
 
@@ -322,6 +327,7 @@ def app_host_main(args: AppHostArgs) -> None:
 
 
 def main() -> None:
+    """Entry point for the app host process; reads startup args from stdin and runs the main loop."""
     # Read startup args with a timeout. If the parent process crashes before
     # closing stdin, read() would block forever.
     result: list[bytes] = []

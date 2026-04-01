@@ -18,6 +18,8 @@ from marimo._schemas.common import BaseDict
 
 # Metadata types
 class TimeMetadata(BaseDict):
+    """Timing information for a cell execution, including start, end, and duration."""
+
     started: Optional[str]
     completed: Optional[str]
     duration: Optional[float]
@@ -27,6 +29,8 @@ class TimeMetadata(BaseDict):
 #
 # NB: No two outputs can have the same `type` field.
 class StreamOutput(BaseDict):
+    """A text output from stdout or stderr."""
+
     type: Literal["stream"]
     name: Literal["stdout", "stderr"]
     text: str
@@ -34,6 +38,8 @@ class StreamOutput(BaseDict):
 
 
 class StreamMediaOutput(BaseDict):
+    """A binary media output (e.g. an image) streamed from the cell."""
+
     type: Literal["streamMedia"]
     name: Literal["media"]
     data: str
@@ -41,6 +47,8 @@ class StreamMediaOutput(BaseDict):
 
 
 class ErrorOutput(BaseDict):
+    """An error output from a cell, including the exception type, value, and traceback."""
+
     type: Literal["error"]
     ename: str
     evalue: str
@@ -48,6 +56,8 @@ class ErrorOutput(BaseDict):
 
 
 class DataOutput(BaseDict):
+    """A MIME-type bundle output from a cell (e.g. HTML, images, JSON)."""
+
     type: Literal["data"]
     data: dict[str, Any]  # MIME-type bundles
 

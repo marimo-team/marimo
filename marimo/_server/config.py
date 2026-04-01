@@ -35,6 +35,7 @@ class StarletteServerStateInit:
     startup_tip: CliTip | None = None
 
     def apply(self, state: State) -> None:
+        """Copy all fields from this dataclass onto a Starlette State object."""
         for field, value in self.__dict__.items():
             setattr(state, field, value)
 

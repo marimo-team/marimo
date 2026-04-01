@@ -7,10 +7,14 @@ from marimo._secrets.models import SecretKeysWithProvider, SecretProviderType
 
 
 class ListSecretKeysResponse(msgspec.Struct, rename="camel"):
+    """Response body for listing secret keys, grouped by provider."""
+
     keys: list[SecretKeysWithProvider]
 
 
 class CreateSecretRequest(msgspec.Struct, rename="camel"):
+    """Request body for creating a new secret."""
+
     key: str
     value: str
     provider: SecretProviderType
@@ -25,6 +29,8 @@ class CreateSecretRequest(msgspec.Struct, rename="camel"):
 
 
 class DeleteSecretRequest(msgspec.Struct, rename="camel"):
+    """Request body for deleting a secret by key."""
+
     key: str
 
     def __post_init__(self) -> None:

@@ -501,6 +501,7 @@ def ps() -> None:
 
 
 def get_marimo_processes() -> list[psutil.Process]:
+    """Return a list of all running marimo processes found via psutil."""
     import psutil
 
     def is_marimo_process(proc: psutil.Process) -> bool:

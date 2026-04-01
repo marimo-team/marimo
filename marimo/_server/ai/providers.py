@@ -81,6 +81,8 @@ ProviderT = TypeVar("ProviderT", bound="Provider[Any]")
 
 
 class PydanticProvider(ABC, Generic[ProviderT]):
+    """Abstract base class for AI providers backed by pydantic-ai."""
+
     def __init__(
         self,
         model: str,
@@ -237,6 +239,8 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
 
 class GoogleProvider(PydanticProvider["PydanticGoogle"]):
+    """Pydantic AI provider for Google Generative AI and Vertex AI."""
+
     def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
         from pydantic_ai.providers.google import (
             GoogleProvider as PydanticGoogle,
@@ -273,6 +277,7 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         return provider
 
     def create_model(self, max_tokens: int) -> GoogleModel:
+        """Create a GoogleModel with the configured settings."""
         from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
 
         return GoogleModel(
@@ -368,12 +373,14 @@ class OpenAIClientMixin:
 
 
 class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
+    """Pydantic AI provider for OpenAI models, including reasoning models."""
     # Medium effort provides a balance between speed and accuracy
     # https://openai.com/index/openai-o3-mini/
     DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
     DEFAULT_REASONING_SUMMARY: Literal["detailed", "concise", "auto"] = "auto"
 
     def create_provider(self, config: AnyProviderConfig) -> PydanticOpenAI:
+        """Create a PydanticOpenAI provider using an async OpenAI client."""
         from pydantic_ai.providers.openai import (
             OpenAIProvider as PydanticOpenAI,
         )
@@ -382,6 +389,7 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
         return PydanticOpenAI(openai_client=client)
 
     def create_model(self, max_tokens: int) -> OpenAIResponsesModel:
+        """Create an OpenAIResponsesModel with reasoning settings when applicable."""
         from pydantic_ai.models.openai import (
             OpenAIResponsesModel,
             OpenAIResponsesModelSettings,
@@ -441,7 +449,10 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
 
 
 class AzureOpenAIProvider(OpenAIProvider):
+    """OpenAI provider variant configured for Azure OpenAI endpoints."""
+
     def _is_reasoning_model(self, model: str) -> bool:
+        """Return False since Azure OpenAI does not support reasoning effort via the standard API."""
         # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
         # Only custom models support reasoning effort, we can expose this as a parameter in the future
         del model
@@ -467,6 +478,7 @@ class AzureOpenAIProvider(OpenAIProvider):
         return api_version, deployment_name, endpoint
 
     def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
+        """Build an AsyncAzureOpenAI client from the Azure base URL and API key."""
         from openai import AsyncAzureOpenAI
 
         base_url = config.base_url or None
@@ -704,6 +716,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
+    """Pydantic AI provider for Anthropic Claude models, with extended thinking support."""
     # Temperature of 0.2 was recommended for coding and data science in these links:
     # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
     # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
@@ -723,6 +736,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
 
     def create_provider(self, config: AnyProviderConfig) -> PydanticAnthropic:
+        """Create a PydanticAnthropic provider using the configured API key."""
         from pydantic_ai.providers.anthropic import (
             AnthropicProvider as PydanticAnthropic,
         )
@@ -730,6 +744,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         return PydanticAnthropic(api_key=config.api_key)
 
     def create_model(self, max_tokens: int) -> Model:
+        """Create an AnthropicModel with extended thinking enabled when applicable."""
         from pydantic_ai.models.anthropic import (
             AnthropicModel,
             AnthropicModelSettings,
@@ -754,12 +769,14 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         )
 
     def is_extended_thinking_model(self, model: str) -> bool:
+        """Return True if the model supports Anthropic extended thinking."""
         return any(
             model.startswith(prefix)
             for prefix in self.EXTENDED_THINKING_MODEL_PREFIXES
         )
 
     def get_temperature(self) -> float:
+        """Return the appropriate temperature for the configured model."""
         return (
             self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
             if self.is_extended_thinking_model(self.model)
@@ -769,6 +786,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     def convert_messages(
         self, messages: list[ServerUIMessage]
     ) -> list[UIMessage]:
+        """Convert server UI messages to Pydantic AI messages, applying Anthropic-specific part processing."""
         return convert_to_pydantic_messages(messages, self.process_part)
 
     def process_part(self, part: UIMessagePart) -> UIMessagePart:
@@ -792,7 +810,10 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
 
 
 class BedrockProvider(PydanticProvider["PydanticBedrock"]):
+    """Pydantic AI provider for Amazon Bedrock models via the Converse API."""
+
     def setup_credentials(self, config: AnyProviderConfig) -> None:
+        """Configure AWS credentials from the provider config, supporting both profile and key-based auth."""
         # Use profile name if provided, otherwise use API key
         try:
             if config.api_key.startswith("profile:"):
@@ -812,6 +833,7 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
             ) from e
 
     def create_provider(self, config: AnyProviderConfig) -> PydanticBedrock:
+        """Create a PydanticBedrock provider after setting up AWS credentials."""
         from pydantic_ai.providers.bedrock import (
             BedrockProvider as PydanticBedrock,
         )
@@ -821,6 +843,7 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
         return PydanticBedrock(region_name=config.base_url)
 
     def create_model(self, max_tokens: int) -> BedrockConverseModel:
+        """Create a BedrockConverseModel with the configured model name and token limit."""
         from pydantic_ai.models.bedrock import (
             BedrockConverseModel,
             BedrockModelSettings,
@@ -839,6 +862,7 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
 def get_completion_provider(
     config: AnyProviderConfig, model: str
 ) -> PydanticProvider[Any]:
+    """Return the appropriate PydanticProvider instance for the given model identifier."""
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
@@ -866,6 +890,7 @@ def get_completion_provider(
 async def merge_backticks(
     chunks: AsyncIterator[str],
 ) -> AsyncGenerator[str, None]:
+    """Merge adjacent chunks that contain backtick sequences to avoid split patterns."""
     buffer: Optional[str] = None
 
     def only_whitespace_or_newlines(text: str) -> bool:

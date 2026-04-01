@@ -45,6 +45,8 @@ T = TypeVar("T")
 
 @dataclass
 class ModuleMTime:
+    """Stores the filename and last-modified timestamp for a module."""
+
     name: str
     mtime: float
 
@@ -57,6 +59,7 @@ OldObjectsMapping = dict[
 
 # Compat with cmodules in Python < 3.10
 def safe_getattr(obj: M, attr: str, default: T | None = None) -> T | None:
+    """Return getattr(obj, attr, default), catching ModuleNotFoundError."""
     try:
         return getattr(obj, attr, default)
     except ModuleNotFoundError:
@@ -64,6 +67,7 @@ def safe_getattr(obj: M, attr: str, default: T | None = None) -> T | None:
 
 
 def safe_hasattr(obj: M, attr: str) -> bool:
+    """Return hasattr(obj, attr), catching ModuleNotFoundError."""
     try:
         return hasattr(obj, attr)
     except ModuleNotFoundError:
@@ -90,6 +94,8 @@ def modules_imported_by_cell(
 
 
 class ModuleDependencyFinder:
+    """Finds and caches transitive module dependencies using modulefinder."""
+
     def __init__(self) -> None:
         # __file__ ->
         self._module_dependencies: dict[str, dict[str, types.ModuleType]] = {}
@@ -98,6 +104,7 @@ class ModuleDependencyFinder:
     def find_dependencies(
         self, module: types.ModuleType, excludes: set[str]
     ) -> dict[str, types.ModuleType]:
+        """Return the transitive module dependencies for the given module."""
         if not hasattr(module, "__file__") or module.__file__ is None:
             return {}
 
@@ -131,12 +138,14 @@ class ModuleDependencyFinder:
             return finder.modules  # type: ignore[return-value]
 
     def cached(self, module: types.ModuleType) -> bool:
+        """Return True if the module's dependencies are already cached."""
         if not hasattr(module, "__file__") or module.__file__ is None:
             return False
 
         return module.__file__ in self._module_dependencies
 
     def evict_from_cache(self, module: types.ModuleType) -> None:
+        """Remove a module's cached dependency information."""
         file = module.__file__
         if file in self._module_dependencies:
             del self._module_dependencies[file]
@@ -164,6 +173,7 @@ class ModuleReloader:
     def filename_and_mtime(
         self, module: types.ModuleType
     ) -> ModuleMTime | None:
+        """Return the source filename and modification time for a module, or None if unavailable."""
         if not safe_hasattr(module, "__file__") or module.__file__ is None:
             return None
 
@@ -196,6 +206,7 @@ class ModuleReloader:
         return ModuleMTime(py_filename, pymtime)
 
     def cell_uses_stale_modules(self, cell: CellImpl) -> bool:
+        """Return True if any module imported by the cell is currently stale."""
         with self.lock:
             return bool(
                 self.stale_modules
@@ -281,6 +292,7 @@ class ModuleReloader:
     def get_module_dependencies(
         self, module: types.ModuleType, excludes: set[str]
     ) -> dict[str, types.ModuleType]:
+        """Return transitive module dependencies, excluding the given module names."""
         return self._module_dependency_finder.find_dependencies(
             module, excludes
         )
@@ -359,6 +371,7 @@ def update_property(old: object, new: object) -> None:
 
 
 def isinstance2(a: object, b: object, typo: type[Any]) -> bool:
+    """Return True if both a and b are instances of typo."""
     return isinstance(a, typo) and isinstance(b, typo)
 
 
@@ -380,6 +393,7 @@ UPDATE_RULES.extend(
 
 
 def update_generic(a: object, b: object) -> bool:
+    """Apply the first matching update rule for objects a and b; return True if applied."""
     for type_check, update in UPDATE_RULES:
         if type_check(a, b):
             update(a, b)
@@ -388,10 +402,13 @@ def update_generic(a: object, b: object) -> bool:
 
 
 class StrongRef(Generic[T]):
+    """A callable strong reference wrapper, analogous to weakref.ref but never collected."""
+
     def __init__(self, obj: T) -> None:
         self.obj = obj
 
     def __call__(self) -> T:
+        """Return the wrapped object."""
         return self.obj
 
 
@@ -402,6 +419,7 @@ def append_obj(
     name: str,
     obj: object,
 ) -> bool:
+    """Append a weak reference to obj in the old-objects mapping if it belongs to module."""
     in_module = (
         hasattr(obj, "__module__") and obj.__module__ == module.__name__
     )

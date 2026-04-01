@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 
 def is_r2_path(name: str) -> bool:
+    """Return True if the given name is a Cloudflare R2 path (r2://)."""
     return name.startswith("r2://")
 
 
@@ -81,12 +82,16 @@ def _download_r2_object(bucket: str, key: str, local_path: str) -> None:
 
 
 class R2FileHandler(FileHandler):
+    """FileHandler that downloads notebooks from Cloudflare R2 using wrangler."""
+
     def can_handle(self, name: str) -> bool:
+        """Return True if the path is an r2:// URL."""
         return is_r2_path(name)
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
     ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+        """Download the R2 object to a temporary directory and return the local path."""
         bucket, key = parse_r2_path(name)
         filename = os.path.basename(key)
         local_path = str(Path(temp_dir.name) / filename)

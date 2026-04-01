@@ -100,6 +100,8 @@ OpenGraphGeneratorArity = Literal[0, 1, 2]
 
 @dataclass(frozen=True)
 class OpenGraphGeneratorSpec:
+    """A validated OpenGraph generator function together with its parameter arity."""
+
     fn: OpenGraphGenerator
     arity: OpenGraphGeneratorArity
 
@@ -151,6 +153,7 @@ def _title_case(text: str) -> str:
 
 
 def derive_title_from_path(filepath: str) -> str:
+    """Derive a human-readable title from a notebook file path."""
     stem = Path(filepath).stem
     return " ".join(
         _title_case(part) for part in _WORD_SPLIT_RE.split(stem) if part
@@ -555,6 +558,8 @@ def _wrap_title_lines(title: str, *, max_chars: int = 32) -> list[str]:
 
 @dataclass(frozen=True)
 class OpenGraphImage:
+    """Raw image bytes and their MIME type for use as an OpenGraph thumbnail."""
+
     content: bytes
     media_type: str
 
@@ -567,6 +572,7 @@ class DefaultOpenGraphPlaceholderImageGenerator:
     height: int = 630
 
     def __call__(self, title: str) -> OpenGraphImage:
+        """Generate an SVG placeholder image for the given notebook title."""
         svg = self._render_svg(title)
         return OpenGraphImage(
             content=svg.encode("utf-8"),

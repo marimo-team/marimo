@@ -70,6 +70,8 @@ class Lens:
 
 @dataclass
 class InitializationArgs(Generic[S, T]):
+    """Arguments used to initialize or re-initialize a UIElement."""
+
     component_name: str
     initial_value: S
     label: Optional[str]
@@ -80,7 +82,7 @@ class InitializationArgs(Generic[S, T]):
 
 
 class MarimoConvertValueException(Exception):
-    pass
+    """Raised when a UIElement's _convert_value method cannot convert a frontend value."""
 
 
 @mddoc
@@ -492,6 +494,7 @@ class UIElement(Html, Generic[S, T]):
         memo: dict[int, Any] | None = None,
         basis: UIElement[S, T] | None = None,
     ) -> UIElement[S, T]:
+        """Reconstruct a UIElement from a dict of instance attributes and initialization args."""
         result = cls.__new__(cls)
         if memo is None:
             memo = {}

@@ -12,6 +12,8 @@ from marimo._utils.platform import is_windows
 
 @dataclass(frozen=True)
 class CommandRule:
+    """A declarative rule mapping a package manager and context to a command template."""
+
     manager: PackageManagerKind
     context: str
     template: str
@@ -134,6 +136,7 @@ def _build_primary_and_fallback(
 def get_install_commands(
     packages: str | list[str] | tuple[str, ...],
 ) -> list[str]:
+    """Return install command strings for the given packages using the inferred package manager."""
     package_text = _normalize_packages(packages)
     if not package_text:
         return []
@@ -146,6 +149,7 @@ def get_install_commands(
 def get_post_install_commands(
     command: str, *, module_fallback: str | None = None
 ) -> list[str]:
+    """Return run command strings for executing a command after installation."""
     command_text = _normalize_command(command)
     if not command_text:
         return []
@@ -166,6 +170,7 @@ def get_post_install_commands(
 def get_upgrade_commands(
     packages: str | list[str] | tuple[str, ...],
 ) -> list[str]:
+    """Return upgrade command strings for the given packages using the inferred package manager."""
     package_text = _normalize_packages(packages)
     if not package_text:
         return []
@@ -176,6 +181,7 @@ def get_upgrade_commands(
 
 
 def get_playwright_chromium_setup_commands() -> list[str]:
+    """Return the commands needed to install the Playwright Chromium browser."""
     return get_post_install_commands(
         "playwright install chromium",
         module_fallback="python -m playwright install chromium",

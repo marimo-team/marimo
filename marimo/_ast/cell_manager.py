@@ -220,6 +220,7 @@ class CellManager:
     def register_ir_cell(
         self, cell_def: CellDef, app: InternalApp | None = None
     ) -> None:
+        """Compile and register a cell from a serialized CellDef IR object."""
         if isinstance(cell_def, SetupCell):
             cell_id = self.setup_cell_id
         else:
@@ -517,8 +518,10 @@ class CellManager:
 
     @property
     def seen_ids(self) -> set[CellId_t]:
+        """Return the set of all cell IDs that have been generated or registered."""
         return self._cell_id_generator.seen_ids
 
     @property
     def setup_cell_id(self) -> CellId_t:
+        """Return the stable cell ID for the notebook's setup cell."""
         return CellId_t(self.prefix + SETUP_CELL_NAME)

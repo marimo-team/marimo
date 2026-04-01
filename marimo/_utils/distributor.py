@@ -113,6 +113,8 @@ class ConnectionDistributor(Distributor[T]):
 
 
 class QueueDistributor(Distributor[T]):
+    """Distributes messages from a queue to multiple consumers in a background thread."""
+
     def __init__(self, queue: QueueType[Union[T, None]]) -> None:
         self.consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
@@ -145,11 +147,13 @@ class QueueDistributor(Distributor[T]):
                     consumer(msg)
 
     def start(self) -> threading.Thread:
+        """Start the background thread that reads from the queue and dispatches to consumers."""
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
         return self.thread
 
     def stop(self) -> None:
+        """Signal the background thread to stop by enqueuing a sentinel None value."""
         self.queue.put_nowait(None)
 
     def flush(self) -> None:

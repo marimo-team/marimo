@@ -110,6 +110,7 @@ class array(UIElement[dict[str, JSONType], Sequence[object]]):
 
     @property
     def elements(self) -> Sequence[UIElement[JSONType, object]]:
+        """The sequence of UI elements contained in this array."""
         return self._elements
 
     def _convert_value(self, value: dict[str, JSONType]) -> Sequence[object]:

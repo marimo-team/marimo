@@ -55,6 +55,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class CacheMode(Enum):
+    """Controls whether the caching extension reads only or also writes the session cache."""
+
     READ = "read"
     READ_WRITE = "write"
 
@@ -70,10 +72,12 @@ class HeartbeatExtension(SessionExtension):
         self.heartbeat_task: Optional[asyncio.Task[None]] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Start heartbeat monitoring when attached to a session."""
         del event_bus
         self._start(session)
 
     def on_detach(self) -> None:
+        """Stop heartbeat monitoring when detached."""
         self._stop()
 
     def _start(self, session: Session) -> None:
@@ -265,6 +269,7 @@ class NotificationListenerExtension(SessionExtension):
         session.notify(notif, from_consumer_id=None)
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Start distributing kernel messages to the session when attached."""
         del event_bus
         self.distributor = self._create_distributor(
             kernel_manager=self.kernel_manager,
@@ -276,6 +281,7 @@ class NotificationListenerExtension(SessionExtension):
         self.distributor.start()
 
     def on_detach(self) -> None:
+        """Stop the distributor when detached from the session."""
         if self.distributor is not None:
             self.distributor.stop()
             self.distributor = None
@@ -294,22 +300,27 @@ class LoggingExtension(EventAwareExtension):
         self.logger = logger
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Log attachment and delegate to parent."""
         self.logger.debug("Attaching extensions")
         super().on_attach(session, event_bus)
 
     def on_detach(self) -> None:
+        """Log detachment and delegate to parent."""
         self.logger.debug("Detaching extensions")
         super().on_detach()
 
     async def on_session_created(self, session: Session) -> None:
+        """Log session creation."""
         self.logger.debug("Session created: %s", session.initialization_id)
 
     async def on_session_closed(self, session: Session) -> None:
+        """Log session closure."""
         self.logger.debug("Session closed: %s", session.initialization_id)
 
     async def on_session_resumed(
         self, session: Session, old_id: SessionId
     ) -> None:
+        """Log session resumption with the old session ID."""
         self.logger.debug(
             "Session resumed: %s (old id: %s)",
             session.initialization_id,
@@ -319,6 +330,7 @@ class LoggingExtension(EventAwareExtension):
     async def on_session_notebook_renamed(
         self, session: Session, old_path: str | None
     ) -> None:
+        """Log session file rename."""
         self.logger.debug(
             "Session file renamed: %s (new path: %s)",
             session.initialization_id,

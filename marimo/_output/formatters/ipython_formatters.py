@@ -12,11 +12,15 @@ from marimo._plugins.core.media import io_to_data_url
 
 
 class IPythonFormatter(FormatterFactory):
+    """FormatterFactory that patches IPython display functions to route output through marimo."""
+
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "IPython"
 
     def register(self) -> Callable[[], None]:
+        """Patch IPython display functions and register formatters, returning an unpatch callable."""
         import IPython.display  # type:ignore
 
         from marimo._output import formatting
@@ -169,6 +173,8 @@ class IPythonFormatter(FormatterFactory):
 
 @dataclass
 class ReprMimeBundle:
+    """Wraps a raw mime-bundle dict so it can be formatted via _repr_mimebundle_."""
+
     data: dict[str, Any]
 
     def _repr_mimebundle_(

@@ -33,6 +33,7 @@ def _get_providers(
 def get_secret_keys(
     config: MarimoConfig, original_environ: dict[str, str]
 ) -> list[SecretKeysWithProvider]:
+    """Return all secret keys grouped by their provider, deduplicating across providers."""
     providers: list[SecretProvider] = _get_providers(config, original_environ)
     results: list[SecretKeysWithProvider] = []
     seen_keys: set[str] = set()
@@ -55,6 +56,7 @@ def get_secret_keys(
 
 
 def write_secret(request: CreateSecretRequest, config: MarimoConfig) -> None:
+    """Write a secret key/value to the matching provider from the request."""
     # original_environ is not used for anything in the write operation
     providers = _get_providers(config, {})
     for provider in providers:

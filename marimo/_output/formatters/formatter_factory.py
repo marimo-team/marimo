@@ -14,6 +14,8 @@ Unregister = Callable[[], None]
 
 # Abstract base class for formatters that are installed at runtime.
 class FormatterFactory(abc.ABC):
+    """Abstract base class for output formatter factories registered at runtime."""
+
     @staticmethod
     @abc.abstractmethod
     def package_name() -> Optional[str]:

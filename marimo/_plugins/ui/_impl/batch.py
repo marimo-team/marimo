@@ -26,6 +26,7 @@ V = TypeVar("V")
 def validate_and_clone(
     elements: dict[str, UIElement[U, V]],
 ) -> dict[str, UIElement[U, V]]:
+    """Validate that all values are UIElements and return cloned copies of them."""
     invalid: list[str] = []
     new_elements = {}
     for key, element in elements.items():
@@ -79,6 +80,7 @@ class _batch_base(UIElement[dict[str, JSONType], dict[str, object]]):
 
     @property
     def elements(self) -> dict[str, UIElement[JSONType, object]]:
+        """The dict of UI elements contained in this batch."""
         return self._elements
 
     def __len__(self) -> int:

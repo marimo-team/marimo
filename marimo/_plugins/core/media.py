@@ -42,6 +42,7 @@ def guess_mime_type(
 
 
 def mime_type_to_ext(mime_type: str) -> Optional[str]:
+    """Return the file extension for a given MIME type, or None if unknown."""
     return mimetypes.guess_extension(mime_type, strict=False)
 
 

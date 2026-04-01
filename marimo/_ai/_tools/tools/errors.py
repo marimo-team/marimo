@@ -14,11 +14,15 @@ from marimo._types.ids import SessionId
 
 @dataclass
 class GetNotebookErrorsArgs:
+    """Arguments for the GetNotebookErrors tool."""
+
     session_id: SessionId
 
 
 @dataclass
 class GetNotebookErrorsOutput(SuccessResult):
+    """Output returned by the GetNotebookErrors tool."""
+
     has_errors: bool = False
     total_errors: int = 0
     total_cells_with_errors: int = 0
@@ -49,6 +53,7 @@ class GetNotebookErrors(
     )
 
     def handle(self, args: GetNotebookErrorsArgs) -> GetNotebookErrorsOutput:
+        """Execute the tool by collecting all errors from the notebook session."""
         context = self.context
         session_id = args.session_id
         notebook_errors = context.get_notebook_errors(

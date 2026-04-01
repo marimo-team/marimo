@@ -17,6 +17,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class GoogleAiFormatter(FormatterFactory):
+    """Formatter that renders google.genai GenerateContentResponse objects as Markdown."""
+
     @staticmethod
     def package_name() -> str:
         return "google"
@@ -55,6 +57,8 @@ class GoogleAiFormatter(FormatterFactory):
 
 
 class OpenAIFormatter(FormatterFactory):
+    """Formatter that renders OpenAI Completion and ChatCompletion responses as Markdown."""
+
     @staticmethod
     def package_name() -> str:
         return "openai"
@@ -106,6 +110,8 @@ class OpenAIFormatter(FormatterFactory):
 
 
 class TransformersFormatter(FormatterFactory):
+    """Formatter that streams HuggingFace TextIteratorStreamer output as Markdown."""
+
     @staticmethod
     def package_name() -> str:
         return "transformers"

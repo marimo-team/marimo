@@ -55,12 +55,14 @@ class EventAwareExtension(SessionEventListener):
 
     @property
     def session(self) -> Session:
+        """Return the attached session, raising RuntimeError if not yet attached."""
         if self._session is None:
             raise RuntimeError("Extension is not attached to a session")
         return self._session
 
     @property
     def event_bus(self) -> SessionEventBus:
+        """Return the attached event bus, raising RuntimeError if not yet attached."""
         if self._event_bus is None:
             raise RuntimeError("Extension is not attached to a session")
         return self._event_bus
@@ -84,13 +86,16 @@ class ExtensionRegistry:
         self._extensions: list[SessionExtension] = []
 
     def add(self, *extensions: SessionExtension) -> None:
+        """Add one or more extensions to the registry."""
         self._extensions.extend(extensions)
 
     def remove(self, extension: SessionExtension) -> None:
+        """Remove an extension from the registry if present."""
         if extension in self._extensions:
             self._extensions.remove(extension)
 
     def get(self, ext_type: type[_T]) -> _T | None:
+        """Return the first registered extension of the given type, or None."""
         for ext in self._extensions:
             if isinstance(ext, ext_type):
                 return ext  # type: ignore[return-value]

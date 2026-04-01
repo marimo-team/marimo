@@ -5,6 +5,7 @@ import textwrap
 
 
 def format_signature(prefix: str, signature_text: str, width: int = 39) -> str:
+    """Format a function/class signature for display, using black when available."""
     black_installed = False
     try:
         import black  # type: ignore[import-not-found]
