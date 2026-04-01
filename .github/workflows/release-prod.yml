@@ -12,6 +12,7 @@ permissions:
 
 env:
   TURBO_TEAM: marimo
+  UV_EXCLUDE_NEWER: "7 days"
 
 jobs:
   publish_release:
