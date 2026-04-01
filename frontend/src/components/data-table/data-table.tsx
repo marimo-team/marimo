@@ -317,7 +317,7 @@ const DataTableInternal = <TData,>({
         </div>
         <TableBottomBar
           part="table-footer"
-          className="border-t border-border/60 pt-1.5 pb-0.5"
+          className="border-t border-border pt-1.5 pb-0.5"
           totalColumns={totalColumns}
           pagination={pagination}
           selection={selection}
