@@ -7,8 +7,12 @@ on:
   schedule:
     - cron: "0 8 * * 1"
   push:
-    #branches:
-    #  - main
+    paths:
+      - "README.md"
+      - "README_Chinese.md"
+      - "README_Japanese.md"
+      - "README_Spanish.md"
+      - "README_Traditional_Chinese.md"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +31,7 @@ jobs:
           args: >-
             --verbose
             --no-progress
-            --accept 200,403
+            --accept 200,403,408
             README.md
             README_Chinese.md
             README_Japanese.md
