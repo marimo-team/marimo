@@ -137,7 +137,7 @@ dev = [
 test = [
     # For server testing
     "httpx~=0.28.0",
-    "urllib3~=2.5.0",
+    "urllib3~=2.6.3",
     # Pytest and plugins
     "pytest~=9.0.2",
     "pytest-timeout~=2.4.0",
