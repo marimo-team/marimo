@@ -4,6 +4,7 @@
 import type { RowSelectionState, Table } from "@tanstack/react-table";
 import { useLocale } from "react-aria";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { Button } from "../ui/button";
@@ -22,6 +23,7 @@ interface TableBottomBarProps<TData> {
   showPageSizeSelector?: boolean;
   tableLoading?: boolean;
   part?: string;
+  className?: string;
 }
 
 export const TableBottomBar = <TData,>({
@@ -34,6 +36,7 @@ export const TableBottomBar = <TData,>({
   showPageSizeSelector,
   tableLoading,
   part,
+  className,
 }: TableBottomBarProps<TData>) => {
   const { locale } = useLocale();
   const handleSelectAllRows = (value: boolean) => {
@@ -147,7 +150,10 @@ export const TableBottomBar = <TData,>({
   return (
     <div
       part={part}
-      className="flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center shrink-0 pt-1"
+      className={cn(
+        "flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center shrink-0",
+        className,
+      )}
     >
       <div className="flex flex-col text-sm text-muted-foreground px-2 shrink-0">
         <div className="flex items-center gap-1">{renderTotal()}</div>
