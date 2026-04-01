@@ -13,7 +13,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type { JSX } from "react";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
@@ -61,6 +61,7 @@ export interface TablePanelProps {
   totalRows: number | TooManyRows;
   columns: number;
   displayHeader: boolean;
+  onCloseChartBuilder?: () => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
 }
@@ -74,12 +75,33 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   getDataUrl,
   fieldTypes,
   displayHeader,
+  onCloseChartBuilder,
 }) => {
   const [tabsMap, saveTabsMap] = useAtom(tabsStorageAtom);
   const tabs = cellId ? (tabsMap.get(cellId) ?? []) : [];
 
-  const [tabNum, setTabNum] = useState(0);
   const [selectedTab, setSelectedTab] = useState(DEFAULT_TAB_NAME);
+  const [tabCounter, setTabCounter] = useState(tabs.length);
+  const prevDisplayHeader = useRef(displayHeader);
+
+  // Auto-create a default chart tab when chart builder opens with no tabs
+  if (
+    displayHeader &&
+    !prevDisplayHeader.current &&
+    tabs.length === 0 &&
+    cellId
+  ) {
+    prevDisplayHeader.current = displayHeader;
+    const tabName = getChartTabName(0, NEW_CHART_TYPE);
+    const newTabs = new Map(tabsMap);
+    newTabs.set(cellId, [
+      { tabName, chartType: NEW_CHART_TYPE, config: getChartDefaults() },
+    ]);
+    saveTabsMap(newTabs);
+    setTabCounter(1);
+    setSelectedTab(tabName);
+  }
+  prevDisplayHeader.current = displayHeader;
 
   if (!displayHeader || (tabs.length === 0 && !displayHeader)) {
     return dataTable;
@@ -89,7 +111,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     if (!cellId) {
       return;
     }
-    const tabName = getChartTabName(tabNum, NEW_CHART_TYPE);
+    const tabName = getChartTabName(tabCounter, NEW_CHART_TYPE);
 
     const newTabs = new Map(tabsMap);
     newTabs.set(cellId, [
@@ -102,7 +124,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     ]);
 
     saveTabsMap(newTabs);
-    setTabNum(tabNum + 1);
+    setTabCounter(tabCounter + 1);
     setSelectedTab(tabName);
   };
 
@@ -110,14 +132,21 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     if (!cellId) {
       return;
     }
+    const deletedIndex = tabs.findIndex((tab) => tab.tabName === tabName);
+    const remaining = tabs.filter((tab) => tab.tabName !== tabName);
     const newTabs = new Map(tabsMap);
-    newTabs.set(
-      cellId,
-      tabs.filter((tab) => tab.tabName !== tabName),
-    );
+    newTabs.set(cellId, remaining);
     saveTabsMap(newTabs);
-    setSelectedTab(DEFAULT_TAB_NAME);
-    setTabNum(tabNum - 1);
+
+    if (remaining.length === 0) {
+      onCloseChartBuilder?.();
+    } else if (tabName === selectedTab) {
+      if (deletedIndex < remaining.length) {
+        setSelectedTab(remaining[deletedIndex].tabName);
+      } else {
+        setSelectedTab(remaining[remaining.length - 1].tabName);
+      }
+    }
   };
 
   const saveTabChart = ({

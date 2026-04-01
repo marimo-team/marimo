@@ -763,6 +763,7 @@ export const LoadingDataTableComponent = memo(
         {props.showChartBuilder ? (
           <TablePanel
             displayHeader={displayHeader}
+            onCloseChartBuilder={() => setDisplayHeader(false)}
             data={data?.rows || []}
             columns={props.totalColumns}
             totalRows={props.totalRows}
