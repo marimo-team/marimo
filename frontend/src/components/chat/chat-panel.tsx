@@ -465,7 +465,7 @@ const ChatPanelBody = () => {
     messages: activeChat?.messages || [], // initial messages
     transport: new DefaultChatTransport({
       api: runtimeManager.getAiURL("chat").toString(),
-      headers: runtimeManager.headers(),
+      headers: () => runtimeManager.headers(),
       prepareSendMessagesRequest: async (options) => {
         const completionBody = await buildCompletionRequestBody(
           options.messages,
@@ -476,6 +476,7 @@ const ChatPanelBody = () => {
         const tools = FRONTEND_TOOL_REGISTRY.getToolSchemas(chatMode);
 
         return {
+          api: runtimeManager.getAiURL("chat").toString(),
           body: {
             tools,
             ...options,
