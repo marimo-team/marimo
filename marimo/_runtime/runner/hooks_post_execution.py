@@ -267,8 +267,10 @@ def _store_reference_to_output(
 
     # Stores a reference to the output if it contains a UIElement
     # (required for RPCs on unnamed UI elements) or if it has a
-    # _repr_mimebundle_ descriptor (required to keep descriptor-based
-    # widgets alive — their comm is closed on GC).
+    # _repr_mimebundle_ method (required to keep descriptor-based
+    # anywidgets alive — their comm is closed on GC).
+    # The _repr_mimebundle_ check is intentionally broad; the cost
+    # is just one extra reference that's cleared on re-run.
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
