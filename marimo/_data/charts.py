@@ -788,7 +788,7 @@ class IntegerChartBuilder(ChartBuilder):
 
 
 class UnknownChartBuilder(ChartBuilder):
-    """Builds a nominal bar chart for columns with an unrecognised data type."""
+    """Builds a nominal bar chart for columns with an unrecognized data type."""
 
     def altair(self, data: Any, column: str) -> Any:
         """Return a nominal count bar chart for an unknown-typed column."""
