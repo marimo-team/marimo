@@ -7,8 +7,8 @@ on:
   schedule:
     - cron: "0 8 * * 1"
   push:
-    branches:
-      - main
+    #branches:
+    #  - main
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     name: Check links in README files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check links in README files
         uses: lycheeverse/lychee-action@v2
