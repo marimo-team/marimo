@@ -18,6 +18,8 @@ T = TypeVar("T", bound="ast.Import | ast.ImportFrom")
 
 
 class BlockException(Exception):
+    """Raised when the AST structure of a with-block cannot be extracted."""
+
     pass
 
 
@@ -148,6 +150,7 @@ class NameTransformer(ast.NodeTransformer):
         super().__init__()
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
+        """Substitute the name identifier if it appears in the substitution map."""
         self.generic_visit(node)
         if node.id in self._name_substitutions:
             self.made_changes = True
@@ -157,6 +160,7 @@ class NameTransformer(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """Substitute the function name if it appears in the substitution map."""
         self.generic_visit(node)
         if node.name in self._name_substitutions:
             self.made_changes = True
@@ -171,6 +175,7 @@ class NameTransformer(ast.NodeTransformer):
     def visit_AsyncFunctionDef(
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
+        """Substitute the async function name if it appears in the substitution map."""
         self.generic_visit(node)
         if node.name in self._name_substitutions:
             self.made_changes = True
@@ -183,6 +188,7 @@ class NameTransformer(ast.NodeTransformer):
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
+        """Substitute the class name if it appears in the substitution map."""
         self.generic_visit(node)
         if node.name in self._name_substitutions:
             self.made_changes = True
@@ -195,6 +201,7 @@ class NameTransformer(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
+        """Substitute assignment target names that appear in the substitution map."""
         self.generic_visit(node)
         new_targets: list[Any] = []
         for target in node.targets:
@@ -241,6 +248,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
         node: T,
         original_names: list[ast.alias],
     ) -> Optional[T]:
+        """Return node if it still has names; optionally restore original names once if keep_one is set."""
         if node.names:
             return node
         elif self.keep_one:
@@ -250,11 +258,13 @@ class RemoveImportTransformer(ast.NodeTransformer):
         return None
 
     def strip_imports(self, code: str) -> str:
+        """Parse code and remove all import statements matching the configured name."""
         tree = ast_parse(code)
         tree = self.visit(tree)
         return ast.unparse(tree).strip()
 
     def visit_Import(self, node: ast.Import) -> Optional[ast.Import]:
+        """Remove aliases matching the configured name from an import statement."""
         name = self.import_name
         original_names = list(node.names)
         node.names = [
@@ -268,6 +278,7 @@ class RemoveImportTransformer(ast.NodeTransformer):
     def visit_ImportFrom(
         self, node: ast.ImportFrom
     ) -> Optional[ast.ImportFrom]:
+        """Remove aliases matching the configured name from a from-import statement."""
         name = self.import_name
         original_names = list(node.names)
         node.names = [
@@ -298,6 +309,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         self.name = name
 
     def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
+        """Traverse the block list and return the pre-block and with-block as compiled modules."""
         pre_block = []
 
         # There are a few strange edges cases like:
@@ -400,6 +412,7 @@ class ExtractSkippableWithBlock(ExtractWithBlock):
     """ExtractWithBlock variant that raises if the block body starts with a try statement."""
 
     def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
+        """Extract block pair and raise if the first statement is a try block."""
         pre_block, with_block = super().generic_visit(node)
         # We should fail if the first node in with_block is a try.
         if isinstance(with_block.body[0], ast.Try):
@@ -460,6 +473,7 @@ class MangleArguments(ast.NodeTransformer):
         self.args = args
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
+        """Prepend the mangle prefix to any name that matches a tracked argument."""
         if node.id in self.args:
             node.id = f"{self.prefix}{node.id}"
         return node
@@ -469,10 +483,12 @@ class DeprivateVisitor(ast.NodeTransformer):
     """Removes the mangling of private variables from a module."""
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
+        """Unmangle the identifier in a Name node."""
         node.id = unmangle_local(node.id).name
         return node
 
     def generic_visit(self, node: ast.AST) -> ast.AST:
+        """Unmangle the 'name' attribute of any named node, then recurse."""
         if hasattr(node, "name") and node.name:
             node.name = unmangle_local(node.name).name
         return super().generic_visit(node)
@@ -485,6 +501,7 @@ class RemoveReturns(ast.NodeTransformer):
         self._has_name = False
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
+        """Record that a Name node was seen and return the node unchanged."""
         self._has_name = True
         return node
 
@@ -492,6 +509,7 @@ class RemoveReturns(ast.NodeTransformer):
     # Note that functools caches the generator, which is then dequeue'd,
     # so in that sense, it doesn't work either.
     def visit_Return(self, node: ast.Return) -> ast.Expr | ast.Assign:
+        """Replace a return statement with an expression or assignment node."""
         value = node.value or ast.Constant(value=None)
 
         self._has_name = False

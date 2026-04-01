@@ -80,6 +80,7 @@ def hash_module(
         return b"0" * len(hash_alg.digest())
 
     def process(code_obj: CodeType) -> None:
+        """Recursively hash the constants, names, and bytecode of a code object into hash_alg."""
         # Recursively hash the constants that are also code objects
         for const in code_obj.co_consts:
             if isinstance(const, types.CodeType):
@@ -106,6 +107,7 @@ def hash_wrapped_functions(
     # there is a chance for a circular reference
     # likely manually created, but easy to guard against.
     def process_function(fn: Callable[..., Any]) -> bytes:
+        """Return a combined hash of fn and its wrapped chain, skipping already-seen hashes."""
         if not inspect.isbuiltin(fn):
             fn_hash = hash_module(fn.__code__, hash_type)
         else:

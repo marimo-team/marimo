@@ -474,6 +474,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     hidden=True,
 )
 def development() -> None:
+    """Various commands for marimo development and debugging."""
     pass
 
 
@@ -497,6 +498,7 @@ def openapi() -> None:
     hidden=True,
 )
 def ps() -> None:
+    """Commands for inspecting and managing running marimo processes."""
     pass
 
 
@@ -505,6 +507,7 @@ def get_marimo_processes() -> list[psutil.Process]:
     import psutil
 
     def is_marimo_process(proc: psutil.Process) -> bool:
+        """Return True if the given process is a running marimo server or edit/run command."""
         if proc.name() == "marimo":
             return True
 
@@ -615,6 +618,7 @@ def inline_packages(name: Path) -> None:
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
+        """Parse the notebook's imports and return the corresponding PyPI package names."""
         tree = ast.parse(name.read_text(encoding="utf-8"), filename=name)
 
         imported_modules = set[str]()
@@ -635,6 +639,7 @@ def inline_packages(name: Path) -> None:
         return pypi_names
 
     def is_stdlib_module(module_name: str) -> bool:
+        """Return True if the module is part of the Python standard library."""
         return module_name in sys.stdlib_module_names
 
     pypi_names = get_pypi_package_names()
@@ -657,6 +662,7 @@ def inline_packages(name: Path) -> None:
 
 @click.command(cls=ColoredCommand, help="Print all routes")
 def print_routes() -> None:
+    """Print all HTTP method and path pairs registered in the marimo Starlette app."""
     from starlette.applications import Starlette
     from starlette.routing import Mount, Route, Router
 
@@ -665,6 +671,7 @@ def print_routes() -> None:
     app = create_starlette_app(base_url="")
 
     def print_all_routes(app: Any, base_path: str = "") -> None:
+        """Recursively print all HTTP method + path pairs for the given Starlette app."""
         if not isinstance(app, (Starlette, Router)):
             return
         for route in app.routes:
@@ -813,6 +820,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         click.echo(f"Creating preview for {file_path.name}")
 
         async def serve_html(request: Request) -> HTMLResponse:
+            """Serve the pre-rendered notebook HTML for any request."""
             del request
             return HTMLResponse(html_content)
 
@@ -846,6 +854,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         if not headless:
 
             def open_browser() -> None:
+                """Open the preview URL in the system's default web browser."""
                 webbrowser.open(url)
 
             timer = threading.Timer(1.0, open_browser)

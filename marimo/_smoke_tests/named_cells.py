@@ -14,6 +14,7 @@ def _():
 
 @app.cell
 def display_slider(mo):
+    """Display a slider UI element."""
     slider = mo.ui.slider(1, 10)
     mo.md(f"Here is a slider: {slider}")
     return
@@ -27,6 +28,7 @@ def _(mo):
 
 @app.cell
 def display_element(element, mo):
+    """Display a checkbox UI element."""
     mo.md(f"Here is an element: {element}")
     return
 

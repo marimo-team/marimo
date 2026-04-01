@@ -6,6 +6,7 @@ app = marimo.App(width="medium")
 
 @app.function
 async def sleep(seconds):
+    """Yield completed sleep results in completion order for the given durations."""
     import asyncio
 
     tasks = [asyncio.create_task(asyncio.sleep(s, s)) for s in seconds]

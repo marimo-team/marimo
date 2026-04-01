@@ -757,6 +757,7 @@ class NarwhalsTableManager(
             from enum import Enum
 
             def to_primitive(value: Any) -> str | int | float:
+                """Convert a single value to a JSON-safe primitive, recursing into lists and dicts."""
                 if isinstance(value, list):
                     return str([to_primitive(v) for v in value])
                 elif isinstance(value, dict):

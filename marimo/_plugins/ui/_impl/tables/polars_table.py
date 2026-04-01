@@ -44,6 +44,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
         ):
+            """TableManager implementation for Polars DataFrames and LazyFrames."""
+
             type = "polars"
 
             def __init__(

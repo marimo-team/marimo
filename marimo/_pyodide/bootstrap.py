@@ -87,6 +87,7 @@ def create_session(
     """
 
     def write_kernel_message(notification: KernelMessage) -> None:
+        """Serialize a kernel message and forward it to the frontend via the message callback."""
         data_json_str = notification.decode("utf-8")
         name = deserialize_kernel_message(notification).name
         text = f'{{"op": "{name}", "data": {data_json_str}}}'

@@ -118,18 +118,22 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         rows: list[tuple[Any, ...]],
         col_names: list[str],
     ) -> Any:
+        """Convert raw rows and column names to the configured output format."""
         # For polars, orient the rows since each tuple represents a column
         def convert_to_polars() -> pl.DataFrame:
+            """Convert rows to a Polars DataFrame in row orientation."""
             import polars as pl
 
             return pl.DataFrame(rows, schema=col_names, orient="row")
 
         def convert_to_lazy_polars() -> pl.LazyFrame:
+            """Convert rows to a Polars LazyFrame in row orientation."""
             import polars as pl
 
             return pl.LazyFrame(rows, schema=col_names, orient="row")
 
         def convert_to_pandas() -> pd.DataFrame:
+            """Convert rows to a pandas DataFrame with the given column names."""
             import pandas as pd
 
             return pd.DataFrame(rows, columns=col_names)

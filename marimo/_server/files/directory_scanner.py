@@ -31,6 +31,7 @@ def is_marimo_app(full_path: str) -> bool:
     READ_LIMIT = 512
 
     def contains_marimo_app(content: bytes) -> bool:
+        """Return True if content contains the marimo app markers."""
         return b"marimo.App" in content and b"import marimo" in content
 
     try:
@@ -157,6 +158,7 @@ class DirectoryScanner:
         def recurse(
             directory: str, depth: int = 0
         ) -> Optional[list[FileInfo]]:
+            """Recursively scan a directory and return a list of marimo FileInfo entries."""
             if depth > self.max_depth:
                 return None
 

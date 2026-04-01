@@ -118,6 +118,8 @@ CacheInfo = namedtuple(
 
 # BaseException because "raise _ as e" is utilized.
 class CacheException(BaseException):
+    """Exception raised when a cache consistency error is detected."""
+
     pass
 
 

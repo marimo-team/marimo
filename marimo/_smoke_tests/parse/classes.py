@@ -7,18 +7,24 @@ app = marimo.App(width="medium")
 @app.class_definition
 # This should be reusable
 class One:
+    """Reusable class with a typed run method."""
+
     A: int = 1
 
     def run(a: A = 1) -> int:
+        """Return the value of a."""
         return a
 
 
 @app.class_definition
 # This should be a pure-class
 class Two:
+    """Pure class whose run method depends only on its own type annotations."""
+
     A: int = 1
 
     def run(a: int = 1) -> int:
+        """Return the value of a."""
         return a
 
 

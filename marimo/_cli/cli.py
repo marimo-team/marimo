@@ -65,6 +65,7 @@ from marimo._version import __version__
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
+    """Show a compact usage error message, used to override click's default error formatting."""
     show_compact_usage_error(self, file=file)
 
 
@@ -200,6 +201,7 @@ except Exception:
 def main(
     log_level: str, quiet: bool, yes: bool, development_mode: bool
 ) -> None:
+    """Configure global marimo settings from CLI flags (log level, quiet, yes, development mode)."""
     log_level = "DEBUG" if development_mode else log_level
     _loggers.set_level(log_level)
 
@@ -463,6 +465,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    """Start the marimo notebook server in edit mode, optionally opening a specific notebook."""
     from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
 
     pass_on_stdin = token_password_file == "-"
@@ -727,6 +730,7 @@ def new(
     timeout: Optional[float],
     prompt: Optional[str],
 ) -> None:
+    """Open the marimo server to create a new, untitled notebook."""
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
@@ -1104,6 +1108,7 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
+    """Run a notebook as a read-only app."""
     from marimo._cli.sandbox import (
         SandboxMode,
         resolve_sandbox_mode,
@@ -1242,6 +1247,7 @@ def run(
     ),
 )
 def recover(name: Path) -> None:
+    """Recover a marimo notebook from a JSON autosave file."""
     click.echo(codegen.recover(name))
 
 
@@ -1328,6 +1334,7 @@ def tutorial(
     skew_protection: bool,
     name: Tutorial,
 ) -> None:
+    """Open an interactive marimo tutorial notebook in the browser."""
     temp_dir = tempfile.TemporaryDirectory()
     path = create_temp_tutorial_file(name, temp_dir)
 
@@ -1366,6 +1373,7 @@ def env() -> None:
     help="Install shell completions for marimo. Supports bash, zsh, and fish."
 )
 def shell_completion() -> None:
+    """Print instructions to install shell tab-completion for the current shell."""
     shell = os.environ.get("SHELL", "")
     if not shell:
         raise MarimoCLIRuntimeError(
@@ -1484,6 +1492,7 @@ def check(
     ignore_rules: str | None,
     files: tuple[str, ...],
 ) -> None:
+    """Check marimo notebooks for issues and optionally fix them in place."""
     if not files:
         # If no files are provided, we lint the current directory
         files = ("**/*.py", "**/*.md", "**/*.qmd")

@@ -336,6 +336,7 @@ class UIElement(Html, Generic[S, T]):
 
     @value.setter
     def value(self, value: T) -> None:
+        """Raise RuntimeError; setting the value of a UIElement is not allowed."""
         del value
         raise RuntimeError(
             "Setting the value of a UIElement is not allowed. "

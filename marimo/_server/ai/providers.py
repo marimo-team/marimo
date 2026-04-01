@@ -65,6 +65,8 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class StreamOptions:
+    """Options controlling the format and content of a streaming AI response."""
+
     text_only: bool = False
     format_stream: bool = False
     accept: str | None = None
@@ -72,6 +74,8 @@ class StreamOptions:
 
 @dataclass
 class ActiveToolCall:
+    """Tracks an in-progress tool call during a streaming AI response."""
+
     tool_call_id: str
     tool_call_name: str
     tool_call_args: str
@@ -242,6 +246,7 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
     """Pydantic AI provider for Google Generative AI and Vertex AI."""
 
     def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
+        """Create a GoogleProvider using the API key or Vertex AI environment variables."""
         from pydantic_ai.providers.google import (
             GoogleProvider as PydanticGoogle,
         )
@@ -295,6 +300,7 @@ class OpenAIClientMixin:
     """Mixin providing OpenAI client creation logic for OpenAI-based providers."""
 
     def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
+        """Build an AsyncOpenAI client with optional SSL configuration."""
         import ssl
         from pathlib import Path
 
@@ -558,7 +564,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         return responses_compatible, chat_compatible
 
     def _is_openai_compatible(self) -> bool:
-        """Check if the provider uses an OpenAI-compatible API."""
+        """Return True if the provider uses an OpenAI-compatible chat or responses API."""
         provider = self._provider_name.lower()
         return (
             provider in self._responses_compatible

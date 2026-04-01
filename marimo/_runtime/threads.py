@@ -73,6 +73,8 @@ class Thread(threading.Thread):
             return
 
         class ThreadLifecycle(CellLifecycleItem):
+            """Lifecycle item that signals thread exit when the owning cell is disposed."""
+
             def create(self, context: RuntimeContext) -> None:
                 del context
 

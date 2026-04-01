@@ -12,6 +12,7 @@ def _():
 
 @app.function
 def foo():
+    """Print a greeting message."""
     print("hi")
 
 

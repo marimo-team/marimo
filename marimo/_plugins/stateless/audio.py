@@ -27,6 +27,7 @@ def convert_numpy_to_wav(
     def get_normalization_factor(
         max_abs_value: float, normalize: bool
     ) -> Union[float, int]:
+        """Return the normalization divisor, or raise if data exceeds [-1, 1] and normalize is False."""
         if not normalize and max_abs_value > 1:
             raise ValueError(
                 "Audio data must be between -1 and 1 when normalize=False."

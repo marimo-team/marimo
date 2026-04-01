@@ -112,6 +112,7 @@ async def workspace_files(
         mode = session_manager.mode.value
 
         def get_files_with_metadata() -> list[FileInfo]:
+            """Collect marimo files with resolved OpenGraph metadata."""
             files = session_manager.file_router.files
             marimo_files = [
                 file for file in flatten_files(files) if file.is_marimo_file

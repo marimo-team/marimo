@@ -50,6 +50,7 @@ class LoaderPartial:
         self.kwargs = kwargs
 
     def __call__(self, name: str) -> Loader:
+        """Construct and return the loader instance for the given cache name."""
         try:
             return self.loader_type(name, **self.kwargs)
         except TypeError as e:

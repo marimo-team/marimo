@@ -23,6 +23,7 @@ class Stream(abc.ABC):
 
     @abc.abstractmethod
     def write(self, data: KernelMessage) -> None:
+        """Write a serialized kernel message to the stream's output destination."""
         pass
 
     def stop(self) -> None:
@@ -34,6 +35,7 @@ class NoopStream(Stream):
     """Stream implementation that silently discards all messages."""
 
     def write(self, data: KernelMessage) -> None:
+        """Silently discard the kernel message."""
         pass
 
 
@@ -72,6 +74,7 @@ class Stdout(io.TextIOBase):
         pass
 
     def write(self, __s: str) -> int:
+        """Write a string to stdout as plain text and return the number of characters written."""
         return self._write_with_mimetype(
             _ensure_plain_str(__s), mimetype="text/plain"
         )
@@ -93,6 +96,7 @@ class Stderr(io.TextIOBase):
         pass
 
     def write(self, __s: str) -> int:
+        """Write a string to stderr as plain text and return the number of characters written."""
         return self._write_with_mimetype(
             _ensure_plain_str(__s), mimetype="text/plain"
         )

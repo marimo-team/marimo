@@ -109,6 +109,7 @@ def experimental_data_editor(
     *args: Any,
     **kwargs: Any,
 ) -> data_editor:
+    """Deprecated alias for data_editor; use mo.ui.data_editor instead."""
     return data_editor(*args, **kwargs)
 
 

@@ -25,6 +25,8 @@ DataType = Union[str, bytes, io.BytesIO, io.BufferedReader]
 
 @dataclass
 class LoadResponse:
+    """Response payload returned by the download lazy-load RPC, containing the data URL and filename."""
+
     data: str
     filename: Optional[str]
 

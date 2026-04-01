@@ -108,6 +108,7 @@ class DefaultExecutor(Executor):
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
     ) -> Any:
+        """Execute a cell asynchronously in glbls and return its last expression."""
         if cell.body is None:
             return None
         assert cell.last_expr is not None
@@ -134,6 +135,7 @@ class DefaultExecutor(Executor):
         glbls: dict[str, Any],
         graph: Optional[DirectedGraph] = None,
     ) -> Any:
+        """Execute a cell synchronously in glbls and return its last expression."""
         try:
             if cell.body is None:
                 return None
@@ -156,6 +158,7 @@ class StrictExecutor(Executor):
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
+        """Execute a cell asynchronously with deep-copied inputs and return its last expression."""
         assert self.base is not None, "Invalid executor composition."
 
         # Manage globals and references, but refers to the default beyond that.
@@ -179,6 +182,7 @@ class StrictExecutor(Executor):
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
+        """Execute a cell synchronously with deep-copied inputs and return its last expression."""
         assert self.base is not None, "Invalid executor composition."
 
         refs = graph.get_transitive_references(

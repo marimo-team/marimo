@@ -24,6 +24,8 @@ TIMEOUT_S = 0.01
 
 @dataclass
 class ConsoleMsg:
+    """A buffered console message containing stream type, cell ID, text data, and MIME type."""
+
     stream: StreamT
     cell_id: CellId_t
     data: str

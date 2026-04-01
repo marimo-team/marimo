@@ -27,12 +27,14 @@ def _(mo):
 
 @app.cell
 def button(keys_1, keys_2, switch):
+    """Select the active key set based on the switch value."""
     keys = keys_1 if switch.value else keys_2
     return (keys,)
 
 
 @app.cell
 def display(keys, mo):
+    """Display a table of text inputs keyed by the active key set."""
     table = mo.ui.table({str(k): mo.ui.text(value=k) for k in keys})
     table
     return

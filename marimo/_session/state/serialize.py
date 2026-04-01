@@ -391,6 +391,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
         self.interval = interval
 
     async def startup(self) -> None:
+        """Create parent directories for the cache file before writing begins."""
         # Create parent directories if they don't exist
         try:
             if isinstance(self.path, AsyncPath):
@@ -402,6 +403,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
             raise
 
     async def run(self) -> None:
+        """Periodically serialize and write the session view to the cache file."""
         while self.running:
             try:
                 if self.session_view.needs_export("session"):

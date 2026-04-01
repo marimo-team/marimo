@@ -114,6 +114,7 @@ def _is_primitive_container(
     visited = set()
 
     def recurse_container(value: Any) -> bool:
+        """Recursively check whether a container and all its elements satisfy the predicate."""
         if is_primitive(value):
             return True
 
@@ -238,6 +239,7 @@ def is_pure_function(
     cache[value] = True  # Prevent recursion
 
     def cancel_predicate(ref: Name, _data: VariableData) -> bool:
+        """Return False and mark value as impure if ref refers to a mutable or impure object."""
         if not cache[value]:
             return False
 
@@ -313,6 +315,7 @@ def build_ref_predicate_for_primitives(
         primitives = PRIMITIVES
 
     def check_ref(ref: Name) -> bool:
+        """Return True if the reference resolves to a callable, function, module, or class in glbls."""
         return ref in glbls and (
             inspect.isfunction(glbls[ref])
             or inspect.ismodule(glbls[ref])
@@ -321,6 +324,7 @@ def build_ref_predicate_for_primitives(
         )
 
     def only_scoped_refs(ref: Name, data: VariableData) -> bool:
+        """Return True if ref should be included in the transitive reference graph based on its type."""
         # TODO: Other common types could be added here, like numpy arrays that
         # are not dtype=object, etc.. that are known not to be dependent on the
         # functions that created them.

@@ -116,6 +116,7 @@ def collect_messages(
     messages = []
 
     def message_pipe(msg: str) -> None:
+        """Append a diagnostic message to the collected messages list."""
         messages.append(msg)
 
     # Normalize to tuple

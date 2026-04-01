@@ -98,6 +98,7 @@ def _():
 
 @app.function
 def get_key(provider):
+    """Return the API key for the given AI provider from the marimo config."""
     from marimo._config.manager import get_default_config_manager
 
     config = get_default_config_manager(current_path=None).get_config(

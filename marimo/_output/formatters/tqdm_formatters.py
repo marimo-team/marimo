@@ -83,6 +83,7 @@ class TqdmFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "tqdm"
 
     def register(self) -> None:

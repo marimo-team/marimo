@@ -38,16 +38,20 @@ class IPythonFormatter(FormatterFactory):
 
         # DisplayHandle class to match IPython's API
         class DisplayHandle:
+            """Handle for a live-updating display object, identified by display_id."""
+
             def __init__(self, display_id: str):
                 self.display_id = display_id
 
             def update(self, obj: Any, **kwargs: Any) -> None:
+                """Update the display with a new object."""
                 update_display(obj, display_id=self.display_id, **kwargs)
 
         # Monkey patch IPython.display.display, which imperatively writes
         # outputs to the frontend
         @functools.wraps(old_display)
         def display(*objs: Any, **kwargs: Any) -> Optional[DisplayHandle]:
+            """Display objects in the marimo output area, returning a DisplayHandle if a display_id is given."""
             # If clear is True, clear the output before displaying
             if kwargs.pop("clear", False):
                 _output.clear()
@@ -116,6 +120,7 @@ class IPythonFormatter(FormatterFactory):
             pass
 
         def unpatch() -> None:
+            """Restore the original IPython display functions and clear stored display objects."""
             clear_display_objects()  # Clean up on unpatch
             IPython.display.display = old_display  # type: ignore
             if old_update_display is not None:

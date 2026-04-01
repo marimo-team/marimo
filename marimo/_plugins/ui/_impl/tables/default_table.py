@@ -100,6 +100,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         format_mapping: Optional[FormatMapping] = None,
         separator: str | None = None,
     ) -> str:
+        """Convert data to a CSV string, delegating to a typed table manager when available."""
         if isinstance(self.data, dict) and not self.is_column_oriented:
             return DefaultTableManager(
                 self._normalize_data(self.data)
@@ -115,6 +116,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
+        """Convert data to a JSON string after normalizing and applying any format mapping."""
         del strict_json
         del ensure_ascii
         normalized = self._normalize_data(
@@ -123,6 +125,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return encode_json_str(SuperJson(normalized))
 
     def to_parquet(self) -> bytes:
+        """Convert data to Parquet bytes by delegating to a typed table manager."""
         if isinstance(self.data, dict) and not self.is_column_oriented:
             return DefaultTableManager(
                 self._normalize_data(self.data)
@@ -287,6 +290,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def calculate_top_k_rows(
         self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
+        """Return the top-k most frequent (value, count) pairs for the given column."""
         column_names = self.get_column_names()
         if column not in column_names:
             raise ValueError(f"Column {column} not found in table.")

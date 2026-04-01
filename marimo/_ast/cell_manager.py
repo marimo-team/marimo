@@ -151,6 +151,7 @@ class CellManager:
             # and we return a decorator that takes the decorated function as an
             # argument
             def decorator(obj: Obj[P, R]) -> Cell | Obj[P, R]:
+                """Apply the cell decorator to the given function or class."""
                 return _register(obj)
 
             return decorator

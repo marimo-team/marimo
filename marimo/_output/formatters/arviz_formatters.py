@@ -17,6 +17,7 @@ class ArviZFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "arviz"
 
     def register(self) -> None:

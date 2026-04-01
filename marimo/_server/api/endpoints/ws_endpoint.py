@@ -503,6 +503,7 @@ class WebSocketHandler(SessionConsumer):
             return
 
         def on_update(current_version: str, state: MarimoCLIState) -> None:
+            """Send an update-available alert to the frontend, at most once per server."""
             # Let's only toast once per marimo server
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)

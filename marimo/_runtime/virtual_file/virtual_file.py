@@ -98,6 +98,7 @@ class VirtualFile:
         vfile_name = random_filename(ext)
 
         def return_data_url() -> VirtualFile:
+            """Create a VirtualFile backed by a data URL instead of a virtual path."""
             return VirtualFile(
                 filename=vfile_name, buffer=buffer, as_data_url=True
             )

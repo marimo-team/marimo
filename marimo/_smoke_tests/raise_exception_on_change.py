@@ -14,6 +14,7 @@ def _():
 
 @app.function
 def error(v):
+    """Raise a ValueError with the string representation of v."""
     raise ValueError(str(v))
 
 

@@ -417,12 +417,20 @@ def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
 
 
 class HasKeysMethod(Protocol):
-    def keys(self) -> Collection[Any]: ...
+    """Protocol for objects that expose a keys() method returning a collection."""
+
+    def keys(self) -> Collection[Any]:
+        """Return the collection of keys."""
+        ...
 
 
 class HasColumnsProperty(Protocol):
+    """Protocol for objects that expose a columns property returning a collection."""
+
     @property
-    def columns(self) -> Collection[Any]: ...
+    def columns(self) -> Collection[Any]:
+        """Return the collection of column names."""
+        ...
 
 
 def _key_options_from_ipython_method(obj: Any) -> list[str]:

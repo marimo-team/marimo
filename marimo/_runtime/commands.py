@@ -128,6 +128,7 @@ class HTTPRequest(Mapping[str, Any]):
 
     @staticmethod
     def from_request(request: HTTPConnection) -> HTTPRequest:
+        """Build an HTTPRequest from a Starlette HTTPConnection."""
         def _url_to_dict(url: URL) -> dict[str, Any]:
             return {
                 "path": url.path,
@@ -767,6 +768,7 @@ class ModelUpdateMessage(
     buffer_paths: list[list[Union[str, int]]]
 
     def into_comm_payload_content(self) -> dict[str, Any]:
+        """Return the comm payload content dict for a model update message."""
         return {
             "data": {
                 "method": "update",
@@ -788,6 +790,7 @@ class ModelCustomMessage(
     content: Any
 
     def into_comm_payload_content(self) -> dict[str, Any]:
+        """Return the comm payload content dict for a custom model message."""
         return {
             "data": {
                 "method": "custom",
@@ -817,6 +820,7 @@ class ModelCommand(Command):
     token: str = msgspec.field(default_factory=lambda: str(uuid4()))
 
     def into_comm_payload(self) -> dict[str, Any]:
+        """Return the full comm payload dict including content and binary buffers."""
         return {
             "content": self.message.into_comm_payload_content(),
             "buffers": self.buffers,

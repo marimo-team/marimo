@@ -50,10 +50,14 @@ class QueryParams(State[SerializedQueryParams]):
     T = TypeVar("T", str, list[str])
 
     @overload
-    def get(self, key: str) -> Optional[Union[str, list[str]]]: ...
+    def get(self, key: str) -> Optional[Union[str, list[str]]]:
+        """Return the query parameter value for key, or None if absent."""
+        ...
 
     @overload
-    def get(self, key: str, default: T) -> Union[str, list[str], T]: ...
+    def get(self, key: str, default: T) -> Union[str, list[str], T]:
+        """Return the query parameter value for key, or default if absent."""
+        ...
 
     def get(
         self, key: str, default: Optional[Union[str, list[str]]] = None
@@ -205,12 +209,16 @@ class CLIArgs:
     T = TypeVar("T", Primitive, list[Primitive])
 
     @overload
-    def get(self, key: str) -> Optional[ListOrValue[Primitive]]: ...
+    def get(self, key: str) -> Optional[ListOrValue[Primitive]]:
+        """Return the CLI arg value for key, or None if absent."""
+        ...
 
     @overload
     def get(
         self, key: str, default: T
-    ) -> Union[ListOrValue[Primitive], T]: ...
+    ) -> Union[ListOrValue[Primitive], T]:
+        """Return the CLI arg value for key, or default if absent."""
+        ...
 
     def get(
         self, key: str, default: Optional[ListOrValue[Primitive]] = None

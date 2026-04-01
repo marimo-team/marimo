@@ -41,26 +41,36 @@ _CHANNEL_MAP = {
 
 
 class OutputData(TypedDict):
+    """Mimetype and string-encoded data for a cell output."""
+
     mimetype: str
     data: str
 
 
 class ErrorData(TypedDict):
+    """Error information emitted in a done SSE event."""
+
     type: str
     msg: str
     exception_type: NotRequired[str]
 
 
 class ConsoleEvent(TypedDict):
+    """Payload for a stdout or stderr SSE event."""
+
     data: str
 
 
 class DoneSuccess(TypedDict):
+    """Payload for a successful done SSE event."""
+
     success: bool
     output: NotRequired[OutputData]
 
 
 class DoneError(TypedDict):
+    """Payload for a failed done SSE event."""
+
     success: bool
     error: ErrorData
 

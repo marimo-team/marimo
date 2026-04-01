@@ -340,6 +340,7 @@ class OSFileSystem(FileSystem):
 
         # Sort results by relevance (exact matches first, then by name)
         def sort_key(file_info: FileInfo) -> tuple[int, str]:
+            """Return a sort key prioritizing exact matches, then prefix matches, then contains matches."""
             name_lower = file_info.name.lower()
 
             # Exact match gets highest priority

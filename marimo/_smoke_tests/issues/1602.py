@@ -8,6 +8,8 @@ app = marimo.App(width="medium")
 
 @app.class_definition
 class Boom:
+    """A class that returns Ellipsis for every attribute access."""
+
     def __getattr__(self, _):
         return ...
 

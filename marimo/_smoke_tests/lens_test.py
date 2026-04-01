@@ -102,6 +102,7 @@ def _(composite):
 
 @app.function
 def change_printer(v):
+    """Print a message reporting the changed value v."""
     print("changed ", v)
 
 

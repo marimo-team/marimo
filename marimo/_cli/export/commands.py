@@ -55,6 +55,7 @@ _sandbox_message = (
     cls=ColoredGroup, help="""Export a notebook to various formats."""
 )
 def export() -> None:
+    """Export a marimo notebook to various formats."""
     pass
 
 
@@ -75,6 +76,7 @@ def watch_and_export(
         )
 
     def write_result(result: ExportResult) -> None:
+        """Write the export result to the output file or print it to stdout."""
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
@@ -110,6 +112,7 @@ def watch_and_export(
             )
 
     async def on_file_changed(file_path: Path) -> None:
+        """Re-export the notebook whenever the watched file changes."""
         if output:
             echo(
                 f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
@@ -133,6 +136,7 @@ def watch_and_export(
             )
 
     async def start() -> None:
+        """Start the file watcher and run until interrupted."""
         # Watch the file for changes
         watcher = FileWatcher.create(marimo_path.path, on_file_changed)
         echo(f"Watching {green(marimo_path.relative_name)} for changes...")
@@ -229,6 +233,7 @@ def html(
     cli_args = parse_args(args)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
+        """Run the notebook and export it as HTML."""
         return asyncio_run(
             run_app_then_export_as_html(
                 file_path,
@@ -307,6 +312,7 @@ def script(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
+        """Export the notebook as a flat Python script."""
         return export_as_script(file_path)
 
     return watch_and_export(
@@ -378,6 +384,7 @@ def md(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
+        """Export the notebook as a code-fenced Markdown file."""
         return export_as_md(file_path)
 
     return watch_and_export(
@@ -496,6 +503,7 @@ def ipynb(
     cli_args = parse_args(args) if include_outputs else {}
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
+        """Export the notebook as a Jupyter notebook, optionally with outputs."""
         if include_outputs:
             return asyncio_run(
                 run_app_then_export_as_ipynb(
@@ -737,6 +745,7 @@ def pdf(
     def export_callback(
         file_path: MarimoPath,
     ) -> tuple[bytes | None, bool]:
+        """Run the notebook and return raw PDF bytes with an error flag."""
         try:
             return asyncio_run(
                 run_app_then_export_as_pdf(
@@ -762,6 +771,7 @@ def pdf(
             raise click.ClickException(f"Failed to export PDF: {e}") from None
 
     def export_callback_impl(file_path: MarimoPath) -> ExportResult:
+        """Wrap export_callback to return an ExportResult, raising on failure."""
         pdf_bytes, did_error = export_callback(file_path)
         if pdf_bytes is None:
             raise click.ClickException("Failed to export PDF.")
@@ -891,6 +901,7 @@ def html_wasm(
     marimo_file = MarimoPath(name)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
+        """Export the notebook as a WASM-powered standalone HTML file."""
         return export_as_wasm(file_path, mode, show_code=show_code)
 
     # Export assets first

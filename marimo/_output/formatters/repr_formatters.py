@@ -46,6 +46,7 @@ def maybe_get_repr_formatter(
         # all the possible _repr_ methods, since some can be implemented
         # but return None
         def f_repr(obj: Any) -> tuple[KnownMimeType, str]:
+            """Call the object's _repr_ methods in priority order and return the first non-None result."""
             for attr, mime_type in reprs:
                 if not is_callable_method(obj, attr):
                     continue

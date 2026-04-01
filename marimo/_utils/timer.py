@@ -15,6 +15,7 @@ def timer(func: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        """Call the wrapped function, measure its runtime, and print the elapsed time."""
         start_time = time.perf_counter()
         result = func(*args, **kwargs)
         end_time = time.perf_counter()

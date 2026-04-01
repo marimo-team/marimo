@@ -17,6 +17,7 @@ app = marimo.App()
 
 @app.cell
 def foo():
+    """Import marimo."""
     import marimo as mo
     return
 

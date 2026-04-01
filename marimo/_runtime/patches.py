@@ -317,6 +317,7 @@ def patch_jedi_parameter_completion() -> None:
         return ""
 
     def extract_marimo_style_arguments(docstring: str) -> dict[str, str]:
+        """Parse a marimo-style '# Arguments' table and return a param→description map."""
         lines = docstring.splitlines()
         try:
             start = lines.index("# Arguments")
@@ -345,6 +346,7 @@ def patch_jedi_parameter_completion() -> None:
     def extract_docstring_to_markdown_arguments(
         docstring: str,
     ) -> dict[str, str]:
+        """Parse a docstring-to-markdown '#### Parameters' section and return a param→description map."""
         param_descriptions: dict[str, str] = {}
         lines = docstring.splitlines()
         try:
@@ -368,6 +370,7 @@ def patch_jedi_parameter_completion() -> None:
         return param_descriptions
 
     def py__doc__(self: ParamNameWrapper) -> str:
+        """Return a Markdown-formatted docstring for the parameter, or an empty string."""
         # Patch for https://github.com/davidhalter/jedi/issues/2061
         if self.tree_name is None:
             # This will only happen for runtime (imported packages)
@@ -417,6 +420,7 @@ def patch_jedi_parameter_completion() -> None:
         return ""
 
     def filter_none_value(value: Any) -> bool:
+        """Return False for None or numpy sentinel values, True for all other inferred values."""
         if not isinstance(value, CompiledValue):
             return True
         value_repr: str = value.access_handle.get_repr()
@@ -431,7 +435,9 @@ def patch_jedi_parameter_completion() -> None:
     def wrap_infer(
         original_infer: Callable[[Any], ValueSet],
     ) -> Callable[[Any], ValueSet]:
+        """Wrap a jedi infer method to filter out None and numpy sentinel values."""
         def infer(self: AnonymousParamName | SignatureParamName) -> ValueSet:
+            """Infer type values, excluding None and numpy sentinel results."""
             # Patch for https://github.com/davidhalter/jedi/issues/2063
             result = original_infer(self)
             return result.filter(filter_none_value)
@@ -446,6 +452,7 @@ def patch_jedi_parameter_completion() -> None:
         compiled_value: CompiledValue,
         signature_param: str,
     ) -> None:
+        """Initialize SignatureParamName and stash compiled_value for later doc lookup."""
         original_dynamic_init(self, compiled_value, signature_param)
         self.compiled_value = compiled_value
 
@@ -491,6 +498,7 @@ def patch_polars_write_json() -> Unpatch:
         *args: Any,
         **kwargs: Any,
     ) -> str | None:
+        """Write the DataFrame as JSON, falling back to CSV→JSON conversion on WASM failures."""
         try:
             # First try the original method
             return original_write_json(self, file, *args, **kwargs)
@@ -532,6 +540,7 @@ def patch_polars_write_json() -> Unpatch:
     polars.DataFrame.write_json = patched_write_json  # type: ignore
 
     def unpatch_polars_write_json() -> None:
+        """Restore the original polars.DataFrame.write_json implementation."""
         polars.DataFrame.write_json = original_write_json  # type: ignore
 
     return unpatch_polars_write_json

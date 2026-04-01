@@ -459,6 +459,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
         text: list[str] = []
 
         def add_paragraph() -> None:
+            """Flush accumulated markdown text lines as a marimo-md child element."""
             if not text:
                 return
             # An additional line break is added before code blocks.

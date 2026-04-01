@@ -17,9 +17,11 @@ class HoloViewsFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the name of the package this formatter targets."""
         return "holoviews"
 
     def register(self) -> None:
+        """Register formatters for HoloViews viewable and mapping types."""
         import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting

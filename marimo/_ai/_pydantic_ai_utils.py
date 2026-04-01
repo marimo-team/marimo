@@ -44,6 +44,7 @@ def form_toolsets(
             async def tool_fn(
                 _tool_name: str = tool.name, **kwargs: Any
             ) -> Any:
+                """Raise a CallDeferred to signal that this frontend tool call must be handled client-side."""
                 raise CallDeferred(
                     metadata={
                         "source": "frontend",
@@ -56,6 +57,7 @@ def form_toolsets(
             async def tool_fn(
                 _tool_name: str = tool.name, **kwargs: Any
             ) -> Any:
+                """Invoke the backend tool by name, returning a JSON-serializable result."""
                 result = await tool_invoker(_tool_name, kwargs)
                 # Convert to JSON-serializable object
                 return asdict(result)
@@ -82,6 +84,7 @@ def convert_to_pydantic_messages(
         part: UIMessagePart,
         part_processor: Callable[[UIMessagePart], UIMessagePart],
     ) -> UIMessagePart:
+        """Apply part_processor to part, returning the part unchanged if processing raises an exception."""
         try:
             return part_processor(part)
         except Exception as e:

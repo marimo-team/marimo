@@ -146,6 +146,8 @@ def setup_code_mcp_server(
     mcp_app = mcp.streamable_http_app()
 
     class RequiresEditMiddleware(BaseHTTPMiddleware):
+        """ASGI middleware that rejects requests without edit-scope authentication."""
+
         async def __call__(
             self, scope: Scope, receive: Receive, send: Send
         ) -> None:

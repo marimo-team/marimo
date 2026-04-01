@@ -173,6 +173,7 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
             )
 
     def transform(source: str) -> str:
+        """Apply name transformations to a single cell's source code."""
         try:
             tree = ast.parse(source)
             visitor = NameTransformer(name_transformations)
@@ -195,14 +196,17 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
     """
 
     def contains_mo(cell: str) -> bool:
+        """Return True if the cell uses mo.md or mo.sql."""
         return cell.startswith("mo.md(") or "mo.sql(" in cell
 
     def has_marimo_import(cell: str) -> bool:
+        """Return True if the cell contains an 'import marimo as mo' statement."""
         # Quick check
         if "import marimo as mo" not in cell:
             return False
 
         def is_in_import_line(line: str) -> bool:
+            """Return True if the line is an import statement containing 'import marimo as mo'."""
             if line.startswith("import marimo as mo"):
                 return True
             if line.startswith("import ") or line.startswith("from "):
@@ -238,11 +242,13 @@ def transform_add_subprocess_import(
         return sources
 
     def has_subprocess_import(cell: str) -> bool:
+        """Return True if the cell already imports the subprocess module."""
         # Quick check
         if "import subprocess" not in cell:
             return False
 
         def is_in_import_line(line: str) -> bool:
+            """Return True if the line is an import statement for subprocess."""
             stripped = line.strip()
             if stripped.startswith("import subprocess"):
                 return True
@@ -428,6 +434,7 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         return f"import os\nos.environ[{_key!r}] = {value!r}"
 
     def comment_out_code(source: str) -> str:
+        """Prefix every line of source with '# ' to comment it out."""
         if source.strip():
             return "\n".join(f"# {line}" for line in source.split("\n"))
         return source
@@ -453,6 +460,7 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
     }
 
     def transform_single_line_magic(line: str) -> str:
+        """Transform a single '%magic arg' line to its marimo equivalent."""
         pieces = line.strip().lstrip("%").split()
         magic_cmd, args = pieces[0], pieces[1:]
         rest = " ".join(args)
@@ -461,6 +469,7 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         return magic_remove(rest, "%" + magic_cmd)
 
     def transform(cell: str) -> str:
+        """Transform all magic commands in a cell to their marimo equivalents."""
         stripped = cell.strip()
 
         # Multi-line magic
@@ -1146,6 +1155,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
 
     # Find all definitions in the AST
     def find_definitions(node: ast.AST) -> list[str]:
+        """Return all non-local top-level definition names in the AST node."""
         visitor = ScopedVisitor("", ignore_local=True)
         visitor.visit(node)
         # Remove local variables
@@ -1154,6 +1164,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
 
     # Collect all definitions for each cell
     def get_definitions(sources: list[str]) -> dict[str, list[int]]:
+        """Map each definition name to the cell indices where it is defined."""
         definitions: dict[str, list[int]] = defaultdict(list)
         for i, source in enumerate(sources):
             try:
@@ -1168,6 +1179,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     def get_duplicates(
         definitions: dict[str, list[int]],
     ) -> dict[str, list[int]]:
+        """Return only those definition entries that appear in more than one cell."""
         return {
             name: cells
             for name, cells in definitions.items()
@@ -1178,6 +1190,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     def create_name_mappings(
         duplicates: dict[str, list[int]], definitions: set[str]
     ) -> dict[int, dict[str, str]]:
+        """Build per-cell rename maps so that duplicate names get unique suffixes."""
         new_definitions: set[str] = set()
         name_mappings: dict[int, dict[str, str]] = defaultdict(dict)
         for name, cells in duplicates.items():
@@ -1219,6 +1232,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
             cell_idx: int = cell_idx,
             renamer: Renamer = renamer,
         ) -> None:
+            """Rename a definition node if it is a duplicate top-level name."""
             block_idx = 0 if name in block_stack[-1].global_names else -1
             if block_idx == 0:
                 # all top-level definitions are renamed
@@ -1234,6 +1248,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
             cell_idx: int = cell_idx,
             renamer: Renamer = renamer,
         ) -> None:
+            """Rename a reference node according to the cell's name mappings."""
             renamer.rename_named_node(cell_idx, node, is_reference=True)
 
         visitor = ScopedVisitor(

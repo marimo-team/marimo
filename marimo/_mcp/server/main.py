@@ -86,6 +86,8 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
 
     # Middleware to require edit scope
     class RequiresEditMiddleware(BaseHTTPMiddleware):
+        """ASGI middleware that rejects requests without edit-scope authentication."""
+
         async def __call__(
             self, scope: Scope, receive: Receive, send: Send
         ) -> None:

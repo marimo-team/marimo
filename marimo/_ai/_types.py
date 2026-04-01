@@ -26,17 +26,23 @@ LOGGER = _loggers.marimo_logger()
 
 
 class ChatAttachmentDict(TypedDict):
+    """TypedDict representation of a ChatAttachment for JSON serialization."""
+
     url: str
     content_type: Optional[str]
     name: Optional[str]
 
 
 class TextPartDict(TypedDict):
+    """TypedDict representation of a text content part."""
+
     type: Literal["text"]
     text: str
 
 
 class FilePartDict(TypedDict):
+    """TypedDict representation of a file content part."""
+
     type: Literal["file"]
     media_type: str
     filename: Optional[str]
@@ -44,18 +50,24 @@ class FilePartDict(TypedDict):
 
 
 class ReasoningPartDict(TypedDict):
+    """TypedDict representation of a reasoning content part."""
+
     type: Literal["reasoning"]
     reasoning: str
     details: list[ReasoningDetailsDict]
 
 
 class ReasoningDetailsDict(TypedDict):
+    """TypedDict representation of a reasoning detail entry."""
+
     type: Literal["text"]
     text: str
     signature: Optional[str]
 
 
 class ToolInvocationPartDict(TypedDict):
+    """TypedDict representation of a tool invocation part."""
+
     type: str
     tool_call_id: str
     state: str
@@ -69,6 +81,8 @@ ChatPartDict = Union[
 
 
 class ChatMessageDict(TypedDict):
+    """TypedDict representation of a ChatMessage for JSON serialization."""
+
     id: str
     role: Literal["user", "assistant", "system"]
     content: Optional[str]
@@ -78,6 +92,8 @@ class ChatMessageDict(TypedDict):
 
 
 class ChatModelConfigDict(TypedDict, total=False):
+    """TypedDict representation of ChatModelConfig for JSON serialization."""
+
     max_tokens: Optional[int]
     temperature: Optional[float]
     top_p: Optional[float]
@@ -359,4 +375,5 @@ class ChatModel(abc.ABC):
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
+        """Generate a response for the given chat messages and configuration."""
         pass

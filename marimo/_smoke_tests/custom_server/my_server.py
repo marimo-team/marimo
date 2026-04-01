@@ -80,6 +80,7 @@ async def auth_middleware(
     request: Request,
     call_next: Callable[[Request], Coroutine[None, None, Response]],
 ) -> Response:
+    """Redirect unauthenticated requests to /login; allow authenticated ones through."""
     if request.url.path == "/login":
         response = await call_next(request)
         return response
@@ -90,6 +91,7 @@ async def auth_middleware(
 
 @app.get("/login")
 async def get_login():
+    """Serve the HTML login form."""
     return HTMLResponse(
         """
         <form action="/login" method="post">
@@ -103,6 +105,7 @@ async def get_login():
 
 @app.post("/login")
 async def post_login(token: Annotated[str, Form()]):
+    """Set the auth token cookie and redirect to the root page."""
     response = RedirectResponse(url="/")
     response.set_cookie(key="token", value=token)
     return response
@@ -110,11 +113,13 @@ async def post_login(token: Annotated[str, Form()]):
 
 @app.get("/ping")
 async def ping():
+    """Return a simple pong health-check response."""
     return {"message": "pong"}
 
 
 @app.get("/")
 async def homepage():
+    """Serve the HTML homepage listing all mounted marimo apps and endpoints."""
     return HTMLResponse(
         """
         <!DOCTYPE html>

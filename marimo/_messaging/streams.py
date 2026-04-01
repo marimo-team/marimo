@@ -180,12 +180,15 @@ class _NoOpWatcher:
     """A dummy watcher that does nothing, used when fd redirection is off."""
 
     def start(self) -> None:
+        """No-op start."""
         pass
 
     def pause(self) -> None:
+        """No-op pause."""
         pass
 
     def stop(self) -> None:
+        """No-op stop."""
         pass
 
 
@@ -282,6 +285,7 @@ class ThreadSafeStdout(Stdout):
         return False
 
     def flush(self) -> None:
+        """Flush the stream (no-op; the buffered writer manages its own flushing)."""
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
@@ -343,6 +347,7 @@ class ThreadSafeStderr(Stderr):
         self._watcher.stop()
 
     def fileno(self) -> int:
+        """Return the OS file descriptor for the redirected stream."""
         if self._fileno is not None:
             return self._fileno
         raise io.UnsupportedOperation("Stream not redirected, no fileno.")
@@ -351,15 +356,19 @@ class ThreadSafeStderr(Stderr):
         self._fileno = fileno
 
     def writable(self) -> bool:
+        """Return True — stderr is writable."""
         return True
 
     def readable(self) -> bool:
+        """Return False — stderr is not readable."""
         return False
 
     def seekable(self) -> bool:
+        """Return False — stderr is not seekable."""
         return False
 
     def flush(self) -> None:
+        """Flush the stream (no-op; the buffered writer manages its own flushing)."""
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
@@ -407,6 +416,7 @@ class ThreadSafeStdin(Stdin):
         self._stream = stream
 
     def fileno(self) -> int:
+        """Raise UnsupportedOperation — stdin is a pseudofile with no file descriptor."""
         raise io.UnsupportedOperation(
             "marimo's stdin is a pseudofile, which has no fileno."
         )

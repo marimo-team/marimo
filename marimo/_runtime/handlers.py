@@ -58,6 +58,8 @@ def construct_sigterm_handler(kernel: Kernel) -> Callable[[int, Any], None]:
 
     @dataclass
     class Bit:
+        """A mutable boolean flag used to prevent re-entrant signal handling."""
+
         value: bool = False
 
     shutting_down = Bit()

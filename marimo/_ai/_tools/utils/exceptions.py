@@ -23,6 +23,7 @@ class ToolExecutionError(Exception):
 
     @property
     def original_message(self) -> str:
+        """Return the human-readable error message without JSON encoding."""
         return self.message
 
     def _create_structured_message(self) -> str:

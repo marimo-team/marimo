@@ -51,11 +51,13 @@ def get_variable_preview(
         return f"<max depth reached: {type(obj).__name__}>"
 
     def truncate_str(s: str, max_len: int) -> str:
+        """Return s unchanged if it fits within max_len characters, otherwise truncate it."""
         return s if len(s) <= max_len else s[:max_len]
 
     def preview_sequence(
         seq: Union[Sequence[Any], set[Any], frozenset[Any]],
     ) -> str:
+        """Return a bracketed preview of up to max_items elements from a sequence."""
         # Convert set-like objects to list for indexing
         if isinstance(seq, (set, frozenset)):
             seq = list(seq)
@@ -86,6 +88,7 @@ def get_variable_preview(
         return f"[{', '.join(items)}]"
 
     def preview_mapping(d: Mapping[Any, Any]) -> str:
+        """Return a brace-enclosed preview of up to max_items key-value pairs from a mapping."""
         length = len(d)
         if length <= max_items:
             items = [
@@ -108,6 +111,7 @@ def get_variable_preview(
         return f"{{{', '.join(items)}}}"
 
     def preview_bytes(data: bytes | bytearray) -> str:
+        """Return a hex preview of binary data, truncating long buffers to max_bytes."""
         length = len(data)
         if length <= max_bytes:
             preview = data.hex()

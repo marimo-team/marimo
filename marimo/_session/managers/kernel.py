@@ -107,6 +107,7 @@ class KernelManagerImpl(KernelManager):
             def launch_kernel_with_cleanup(
                 *args: Any,
             ) -> None:
+                """Launch the kernel and perform cleanup after it exits."""
                 runtime.launch_kernel(*args)
 
             # install formatter import hooks, which will be shared by all

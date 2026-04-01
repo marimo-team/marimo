@@ -28,14 +28,18 @@ class IbisTableManagerFactory(TableManagerFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the top-level package name this factory handles."""
         return "ibis"
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
+        """Construct and return the IbisTableManager class (cached)."""
         import ibis  # type: ignore
 
         class IbisTableManager(NarwhalsTableManager[ibis.Table, ibis.Table]):
+            """TableManager implementation for ibis.Table objects."""
+
             type = "ibis"
 
             def __init__(self, data: ibis.Table) -> None:
@@ -43,10 +47,12 @@ class IbisTableManagerFactory(TableManagerFactory):
                 super().__init__(nw.from_native(data))
 
             def collect(self) -> ibis.Table:
+                """Return the original ibis.Table without any narwhals wrapping."""
                 return self._original_data
 
             @staticmethod
             def is_type(value: Any) -> bool:
+                """Return True if the value is an ibis.Table instance."""
                 return isinstance(value, ibis.Table)
 
             def _get_numeric_bin_values(
@@ -197,6 +203,7 @@ class IbisTableManagerFactory(TableManagerFactory):
             def get_field_type(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
+                """Return the marimo FieldType and native type string for the given column."""
                 column = self._original_data[column_name]
                 dtype = column.type()
                 if dtype.is_string():

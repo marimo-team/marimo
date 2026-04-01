@@ -48,7 +48,9 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-) -> subprocess.Popen[str] | None: ...
+) -> subprocess.Popen[str] | None:
+    """Overload: text-mode Popen with explicit encoding."""
+    ...
 
 
 @overload
@@ -79,7 +81,9 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-) -> subprocess.Popen[str] | None: ...
+) -> subprocess.Popen[str] | None:
+    """Overload: text-mode Popen with explicit errors handler."""
+    ...
 
 
 @overload
@@ -110,7 +114,9 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-) -> subprocess.Popen[str] | None: ...
+) -> subprocess.Popen[str] | None:
+    """Overload: text-mode Popen with universal_newlines=True."""
+    ...
 
 
 @overload
@@ -141,7 +147,9 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-) -> subprocess.Popen[str] | None: ...
+) -> subprocess.Popen[str] | None:
+    """Overload: text-mode Popen with text=True."""
+    ...
 
 
 @overload
@@ -172,7 +180,9 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-) -> subprocess.Popen[bytes] | None: ...
+) -> subprocess.Popen[bytes] | None:
+    """Overload: bytes-mode Popen with no text encoding."""
+    ...
 
 
 @overload
@@ -203,7 +213,9 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-) -> subprocess.Popen[Any] | None: ...
+) -> subprocess.Popen[Any] | None:
+    """Overload: catch-all Popen returning Popen[Any]."""
+    ...
 
 
 def safe_popen(

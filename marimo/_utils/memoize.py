@@ -21,6 +21,7 @@ def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
     last_output: T = cast(T, sentinel)
 
     def wrapper(*args: Any, **kwargs: Any) -> T:
+        """Return the memoized result if inputs are identical, else recompute."""
         nonlocal last_input, last_output
 
         current_input: tuple[tuple[Any, ...], frozenset[tuple[str, Any]]] = (

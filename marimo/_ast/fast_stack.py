@@ -42,6 +42,7 @@ def fast_stack(max_depth: int | None = None) -> list[inspect.FrameInfo]:
     def frame_infos(
         frame: FrameType | None,
     ) -> Generator[inspect.FrameInfo, None, None]:
+        """Yield FrameInfo objects by walking up the call stack from the given frame."""
         while frame := frame and frame.f_back:
             yield inspect.FrameInfo(
                 frame,

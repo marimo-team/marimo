@@ -375,10 +375,12 @@ def build_test_class(
                 break
 
     def hook(var: str) -> Callable[..., Any] | type[MarimoTest]:
+        """Return a test hook or fixture for the named definition, or a failing stub if not found."""
         test = tests.get(var, None)
         if test is None:
 
             def fails(*args: Any, **kwargs: Any) -> NoReturn:
+                """Raise an error because the requested test definition could not be found."""
                 del args, kwargs
                 raise ValueError(
                     f"Could not find test {var}, please report to"

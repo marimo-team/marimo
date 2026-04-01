@@ -75,6 +75,7 @@ def _(edited, mo):
 
 @app.function
 def flatten_edits(edits):
+    """Return a list of human-readable strings describing each cell edit."""
     return [
         f"{edit['rowIdx']}.{edit['columnId']} -> {edit['value']}"
         for edit in edits

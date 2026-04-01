@@ -71,6 +71,7 @@ def fixed_dedent(text: str) -> str:
         return dedent(text)
 
     def refill(line: str) -> str:
+        """Re-add the common indent to any line that lost it during dedenting."""
         if not line.startswith(indent):
             return indent + line
         return line

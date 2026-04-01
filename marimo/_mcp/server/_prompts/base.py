@@ -47,6 +47,7 @@ class PromptBase(ABC):
         from mcp.types import PromptMessage, TextContent
 
         def handler() -> list[PromptMessage]:
+            """Invoke the prompt and return its messages, returning an error message on failure."""
             try:
                 return self.handle()
             except Exception as e:

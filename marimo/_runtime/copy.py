@@ -97,6 +97,8 @@ def shadow_wrap(ref_cls: type[_Copy[T]], base: T) -> T:
     # Not seeing a non-verbose work around for mypy, as this needs to inherit
     # from the provided class and not some generic for this to work.
     class ReadOnly_try_marimo_unwrap_copy(ref_cls):  # type: ignore
+        """Read-only shadow wrapper; use marimo.unwrap_copy() to access the underlying object."""
+
         __doc__ = base.__class__.__doc__
         __slots__ = list(slots)
         # ensure reference for gc

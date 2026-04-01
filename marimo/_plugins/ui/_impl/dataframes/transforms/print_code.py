@@ -32,6 +32,7 @@ def python_print_pandas(
 ) -> str:
     """Render a single transform as a pandas Python expression string."""
     def generate_where_clause(df_name: str, where: Condition) -> str:
+        """Return a pandas boolean expression string for the given condition."""
         column_id, operator, value = (
             where.column_id,
             where.operator,
@@ -289,6 +290,7 @@ def python_print_polars(
 ) -> str:
     """Render a single transform as a Polars Python expression string."""
     def generate_where_clause_polars(where: Condition) -> str:
+        """Return a Polars boolean expression string for the given condition."""
         column_id, operator, value = (
             where.column_id,
             where.operator,
@@ -507,6 +509,7 @@ def python_print_ibis(
 ) -> str:
     """Render a single transform as an Ibis Python expression string."""
     def generate_where_clause(df_name: str, where: Condition) -> str:
+        """Return an Ibis boolean expression string for the given condition."""
         column_id, operator, value = (
             where.column_id,
             where.operator,

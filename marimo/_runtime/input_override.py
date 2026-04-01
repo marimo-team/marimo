@@ -8,6 +8,7 @@ from typing import Any
 
 @functools.wraps(input)
 def input_override(prompt: str = "") -> str:
+    """Read a line from marimo's overridden stdin, displaying the given prompt."""
     # sys.stdin is overridden
     return sys.stdin._readline_with_prompt(prompt)  # type: ignore[attr-defined, no-any-return, union-attr]  # noqa: E501
 

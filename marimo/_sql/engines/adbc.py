@@ -38,11 +38,17 @@ class AdbcDbApiCursor(Protocol):
 
     def execute(
         self, query: str, parameters: Sequence[Any] = ...
-    ) -> AdbcDbApiCursor: ...
+    ) -> AdbcDbApiCursor:
+        """Execute a SQL query with optional parameters."""
+        ...
 
-    def fetch_arrow_table(self) -> pa.Table: ...
+    def fetch_arrow_table(self) -> pa.Table:
+        """Fetch the query results as an Apache Arrow Table."""
+        ...
 
-    def close(self) -> None: ...
+    def close(self) -> None:
+        """Close the cursor and release its resources."""
+        ...
 
 
 class AdbcDbApiConnection(Protocol):
@@ -52,13 +58,21 @@ class AdbcDbApiConnection(Protocol):
     https://arrow.apache.org/adbc/current/python/api/adbc_driver_manager.html#adbc_driver_manager.dbapi.Connection
     """
 
-    def cursor(self) -> AdbcDbApiCursor: ...
+    def cursor(self) -> AdbcDbApiCursor:
+        """Return a new cursor for executing queries."""
+        ...
 
-    def commit(self) -> None: ...
+    def commit(self) -> None:
+        """Commit the current transaction."""
+        ...
 
-    def rollback(self) -> None: ...
+    def rollback(self) -> None:
+        """Roll back the current transaction."""
+        ...
 
-    def close(self) -> None: ...
+    def close(self) -> None:
+        """Close the connection and release its resources."""
+        ...
 
     adbc_current_catalog: str
     adbc_current_db_schema: str
@@ -72,13 +86,19 @@ class AdbcDbApiConnection(Protocol):
         table_name_filter: str | None = None,
         table_types_filter: list[str] | None = None,
         column_name_filter: str | None = None,
-    ) -> pa.RecordBatchReader: ...
+    ) -> pa.RecordBatchReader:
+        """Return catalog/schema/table metadata as an Arrow RecordBatchReader."""
+        ...
 
     def adbc_get_table_schema(
         self, table_name: str, *, db_schema_filter: str | None = None
-    ) -> pa.Schema: ...
+    ) -> pa.Schema:
+        """Return the Arrow schema for the specified table."""
+        ...
 
-    def adbc_get_info(self) -> dict[str | int, Any]: ...
+    def adbc_get_info(self) -> dict[str | int, Any]:
+        """Return driver and database metadata as a dict."""
+        ...
 
 
 def _resolve_table_type(table_type: str) -> DataTableType:
@@ -546,11 +566,13 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
             arrow_table = cursor.fetch_arrow_table()
 
             def convert_to_polars() -> pl.DataFrame | pl.Series:
+                """Convert the Arrow table to a Polars DataFrame."""
                 import polars as pl
 
                 return pl.from_arrow(arrow_table)
 
             def convert_to_pandas() -> pd.DataFrame:
+                """Convert the Arrow table to a pandas DataFrame."""
                 return arrow_table.to_pandas()
 
             result = convert_to_output(

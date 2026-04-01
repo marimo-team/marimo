@@ -15,17 +15,20 @@ app = marimo.App()
 
 @app.function
 def inc(x):
+    """Increment x by 1."""
     return x + 1
 
 
 @app.cell
 def test_answer():
+    """Assert that inc(3) equals 5 (this test is expected to fail)."""
     assert inc(3) == 5, "This test fails"
     return
 
 
 @app.cell
 def test_sanity():
+    """Assert that inc(3) equals 4 (this test should pass)."""
     assert inc(3) == 4, "This test passes"
     return
 
@@ -40,6 +43,7 @@ def _(pytest):
 
 @app.function
 def cross_cell_fail():
+    """Unconditionally raise an AssertionError."""
     assert False
 
 
@@ -84,6 +88,7 @@ def _():
 
 @app.cell
 def imports():
+    """Import pytest and marimo for use in test cells."""
     import pytest
     import marimo as mo
     return (pytest,)

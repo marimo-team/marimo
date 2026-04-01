@@ -112,6 +112,7 @@ class MemoryLoader(Loader):
 
     @max_size.setter
     def max_size(self, value: int) -> None:
+        """Set the maximum cache size, evicting entries as needed."""
         self.resize(value)
 
     @property

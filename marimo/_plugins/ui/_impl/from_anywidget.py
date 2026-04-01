@@ -249,6 +249,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
 
     @property
     def text(self) -> str:
+        """Return the HTML text representation, syncing widget state first."""
         self._ensure_widget_synced()
         return super().text
 
@@ -280,6 +281,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
 
     @value.setter
     def value(self, value: AnyWidgetState) -> None:
+        """Raise RuntimeError — setting value directly is not allowed."""
         del value
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
 

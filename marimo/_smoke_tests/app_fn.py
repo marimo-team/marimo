@@ -33,6 +33,7 @@ def self_ref_fib(n: int) -> int:
 
 @app.function(hide_code=True)
 def divide(x, y):
+    """Return y divided by x."""
     return y / x
 
 
@@ -45,6 +46,7 @@ def subtraction(a: "int", b: "int") -> "int":
 @app.function
 # Comments inbetween
 def multiply(a, b) -> int:
+    """Return the product of a and b."""
     return a * b
 
 
@@ -56,6 +58,7 @@ def _():
 
 @app.function(hide_code=True)
 def addition(a: int, b: int) -> int:
+    """Return the sum of a and b."""
     # int is considered no good, re-eval.
     return a + b
 
@@ -63,6 +66,7 @@ def addition(a: int, b: int) -> int:
 @app.function
 # Has an external ref currently does not work
 def bad_divide_curry(x):
+    """Return divide(0, x), demonstrating an external-reference edge case."""
     # Filler line
     # To push the error
     return divide(0, x)

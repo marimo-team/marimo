@@ -25,46 +25,55 @@ class MockSpan:
 
     @contextmanager
     def as_current_span(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager that yields this MockSpan."""
         del args, kwargs
         yield self
 
     @contextmanager
     def set_attribute(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for setting a span attribute."""
         del args, kwargs
         yield
 
     @contextmanager
     def set_status(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for setting a span status."""
         del args, kwargs
         yield
 
     @contextmanager
     def update_name(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for updating the span name."""
         del args, kwargs
         yield
 
     @contextmanager
     def end(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for ending a span."""
         del args, kwargs
         yield
 
     @contextmanager
     def add_event(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for adding a span event."""
         del args, kwargs
         yield
 
     @contextmanager
     def add_link(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for adding a span link."""
         del args, kwargs
         yield
 
     @contextmanager
     def set_attributes(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for setting multiple span attributes."""
         del args, kwargs
         yield
 
     @contextmanager
     def record_exception(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager for recording a span exception."""
         del args, kwargs
         yield
 
@@ -74,12 +83,14 @@ class MockTracer:
 
     @contextmanager
     def start_span(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager that returns a MockSpan without emitting any trace."""
         del args, kwargs
 
         return MockSpan()
 
     @contextmanager
     def start_as_current_span(self, *args: Any, **kwargs: Any) -> Any:
+        """No-op context manager that yields a MockSpan as the current span."""
         del args, kwargs
         yield MockSpan()
 
@@ -88,6 +99,7 @@ TRACE_FILENAME = os.path.join("traces", "spans.jsonl")
 
 
 def _set_tracer_provider() -> None:
+    """Configure a file-based OpenTelemetry TracerProvider if tracing is enabled."""
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return
 

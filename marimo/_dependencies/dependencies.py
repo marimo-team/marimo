@@ -300,6 +300,7 @@ class DependencyManager:
         *dependencies: Dependency,
         source: Literal["kernel", "server"],
     ) -> None:
+        """Raise ManyModulesNotFoundError if any of the given dependencies are not installed."""
         missing = [
             dep.pkg_name_to_install
             for dep in dependencies

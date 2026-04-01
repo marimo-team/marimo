@@ -91,6 +91,7 @@ class VersionMap:
         return self.version_map.get(package)
 
     def has(self, package: str) -> bool:
+        """Return True if the given package is present in the version map."""
         return self.get_version(package) is not None
 
 

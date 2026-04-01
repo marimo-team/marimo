@@ -121,6 +121,7 @@ def common_container_to_bytes(value: Any) -> bytes:
     visited: dict[int, int] = {}
 
     def recurse_container(value: Any) -> bytes:
+        """Recursively encode a container or primitive value to canonical bytes."""
         if id(value) in visited:
             return type_sign(bytes(visited[id(value)]), "id")
         if isinstance(value, dict):

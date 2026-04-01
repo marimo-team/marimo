@@ -916,6 +916,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> ast.NamedExpr:
+        """Visit a walrus (:=) expression, defining its target in the enclosing non-comprehension scope."""
         self.visit(node.value)
         if self.block_stack[-1].is_comprehension and isinstance(
             node.target, ast.Name
@@ -941,6 +942,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
+        """Visit a Name node, registering it as a definition or reference depending on context."""
         # NB: AugAssign has a Store ctx; this means that mutating a var
         # will create a def, which we can catch as an error later if
         # that var was defined by another cell
@@ -1036,6 +1038,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Global(self, node: ast.Global) -> ast.Global:
+        """Visit a global statement, registering each name as a top-level reference."""
         node.names = [
             self._if_local_then_mangle(name, ignore_scope=True)
             for name in node.names
@@ -1049,6 +1052,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Import(self, node: ast.Import) -> ast.Import:
+        """Visit an import statement, registering each imported name as a definition."""
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
             self._define(
@@ -1066,6 +1070,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
+        """Visit a from-import statement, registering each imported alias as a definition."""
         module = node.module if node.module is not None else ""
         # we don't recurse into the alias nodes, since we define the
         # aliases here
@@ -1095,6 +1100,7 @@ class ScopedVisitor(ast.NodeVisitor):
     # subset of the names will be bound at runtime. For this reason, in
     # marimo, match statements should really only be used in local scopes.
     def visit_MatchAs(self, node: ast.MatchAs) -> ast.MatchAs:
+        """Visit a match-as pattern, registering the bound name as a definition."""
         if node.name is not None:
             node.name = self._if_local_then_mangle(node.name)
             self._define(
@@ -1108,6 +1114,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_MatchMapping(self, node: ast.MatchMapping) -> ast.MatchMapping:
+        """Visit a match-mapping pattern, registering the rest name as a definition."""
         if node.rest is not None:
             node.rest = self._if_local_then_mangle(node.rest)
             self._define(
@@ -1122,6 +1129,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_MatchStar(self, node: ast.MatchStar) -> ast.MatchStar:
+        """Visit a match-star pattern, registering the starred name as a definition."""
         if node.name is not None:
             node.name = self._if_local_then_mangle(node.name)
             self._define(
@@ -1134,6 +1142,7 @@ class ScopedVisitor(ast.NodeVisitor):
     if sys.version_info >= (3, 12):
 
         def visit_TypeVar(self, node: ast.TypeVar) -> ast.TypeVar:
+            """Visit a TypeVar node (Python 3.12+), registering it as a definition."""
             # node.name is a str, not an ast.Name node
             self._define(
                 node,
@@ -1150,6 +1159,7 @@ class ScopedVisitor(ast.NodeVisitor):
             return node
 
         def visit_ParamSpec(self, node: ast.ParamSpec) -> ast.ParamSpec:
+            """Visit a ParamSpec node (Python 3.12+), registering it as a definition."""
             # node.name is a str, not an ast.Name node
             self._define(
                 node,
@@ -1163,6 +1173,7 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_TypeVarTuple(
             self, node: ast.TypeVarTuple
         ) -> ast.TypeVarTuple:
+            """Visit a TypeVarTuple node (Python 3.12+), registering it as a definition."""
             # node.name is a str, not an ast.Name node
             self._define(
                 node,

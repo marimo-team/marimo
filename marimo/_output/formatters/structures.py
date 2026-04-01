@@ -114,9 +114,11 @@ class StructuresFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> None:
+        """Return None — this formatter applies to built-in types with no associated package."""
         return None
 
     def register(self) -> None:
+        """Register formatters for Python built-in structures and function types."""
         @formatting.formatter(list)
         @formatting.formatter(tuple)
         @formatting.formatter(dict)

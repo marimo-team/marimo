@@ -77,6 +77,8 @@ def parse_sql(
 
 
 class DuckDBParseError(msgspec.Struct):
+    """Raw parse-error response returned by DuckDB's JSON_SERIALIZE_SQL function."""
+
     error: bool
     error_type: Optional[str] = None
     error_message: Optional[str] = None
@@ -200,6 +202,7 @@ def replace_brackets_with_quotes(sql: str) -> tuple[str, dict[int, int]]:
     pattern = r'("(?:[^"\\]|\\.)*")|(\'(?:[^\'\\]|\\.)*\')|(\{[^}]*\})'
 
     def replacement_func(match: re.Match[str]) -> str:
+        """Return the match unchanged for quoted strings; wrap bare bracket expressions in single quotes."""
         double_quoted = match.group(1)
         single_quoted = match.group(2)
         bracket = match.group(3)
@@ -254,6 +257,7 @@ def format_query_with_globals(
     pattern = r"(\'(?:[^\'\\]|\\.)*\')|(\{([^}]*)\})"
 
     def replacement_func(match: re.Match[str]) -> str:
+        """Return single-quoted strings unchanged; substitute brace expressions with values from globals_dict."""
         raw_query = match.group(0)
         single_quoted = match.group(1)
         has_braces = match.group(2) is not None

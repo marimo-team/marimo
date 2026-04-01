@@ -23,6 +23,7 @@ def once(func: F) -> F:
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        """Invoke the wrapped function at most once (globally or per instance)."""
         nonlocal called
 
         # Check if this is a method call (has self as first argument)

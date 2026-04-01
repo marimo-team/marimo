@@ -87,6 +87,7 @@ class SharedMemoryStorage(VirtualFileStorage):
         return self._stale
 
     def store(self, key: str, buffer: bytes) -> None:
+        """Store buffer in a shared memory block named key."""
         if key in self._storage:
             return  # Already stored
 
@@ -121,6 +122,7 @@ class SharedMemoryStorage(VirtualFileStorage):
         self._storage[key] = shm
 
     def read(self, key: str, byte_length: int) -> bytes:
+        """Read up to byte_length bytes from the shared memory block named key."""
         if is_pyodide():
             raise RuntimeError(
                 "Shared memory is not supported on this platform"
@@ -146,6 +148,7 @@ class SharedMemoryStorage(VirtualFileStorage):
         byte_length: int,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> Iterator[bytes]:
+        """Yield chunks of bytes from the shared memory block named key."""
         if is_pyodide():
             raise RuntimeError(
                 "Shared memory is not supported on this platform"
@@ -272,6 +275,7 @@ class VirtualFileStorageManager:
 
     @storage.setter
     def storage(self, value: VirtualFileStorage | None) -> None:
+        """Set the current storage backend."""
         self._storage = value
 
     def read(self, filename: str, byte_length: int) -> bytes:

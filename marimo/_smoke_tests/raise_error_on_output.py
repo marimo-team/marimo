@@ -8,6 +8,8 @@ app = marimo.App()
 
 @app.class_definition
 class Mischief:
+    """A class whose MIME rendering intentionally raises an error."""
+
     def _mime_(self):
         raise ValueError("error!")
 

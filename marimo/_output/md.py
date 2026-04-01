@@ -63,6 +63,7 @@ class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
         text = "\n".join(lines)
 
         def replace_fence(match: re.Match[str]) -> str:
+            """Replace an unlabelled fenced code block with a pycon-tagged block if it contains console prompts."""
             indent = match.group(1)
             language = match.group(2) or ""
             code = match.group(3)

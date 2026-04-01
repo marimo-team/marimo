@@ -217,6 +217,7 @@ class TopLevelStatus:
 
     @type.setter
     def type(self, value: TopLevelType) -> None:
+        """Set the TopLevelType and clear the hint."""
         self._type = value
         self.hint = None
 

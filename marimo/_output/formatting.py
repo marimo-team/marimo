@@ -110,6 +110,7 @@ def formatter(t: type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
     """
 
     def register_format(f: Formatter[T]) -> Formatter[T]:
+        """Register f as the formatter for type t and return f unchanged."""
         FORMATTERS.add_formatter(t, f)
         return f
 
@@ -134,6 +135,7 @@ def opinionated_formatter(
     """
 
     def register_format(f: Formatter[T]) -> Formatter[T]:
+        """Register f as the opinionated formatter for type t and return f unchanged."""
         OPINIONATED_FORMATTERS.add_formatter(t, f)
         return f
 
@@ -171,6 +173,7 @@ def get_formatter(
         if child_formatter:
 
             def plain_formatter(obj: T) -> tuple[KnownMimeType, str]:
+                """Format a Plain-wrapped object using the child formatter."""
                 assert child_formatter is not None
                 return child_formatter(cast(Plain, obj).child)
 
@@ -180,6 +183,7 @@ def get_formatter(
     if is_callable_method(obj, "_display_"):
 
         def f_mime(obj: T) -> tuple[KnownMimeType, str]:
+            """Format obj by delegating to its _display_ result."""
             displayable_object: Any = obj._display_()  # type: ignore
             _f = get_formatter(displayable_object)
             if _f is not None:
@@ -203,6 +207,7 @@ def get_formatter(
     if is_callable_method(obj, "_mime_"):
 
         def f_mime(obj: T) -> tuple[KnownMimeType, str]:
+            """Format obj by calling its _mime_ method, converting bytes data to a data URL."""
             mime, data = obj._mime_()  # type: ignore
             # Data should ideally a string, but in case it's bytes,
             # we convert it to a data URL

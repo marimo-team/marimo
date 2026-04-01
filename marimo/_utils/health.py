@@ -21,6 +21,8 @@ _LAST_CGROUP_CPU_SAMPLE: Optional[tuple[int, float]] = (
 
 
 class MemoryStats(TypedDict):
+    """Memory usage statistics in bytes and percent."""
+
     total: int
     used: int
     available: int
@@ -165,6 +167,7 @@ def _get_versions(
 def get_chrome_version() -> Optional[str]:
     """Return the installed Google Chrome version string, or None if not found."""
     def get_chrome_version_windows() -> Optional[str]:
+        """Return the Chrome version string on Windows via registry query, or None."""
         process = subprocess.Popen(
             [
                 "reg",
@@ -186,6 +189,7 @@ def get_chrome_version() -> Optional[str]:
         return None
 
     def get_chrome_version_mac() -> Optional[str]:
+        """Return the Chrome version string on macOS, or None."""
         process = subprocess.Popen(
             [
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -204,6 +208,7 @@ def get_chrome_version() -> Optional[str]:
         return None
 
     def get_chrome_version_linux() -> Optional[str]:
+        """Return the Chrome version string on Linux, or None."""
         process = subprocess.Popen(
             ["google-chrome", "--version"],
             stdout=subprocess.PIPE,

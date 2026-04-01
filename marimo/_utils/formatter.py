@@ -62,6 +62,7 @@ async def _run_subprocess_safe(
 async def ruff(
     codes: CellCodes, *cmd: str, stdin_filename: str | None = None
 ) -> CellCodes:
+    """Run ruff with the given command arguments on each cell code string and return formatted results."""
     # Try with sys.executable first
     ruff_cmd = [sys.executable, "-m", "ruff"]
     stdout, _stderr, returncode = await _run_subprocess_safe(
@@ -126,6 +127,7 @@ class DefaultFormatter(Formatter):
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
+        """Format codes using ruff if available, then black, raising if neither is installed."""
         # Ruff may be installed in venv or globally
         if DependencyManager.ruff.has() or DependencyManager.which("ruff"):
             return await RuffFormatter(self.line_length).format(
@@ -147,6 +149,7 @@ class RuffFormatter(Formatter):
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
+        """Format cell codes using ruff with the configured line length."""
         return await ruff(
             codes,
             "format",
@@ -162,6 +165,7 @@ class BlackFormatter(Formatter):
     async def format(
         self, codes: CellCodes, stdin_filename: str | None = None
     ) -> CellCodes:
+        """Format cell codes using black with the configured line length."""
         del stdin_filename
         DependencyManager.black.require("to enable code formatting")
 

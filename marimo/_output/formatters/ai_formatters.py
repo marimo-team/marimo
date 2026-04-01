@@ -21,9 +21,11 @@ class GoogleAiFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the top-level package name this formatter handles."""
         return "google"
 
     def register(self) -> None:
+        """Register formatters for google.genai GenerateContentResponse objects."""
         try:
             from google.genai.types import (  # type: ignore[import-not-found]
                 GenerateContentResponse,
@@ -61,9 +63,11 @@ class OpenAIFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the top-level package name this formatter handles."""
         return "openai"
 
     def register(self) -> None:
+        """Register formatters for OpenAI Completion and ChatCompletion response types."""
         import openai
         from openai.types.chat import ChatCompletion, ChatCompletionChunk
         from openai.types.completion import Completion
@@ -114,9 +118,11 @@ class TransformersFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the top-level package name this formatter handles."""
         return "transformers"
 
     def register(self) -> None:
+        """Register formatters for HuggingFace TextIteratorStreamer objects."""
         from transformers import TextIteratorStreamer  # type: ignore
 
         from marimo._output import formatting

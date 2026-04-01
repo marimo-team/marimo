@@ -79,8 +79,10 @@ def safe_execute(
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T | F]:
+        """Wrap func so that exceptions are caught and the fallback is returned."""
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | F:
+            """Call the wrapped function, returning fallback on any exception."""
             try:
                 return func(*args, **kwargs)
             except silent_exceptions:
@@ -202,11 +204,13 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 return None
 
             def convert_to_polars() -> pl.DataFrame:
+                """Convert query result rows to a Polars DataFrame."""
                 import polars as pl
 
                 return pl.DataFrame(rows)
 
             def convert_to_pandas() -> pd.DataFrame:
+                """Convert query result rows to a pandas DataFrame."""
                 import pandas as pd
 
                 return pd.DataFrame(rows)

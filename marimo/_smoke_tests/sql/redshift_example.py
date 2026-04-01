@@ -107,6 +107,7 @@ def _(conn, mo):
 
 @app.function
 def close_prepared_statements_sample():
+    """Extract and print the prepared-statement name from a Redshift error message."""
     import ast
 
     x = """{'S': 'ERROR', 'C': '42P05', 'M': 'prepared statement "redshift_connector_statement_90026_2" already exists', 'F': '/opt/brazil-pkg-cache/packages/RedshiftPADB/RedshiftPADB-1.0.12895.0/AL2_aarch64/generic-flavor/src/src/pg/src/backend/commands/commands_prepare.c', 'L': '685', 'R': 'StorePreparedStatement'}"""

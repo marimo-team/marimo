@@ -11,6 +11,7 @@ class MatplotlibFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the name of the package this formatter targets."""
         return "matplotlib"
 
     def register(self) -> None:
@@ -34,6 +35,7 @@ class MatplotlibFormatter(FormatterFactory):
         from marimo._output import formatting
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
+            """Render the figure associated with a matplotlib Artist as a MIME tuple."""
             from marimo._output.mpl import _render_figure_mimebundle
 
             return _render_figure_mimebundle(artist.figure.canvas)  # type: ignore

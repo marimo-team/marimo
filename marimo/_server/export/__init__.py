@@ -435,14 +435,18 @@ async def run_app_until_completion(
     instantiated_event = asyncio.Event()
 
     class RunUntilCompletionSessionConsumer(SessionConsumer):
+        """SessionConsumer that tracks errors and signals when the notebook run completes."""
+
         def __init__(self) -> None:
             self.did_error = False
 
         @property
         def consumer_id(self) -> ConsumerId:
+            """Return the fixed consumer ID used for export runs."""
             return ConsumerId("default")
 
         def notify(self, notification: KernelMessage) -> None:
+            """Process a kernel message, recording errors and signalling completion."""
             data = deserialize_kernel_message(notification)
             # Print errors to stderr (unless quiet mode)
             if isinstance(data, CellNotification):
@@ -482,13 +486,16 @@ async def run_app_until_completion(
         def on_attach(
             self, session: Session, event_bus: SessionEventBus
         ) -> None:
+            """No-op attachment handler — export runs need no session setup."""
             del session
             del event_bus
 
         def on_detach(self) -> None:
+            """No-op detach handler — nothing to clean up after an export run."""
             return None
 
         def connection_state(self) -> ConnectionState:
+            """Return OPEN so the kernel treats this consumer as an active connection."""
             return ConnectionState.OPEN
 
     config_manager = get_default_config_manager(

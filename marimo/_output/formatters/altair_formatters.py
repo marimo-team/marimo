@@ -28,9 +28,11 @@ class AltairFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the name of the package this formatter targets."""
         return "altair"
 
     def register(self) -> None:
+        """Register the Altair chart formatter and marimo data transformers."""
         import altair
 
         from marimo._output import formatting

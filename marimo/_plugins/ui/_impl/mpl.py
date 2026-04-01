@@ -25,7 +25,11 @@ if TYPE_CHECKING:
 
 
 class MatplotlibSelection(Protocol):
-    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]: ...
+    """Protocol for selection objects that can produce a boolean mask over data points."""
+
+    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]:
+        """Return a boolean mask indicating which (x, y) points fall within the selection."""
+        ...
 
 
 def _to_numeric(arr: NDArray[Any]) -> NDArray[Any]:

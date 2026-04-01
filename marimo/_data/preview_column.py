@@ -168,6 +168,7 @@ def get_column_preview_for_duckdb(
     fully_qualified_table_name: str,
     column_name: str,
 ) -> Optional[DataColumnPreviewNotification]:
+    """Build a column preview notification for a DuckDB table column, including stats and an optional chart."""
     DependencyManager.duckdb.require(why="previewing DuckDB columns")
 
     column_type = get_column_type(fully_qualified_table_name, column_name)

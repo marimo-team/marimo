@@ -44,6 +44,7 @@ def accordion(
     """
 
     def render_content(tab: object) -> str:
+        """Render a single accordion item to an HTML string, optionally wrapping it in a lazy loader."""
         if lazy:
             return lazy_ui(tab).text
         if isinstance(tab, str):

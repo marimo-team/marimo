@@ -111,6 +111,7 @@ def _create_process_cleanup_handler(
     """Create a cleanup handler for the child process and file descriptor."""
 
     def cleanup() -> None:
+        """Terminate the child process and close its file descriptor."""
         try:
             # Try graceful termination first
             os.kill(child_pid, signal.SIGTERM)

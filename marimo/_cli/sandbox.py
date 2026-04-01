@@ -454,6 +454,7 @@ def run_in_sandbox(
     process = subprocess.Popen(uv_cmd, env=env)
 
     def handler(sig: int, frame: object) -> None:
+        """Forward SIGINT to the sandboxed subprocess so it can shut down gracefully."""
         del sig
         del frame
         try:

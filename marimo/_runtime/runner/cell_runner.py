@@ -85,6 +85,8 @@ def cell_filename(cell_id: CellId_t) -> str:
 
 @dataclass
 class RunResult:
+    """Holds the output and exception produced by running a single cell."""
+
     # Raw output of cell: last expression
     output: Any
     # Exception raised by cell, if any
@@ -686,6 +688,7 @@ class Runner:
         return None
 
     async def run_all(self) -> None:
+        """Run all pending cells in topological order, invoking lifecycle hooks."""
         from marimo._runtime.runner.hook_context import (
             OnFinishHookContext,
             PostExecutionHookContext,

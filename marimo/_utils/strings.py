@@ -138,6 +138,7 @@ def standardize_annotation_quotes(annotation: str) -> str:
     )
 
     def replace_quotes(match: re.Match[str]) -> str:
+        """Convert a single-quoted string literal to double quotes, preserving internal quotes."""
         if match.group(1) is not None:  # Single quoted string matched
             content = match.group(1)
             # Check if the content contains unescaped double quotes

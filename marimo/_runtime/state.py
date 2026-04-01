@@ -24,6 +24,7 @@ class StateItem(Generic[T]):
 
 
 def extract_name(key: str) -> str:
+    """Return the variable name portion of a context-qualified key (the part after the last colon)."""
     # Some variables may use a state internally, as such the lookup needs a
     # context qualifier. We delimit the context and name with a colon, which is
     # not a valid python variable name character.
@@ -31,6 +32,7 @@ def extract_name(key: str) -> str:
 
 
 def contextualize_name(key: str, context: Optional[str]) -> str:
+    """Prefix key with context and a colon separator, or return key unchanged if context is None."""
     if context is None:
         return key
     return f"{context}:{key}"

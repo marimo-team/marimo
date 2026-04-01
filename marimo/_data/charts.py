@@ -204,6 +204,7 @@ class StringChartBuilder(ChartBuilder):
         )
 
         def add_encodings(chart: alt.Chart) -> alt.Chart:
+            """Overlay a bar chart with a percentage text label chart and return the layered result."""
             text_color = "white" if self.theme == "dark" else "black"
             _bar_chart = chart.mark_bar(color=STRING_COLOR)
             _text_chart = chart.mark_text(

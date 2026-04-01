@@ -133,6 +133,8 @@ class MarimoConfigReader:
 
 
 class MarimoConfigManager(MarimoConfigReader):
+    """Aggregates user configuration with one or more partial overrides."""
+
     def __init__(
         self,
         user_config_mgr: UserConfigManager,
@@ -186,6 +188,8 @@ class MarimoConfigManager(MarimoConfigReader):
 
 @abstractmethod
 class PartialMarimoConfigReader:
+    """Abstract base for readers that supply partial (override) marimo configuration."""
+
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""

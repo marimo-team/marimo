@@ -94,6 +94,8 @@ async def status(request: Request) -> JSONResponse:
 
 
 class SessionInfo(TypedDict):
+    """Typed dictionary holding session filename and path information."""
+
     filename: str | None
     path: str | None
 

@@ -29,6 +29,7 @@ def initialize_signals() -> None:
     if version.parse(uvicorn.__version__) >= version.parse("0.29.0"):
 
         def noop(signum: int, frame: Any) -> None:
+            """No-op SIGINT handler to suppress re-thrown signals from uvicorn."""
             del signum
             del frame
             ...
@@ -59,7 +60,8 @@ def close_uvicorn(server: uvicorn.Server) -> None:
             loop.remove_signal_handler(signal.SIGINT)
         except NotImplementedError:
             # Windows
-            def noop(signum: int, frame: Any) -> None:
+            def noop(signum: int, frame: Any) -> None:  # type: ignore[misc]
+                """No-op SIGINT handler for Windows where loop.remove_signal_handler is unavailable."""
                 del signum
                 del frame
                 ...

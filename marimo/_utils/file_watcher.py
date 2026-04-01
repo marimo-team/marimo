@@ -109,6 +109,8 @@ def _create_watchdog(
     import watchdog.observers  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
     class WatchdogFileWatcher(FileWatcher):
+        """File watcher that uses the watchdog library to detect file changes."""
+
         def __init__(
             self,
             path: Path,

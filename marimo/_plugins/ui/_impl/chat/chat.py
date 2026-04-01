@@ -470,6 +470,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
 @dataclass
 class ChunkSerializer:
+    """Serializes streaming chunks into Vercel AI SDK wire format and forwards them via a callback."""
+
     on_send_chunk: Callable[[dict[str, Any]], None]
     _text_id: str | None = None
 
@@ -506,5 +508,6 @@ class ChunkSerializer:
         self.on_send_chunk(chunk)
 
     def on_end(self) -> None:
+        """Send the text-end event to signal that the text stream is complete."""
         if self._text_id is not None:
             self.on_send_chunk({"type": "text-end", "id": self._text_id})

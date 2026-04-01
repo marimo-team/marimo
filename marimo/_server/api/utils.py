@@ -39,7 +39,9 @@ async def parse_request(
 class RequestAsCommand(Protocol):
     """Protocol for requests that can be converted to commands."""
 
-    def as_command(self) -> CommandMessage: ...
+    def as_command(self) -> CommandMessage:
+        """Convert this request to a CommandMessage."""
+        ...
 
 
 async def dispatch_control_request(

@@ -78,6 +78,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                 columns = []
 
             def convert_to_polars() -> pl.DataFrame:
+                """Convert query results to a Polars DataFrame."""
                 import polars as pl
 
                 data: dict[str, list[Any]] = {col: [] for col in columns}
@@ -87,6 +88,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                 return pl.DataFrame(data)
 
             def convert_to_pandas() -> pd.DataFrame:
+                """Convert query results to a Pandas DataFrame."""
                 import pandas as pd
 
                 return pd.DataFrame(rows, columns=columns)

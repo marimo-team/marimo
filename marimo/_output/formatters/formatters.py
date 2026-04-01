@@ -121,6 +121,7 @@ def patch_finder(
         path=None,
         target=None,
     ) -> Any:
+        """Find a module spec and hook its loader to register formatters on import."""
         del self
         spec = original_find_spec(fullname, path, target)
         if spec is None:
@@ -146,6 +147,7 @@ def patch_finder(
                 ] = original_exec_module,
                 factory: FormatterFactory = factory,
             ) -> Any:
+                """Execute the module and immediately register its formatter."""
                 loader_return_value = original_exec_module(module)
                 factory.register()
                 factory.apply_theme_safe(theme)

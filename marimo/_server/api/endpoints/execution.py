@@ -285,6 +285,7 @@ async def execute_code(
                 return
 
     async def sse_generator() -> AsyncGenerator[str, None]:
+        """Stream SSE events from a scratchpad execution until complete or disconnected."""
         disconnect_task = asyncio.create_task(_watch_disconnect())
         try:
             listener = ScratchCellListener()
@@ -439,6 +440,7 @@ async def shutdown(
     file_router = session_manager.file_router
 
     def shutdown_server() -> None:
+        """Shut down all sessions and stop the server."""
         app_state.session_manager.shutdown()
         close_uvicorn(app_state.server)
 

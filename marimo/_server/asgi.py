@@ -475,6 +475,8 @@ def create_asgi_app(
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
+        """Concrete ASGIAppBuilder that assembles a multi-app Starlette router."""
+
         def __init__(self) -> None:
             self._mount_configs: list[
                 tuple[str, str, Optional[list[MiddlewareFactory]]]
@@ -496,6 +498,7 @@ def create_asgi_app(
             root: str,
             middleware: Optional[list[MiddlewareFactory]] = None,
         ) -> ASGIAppBuilder:
+            """Register a single notebook file to be served at the given path."""
             self._mount_configs.append((path, root, middleware))
             return self
 
@@ -507,6 +510,7 @@ def create_asgi_app(
             validate_callback: Optional[ValidateCallback] = None,
             middleware: Optional[list[MiddlewareFactory]] = None,
         ) -> ASGIAppBuilder:
+            """Register a directory whose notebooks are served dynamically by filename."""
             self._dynamic_directory_configs.append(
                 (path, directory, validate_callback, middleware)
             )
@@ -559,6 +563,7 @@ def create_asgi_app(
             return app
 
         def build(self) -> ASGIApp:
+            """Build and return the composed ASGI application."""
             # Handle individual app mounts first
             # Sort to ensure the root app is mounted last
             self._mount_configs = sorted(
@@ -568,6 +573,7 @@ def create_asgi_app(
             def create_redirect_to_slash(
                 base_url: str,
             ) -> Callable[[Request], Response]:
+                """Return a handler that issues a 301 redirect to the path with a trailing slash."""
                 # Strip leading slash
                 base_url = base_url.lstrip("/")
                 redirect_path = f"{base_url}/"
@@ -610,6 +616,7 @@ def create_asgi_app(
                     path: str,
                     file_path: str,
                 ) -> ASGIApp:
+                    """Create and wrap an ASGI app for a single notebook file with the given middleware."""
                     single_asgi_app: ASGIApp = self._create_app_for_file(
                         base_url=path, file_path=file_path
                     )

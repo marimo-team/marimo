@@ -688,9 +688,11 @@ class Kernel:
         return self.reactive_execution_mode == "lazy"
 
     def _execute_stale_cells_callback(self) -> None:
+        """Enqueue a request to execute all stale cells."""
         return self.enqueue_control_request(ExecuteStaleCellsCommand())
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
+        """Apply runtime-relevant settings from a user configuration to the kernel."""
         package_manager = config["package_management"]["manager"]
         autoreload_mode = config["runtime"]["auto_reload"]
         self.reactive_execution_mode = config["runtime"]["on_cell_change"]
@@ -747,7 +749,7 @@ class Kernel:
     def start_completion_worker(
         self, completion_queue: QueueType[CodeCompletionCommand]
     ) -> None:
-        """Must be called after context is initialized"""
+        """Start a background thread that processes code completion requests."""
         from marimo._runtime.complete import completion_worker
 
         threading.Thread(
@@ -832,6 +834,7 @@ class Kernel:
         cell: CellImpl,
         stale: bool,
     ) -> None:
+        """Register a compiled cell in the dependency graph, restoring its config if known."""
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -859,6 +862,7 @@ class Kernel:
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
     ) -> tuple[Optional[CellImpl], Optional[Error]]:
+        """Attempt to compile a cell's code, returning (CellImpl, None) on success or (None, Error) on failure."""
         error: Optional[Error] = None
         try:
             # In run mode or debugpy, pass the notebook filename so
@@ -1024,7 +1028,7 @@ class Kernel:
         variables: dict[Name, list[VariableData]],
         exclude_defs: set[Name],
     ) -> None:
-        """Delete `names` from kernel, except for `exclude_defs`"""
+        """Delete variables from kernel globals and DuckDB, except names listed in exclude_defs."""
         for name, variable_data in variables.items():
             # Take the last definition of the variable
             variable = variable_data[-1]
@@ -1395,7 +1399,7 @@ class Kernel:
             return cells_registered_without_error.union(stale_cells)
 
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
-        """Run cells and any state updates they trigger"""
+        """Run the given cells and any subsequent state updates they trigger."""
 
         with run_id_context():
             # This patch is an attempt to mitigate problems caused by the fact
@@ -1414,6 +1418,7 @@ class Kernel:
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]
     ) -> None:
+        """Run the given cells immediately in autorun mode, or mark them stale in lazy mode."""
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(cell_ids)
         else:
@@ -1425,6 +1430,7 @@ class Kernel:
         self,
         ctx: hook_context.OnFinishHookContext,
     ) -> None:
+        """Propagate strict-execution errors from the hook context into the kernel's error map."""
         for cell_id, error in ctx.exceptions.items():
             if isinstance(error, MarimoStrictExecutionError):
                 self.errors[cell_id] = (error,)
@@ -2073,6 +2079,7 @@ class Kernel:
         error_title, error_message = "", ""
 
         def debug(title: str, message: str) -> None:
+            """Log a debug message with a title prefix."""
             LOGGER.debug("%s: %s", title, message)
 
         if function is None:
@@ -2288,6 +2295,7 @@ class Kernel:
         handler = RequestHandler()
 
         async def handle_instantiate(request: CreateNotebookCommand) -> None:
+            """Instantiate the notebook and broadcast a completion notification."""
             with http_request_context(request.request):
                 await self.instantiate(request)
             broadcast_notification(CompletedRunNotification())
@@ -2295,6 +2303,7 @@ class Kernel:
         async def handle_execute_multiple(
             request: ExecuteCellsCommand,
         ) -> None:
+            """Execute the requested cells and broadcast a completion notification."""
             with http_request_context(request.request):
                 await self.run(request.execution_requests)
             broadcast_notification(CompletedRunNotification())
@@ -2302,6 +2311,7 @@ class Kernel:
         async def handle_sync_graph(
             request: SyncGraphCommand,
         ) -> None:
+            """Sync the cell graph with the requested changes and broadcast completion."""
             with http_request_context(None):
                 await self.sync_graph(
                     request.cells, request.run_ids, request.delete_ids
@@ -2311,6 +2321,7 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
+            """Execute a scratchpad cell and broadcast a completion notification."""
             doc = (
                 NotebookDocument(list(request.notebook_cells))
                 if request.notebook_cells is not None
@@ -2326,6 +2337,7 @@ class Kernel:
         async def handle_execute_stale(
             request: ExecuteStaleCellsCommand,
         ) -> None:
+            """Execute all stale cells and broadcast a completion notification."""
             with http_request_context(request.request):
                 await self.run_stale_cells()
             broadcast_notification(CompletedRunNotification())
@@ -2333,19 +2345,23 @@ class Kernel:
         async def handle_set_ui_element_value(
             request: UpdateUIElementCommand,
         ) -> None:
+            """Update a UI element's value and broadcast a completion notification."""
             with http_request_context(request.request):
                 await self.set_ui_element_value(request)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_pdb_request(request: DebugCellCommand) -> None:
+            """Forward a pdb debug request to the kernel."""
             await self.pdb_request(request.cell_id)
 
         async def handle_rename(request: RenameNotebookCommand) -> None:
+            """Rename the current notebook file."""
             await self.rename_file(request.filename)
 
         async def handle_receive_model_message(
             request: ModelCommand,
         ) -> None:
+            """Process a widget model comm message, updating UI state or pending state updates."""
             ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
                 request
             )
@@ -2370,6 +2386,7 @@ class Kernel:
                 broadcast_notification(CompletedRunNotification())
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:
+            """Invoke a registered function and broadcast the result notification."""
             status, ret, _ = await self.function_call_request(request)
             LOGGER.debug("Function returned with status %s", status)
             broadcast_notification(
@@ -2383,15 +2400,18 @@ class Kernel:
         async def handle_set_user_config(
             request: UpdateUserConfigCommand,
         ) -> None:
+            """Apply a user configuration update to the kernel."""
             self.set_user_config(request)
 
         async def handle_install_missing_packages(
             request: InstallPackagesCommand,
         ) -> None:
+            """Install missing packages and broadcast a completion notification."""
             await self.packages_callbacks.install_missing_packages(request)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_stop(request: StopKernelCommand) -> None:
+            """Handle a stop-kernel command (no-op; stopping is managed externally)."""
             del request
             return None
 
@@ -2867,6 +2887,7 @@ class ExternalStorageCallbacks:
 
         # list_entries is synchronous, so we wrap it in asyncio.to_thread
         def list_entries() -> list[StorageEntry]:
+            """Call the synchronous backend list_entries method."""
             return backend.list_entries(
                 prefix=request.prefix, limit=request.limit
             )
@@ -3306,7 +3327,9 @@ class PackagesCallbacks:
         )
 
         def create_log_callback(pkg: str) -> LogCallback:
+            """Return a callback that broadcasts installer log lines for the given package."""
             def log_callback(log_line: str) -> None:
+                """Broadcast a single installer log line for the package."""
                 broadcast_notification(
                     InstallingPackageAlertNotification(
                         packages=package_statuses,
@@ -3698,6 +3721,7 @@ def launch_kernel(
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
     async def control_loop(kernel: Kernel) -> None:
+        """Continuously read and dispatch kernel commands until the kernel exits."""
         loop = asyncio.get_running_loop()
 
         while True:

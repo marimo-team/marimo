@@ -97,6 +97,8 @@ class PandasTableManagerFactory(TableManagerFactory):
         import pandas as pd
 
         class PandasTableManager(NarwhalsTableManager[pd.DataFrame, Any]):
+            """TableManager implementation for pandas DataFrames."""
+
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:

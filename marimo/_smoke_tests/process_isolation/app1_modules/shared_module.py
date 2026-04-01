@@ -10,4 +10,5 @@ MAGIC_NUMBER = 111
 
 
 def get_identity():
+    """Return the app identity dict for app1."""
     return {"app": APP_NAME, "magic": MAGIC_NUMBER}

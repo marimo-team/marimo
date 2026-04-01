@@ -76,6 +76,7 @@ def encode_mgmt_response(resp: MgmtResponse) -> bytes:
 
 
 def decode_mgmt_response(data: bytes) -> MgmtResponse:
+    """Deserialize a management response from JSON bytes."""
     result: MgmtResponse = _resp_decoder.decode(data)
     return result
 

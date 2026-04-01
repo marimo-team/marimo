@@ -106,6 +106,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
 
     @property
     def inference_config(self) -> InferenceConfig:
+        """Return the schema inference configuration for DuckDB."""
         # At the moment this isn't being used for duckdb
         return InferenceConfig(
             auto_discover_schemas=True,
@@ -114,6 +115,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
         )
 
     def get_default_database(self) -> Optional[str]:
+        """Return the current DuckDB database name, or None if unavailable."""
         try:
             import duckdb
 
@@ -130,6 +132,7 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             return None
 
     def get_default_schema(self) -> Optional[str]:
+        """Return the current DuckDB schema name, or None if unavailable."""
         try:
             import duckdb
 

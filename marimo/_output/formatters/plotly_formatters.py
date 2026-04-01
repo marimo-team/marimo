@@ -19,6 +19,7 @@ class PlotlyFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the name of the package this formatter targets."""
         return "plotly"
 
     def register(self) -> None:
@@ -57,6 +58,7 @@ class PlotlyFormatter(FormatterFactory):
                 *args: Any,  # noqa: ARG001
                 **kwargs: Any,
             ) -> None:
+                """Render the Plotly figure to the marimo console instead of opening a browser."""
                 # Extract config if provided
                 config = kwargs.get("config")
                 mimetype, data = _show_plotly_figure(self, config=config)

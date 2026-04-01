@@ -242,6 +242,7 @@ class _AsyncHTTPResponse:
         self.headers = {k.lower(): v for k, v in response.getheaders()}
 
     async def aiter_raw(self) -> AsyncIterable[bytes]:
+        """Yield raw response bytes in 8 KB chunks, closing the connection when done."""
         try:
             while True:
                 chunk = self.raw_response.read(8192)
@@ -254,6 +255,7 @@ class _AsyncHTTPResponse:
             await self.aclose()
 
     async def aclose(self) -> None:
+        """Close the underlying HTTP response."""
         self.raw_response.close()
 
 
@@ -270,6 +272,7 @@ class _AsyncHTTPClient:
     def build_request(
         self, method: str, url: Any, headers: dict[str, str], content: Any
     ) -> _URLRequest:
+        """Build a _URLRequest by combining the base URL with the given path, headers, and content."""
         # Combine base_url with path and query to form a full URL
         full_url = f"{self.base_url}{url.path}"
         if hasattr(url, "query") and url.query:
@@ -504,6 +507,7 @@ class ProxyMiddleware:
             code: int = WebSocketCodes.UNEXPECTED_ERROR,
             reason: str | None = None,
         ) -> None:
+            """Close the WebSocket connection, ignoring errors if it is already disconnected."""
             if websocket.client_state == WebSocketState.DISCONNECTED:
                 return
             try:
@@ -528,6 +532,7 @@ class ProxyMiddleware:
             exponential_backoff = 1.5
 
             async def get_client() -> ClientConnection:
+                """Connect to the upstream WebSocket URL, retrying with backoff on failure."""
                 retry_delay = 0.25  # seconds
 
                 for attempt in range(max_retries):
@@ -566,6 +571,7 @@ class ProxyMiddleware:
             async with ws_client:
 
                 async def client_to_upstream() -> None:
+                    """Forward messages from the browser WebSocket client to the upstream server."""
                     try:
                         while True:
                             msg = await websocket.receive()
@@ -588,6 +594,7 @@ class ProxyMiddleware:
                                 task.cancel()
 
                 async def upstream_to_client() -> None:
+                    """Forward messages from the upstream WebSocket server to the browser client."""
                     try:
                         while True:
                             msg = await ws_client.recv()

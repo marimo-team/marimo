@@ -43,6 +43,8 @@ def _():
 
 @app.class_definition
 class Foo:
+    """Example class used to demonstrate mo.inspect rendering."""
+
     def __init__(self):
         pass
 
@@ -50,6 +52,7 @@ class Foo:
         pass
 
     def bar():
+        """Example public method on Foo."""
         pass
 
     def _baz():

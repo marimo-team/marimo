@@ -14,6 +14,8 @@ from marimo._save.stubs.stubs import CustomStub
 
 
 class CacheType(Enum):
+    """Enumeration of supported cache entry types."""
+
     CONTEXT_EXECUTION_PATH = "ContextExecutionPath"
     CONTENT_ADDRESSED = "ContentAddressed"
     EXECUTION_PATH = "ExecutionPath"

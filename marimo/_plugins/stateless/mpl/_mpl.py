@@ -40,9 +40,13 @@ def new_figure_manager_given_figure(
     )
 
     class FigureManagerWebAgg(CoreFigureManagerWebAgg):
+        """WebAgg figure manager with a marimo-compatible toolbar."""
+
         _toolbar2_class = CoreNavigationToolbar2WebAgg  # type: ignore[assignment]
 
     class FigureCanvasWebAgg(FigureCanvasWebAggCore):
+        """WebAgg canvas bound to the marimo FigureManagerWebAgg."""
+
         manager_class = FigureManagerWebAgg  # type: ignore[assignment]
 
     # Suppress the "Starting a Matplotlib GUI outside of the main thread"

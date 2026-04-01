@@ -17,6 +17,7 @@ class BokehFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "bokeh"
 
     def register(self) -> Callable[[], None]:
@@ -36,6 +37,7 @@ class BokehFormatter(FormatterFactory):
 
         @functools.wraps(old_show)
         def show(*args: Any, **kwargs: Any) -> None:
+            """Display a Bokeh object imperatively in the marimo output area."""
             # Imperatively display the Bokeh object in the marimo output
             # area.
             if args:
@@ -47,6 +49,7 @@ class BokehFormatter(FormatterFactory):
 
         @functools.wraps(old_output_notebook)
         def output_notebook(*args: Any, **kwargs: Any) -> None:
+            """No-op replacement for Bokeh's output_notebook; marimo handles output directly."""
             # Noop
             del args
             del kwargs
@@ -57,6 +60,7 @@ class BokehFormatter(FormatterFactory):
         bokeh.io.show = show
 
         def unpatch() -> None:
+            """Restore the original Bokeh show and output_notebook functions."""
             bokeh.plotting.show = old_show
             bokeh.plotting.output_notebook = old_output_notebook
             bokeh.io.show = old_io_show

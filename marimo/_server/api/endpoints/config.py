@@ -75,6 +75,7 @@ async def save_user_config(
     )
 
     async def handle_background_tasks() -> None:
+        """Apply post-save side effects such as starting LSP servers and reconfiguring MCP."""
         # Update the server's view of the config
         if any_lsp_server_running(config):
             LOGGER.debug("Starting language servers")

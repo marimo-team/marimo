@@ -106,6 +106,7 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         return
 
     async def background_connect_mcp_servers() -> Optional[MCPClient]:
+        """Connect to all configured MCP servers and return the client."""
         try:
             from marimo._server.ai.mcp import get_mcp_client
 
@@ -203,6 +204,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 
     # Interrupt handler
     def shutdown() -> None:
+        """Shut down all sessions and stop the uvicorn server."""
         manager.shutdown()
         if state.server:
             close_uvicorn(state.server)

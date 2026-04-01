@@ -91,6 +91,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
     """
 
     def print_part(part: ast.expr) -> str:
+        """Recursively stringify an f-string part, substituting "1" for dynamic expressions."""
         if isinstance(part, ast.FormattedValue):
             return print_part(part.value)
         elif isinstance(part, ast.JoinedStr):
@@ -154,6 +155,8 @@ class _TokenExtractor:
 
 @dataclass
 class SQLDefs:
+    """Collected CREATE/ATTACH definitions found in a SQL statement."""
+
     tables: list[SQLRef] = field(default_factory=list)
     views: list[SQLRef] = field(default_factory=list)
     schemas: list[str] = field(default_factory=list)
@@ -336,6 +339,8 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
 
 @dataclass(frozen=True)
 class SQLRef:
+    """A reference to a SQL table, optionally qualified with schema and catalog."""
+
     # Tables are synonymous with views,
     # since we can't know the difference in queries
     table: str
@@ -347,6 +352,7 @@ class SQLRef:
         cls,
         parts: list[str],
     ) -> SQLRef:
+        """Construct a SQLRef from an ordered list of name parts (table, schema.table, or catalog.schema.table)."""
         catalog = None
         schema = None
         table = ""
@@ -472,6 +478,7 @@ class SQLRef:
         return False
 
     def contains_hierarchical_ref(self, ref: str, kind: str) -> bool:
+        """Return True if this SQLRef contains the given ref at the specified hierarchy level."""
         if kind in ("table", "view"):
             return ref == self.table
         if kind == "catalog":
@@ -510,6 +517,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     from sqlglot.optimizer.scope import build_scope
 
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
+        """Convert a sqlglot Table expression to a SQLRef, returning None for non-table references."""
         # The variables might be empty strings, if they are, we set them to None
         try:
             table_name = table.name or None

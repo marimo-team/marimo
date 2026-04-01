@@ -829,6 +829,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @value.setter
     def value(self, value: ChartDataType) -> None:
+        """Raise RuntimeError; setting the value of a UIElement is not allowed."""
         del value
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
 

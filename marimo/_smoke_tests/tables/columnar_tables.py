@@ -37,6 +37,7 @@ def _(table):
 
 @app.cell
 def test_is_dict_of_lists(table):
+    """Assert that the table value is a dict of lists."""
     assert "num" in table.value
     assert isinstance(table.value["num"], list)
     return

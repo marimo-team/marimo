@@ -348,10 +348,14 @@ class App:
     # Overloads are required to preserve the wrapped function's signature.
     # mypy is not smart enough to carry transitive typing in this case.
     @overload
-    def cell(self, func: Fn[P, R]) -> Cell: ...
+    def cell(self, func: Fn[P, R]) -> Cell:
+        """Overload: decorate a function directly as a cell."""
+        ...
 
     @overload
-    def cell(self, **kwargs: Any) -> Callable[[Fn[P, R]], Cell]: ...
+    def cell(self, **kwargs: Any) -> Callable[[Fn[P, R]], Cell]:
+        """Overload: return a decorator factory when called with keyword arguments."""
+        ...
 
     def cell(
         self,
@@ -400,18 +404,26 @@ class App:
     @overload
     def function(  # type: ignore[overload-overlap]
         self, func: Callable[P, TypeIs[R]]
-    ) -> Callable[P, TypeIs[R]]: ...
+    ) -> Callable[P, TypeIs[R]]:
+        """Overload: decorate a TypeIs-returning function as a cell."""
+        ...
 
     @overload
     def function(
         self, func: Callable[P, TypeGuard[R]]
-    ) -> Callable[P, TypeGuard[R]]: ...
+    ) -> Callable[P, TypeGuard[R]]:
+        """Overload: decorate a TypeGuard-returning function as a cell."""
+        ...
 
     @overload
-    def function(self, func: Fn[P, R]) -> Fn[P, R]: ...
+    def function(self, func: Fn[P, R]) -> Fn[P, R]:
+        """Overload: decorate a plain function directly as a cell."""
+        ...
 
     @overload
-    def function(self, **kwargs: Any) -> Callable[[Fn[P, R]], Fn[P, R]]: ...
+    def function(self, **kwargs: Any) -> Callable[[Fn[P, R]], Fn[P, R]]:
+        """Overload: return a decorator factory when called with keyword arguments."""
+        ...
 
     def function(
         self,
@@ -465,10 +477,14 @@ class App:
         )
 
     @overload
-    def class_definition(self, cls: Cls) -> Cls: ...
+    def class_definition(self, cls: Cls) -> Cls:
+        """Overload: decorate a class directly as a cell."""
+        ...
 
     @overload
-    def class_definition(self, **kwargs: Any) -> Callable[[Cls], Cls]: ...
+    def class_definition(self, **kwargs: Any) -> Callable[[Cls], Cls]:
+        """Overload: return a decorator factory when called with keyword arguments."""
+        ...
 
     def class_definition(
         self,

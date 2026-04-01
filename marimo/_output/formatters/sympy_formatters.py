@@ -46,6 +46,7 @@ class SympyFormatter(FormatterFactory):
 
     @staticmethod
     def package_name() -> str:
+        """Return the package name this formatter handles."""
         return "sympy"
 
     def register(self) -> None:

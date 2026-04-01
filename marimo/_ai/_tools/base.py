@@ -376,6 +376,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
         Output = self.Output
 
         async def handler(args: ArgsT) -> OutT:  # type: ignore[type-var]
+            """Invoke the tool and coerce the result to a JSON-serializable dict for MCP clients."""
             result = await self.__call__(args)
             # Ensure JSON-serializable output for MCP
             if is_dataclass(result):

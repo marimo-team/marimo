@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class LoadResponse:
+    """Response payload returned by the lazy load RPC, containing the rendered HTML."""
+
     html: str
 
 

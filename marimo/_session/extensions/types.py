@@ -68,11 +68,13 @@ class EventAwareExtension(SessionEventListener):
         return self._event_bus
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Store the session and event bus, then subscribe to events."""
         self._session = session
         self._event_bus = event_bus
         event_bus.subscribe(self)
 
     def on_detach(self) -> None:
+        """Unsubscribe from events and clear the session and event bus references."""
         if self._event_bus:
             self._event_bus.unsubscribe(self)
         self._event_bus = None
