@@ -165,6 +165,12 @@ class MarimoComm:
     ) -> None:
         """Open the comm and send initial state."""
         LOGGER.debug("Opening comm %s", self.comm_id)
+        # Stash anywidget ESM info from the open state so it can be
+        # looked up later by model_id (used by repr_formatters to
+        # produce <marimo-anywidget> HTML).
+        state = (data or {}).get("state", {})
+        esm = state.get("_esm")
+        self.esm: Optional[str] = esm if isinstance(esm, str) and esm else None
         self.comm_manager.register_comm(self)
         try:
             self._broadcast(data or {}, buffers or [])

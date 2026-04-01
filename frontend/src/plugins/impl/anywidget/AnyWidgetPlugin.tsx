@@ -4,7 +4,6 @@
 import type { AnyWidget } from "@anywidget/types";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
-import { RANDOM_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
@@ -145,18 +144,10 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     return <ErrorBanner error={error} />;
   }
 
-  // Find the closest parent element with an attribute of `random-id`
-  const randomId = props.host
-    .closest(`[${RANDOM_ID_ATTR}]`)
-    ?.getAttribute(RANDOM_ID_ATTR);
-  const key = randomId ?? jsUrl;
-
   return (
     <LoadedSlot
-      // Use the a key to force a re-render when the randomId (or jsUrl) changes
-      // Plugins may be stateful and we cannot make assumptions that we won't be
-      // so it is safer to just re-render.
-      key={key}
+      // Force remount when the widget module or model changes (cell re-run).
+      key={`${jsHash}:${modelId}`}
       widget={jsModule.default}
       modelId={modelId}
       host={host}
