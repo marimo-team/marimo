@@ -5,8 +5,16 @@
   padding-left: var(--marimo-table-edge-padding, 0.5rem);
 }
 
+[part="table-wrapper"] th:last-child {
+  padding-right: var(--marimo-table-edge-padding, 0.5rem);
+}
+
 [part="table-wrapper"] td:first-child {
   padding-left: var(--marimo-table-edge-padding, 0.375rem);
+}
+
+[part="table-wrapper"] td:last-child {
+  padding-right: var(--marimo-table-edge-padding, 0.375rem);
 }
 
 .markdown table,

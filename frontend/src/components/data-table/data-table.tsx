@@ -316,6 +316,7 @@ const DataTableInternal = <TData,>({
           </Table>
         </div>
         <TableBottomBar
+          part="table-footer"
           totalColumns={totalColumns}
           pagination={pagination}
           selection={selection}

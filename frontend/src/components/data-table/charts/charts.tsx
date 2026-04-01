@@ -178,7 +178,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
 
   return (
     <Tabs value={selectedTab} className="-mt-1">
-      <TabsList>
+      <TabsList part="table-tabs">
         <TabsTrigger
           className="text-xs"
           value={DEFAULT_TAB_NAME}
