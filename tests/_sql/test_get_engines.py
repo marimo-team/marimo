@@ -474,4 +474,3 @@ def test_variables_without_datasource_engine() -> None:
     variables = [("deferred_for_test", deferred_for_test)]
     engines = get_engines_from_variables(variables)
     assert not engines
-

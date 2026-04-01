@@ -124,7 +124,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         """Quote an identifier based on the SQL dialect's quoting rules."""
         dialect_quoting: dict[str, tuple[re.Pattern[str], str, str]] = {
             "snowflake": (_SNOWFLAKE_NEEDS_QUOTING_RE, '"', '"'),
-            "starrocks": (_SNOWFLAKE_NEEDS_QUOTING_RE, '`', '`'),
+            "starrocks": (_SNOWFLAKE_NEEDS_QUOTING_RE, "`", "`"),
         }
 
         if self.dialect not in dialect_quoting:
