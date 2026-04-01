@@ -71,7 +71,6 @@ function base64ToUint8ArrayFallback(bytes: string): Uint8Array {
  * Uses native Uint8Array.fromBase64 if available, otherwise falls back to manual implementation.
  */
 export const base64ToUint8Array: (bytes: Base64String) => Uint8Array =
-  // @ts-expect-error - Uint8Array.fromBase64 types coming in TypeScript 5.10+
   Uint8Array.fromBase64 ?? base64ToUint8ArrayFallback;
 
 /**
@@ -100,10 +99,8 @@ function uint8ArrayToBase64Fallback(binary: Uint8Array): Base64String {
  * Uses native Uint8Array.prototype.toBase64 if available, otherwise falls back to manual implementation.
  */
 export const uint8ArrayToBase64: (binary: Uint8Array) => Base64String =
-  // @ts-expect-error - Uint8Array.prototype.toBase64 types coming in TypeScript 5.10+
-  Uint8Array.prototype.toBase64
-    ? // @ts-expect-error - Uint8Array.prototype.toBase64 types coming in TypeScript 5.10+
-      (binary) => binary.toBase64()
+  "toBase64" in Uint8Array.prototype
+    ? (binary) => binary.toBase64() as Base64String
     : uint8ArrayToBase64Fallback;
 
 /**

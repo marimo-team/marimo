@@ -223,8 +223,7 @@ export class LazyWebsocketTransport extends Transport {
           this.needsReInitialization = false;
         } catch (error) {
           // Close the uninitialized connection so the next attempt starts fresh
-          this.delegate?.close();
-          this.delegate = undefined;
+          this.close();
           Logger.error(
             "Copilot#sendData: LSP re-initialization after reconnection failed",
             error,
