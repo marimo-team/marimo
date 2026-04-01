@@ -108,7 +108,9 @@ class TestMaybeAsAnywidgetHtml:
         original = comm.create_comm
         patch_comm_create()
         try:
-            esm = "export default { render({ el }) { el.textContent = 'hi'; } }"
+            esm = (
+                "export default { render({ el }) { el.textContent = 'hi'; } }"
+            )
             c = comm.create_comm(
                 target_name="jupyter.widget",
                 data={
