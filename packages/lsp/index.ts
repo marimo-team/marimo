@@ -194,6 +194,43 @@ function startWebSocketServer(
       webSocket.close();
     }
   });
+
+  // When the parent process sends SIGTERM (e.g., marimo shutdown),
+  // close all WebSocket connections so that the onClose handlers fire
+  // and child language server processes (e.g. copilot) are killed via
+  // the jsonRpcConnection.dispose() → process.kill() chain.
+  let isShuttingDown = false;
+  const shutdown = () => {
+    if (isShuttingDown) {
+      return;
+    }
+    isShuttingDown = true;
+    logger.log("Received shutdown signal, closing all connections...");
+    for (const client of Array.from(webSocketServer.clients)) {
+      try {
+        client.close();
+      } catch (error) {
+        logger.error("Error while closing client WebSocket:", error);
+      }
+    }
+    // Wait for the server close callback so onClose handlers can fire
+    // and dispose child processes before we exit.
+    webSocketServer.close((error) => {
+      if (error) {
+        logger.error("Error while closing WebSocket server:", error);
+      }
+    });
+    // Force-exit if graceful shutdown takes too long. Use unref() so
+    // this timer doesn't keep the process alive if cleanup finishes
+    // earlier.
+    setTimeout(() => {
+      logger.error("Forced shutdown after timeout, exiting process.");
+      process.exit(0);
+    }, 5000).unref();
+  };
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 async function main(): Promise<void> {

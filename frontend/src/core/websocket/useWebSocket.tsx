@@ -30,6 +30,8 @@ function createConnectionTransport(
   // Create a connection transport using the ReconnectingWebSocket from partysocket
   // This handles reconnecting when the connection is lost.
   const urlProvider = options.url; // We don't call the URL provider now since it may change (i.e. if the runtime redirects)
+  // Cast needed: ReconnectingWebSocket types readyState as `number`
+  // but IConnectionTransport expects `0 | 1 | 2 | 3`
   return new ReconnectingWebSocket(urlProvider, undefined, {
     // We don't want Infinity retries
     maxRetries: 10,
@@ -38,7 +40,7 @@ function createConnectionTransport(
     // long timeout -- the server can become slow when many notebooks
     // are open.
     connectionTimeout: 10_000,
-  });
+  }) as unknown as IConnectionTransport;
 }
 
 /**

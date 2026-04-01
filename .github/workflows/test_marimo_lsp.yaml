@@ -13,6 +13,9 @@ permissions:
   contents: read
   issues: write
 
+env:
+  UV_EXCLUDE_NEWER: "7 days"
+
 jobs:
   test_marimo_lsp:
     runs-on: ubuntu-latest

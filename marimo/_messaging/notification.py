@@ -37,7 +37,13 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
-from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
+from marimo._types.ids import (
+    CellId_t,
+    RequestId,
+    UIElementId,
+    VariableName,
+    WidgetModelId,
+)
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -311,7 +317,7 @@ class CompletionResultNotification(Notification, tag="completion-result"):
     """
 
     name: ClassVar[str] = "completion-result"
-    completion_id: str
+    completion_id: RequestId
     prefix_length: int
     options: list[CompletionOption]
 
@@ -435,7 +441,7 @@ class VariableDeclarationNotification(msgspec.Struct):
         used_by: Cell IDs that use this variable.
     """
 
-    name: str
+    name: VariableName
     declared_by: list[CellId_t]
     used_by: list[CellId_t]
 
@@ -745,25 +751,6 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
-class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
-    """Updates cell code contents (kiosk mode and edit-mode file reload).
-
-    Attributes:
-        cell_ids: Cells to update.
-        codes: New code for each cell.
-        code_is_stale: If True, code was not executed on backend (output may not match).
-        names: Cell names for each cell (optional, for file reload).
-        configs: Cell configs for each cell (optional, for file reload).
-    """
-
-    name: ClassVar[str] = "update-cell-codes"
-    cell_ids: list[CellId_t]
-    codes: list[str]
-    code_is_stale: bool
-    names: list[str] = msgspec.field(default_factory=list)
-    configs: list[CellConfig] = msgspec.field(default_factory=list)
-
-
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
     """Available secret keys from secret providers.
 
@@ -805,17 +792,6 @@ class CacheInfoNotification(Notification, tag="cache-info"):
     time: float
     disk_to_free: int
     disk_total: int
-
-
-class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
-    """Updates cell ordering in notebook.
-
-    Attributes:
-        cell_ids: Complete ordered list of cell IDs.
-    """
-
-    name: ClassVar[str] = "update-cell-ids"
-    cell_ids: list[CellId_t]
 
 
 class NotebookDocumentTransactionNotification(
@@ -880,8 +856,6 @@ NotificationMessage = Union[
     CacheInfoNotification,
     # Kiosk
     FocusCellNotification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
     # Document
     NotebookDocumentTransactionNotification,
 ]

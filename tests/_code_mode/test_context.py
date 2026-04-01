@@ -12,6 +12,8 @@ import msgspec
 import pytest
 from inline_snapshot import snapshot
 
+from marimo._ast.cell import CellConfig
+from marimo._ast.cell_id import CellIdGenerator
 from marimo._code_mode._context import AsyncCodeModeContext
 from marimo._messaging.notebook.document import (
     NotebookCell,
@@ -20,23 +22,35 @@ from marimo._messaging.notebook.document import (
 )
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
-    UpdateCellCodesNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import CellId_t
 
 
 @contextmanager
-def _ctx(k: Kernel) -> Generator[AsyncCodeModeContext, None, None]:
-    """Build an AsyncCodeModeContext with a document snapshot from the kernel."""
-    doc = NotebookDocument(
-        [
-            NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
-            for cid, cell in k.graph.cells.items()
-        ]
-    )
+def _ctx(
+    k: Kernel,
+    extra_doc_cells: list[NotebookCell] | None = None,
+) -> Generator[AsyncCodeModeContext, None, None]:
+    """Build an AsyncCodeModeContext with a document snapshot from the kernel.
+
+    ``extra_doc_cells`` adds cells to the document that are *not* in the
+    kernel graph, simulating cells that exist on disk but were never run.
+    """
+    cells = [
+        NotebookCell(id=cid, code=cell.code, name="", config=cell.config)
+        for cid, cell in k.graph.cells.items()
+    ]
+    if extra_doc_cells:
+        cells.extend(extra_doc_cells)
+    doc = NotebookDocument(cells)
     with notebook_document_context(doc):
-        yield AsyncCodeModeContext(k)
+        ctx = AsyncCodeModeContext(k)
+        # Use a deterministic seed in tests for snapshot stability.
+        ctx._id_generator = CellIdGenerator(seed=7)
+        ctx._id_generator.seen_ids = set(doc.cell_ids)
+        yield ctx
 
 
 def _tx_ops(k: Kernel) -> list[dict[str, object]]:
@@ -46,14 +60,6 @@ def _tx_ops(k: Kernel) -> list[dict[str, object]]:
         if isinstance(notif, NotebookDocumentTransactionNotification):
             ops.extend(msgspec.to_builtins(notif.transaction.changes))
     return ops
-
-
-def _code_notifs(k: Kernel) -> list[UpdateCellCodesNotification]:
-    return [
-        op
-        for op in k.stream.operations
-        if isinstance(op, UpdateCellCodesNotification)
-    ]
 
 
 def _clear_messages(k: Kernel) -> None:
@@ -74,7 +80,7 @@ class TestAddCell:
                 nb.run_cell(cid)
 
             assert len(k.graph.cells) == 1
-            cell = list(k.graph.cells.values())[0]
+            cell = next(iter(k.graph.cells.values()))
             assert cell.code == "x = 1"
             assert k.globals["x"] == 1
 
@@ -82,7 +88,7 @@ class TestAddCell:
                 [
                     {
                         "type": "create-cell",
-                        "cellId": "Hbol",
+                        "cellId": "qhHd",
                         "code": "x = 1",
                         "name": "",
                         "config": {
@@ -93,15 +99,15 @@ class TestAddCell:
                         "before": None,
                         "after": None,
                     },
-                    {"type": "reorder-cells", "cellIds": ("Hbol",)},
+                    {"type": "reorder-cells", "cellIds": ("qhHd",)},
                 ]
             )
 
     async def test_add_appends_by_default(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 10"),
-                ExecuteCellCommand(cell_id="1", code="b = 20"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 10"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 20"),
             ]
         )
         with _ctx(k) as ctx:
@@ -124,8 +130,8 @@ class TestAddCell:
     async def test_add_with_after(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 10"),
-                ExecuteCellCommand(cell_id="1", code="b = 20"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 10"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 20"),
             ]
         )
         with _ctx(k) as ctx:
@@ -135,7 +141,7 @@ class TestAddCell:
                 nb.create_cell("c = a + b", after="0")
 
             ops = _tx_ops(k)
-            reorder = [o for o in ops if o["type"] == "reorder-cells"][0]
+            reorder = next(o for o in ops if o["type"] == "reorder-cells")
             assert reorder["cellIds"][0] == "0"
             # New cell should be after "0", before "1".
             assert reorder["cellIds"][2] == "1"
@@ -180,9 +186,9 @@ class TestDeleteCell:
     async def test_delete_cell(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = 2"),
-                ExecuteCellCommand(cell_id="2", code="c = 3"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 2"),
+                ExecuteCellCommand(cell_id=CellId_t("2"), code="c = 3"),
             ]
         )
         assert len(k.graph.cells) == 3
@@ -206,8 +212,8 @@ class TestDeleteCell:
         """Deleting a cell removes its defs from kernel globals."""
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = 2"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 2"),
             ]
         )
         assert k.globals["a"] == 1
@@ -223,9 +229,9 @@ class TestDeleteCell:
     async def test_delete_multiple(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = 2"),
-                ExecuteCellCommand(cell_id="2", code="c = 3"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 2"),
+                ExecuteCellCommand(cell_id=CellId_t("2"), code="c = 3"),
             ]
         )
         with _ctx(k) as ctx:
@@ -240,7 +246,7 @@ class TestDeleteCell:
 
 class TestUpdateCell:
     async def test_update_code(self, k: Kernel) -> None:
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         assert k.globals["x"] == 1
 
         with _ctx(k) as ctx:
@@ -262,7 +268,9 @@ class TestUpdateCell:
 
     async def test_update_cleans_stale_globals(self, k: Kernel) -> None:
         """Updating code removes old defs that are no longer defined."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1\ny = 2")])
+        await k.run(
+            [ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1\ny = 2")]
+        )
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
 
@@ -276,7 +284,7 @@ class TestUpdateCell:
 
     async def test_update_preserves_config(self, k: Kernel) -> None:
         """Updating only code preserves the cell's existing config."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         # Set hide_code=True on the cell.
         with _ctx(k) as ctx:
@@ -295,7 +303,7 @@ class TestUpdateCell:
         assert k.cell_metadata["0"].config.hide_code is True
 
     async def test_update_config_only(self, k: Kernel) -> None:
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         with _ctx(k) as ctx:
             _clear_messages(k)
@@ -323,9 +331,9 @@ class TestCombined:
     async def test_delete_and_add(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = 2"),
-                ExecuteCellCommand(cell_id="2", code="c = 3"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 2"),
+                ExecuteCellCommand(cell_id=CellId_t("2"), code="c = 3"),
             ]
         )
 
@@ -345,8 +353,8 @@ class TestCombined:
         """Delete a cell and add a replacement defining the same names."""
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = a + 1"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = a + 1"),
             ]
         )
         assert k.globals["b"] == 2
@@ -366,18 +374,18 @@ class TestCombined:
 
     async def test_noop_batch(self, k: Kernel) -> None:
         """An empty context manager does nothing."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         with _ctx(k) as ctx:
             _clear_messages(k)
 
-            async with ctx as nb:  # noqa: B018
+            async with ctx as nb:
                 pass
 
             assert _graph_codes(k) == snapshot({"0": "x = 1"})
 
     async def test_exception_discards_ops(self, k: Kernel) -> None:
         """If an exception occurs, queued ops are discarded."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         with _ctx(k) as ctx:
             try:
                 async with ctx as nb:
@@ -392,7 +400,7 @@ class TestCombined:
 
     async def test_rerun_without_structural_ops(self, k: Kernel) -> None:
         """run_cell without any create/edit/delete still executes."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         with _ctx(k) as ctx:
             # Mutate the global so we can detect re-execution.
             k.globals["x"] = 0
@@ -405,8 +413,8 @@ class TestCombined:
         """run_cell on an unchanged cell works even with other structural ops."""
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="x = 1"),
-                ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="y = x + 1"),
             ]
         )
         with _ctx(k) as ctx:
@@ -420,7 +428,7 @@ class TestCombined:
 
     async def test_run_deleted_cell_raises(self, k: Kernel) -> None:
         """Calling run_cell on a cell queued for deletion raises."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         with _ctx(k) as ctx:
             async with ctx as nb:
                 nb.delete_cell("0")
@@ -437,12 +445,12 @@ class TestSummary:
                 nb.create_cell("x = 1", name="my_cell")
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]
-            assert captured.out == snapshot("created cell 'Hbol' (my_cell)\n")
+            assert captured.out == snapshot("created cell 'qhHd' (my_cell)\n")
 
     async def test_edit_prints_summary(
         self, k: Kernel, capsys: object
     ) -> None:
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         with _ctx(k) as ctx:
             async with ctx as nb:
                 nb.edit_cell("0", code="x = 2")
@@ -453,7 +461,7 @@ class TestSummary:
     async def test_delete_prints_summary(
         self, k: Kernel, capsys: object
     ) -> None:
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
         with _ctx(k) as ctx:
             async with ctx as nb:
                 nb.delete_cell("0")
@@ -465,7 +473,7 @@ class TestSummary:
         self, k: Kernel, capsys: object
     ) -> None:
         with _ctx(k) as ctx:
-            async with ctx as nb:  # noqa: B018
+            async with ctx as nb:
                 pass
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]
@@ -475,9 +483,9 @@ class TestSummary:
         """Full batch: create+run, edit+run, delete, create (staged), re-run."""
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = 2"),
-                ExecuteCellCommand(cell_id="2", code="c = 3"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 2"),
+                ExecuteCellCommand(cell_id=CellId_t("2"), code="c = 3"),
             ]
         )
         with _ctx(k) as ctx:
@@ -498,8 +506,8 @@ class TestSummary:
             captured = capsys.readouterr()  # type: ignore[attr-defined]
             assert captured.out == snapshot("""\
 deleted cell '1'
-created and ran cell 'Hbol' (new_cell)
-created cell 'MJUe' (staged)
+created and ran cell 'qhHd' (new_cell)
+created cell 'BtdA' (staged)
 edited code of cell '0' and ran
 re-ran cell '2'
 """)
@@ -520,15 +528,15 @@ class TestResolveTarget:
 
             # "first" should come before the second cell in ordering.
             ops = _tx_ops(k)
-            reorder = [o for o in ops if o["type"] == "reorder-cells"][0]
+            reorder = next(o for o in ops if o["type"] == "reorder-cells")
             assert len(reorder["cellIds"]) == 2
 
     async def test_create_after_renamed_cell(self, k: Kernel) -> None:
         """Can reference a cell by its new name after edit_cell renames it."""
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="a = 1"),
-                ExecuteCellCommand(cell_id="1", code="b = 2"),
+                ExecuteCellCommand(cell_id=CellId_t("0"), code="a = 1"),
+                ExecuteCellCommand(cell_id=CellId_t("1"), code="b = 2"),
             ]
         )
         with _ctx(k) as ctx:
@@ -543,7 +551,7 @@ class TestResolveTarget:
 
             # New cell should be after "0" (renamed), before "1".
             ops = _tx_ops(k)
-            reorder = [o for o in ops if o["type"] == "reorder-cells"][0]
+            reorder = next(o for o in ops if o["type"] == "reorder-cells")
             assert reorder["cellIds"][0] == "0"
             assert reorder["cellIds"][2] == "1"
 
@@ -642,8 +650,8 @@ class TestAutorunStaleState:
 
     async def test_two_step_edit_then_run(self, k: Kernel) -> None:
         """edit_cell in one flush, run_cell in a separate flush should
-        send code_is_stale=false so the frontend clears the stale state."""
-        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
+        execute the updated code."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         # Flush 1: edit only
         with _ctx(k) as ctx:
@@ -659,6 +667,54 @@ class TestAutorunStaleState:
 
         assert k.globals["x"] == 42
 
-        code_notifs = msgspec.to_builtins(_code_notifs(k))
-        assert len(code_notifs) == 1
-        assert code_notifs[0]["code_is_stale"] is False
+
+class TestDocumentKernelDivergence:
+    """Tests for cells that exist in the document but not in the kernel graph."""
+
+    async def test_delete_doc_only_cell(self, k: Kernel) -> None:
+        """Deleting a cell that is in the document but not the kernel
+        graph should succeed without KeyError."""
+        ghost = NotebookCell(
+            id=CellId_t("ghost"), code="y = 99", name="", config=CellConfig()
+        )
+        with _ctx(k, extra_doc_cells=[ghost]) as ctx:
+            async with ctx as nb:
+                nb.delete_cell("ghost")
+
+        # The ghost cell should not appear in the graph.
+        assert "ghost" not in k.graph.cells
+
+    async def test_edit_and_run_doc_only_cell(self, k: Kernel) -> None:
+        """A cell present only in the document can be edited and run,
+        bringing it into the kernel graph."""
+        ghost = NotebookCell(
+            id=CellId_t("ghost"), code="z = 0", name="", config=CellConfig()
+        )
+        with _ctx(k, extra_doc_cells=[ghost]) as ctx:
+            async with ctx as nb:
+                nb.edit_cell("ghost", code="z = 42")
+                nb.run_cell("ghost")
+
+        assert k.globals["z"] == 42
+
+    async def test_create_cell_no_collision_with_doc_only_ids(
+        self, k: Kernel
+    ) -> None:
+        """create_cell must not generate IDs that collide with cells
+        that exist in the document but not in the kernel graph (B4)."""
+        # Build a large set of document-only cells whose IDs come from
+        # the same deterministic seed used by the test helper.
+        gen = CellIdGenerator(seed=7)
+        doc_only: list[NotebookCell] = []
+        for _ in range(60):
+            cid = gen.create_cell_id()
+            doc_only.append(
+                NotebookCell(id=cid, code="pass", name="", config=CellConfig())
+            )
+
+        with _ctx(k, extra_doc_cells=doc_only) as ctx:
+            async with ctx as nb:
+                # Should not raise ValueError from ID collision.
+                new_id = nb.create_cell("x = 1")
+
+        assert new_id not in {c.id for c in doc_only}

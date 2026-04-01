@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { startCase } from "lodash-es";
 import {
   Grid3x3Icon,
   ListIcon,
@@ -21,6 +20,7 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { isWasm } from "@/core/wasm/utils";
 import { logNever } from "@/utils/assertNever";
+import { Strings } from "@/utils/strings";
 import { LAYOUT_TYPES, type LayoutType } from "./types";
 
 export const LayoutSelect: React.FC = () => {
@@ -82,5 +82,5 @@ export function getLayoutIcon(layoutType: LayoutType) {
 }
 
 export function displayLayoutName(layoutType: LayoutType) {
-  return startCase(layoutType);
+  return Strings.startCase(layoutType);
 }

@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import Any
 
-import matplotlib.pyplot as plt  # noqa: E402
 import pytest
 
 from marimo._plugins.ui._impl.mpl import (  # noqa: E402
@@ -21,6 +21,8 @@ mpl.use("Agg")  # Non-interactive backend for testing
 
 np = pytest.importorskip("numpy")
 
+import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.dates import date2num  # noqa: E402
 
 # ============================================================================
 # Constructor tests
@@ -332,3 +334,81 @@ def test_html_contains_tag() -> None:
     fig = matplotlib(ax)
     html = fig.text
     assert "marimo-matplotlib" in html
+
+
+# ============================================================================
+# Datetime support tests
+# ============================================================================
+
+
+def test_box_selection_get_mask_datetime() -> None:
+    """BoxSelection.get_mask should work with datetime objects."""
+    dates_x = [
+        datetime(2020, 1, 1),
+        datetime(2022, 6, 15),
+        datetime(2025, 12, 31),
+    ]
+    dates_y = [
+        datetime(2000, 3, 10),
+        datetime(2010, 7, 20),
+        datetime(2020, 11, 5),
+    ]
+
+    # Selection bounds in matplotlib's internal float representation,
+    # matching what the frontend sends.
+    sel = BoxSelection(
+        x_min=date2num(datetime(2021, 1, 1)),
+        x_max=date2num(datetime(2026, 1, 1)),
+        y_min=date2num(datetime(2005, 1, 1)),
+        y_max=date2num(datetime(2015, 1, 1)),
+    )
+
+    mask = sel.get_mask(dates_x, dates_y)
+    # Only (2022-06-15, 2010-07-20) falls within the box
+    assert mask.tolist() == [False, True, False]
+
+
+def test_box_selection_get_mask_numpy_datetime64() -> None:
+    """BoxSelection.get_mask should work with numpy datetime64 arrays."""
+    x = np.array(
+        ["2020-01-01", "2022-06-15", "2025-12-31"], dtype="datetime64"
+    )
+    y = np.array(
+        ["2000-03-10", "2010-07-20", "2020-11-05"], dtype="datetime64"
+    )
+
+    sel = BoxSelection(
+        x_min=date2num(datetime(2021, 1, 1)),
+        x_max=date2num(datetime(2026, 1, 1)),
+        y_min=date2num(datetime(2005, 1, 1)),
+        y_max=date2num(datetime(2015, 1, 1)),
+    )
+
+    mask = sel.get_mask(x, y)
+    assert mask.tolist() == [False, True, False]
+
+
+def test_lasso_selection_get_mask_datetime() -> None:
+    """LassoSelection.get_mask should work with datetime objects."""
+    # Triangle that contains (2022-06-15, 2010-07-20) but not the others
+    v0 = (date2num(datetime(2021, 1, 1)), date2num(datetime(2005, 1, 1)))
+    v1 = (date2num(datetime(2026, 1, 1)), date2num(datetime(2005, 1, 1)))
+    v2 = (date2num(datetime(2023, 6, 1)), date2num(datetime(2015, 1, 1)))
+
+    sel = LassoSelection(vertices=(v0, v1, v2))
+
+    dates_x = [
+        datetime(2020, 1, 1),
+        datetime(2022, 6, 15),
+        datetime(2025, 12, 31),
+    ]
+    dates_y = [
+        datetime(2000, 3, 10),
+        datetime(2010, 7, 20),
+        datetime(2020, 11, 5),
+    ]
+
+    mask = sel.get_mask(dates_x, dates_y)
+    assert not mask[0]  # outside triangle
+    assert mask[1]  # inside triangle
+    assert not mask[2]  # outside triangle

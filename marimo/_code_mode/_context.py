@@ -55,7 +55,6 @@ from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     Notification,
-    UpdateCellCodesNotification,
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
@@ -251,10 +250,11 @@ class AsyncCodeModeContext:
         # Track cell IDs added during this batch so subsequent ops
         # can reference them before they exist in the graph.
         self._pending_adds: dict[CellId_t, _AddOp] = {}
-        # ID generator for new cells — seeded with existing IDs to
-        # avoid collisions.
-        self._id_generator = CellIdGenerator()
-        self._id_generator.seen_ids = set(kernel.graph.cells.keys())
+        # ID generator for new cells — seed=None uses OS entropy so we
+        # never replay a prior session's ID sequence.  seen_ids from the
+        # document prevents collisions with cells already on disk.
+        self._id_generator = CellIdGenerator(seed=None)
+        self._id_generator.seen_ids = set(document.cell_ids)
         self._packages_to_install: list[str] = []
         self._ui_updates: list[tuple[UIElementId, Any]] = []
         self._cells_to_run: set[CellId_t] = set()
@@ -318,19 +318,6 @@ class AsyncCodeModeContext:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
-            # run_cell was called without any structural ops — just re-run.
-            # Notify the frontend that these cells are no longer stale so
-            # it clears edited/lastCodeRun (covers the two-step pattern:
-            # edit_cell in one flush, run_cell in a separate flush).
-            valid = cells_to_run & set(self.graph.cells.keys())
-            if valid:
-                self.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=list(valid),
-                        codes=[self.graph.cells[cid].code for cid in valid],
-                        code_is_stale=False,
-                    )
-                )
             await self._kernel._run_cells(cells_to_run)
 
         # Flush queued UI updates as a single batch.
@@ -884,17 +871,15 @@ class AsyncCodeModeContext:
         self, ops: list[_Op], explicit_run: set[CellId_t] | None = None
     ) -> None:
         """Validate, plan, format, and apply a batch of operations."""
-        existing_ids = list(self.graph.cells.keys())
+        existing_ids = list(self._document)
         plan = _build_plan(existing_ids, ops)
 
         # Auto-format new/changed code.
         plan = await self._format_plan(plan)
 
-        # Diff the plan against the current graph.
-        existing_id_set = set(self.graph.cells.keys())
-        existing_code = {
-            cid: self.graph.cells[cid].code for cid in existing_id_set
-        }
+        # Diff the plan against the current document.
+        existing_id_set = set(self._document)
+        existing_code = {cell.id: cell.code for cell in self._document.cells}
         plan_ids = {e.cell_id for e in plan}
 
         # Classify each entry.
@@ -936,6 +921,7 @@ class AsyncCodeModeContext:
         deletion_requests = [
             DeleteCellCommand(cell_id=cid)
             for cid in existing_id_set - plan_ids
+            if cid in self.graph.cells
         ]
         cells_to_run = self._kernel.mutate_graph(
             execution_requests, deletion_requests
@@ -954,8 +940,7 @@ class AsyncCodeModeContext:
             self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
 
         # Build document transaction ops from the plan and broadcast
-        # a single NotebookDocumentTransactionNotification instead of
-        # the legacy UpdateCellCodes / UpdateCellIds notifications.
+        # a single NotebookDocumentTransactionNotification.
         doc_ops = _plan_to_document_ops(
             plan=plan,
             existing_ids=existing_id_set,
@@ -987,9 +972,7 @@ class AsyncCodeModeContext:
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code in the plan with the default formatter."""
-        existing_code = {
-            cid: self.graph.cells[cid].code for cid in self.graph.cells
-        }
+        existing_code = {cell.id: cell.code for cell in self._document.cells}
 
         to_format: dict[CellId_t, str] = {}
         for entry in plan:

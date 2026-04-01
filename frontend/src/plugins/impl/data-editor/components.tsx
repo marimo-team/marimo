@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { capitalize } from "lodash-es";
 import { PencilIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DataType } from "@/core/kernel/messages";
+import { capitalize } from "@/utils/strings";
 
 interface RenameColumnSubProps {
   currentColumnName: string;

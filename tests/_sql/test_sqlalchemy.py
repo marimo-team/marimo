@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -9,9 +10,7 @@ import pytest
 
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.sqlalchemy import (
-    SQLAlchemyEngine,
-)
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine, safe_execute
 from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
@@ -709,3 +708,550 @@ def test_sqlalchemy_engine_get_cursor_metadata(
         metadata = SQLAlchemyEngine.get_cursor_metadata(result)
         assert metadata is not None
         assert metadata["sql_statement_type"] == "Query / Unknown"
+
+
+# ------------------------
+# Decoracotors
+# ------------------------
+
+
+def test_returns_function_result_on_success():
+    @safe_execute(fallback=None)
+    def add(a, b):
+        return a + b
+
+    assert add(1, 2) == 3
+
+
+def test_returns_fallback_on_exception():
+    @safe_execute(fallback="oops")
+    def fail():
+        raise ValueError("boom")
+
+    assert fail() == "oops"
+
+
+@mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
+def test_logs_on_exception(mock_logger):
+    @safe_execute(
+        fallback=None, message="something broke", log_level="warning"
+    )
+    def fail():
+        raise TypeError("bad type")
+
+    fail()
+
+    mock_logger.warning.assert_called_once_with(
+        "something broke", exc_info=True
+    )
+
+
+@mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
+def test_respects_log_level_debug(mock_logger):
+    @safe_execute(fallback=None, message="debug msg", log_level="debug")
+    def fail():
+        raise RuntimeError
+
+    fail()
+
+    mock_logger.debug.assert_called_once_with("debug msg", exc_info=True)
+
+
+@mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
+def test_respects_log_level_error(mock_logger):
+    @safe_execute(fallback=None, message="error msg", log_level="error")
+    def fail():
+        raise RuntimeError
+
+    fail()
+
+    mock_logger.error.assert_called_once_with("error msg", exc_info=True)
+
+
+@mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
+def test_silent_exceptions_no_logging(mock_logger):
+    @safe_execute(
+        fallback=[],
+        silent_exceptions=(NotImplementedError,),
+    )
+    def fail():
+        raise NotImplementedError
+
+    result = fail()
+
+    assert result == []
+    mock_logger.warning.assert_not_called()
+    mock_logger.debug.assert_not_called()
+    mock_logger.error.assert_not_called()
+    mock_logger.info.assert_not_called()
+
+
+@mock.patch("marimo._sql.engines.sqlalchemy.LOGGER")
+def test_silent_exceptions_still_logs_other_errors(mock_logger):
+    @safe_execute(
+        fallback=-1,
+        message="caught",
+        log_level="error",
+        silent_exceptions=(NotImplementedError,),
+    )
+    def fail():
+        raise ValueError("not silent")
+
+    result = fail()
+
+    assert result == -1
+    mock_logger.error.assert_called_once_with("caught", exc_info=True)
+
+
+def test_preserves_function_metadata():
+    @safe_execute(fallback=None)
+    def my_func():
+        """My docstring."""
+        pass
+
+    assert my_func.__name__ == "my_func"
+    assert my_func.__doc__ == "My docstring."
+
+
+def test_passes_args_and_kwargs():
+    @safe_execute(fallback=None)
+    def greet(name, greeting="Hello"):
+        return f"{greeting}, {name}!"
+
+    assert greet("Alice") == "Hello, Alice!"
+    assert greet("Bob", greeting="Hi") == "Hi, Bob!"
+
+
+def test_fallback_can_be_any_type():
+    for fallback in (0, False, "", [], {}):
+
+        @safe_execute(fallback=fallback)
+        def fail():
+            raise RuntimeError
+
+        assert fail() == fallback
+
+
+# ------------------------
+# Tests for inspector methods
+# ------------------------
+
+
+@pytest.fixture
+def make_engine():
+    """Factory to create a SQLAlchemyEngine with a mocked Snowflake inspector."""
+
+    def _factory(
+        *,
+        dialect="snowflake",
+        default_database="MY_DB",
+        schema_names=None,
+        table_names=None,
+        view_names=None,
+        table_columns=None,
+        columns=None,
+        rows=None,
+        pk_constraint=None,
+        indexes=None,
+        inspector=True,
+    ):
+        if columns is None:
+            columns = [
+                "created_on",
+                "name",
+                "is_default",
+                "is_current",
+                "origin",
+            ]
+        if rows is None:
+            rows = []
+
+        # -- Mock query results --
+        mock_result = mock.MagicMock()
+        mock_result.keys.return_value = columns
+        mock_result.fetchall.return_value = rows
+
+        mock_conn = mock.MagicMock()
+        mock_conn.execute.return_value = mock_result
+
+        # -- Mock inspector --
+        mock_inspector = None
+        if inspector:
+            mock_inspector = mock.MagicMock()
+            mock_inspector.get_schema_names.return_value = schema_names or []
+            mock_inspector.get_table_names.return_value = table_names or []
+            mock_inspector.get_view_names.return_value = view_names or []
+            mock_inspector.get_columns.return_value = table_columns or []
+            mock_inspector.get_pk_constraint.return_value = pk_constraint or {
+                "constrained_columns": []
+            }
+            mock_inspector.get_indexes.return_value = indexes or []
+
+        # -- Mock SQLAlchemy engine --
+        mock_sa_engine = mock.MagicMock()
+        mock_sa_engine.dialect.name = dialect
+        mock_sa_engine.url.database = default_database
+        mock_sa_engine.connect.return_value = mock.MagicMock(
+            __enter__=mock.MagicMock(return_value=mock_conn),
+            __exit__=mock.MagicMock(return_value=False),
+        )
+
+        # Patch inspect() so __init__ assigns our configured mock
+        with mock.patch("sqlalchemy.inspect", return_value=mock_inspector):
+            engine = SQLAlchemyEngine(
+                mock_sa_engine, engine_name=VariableName("test")
+            )
+
+        # Point _connection to the mock so execute() calls work
+        engine._connection = mock_sa_engine
+
+        # Override _get_inspector to yield our mock inspector.
+        # Uses *_args, **_kwargs to match any signature the real
+        # method may have (e.g. database parameter) without
+        # global side effects.
+        @contextmanager
+        def fake_get_inspector(database=None):
+            _ = database  # ignore parameter
+            yield mock_inspector
+
+        engine._get_inspector = fake_get_inspector
+
+        # Expose mocks for test assertions
+        engine._mock_inspector = mock_inspector
+        engine._mock_conn = mock_conn
+
+        return engine
+
+    return _factory
+
+
+# ------------------------------------------------------------------ #
+#  _get_inspector
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_inspector_executes_use_database():
+    """executes dialect command and inspects the connection."""
+    mock_conn = mock.MagicMock()
+    mock_command = mock.MagicMock()
+
+    mock_sa_engine = mock.MagicMock()
+    mock_sa_engine.dialect.name = "snowflake"
+    mock_sa_engine.url.database = "MY_DB"
+    mock_sa_engine.connect.return_value.__enter__ = mock.MagicMock(
+        return_value=mock_conn
+    )
+    mock_sa_engine.connect.return_value.__exit__ = mock.MagicMock(
+        return_value=False
+    )
+
+    engine = SQLAlchemyEngine(mock_sa_engine, engine_name=VariableName("test"))
+
+    with mock.patch(
+        "sqlalchemy.inspect", return_value=mock_command
+    ) as patched_inspect:
+        with engine._get_inspector("my_db") as inspector:
+            assert inspector is mock_command
+            patched_inspect.assert_called_once_with(mock_conn)
+
+    # Verify USE DATABASE was executed
+    executed = mock_conn.execute.call_args[0][0]
+    assert str(executed) == "USE DATABASE my_db"
+
+    with mock.patch(
+        "sqlalchemy.inspect", return_value=mock_command
+    ) as patched_inspect:
+        with engine._get_inspector("MY_DB@MYDB") as inspector:
+            assert inspector is mock_command
+            patched_inspect.assert_called_once_with(mock_conn)
+
+    # Verify USE DATABASE was executed
+    executed = mock_conn.execute.call_args[0][0]
+    assert str(executed) == 'USE DATABASE "MY_DB@MYDB"'
+
+    with mock.patch(
+        "sqlalchemy.inspect", return_value=mock_command
+    ) as patched_inspect:
+        with engine._get_inspector("MY_db") as inspector:
+            assert inspector is mock_command
+            patched_inspect.assert_called_once_with(mock_conn)
+
+    # Verify USE DATABASE was executed
+    executed = mock_conn.execute.call_args[0][0]
+    assert str(executed) == 'USE DATABASE "MY_db"'
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_inspector_yields_existing_inspector_for_non_use_database_dialect():
+    """For dialects without USE DATABASE, yield self.inspector directly."""
+    mock_sa_engine = mock.MagicMock()
+    mock_sa_engine.dialect.name = "sqlite"
+    mock_sa_engine.url.database = ":memory:"
+
+    engine = SQLAlchemyEngine(mock_sa_engine, engine_name=VariableName("test"))
+
+    mock_inspector = mock.MagicMock()
+    engine.inspector = mock_inspector
+
+    with engine._get_inspector("any_database") as inspector:
+        assert inspector is mock_inspector
+
+    # Verify that NO connection was opened and no command was executed
+    mock_sa_engine.connect.assert_not_called()
+
+
+# ------------------------------------------------------------------ #
+#  _get_schema_names
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_schema_names(make_engine):
+    engine = make_engine(schema_names=["public", "staging"])
+    assert engine._get_schema_names("MY_DB") == ["public", "staging"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_schema_names_no_inspector(make_engine):
+    engine = make_engine(inspector=False)
+    assert engine._get_schema_names("MY_DB") == []
+
+
+# ------------------------------------------------------------------ #
+#  _get_table_names
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_table_names(make_engine):
+    engine = make_engine(
+        table_names=["users", "orders"], view_names=["active_users"]
+    )
+    tables, views = engine._get_table_names(schema="public", database="MY_DB")
+    assert tables == ["users", "orders"]
+    assert views == ["active_users"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_table_names_no_inspector(make_engine):
+    engine = make_engine(inspector=False)
+    assert engine._get_table_names(schema="public", database="MY_DB") == (
+        [],
+        [],
+    )
+
+
+# ------------------------------------------------------------------ #
+#  _get_columns
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_columns(make_engine):
+    cols = [
+        {"name": "id", "type": "INTEGER"},
+        {"name": "name", "type": "TEXT"},
+    ]
+    engine = make_engine(table_columns=cols)
+    result = engine._get_columns("users", schema="public", database="MY_DB")
+    assert result == cols
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_columns_no_inspector(make_engine):
+    engine = make_engine(inspector=False)
+    assert (
+        engine._get_columns("users", schema="public", database="MY_DB") is None
+    )
+
+
+# ------------------------------------------------------------------ #
+#  _fetch_primary_keys
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_fetch_primary_keys(make_engine):
+    engine = make_engine(
+        pk_constraint={"constrained_columns": ["id", "tenant_id"]}
+    )
+    result = engine._fetch_primary_keys(
+        "users", schema="public", database="MY_DB"
+    )
+    assert result == ["id", "tenant_id"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_fetch_primary_keys_no_inspector(make_engine):
+    engine = make_engine(inspector=False)
+    result = engine._fetch_primary_keys(
+        "users", schema="public", database="MY_DB"
+    )
+    assert result == []
+
+
+# ------------------------------------------------------------------ #
+#  _fetch_indexes
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_fetch_indexes(make_engine):
+    engine = make_engine(
+        indexes=[
+            {"column_names": ["email"], "name": "idx_email", "unique": True},
+            {"column_names": ["name"], "name": "idx_name", "unique": False},
+        ]
+    )
+    result = engine._fetch_indexes("users", schema="public", database="MY_DB")
+    assert result == ["email", "name"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_fetch_indexes_no_inspector(make_engine):
+    engine = make_engine(inspector=False)
+    result = engine._fetch_indexes("users", schema="public", database="MY_DB")
+    assert result == []
+
+
+# ------------------------------------------------------------------ #
+#  _extract_index_columns (static, no mocking needed)
+# ------------------------------------------------------------------ #
+
+
+def test_extract_index_columns_deduplicates():
+    indexes = [
+        {"column_names": ["col_a", "col_b"]},
+        {"column_names": ["col_b", "col_c"]},
+    ]
+    assert SQLAlchemyEngine._extract_index_columns(indexes) == [
+        "col_a",
+        "col_b",
+        "col_c",
+    ]
+
+
+def test_extract_index_columns_skips_none():
+    indexes = [{"column_names": [None, "col_a", None]}]
+    assert SQLAlchemyEngine._extract_index_columns(indexes) == ["col_a"]
+
+
+def test_extract_index_columns_missing_key():
+    indexes = [{"name": "idx"}, {"column_names": ["col_a"]}]
+    assert SQLAlchemyEngine._extract_index_columns(indexes) == ["col_a"]
+
+
+def test_extract_index_columns_empty():
+    assert SQLAlchemyEngine._extract_index_columns([]) == []
+
+
+# ---------------------------------
+# Snowflake-specific GET databases
+# ---------------------------------
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_returns_all_in_lower_case_when_no_default(make_engine):
+    engine = make_engine(
+        default_database=None,
+        rows=[
+            ("2025-01-01", "DB_A", "N", "N", ""),
+            ("2025-01-02", "DB_B", "N", "N", ""),
+        ],
+    )
+    assert engine._get_snowflake_database_names() == ["db_a", "db_b"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_returns_only_default_when_present(make_engine):
+    engine = make_engine(
+        default_database="db_B",
+        rows=[
+            ("2025-01-01", "DB_A", "N", "N", ""),
+            ("2025-01-02", "DB_B", "N", "Y", ""),
+        ],
+    )
+    assert engine._get_snowflake_database_names() == ["db_b"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_snowflake_database_names_lowercases_unless_special_characters(
+    make_engine,
+):
+    engine = make_engine(
+        default_database=None,
+        rows=[
+            ("2025-01-01", "DB_A", "N", "N", ""),
+            ("2025-01-02", "DB_B", "N", "Y", ""),
+            ("2025-01-02", "USER@snow", "N", "Y", ""),
+        ],
+    )
+    assert engine._get_snowflake_database_names() == [
+        "db_a",
+        "db_b",
+        "USER@snow",
+    ]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_returns_all_when_default_not_in_results(make_engine):
+    engine = make_engine(
+        default_database="MISSING",
+        rows=[
+            ("2025-01-01", "DB_A", "N", "N", ""),
+            ("2025-01-02", "DB_B", "N", "Y", ""),
+        ],
+    )
+    assert engine._get_snowflake_database_names() == ["db_a", "db_b"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_returns_empty_list_when_no_rows(make_engine):
+    engine = make_engine(rows=[])
+    assert engine._get_snowflake_database_names() == []
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_raises_when_name_column_missing(make_engine):
+    engine = make_engine(columns=["id", "owner", "comment"])
+    with pytest.raises(RuntimeError, match="'name' column not found"):
+        engine._get_snowflake_database_names()
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_executes_show_databases(make_engine):
+    engine = make_engine()
+    engine._get_snowflake_database_names()
+    executed_sql = engine._mock_conn.execute.call_args[0][0]
+    assert str(executed_sql) == "SHOW DATABASES"
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_name_column_at_different_index(make_engine):
+    engine = make_engine(
+        columns=["id", "owner", "name"],
+        rows=[(1, "ADMIN", "MY_DB")],
+    )
+    assert engine._get_snowflake_database_names() == ["my_db"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_database_names_coerced_to_str(make_engine):
+    engine = make_engine(columns=["name"], rows=[(123,), (456,)])
+    assert engine._get_snowflake_database_names() == ["123", "456"]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_get_database_names_delegates(make_engine):
+    """Snowflake dialect delegates to _get_snowflake_database_names."""
+    engine = make_engine(default_database="MY_DB")
+
+    expected = ["DB_A", "DB_B"]
+    with mock.patch.object(
+        engine, "_get_snowflake_database_names", return_value=expected
+    ) as mocked:
+        result = engine._get_database_names()
+
+    mocked.assert_called_once()
+    assert result == expected

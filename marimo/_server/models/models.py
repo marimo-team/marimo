@@ -249,10 +249,6 @@ class RenameNotebookRequest(msgspec.Struct, rename="camel"):
     filename: str
 
 
-class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
-    cell_ids: list[CellId_t]
-
-
 class NotebookDocumentTransactionRequest(msgspec.Struct, rename="camel"):
     changes: list[DocumentChange]
 

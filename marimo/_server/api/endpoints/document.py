@@ -54,8 +54,9 @@ async def document_transaction(request: Request) -> BaseResponse:
     session_id = app_state.require_current_session_id()
 
     transaction = Transaction(changes=tuple(body.changes), source="frontend")
+    applied = session.document.apply(transaction)
     session.notify(
-        NotebookDocumentTransactionNotification(transaction=transaction),
+        NotebookDocumentTransactionNotification(transaction=applied),
         from_consumer_id=ConsumerId(session_id),
     )
 

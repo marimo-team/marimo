@@ -133,7 +133,7 @@ describe("createReducerAndAtoms", () => {
     ]);
 
     const state = { count: 0 };
-    const action = { type: "increment", payload: 5 };
+    const action = { type: "increment", payload: 5 } as const;
     reducer(state, action);
 
     expect(middleware).toHaveBeenCalledWith(state, { count: 5 }, action);
@@ -150,6 +150,7 @@ describe("createReducerAndAtoms", () => {
 
     const { reducer } = createReducerAndAtoms(initialState, reducers);
     const state = { count: 0 };
+    // @ts-expect-error - we are testing this
     const newState = reducer(state, { type: "nonexistent", payload: null });
 
     expect(newState).toBe(state);

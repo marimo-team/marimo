@@ -15,7 +15,7 @@ def _kernel_cell_ids(source: str) -> list[str]:
 
     ir = parse_notebook(source)
     assert ir is not None
-    gen = CellIdGenerator()
+    gen = CellIdGenerator(seed=42)
     ids = []
     for i, cell_def in enumerate(ir.cells):
         if isinstance(cell_def, SetupCell) or (

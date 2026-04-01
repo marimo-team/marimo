@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue } from "jotai";
-import { capitalize } from "lodash-es";
 import {
   BotMessageSquareIcon,
   RefreshCwIcon,
@@ -24,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { capitalize } from "@/utils/strings";
 import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
 import { ModelSelector } from "./model-selector";
@@ -95,7 +95,9 @@ interface AgentTitleProps {
 }
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
-  <span className="text-sm font-medium">{capitalize(currentAgentId)}</span>
+  <span className="text-sm font-medium">
+    {capitalize(currentAgentId ?? "")}
+  </span>
 ));
 AgentTitle.displayName = "AgentTitle";
 

@@ -97,7 +97,7 @@ export function useMarimoKernelConnection(opts: {
   const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
-  const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
+  const { handleCellMessage } = useCellActions();
   const actionsWithoutMiddleware = useCellActions({ skipMiddleware: true });
 
   const handleDocumentTransaction = (
@@ -186,7 +186,7 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "completion-result":
-        AUTOCOMPLETER.resolve(msg.data.completion_id as RequestId, msg.data);
+        AUTOCOMPLETER.resolve(msg.data.completion_id, msg.data);
         return;
       case "function-call-result":
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
@@ -207,20 +207,14 @@ export function useMarimoKernelConnection(opts: {
       case "variables":
         setVariables(
           msg.data.variables.map((v) => ({
-            name: v.name as VariableName,
+            name: v.name,
             declaredBy: v.declared_by,
             usedBy: v.used_by,
           })),
         );
-        filterDatasetsFromVariables(
-          msg.data.variables.map((v) => v.name as VariableName),
-        );
-        filterDataSourcesFromVariables(
-          msg.data.variables.map((v) => v.name as VariableName),
-        );
-        filterStorageFromVariables(
-          msg.data.variables.map((v) => v.name as VariableName),
-        );
+        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
+        filterDataSourcesFromVariables(msg.data.variables.map((v) => v.name));
+        filterStorageFromVariables(msg.data.variables.map((v) => v.name));
         return;
       case "variable-values":
         setMetadata(
@@ -327,18 +321,6 @@ export function useMarimoKernelConnection(opts: {
 
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
-        return;
-      case "update-cell-codes":
-        setCellCodes({
-          codes: msg.data.codes,
-          ids: msg.data.cell_ids,
-          codeIsStale: msg.data.code_is_stale,
-          names: msg.data.names,
-          configs: msg.data.configs,
-        });
-        return;
-      case "update-cell-ids":
-        setCellIds({ cellIds: msg.data.cell_ids });
         return;
       case "notebook-document-transaction":
         handleDocumentTransaction(msg.data.transaction);

@@ -70,7 +70,7 @@ class CellManager:
         self._cell_data: dict[CellId_t, CellData] = {}
         self.prefix = prefix
         self.unparsable = False
-        self._cell_id_generator = CellIdGenerator(prefix)
+        self._cell_id_generator = CellIdGenerator(prefix, seed=42)
 
     def create_cell_id(self) -> CellId_t:
         """Create a new unique cell ID.

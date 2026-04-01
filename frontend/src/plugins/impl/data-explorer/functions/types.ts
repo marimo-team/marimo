@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { isString } from "lodash-es";
 import type {
   ArgmaxDef,
   ArgminDef,
@@ -59,7 +58,7 @@ type SupportedAggregateOp = (typeof SUPPORTED_AGGREGATE_OPS)[number];
 export const isAggregateOp: typeof isAggregateOpVega = (
   a: string | ArgminDef | ArgmaxDef,
 ): a is AggregateOp => {
-  if (!isString(a)) {
+  if (typeof a !== "string") {
     return false;
   }
 

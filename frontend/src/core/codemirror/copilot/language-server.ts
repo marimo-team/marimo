@@ -86,6 +86,17 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     });
   }
 
+  /**
+   * Re-run the LSP initialize handshake and send configuration.
+   * Called by the transport's onReconnect callback after reconnecting.
+   */
+  async reInitialize(): Promise<void> {
+    logger.log("#reInitialize: Re-initializing LSP connection");
+    this.initializePromise = this.initialize();
+    await this.initializePromise;
+    await this.sendConfiguration();
+  }
+
   private async sendConfiguration() {
     const settings = this.copilotSettings;
     // Skip if no settings are provided

@@ -122,7 +122,7 @@ export const AddCellWithAI: React.FC<{
     transport: new StreamingChunkTransport(
       {
         api: runtimeManager.getAiURL("completion").toString(),
-        headers: runtimeManager.headers(),
+        headers: () => runtimeManager.headers(),
         prepareSendMessagesRequest: async (options) => {
           const completionBody = await buildCompletionRequestBody(
             options.messages,
@@ -136,6 +136,7 @@ export const AddCellWithAI: React.FC<{
           };
 
           return {
+            api: runtimeManager.getAiURL("completion").toString(),
             body: body,
           };
         },

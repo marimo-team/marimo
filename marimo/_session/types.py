@@ -175,7 +175,7 @@ class Session(Protocol):
         operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
-        """Write an operation to the session consumer and the session view."""
+        """Broadcast a notification to session consumers."""
         ...
 
     def instantiate(

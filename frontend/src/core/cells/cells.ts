@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
+import { dequal as isEqual } from "dequal";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
-import { isEqual } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import {
@@ -247,9 +247,10 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells: hideCode
-        ? new Set([...state.untouchedNewCells, newCellId])
-        : state.untouchedNewCells,
+      untouchedNewCells:
+        hideCode && !code
+          ? new Set([...state.untouchedNewCells, newCellId])
+          : state.untouchedNewCells,
     };
   },
   moveCell: (
@@ -589,7 +590,9 @@ const {
     const serializedEditorState = editorView?.state.toJSON({
       history: historyField,
     });
-    serializedEditorState.doc = state.cellData[cellId].code;
+    if (serializedEditorState) {
+      serializedEditorState.doc = state.cellData[cellId].code;
+    }
 
     // release the granular atom(s) created for this cell
     releaseCellAtoms(cellId);
@@ -1425,7 +1428,6 @@ const {
 // We apply the middleware here (rather than inline in createReducerAndAtoms)
 // so that the document transaction middleware can import CellActions and
 // strictly type the dispatched actions without creating a circular dependency.
-// @ts-expect-error - TODO: We should have better types for the middleware that are strict
 addMiddleware(documentTransactionMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {

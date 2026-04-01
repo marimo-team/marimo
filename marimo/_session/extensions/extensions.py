@@ -11,12 +11,21 @@ import asyncio
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
+import msgspec
+
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+    NotificationMessage,
+)
+from marimo._messaging.serde import try_deserialize_kernel_notification_name
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
-from marimo._session.events import SessionEventListener
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import (
+    EventAwareExtension,
+    SessionExtension,
+)
 from marimo._session.state.serialize import (
     SessionCacheKey,
     SessionCacheManager,
@@ -103,7 +112,7 @@ class HeartbeatExtension(SessionExtension):
             self.heartbeat_task.cancel()
 
 
-class CachingExtension(SessionExtension, SessionEventListener):
+class CachingExtension(EventAwareExtension):
     """Extension for caching session state to disk.
 
     Periodically writes session state to disk so it can be restored
@@ -126,20 +135,18 @@ class CachingExtension(SessionExtension, SessionEventListener):
             interval: How often to write cache (in seconds)
             mode: Whether to read cache only or read/write.
         """
+        super().__init__()
         self.interval = interval
         self.enabled = enabled
         self.mode = mode
         self.session_cache_manager: Optional[SessionCacheManager] = None
-        self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Initialize cache manager when attached to session."""
         if not self.enabled:
             return
 
-        # Subscribe to events (like rename)
-        event_bus.subscribe(self)
-        self.event_bus = event_bus
+        super().on_attach(session, event_bus)
 
         from marimo._utils.inline_script_metadata import (
             script_metadata_hash_from_filename,
@@ -149,6 +156,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(
             session_view=session.session_view,
+            document=session.document,
             path=session.app_file_manager.path,
             interval=self.interval,
         )
@@ -180,9 +188,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
     def on_detach(self) -> None:
         """Stop cache manager when detached."""
         self._stop()
-        if self.event_bus:
-            self.event_bus.unsubscribe(self)
-            self.event_bus = None
+        super().on_detach()
 
     async def on_session_notebook_renamed(
         self, session: Session, old_path: str | None
@@ -226,6 +232,38 @@ class NotificationListenerExtension(SessionExtension):
             # Edit mode with original kernel manager uses connection
             return ConnectionDistributor(kernel_manager.kernel_connection)
 
+    @staticmethod
+    def _on_kernel_message(session: Session, msg: KernelMessage) -> None:
+        """Route a raw kernel message to the appropriate session method.
+
+        Document transactions are intercepted and applied to the
+        ``session.document``, then ``session.notify()`` is invoked with the (versioned) result.
+
+        Everything else is forwarded verbatim via ``session.notify()``.
+
+        TODO: if more notification types need server-side interception,
+        consider a middleware chain instead of inline dispatch.
+        """
+        notif: KernelMessage | NotificationMessage = msg
+
+        name = try_deserialize_kernel_notification_name(msg)
+        if name == NotebookDocumentTransactionNotification.name:
+            try:
+                decoded = msgspec.json.decode(
+                    msg,
+                    type=NotebookDocumentTransactionNotification,
+                )
+                applied = session.document.apply(decoded.transaction)
+                notif = NotebookDocumentTransactionNotification(
+                    transaction=applied
+                )
+            except Exception:  # noqa: BLE001
+                LOGGER.warning(
+                    "Failed to decode/apply kernel document transaction"
+                )
+
+        session.notify(notif, from_consumer_id=None)
+
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
         self.distributor = self._create_distributor(
@@ -233,7 +271,7 @@ class NotificationListenerExtension(SessionExtension):
             queue_manager=self.queue_manager,
         )
         self.distributor.add_consumer(
-            lambda msg: session.notify(msg, from_consumer_id=None)
+            lambda msg: self._on_kernel_message(session, msg)
         )
         self.distributor.start()
 
@@ -242,25 +280,26 @@ class NotificationListenerExtension(SessionExtension):
             self.distributor.stop()
             self.distributor = None
 
+    def flush(self) -> None:
+        """Flush any pending messages from the distributor."""
+        if self.distributor is not None:
+            self.distributor.flush()
 
-class LoggingExtension(SessionExtension, SessionEventListener):
+
+class LoggingExtension(EventAwareExtension):
     """Extension for logging session events."""
 
     def __init__(self, logger: Logger = LOGGER) -> None:
+        super().__init__()
         self.logger = logger
-        self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
         self.logger.debug("Attaching extensions")
-        event_bus.subscribe(self)
-        self.event_bus = event_bus
+        super().on_attach(session, event_bus)
 
     def on_detach(self) -> None:
         self.logger.debug("Detaching extensions")
-        if self.event_bus:
-            self.event_bus.unsubscribe(self)
-            self.event_bus = None
+        super().on_detach()
 
     async def on_session_created(self, session: Session) -> None:
         self.logger.debug("Session created: %s", session.initialization_id)
@@ -287,23 +326,8 @@ class LoggingExtension(SessionExtension, SessionEventListener):
         )
 
 
-class SessionViewExtension(SessionExtension, SessionEventListener):
+class SessionViewExtension(EventAwareExtension):
     """Extension for listening to session view updates."""
-
-    def __init__(self) -> None:
-        self.event_bus: Optional[SessionEventBus] = None
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        """Attach the session view extension to a session."""
-        del session
-        self.event_bus = event_bus
-        self.event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        """Detach the session view extension from a session."""
-        if self.event_bus:
-            self.event_bus.unsubscribe(self)
-            self.event_bus = None
 
     def on_received_command(
         self,
@@ -328,24 +352,12 @@ class SessionViewExtension(SessionExtension, SessionEventListener):
         session.session_view.add_raw_notification(notification)
 
 
-class QueueExtension(SessionExtension, SessionEventListener):
+class QueueExtension(EventAwareExtension):
     """Extension for handling queue operations."""
 
     def __init__(self, queue_manager: QueueManager) -> None:
+        super().__init__()
         self.queue_manager = queue_manager
-        self.event_bus: Optional[SessionEventBus] = None
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        """Attach the queue extension to a session."""
-        del session
-        self.event_bus = event_bus
-        self.event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        """Detach the queue extension from a session."""
-        if self.event_bus:
-            self.event_bus.unsubscribe(self)
-            self.event_bus = None
 
     def on_received_command(
         self,
@@ -364,23 +376,8 @@ class QueueExtension(SessionExtension, SessionEventListener):
         self.queue_manager.put_input(stdin)
 
 
-class ReplayExtension(SessionExtension, SessionEventListener):
+class ReplayExtension(EventAwareExtension):
     """Extension for replaying commands from one session to another."""
-
-    def __init__(self) -> None:
-        self.event_bus: Optional[SessionEventBus] = None
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        """Attach the replay extension to a session."""
-        del session
-        self.event_bus = event_bus
-        self.event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        """Detach the replay extension from a session."""
-        if self.event_bus:
-            self.event_bus.unsubscribe(self)
-            self.event_bus = None
 
     def on_received_command(
         self,
@@ -391,7 +388,6 @@ class ReplayExtension(SessionExtension, SessionEventListener):
         """Called when a command is received."""
         from marimo._messaging.notification import (
             FocusCellNotification,
-            UpdateCellCodesNotification,
         )
         from marimo._runtime.commands import (
             ExecuteCellsCommand,
@@ -405,22 +401,8 @@ class ReplayExtension(SessionExtension, SessionEventListener):
         # Collect cell ids and codes
         if isinstance(request, ExecuteCellsCommand):
             cell_ids = request.cell_ids
-            codes = request.codes
         else:
             cell_ids = request.run_ids
-            codes = [request.cells[cell_id] for cell_id in cell_ids]
-
-        # Send update cell codes notification
-        if cell_ids:
-            session.notify(
-                UpdateCellCodesNotification(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    # Not stale because we just ran the code
-                    code_is_stale=False,
-                ),
-                from_consumer_id=from_consumer_id,
-            )
 
         # Send focus cell notification
         if len(cell_ids) == 1:

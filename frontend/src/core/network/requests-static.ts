@@ -36,7 +36,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
       return null;
     },
     sendRestart: throwNotInEditMode,
-    syncCellIds: throwNotInEditMode,
     sendDocumentTransaction: throwNotInEditMode,
     sendRun: throwNotInEditMode,
     sendRunScratchpad: throwNotInEditMode,

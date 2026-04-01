@@ -59,7 +59,7 @@ def serialize_session_snapshot(
     view: SessionView,
     *,
     notebook_path: str | Path | None,
-    cell_ids: Iterable[CellId_t] | None = None,
+    cell_ids: Iterable[CellId_t],
 ) -> NotebookSessionV1:
     return serialize_session_view(
         view,
@@ -83,7 +83,7 @@ def persist_session_view_to_cache(
     *,
     view: SessionView,
     notebook_path: str | Path | None,
-    cell_ids: Iterable[CellId_t] | None = None,
+    cell_ids: Iterable[CellId_t],
 ) -> Path | None:
     if notebook_path is None:
         return None

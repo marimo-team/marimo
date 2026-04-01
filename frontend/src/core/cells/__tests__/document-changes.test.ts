@@ -51,10 +51,7 @@ function createEditor(code: string) {
 }
 
 /** Dispatch an action through the reducer and auto-create editor handles. */
-function dispatch(
-  state: NotebookState,
-  action: { type: string; payload: unknown },
-): NotebookState {
+function dispatch(state: NotebookState, action: CellAction): NotebookState {
   const next = reducer(state, action);
   for (const [cellIdString, handle] of Object.entries(next.cellHandles)) {
     const cid = cellIdString as CellId;

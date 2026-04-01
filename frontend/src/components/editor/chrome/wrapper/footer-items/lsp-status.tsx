@@ -13,6 +13,7 @@ import type {
   LspRestartRequest,
   LspRestartResponse,
 } from "@/core/network/types";
+import { isWasm } from "@/core/wasm/utils";
 import { isAppConnected } from "@/core/websocket/connection-utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
@@ -26,7 +27,7 @@ export const LspStatus: React.FC = () => {
   const setLspHealth = useSetAtom(lspHealthAtom);
 
   const { isFetching, data, refetch } = useAsyncData(async () => {
-    if (!isAppConnected(connection)) {
+    if (isWasm() || !isAppConnected(connection)) {
       return null;
     }
 

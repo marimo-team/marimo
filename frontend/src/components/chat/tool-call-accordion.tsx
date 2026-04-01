@@ -123,6 +123,7 @@ const ToolArgsRenderer: React.FC<{ input: unknown }> = ({ input }) => {
 
   const isObject =
     typeof input === "object" &&
+    !Array.isArray(input) &&
     Object.keys(input as Record<string, unknown>).length > 0;
 
   return (
