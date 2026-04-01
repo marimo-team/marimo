@@ -52,7 +52,6 @@ dependencies = [
     "msgspec>=0.20.0",
     # for IPC, required for marimo edit --sandbox, marimo run <multiple notebooks>
     "pyzmq>=27.1.0; python_version < '3.15'",
-    "sqlalchemy>=2.0.48",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
