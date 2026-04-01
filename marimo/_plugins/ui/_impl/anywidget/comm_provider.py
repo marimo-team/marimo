@@ -36,7 +36,7 @@ def _is_anywidget_comm(
     if data is None:
         return False
     state = data.get("state", {})
-    return state.get("_model_module") == "anywidget"
+    return bool(state.get("_model_module") == "anywidget")
 
 
 def patch_comm_create() -> None:
