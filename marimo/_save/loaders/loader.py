@@ -64,6 +64,7 @@ class LoaderPartial:
     def create_or_reconfigure(
         self, name: str, context: str = "cache_partial"
     ) -> State[Loader]:
+        """Return an existing loader State if registered, otherwise create and register a new one."""
         try:
             ctx = get_context()
         except ContextNotInitializedError:

@@ -239,6 +239,8 @@ async def _read_from_pty(master: int, websocket: WebSocket) -> None:
 
 
 class ResizeMessage(TypedDict):
+    """Message sent from the frontend to resize the terminal."""
+
     type: Literal["resize"]
     cols: int
     rows: int

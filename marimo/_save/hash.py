@@ -534,6 +534,7 @@ class BlockHasher:
             if failed:
                 # Ruff didn't like a lambda here
                 def get_type(ref: Name) -> str:
+                    """Return the type string for a ref in scope, or 'missing' if absent."""
                     return (
                         str(type(item)) if (item := scope[ref]) else "missing"
                     )

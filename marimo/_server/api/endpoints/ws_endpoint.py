@@ -170,6 +170,7 @@ class WebSocketHandler(SessionConsumer):
 
     @property
     def consumer_id(self) -> ConsumerId:
+        """Return the unique identifier for this WebSocket consumer."""
         return self._consumer_id
 
     def notify(self, notification: KernelMessage) -> None:

@@ -91,6 +91,7 @@ class AuthBackend(AuthenticationBackend):
     async def authenticate(
         self, conn: HTTPConnection
     ) -> Optional[tuple[AuthCredentials, BaseUser]]:
+        """Authenticate the connection and return credentials, or None if auth fails."""
         # We may not need to authenticate. This can be disabled
         # because the user is running in a trusted environment
         # or authentication is handled by a layer above us
@@ -204,6 +205,7 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        """Create an OpenTelemetry span around the request if tracing is enabled."""
         if not GLOBAL_SETTINGS.TRACING:
             return await call_next(request)
 

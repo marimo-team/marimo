@@ -45,7 +45,9 @@ class APIRouter(Router):
         """Post method that returns a JSON response"""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            """Register the decorated function as a POST route handler."""
             async def wrapper_func(request: Request) -> Response:
+                """Dispatch the request and wrap the result as a JSON response."""
                 response = await func(request=request)
                 if isinstance(response, FileResponse):
                     return response
@@ -80,7 +82,9 @@ class APIRouter(Router):
         """Get method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            """Register the decorated function as a GET route handler."""
             async def wrapper_func(request: Request) -> Response:
+                """Dispatch the request and wrap the result as a JSON response."""
                 response = func(request=request)
                 if iscoroutine(response):
                     response = await response
@@ -112,6 +116,7 @@ class APIRouter(Router):
         """Delete method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            """Register the decorated function as a DELETE route handler."""
             self.add_route(
                 path=self.prefix + path,
                 endpoint=func,
@@ -128,6 +133,7 @@ class APIRouter(Router):
         """Websocket method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            """Register the decorated function as a WebSocket route handler."""
             self.add_websocket_route(path=self.prefix + path, endpoint=func)
             return func
 

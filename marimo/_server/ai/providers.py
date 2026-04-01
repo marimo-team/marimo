@@ -900,6 +900,7 @@ async def merge_backticks(
     buffer: Optional[str] = None
 
     def only_whitespace_or_newlines(text: str) -> bool:
+        """Return True if the text contains only whitespace or newline characters."""
         return all(char.isspace() or char == "\n" for char in text)
 
     async for chunk in chunks:

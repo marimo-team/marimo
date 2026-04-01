@@ -33,10 +33,12 @@ class AppFileRouter(abc.ABC):
 
     @property
     def directory(self) -> str | None:
+        """Return the base directory for this router, or None if not directory-backed."""
         return None
 
     @staticmethod
     def infer(path: str) -> AppFileRouter:
+        """Infer and return the appropriate router for the given file or directory path."""
         if os.path.isfile(path):
             LOGGER.debug("Routing to file %s", path)
             return AppFileRouter.from_filename(MarimoPath(path))
@@ -50,6 +52,7 @@ class AppFileRouter(abc.ABC):
 
     @staticmethod
     def from_filename(file: MarimoPath) -> AppFileRouter:
+        """Create a router for a single notebook file."""
         files = [
             MarimoFile(
                 name=file.relative_name,
@@ -61,6 +64,7 @@ class AppFileRouter(abc.ABC):
 
     @staticmethod
     def from_directory(directory: str) -> AppFileRouter:
+        """Create a lazy directory-scanning router rooted at the given directory."""
         return LazyListOfFilesAppFileRouter(directory, include_markdown=False)
 
     @staticmethod
@@ -71,6 +75,7 @@ class AppFileRouter(abc.ABC):
         allow_single_file_key: bool = True,
         allow_dynamic: bool = False,
     ) -> AppFileRouter:
+        """Create a router from an explicit list of MarimoFile entries."""
         return ListOfFilesAppFileRouter(
             files,
             directory=directory,
@@ -80,12 +85,14 @@ class AppFileRouter(abc.ABC):
 
     @staticmethod
     def new_file() -> AppFileRouter:
+        """Create a router for a new, unsaved notebook."""
         return NewFileAppFileRouter()
 
     def get_single_app_file_manager(
         self,
         defaults: Optional[AppDefaults] = None,
     ) -> AppFileManager:
+        """Return the AppFileManager for the single file this router points to."""
         key = self.get_unique_file_key()
         assert key is not None, "Expected a single file"
         return self.get_file_manager(key, defaults)
@@ -190,10 +197,12 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
     @property
     def directory(self) -> str | None:
+        """Return the base directory for this router."""
         return self._directory
 
     @property
     def files(self) -> list[FileInfo]:
+        """Return FileInfo entries for all files in this router."""
         return [
             FileInfo(
                 id=file.path,
@@ -211,6 +220,7 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         key: MarimoFileKey,
         defaults: Optional[AppDefaults] = None,
     ) -> AppFileManager:
+        """Return an AppFileManager for the given key, resolving it against the allowed file list."""
         defaults = defaults or AppDefaults()
 
         resolved_path = self.resolve_file_path(key)
@@ -219,6 +229,7 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         return AppFileManager(resolved_path, defaults=defaults)
 
     def resolve_file_path(self, key: MarimoFileKey) -> str | None:
+        """Resolve a key to an absolute path, raising 404 if not in the allowed set."""
         if key.startswith(AppFileRouter.NEW_FILE):
             if self._allow_single_file_key:
                 return None
@@ -289,6 +300,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
     @property
     def directory(self) -> str:
+        """Return the absolute path of the directory being scanned."""
         return self._directory
 
     def toggle_markdown(
@@ -344,6 +356,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         return AppFileManager(resolved_path, defaults=defaults)
 
     def resolve_file_path(self, key: MarimoFileKey) -> str | None:
+        """Resolve a key to an absolute path within this router's directory."""
         if key.startswith(AppFileRouter.NEW_FILE):
             return None
 
@@ -376,6 +389,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
     @property
     def files(self) -> list[FileInfo]:
+        """Return all marimo notebook files found by scanning this router's directory."""
         if self._lazy_files is None:
             try:
                 # Use DirectoryScanner to load files

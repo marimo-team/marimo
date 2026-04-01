@@ -33,11 +33,15 @@ if TYPE_CHECKING:
 
 
 @overload
-def empty_df(native_df: IntoDataFrame) -> IntoDataFrame: ...
+def empty_df(native_df: IntoDataFrame) -> IntoDataFrame:
+    """Return an empty eager dataframe with the same schema."""
+    ...
 
 
 @overload
-def empty_df(native_df: IntoLazyFrame) -> IntoLazyFrame: ...
+def empty_df(native_df: IntoLazyFrame) -> IntoLazyFrame:
+    """Return an empty lazy frame with the same schema."""
+    ...
 
 
 def empty_df(
@@ -191,11 +195,15 @@ def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
 
 
 @overload
-def upgrade_narwhals_df(df: nw.DataFrame[Any]) -> nw.DataFrame[Any]: ...
+def upgrade_narwhals_df(df: nw.DataFrame[Any]) -> nw.DataFrame[Any]:
+    """Upgrade a narwhals DataFrame to the latest version."""
+    ...
 
 
 @overload
-def upgrade_narwhals_df(df: nw.LazyFrame[Any]) -> nw.LazyFrame[Any]: ...
+def upgrade_narwhals_df(df: nw.LazyFrame[Any]) -> nw.LazyFrame[Any]:
+    """Upgrade a narwhals LazyFrame to the latest version."""
+    ...
 
 
 def upgrade_narwhals_df(
@@ -210,13 +218,17 @@ def upgrade_narwhals_df(
 @overload
 def downgrade_narwhals_df_to_v1(
     df: nw.LazyFrame[Any],
-) -> nw.LazyFrame[Any]: ...
+) -> nw.LazyFrame[Any]:
+    """Downgrade a narwhals LazyFrame to v1 compatibility."""
+    ...
 
 
 @overload
 def downgrade_narwhals_df_to_v1(
     df: nw.DataFrame[Any],
-) -> nw.DataFrame[Any]: ...
+) -> nw.DataFrame[Any]:
+    """Downgrade a narwhals DataFrame to v1 compatibility."""
+    ...
 
 
 def downgrade_narwhals_df_to_v1(

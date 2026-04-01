@@ -145,6 +145,7 @@ class Thread(threading.Thread):
         return self._exit_event.is_set()
 
     def run(self) -> None:
+        """Run the thread, initializing the marimo context if one was provided."""
         if self._marimo_ctx is not None:
             try:
                 initialize_context(self._marimo_ctx)

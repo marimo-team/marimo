@@ -85,12 +85,14 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
             )
 
         def convert_to_polars() -> pl.DataFrame:
+            """Convert the chdb Arrow result to a Polars DataFrame."""
             import polars as pl
 
             arrow_result = chdb.query(query, output_format="Arrow")
             return pl.read_ipc(arrow_result.bytes())  # type: ignore
 
         def convert_to_lazy_polars() -> pl.LazyFrame:
+            """Convert the chdb Arrow result to a Polars LazyFrame."""
             import polars as pl
 
             arrow_result = chdb.query(query, output_format="Arrow")
@@ -250,6 +252,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         sql_output_format = self.sql_output_format()
 
         def convert_to_polars() -> Union[pl.DataFrame, pl.Series]:
+            """Convert the ClickHouse Arrow result to a Polars DataFrame."""
             if self._connection is None:
                 raise ValueError("Connection is not set")
 
@@ -259,6 +262,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             return pl.from_arrow(arrow_result)
 
         def convert_to_pandas() -> pd.DataFrame:
+            """Convert the ClickHouse result to a Pandas DataFrame."""
             if self._connection is None:
                 raise ValueError("Connection is not set")
 

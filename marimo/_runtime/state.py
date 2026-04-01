@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class StateItem(Generic[T]):
+    """A weak-reference entry pairing a state ID with its State object."""
+
     id: Id
     ref: weakref.ref[State[T]]
 

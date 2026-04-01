@@ -187,6 +187,7 @@ class FileWatcherManager:
         if path_str not in self._watchers:
 
             async def shared_callback(changed_path: Path) -> None:
+                """Invoke all registered callbacks for the changed path."""
                 callbacks = self._callbacks.get(str(changed_path), set())
                 # Iterate over a copy to avoid "Set changed size during iteration"
                 # if a callback modifies the callbacks set
