@@ -8,12 +8,88 @@ from marimo._output.formatters.iframe import maybe_wrap_in_iframe
 from marimo._plugins.core.media import io_to_data_url
 from marimo._utils.methods import is_callable_method
 
+_WIDGET_VIEW_KEY = "application/vnd.jupyter.widget-view+json"
+
 MEDIA_MIME_PREFIXES = (
     "image/",
     "audio/",
     "video/",
     "application/pdf",
 )
+
+
+def _maybe_as_anywidget_html(
+    obj: Any,
+    contents: dict[str, Any],
+) -> Optional[tuple[KnownMimeType, str]]:
+    """If the mimebundle is for an anywidget, return ``text/html``.
+
+    Converts ``application/vnd.jupyter.widget-view+json`` mimebundles
+    into the same ``<marimo-anywidget>`` HTML that ``mo.ui.anywidget()``
+    produces.  Works for:
+
+    - Descriptor-based widgets (``MimeBundleDescriptor``) — ESM is
+      read directly from the descriptor's ``_extra_state``.
+    - ``AnyWidget`` subclasses wrapped in a delegating class — ESM
+      info is looked up from the shared registry populated by
+      ``init_marimo_widget``.
+
+    Traditional (non-anywidget) jupyter widgets are left untouched so
+    the frontend can show its error banner.
+    """
+    widget_view = contents.get(_WIDGET_VIEW_KEY)
+    if not isinstance(widget_view, dict):
+        return None
+    model_id = widget_view.get("model_id")
+    if not model_id:
+        return None
+
+    js_url, js_hash = _resolve_esm(obj)
+    if not js_url:
+        return None
+
+    from marimo._plugins.core.web_component import build_ui_plugin
+
+    inner = build_ui_plugin(
+        component_name="marimo-anywidget",
+        initial_value={"model_id": model_id},
+        label=None,
+        args={
+            "js-url": js_url,
+            "js-hash": js_hash,
+        },
+    )
+    # Wrap in <marimo-ui-element> so the plugin gets proper lifecycle
+    # management (remount on re-run via random-id change).
+    html = (
+        f"<marimo-ui-element object-id='{model_id}' "
+        f"random-id='{model_id}'>"
+        f"{inner}"
+        f"</marimo-ui-element>"
+    )
+    return ("text/html", html)
+
+
+def _resolve_esm(obj: Any) -> tuple[str, str]:
+    """Find the ESM URL and hash for a descriptor-based anywidget.
+
+    Reads ``_esm`` from the ``ReprMimeBundle._extra_state`` that the
+    descriptor caches on the instance.
+
+    Returns ``("", "")`` if the ESM cannot be found.
+    """
+    repr_mb = getattr(obj, "_repr_mimebundle_", None)
+    extra_state = getattr(repr_mb, "_extra_state", None)
+    if not isinstance(extra_state, dict):
+        return ("", "")
+    esm = extra_state.get("_esm")
+    if not isinstance(esm, str) or not esm:
+        return ("", "")
+
+    import marimo._output.data.data as mo_data
+    from marimo._utils.code import hash_code
+
+    return mo_data.js(esm).url, hash_code(esm)
 
 
 def maybe_get_repr_formatter(
@@ -94,6 +170,17 @@ def maybe_get_repr_formatter(
                                 contents[mime_key] = (
                                     f"data:{mime_key};base64,{data}"
                                 )
+
+                    # If this is an anywidget descriptor-based widget,
+                    # produce <marimo-anywidget> HTML (same as mo.ui.anywidget)
+                    # instead of the raw mimebundle. Traditional jupyter
+                    # widgets pass through as the mimebundle (error banner).
+                    if isinstance(contents, dict):
+                        anywidget_result = _maybe_as_anywidget_html(
+                            obj, contents
+                        )
+                        if anywidget_result is not None:
+                            return anywidget_result
 
                     # Remove text/plain from the mimebundle if it's present
                     # since there are other representations available

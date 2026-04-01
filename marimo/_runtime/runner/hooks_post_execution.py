@@ -265,12 +265,16 @@ def _store_reference_to_output(
 ) -> None:
     del ctx
 
-    # Stores a reference to the output if it contains a UIElement;
-    # this is required to make RPCs work for unnamed UI elements.
+    # Stores a reference to the output if it contains a UIElement
+    # (required for RPCs on unnamed UI elements) or if it has a
+    # _repr_mimebundle_ descriptor (required to keep descriptor-based
+    # widgets alive — their comm is closed on GC).
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
         if contains_instance(run_result.output, UIElement):
+            cell.set_output(run_result.output)
+        elif callable(getattr(run_result.output, "_repr_mimebundle_", None)):
             cell.set_output(run_result.output)
 
 
