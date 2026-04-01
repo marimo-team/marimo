@@ -27,7 +27,7 @@ jobs:
           args: >-
             --verbose
             --no-progress
-            --accept 200,206,429
+            --accept 200,403
             README.md
             README_Chinese.md
             README_Japanese.md
