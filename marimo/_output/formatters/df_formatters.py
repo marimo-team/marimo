@@ -101,7 +101,7 @@ class PolarsFormatter(FormatterFactory):
             df: pl.DataFrame,
         ) -> tuple[KnownMimeType, str]:
             try:
-                return table(df, selection=None, pagination=True)._mime_()
+                return table(df, selection=None, pagination=None)._mime_()
             except BaseException as e:
                 # Catch-all: some libraries like Polars have bugs and raise
                 # BaseExceptions, which shouldn't crash the kernel
@@ -118,7 +118,7 @@ class PolarsFormatter(FormatterFactory):
                     df = pl.DataFrame({"value": series})
                 else:
                     df = series.to_frame()
-                return table(df, selection=None, pagination=True)._mime_()
+                return table(df, selection=None, pagination=None)._mime_()
             except BaseException as e:
                 # Catch-all: some libraries like Polars have bugs and raise
                 # BaseExceptions, which shouldn't crash the kernel
@@ -166,7 +166,7 @@ class PyArrowFormatter(FormatterFactory):
         def _show_marimo_dataframe(
             df: pa.Table,
         ) -> tuple[KnownMimeType, str]:
-            return table(df, selection=None, pagination=True)._mime_()
+            return table(df, selection=None, pagination=None)._mime_()
 
 
 class PySparkFormatter(FormatterFactory):

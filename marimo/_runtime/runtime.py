@@ -1355,7 +1355,7 @@ class Kernel:
                 VariablesNotification(
                     variables=[
                         VariableDeclarationNotification(
-                            name=variable,
+                            name=VariableName(variable),
                             declared_by=list(declared_by),
                             used_by=list(
                                 self.graph.get_referring_cells(

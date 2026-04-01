@@ -1925,6 +1925,124 @@ def test_cell_styles_sorted_with_pagination(df: Any):
     assert page2.cell_styles["9"]["Value"] == {"color": "red"}
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "Name": ["alpha", "beta", "gamma", "delta"],
+            "Score": [4.0, 1.0, 3.0, 2.0],
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_cell_styles_descending_non_index_column(df: Any):
+    """Test that cell styles work when sorting by a non-index column.
+
+    Regression test for issue #8847 - style_cell styles lost when sorting
+    in descending order. The root cause was that _style_cells generated
+    row IDs assuming index-column ordering rather than reading actual
+    _marimo_row_id values from the sorted data.
+
+    Uses non-monotonic scores so the sorted order [0, 2, 3, 1] does NOT
+    match a reversed-sequential pattern, which the old buggy range-based
+    logic would have generated.
+    """
+
+    def style(_row_id, _col, value):
+        try:
+            v = float(value)
+            return {"color": "green" if v >= 3.0 else "red"}
+        except (TypeError, ValueError):
+            return {}
+
+    table = ui.table(df, style_cell=style)
+
+    # Sort by Score descending: 4.0 (row 0), 3.0 (row 2), 2.0 (row 3), 1.0 (row 1)
+    # Row IDs on page should be [0, 2, 3, 1] - NOT reversed sequential [3, 2, 1, 0]
+    page = table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Score", descending=True)],
+        )
+    )
+    # All 4 original row IDs must be present
+    assert "0" in page.cell_styles
+    assert "1" in page.cell_styles
+    assert "2" in page.cell_styles
+    assert "3" in page.cell_styles
+    # alpha (row 0, score 4.0) should be green
+    assert page.cell_styles["0"]["Score"] == {"color": "green"}
+    # gamma (row 2, score 3.0) should be green
+    assert page.cell_styles["2"]["Score"] == {"color": "green"}
+    # delta (row 3, score 2.0) should be red
+    assert page.cell_styles["3"]["Score"] == {"color": "red"}
+    # beta (row 1, score 1.0) should be red
+    assert page.cell_styles["1"]["Score"] == {"color": "red"}
+
+    # Also test ascending - should produce identical styles
+    page_asc = table._search(
+        SearchTableArgs(
+            page_size=10,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Score", descending=False)],
+        )
+    )
+    assert page_asc.cell_styles["0"]["Score"] == {"color": "green"}
+    assert page_asc.cell_styles["1"]["Score"] == {"color": "red"}
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "Index": list(range(20)),
+            "Category": [f"Label {i % 5}" for i in range(20)],
+            "Value": [i * ((-1) ** i) for i in range(20)],
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_cell_styles_sorted_by_value_with_pagination(df: Any):
+    """Test styles when sorting by a non-index column with pagination.
+
+    Regression test for issue #8847 - when sorting by a column that does
+    not correlate with _marimo_row_id, the page's row IDs are arbitrary
+    and must be read from the sorted data, not generated sequentially.
+    """
+
+    def cell_style(_row_id, _col, value):
+        try:
+            v = float(value)
+            return {"color": "black" if v > 0 else "red"}
+        except (TypeError, ValueError):
+            return {}
+
+    table = ui.table(df, style_cell=cell_style)
+
+    # Sort by Value descending. Top values: 18 (row 18), 16 (row 16),
+    # 14 (row 14), 12 (row 12), 10 (row 10)
+    page0 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Value", descending=True)],
+        )
+    )
+    # Page 0 should have row IDs for the top-5 values (even indices)
+    assert "18" in page0.cell_styles
+    assert "16" in page0.cell_styles
+    assert "14" in page0.cell_styles
+    assert "12" in page0.cell_styles
+    assert "10" in page0.cell_styles
+    # All top-5 values are positive, so all should be black
+    assert page0.cell_styles["18"]["Value"] == {"color": "black"}
+    assert page0.cell_styles["16"]["Value"] == {"color": "black"}
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(),
     reason="Pandas not installed, only pandas has multi-col idx",
@@ -2546,9 +2664,9 @@ def test_cell_search_df_hover_texts(df: Any):
                 "carrots",
             ]
         },
+        exclude=NON_EAGER_LIBS,
     ),
 )
-@pytest.mark.xfail(reason="Sorted rows are not supported for hover yet")
 def test_cell_search_df_hover_texts_sorted(df: Any):
     def hover_text(_row: str, _col: str, value: Any) -> str:
         return f"hover:{value}"
@@ -2559,7 +2677,7 @@ def test_cell_search_df_hover_texts_sorted(df: Any):
             page_size=2,
             page_number=0,
             query="",
-            sort=SortArgs(by="column_0", descending=True),
+            sort=[SortArgs(by="column_0", descending=True)],
         )
     )
     assert page.cell_hover_texts == {

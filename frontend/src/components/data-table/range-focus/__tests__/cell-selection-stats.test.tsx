@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { I18nProvider } from "react-aria";
 import { describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { SELECT_COLUMN_ID } from "../../types";
 import { useCellSelectionReducerActions } from "../atoms";
 import { CellSelectionStats } from "../cell-selection-stats";
@@ -23,27 +24,30 @@ const TestHarness = ({
     actions.setSelectedCells(selectedCellIds);
   }, [actions, selectedCellIds]);
   return (
-    <I18nProvider locale="en-US">
-      <CellSelectionStats table={table} />
-    </I18nProvider>
+    <TooltipProvider>
+      <I18nProvider locale="en-US">
+        <CellSelectionStats table={table} />
+      </I18nProvider>
+    </TooltipProvider>
   );
 };
 
 describe("CellSelectionStats", () => {
-  it("should return null when fewer than 2 cells are selected", () => {
+  it("should show hint when fewer than 2 cells are selected", () => {
     const row = createMockRow("0", [
       createMockCell("0_0", 10),
       createMockCell("0_1", 20),
     ]);
     const table = createMockTable([row], []);
 
-    const { container } = render(
+    render(
       <CellSelectionProvider>
         <TestHarness table={table} selectedCellIds={new Set(["0_0"])} />
       </CellSelectionProvider>,
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("No selection")).toBeInTheDocument();
+    expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 
   it("should display Count stat when 2 or more cells are selected", () => {
@@ -181,20 +185,20 @@ describe("CellSelectionStats", () => {
     expect(screen.getByText("Average: 0")).toBeInTheDocument();
   });
 
-  it("should not display any stats when exactly one cell is selected", () => {
+  it("should show hint instead of stats when exactly one cell is selected", () => {
     const row = createMockRow("0", [
       createMockCell("0_0", 10),
       createMockCell("0_1", 20),
     ]);
     const table = createMockTable([row], []);
 
-    const { container } = render(
+    render(
       <CellSelectionProvider>
         <TestHarness table={table} selectedCellIds={new Set(["0_0"])} />
       </CellSelectionProvider>,
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("No selection")).toBeInTheDocument();
     expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 
@@ -301,14 +305,14 @@ describe("CellSelectionStats", () => {
     expect(screen.getByText("Average: 25")).toBeInTheDocument();
   });
 
-  it("should not display stats when only checkbox column cells are selected", () => {
+  it("should show hint when only checkbox column cells are selected", () => {
     const selectCellId1 = `0_${SELECT_COLUMN_ID}`;
     const selectCellId2 = `1_${SELECT_COLUMN_ID}`;
     const row1 = createMockRow("0", [createMockCell(selectCellId1, true)]);
     const row2 = createMockRow("1", [createMockCell(selectCellId2, false)]);
     const table = createMockTable([row1, row2], []);
 
-    const { container } = render(
+    render(
       <CellSelectionProvider>
         <TestHarness
           table={table}
@@ -317,7 +321,7 @@ describe("CellSelectionStats", () => {
       </CellSelectionProvider>,
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("No selection")).toBeInTheDocument();
     expect(screen.queryByText(/Count:/)).not.toBeInTheDocument();
   });
 

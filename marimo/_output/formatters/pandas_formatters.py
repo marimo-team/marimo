@@ -37,7 +37,7 @@ class PandasFormatter(FormatterFactory):
             def _show_marimo_dataframe(
                 df: pd.DataFrame,
             ) -> tuple[KnownMimeType, str]:
-                return table(df, selection=None, pagination=True)._mime_()
+                return table(df, selection=None, pagination=None)._mime_()
 
             @formatting.opinionated_formatter(pd.Series)
             def _show_marimo_series(
@@ -48,7 +48,7 @@ class PandasFormatter(FormatterFactory):
                     if series.name is None:
                         series = series.rename("value")
                     return table(
-                        series.to_frame(), selection=None, pagination=True
+                        series.to_frame(), selection=None, pagination=None
                     )._mime_()
                 except Exception as e:
                     LOGGER.warning("Failed to format Series: %s", e)
