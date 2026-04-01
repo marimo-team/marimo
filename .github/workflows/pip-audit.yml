@@ -23,7 +23,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - name: Export dependencies and run pip-audit
         run: |
-          uv export --format requirements-txt --output-file requirements.txt
+          uv export --format requirements-txt --no-hashes --output-file requirements.txt
           uvx pip-audit@2.10.0 -r requirements.txt
       - uses: actions/upload-artifact@v6
         with:
