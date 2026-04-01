@@ -60,6 +60,13 @@ export class LazyWebsocketTransport extends Transport {
   private delegate: WebSocketTransport | undefined;
   private pendingSubscriptions: Subscription[] = [];
   private readonly options: Required<LazyWebsocketTransportOptions>;
+  private needsReInitialization = false;
+
+  /**
+   * Callback invoked after the transport reconnects following a close or connection failure.
+   * Used by the LSP client to re-run the initialize handshake on the new connection.
+   */
+  onReconnect?: () => Promise<void>;
 
   constructor(options: LazyWebsocketTransportOptions) {
     super();
@@ -157,6 +164,7 @@ export class LazyWebsocketTransport extends Transport {
         );
         if (attempt === this.options.retries) {
           this.delegate = undefined;
+          this.needsReInitialization = true;
           // Show error toast on final retry
           this.options.showError(
             "GitHub Copilot Connection Error",
@@ -183,6 +191,7 @@ export class LazyWebsocketTransport extends Transport {
   override close(): void {
     this.delegate?.close();
     this.delegate = undefined;
+    this.needsReInitialization = true;
   }
 
   override async sendData(
@@ -202,6 +211,15 @@ export class LazyWebsocketTransport extends Transport {
           "Unable to connect to GitHub Copilot. Please check your settings and try again.",
         );
       }
+
+      // Re-run LSP initialization handshake after reconnecting
+      if (this.needsReInitialization && this.onReconnect) {
+        this.needsReInitialization = false;
+        Logger.log(
+          "Copilot#sendData: Re-initializing LSP after reconnection...",
+        );
+        await this.onReconnect();
+      }
     }
 
     // After reconnection, delegate should be initialized
@@ -211,11 +229,8 @@ export class LazyWebsocketTransport extends Transport {
       );
     }
 
-    // Clamp timeout to maxTimeoutMs
-    timeout = Math.min(
-      timeout ?? this.options.maxTimeoutMs,
-      this.options.maxTimeoutMs,
-    );
+    // Use maxTimeoutMs as default when no timeout is provided
+    timeout = timeout ?? this.options.maxTimeoutMs;
     return this.delegate.sendData(data, timeout);
   }
 }

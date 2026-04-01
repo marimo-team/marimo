@@ -365,7 +365,7 @@ describe("LazyWebsocketTransport", () => {
       expect(delegate.connect).toHaveBeenCalled();
     });
 
-    it("should clamp timeout to maxTimeoutMs", async () => {
+    it("should use maxTimeoutMs as default when no timeout is provided", async () => {
       const transport = new LazyWebsocketTransport({
         getWsUrl: mockGetWsUrl,
         waitForReady: mockWaitForReady,
@@ -376,10 +376,27 @@ describe("LazyWebsocketTransport", () => {
       await transport.connect();
 
       const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 10_000);
+      await transport.sendData(data, undefined);
 
       const delegate = (transport as any).delegate;
       expect(delegate.sendData).toHaveBeenCalledWith(data, 5000);
+    });
+
+    it("should respect caller-provided timeout without clamping", async () => {
+      const transport = new LazyWebsocketTransport({
+        getWsUrl: mockGetWsUrl,
+        waitForReady: mockWaitForReady,
+        showError: mockShowError,
+        maxTimeoutMs: 5000,
+      });
+
+      await transport.connect();
+
+      const data: any = { method: "test", params: [] };
+      await transport.sendData(data, 30_000);
+
+      const delegate = (transport as any).delegate;
+      expect(delegate.sendData).toHaveBeenCalledWith(data, 30_000);
     });
 
     it("should throw error if reconnection fails", async () => {
@@ -404,6 +421,88 @@ describe("LazyWebsocketTransport", () => {
       await expect(transport.sendData(data, 5000)).rejects.toThrow(
         "Unable to connect to GitHub Copilot",
       );
+    });
+  });
+
+  describe("onReconnect", () => {
+    it("should call onReconnect after close + sendData reconnection", async () => {
+      const transport = new LazyWebsocketTransport({
+        getWsUrl: mockGetWsUrl,
+        waitForReady: mockWaitForReady,
+        showError: mockShowError,
+      });
+
+      const onReconnect = vi.fn().mockResolvedValue(undefined);
+      transport.onReconnect = onReconnect;
+
+      // Initial connect
+      await transport.connect();
+      expect(onReconnect).not.toHaveBeenCalled();
+
+      // Close the transport (simulates failure handling)
+      transport.close();
+
+      // sendData should reconnect and call onReconnect
+      const data: any = { method: "test", params: [] };
+      await transport.sendData(data, 5000);
+
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it("should NOT call onReconnect on initial sendData connection", async () => {
+      const transport = new LazyWebsocketTransport({
+        getWsUrl: mockGetWsUrl,
+        waitForReady: mockWaitForReady,
+        showError: mockShowError,
+      });
+
+      const onReconnect = vi.fn().mockResolvedValue(undefined);
+      transport.onReconnect = onReconnect;
+
+      // sendData without prior connect — this is the initial connection
+      const data: any = { method: "test", params: [] };
+      await transport.sendData(data, 5000);
+
+      expect(onReconnect).not.toHaveBeenCalled();
+    });
+
+    it("should call onReconnect after tryConnect failure + retry via sendData", async () => {
+      let connectAttempt = 0;
+      (WebSocketTransport as any).mockImplementation(function (this: any) {
+        this.connect = vi.fn().mockImplementation(() => {
+          connectAttempt++;
+          // First 2 attempts fail (retries=2 exhausted), then succeed on next sendData
+          if (connectAttempt <= 2) {
+            return Promise.reject(new Error("Connection failed"));
+          }
+          return Promise.resolve(undefined);
+        });
+        this.close = vi.fn();
+        this.sendData = vi.fn().mockResolvedValue({ result: "success" });
+        this.subscribe = vi.fn();
+        this.unsubscribe = vi.fn();
+      });
+
+      const transport = new LazyWebsocketTransport({
+        getWsUrl: mockGetWsUrl,
+        waitForReady: mockWaitForReady,
+        showError: mockShowError,
+        retries: 2,
+        retryDelayMs: 10,
+      });
+
+      const onReconnect = vi.fn().mockResolvedValue(undefined);
+      transport.onReconnect = onReconnect;
+
+      // Initial connect fails (all retries exhausted)
+      await expect(transport.connect()).rejects.toThrow("Connection failed");
+      expect(onReconnect).not.toHaveBeenCalled();
+
+      // Now sendData reconnects successfully
+      const data: any = { method: "test", params: [] };
+      await transport.sendData(data, 5000);
+
+      expect(onReconnect).toHaveBeenCalledTimes(1);
     });
   });
 

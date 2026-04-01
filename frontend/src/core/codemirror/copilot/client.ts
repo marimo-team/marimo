@@ -37,13 +37,20 @@ export const createWSTransport = once(() => {
 export const getCopilotClient = once(() => {
   const userConfig = store.get(resolvedMarimoConfigAtom);
   const copilotSettings = userConfig.ai?.github?.copilot_settings ?? {};
+  const transport = createWSTransport();
 
-  return new CopilotLanguageServerClient({
+  const client = new CopilotLanguageServerClient({
     rootUri: FILE_URI,
     workspaceFolders: null,
-    transport: createWSTransport(),
+    transport,
     copilotSettings,
   });
+
+  // Re-run the LSP initialize handshake when the transport reconnects
+  // after a close or connection failure.
+  transport.onReconnect = () => client.reInitialize();
+
+  return client;
 });
 
 export function copilotServer() {
