@@ -136,7 +136,7 @@ dev = [
 
 test = [
     # For server testing
-    "httpx~=0.28.0",
+    "httpx~=0.28.1",
     "urllib3~=2.5.0",
     # Pytest and plugins
     "pytest~=9.0.2",
