@@ -22,6 +22,7 @@ def construct_interrupt_handler(
     context: KernelRuntimeContext,
 ) -> Callable[[int, Any], None]:
     """Return a SIGINT handler that raises MarimoInterrupt and interrupts any running DuckDB query."""
+
     def interrupt_handler(signum: int, frame: Any) -> None:
         """Tries to interrupt the kernel."""
         del signum

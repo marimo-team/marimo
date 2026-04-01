@@ -119,6 +119,7 @@ class StructuresFormatter(FormatterFactory):
 
     def register(self) -> None:
         """Register formatters for Python built-in structures and function types."""
+
         @formatting.formatter(list)
         @formatting.formatter(tuple)
         @formatting.formatter(dict)

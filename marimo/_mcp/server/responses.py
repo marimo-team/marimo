@@ -8,6 +8,7 @@ from typing import Any, Literal, Optional
 @dataclass(kw_only=True)
 class SuccessResult:
     """Standard structured response returned by MCP server tool handlers."""
+
     status: Literal["success", "error", "warning"] = "success"
     auth_required: bool = False
     next_steps: Optional[list[str]] = None

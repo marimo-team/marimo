@@ -121,6 +121,7 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         col_names: list[str],
     ) -> Any:
         """Convert raw rows and column names to the configured output format."""
+
         # For polars, orient the rows since each tuple represents a column
         def convert_to_polars() -> pl.DataFrame:
             """Convert rows to a Polars DataFrame in row orientation."""

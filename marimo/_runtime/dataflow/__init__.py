@@ -204,6 +204,7 @@ def get_import_block_relatives(
     graph: DirectedGraph,
 ) -> Callable[[CellId_t, bool], set[CellId_t]]:
     """Return a relatives function that handles import-block cells specially for transitive closure."""
+
     def import_block_relatives(cid: CellId_t, children: bool) -> set[CellId_t]:
         """Return the relatives of a cell, handling import-block cells by filtering already-imported defs."""
         if not children:

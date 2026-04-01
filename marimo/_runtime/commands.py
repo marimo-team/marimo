@@ -129,6 +129,7 @@ class HTTPRequest(Mapping[str, Any]):
     @staticmethod
     def from_request(request: HTTPConnection) -> HTTPRequest:
         """Build an HTTPRequest from a Starlette HTTPConnection."""
+
         def _url_to_dict(url: URL) -> dict[str, Any]:
             return {
                 "path": url.path,

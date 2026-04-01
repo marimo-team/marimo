@@ -42,6 +42,7 @@ def _format_header_value(k: str, v: Any) -> Any:
 
 def dump(data: dict[str, Any], **kwargs: Any) -> str:
     """Serialize a dict to a YAML string, respecting folded_str and literal_str block styles."""
+
     def _change_style(style: str, representer: Repr) -> Repr:
         def new_representer(dumper: SafeRepresenter, data: str) -> ScalarNode:
             scalar = representer(dumper, data)

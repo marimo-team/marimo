@@ -380,6 +380,7 @@ class OpenAIClientMixin:
 
 class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
     """Pydantic AI provider for OpenAI models, including reasoning models."""
+
     # Medium effort provides a balance between speed and accuracy
     # https://openai.com/index/openai-o3-mini/
     DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
@@ -723,6 +724,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     """Pydantic AI provider for Anthropic Claude models, with extended thinking support."""
+
     # Temperature of 0.2 was recommended for coding and data science in these links:
     # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
     # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com

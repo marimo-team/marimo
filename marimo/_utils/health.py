@@ -166,6 +166,7 @@ def _get_versions(
 
 def get_chrome_version() -> Optional[str]:
     """Return the installed Google Chrome version string, or None if not found."""
+
     def get_chrome_version_windows() -> Optional[str]:
         """Return the Chrome version string on Windows via registry query, or None."""
         process = subprocess.Popen(

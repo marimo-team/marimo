@@ -128,6 +128,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 ensure_ascii: bool = True,
             ) -> str:
                 """Serialize the DataFrame to a JSON string, handling special Polars dtype edge cases."""
+
                 def to_json(
                     result: pl.DataFrame,
                 ) -> list[dict[str, Any]] | str:

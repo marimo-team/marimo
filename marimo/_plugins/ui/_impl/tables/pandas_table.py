@@ -138,6 +138,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 ensure_ascii: bool = True,
             ) -> str:
                 """Serialize the DataFrame to a JSON string, handling complex dtypes and multi-indexes."""
+
                 def to_json(
                     result: pd.DataFrame,
                 ) -> list[dict[str, Any]] | str:

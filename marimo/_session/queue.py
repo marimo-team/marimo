@@ -22,9 +22,7 @@ class QueueType(Protocol[T]):
     stubs and implementations stay aligned.
     """
 
-    def get(
-        self, block: bool = True, timeout: Union[float, None] = None
-    ) -> T:
+    def get(self, block: bool = True, timeout: Union[float, None] = None) -> T:
         """Remove and return an item from the queue, blocking if necessary."""
         ...
 

@@ -46,6 +46,7 @@ class APIRouter(Router):
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             """Register the decorated function as a POST route handler."""
+
             async def wrapper_func(request: Request) -> Response:
                 """Dispatch the request and wrap the result as a JSON response."""
                 response = await func(request=request)
@@ -83,6 +84,7 @@ class APIRouter(Router):
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             """Register the decorated function as a GET route handler."""
+
             async def wrapper_func(request: Request) -> Response:
                 """Dispatch the request and wrap the result as a JSON response."""
                 response = func(request=request)

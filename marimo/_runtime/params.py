@@ -214,9 +214,7 @@ class CLIArgs:
         ...
 
     @overload
-    def get(
-        self, key: str, default: T
-    ) -> Union[ListOrValue[Primitive], T]:
+    def get(self, key: str, default: T) -> Union[ListOrValue[Primitive], T]:
         """Return the CLI arg value for key, or default if absent."""
         ...
 

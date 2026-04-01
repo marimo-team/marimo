@@ -3328,6 +3328,7 @@ class PackagesCallbacks:
 
         def create_log_callback(pkg: str) -> LogCallback:
             """Return a callback that broadcasts installer log lines for the given package."""
+
             def log_callback(log_line: str) -> None:
                 """Broadcast a single installer log line for the package."""
                 broadcast_notification(

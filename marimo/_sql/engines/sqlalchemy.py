@@ -80,6 +80,7 @@ def safe_execute(
 
     def decorator(func: Callable[P, T]) -> Callable[P, T | F]:
         """Wrap func so that exceptions are caught and the fallback is returned."""
+
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | F:
             """Call the wrapped function, returning fallback on any exception."""

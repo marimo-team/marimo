@@ -17,6 +17,7 @@ class CellFormatter(FormatterFactory):
 
     def register(self) -> None:
         """Register a formatter that renders a Cell as its help output."""
+
         @formatting.formatter(Cell)
         def _format_cell(cell: Cell) -> tuple[KnownMimeType, str]:
             return cell._help()._mime_()

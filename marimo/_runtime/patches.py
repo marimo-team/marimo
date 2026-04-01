@@ -436,6 +436,7 @@ def patch_jedi_parameter_completion() -> None:
         original_infer: Callable[[Any], ValueSet],
     ) -> Callable[[Any], ValueSet]:
         """Wrap a jedi infer method to filter out None and numpy sentinel values."""
+
         def infer(self: AnonymousParamName | SignatureParamName) -> ValueSet:
             """Infer type values, excluding None and numpy sentinel results."""
             # Patch for https://github.com/davidhalter/jedi/issues/2063
