@@ -7,8 +7,8 @@ on:
   schedule:
     - cron: "0 8 * * 1"
   push:
-    branches:
-      - main
+    #branches:
+    #  - main
   workflow_dispatch:
 
 permissions:
@@ -25,3 +25,7 @@ jobs:
         run: |
           uv export --format requirements-txt --output-file requirements.txt
           uvx pip-audit@2.10.0 -r requirements.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: requirements
+          path: requirements.txt
