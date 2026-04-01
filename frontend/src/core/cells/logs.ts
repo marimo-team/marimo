@@ -98,7 +98,7 @@ const CellLogLogger = {
           ? "red"
           : "orange";
     const status = payload.level.toUpperCase();
-    /** biome-ignore lint/suspicious/noConsole: for debugging */
+    // oxlint-disable-next-line no-console -- intentional debug logging
     console.log(
       `%c[${status}]`,
       `color:${color}; padding:2px 0; border-radius:2px; font-weight:bold`,
