@@ -446,7 +446,7 @@ DEP001 = [
     "plotly_resampler", "pyecharts", "pyfiglet", "pygwalker", "pymde",
     "pyodide_http", "pyviz_comms", "quak", "seaborn", "shapely", "sklearn",
     "svg", "tikz", "transformers", "treescope", "uchimata", "vega_datasets",
-    "vl_convert", "xarray", "keras", "python_gcode",
+    "vl_convert", "keras", "python_gcode",
     # Jupyter / Pyodide / WASM ecosystem
     "traitlets", "micropip", "js", "geodatasets",
     # Other optional runtime deps
