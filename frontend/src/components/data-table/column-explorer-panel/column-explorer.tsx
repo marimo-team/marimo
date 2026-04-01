@@ -72,7 +72,7 @@ export const ColumnExplorerPanel = ({
   });
 
   return (
-    <div className="mt-5 mb-3">
+    <div className="mb-3">
       <span className="text-xs font-semibold ml-2 flex">
         {prettifyRowColumnCount(totalRows, totalColumns, locale)}
         <CopyClipboardIcon
@@ -89,21 +89,18 @@ export const ColumnExplorerPanel = ({
         />
         <CommandList className="max-h-full">
           <CommandEmpty>No results.</CommandEmpty>
-          {filteredColumns?.map(
-            ([columnName, [dataType, externalType]], index) => {
-              return (
-                <ColumnItem
-                  // Tables may have the same column names, hence we use tableId to make it unique
-                  key={`${tableId}-${columnName}`}
-                  columnName={columnName}
-                  dataType={dataType}
-                  externalType={externalType}
-                  previewColumn={previewColumn}
-                  defaultExpanded={index === 0}
-                />
-              );
-            },
-          )}
+          {filteredColumns?.map(([columnName, [dataType, externalType]]) => {
+            return (
+              <ColumnItem
+                // Tables may have the same column names, hence we use tableId to make it unique
+                key={`${tableId}-${columnName}`}
+                columnName={columnName}
+                dataType={dataType}
+                externalType={externalType}
+                previewColumn={previewColumn}
+              />
+            );
+          })}
         </CommandList>
       </Command>
     </div>
@@ -115,15 +112,13 @@ const ColumnItem = ({
   dataType,
   externalType,
   previewColumn,
-  defaultExpanded = false,
 }: {
   columnName: string;
   dataType: DataType;
   externalType: string;
   previewColumn: PreviewColumn;
-  defaultExpanded?: boolean;
 }) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const columnText = (
     <span className={isExpanded ? "font-semibold" : ""}>{columnName}</span>

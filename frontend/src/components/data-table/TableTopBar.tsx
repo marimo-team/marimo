@@ -69,43 +69,39 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
   }
 
   return (
-    <div className="flex items-center h-10 px-2 border-b gap-3">
-      {/* always-visible search */}
+    <div className="flex items-center h-10 px-2 border-b gap-2">
       {onSearchQueryChange && enableSearch && (
-        <div className="flex items-center">
-          <div className="flex items-center gap-1 rounded-full border px-2 w-56">
-            <SearchIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              className="h-6 border-none bg-transparent focus:outline-hidden text-sm w-full min-w-0"
-              value={internalValue}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setInternalValue("");
-                  inputRef.current?.blur();
-                }
-              }}
-              onChange={(e) => setInternalValue(e.target.value)}
-              placeholder="Search..."
-            />
-            {reloading && <Spinner size="small" />}
-            {internalValue && (
-              <Button
-                variant="text"
-                size="xs"
-                className="h-5 w-5 p-0 shrink-0"
-                onClick={() => setInternalValue("")}
-              >
-                <XIcon className="w-3 h-3 text-muted-foreground" />
-              </Button>
-            )}
-          </div>
+        <div className="flex flex-1 items-center gap-1 px-2">
+          <SearchIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            className="h-6 border-none bg-transparent focus:outline-hidden text-sm w-full min-w-0"
+            value={internalValue}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setInternalValue("");
+                inputRef.current?.blur();
+              }
+            }}
+            onChange={(e) => setInternalValue(e.target.value)}
+            placeholder="Search..."
+          />
+          {reloading && <Spinner size="small" />}
+          {internalValue && (
+            <Button
+              variant="text"
+              size="xs"
+              className="h-5 w-5 p-0 shrink-0"
+              onClick={() => setInternalValue("")}
+            >
+              <XIcon className="w-3 h-3 text-muted-foreground" />
+            </Button>
+          )}
         </div>
       )}
 
-      {/* actions grouped together */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center shrink-0">
         {showChartBuilder && (
           <Button
             variant="text"
@@ -117,7 +113,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             onClick={toggleDisplayHeader}
           >
             <ChartSplineIcon className="w-3.5 h-3.5" />
-            Chart Builder
+            Charts
           </Button>
         )}
         {showTableExplorer && togglePanel && (
@@ -131,7 +127,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             onClick={() => togglePanel(PANEL_TYPES.ROW_VIEWER)}
           >
             <PanelRightIcon className="w-3.5 h-3.5" />
-            Table Explorer
+            Explorer
           </Button>
         )}
         {downloadAs && <ExportMenu downloadAs={downloadAs} />}

@@ -101,7 +101,7 @@ export const ContextAwarePanel: React.FC = () => {
   const renderBody = () => {
     return (
       <div className="pb-7 mb-4 h-full overflow-auto">
-        <div className="p-3 border-b flex justify-between items-center">
+        <div className="px-3 py-2 border-b flex justify-between items-center">
           {renderModeToggle()}
           <Slot name={SlotNames.CONTEXT_AWARE_PANEL_HEADER} />
           <Button

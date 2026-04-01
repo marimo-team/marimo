@@ -42,7 +42,7 @@ export interface TableExplorerPanelProps {
 }
 
 const tabTriggerClassName =
-  "text-xs uppercase tracking-wide font-semibold cursor-pointer transition-colors";
+  "text-[13px] uppercase tracking-wide font-semibold cursor-pointer transition-colors";
 const activeClassName = "text-primary";
 const inactiveClassName = "hover:text-foreground";
 
@@ -110,7 +110,7 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
     <Tabs
       value={resolvedTab}
       onValueChange={(value) => onTabChange(value as PanelType)}
-      className="h-full flex flex-col min-w-[350px]"
+      className="flex flex-col min-w-[350px]"
     >
       <Fill name={SlotNames.CONTEXT_AWARE_PANEL_HEADER}>
         <div className="flex items-center gap-1">

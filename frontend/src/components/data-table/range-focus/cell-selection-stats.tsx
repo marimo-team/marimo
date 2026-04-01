@@ -34,7 +34,9 @@ export const CellSelectionStats = <TData,>({
   if (dataCellCount < 2) {
     return (
       <Tooltip content="Select multiple cells to see stats">
-        <span className={cn("text-sm text-muted-foreground italic", className)}>
+        <span
+          className={cn("text-xs text-muted-foreground/80 italic", className)}
+        >
           No selection
         </span>
       </Tooltip>
