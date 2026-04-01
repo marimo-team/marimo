@@ -1,11 +1,11 @@
 [build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling"]
+build-backend = "uv_build"
+requires = ["uv_build>=0.8.3,<0.11.0"]
 
 [project]
 dependencies = ["lzstring>=1.0.4"]
 name = "marimo_docs"
 version = "0.1.0"
 
-[tool.hatch.build.targets.wheel]
-include = ["blocks.py"]
+[tool.uv.build-backend]
+module-root = ""
