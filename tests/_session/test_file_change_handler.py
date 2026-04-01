@@ -603,18 +603,48 @@ async def test_file_change_coordinator_skips_own_writes(
 async def test_file_change_coordinator_handles_syntax_errors(
     tmp_path: Path, mock_session: MagicMock
 ) -> None:
+    """Test file change coordinator handles syntax errors gracefully."""
+    content = dedent(
+        """\
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def cell1():
+            x = 1
+            return x
+        """
+    )
     test_file = tmp_path / "test.py"
-    test_file.write_text(SINGLE_CELL_NOTEBOOK)
-    mock_session.app_file_manager = AppFileManager(filename=str(test_file))
+    test_file.write_text(content)
+
+    app_file_manager = AppFileManager(filename=str(test_file))
+    mock_session.app_file_manager = app_file_manager
 
     strategy = MagicMock()
     coordinator = FileChangeCoordinator(strategy)
 
-    test_file.write_text(SINGLE_CELL_NOTEBOOK.replace("x = 1", "def broken("))
+    # Write invalid syntax
+    test_file.write_text(
+        dedent(
+            """\
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def cell1():
+                x = 1
+                # Invalid syntax below
+                def broken(
+            """
+        )
+    )
+
     result = await coordinator.handle_change(test_file, session=mock_session)
 
-    assert not result.handled
-    assert result.error is not None
+    # Should handle using best-effort scanner fallback (never re-raises syntax errors)
+    assert result.handled
+    assert result.error is None
 
 
 async def test_file_change_coordinator_path_mismatch(

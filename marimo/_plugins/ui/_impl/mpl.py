@@ -6,6 +6,7 @@ import io
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Any,
     Final,
     Protocol,
     cast,
@@ -25,6 +26,19 @@ if TYPE_CHECKING:
 
 class MatplotlibSelection(Protocol):
     def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]: ...
+
+
+def _to_numeric(arr: NDArray[Any]) -> NDArray[Any]:
+    """Convert a numpy array to matplotlib's numeric representation.
+
+    Only called on the slow path when a direct comparison raises
+    ``TypeError`` (e.g. datetime vs float).  Uses
+    ``matplotlib.dates.date2num`` which handles ``datetime.datetime``,
+    ``datetime.date``, and ``numpy.datetime64``.
+    """
+    from matplotlib.dates import date2num  # type: ignore[import-untyped]
+
+    return date2num(arr)  # type: ignore[no-any-return,no-untyped-call]
 
 
 @dataclass(frozen=True)
@@ -47,8 +61,8 @@ class BoxSelection:
         """Get a boolean mask for points within this selection.
 
         Args:
-            x: Array-like of x-coordinates.
-            y: Array-like of y-coordinates.
+            x: Array-like of x-coordinates (numeric or datetime).
+            y: Array-like of y-coordinates (numeric or datetime).
 
         Returns:
             A boolean numpy array where `True` indicates the point is
@@ -58,12 +72,22 @@ class BoxSelection:
 
         x_arr = np.asarray(x)
         y_arr = np.asarray(y)
-        return (
-            (x_arr >= self.x_min)
-            & (x_arr <= self.x_max)
-            & (y_arr >= self.y_min)
-            & (y_arr <= self.y_max)
-        )
+        try:
+            return (
+                (x_arr >= self.x_min)
+                & (x_arr <= self.x_max)
+                & (y_arr >= self.y_min)
+                & (y_arr <= self.y_max)
+            )
+        except TypeError:
+            x_arr = _to_numeric(x_arr)
+            y_arr = _to_numeric(y_arr)
+            return (
+                (x_arr >= self.x_min)
+                & (x_arr <= self.x_max)
+                & (y_arr >= self.y_min)
+                & (y_arr <= self.y_max)
+            )
 
 
 @dataclass(frozen=True)
@@ -80,8 +104,8 @@ class LassoSelection:
         """Get a boolean mask for points within this selection.
 
         Args:
-            x: Array-like of x-coordinates.
-            y: Array-like of y-coordinates.
+            x: Array-like of x-coordinates (numeric or datetime).
+            y: Array-like of y-coordinates (numeric or datetime).
 
         Returns:
             A boolean numpy array where `True` indicates the point is
@@ -93,8 +117,14 @@ class LassoSelection:
         x_arr = np.asarray(x)
         y_arr = np.asarray(y)
         path = Path(self.vertices)
-        points = np.column_stack([x_arr, y_arr])
-        return path.contains_points(points)
+        try:
+            points = np.column_stack([x_arr, y_arr])
+            return path.contains_points(points)
+        except TypeError:
+            x_arr = _to_numeric(x_arr)
+            y_arr = _to_numeric(y_arr)
+            points = np.column_stack([x_arr, y_arr])
+            return path.contains_points(points)
 
 
 @dataclass(frozen=True)

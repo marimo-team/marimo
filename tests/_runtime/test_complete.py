@@ -313,7 +313,10 @@ def collect_functions_to_check():
                 continue
             objects_to_check.add(obj)
     assert len(objects_to_check) > 1
-    return objects_to_check
+    return sorted(
+        objects_to_check,
+        key=lambda obj: f"{obj.__module__}.{obj.__qualname__}",
+    )
 
 
 def dummy_func(arg1: str, arg2: str) -> None:

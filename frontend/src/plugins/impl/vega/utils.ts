@@ -6,13 +6,22 @@ import type { DataType, FieldTypes, VegaDataType } from "./vega-loader";
 export type ContainerWidth = number | "container";
 
 /**
- * Get the container width from a VegaLite spec.
- * @param spec - The VegaLite spec.
- * @returns The container width.
+ * Get the container width from a Vega-Lite spec.
+ *
+ * For unit specs, `width` is at the top level. For facet/repeat specs,
+ * `width` is nested inside `spec`. This does not handle hconcat/vconcat and Vega spec
+ * where the width may be a signal. These cases are covered by
+ * the CSS fallback `.vega-embed:has(> .chart-wrapper.fit-x)`.
  */
 export function getContainerWidth(spec: unknown): ContainerWidth | undefined {
-  if (typeof spec === "object" && spec !== null && "width" in spec) {
-    return spec.width as ContainerWidth | undefined;
+  if (typeof spec === "object" && spec !== null) {
+    if ("width" in spec) {
+      return spec.width as ContainerWidth | undefined;
+    }
+    // Faceted/repeated spec
+    if ("spec" in spec) {
+      return getContainerWidth(spec.spec);
+    }
   }
   return undefined;
 }

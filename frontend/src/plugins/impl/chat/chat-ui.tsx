@@ -10,7 +10,6 @@ import {
   type TextUIPart,
   type UIMessageChunk,
 } from "ai";
-import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
   HelpCircleIcon,
@@ -57,6 +56,7 @@ import {
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
+import { Strings } from "@/utils/strings";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
 import type { ChatConfig } from "./types";
@@ -670,7 +670,7 @@ const ConfigPopup: React.FC<{
                 htmlFor={key}
                 className="flex w-full justify-between col-span-3 align-end"
               >
-                {startCase(key)}
+                {Strings.startCase(key)}
                 <Tooltip
                   delayDuration={200}
                   side="top"

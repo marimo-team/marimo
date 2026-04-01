@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { capitalize } from "lodash-es";
 import { InfoIcon, TriangleAlert } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Accordion } from "@/components/ui/accordion";
 import { Tooltip } from "@/components/ui/tooltip";
+import { capitalize } from "@/utils/strings";
 import { isFieldSet } from "../chart-spec/spec";
 import { ColorByAxis, Facet, XAxis, YAxis } from "../components/chart-items";
 import {

@@ -14,124 +14,46 @@ import React from "react";
 import { useLocale } from "react-aria";
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
 import { PluralWord } from "@/utils/pluralize";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import type { DataTableSelection, PageRange } from "./types";
+import type { PageRange } from "./types";
 
 const MAX_PAGES_BEFORE_CLAMPING = 100;
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
-  selection?: DataTableSelection;
-  totalColumns: number;
-  onSelectAllRowsChange?: (value: boolean) => void;
   tableLoading?: boolean;
   showPageSizeSelector?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
   table,
-  selection,
-  onSelectAllRowsChange,
-  totalColumns,
   tableLoading,
   showPageSizeSelector,
 }: DataTablePaginationProps<TData>) => {
   const { locale } = useLocale();
 
-  const renderTotal = () => {
-    const { rowSelection, cellSelection } = table.getState();
-    let selected = Object.keys(rowSelection).length;
-    let isAllPageSelected = table.getIsAllPageRowsSelected();
-    const numRows = table.getRowCount();
-    let isAllSelected = selected === numRows;
-
-    const isCellSelection =
-      selection === "single-cell" || selection === "multi-cell";
-    if (isCellSelection) {
-      selected = cellSelection.length;
-      isAllPageSelected = false;
-      isAllSelected = false;
-    }
-
-    if (isAllPageSelected && !isAllSelected) {
-      return (
-        <>
-          <span>{prettyNumber(selected, locale)} selected</span>
-          <Button
-            size="xs"
-            data-testid="select-all-button"
-            variant="link"
-            className="h-4 print:hidden"
-            onMouseDown={Events.preventFocus}
-            onClick={() => {
-              if (onSelectAllRowsChange) {
-                onSelectAllRowsChange(true);
-              } else {
-                table.toggleAllRowsSelected(true);
-              }
-            }}
-          >
-            Select all {prettyNumber(numRows, locale)}
-          </Button>
-        </>
-      );
-    }
-
-    if (selected) {
-      return (
-        <>
-          <span>{prettyNumber(selected, locale)} selected</span>
-          <Button
-            size="xs"
-            data-testid="clear-selection-button"
-            variant="link"
-            className="h-4 print:hidden"
-            onMouseDown={Events.preventFocus}
-            onClick={() => {
-              if (!isCellSelection) {
-                if (onSelectAllRowsChange) {
-                  onSelectAllRowsChange(false);
-                } else {
-                  table.toggleAllRowsSelected(false);
-                }
-              } else if (table.resetCellSelection) {
-                table.resetCellSelection();
-              }
-            }}
-          >
-            Clear selection
-          </Button>
-        </>
-      );
-    }
-
-    const rowColumnCount = prettifyRowColumnCount(
-      numRows,
-      totalColumns,
-      locale,
-    );
-    return <span>{rowColumnCount}</span>;
-  };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
     table.getPageCount(),
@@ -153,65 +75,72 @@ export const DataTablePagination = <TData,>({
 
   const renderPageSizeSelector = () => {
     return (
-      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1 print:hidden">
-        <Select
-          value={pageSize.toString()}
-          onValueChange={(value) => table.setPageSize(Number(value))}
-        >
-          <SelectTrigger className="w-11 h-[18px] shadow-none! !hover:shadow-none ring-0! border-border text-xs p-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Rows per page</SelectLabel>
-              {[...pageSizes].map((size) => {
-                const sizeStr = size.toString();
-                return (
-                  <SelectItem key={size} value={sizeStr}>
-                    {sizeStr}
-                  </SelectItem>
-                );
-              })}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <span>/ page</span>
+      <div className="flex items-center text-xs whitespace-nowrap mr-1 print:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild={true}>
+            <button
+              type="button"
+              className="border rounded justify-between pl-1.5 pr-0.5 h-6 text-xs items-center hover:bg-accent inline-flex gap-0.5"
+            >
+              {pageSize} / page
+              <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" sideOffset={6}>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Rows per page
+            </DropdownMenuLabel>
+            {[...pageSizes].map((size) => (
+              <DropdownMenuItem
+                key={size}
+                className={cn(
+                  "text-xs cursor-pointer",
+                  size === pageSize && "font-semibold bg-accent",
+                )}
+                onSelect={() => table.setPageSize(size)}
+                onMouseDown={Events.preventFocus}
+              >
+                {size}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-1 items-center justify-between px-2">
-      <div className="flex items-center gap-2">
-        <div className="text-sm text-muted-foreground">{renderTotal()}</div>
+    <div className="flex flex-col lg:flex-row items-center gap-0.5 lg:gap-1 px-2">
+      <div className="order-2 lg:order-first">
         {showPageSizeSelector && renderPageSizeSelector()}
       </div>
-
-      <div className="flex items-end space-x-2 print:hidden">
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="first-page-button"
-          className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() => handlePageChange(() => table.setPageIndex(0))}
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanPreviousPage()}
-        >
-          <span className="sr-only">Go to first page</span>
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="previous-page-button"
-          className="h-6 w-6 p-0"
-          onClick={() => handlePageChange(() => table.previousPage())}
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanPreviousPage()}
-        >
-          <span className="sr-only">Go to previous page</span>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+      <div className="order-1 lg:order-last flex items-center print:hidden">
+        <Tooltip content="First page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="first-page-button"
+            className="hidden h-6 w-5 p-0 lg:flex"
+            onClick={() => handlePageChange(() => table.setPageIndex(0))}
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Previous page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="previous-page-button"
+            className="h-6 w-5 p-0"
+            onClick={() => handlePageChange(() => table.previousPage())}
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        </Tooltip>
         <div className="flex items-center justify-center text-xs font-medium gap-1">
           <span>Page</span>
           <PageSelector
@@ -225,32 +154,36 @@ export const DataTablePagination = <TData,>({
             of {prettyNumber(totalPages, locale)}
           </span>
         </div>
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="next-page-button"
-          className="h-6 w-6 p-0"
-          onClick={() => handlePageChange(() => table.nextPage())}
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanNextPage()}
-        >
-          <span className="sr-only">Go to next page</span>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          data-testid="last-page-button"
-          className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() =>
-            handlePageChange(() => table.setPageIndex(table.getPageCount() - 1))
-          }
-          onMouseDown={Events.preventFocus}
-          disabled={!table.getCanNextPage()}
-        >
-          <span className="sr-only">Go to last page</span>
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
+        <Tooltip content="Next page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="next-page-button"
+            className="h-6 w-5 p-0"
+            onClick={() => handlePageChange(() => table.nextPage())}
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanNextPage()}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Last page">
+          <Button
+            size="xs"
+            variant="text"
+            data-testid="last-page-button"
+            className="hidden h-6 w-5 p-0 lg:flex"
+            onClick={() =>
+              handlePageChange(() =>
+                table.setPageIndex(table.getPageCount() - 1),
+              )
+            }
+            onMouseDown={Events.preventFocus}
+            disabled={!table.getCanNextPage()}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </Tooltip>
       </div>
     </div>
   );
@@ -266,102 +199,89 @@ export const PageSelector = ({
   onPageChange: (page: number) => void;
 }) => {
   const [open, setOpen] = React.useState(false);
-  const [jumpValue, setJumpValue] = React.useState("");
-  const jumpInputId = React.useId();
 
   const pageRanges = React.useMemo(
     () => getPageRanges(currentPage, totalPages),
     [currentPage, totalPages],
   );
 
-  const handleJump = () => {
-    const page = Number.parseInt(jumpValue, 10);
-    if (page >= 1 && page <= totalPages) {
-      onPageChange(page - 1);
-      setJumpValue("");
-      setOpen(false);
-    }
+  const handleSelect = (page: number) => {
+    onPageChange(page - 1);
+    setOpen(false);
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild={true}>
+    <Popover open={totalPages > 1 ? open : false} onOpenChange={setOpen}>
+      <PopoverTrigger asChild={true} disabled={totalPages <= 1}>
         <button
           type="button"
-          className="border rounded justify-between pl-1.5 pr-0.5 min-w-9 text-xs items-center hover:bg-accent inline-flex gap-0.5"
+          className={cn(
+            "border rounded justify-between pl-1.5 pr-0.5 h-6 min-w-9 text-xs items-center inline-flex gap-0.5",
+            totalPages > 1
+              ? "hover:bg-accent cursor-pointer"
+              : "opacity-50 cursor-default",
+          )}
           data-testid="page-select"
+          disabled={totalPages <= 1}
         >
           {currentPage}
           <ChevronDown className="h-3 w-3 opacity-50 mb-px" />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-36 overflow-hidden flex flex-col"
-        scrollable={false}
-        align="center"
-        sideOffset={6}
-        style={{ maxHeight: "22rem" }}
-      >
-        <div className="overflow-y-auto flex-1 min-h-0">
-          {pageRanges.map((item) =>
-            item.type === "ellipsis" ? (
-              <DropdownMenuLabel
-                key={item.key}
-                className="text-center text-xs text-muted-foreground"
-              >
-                ...
-              </DropdownMenuLabel>
-            ) : (
-              <DropdownMenuItem
-                key={item.page}
-                data-testid="page-option"
-                className={cn(
-                  "text-xs cursor-pointer",
-                  item.page === currentPage && "font-semibold bg-accent",
-                )}
-                onSelect={() => onPageChange(item.page - 1)}
-                onMouseDown={Events.preventFocus}
-              >
-                {item.page}
-              </DropdownMenuItem>
-            ),
-          )}
-        </div>
-        {totalPages > MAX_PAGES_BEFORE_CLAMPING && (
-          <>
-            <DropdownMenuSeparator />
-            <div
-              className="px-2 pt-0.5 shrink-0"
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <label
-                htmlFor={jumpInputId}
-                className="text-xs text-muted-foreground block mb-1"
-              >
-                Jump to page
-              </label>
-              <Input
-                id={jumpInputId}
-                type="number"
-                min={1}
-                max={totalPages}
-                placeholder={`1-${totalPages}`}
-                value={jumpValue}
-                onChange={(e) => setJumpValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleJump();
-                  }
-                  e.stopPropagation();
-                }}
-                className="h-6 text-xs"
-                data-testid="page-jump-input"
-              />
-            </div>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent className="w-36 p-0" align="center" sideOffset={6}>
+        <Command
+          shouldFilter={true}
+          filter={(value, search) => {
+            return value.startsWith(search) ? 1 : 0;
+          }}
+        >
+          <CommandInput
+            placeholder={`Page (1–${totalPages})`}
+            rootClassName="px-2 h-8"
+            className="text-xs h-8"
+            autoFocus={true}
+            icon={null}
+            onKeyDown={(e) => {
+              // Allow navigation/editing keys, block non-numeric input
+              const allowed = [
+                "Backspace",
+                "Delete",
+                "ArrowLeft",
+                "ArrowRight",
+                "Tab",
+                "Enter",
+                "Escape",
+              ];
+              if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) {
+                e.preventDefault();
+              }
+            }}
+          />
+          <CommandList className="max-h-60">
+            {pageRanges.map((item) =>
+              item.type === "ellipsis" ? null : (
+                <CommandItem
+                  key={item.page}
+                  value={String(item.page)}
+                  data-testid="page-option"
+                  className={cn(
+                    "text-xs cursor-pointer",
+                    item.page === currentPage && "font-semibold bg-accent",
+                  )}
+                  onSelect={() => handleSelect(item.page)}
+                  onMouseDown={Events.preventFocus}
+                >
+                  {item.page}
+                </CommandItem>
+              ),
+            )}
+            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+              No matching page
+            </CommandEmpty>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 };
 

@@ -1,11 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atomWithStorage } from "jotai/utils";
-import { capitalize } from "lodash-es";
 import { z } from "zod";
 import type { CellId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 import { NotebookScopedLocalStorage } from "@/utils/storage/typed";
+import { capitalize } from "@/utils/strings";
 import type { TypedString } from "@/utils/typed";
 import { ChartSchema, type ChartSchemaType } from "./schemas";
 import type { ChartType } from "./types";

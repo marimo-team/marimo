@@ -24,7 +24,10 @@ export const LoadingTable = ({
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-2")}>
-      <div className={cn(className || "rounded-md border")}>
+      <div
+        part="table-wrapper"
+        className={cn(className || "rounded-md border")}
+      >
         <Table>
           <TableHeader>
             {Array.from({ length: 1 }).map((_, i) => (

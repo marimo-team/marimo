@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.21.1"
+version = "0.22.0"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -17,10 +17,10 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
-    # Pinned to specific version for introduction of codeblock handling.
-    "pymdown-extensions>=10.15,<11",
+    # 10.21.2+ required for compatibility with pygments>=2.20 (filename=None fix).
+    "pymdown-extensions>=10.21.2,<11",
     # syntax highlighting of code in markdown
-    "pygments>=2.19,<3",
+    "pygments>=2.20,<3",
     # for reading, writing configs
     "tomlkit>=0.12.0",
     # for managing frontmatter headers in markdown
@@ -101,7 +101,7 @@ recommended = [
     "marimo[sql]",
     "marimo[sandbox]",                  # For `marimo edit --sandbox DIRECTORY`
     "altair>=5.4.0",                    # Plotting in datasource viewer
-    "pydantic-ai-slim[openai]>=1.39.0", # AI features
+    "pydantic-ai-slim[openai]>=1.52.0", # AI features
     "ruff",                             # Formatting
     "nbformat>=5.7.0",                  # Export as IPYNB
 ]
@@ -131,7 +131,7 @@ dev = [
     # For linting
     "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
     # For AI
-    "pydantic-ai-slim[openai]>=1.52.0",
+    "pydantic-ai-slim[openai]>=1.71.0",
 ]
 
 test = [
@@ -146,6 +146,7 @@ test = [
     "pytest-asyncio~=1.3.0",
     "pytest-picked>=0.5.1",
     "pytest-sugar~=1.1.1",
+    "pytest-xdist~=3.5",
     # Comparison testing
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
@@ -191,7 +192,7 @@ test-optional = [
     "anywidget~=0.9.21",
     "ipython~=8.12.3",
     # testing gen ai
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.52.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.71.0",
     # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
@@ -228,7 +229,7 @@ typecheck = [
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
     "fsspec>=2026.2.0",
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.52.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.71.0",
     "loro>=1.5.0",
     "boto3-stubs>=1.38.46",
     "pandas-stubs>=1.5.3.230321",

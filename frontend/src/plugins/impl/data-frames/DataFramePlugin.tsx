@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { isEqual } from "lodash-es";
+import { dequal as isEqual } from "dequal";
 import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
 import {
   type JSX,
@@ -329,7 +329,6 @@ export const DataFrameComponent = memo(
           fieldTypes={field_types}
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={showDownload}
-          downloadFileName={dataframeName}
           download_as={download_as}
           enableSearch={false}
           showFilters={false}

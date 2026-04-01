@@ -2,8 +2,8 @@
 
 import type { Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { dequal as isEqual } from "dequal";
 import { atom } from "jotai";
-import { isEqual } from "lodash-es";
 import { Awareness, LoroDoc, LoroMap, LoroText } from "loro-crdt";
 import ReconnectingWebSocket from "partysocket/ws";
 import type { CellId } from "@/core/cells/ids";

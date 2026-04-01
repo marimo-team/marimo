@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
+import { dequal as isEqual } from "dequal";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
-import { isEqual } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import {
@@ -247,9 +247,10 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells: hideCode
-        ? new Set([...state.untouchedNewCells, newCellId])
-        : state.untouchedNewCells,
+      untouchedNewCells:
+        hideCode && !code
+          ? new Set([...state.untouchedNewCells, newCellId])
+          : state.untouchedNewCells,
     };
   },
   moveCell: (

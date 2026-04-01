@@ -95,6 +95,30 @@ def notebook_output_dir(notebook_path: Path | str | None) -> Path:
     return parent / MARIMO_DIR_NAME
 
 
+def is_cloudpath(path: Path) -> bool:
+    """Check if a path is a cloudpathlib CloudPath (including subclasses).
+
+    Uses a module-name heuristic first, then falls back to isinstance
+    when cloudpathlib is already imported (to catch virtual subclasses
+    registered via CloudPath.register()).
+    """
+    # Quick module-name heuristic — works without importing cloudpathlib.
+    if path.__class__.__module__.startswith("cloudpathlib"):
+        return True
+
+    # If cloudpathlib hasn't been imported yet there's no way a virtual
+    # subclass (CloudPath.register()) could exist, so skip the import.
+    if "cloudpathlib" not in sys.modules:
+        return False
+
+    try:
+        from cloudpathlib import CloudPath  # type: ignore[import-not-found]
+
+        return isinstance(path, CloudPath)
+    except ImportError:
+        return False
+
+
 def normalize_path(path: Path) -> Path:
     """Normalize a path without resolving symlinks.
 
@@ -117,7 +141,7 @@ def normalize_path(path: Path) -> Path:
     """
     # Skip normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
     # os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
-    if path.__class__.__module__.startswith("cloudpathlib"):
+    if is_cloudpath(path):
         return path
 
     # Make absolute if relative (relative to current working directory)

@@ -15,10 +15,32 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._types.ids import UIElementId
 
 LOGGER = _loggers.marimo_logger()
 
 DEFAULT_CSV_ENCODING = "utf-8"
+
+
+def get_bound_name(element_id: UIElementId) -> str | None:
+    """Get the bound variable name for a UI element.
+
+    Looks up the element's bound names from the UI element registry
+    at runtime. Returns the first (alphabetically sorted) bound name,
+    or None if not found.
+
+    Args:
+        element_id: The unique ID of the UI element.
+
+    Returns:
+        The bound variable name, or None if not found.
+    """
+    try:
+        ctx = get_context()
+        bound = sorted(ctx.ui_element_registry.bound_names(element_id))
+        return bound[0] if bound else None
+    except ContextNotInitializedError:
+        return None
 
 
 def get_default_csv_encoding() -> str:
@@ -58,7 +80,8 @@ def download_as(
     csv_encoding: str | None = None,
     csv_separator: str | None = None,
     json_ensure_ascii: bool = True,
-) -> str:
+    filename: str | None = None,
+) -> tuple[str, str]:
     """Download the table data in the specified format.
 
     Args:
@@ -73,13 +96,14 @@ def download_as(
             Defaults to "," when not configured.
         json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON output. Defaults to True.
+        filename (str | None, optional): The filename to use for the downloaded file.
+            Defaults to None, which uses a random filename.
 
     Raises:
         ValueError: If unrecognized format.
-        NotImplementedError: If the table format is not supported.
 
     Returns:
-        str: The URL to download the table data.
+        tuple: (url, user-facing filename with extension) for the downloaded file.
     """
     if drop_marimo_index:
         # Remove the selection column if exists
@@ -91,17 +115,20 @@ def download_as(
             if csv_encoding is not None
             else get_default_csv_encoding()
         )
-        return mo_data.csv(
+        vfile = mo_data.csv(
             manager.to_csv(encoding=encoding, separator=csv_separator)
-        ).url
+        )
     elif ext == "json":
         # Use strict JSON to ensure compliance with JSON spec
-        return mo_data.json(
+        vfile = mo_data.json(
             manager.to_json(
                 encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True
             )
-        ).url
+        )
     elif ext == "parquet":
-        return mo_data.parquet(manager.to_parquet()).url
+        vfile = mo_data.parquet(manager.to_parquet())
     else:
         raise ValueError("format must be one of 'csv', 'json', or 'parquet'.")
+
+    base_name = filename if filename is not None else "download"
+    return (vfile.url, f"{base_name}.{ext}")

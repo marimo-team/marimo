@@ -31,7 +31,7 @@ def convert_from_ir_to_notebook_v1(
     Returns:
         NotebookV1: The notebook v1.
     """
-    cell_id_generator = CellIdGenerator()
+    cell_id_generator = CellIdGenerator(seed=42)
     cells: list[NotebookCell] = []
     for i, data in enumerate(notebook_ir.cells):
         if isinstance(data, SetupCell) or (

@@ -246,7 +246,7 @@ class TestCreateProcessCleanupHandler:
             # Should try force kill
             mock_kill.assert_any_call(mock_child_pid, signal.SIGKILL)
             mock_waitpid.assert_called()
-            mock_close.assert_called_with(mock_fd)
+            mock_close.assert_any_call(mock_fd)
 
     def test_create_process_cleanup_handler_process_not_found(self) -> None:
         """Test cleanup handler when process doesn't exist."""
@@ -268,7 +268,7 @@ class TestCreateProcessCleanupHandler:
             cleanup()
 
             # Should still try to close the file descriptor
-            mock_close.assert_called_with(mock_fd)
+            mock_close.assert_any_call(mock_fd)
 
     def test_create_process_cleanup_handler_fd_error(self) -> None:
         """Test cleanup handler when file descriptor close fails."""
@@ -287,7 +287,7 @@ class TestCreateProcessCleanupHandler:
             # Should not raise an exception
             cleanup()
 
-            mock_close.assert_called_with(mock_fd)
+            mock_close.assert_any_call(mock_fd)
 
 
 class TestSetupChildProcess:

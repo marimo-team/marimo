@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atomWithStorage } from "jotai/utils";
-import { once } from "lodash-es";
+import { once } from "@/utils/once";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { getFeatureFlag } from "../config/feature-flag";
 
