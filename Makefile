@@ -138,8 +138,7 @@ py-snapshots:
 	uv run --group test pytest \
 		tests/_server/templates/test_templates.py \
 		tests/_server/api/endpoints/test_export.py \
-		tests/test_api.py \
-		tests/test_project_dependencies.py
+		tests/test_api.py
 
 ##############
 # Packaging  #
