@@ -263,7 +263,7 @@ class GistSourceReader(FileReader):
 
     def can_read(self, name: str) -> bool:
         """Return True if the URL points to a GitHub Gist."""
-        return is_gist_src(name) or is_gist_src(name)
+        return is_gist_src(name)
 
     def read(self, name: str) -> tuple[str, str]:
         """Download a Gist file and return its content and basename."""
