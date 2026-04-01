@@ -72,7 +72,7 @@ export const ColumnExplorerPanel = ({
   });
 
   return (
-    <div className="mt-5 mb-3">
+    <div className="mb-3">
       <span className="text-xs font-semibold ml-2 flex">
         {prettifyRowColumnCount(totalRows, totalColumns, locale)}
         <CopyClipboardIcon
