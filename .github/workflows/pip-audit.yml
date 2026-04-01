@@ -24,4 +24,4 @@ jobs:
       - name: Export dependencies and run pip-audit
         run: |
           uv export --format requirements-txt --output requirements.txt
-          uvx pip-audit -r requirements.txt
+          uvx pip-audit@2.10.0 -r requirements.txt
