@@ -38,6 +38,7 @@ const appToOptions = {
   "bugs.py": { command: "edit" },
   "cells.py": { command: "edit" },
   "disabled_cells.py": { command: "edit" },
+  "disabled_ancestor_error.py": { command: "edit" },
   "kitchen_sink.py": { command: "edit" },
   "layout_grid.py": { command: "edit" },
   "stdin.py": { command: "edit" },
