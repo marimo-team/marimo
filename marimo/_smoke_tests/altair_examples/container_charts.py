@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.21.0"
+__generated_with = "0.21.1"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -22,8 +22,9 @@ def _():
             color="Origin",
         )
         .interactive()
+        .properties(width="container")
     )
-    chart.properties(width="container")
+    mo.hstack([chart, chart.configure_axis(grid=False)], widths="equal")
     return (chart,)
 
 

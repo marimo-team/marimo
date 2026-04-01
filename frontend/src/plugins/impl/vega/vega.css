@@ -4,7 +4,8 @@
   max-width: 100%;
 }
 
-.vega-embed[data-container-width="container"] {
+.vega-embed[data-container-width="container"],
+.vega-embed:has(.chart-wrapper.fit-x) {
   width: 100%;
 }
 
