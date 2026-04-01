@@ -89,18 +89,21 @@ export const ColumnExplorerPanel = ({
         />
         <CommandList className="max-h-full">
           <CommandEmpty>No results.</CommandEmpty>
-          {filteredColumns?.map(([columnName, [dataType, externalType]]) => {
-            return (
-              <ColumnItem
-                // Tables may have the same column names, hence we use tableId to make it unique
-                key={`${tableId}-${columnName}`}
-                columnName={columnName}
-                dataType={dataType}
-                externalType={externalType}
-                previewColumn={previewColumn}
-              />
-            );
-          })}
+          {filteredColumns?.map(
+            ([columnName, [dataType, externalType]], index) => {
+              return (
+                <ColumnItem
+                  // Tables may have the same column names, hence we use tableId to make it unique
+                  key={`${tableId}-${columnName}`}
+                  columnName={columnName}
+                  dataType={dataType}
+                  externalType={externalType}
+                  previewColumn={previewColumn}
+                  defaultExpanded={index === 0}
+                />
+              );
+            },
+          )}
         </CommandList>
       </Command>
     </div>
@@ -112,13 +115,15 @@ const ColumnItem = ({
   dataType,
   externalType,
   previewColumn,
+  defaultExpanded = false,
 }: {
   columnName: string;
   dataType: DataType;
   externalType: string;
   previewColumn: PreviewColumn;
+  defaultExpanded?: boolean;
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const columnText = (
     <span className={isExpanded ? "font-semibold" : ""}>{columnName}</span>
