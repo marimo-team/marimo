@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
-import { PopoverClose } from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
+
+const PopoverClose = PopoverPrimitive.Close;
+
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate, isValid } from "date-fns";
 import { useLocale, useNumberFormatter } from "react-aria";
