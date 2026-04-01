@@ -113,7 +113,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             onClick={toggleDisplayHeader}
           >
             <ChartSplineIcon className="w-3.5 h-3.5" />
-            Charts
+            Visualize
           </Button>
         )}
         {showTableExplorer && togglePanel && (
