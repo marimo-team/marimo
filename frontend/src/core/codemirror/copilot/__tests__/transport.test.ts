@@ -504,6 +504,33 @@ describe("LazyWebsocketTransport", () => {
 
       expect(onReconnect).toHaveBeenCalledTimes(1);
     });
+
+    it("should propagate onReconnect rejection and allow retry", async () => {
+      const transport = new LazyWebsocketTransport({
+        getWsUrl: mockGetWsUrl,
+        waitForReady: mockWaitForReady,
+        showError: mockShowError,
+      });
+
+      const reconnectError = new Error("Re-initialization failed");
+      const onReconnect = vi.fn().mockRejectedValueOnce(reconnectError);
+      transport.onReconnect = onReconnect;
+
+      await transport.connect();
+      transport.close();
+
+      const data: any = { method: "test", params: [] };
+      await expect(transport.sendData(data, 5000)).rejects.toThrow(
+        "Re-initialization failed",
+      );
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+
+      // needsReInitialization should still be true, so a subsequent retry
+      // will attempt onReconnect again
+      onReconnect.mockResolvedValueOnce(undefined);
+      await transport.sendData(data, 5000);
+      expect(onReconnect).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("close", () => {

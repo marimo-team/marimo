@@ -36,7 +36,8 @@ export interface LazyWebsocketTransportOptions {
   retryDelayMs?: number;
 
   /**
-   * Maximum timeout for sendData operations in milliseconds.
+   * Default timeout for sendData operations in milliseconds.
+   * Used when the caller does not provide an explicit timeout.
    * @default 5000
    */
   maxTimeoutMs?: number;
@@ -214,11 +215,22 @@ export class LazyWebsocketTransport extends Transport {
 
       // Re-run LSP initialization handshake after reconnecting
       if (this.needsReInitialization && this.onReconnect) {
-        this.needsReInitialization = false;
         Logger.log(
           "Copilot#sendData: Re-initializing LSP after reconnection...",
         );
-        await this.onReconnect();
+        try {
+          await this.onReconnect();
+          this.needsReInitialization = false;
+        } catch (error) {
+          // Close the uninitialized connection so the next attempt starts fresh
+          this.delegate?.close();
+          this.delegate = undefined;
+          Logger.error(
+            "Copilot#sendData: LSP re-initialization after reconnection failed",
+            error,
+          );
+          throw error;
+        }
       }
     }
 
