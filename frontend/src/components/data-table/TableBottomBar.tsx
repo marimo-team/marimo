@@ -21,6 +21,7 @@ interface TableBottomBarProps<TData> {
   getRowIds?: GetRowIds;
   showPageSizeSelector?: boolean;
   tableLoading?: boolean;
+  part?: string;
 }
 
 export const TableBottomBar = <TData,>({
@@ -32,6 +33,7 @@ export const TableBottomBar = <TData,>({
   getRowIds,
   showPageSizeSelector,
   tableLoading,
+  part,
 }: TableBottomBarProps<TData>) => {
   const { locale } = useLocale();
   const handleSelectAllRows = (value: boolean) => {
@@ -143,7 +145,10 @@ export const TableBottomBar = <TData,>({
   };
 
   return (
-    <div className="flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center shrink-0 pt-1">
+    <div
+      part={part}
+      className="flex lg:grid lg:grid-cols-[1fr_auto_1fr] items-center shrink-0 pt-1"
+    >
       <div className="flex flex-col text-sm text-muted-foreground px-2 shrink-0">
         <div className="flex items-center gap-1">{renderTotal()}</div>
         <CellSelectionStats table={table} className="lg:hidden" />

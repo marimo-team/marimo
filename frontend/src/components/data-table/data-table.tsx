@@ -283,7 +283,10 @@ const DataTableInternal = <TData,>({
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
       <CellSelectionProvider>
-        <div className={cn(className || "rounded-md border overflow-hidden")}>
+        <div
+          part="table-wrapper"
+          className={cn(className || "rounded-md border overflow-hidden")}
+        >
           <TableTopBar
             enableSearch={enableSearch}
             searchQuery={searchQuery}
@@ -313,6 +316,7 @@ const DataTableInternal = <TData,>({
           </Table>
         </div>
         <TableBottomBar
+          part="table-footer"
           totalColumns={totalColumns}
           pagination={pagination}
           selection={selection}
