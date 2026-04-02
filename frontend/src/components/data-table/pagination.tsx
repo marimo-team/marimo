@@ -71,7 +71,7 @@ export const DataTablePagination = <TData,>({
 
   // Ensure unique page sizes
   const pageSizeSet = new Set([5, 10, 25, 50, 100, pageSize]);
-  const pageSizes = [...pageSizeSet].sort((a, b) => a - b);
+  const pageSizes = [...pageSizeSet].toSorted((a, b) => a - b);
 
   const renderPageSizeSelector = () => {
     return (

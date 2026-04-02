@@ -125,7 +125,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
 
   const handleInsertSnippet = () => {
     // Add below last focused cell in reverse order
-    for (const section of [...snippet.sections].reverse()) {
+    for (const section of [...snippet.sections].toReversed()) {
       if (section.code) {
         createNewCell({
           code: section.code,

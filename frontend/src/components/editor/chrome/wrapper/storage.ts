@@ -28,7 +28,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
         const parsed = schema.parse(JSON.parse(storedValue));
         return JSON.stringify(
           Objects.mapValues(parsed, (value) => {
-            return value.reverse();
+            return value.toReversed();
           }),
         );
       } catch {
@@ -42,7 +42,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
           const parsed = schema.parse(JSON.parse(value));
           value = JSON.stringify(
             Objects.mapValues(parsed, (value) => {
-              return value.reverse();
+              return value.toReversed();
             }),
           );
         } catch {

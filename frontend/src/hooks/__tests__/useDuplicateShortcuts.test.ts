@@ -145,7 +145,7 @@ describe("findDuplicateShortcuts", () => {
     expect(result.duplicates).toHaveLength(2);
 
     // Check that both duplicate groups are detected
-    const duplicateKeys = result.duplicates.map((d) => d.key).sort();
+    const duplicateKeys = result.duplicates.map((d) => d.key).toSorted();
     expect(duplicateKeys).toEqual(["cmd-b", "cmd-enter"]);
 
     expect(result.hasDuplicate("cell.format")).toBe(true);

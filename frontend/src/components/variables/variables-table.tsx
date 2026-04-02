@@ -226,7 +226,7 @@ function sortData({
       break;
   }
 
-  return sort.desc ? sortedVariables.reverse() : sortedVariables;
+  return sort.desc ? sortedVariables.toReversed() : sortedVariables;
 }
 
 export const VariableTable: React.FC<Props> = memo(
