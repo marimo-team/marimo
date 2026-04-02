@@ -42,6 +42,11 @@ def _trivial_range_index(index: pd.Index) -> bool:
     return isinstance(index, pd.RangeIndex) and index.name is None
 
 
+def _resolve_index_name(name: str, columns: set[str]) -> str:
+    """Return a non-conflicting index name by appending '_index' if needed."""
+    return f"{name}_index" if name in columns else name
+
+
 def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     """Rename index names that conflict with column names by appending '_index'.
 
@@ -55,12 +60,10 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     if not conflicting_names:
         return df
 
-    new_names: list[str] = []
-    for name in index_names:
-        if name in conflicting_names:
-            new_names.append(f"{name}_index")
-        else:
-            new_names.append(str(name))
+    columns = set(df.columns)
+    new_names = [
+        _resolve_index_name(str(name), columns) for name in index_names
+    ]
 
     if isinstance(df.index, pd.MultiIndex):
         df.index = df.index.set_names(new_names)
@@ -329,9 +332,16 @@ class PandasTableManagerFactory(TableManagerFactory):
             # We override the default implementation to use pandas
             # headers
             def get_row_headers(self) -> FieldTypes:
-                return self._get_row_headers_for_index(
+                headers = self._get_row_headers_for_index(
                     self._original_data.index
                 )
+                # Rename headers that collide with column names so the
+                # frontend receives names consistent with to_json_str().
+                columns = set(self._original_data.columns)
+                return [
+                    (_resolve_index_name(name, columns), ft)
+                    for name, ft in headers
+                ]
 
             def _has_non_trivial_index(self) -> bool:
                 """Check if the DataFrame has a non-trivial index that should be searched."""
