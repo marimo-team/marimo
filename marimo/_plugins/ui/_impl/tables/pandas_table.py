@@ -42,9 +42,9 @@ def _trivial_range_index(index: pd.Index) -> bool:
     return isinstance(index, pd.RangeIndex) and index.name is None
 
 
-def _resolve_index_name(name: str, columns: set[str]) -> str:
+def _resolve_index_name(name: object, columns: set[object]) -> str:
     """Return a non-conflicting index name by appending '_index' if needed."""
-    return f"{name}_index" if name in columns else name
+    return f"{name}_index" if name in columns else str(name)
 
 
 def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -61,9 +61,7 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     columns = set(df.columns)
-    new_names = [
-        _resolve_index_name(str(name), columns) for name in index_names
-    ]
+    new_names = [_resolve_index_name(name, columns) for name in index_names]
 
     if isinstance(df.index, pd.MultiIndex):
         df.index = df.index.set_names(new_names)
