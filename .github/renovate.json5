@@ -126,7 +126,7 @@
     {
       "groupName": "all oxc dependencies",
       "matchUpdateTypes": ["minor", "patch", "major"],
-      "matchPackageNames": ["/.*@oxc.*/"],
+      "matchPackageNames": ["/.*@oxc.*/", "oxlint", "oxfmt"],
       "schedule": ["on the 29th day of the month"]
     }
   ]
