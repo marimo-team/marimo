@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as SwitchPrimitives from "@radix-ui/react-switch";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Switch as SwitchPrimitives } from "radix-ui";
 import * as React from "react";
 import { cn } from "@/utils/cn";
 

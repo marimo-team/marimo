@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as SelectPrimitive from "@radix-ui/react-select";
 import { ChevronDown } from "lucide-react";
+import { Select as SelectPrimitive } from "radix-ui";
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import type { z } from "zod";

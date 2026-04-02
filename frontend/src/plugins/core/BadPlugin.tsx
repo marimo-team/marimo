@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@radix-ui/react-accordion";
+import { Accordion as AccordionPrimitive } from "radix-ui";
+
+const Accordion = AccordionPrimitive.Root;
+const AccordionContent = AccordionPrimitive.Content;
+const AccordionItem = AccordionPrimitive.Item;
+const AccordionTrigger = AccordionPrimitive.Trigger;
+
 import type { JSX } from "react";
 import { ZodError } from "zod";
 import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
