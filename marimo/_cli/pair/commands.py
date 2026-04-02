@@ -95,8 +95,13 @@ def prompt(url: str, claude: bool, codex: bool, opencode: bool) -> None:
         codex $(marimo pair prompt --url 'https://localhost:8000?auth=...' --codex)
         opencode $(marimo pair prompt --url 'https://localhost:8000?auth=...' --opencode)
     """
+    selected_agents = {
+        "claude": claude,
+        "codex": codex,
+        "opencode": opencode,
+    }
     for key, agent in AGENTS.items():
-        if not locals()[key]:
+        if not selected_agents[key]:
             continue
         if not agent.has_skill():
             click.echo(
@@ -116,7 +121,7 @@ def prompt(url: str, claude: bool, codex: bool, opencode: bool) -> None:
         "marimo notebook.\n\n"
         f"Connect to the notebook at: {url}\n\n"
         f"Use `execute-code.sh --url {url}` from the marimo-pair "
-        "skill to execute code in the notebook."
+        "skill to execute code in the notebook. \n\n"
         "Once you are connected, send a fun toast to the user inside marimo letting them know you're ready to pair."
     )
 
