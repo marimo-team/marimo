@@ -292,6 +292,34 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             if has_heatmap and initial_value.get("range"):
                 _append_heatmap_cells_to_selection(figure, initial_value)
 
+            # For histograms, pre-compute sample rows using the selection range.
+            # Interactive events use bin payloads (pointNumbers) for extraction;
+            # programmatic initial selections via add_selection only have a range,
+            # so we resolve sample rows here before _convert_value is called.
+            has_histogram = any(
+                getattr(trace, "type", None) == "histogram"
+                for trace in figure.data
+            )
+            if has_histogram and initial_value.get("range"):
+                histogram_points = _extract_histogram_points_from_range(
+                    figure, cast(dict[str, Any], initial_value["range"])
+                )
+                seen = {
+                    (p.get("pointIndex"), p.get("curveNumber"))
+                    for p in selected_points
+                }
+                for point in histogram_points:
+                    key = (point.get("pointIndex"), point.get("curveNumber"))
+                    if key not in seen:
+                        seen.add(key)
+                        selected_points.append(point)
+                        if isinstance(point.get("pointIndex"), int):
+                            selected_indices.append(
+                                cast(int, point["pointIndex"])
+                            )
+                initial_value["points"] = selected_points
+                initial_value["indices"] = selected_indices
+
             # Note: Bar chart extraction is handled in _convert_value, not here
             # This avoids duplicate extraction since _convert_value is called
             # during super().__init__() with the initial_value
@@ -936,37 +964,30 @@ def _append_histogram_points_to_selection(
     """Append histogram sample rows to selection data.
 
     Histogram selection events are bin-level on the frontend. This function
-    converts selected bins/ranges to underlying sample rows so .value behaves
-    like row-level selections from scatter plots.
+    converts selected bin payloads (pointNumbers) to underlying sample rows so
+    .value behaves like row-level selections from scatter plots.
+
+    Pre-computed sample rows from fig.add_selection() have no pointNumbers and
+    are passed through the filter unchanged — they do not need re-expansion.
     """
     all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
     all_indices = cast(list[Any], selection_data.get("indices", []))
-    range_value = selection_data.get("range")
-
-    histogram_points: list[dict[str, Any]] = []
-
-    if isinstance(range_value, dict):
-        histogram_points = _extract_histogram_points_from_range(
-            figure, cast(dict[str, Any], range_value)
-        )
-
-    # Lasso selections may not include a rectangular range. In that case, use
-    # the selected histogram bin payload (pointNumbers) to recover samples.
-    if not histogram_points:
-        histogram_points = _extract_histogram_points_from_bins(
-            figure, all_points
-        )
-
-    if not histogram_points:
-        return
 
     histogram_curve_numbers = {
         trace_idx
         for trace_idx, trace in enumerate(figure.data)
         if getattr(trace, "type", None) == "histogram"
     }
+    if not histogram_curve_numbers:
+        return
 
-    # Drop existing histogram bin-level points, keep points from other traces.
+    # Expand bin payloads (those with pointNumbers) into sample rows.
+    # Points without pointNumbers are pre-computed sample rows (e.g. from
+    # add_selection) and are preserved through the filter step below.
+    histogram_points = _extract_histogram_points_from_bins(figure, all_points)
+
+    # Drop only bin-level payloads (those with pointNumbers); keep sample rows
+    # from other traces and pre-computed histogram rows (e.g. add_selection).
     filtered_points: list[dict[str, Any]] = []
     filtered_indices: list[int] = []
     seen = set()
@@ -976,7 +997,7 @@ def _append_histogram_points_to_selection(
             continue
 
         curve_number = point.get("curveNumber")
-        if curve_number in histogram_curve_numbers:
+        if curve_number in histogram_curve_numbers and "pointNumbers" in point:
             continue
 
         filtered_points.append(point)
@@ -991,7 +1012,7 @@ def _append_histogram_points_to_selection(
         if key != (None, None):
             seen.add(key)
 
-    # Merge histogram sample rows with deduplication by (curveNumber, pointIndex).
+    # Merge bin-expanded sample rows with deduplication by (curveNumber, pointIndex).
     for point in histogram_points:
         key = (point.get("pointIndex"), point.get("curveNumber"))
         if key in seen:

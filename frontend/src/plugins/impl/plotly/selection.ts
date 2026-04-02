@@ -18,8 +18,6 @@ export interface PlotlyClickSelection {
 const CLICK_SELECTABLE_TRACE_TYPES = new Set([
   "heatmap",
   "histogram",
-  "scatter",
-  "scattergl",
 ]);
 
 const STANDARD_POINT_KEYS: string[] = [

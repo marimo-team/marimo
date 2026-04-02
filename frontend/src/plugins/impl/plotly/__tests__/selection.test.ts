@@ -113,7 +113,10 @@ describe("extractClickSelection", () => {
     expect(extractClickSelection(event)).toBeUndefined();
   });
 
-  it("filters unsupported points and preserves supported click payloads", () => {
+  it("returns undefined when all points are non-click-selectable trace types", () => {
+    // scatter and scattergl use onSelected (box/lasso) for selection, not onClick.
+    // Clicks on these traces fire both plotly_click and plotly_selected; the
+    // latter provides a range and must be the authoritative source.
     const event = makeClickEvent([
       makePoint({
         x: "ignore",
@@ -126,46 +129,51 @@ describe("extractClickSelection", () => {
         y: 5,
         curveNumber: 1,
         pointIndex: 3,
-        customdata: ["P2"],
-        data: {
-          type: "scatter",
-          hovertemplate:
-            "label=%{customdata[0]}<br>x=%{x}<br>y=%{y}<extra></extra>",
-        },
+        data: { type: "scatter" },
       }),
       makePoint({
         x: 4,
         y: 12,
         curveNumber: 2,
         pointNumber: 5,
-        customdata: ["Q4"],
-        data: {
-          type: "scattergl",
-          hovertemplate:
-            "label=%{customdata[0]}<br>x=%{x}<br>value=%{y}<extra></extra>",
-        },
+        data: { type: "scattergl" },
+      }),
+    ]);
+
+    expect(extractClickSelection(event)).toBeUndefined();
+  });
+
+  it("filters unsupported points and preserves supported click payloads", () => {
+    // bar is unsupported; histogram is supported and its pointNumbers must be
+    // forwarded so the backend can recover the exact sample rows.
+    const event = makeClickEvent([
+      makePoint({
+        x: "ignore",
+        y: 1,
+        pointIndex: 0,
+        data: { type: "bar" },
+      }),
+      makePoint({
+        x: 8,
+        y: 3,
+        curveNumber: 1,
+        pointNumber: 2,
+        pointNumbers: [4, 5, 6],
+        data: { type: "histogram" },
       }),
     ]);
 
     expect(extractClickSelection(event)).toEqual({
       selections: [],
       range: undefined,
-      indices: [3, 5],
+      indices: [2],
       points: [
         {
-          x: 2,
-          y: 5,
+          x: 8,
+          y: 3,
           curveNumber: 1,
-          pointIndex: 3,
-          label: "P2",
-        },
-        {
-          x: 4,
-          y: 12,
-          curveNumber: 2,
-          pointNumber: 5,
-          value: 12,
-          label: "Q4",
+          pointNumber: 2,
+          pointNumbers: [4, 5, 6],
         },
       ],
     });
