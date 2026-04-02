@@ -186,6 +186,16 @@ def _category_position_map(values: Any) -> dict[Any, float]:
     return positions
 
 
+def _safe_category_get(
+    positions: dict[Any, float], value: Any, default: float
+) -> float:
+    """Get a category position, returning default for unhashable values."""
+    try:
+        return positions.get(value, default)
+    except TypeError:
+        return default
+
+
 @mddoc
 class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     """Make reactive plots with Plotly.
@@ -861,7 +871,10 @@ def _extract_scatter_points_numpy(
             # indices, so repeated categories map to the same coordinate.
             x_category_positions = _category_position_map(x_data)
             x_positions = np.asarray(
-                [x_category_positions.get(value, np.nan) for value in x_data],
+                [
+                    _safe_category_get(x_category_positions, value, np.nan)
+                    for value in x_data
+                ],
                 dtype=float,
             )
             x_mask = (x_max > x_positions - 0.5) & (x_min < x_positions + 0.5)
@@ -874,7 +887,7 @@ def _extract_scatter_points_numpy(
                 y_category_positions = _category_position_map(y_data)
                 y_positions = np.asarray(
                     [
-                        y_category_positions.get(value, np.nan)
+                        _safe_category_get(y_category_positions, value, np.nan)
                         for value in y_data
                     ],
                     dtype=float,
@@ -961,18 +974,20 @@ def _extract_scatter_points_fallback(
         y_min_p = _parse_datetime_bound(y_min) if has_y_range else None
         y_max_p = _parse_datetime_bound(y_max) if has_y_range else None
 
-        points = list(zip(x_data, y_data))
         x_category_positions = _category_position_map(x_data)
         y_category_positions = _category_position_map(y_data)
 
         # First pass: include points directly inside current selection bounds.
-        for point_idx, (x_val, y_val) in enumerate(points):
+        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
             x_in_range = False
 
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
                 x_in_range = x_min_p <= x_val <= x_max_p
             else:
-                x_position = x_category_positions.get(x_val)
+                try:
+                    x_position = x_category_positions.get(x_val)
+                except TypeError:
+                    continue
                 if x_position is None:
                     continue
                 cell_x_min = x_position - 0.5
@@ -986,7 +1001,10 @@ def _extract_scatter_points_fallback(
                         cast(Any, y_min_p) <= y_val <= cast(Any, y_max_p)
                     )
                 else:
-                    y_position = y_category_positions.get(y_val)
+                    try:
+                        y_position = y_category_positions.get(y_val)
+                    except TypeError:
+                        continue
                     if y_position is None:
                         continue
                     cell_y_min = y_position - 0.5
@@ -999,7 +1017,8 @@ def _extract_scatter_points_fallback(
                 selected_indices.add(point_idx)
 
         for point_idx in sorted(selected_indices):
-            x_val, y_val = points[point_idx]
+            x_val = x_data[point_idx]
+            y_val = y_data[point_idx]
             point_dict = {
                 x_field: x_val,
                 y_field: y_val,

@@ -10,7 +10,7 @@ import {
   type ModeBarButton,
   mergeModeBarButtonsToAdd,
   shouldHandleClickSelection,
-} from "../plotlySelection";
+} from "../selection";
 
 function createTrace(trace: Partial<Plotly.PlotData>): Plotly.Data {
   return trace as unknown as Plotly.Data;

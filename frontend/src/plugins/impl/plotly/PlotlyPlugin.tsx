@@ -24,7 +24,7 @@ import {
   type ModeBarButton,
   mergeModeBarButtonsToAdd,
   shouldHandleClickSelection,
-} from "./plotlySelection";
+} from "./selection";
 import { usePlotlyLayout } from "./usePlotlyLayout";
 
 interface Data {
