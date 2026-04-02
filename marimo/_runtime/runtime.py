@@ -3196,7 +3196,9 @@ class PackagesCallbacks:
             pkg: "queued" for pkg in missing_packages
         }
         broadcast_notification(
-            InstallingPackageAlertNotification(packages=package_statuses)
+            InstallingPackageAlertNotification(
+                packages=package_statuses, source=request.source
+            )
         )
 
         def create_log_callback(pkg: str) -> LogCallback:
@@ -3206,6 +3208,7 @@ class PackagesCallbacks:
                         packages=package_statuses,
                         logs={pkg: log_line},
                         log_status="append",
+                        source=request.source,
                     ),
                 )
 
@@ -3218,7 +3221,9 @@ class PackagesCallbacks:
                 continue
             package_statuses[pkg] = "installing"
             broadcast_notification(
-                InstallingPackageAlertNotification(packages=package_statuses)
+                InstallingPackageAlertNotification(
+                    packages=package_statuses, source=request.source
+                )
             )
 
             # Send initial "start" log
@@ -3227,6 +3232,7 @@ class PackagesCallbacks:
                     packages=package_statuses,
                     logs={pkg: f"Installing {pkg}...\n"},
                     log_status="start",
+                    source=request.source,
                 )
             )
 
@@ -3241,6 +3247,7 @@ class PackagesCallbacks:
                         packages=package_statuses,
                         logs={pkg: f"Successfully installed {pkg}\n"},
                         log_status="done",
+                        source=request.source,
                     ),
                 )
             else:
@@ -3253,6 +3260,7 @@ class PackagesCallbacks:
                         packages=package_statuses,
                         logs={pkg: f"Failed to install {pkg}\n"},
                         log_status="done",
+                        source=request.source,
                     ),
                 )
 

@@ -19,6 +19,7 @@ export interface InstallingPackageAlert {
   packages: PackageInstallationStatus;
   logs?: { [key: string]: string } | null;
   log_status?: "append" | "start" | "done" | null;
+  source?: "kernel" | "server";
 }
 
 export interface StartupLogsAlert {
