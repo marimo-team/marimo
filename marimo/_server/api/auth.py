@@ -66,31 +66,38 @@ def validate_auth(
             LOGGER.warning("Invalid password from form data.")
             return False
 
-    # Check for basic auth
+    # Check for Authorization header (Bearer or Basic)
     auth = conn.headers.get("Authorization")
     if auth is not None:
-        username, password = _parse_basic_auth_header(auth)
-        if username and password == auth_token:
-            LOGGER.debug("Validated basic auth from header")
-            # Set the cookie
+        scheme, _, credentials = auth.partition(" ")
+        scheme_lower = scheme.lower()
+
+        if scheme_lower == "bearer" and credentials == auth_token:
+            LOGGER.debug("Validated bearer token from header")
             cookie_session.set_access_token(auth_token)
-            cookie_session.set_username(username)
             return True  # Success
+
+        if scheme_lower == "basic":
+            username, password = _parse_basic_auth_credentials(credentials)
+            if username and password == auth_token:
+                LOGGER.debug("Validated basic auth from header")
+                cookie_session.set_access_token(auth_token)
+                cookie_session.set_username(username)
+                return True  # Success
 
     LOGGER.debug("Invalid auth")
     return False
 
 
-def _parse_basic_auth_header(
-    header: str,
+def _parse_basic_auth_credentials(
+    credentials: str,
 ) -> tuple[Optional[str], Optional[str]]:
-    scheme, _, credentials = header.partition(" ")
-
-    if scheme.lower() != "basic":
-        LOGGER.debug("Invalid auth scheme: %s", scheme)
+    try:
+        decoded = base64.b64decode(credentials).decode("utf-8")
+    except Exception:
+        LOGGER.debug("Invalid base64 in basic auth credentials")
         return None, None
 
-    decoded = base64.b64decode(credentials).decode("utf-8")
     username, _, password = decoded.partition(":")
 
     if not password:

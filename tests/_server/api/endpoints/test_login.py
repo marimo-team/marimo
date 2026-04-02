@@ -196,3 +196,50 @@ def test_login_submit_invalid_password_with_base_url():
     assert response.status_code == 200
     assert "Invalid password" in response.text
     assert 'action="/app/auth/login"' in response.text
+
+
+def test_auth_token_returns_token_when_authenticated(client: TestClient):
+    """Authenticated user gets the auth token."""
+    # First authenticate via login
+    client.post("/login", data={"password": str(AUTH_TOKEN)})
+    response = client.get("/token")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["token"] == str(AUTH_TOKEN)
+
+
+def test_auth_token_unauthenticated_returns_403(client: TestClient):
+    """Unauthenticated request to /token is rejected."""
+    response = client.get("/token")
+    assert response.status_code == 403
+
+
+def test_auth_token_returns_null_when_auth_disabled():
+    """When auth is disabled, /token returns null."""
+    app = create_app()
+    app.state.enable_auth = False
+    # Auth middleware still present but we authenticate first
+    test_client = TestClient(app, follow_redirects=False)
+    test_client.post("/login", data={"password": str(AUTH_TOKEN)})
+    response = test_client.get("/token")
+    assert response.status_code == 200
+    assert response.json()["token"] is None
+
+
+def test_bearer_auth_valid_token(client: TestClient):
+    """Bearer token auth grants access."""
+    response = client.get(
+        "/token",
+        headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["token"] == str(AUTH_TOKEN)
+
+
+def test_bearer_auth_invalid_token(client: TestClient):
+    """Bearer token with wrong value is rejected."""
+    response = client.get(
+        "/token",
+        headers={"Authorization": "Bearer wrong-token"},
+    )
+    assert response.status_code == 403
