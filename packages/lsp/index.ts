@@ -1,3 +1,4 @@
+/* oxlint-disable no-console -- LSP server uses console for logging */
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { dirname } from "node:path";
@@ -29,25 +30,21 @@ class Logger {
     try {
       await appendFile(this.logFilePath, `${log}\n`);
     } catch (error) {
-      // biome-ignore lint/suspicious/noConsole: For printing to the console
       console.error("Failed to write to log file:", error);
     }
   }
 
   debug(...args: Parameters<typeof console.log>): void {
-    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.log(...args);
     void this.appendToLogFile("[DEBUG]", ...args);
   }
 
   log(...args: Parameters<typeof console.log>): void {
-    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.log(...args);
     void this.appendToLogFile("[INFO]", ...args);
   }
 
   error(...args: Parameters<typeof console.error>): void {
-    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.error(...args);
     void this.appendToLogFile("[ERROR]", ...args);
   }
@@ -237,7 +234,6 @@ async function main(): Promise<void> {
   const argv = parseArgs(process.argv);
 
   if (argv.help) {
-    // biome-ignore lint/suspicious/noConsole: For printing to the console
     console.log(
       'Usage: node index.cjs --log-file <path> --lsp "<command>" [--port <port>]',
     );
