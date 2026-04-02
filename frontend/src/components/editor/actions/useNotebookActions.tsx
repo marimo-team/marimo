@@ -36,6 +36,7 @@ import {
   PresentationIcon,
   SettingsIcon,
   Share2Icon,
+  SparklesIcon,
   Undo2Icon,
   XCircleIcon,
   YoutubeIcon,
@@ -45,6 +46,7 @@ import { settingDialogAtom } from "@/components/app-config/state";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { PairWithAgentModal } from "@/components/editor/actions/pair-with-agent-modal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { toast } from "@/components/ui/use-toast";
 import {
@@ -341,6 +343,14 @@ export function useNotebookActions() {
               handle: handleDocumentPDF,
             },
       ],
+    },
+
+    {
+      icon: <SparklesIcon size={14} strokeWidth={1.5} />,
+      label: "Pair with an agent",
+      handle: async () => {
+        openModal(<PairWithAgentModal onClose={closeModal} />);
+      },
     },
 
     {
