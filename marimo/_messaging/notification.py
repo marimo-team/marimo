@@ -224,11 +224,13 @@ class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
         import base64
 
         d: dict[str, Any] = msgspec.to_builtins(self)
-        # bytes are not JSON-serializable; base64-encode each buffer
         msg = d.get("message", {})
         if "buffers" in msg:
             msg["buffers"] = [
-                base64.b64encode(b).decode("ascii") for b in msg["buffers"]
+                b
+                if isinstance(b, str)
+                else base64.b64encode(b).decode("ascii")
+                for b in msg["buffers"]
             ]
         return d
 
