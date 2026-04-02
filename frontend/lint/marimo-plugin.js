@@ -140,8 +140,7 @@ const atomWithStorageArgs = {
     return {
       CallExpression(node) {
         const callee = node.callee;
-        const name =
-          callee.type === "Identifier" ? callee.name : null;
+        const name = callee.type === "Identifier" ? callee.name : null;
 
         if (name !== "atomWithStorage") {
           return;

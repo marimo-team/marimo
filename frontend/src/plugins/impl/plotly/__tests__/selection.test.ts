@@ -93,6 +93,14 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
   });
 
+  it("accepts histogram clicks", () => {
+    const histogramPoint = createPlotDatum({
+      data: { type: "histogram" },
+    });
+
+    expect(shouldHandleClickSelection([histogramPoint])).toBe(true);
+  });
+
   it("accepts scatter clicks when Plotly omits mode", () => {
     const linePoint = createPlotDatum({
       data: { type: "scatter" },

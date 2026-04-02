@@ -76,8 +76,10 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
     );
   });
 
-interface Props
-  extends Omit<DataEditorProps<object>, "data" | "onAddEdits" | "onAddRows"> {
+interface Props extends Omit<
+  DataEditorProps<object>,
+  "data" | "onAddEdits" | "onAddRows"
+> {
   data: TableData<object>;
   edits: Edits;
   onEdits: Setter<Edits>;

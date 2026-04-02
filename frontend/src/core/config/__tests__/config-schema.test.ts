@@ -70,9 +70,7 @@ test("default UserConfig - empty", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {
-        "storage_inspector": true,
-      },
+      "experimental": {},
       "formatting": {
         "line_length": 79,
       },
@@ -142,9 +140,7 @@ test("default UserConfig - one level", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {
-        "storage_inspector": true,
-      },
+      "experimental": {},
       "formatting": {
         "line_length": 79,
       },

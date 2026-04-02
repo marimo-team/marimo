@@ -72,9 +72,10 @@ type EditNotebookInput = z.infer<typeof editNotebookSchema>;
 type EditOperation = EditNotebookInput["edit"];
 export type EditType = EditOperation["type"];
 
-export class EditNotebookTool
-  implements AiTool<EditNotebookInput, ToolOutputBase>
-{
+export class EditNotebookTool implements AiTool<
+  EditNotebookInput,
+  ToolOutputBase
+> {
   readonly name = "edit_notebook_tool";
   readonly description = description;
   readonly schema = editNotebookSchema;

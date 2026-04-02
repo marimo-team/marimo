@@ -220,9 +220,10 @@ export function mergeModeBarButtonsToAdd(
 export function shouldHandleClickSelection(
   points: readonly Plotly.PlotDatum[],
 ): boolean {
-  return points.some(
-    (point) => getTraceSource(point).type === "heatmap" || isLinePoint(point),
-  );
+  return points.some((point) => {
+    const type = getTraceSource(point).type;
+    return type === "heatmap" || type === "histogram" || isLinePoint(point);
+  });
 }
 
 export function extractIndices(points: readonly Plotly.PlotDatum[]): number[] {

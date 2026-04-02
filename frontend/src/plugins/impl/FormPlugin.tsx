@@ -80,8 +80,7 @@ export const FormPlugin = createPlugin("marimo-form")
   });
 
 export interface FormWrapperProps<T>
-  extends Omit<Data, "elementId">,
-    Functions {
+  extends Omit<Data, "elementId">, Functions {
   children: React.ReactNode;
   currentValue: T;
   newValue: T;

@@ -16,9 +16,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useFilename } from "@/core/saving/filename";
 import { cn } from "@/utils/cn";
-import { Paths } from "@/utils/paths";
 import { AgentDocs } from "./agent-docs";
 import {
   type AgentSession,
@@ -55,17 +53,17 @@ const AVAILABLE_AGENTS = [
     displayName: "OpenCode",
     iconId: "opencode",
   },
+  { id: "cursor", displayName: "Cursor", iconId: "cursor" },
 ] as const;
 
 interface AgentMenuItemProps {
   agent: (typeof AVAILABLE_AGENTS)[number];
   onSelect: (agentId: ExternalAgentId) => void;
   existingSessions: AgentSession[];
-  filename: string | null;
 }
 
 const AgentMenuItem = memo<AgentMenuItemProps>(
-  ({ agent, onSelect, existingSessions, filename }) => {
+  ({ agent, onSelect, existingSessions }) => {
     const sessionSupport = getAgentSessionSupport(agent.id);
     const hasExistingSession = existingSessions.some(
       (s) => s.agentId === agent.id,
@@ -108,11 +106,6 @@ const AgentMenuItem = memo<AgentMenuItemProps>(
               <div className="text-xs font-medium text-muted-foreground mb-3">
                 To start a {agent.displayName} agent, run the following command
                 in your terminal.
-                <br />
-                Note: This must be in the directory{" "}
-                <code className="bg-muted font-mono">
-                  {Paths.dirname(filename ?? "")}
-                </code>
               </div>
               <AgentDocs agents={[agent.id]} showCopy={true} />
             </div>
@@ -126,7 +119,6 @@ AgentMenuItem.displayName = "AgentMenuItem";
 
 export const AgentSelector: React.FC<AgentSelectorProps> = memo(
   ({ onSessionCreated, className }) => {
-    const filename = useFilename();
     const [sessionState, setSessionState] = useAtom(agentSessionStateAtom);
     const setActiveTab = useSetAtom(selectedTabAtom);
     const [isOpen, setIsOpen] = useState(false);
@@ -165,7 +157,6 @@ export const AgentSelector: React.FC<AgentSelectorProps> = memo(
               agent={agent}
               onSelect={handleCreateSession}
               existingSessions={sessionState.sessions}
-              filename={filename}
             />
           ))}
         </DropdownMenuContent>

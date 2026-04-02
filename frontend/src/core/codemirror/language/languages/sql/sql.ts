@@ -77,9 +77,7 @@ function getLatestEngine(): ConnectionName {
 /**
  * Language adapter for SQL.
  */
-export class SQLLanguageAdapter
-  implements LanguageAdapter<SQLLanguageAdapterMetadata>
-{
+export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMetadata> {
   private parser = new SQLParser();
   readonly type = "sql";
   sqlModeEnabled: boolean;

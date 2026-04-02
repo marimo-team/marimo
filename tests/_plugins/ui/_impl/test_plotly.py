@@ -2363,10 +2363,13 @@ def test_histogram_selection_vertical_row_level() -> None:
     fig = go.Figure(data=go.Histogram(x=x_values))
     plot = plotly(fig)
 
+    # Simulate Plotly bin payloads covering indices 1, 2, 3 (-0.4, 0.1, 0.6)
     selection = {
-        "range": {"x": [-0.5, 0.7], "y": [0, 50]},
-        "points": [],
-        "indices": [],
+        "points": [
+            {"curveNumber": 0, "pointNumber": 0, "pointNumbers": [1, 2]},
+            {"curveNumber": 0, "pointNumber": 1, "pointNumbers": [3]},
+        ],
+        "indices": [0, 1],
     }
 
     result = plot._convert_value(selection)
@@ -2378,15 +2381,17 @@ def test_histogram_selection_vertical_row_level() -> None:
 
 
 def test_histogram_selection_horizontal_row_level() -> None:
-    """Test horizontal histogram selection uses y-range for row extraction."""
+    """Test horizontal histogram selection returns underlying sample rows."""
     y_values = [5, 10, 15, 20]
     fig = go.Figure(data=go.Histogram(y=y_values, orientation="h"))
     plot = plotly(fig)
 
+    # Simulate Plotly bin payload covering indices 1, 2 (y=10, 15)
     selection = {
-        "range": {"x": [0, 50], "y": [9, 18]},
-        "points": [],
-        "indices": [],
+        "points": [
+            {"curveNumber": 0, "pointNumber": 0, "pointNumbers": [1, 2]},
+        ],
+        "indices": [0],
     }
 
     result = plot._convert_value(selection)
@@ -2409,10 +2414,12 @@ def test_histogram_selection_preserves_optional_fields() -> None:
     )
     plot = plotly(fig)
 
+    # Simulate Plotly bin payload for indices 1, 2 (x=1, x=2)
     selection = {
-        "range": {"x": [0.5, 2.5], "y": [0, 100]},
-        "points": [],
-        "indices": [],
+        "points": [
+            {"curveNumber": 0, "pointNumber": 0, "pointNumbers": [1, 2]},
+        ],
+        "indices": [0],
     }
 
     result = plot._convert_value(selection)
@@ -2485,11 +2492,12 @@ def test_histogram_mixed_with_scatter_drops_bin_payload() -> None:
     fig.add_trace(go.Histogram(x=[0.1, 0.2, 0.7]))
     plot = plotly(fig)
 
+    # Scatter provides per-point payload; histogram provides a bin payload
+    # with pointNumbers covering samples at indices 0 (x=0.1) and 1 (x=0.2).
     selection = {
-        "range": {"x": [0.0, 0.3], "y": [0, 50]},
         "points": [
             {"x": 0.1, "y": 10, "curveNumber": 0, "pointIndex": 0},
-            {"x": 0.2, "y": 2, "curveNumber": 1, "pointNumber": 0},
+            {"curveNumber": 1, "pointNumber": 0, "pointNumbers": [0, 1]},
         ],
         "indices": [0, 0],
     }
@@ -2647,6 +2655,69 @@ def test_histogram_numpy_and_fallback_match_numeric() -> None:
 
     for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
         assert np_point == fb_point
+
+
+def test_histogram_click_uses_bin_pointnumbers_not_range() -> None:
+    """When a click sends both pointNumbers and a range, bin membership wins.
+
+    In Plotly "select" dragmode, clicking a histogram bar fires both
+    plotly_click and plotly_selected. The latter sets range to the click
+    coordinates. The backend must prioritise the exact bin pointNumbers over
+    raw x-range filtering so that only samples belonging to the clicked bin
+    are returned — not all samples whose x-value happens to fall inside the
+    click range.
+    """
+    x_values = [1.0, 1.5, 2.5, 3.0, 4.0]
+    fig = go.Figure(data=go.Histogram(x=x_values))
+    plot = plotly(fig)
+
+    # Simulates the double-fire scenario: the frontend sends both a range
+    # (from onSelected) and a bin point with pointNumbers (from onClick).
+    # The bin covers samples at indices 0 and 1 (x=1.0, x=1.5).
+    # Raw range filtering on [1.0, 2.0] would also pick up x=1.5 and
+    # potentially x=2.5 depending on bin boundaries — using pointNumbers
+    # ensures only indices 0 and 1 are returned.
+    selection = {
+        "range": {"x": [1.0, 2.0], "y": [0, 10]},
+        "points": [
+            {
+                "x": 1.25,
+                "y": 2,
+                "curveNumber": 0,
+                "pointNumber": 0,
+                "pointNumbers": [0, 1],
+            }
+        ],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert {p["pointIndex"] for p in result} == {0, 1}
+    assert all(p["x"] in (1.0, 1.5) for p in result)
+
+
+def test_histogram_empty_box_selection_returns_empty() -> None:
+    """Selecting an empty region on a histogram must return no data.
+
+    When the user draws a box/lasso over an area with no histogram bars,
+    Plotly sends points=[] and range={x:[a,b]}. The backend must not use the
+    range to find nearby samples — an empty selection must produce empty output.
+    """
+    x_values = [1.0, 2.0, 3.0, 4.0, 5.0]
+    fig = go.Figure(data=go.Histogram(x=x_values))
+    plot = plotly(fig)
+
+    # Plotly sends empty points when the drawn box covers no bars.
+    selection = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [10.0, 20.0], "y": [0, 10]},
+    }
+
+    result = plot._convert_value(selection)
+    assert result == []
 
 
 def test_histogram_numpy_and_fallback_match_categorical() -> None:

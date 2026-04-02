@@ -45,9 +45,8 @@ def foo(x):
   });
 
   test("should handle lambda parameters", () => {
-    expect(
-      runHighlight(["a", "b"], "result = lambda a: a + b"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["a", "b"], "result = lambda a: a + b"))
+      .toMatchInlineSnapshot(`
       "
       result = lambda a: a + b
                              ^
@@ -56,9 +55,8 @@ def foo(x):
   });
 
   test("should handle comprehension variables", () => {
-    expect(
-      runHighlight(["a", "data"], "result = [a for a in data]"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["a", "data"], "result = [a for a in data]"))
+      .toMatchInlineSnapshot(`
       "
       result = [a for a in data]
                            ^^^^
@@ -146,9 +144,8 @@ def factorial(n):
   });
 
   test("function param vs global", () => {
-    expect(
-      runHighlight(["a", "b"], "def foo(a): return a + b"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["a", "b"], "def foo(a): return a + b"))
+      .toMatchInlineSnapshot(`
       "
       def foo(a): return a + b
                              ^
@@ -157,9 +154,8 @@ def factorial(n):
   });
 
   test("lambda param vs global", () => {
-    expect(
-      runHighlight(["x", "b"], "func = lambda x: x + b"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["x", "b"], "func = lambda x: x + b"))
+      .toMatchInlineSnapshot(`
       "
       func = lambda x: x + b
                            ^
@@ -168,9 +164,8 @@ def factorial(n):
   });
 
   test("lambda with multiple params", () => {
-    expect(
-      runHighlight(["x", "y", "z"], "f = lambda x, y: x + y + z"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["x", "y", "z"], "f = lambda x, y: x + y + z"))
+      .toMatchInlineSnapshot(`
       "
       f = lambda x, y: x + y + z
                                ^
@@ -187,9 +182,8 @@ def factorial(n):
   });
 
   test("nested comprehension", () => {
-    expect(
-      runHighlight(["a", "b"], "[(a + b) for a, b in [(1,2), (3,4)]]"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["a", "b"], "[(a + b) for a, b in [(1,2), (3,4)]]"))
+      .toMatchInlineSnapshot(`
       "
       [(a + b) for a, b in [(1,2), (3,4)]]
       "
@@ -225,9 +219,8 @@ def factorial(n):
   });
 
   test("class body using globals", () => {
-    expect(
-      runHighlight(["a", "b"], "class MyClass:\n  value = a + b"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["a", "b"], "class MyClass:\n  value = a + b"))
+      .toMatchInlineSnapshot(`
       "
       class MyClass:
         value = a + b
@@ -237,9 +230,8 @@ def factorial(n):
   });
 
   test("decorator using global", () => {
-    expect(
-      runHighlight(["logger"], "@logger\ndef decorated(): pass"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["logger"], "@logger\ndef decorated(): pass"))
+      .toMatchInlineSnapshot(`
       "
       @logger
        ^^^^^^
@@ -317,9 +309,8 @@ ${" ".repeat(8)}
   });
 
   test("multiple assignment", () => {
-    expect(
-      runHighlight(["x", "y", "z", "a"], "x = y = z + a"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["x", "y", "z", "a"], "x = y = z + a"))
+      .toMatchInlineSnapshot(`
       "
       x = y = z + a
               ^   ^
@@ -353,9 +344,8 @@ ${" ".repeat(8)}
   });
 
   test("global in return", () => {
-    expect(
-      runHighlight(["config"], "def get_config(): return config"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["config"], "def get_config(): return config"))
+      .toMatchInlineSnapshot(`
       "
       def get_config(): return config
                                ^^^^^^
@@ -410,9 +400,8 @@ class Configurable:
   });
 
   test("comprehension shadows global 2", () => {
-    expect(
-      runHighlight(["i"], "squares = [i**2 for i in range(10)]"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["i"], "squares = [i**2 for i in range(10)]"))
+      .toMatchInlineSnapshot(`
       "
       squares = [i**2 for i in range(10)]
       "
@@ -420,9 +409,8 @@ class Configurable:
   });
 
   test("comprehension with global in condition", () => {
-    expect(
-      runHighlight(["x", "z"], "filtered = [x for x in [] if x > z]"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["x", "z"], "filtered = [x for x in [] if x > z]"))
+      .toMatchInlineSnapshot(`
       "
       filtered = [x for x in [] if x > z]
                                        ^
@@ -459,9 +447,8 @@ def make_adder(x):
   });
 
   test("rebinding in list comprehension", () => {
-    expect(
-      runHighlight(["x"], "rebinding = [x for x in range(5)]"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["x"], "rebinding = [x for x in range(5)]"))
+      .toMatchInlineSnapshot(`
       "
       rebinding = [x for x in range(5)]
       "
@@ -644,9 +631,8 @@ def run(polars):
   });
 
   test("mixed comprehension and outer globals", () => {
-    expect(
-      runHighlight(["y", "z"], "values = [y + z for y in range(5)]"),
-    ).toMatchInlineSnapshot(`
+    expect(runHighlight(["y", "z"], "values = [y + z for y in range(5)]"))
+      .toMatchInlineSnapshot(`
       "
       values = [y + z for y in range(5)]
                     ^

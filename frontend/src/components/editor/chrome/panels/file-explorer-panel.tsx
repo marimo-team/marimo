@@ -7,7 +7,6 @@ import React, { useCallback, useMemo } from "react";
 import useResizeObserver from "use-resize-observer";
 import { StorageInspector } from "@/components/storage/storage-inspector";
 import { Accordion } from "@/components/ui/accordion";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { storageNamespacesAtom } from "@/core/storage/state";
 import { cn } from "@/utils/cn";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
@@ -102,15 +101,6 @@ const FileExplorerPanel: React.FC = () => {
     200,
     bothOpen ? availableContent - storageMaxHeight : availableContent,
   );
-
-  const storageInspectorEnabled = getFeatureFlag("storage_inspector");
-  if (!storageInspectorEnabled) {
-    return (
-      <div ref={panelRef} className="h-full overflow-auto">
-        <FileExplorerComponent height={panelHeight} />
-      </div>
-    );
-  }
 
   return (
     <div ref={panelRef} className="h-full overflow-auto">

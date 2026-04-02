@@ -12,8 +12,9 @@ export interface CopyColumnInstance {
 
 // Use declaration merging to add our new feature APIs
 declare module "@tanstack/react-table" {
-  interface TableOptionsResolved<TData extends RowData>
-    extends CopyColumnOptions {}
+  interface TableOptionsResolved<
+    TData extends RowData,
+  > extends CopyColumnOptions {}
 
   interface Column<TData extends RowData> extends CopyColumnInstance {}
 }
