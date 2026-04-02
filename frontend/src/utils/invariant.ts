@@ -29,8 +29,7 @@ export function invariant(
   if (!expression) {
     if (import.meta.env.DEV) {
       // Triggers a breakpoint in development; stripped out in production builds.
-      // biome-ignore lint/suspicious/noDebugger: code block is stripped out in production builds
-      debugger; // oxlint-disable-line no-debugger
+      debugger; // oxlint-disable-line no-debugger -- stripped out in production builds
     }
     throw new Error(msg);
   }

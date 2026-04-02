@@ -69,7 +69,7 @@ const RoutesComponent = ({
   }, [handleFindMatch]);
 
   if (!matched) {
-    // biome-ignore lint/complexity/noUselessFragments: this is intentional
+    // oxlint-ignore-next-line react/jsx-no-useless-fragment -- this is intentional
     return <></>;
   }
 

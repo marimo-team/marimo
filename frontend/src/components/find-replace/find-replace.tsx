@@ -221,7 +221,9 @@ export const FindReplace: React.FC = () => {
                 variant="outline"
                 className="h-6 text-xs"
                 onClick={() => {
-                  replaceNext() && resetMatches();
+                  if (replaceNext()) {
+                    resetMatches();
+                  }
                 }}
                 disabled={state.findText === ""}
               >

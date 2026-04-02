@@ -26,14 +26,28 @@
     // === Marimo custom rules ===
     "marimo/add-event-listener-object": "error",
     "marimo/remove-event-listener-object": "error",
-    "marimo/prefer-object-params": "warn",
+    "marimo/prefer-object-params": "off",
     "marimo/atom-with-storage-args": "error",
 
     // === Disabled category rules (too noisy / not applicable) ===
     "no-use-before-define": "off",
     "no-undefined": "off",
+    "no-shadow": "off",
+    "no-eq-null": "off",
+    "no-plusplus": "off",
+    "no-param-reassign": "off",
+    "no-void": "off",
+    "no-await-in-loop": "off",
+    "complexity": "off",
+    "default-case": "off",
+    "class-methods-use-this": "off",
     "react/react-in-jsx-scope": "off",
+    "react/only-export-components": "off",
     "typescript/explicit-module-boundary-types": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/prefer-add-event-listener": "off",
     "vitest/require-test-timeout": "off",
     "vitest/require-mock-type-parameters": "off",
 
@@ -53,6 +67,8 @@
     "eqeqeq": ["error", "smart"],
     "curly": "error",
     "array-callback-return": "warn",
+    "no-new": "off",
+    "no-bitwise": "off",
     // TODO: re-enable
     "no-control-regex": "warn",
     // TODO: re-enable
@@ -74,15 +90,7 @@
     "typescript/no-empty-object-type": "off",
     "typescript/no-confusing-void-expression": "error",
     "typescript/consistent-type-imports": ["error", { "disallowTypeAnnotations": false }],
-    "typescript/explicit-function-return-type": ["warn", {
-      "allowConciseArrowFunctionExpressionsStartingWithVoid": true,
-      "allowDirectConstAssertionInArrowFunctions": true,
-      "allowExpressions": true,
-      "allowFunctionsWithoutTypeParameters": true,
-      "allowHigherOrderFunctions": true,
-      "allowIIFEs": true,
-      "allowTypedFunctionExpressions": true,
-    }],
+    "typescript/explicit-function-return-type": "off",
 
     // === Unicorn ===
     "unicorn/switch-case-braces": ["error", "avoid"],
@@ -94,6 +102,7 @@
     "unicorn/no-instanceof-array": "error",
 
     // === React ===
+    "react/no-array-index-key": "warn",
     "react/jsx-boolean-value": ["error", "always"],
     "react/jsx-pascal-case": "error",
     "react/no-multi-comp": "off",
@@ -114,7 +123,7 @@
     "jsx-a11y/heading-has-content": "warn",
     "jsx-a11y/iframe-has-title": "warn",
     "jsx-a11y/media-has-caption": "warn",
-    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/no-noninteractive-tabindex": "warn",
     "jsx-a11y/no-static-element-interactions": "warn",
     "jsx-a11y/prefer-tag-over-role": "warn",

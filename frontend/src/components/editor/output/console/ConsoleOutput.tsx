@@ -234,7 +234,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
         data-testid="console-output-area"
         ref={ref}
         {...selectAllProps}
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: Needed to capture keypress events
+        // oxlint-ignore-next-line jsx-a11y/no-noninteractive-tabindex -- Needed to capture keypress events
         tabIndex={0}
         className={cn(
           "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1 focus:outline-hidden",

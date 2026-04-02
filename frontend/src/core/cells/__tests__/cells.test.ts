@@ -1023,7 +1023,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
-    // oxlint-disable-next-line typescript/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any no-unsafe-optional-chaining
     expect((cell.output?.data as any)[0].msg).toBe(
       "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );

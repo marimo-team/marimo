@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /* oxlint-disable typescript/no-explicit-any */
-/** biome-ignore-all lint/suspicious/noConsole: for debugging */
+/* oxlint-disable no-console -- for debugging */
 
 import { Logger } from "./Logger";
 

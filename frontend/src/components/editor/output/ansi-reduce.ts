@@ -13,7 +13,7 @@ export interface Cursor {
 export class TerminalBuffer {
   private lines: string[] = [""];
   private cursor: Cursor = { row: 0, col: 0 };
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: Needed for ANSI parsing
+  // oxlint-ignore-next-line no-control-regex -- Needed for ANSI escape sequence parsing
   private static readonly ESCAPE_REGEX = /\u001B\[([0-9;]*)([A-DJKH])/u;
 
   /** Ensure the internal lines array is large enough. */
@@ -185,7 +185,7 @@ export class TerminalBuffer {
  */
 export class AnsiParser {
   // Matches both CSI sequences (ESC[...letter) and other escape sequences like character set selection (ESC(B)
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: Needed for ANSI parsing
+  // oxlint-ignore-next-line no-control-regex -- Needed for ANSI parsing
   private ESC_REGEX = /\u001B(?:\[[0-9;]*[A-Za-z]|\([0-9A-Za-z])/gu;
 
   parse(input: string): { type: "text" | "escape"; value: string }[] {

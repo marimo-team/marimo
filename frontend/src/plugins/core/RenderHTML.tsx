@@ -104,7 +104,7 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
       script.src = src;
       document.head.append(script);
     }
-    // biome-ignore lint/complexity/noUselessFragments: this is intentional
+    // oxlint-ignore-next-line react/jsx-no-useless-fragment -- this is intentional
     return <></>;
   }
 };
