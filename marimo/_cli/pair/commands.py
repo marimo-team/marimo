@@ -154,8 +154,8 @@ def prompt(
         token_file = token_dir / f"{url_hash}-token.txt"
         token = click.prompt("Auth token", hide_input=True, err=True)
         token_dir.mkdir(parents=True, exist_ok=True)
-        # Use O_CREAT|O_EXCL|O_WRONLY to atomically create the file with
-        # restrictive permissions, avoiding TOCTOU and symlink attacks.
+        # Open the token file for writing, creating it with restrictive
+        # permissions if needed and truncating it if it already exists.
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
         fd = os.open(token_file, flags, 0o600)
         try:

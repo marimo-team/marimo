@@ -112,7 +112,7 @@ def _parse_basic_auth_credentials(
     if not password:
         return None, None
 
-    LOGGER.debug("Validated basic auth for user: %s", username)
+    LOGGER.debug("Parsed basic auth credentials for user: %s", username)
 
     return username, password
 
