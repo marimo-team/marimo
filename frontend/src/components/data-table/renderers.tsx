@@ -9,7 +9,6 @@ import {
   type HeaderGroup,
   type Row,
   type Table,
-  type Table as TanStackTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { type JSX, useLayoutEffect, useRef, useState } from "react";
@@ -52,7 +51,7 @@ export function renderTableHeader<TData>(
             )}
             style={style}
             ref={(thead) => {
-              columnSizingHandler(thead, table, header.column);
+              columnSizingHandler({ table, column: header.column, thead });
             }}
           >
             {header.isPlaceholder
@@ -323,23 +322,30 @@ function getPinningStyles<TData>(
 
 // Update column sizes in table state for column pinning offsets
 // https://github.com/TanStack/table/discussions/3947#discussioncomment-9564867
-function columnSizingHandler<TData>(
-  thead: HTMLTableCellElement | null,
-  table: TanStackTable<TData>,
-  column: Column<TData>,
-) {
+function columnSizingHandler<TData>({
+  table,
+  column,
+  thead,
+}: {
+  table: Table<TData>;
+  column: Column<TData>;
+  thead: HTMLTableCellElement | null;
+}): void {
   if (!thead) {
     return;
   }
-  if (
-    table.getState().columnSizing[column.id] ===
-    thead.getBoundingClientRect().width
-  ) {
+  // Round to avoid infinite re-render loops: the browser's table layout
+  // algorithm may render a <th> at a slightly different width than the
+  // CSS `width` we set via column.getSize(), so a strict float === float
+  // comparison never stabilizes. Rounding to integers ensures convergence
+  // after at most one cycle.
+  const measuredWidth = Math.round(thead.getBoundingClientRect().width);
+  if (table.getState().columnSizing[column.id] === measuredWidth) {
     return;
   }
 
   table.setColumnSizing((prevSizes) => ({
     ...prevSizes,
-    [column.id]: thead.getBoundingClientRect().width,
+    [column.id]: measuredWidth,
   }));
 }
