@@ -25,6 +25,7 @@
     ".github/**",
     "**/e2e-tests/**",
     "*.yaml",
+    "*.toml",
     "*.yml"
   ]
 }

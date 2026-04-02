@@ -25,6 +25,9 @@ importers:
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260324.1
         version: 7.0.0-dev.20260324.1
+      oxfmt:
+        specifier: ^0.42.0
+        version: 0.42.0
       turbo:
         specifier: ^2.8.0
         version: 2.8.1
