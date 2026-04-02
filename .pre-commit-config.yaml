@@ -39,7 +39,7 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  # Throws errors
+  # TODO: add back. this throws errors: thread 'tokio-rt-worker' (169) panicked at crates/oxc_allocator/src/pool/fixed_size.rs:112:67
   # - repo: https://github.com/oxc-project/mirrors-oxlint
   #   rev: v1.56.0
   #   hooks:
