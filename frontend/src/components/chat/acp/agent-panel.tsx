@@ -223,7 +223,7 @@ const EmptyState = memo<EmptyStateProps>(
               title="No Agent Sessions"
               description="Create a new session to start a conversation"
               action={<AgentSelector className="border-y rounded" />}
-              icon={BotMessageSquareIcon}
+              icon={<BotMessageSquareIcon />}
             />
             {connectionState.status === "disconnected" && (
               <AgentDocs
