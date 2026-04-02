@@ -169,8 +169,7 @@ export class LazyWebsocketTransport extends Transport {
           // Show error toast on final retry
           this.options.showError(
             "GitHub Copilot Connection Error",
-            "Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n" +
-              prettyError(error),
+            `Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n${prettyError(error)}`,
           );
           throw error;
         }

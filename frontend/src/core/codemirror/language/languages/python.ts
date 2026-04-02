@@ -45,6 +45,7 @@ import type { LanguageAdapter } from "../types";
 
 const pylspClient = once((lspConfig: LSPConfig) => {
   // Create a mutable reference for the resync callback
+  // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 
   const transport = createTransport("pylsp", async () => {
@@ -151,6 +152,7 @@ const pylspClient = once((lspConfig: LSPConfig) => {
 });
 
 const tyLspClient = once((_: LSPConfig) => {
+  // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 
   const transport = createTransport("ty", async () => {
@@ -181,7 +183,8 @@ const tyLspClient = once((_: LSPConfig) => {
 
 const pyreflyClient = once(
   (lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig }) => {
-    let resyncCallback: (() => Promise<void>) | undefined;
+    // oxlint-disable-next-line prefer-const -- reassigned after closure capture
+  let resyncCallback: (() => Promise<void>) | undefined;
 
     const transport = createTransport("pyrefly", async () => {
       await resyncCallback?.();
@@ -218,6 +221,7 @@ const pyreflyClient = once(
 );
 
 const pyrightClient = once((_: LSPConfig) => {
+  // oxlint-disable-next-line prefer-const -- reassigned after closure capture
   let resyncCallback: (() => Promise<void>) | undefined;
 
   const transport = createTransport("basedpyright", async () => {
