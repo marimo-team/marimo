@@ -39,17 +39,3 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  - repo: https://github.com/oxc-project/mirrors-oxlint
-    rev: v1.57.0
-    hooks:
-      - id: oxlint
-        args: [--fix, -c, frontend/.oxlintrc.json]
-        files: ^frontend/src/.*\.(ts|tsx|js|jsx)$
-
-  - repo: local
-    hooks:
-      - id: oxfmt
-        name: oxfmt
-        entry: npx oxfmt --config .oxfmtrc.json
-        language: node
-        files: ^frontend/src/.*\.(ts|tsx|js|jsx|css|md)$
