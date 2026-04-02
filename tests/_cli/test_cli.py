@@ -23,10 +23,16 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from unittest.mock import patch
 
 import pytest
+from click.testing import CliRunner
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
-from marimo._cli.cli import _collect_marimo_files, _create_run_file_router
+from marimo._cli.cli import (
+    _collect_marimo_files,
+    _create_run_file_router,
+    main as cli_main,
+)
+from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.file_router import (
     LazyListOfFilesAppFileRouter,
@@ -1607,7 +1613,6 @@ def test_cli_run_sandbox_prompt_yes() -> None:
     p.kill()
 
 
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
     # Create a custom pyproject.toml with special marimo config
     pyproject_path = tmp_path / "pyproject.toml"
@@ -1625,35 +1630,32 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
 
     marimo_file = tmp_path / "tmp.py"
 
-    # marimo edit <marimo_file> --sandbox
-    port = _get_port()
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "edit",
-            str(marimo_file),
-            "--sandbox",
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
-        ],
-    )
+    runner = CliRunner()
 
-    def assert_custom_config(contents: bytes | None) -> None:
-        assert contents is not None
-        # Verify that the custom config is applied
-        assert b'"line_length": 111' in contents
-        assert b'"auto_instantiate": false' in contents
-        # Verify that the package manager is switch to uv because we are running in a sandbox
-        # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
-        # assert b'"manager": "uv"' in contents
+    with (
+        patch(
+            "marimo._cli.cli.prompt_run_in_docker_container",
+            return_value=False,
+        ),
+        patch(
+            "marimo._utils.platform.check_shared_memory_available",
+            return_value=(True, None),
+        ),
+        patch("marimo._cli.cli.start"),
+    ):
+        result = runner.invoke(
+            cli_main,
+            ["edit", str(marimo_file), "--headless", "--no-token"],
+        )
 
-    try:
-        contents = _try_fetch(port)
-        assert_custom_config(contents)
-    finally:
-        p.kill()
+    assert result.exit_code == 0, result.output
+
+    # Verify that the custom config from pyproject.toml is loaded
+    config_manager = get_default_config_manager(current_path=str(marimo_file))
+    config = config_manager.get_config()
+    assert config["formatting"]["line_length"] == 111
+    assert config["runtime"]["auto_instantiate"] is False
+    assert config["package_management"]["manager"] == "pip"
 
 
 # Test sandbox with config for vscode compatibility
