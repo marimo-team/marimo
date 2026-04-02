@@ -1815,7 +1815,8 @@ class Kernel:
             if (
                 self.graph.is_disabled(cid)
                 and not cell_impl.config.disabled
-                and cell_impl.run_result_status in ("exception", "marimo-error")
+                and cell_impl.run_result_status
+                in ("exception", "marimo-error")
                 and not self.graph.is_any_ancestor_errored(cid)
             ):
                 cell_impl.set_run_result_status("disabled")

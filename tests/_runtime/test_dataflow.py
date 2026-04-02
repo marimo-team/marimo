@@ -1636,7 +1636,7 @@ def test_is_any_ancestor_errored_marimo_error() -> None:
     # Set cell 0 to marimo-error state (e.g. registration/syntax error)
     graph.cells["0"].set_run_result_status("marimo-error")
     assert not graph.is_any_ancestor_errored("0")  # no ancestors
-    assert graph.is_any_ancestor_errored("1")       # parent 0 has marimo-error
+    assert graph.is_any_ancestor_errored("1")  # parent 0 has marimo-error
 
     # Fix cell 0
     graph.cells["0"].set_run_result_status("success")
