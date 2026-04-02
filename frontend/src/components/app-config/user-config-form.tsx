@@ -61,6 +61,7 @@ import { DataForm } from "./data-form";
 import { applyManualInjections, getDirtyValues } from "./get-dirty-values";
 import { IsOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
+import { acceptSuggestionOnEnterAtom } from "@/core/codemirror/completion/state";
 
 const categories = [
   {
@@ -117,6 +118,7 @@ const FORM_DEBOUNCE = 100; // ms;
 const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
+  const [acceptOnEnter, setAcceptOnEnter] = useAtom(acceptSuggestionOnEnterAtom);
   const [config, setConfig] = useUserConfig();
   const formElement = useRef<HTMLFormElement>(null);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
@@ -478,6 +480,24 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <div className="flex flex-col space-y-1">
+                <div className={formItemClasses}>
+                  <label className="font-normal text-sm">
+                    Accept suggestion on Enter
+                  </label>
+                  <Checkbox
+                    data-testid="accept-suggestion-on-enter-checkbox"
+                    checked={acceptOnEnter}
+                    onCheckedChange={(checked) =>
+                      setAcceptOnEnter(Boolean(checked))
+                    }
+                  />
+                </div>
+                <FormDescription>
+                  When unchecked, pressing Enter inserts a newline instead of
+                  accepting a suggestion. Use Tab or hotkeys to accept.
+                </FormDescription>
+              </div>
             </SettingGroup>
             <SettingGroup title="Language Servers">
               <FormDescription>

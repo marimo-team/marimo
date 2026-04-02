@@ -8,6 +8,8 @@ import {
 import { type Extension, Prec } from "@codemirror/state";
 import { type KeyBinding, keymap } from "@codemirror/view";
 import { isInVimMode } from "../utils";
+import { store } from "@/core/state/jotai";
+import { acceptSuggestionOnEnterAtom } from "./state";
 
 const KEYS_TO_REMOVE = new Set<string | undefined>([
   // Remove Escape since it affects exiting insert mode in Vim
@@ -35,6 +37,10 @@ export function filterCompletionBindings(
 }
 
 export function completionKeymap(): Extension {
+  const acceptOnEnter = store.get(acceptSuggestionOnEnterAtom);
+  const keysToRemove = acceptOnEnter
+    ? KEYS_TO_REMOVE
+    : new Set([...KEYS_TO_REMOVE, "Enter"]);
   const withoutKeysToRemove = filterCompletionBindings(defaultCompletionKeymap);
 
   return Prec.highest(
