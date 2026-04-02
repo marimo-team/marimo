@@ -35,6 +35,10 @@ if TYPE_CHECKING:
 #     "field1": [min, max],
 #     "field2": [min, max],
 #   },
+#   "lasso": {
+#     "x": [...],
+#     "y": [...],
+#   },
 #  "indices": int[],
 # }
 PlotlySelection = dict[str, JSONType]
@@ -127,6 +131,70 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
                     pass
 
     return False
+
+
+def _to_numeric_coord(value: Any) -> Optional[float]:
+    """Convert a numeric/datetime-like value to a float for geometry tests."""
+    import datetime
+
+    def _to_utc_timestamp(dt: datetime.datetime) -> float:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        else:
+            dt = dt.astimezone(datetime.timezone.utc)
+        return dt.timestamp()
+
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, datetime.datetime):
+        return _to_utc_timestamp(value)
+    if isinstance(value, datetime.date):
+        return _to_utc_timestamp(
+            datetime.datetime.combine(
+                value,
+                datetime.time(),
+                tzinfo=datetime.timezone.utc,
+            )
+        )
+    if isinstance(value, str):
+        parsed = _parse_datetime_bound(value)
+        if isinstance(parsed, datetime.datetime):
+            return _to_utc_timestamp(parsed)
+        if isinstance(parsed, datetime.date):
+            return _to_utc_timestamp(
+                datetime.datetime.combine(
+                    parsed,
+                    datetime.time(),
+                    tzinfo=datetime.timezone.utc,
+                )
+            )
+    return None
+
+
+def _category_position_map(values: Any) -> dict[Any, float]:
+    """Map categorical axis values to their first-seen axis positions."""
+    positions: dict[Any, float] = {}
+    next_position = 0.0
+
+    for value in values:
+        try:
+            if value not in positions:
+                positions[value] = next_position
+                next_position += 1.0
+        except TypeError:
+            continue
+
+    return positions
+
+
+def _safe_category_get(
+    positions: dict[Any, float], value: Any, default: float
+) -> float:
+    """Get a category position, returning default for unhashable values."""
+    try:
+        return positions.get(value, default)
+    except TypeError:
+        return default
 
 
 @mddoc
@@ -293,6 +361,34 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             if has_heatmap and initial_value.get("range"):
                 _append_heatmap_cells_to_selection(figure, initial_value)
 
+            # For histograms, pre-compute sample rows using the selection range.
+            # Interactive events use bin payloads (pointNumbers) for extraction;
+            # programmatic initial selections via add_selection only have a range,
+            # so we resolve sample rows here before _convert_value is called.
+            has_histogram = any(
+                getattr(trace, "type", None) == "histogram"
+                for trace in figure.data
+            )
+            if has_histogram and initial_value.get("range"):
+                histogram_points = _extract_histogram_points_from_range(
+                    figure, cast(dict[str, Any], initial_value["range"])
+                )
+                seen = {
+                    (p.get("pointIndex"), p.get("curveNumber"))
+                    for p in selected_points
+                }
+                for point in histogram_points:
+                    key = (point.get("pointIndex"), point.get("curveNumber"))
+                    if key not in seen:
+                        seen.add(key)
+                        selected_points.append(point)
+                        if isinstance(point.get("pointIndex"), int):
+                            selected_indices.append(
+                                cast(int, point["pointIndex"])
+                            )
+                initial_value["points"] = selected_points
+                initial_value["indices"] = selected_indices
+
             # Note: Bar chart extraction is handled in _convert_value, not here
             # This avoids duplicate extraction since _convert_value is called
             # during super().__init__() with the initial_value
@@ -390,10 +486,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         if has_bar and value.get("range"):
             _append_bar_items_to_selection(self._figure, self._selection_data)
 
-        # For scatter-like traces with a range selection, preserve Plotly's
-        # explicit point payload when available and only fall back to x-range
-        # extraction for traces that do not provide point-level selections.
-        if has_scatter and value.get("range"):
+        # For line/scatter charts, extract points from box/lasso selections.
+        # Plotly may not send point data for pure line charts, so we extract manually.
+        if has_scatter and (value.get("range") or value.get("lasso")):
             _append_scatter_points_to_selection(
                 self._figure, self._selection_data
             )
@@ -569,19 +664,13 @@ def _extract_heatmap_cells_numpy(
 def _append_scatter_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:
-    """Append fallback scatter/scattergl/line points to selection data.
+    """Append scatter/scattergl/line points from range/lasso to selection data.
 
-    This modifies selection_data in place, appending x-range points only for
-    scatter-like traces that need fallback extraction.
-
-    Plotly box/lasso selections already include exact point payloads for marker
-    traces, so we keep those as-is. For traces that do not provide point-level
-    selections, such as pure lines, we manually extract all points where x is
-    within the selected range to preserve the existing line-chart behavior.
+    This modifies selection_data in place, appending any scatter/scattergl/line points
+    that fall within the active selection shape to the existing points and indices.
     """
     range_value = selection_data.get("range")
-    if not isinstance(range_value, dict):
-        return
+    lasso_value = selection_data.get("lasso")
 
     # Filter out empty dicts from existing points (these come from line charts)
     # where Plotly sends the structure but no data.
@@ -599,23 +688,39 @@ def _append_scatter_points_to_selection(
         for point in existing_points
         if isinstance((curve_number := point.get("curveNumber")), int)
         and curve_number in scatter_trace_indices
+        and not _trace_needs_scatter_range_fallback(figure.data[curve_number])
     }
     if (
         existing_points
         and not explicit_curve_numbers
         and not any("curveNumber" in point for point in existing_points)
         and len(scatter_trace_indices) == 1
+        and not _trace_needs_scatter_range_fallback(
+            figure.data[scatter_trace_indices[0]]
+        )
     ):
         explicit_curve_numbers.add(scatter_trace_indices[0])
 
-    scatter_points = _extract_scatter_points_from_range(
-        figure,
-        cast(dict[str, Any], range_value),
-        trace_filter=lambda trace_idx, trace: (
+    def trace_filter(trace_idx: int, trace: Any) -> bool:
+        return (
             trace_idx not in explicit_curve_numbers
             and _trace_needs_scatter_range_fallback(trace)
-        ),
-    )
+        )
+
+    scatter_points: list[dict[str, Any]] = []
+    if isinstance(range_value, dict):
+        scatter_points = _extract_scatter_points_from_range(
+            figure,
+            cast(dict[str, Any], range_value),
+            trace_filter=trace_filter,
+        )
+    elif isinstance(lasso_value, dict):
+        scatter_points = _extract_scatter_points_from_lasso(
+            figure,
+            cast(dict[str, Any], lasso_value),
+            trace_filter=trace_filter,
+        )
+
     if scatter_points or existing_points:
         # Merge with scatter points, avoiding duplicates
         # Use pointIndex and curveNumber to track uniqueness
@@ -665,6 +770,19 @@ def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
         return False
 
     mode = getattr(trace, "mode", None)
+    fill = getattr(trace, "fill", None)
+    stackgroup = getattr(trace, "stackgroup", None)
+
+    # Filled/stacked scatter traces behave like area charts and still need
+    # manual extraction when a selection shape is drawn.
+    if fill not in (None, "none") or stackgroup:
+        return True
+
+    # Unspecified mode should defer to Plotly's native point payload instead of
+    # forcing line-style fallback extraction.
+    if mode is None:
+        return False
+
     if isinstance(mode, str) and "markers" in mode:
         return False
 
@@ -678,8 +796,7 @@ def _extract_scatter_points_from_range(
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points in a selection range.
 
-    This follows Altair's behavior: returns all points where x is within
-    the x-range, regardless of y value.
+    Returns points whose x and y both fall inside the selected box.
     """
     if not range_data.get("x"):
         return []
@@ -687,14 +804,30 @@ def _extract_scatter_points_from_range(
     x_range = range_data["x"]
     x_min, x_max = min(x_range), max(x_range)
 
+    y_min: Any = None
+    y_max: Any = None
+    y_range = range_data.get("y")
+    if isinstance(y_range, list) and y_range:
+        y_min, y_max = min(y_range), max(y_range)
+
     # Use numpy fast path if available for better performance
     if DependencyManager.numpy.has():
         return _extract_scatter_points_numpy(
-            figure, x_min, x_max, trace_filter=trace_filter
+            figure,
+            x_min,
+            x_max,
+            y_min=y_min,
+            y_max=y_max,
+            trace_filter=trace_filter,
         )
 
     return _extract_scatter_points_fallback(
-        figure, x_min, x_max, trace_filter=trace_filter
+        figure,
+        x_min,
+        x_max,
+        y_min=y_min,
+        y_max=y_max,
+        trace_filter=trace_filter,
     )
 
 
@@ -702,9 +835,11 @@ def _extract_scatter_points_numpy(
     figure: go.Figure,
     x_min: float,
     x_max: float,
+    y_min: Any = None,
+    y_max: Any = None,
     trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
-    """Extract scatter/scattergl/line points using numpy."""
+    """Extract scatter/scattergl/line points from selection bounds using numpy."""
     import numpy as np
 
     selected_points: list[dict[str, Any]] = []
@@ -740,6 +875,8 @@ def _extract_scatter_points_numpy(
 
         # Check if x is orderable (numeric or datetime-like)
         x_is_orderable = _is_orderable_axis(x_arr, x_min)
+        has_y_range = y_min is not None and y_max is not None
+        y_is_orderable = has_y_range and _is_orderable_axis(y_arr, y_min)
 
         # Parse datetime bounds (frontend sends ISO strings via JSON)
         x_min_parsed = (
@@ -748,20 +885,53 @@ def _extract_scatter_points_numpy(
         x_max_parsed = (
             _parse_datetime_bound(x_max) if x_is_orderable else x_max
         )
+        y_min_parsed = (
+            _parse_datetime_bound(y_min) if y_is_orderable else y_min
+        )
+        y_max_parsed = (
+            _parse_datetime_bound(y_max) if y_is_orderable else y_max
+        )
 
-        # Filter by x-range (matching Altair behavior)
+        # Filter by x-range
         if x_is_orderable:
             x_mask = (x_arr >= x_min_parsed) & (x_arr <= x_max_parsed)
         else:
-            # Categorical: use index-based filtering
-            x_indices = np.arange(len(x_arr))
-            x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
+            # Categorical: compare against axis category positions, not point
+            # indices, so repeated categories map to the same coordinate.
+            x_category_positions = _category_position_map(x_data)
+            x_positions = np.asarray(
+                [
+                    _safe_category_get(x_category_positions, value, np.nan)
+                    for value in x_data
+                ],
+                dtype=float,
+            )
+            x_mask = (x_max > x_positions - 0.5) & (x_min < x_positions + 0.5)
 
-        # Get indices where mask is True
-        selected_indices = np.where(x_mask)[0]
+        # Filter by y-range when present
+        if has_y_range:
+            if y_is_orderable:
+                y_mask = (y_arr >= y_min_parsed) & (y_arr <= y_max_parsed)
+            else:
+                y_category_positions = _category_position_map(y_data)
+                y_positions = np.asarray(
+                    [
+                        _safe_category_get(y_category_positions, value, np.nan)
+                        for value in y_data
+                    ],
+                    dtype=float,
+                )
+                y_mask = (y_max > y_positions - 0.5) & (
+                    y_min < y_positions + 0.5
+                )
+            in_box_mask = x_mask & y_mask
+        else:
+            in_box_mask = x_mask
+
+        selected_indices = set(np.where(in_box_mask)[0].tolist())
 
         # Build point dicts for selected indices
-        for idx in selected_indices:
+        for idx in sorted(selected_indices):
             # Use .item() to convert numpy types to Python types
             x_val = (
                 x_arr[idx].item()
@@ -794,6 +964,8 @@ def _extract_scatter_points_fallback(
     figure: go.Figure,
     x_min: float,
     x_max: float,
+    y_min: Any = None,
+    y_max: Any = None,
     trace_filter: Optional[Callable[[int, Any], bool]] = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points with pure Python."""
@@ -824,34 +996,228 @@ def _extract_scatter_points_fallback(
         if x_data is None or y_data is None:
             continue
 
-        # Iterate through points and filter by x-range
+        has_y_range = y_min is not None and y_max is not None
+        selected_indices: set[int] = set()
+        x_min_p = _parse_datetime_bound(x_min)
+        x_max_p = _parse_datetime_bound(x_max)
+        y_min_p = _parse_datetime_bound(y_min) if has_y_range else None
+        y_max_p = _parse_datetime_bound(y_max) if has_y_range else None
+
+        x_category_positions = _category_position_map(x_data)
+        y_category_positions = _category_position_map(y_data)
+
+        # First pass: include points directly inside current selection bounds.
         for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
-            # Check if x is within range
             x_in_range = False
 
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
-                # Parse datetime bounds (frontend sends ISO strings)
-                x_min_p = _parse_datetime_bound(x_min)
-                x_max_p = _parse_datetime_bound(x_max)
                 x_in_range = x_min_p <= x_val <= x_max_p
             else:
-                # Categorical - use index-based filtering
-                cell_x_min = point_idx - 0.5
-                cell_x_max = point_idx + 0.5
+                # TypeError can occur when x_val is unhashable (e.g. a list or
+                # dict), which dict.get() cannot accept as a key.
+                try:
+                    x_position = x_category_positions.get(x_val)
+                except TypeError:
+                    continue
+                if x_position is None:
+                    continue
+                cell_x_min = x_position - 0.5
+                cell_x_max = x_position + 0.5
                 x_in_range = not (x_max <= cell_x_min or x_min >= cell_x_max)
 
-            if x_in_range:
+            y_in_range = True
+            if has_y_range:
+                if _is_orderable_value(y_val) and _is_orderable_value(y_min):
+                    y_in_range = (
+                        cast(Any, y_min_p) <= y_val <= cast(Any, y_max_p)
+                    )
+                else:
+                    # TypeError can occur when y_val is unhashable (e.g. a list or
+                    # dict), which dict.get() cannot accept as a key.
+                    try:
+                        y_position = y_category_positions.get(y_val)
+                    except TypeError:
+                        continue
+                    if y_position is None:
+                        continue
+                    cell_y_min = y_position - 0.5
+                    cell_y_max = y_position + 0.5
+                    y_in_range = not (
+                        y_max <= cell_y_min or y_min >= cell_y_max
+                    )
+
+            if x_in_range and y_in_range:
+                selected_indices.add(point_idx)
+
+        for point_idx in sorted(selected_indices):
+            x_val = x_data[point_idx]
+            y_val = y_data[point_idx]
+            point_dict = {
+                x_field: x_val,
+                y_field: y_val,
+                "curveNumber": trace_idx,
+                "pointIndex": point_idx,
+            }
+
+            # Add trace name if available
+            if hasattr(trace, "name") and trace.name:
+                point_dict["name"] = trace.name
+
+            selected_points.append(point_dict)
+
+    return selected_points
+
+
+def _point_on_segment(
+    x: float, y: float, x1: float, y1: float, x2: float, y2: float
+) -> bool:
+    """Return True when (x, y) lies on the segment [(x1, y1), (x2, y2)]."""
+    tolerance = 1e-9
+    cross = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1)
+    if abs(cross) > tolerance:
+        return False
+
+    dot = (x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)
+    if dot < -tolerance:
+        return False
+
+    segment_length_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2
+    return dot <= segment_length_sq + tolerance
+
+
+def _point_in_polygon(
+    x: float, y: float, polygon_x: list[float], polygon_y: list[float]
+) -> bool:
+    """Return True when point is inside or on boundary of polygon."""
+    if len(polygon_x) < 3 or len(polygon_x) != len(polygon_y):
+        return False
+
+    for idx in range(len(polygon_x)):
+        nxt = (idx + 1) % len(polygon_x)
+        if _point_on_segment(
+            x,
+            y,
+            polygon_x[idx],
+            polygon_y[idx],
+            polygon_x[nxt],
+            polygon_y[nxt],
+        ):
+            return True
+
+    inside = False
+    prev = len(polygon_x) - 1
+    for idx in range(len(polygon_x)):
+        xi = polygon_x[idx]
+        yi = polygon_y[idx]
+        xj = polygon_x[prev]
+        yj = polygon_y[prev]
+        intersects = (yi > y) != (yj > y) and (
+            x < ((xj - xi) * (y - yi) / (yj - yi) + xi)
+        )
+        if intersects:
+            inside = not inside
+        prev = idx
+    return inside
+
+
+def _extract_scatter_points_from_lasso(
+    figure: go.Figure,
+    lasso_data: dict[str, Any],
+    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+) -> list[dict[str, Any]]:
+    """Extract scatter/scattergl/line points that fall inside a lasso polygon."""
+    lasso_x = lasso_data.get("x")
+    lasso_y = lasso_data.get("y")
+    if (
+        not isinstance(lasso_x, list)
+        or not isinstance(lasso_y, list)
+        or len(lasso_x) < 3
+        or len(lasso_x) != len(lasso_y)
+    ):
+        return []
+
+    selected_points: list[dict[str, Any]] = []
+
+    x_axes: list[go.layout.XAxis] = []
+    figure.for_each_xaxis(x_axes.append)
+    x_axis = x_axes[0] if len(x_axes) == 1 else None
+
+    y_axes: list[go.layout.YAxis] = []
+    figure.for_each_yaxis(y_axes.append)
+    y_axis = y_axes[0] if len(y_axes) == 1 else None
+
+    x_field = x_axis.title.text if (x_axis and x_axis.title.text) else "x"
+    y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) not in {"scatter", "scattergl"}:
+            continue
+        if trace_filter is not None and not trace_filter(trace_idx, trace):
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        # Use the same categorical coordinate mapping as box/range selection so
+        # lasso geometry is consistent with point-in-range checks.
+        x_category_to_index: dict[Any, float] = _category_position_map(x_data)
+        y_category_to_index: dict[Any, float] = _category_position_map(y_data)
+
+        polygon_x: list[float] = []
+        polygon_y: list[float] = []
+        for raw_x, raw_y in zip(lasso_x, lasso_y):
+            x_coord = _to_numeric_coord(raw_x)
+            if x_coord is None:
+                x_coord = _safe_category_get(x_category_to_index, raw_x, -1)
+                if x_coord == -1:
+                    x_coord = None
+
+            y_coord = _to_numeric_coord(raw_y)
+            if y_coord is None:
+                y_coord = _safe_category_get(y_category_to_index, raw_y, -1)
+                if y_coord == -1:
+                    y_coord = None
+
+            if x_coord is None or y_coord is None:
+                polygon_x = []
+                polygon_y = []
+                break
+
+            polygon_x.append(x_coord)
+            polygon_y.append(y_coord)
+
+        if not polygon_x:
+            continue
+
+        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+            x_coord = _to_numeric_coord(x_val)
+            if x_coord is None:
+                try:
+                    x_coord = x_category_to_index.get(x_val)
+                except TypeError:
+                    x_coord = None
+
+            y_coord = _to_numeric_coord(y_val)
+            if y_coord is None:
+                try:
+                    y_coord = y_category_to_index.get(y_val)
+                except TypeError:
+                    y_coord = None
+
+            if x_coord is None or y_coord is None:
+                continue
+
+            if _point_in_polygon(x_coord, y_coord, polygon_x, polygon_y):
                 point_dict = {
                     x_field: x_val,
                     y_field: y_val,
                     "curveNumber": trace_idx,
                     "pointIndex": point_idx,
                 }
-
-                # Add trace name if available
                 if hasattr(trace, "name") and trace.name:
                     point_dict["name"] = trace.name
-
                 selected_points.append(point_dict)
 
     return selected_points
@@ -937,37 +1303,30 @@ def _append_histogram_points_to_selection(
     """Append histogram sample rows to selection data.
 
     Histogram selection events are bin-level on the frontend. This function
-    converts selected bins/ranges to underlying sample rows so .value behaves
-    like row-level selections from scatter plots.
+    converts selected bin payloads (pointNumbers) to underlying sample rows so
+    .value behaves like row-level selections from scatter plots.
+
+    Pre-computed sample rows from fig.add_selection() have no pointNumbers and
+    are passed through the filter unchanged — they do not need re-expansion.
     """
     all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
     all_indices = cast(list[Any], selection_data.get("indices", []))
-    range_value = selection_data.get("range")
-
-    histogram_points: list[dict[str, Any]] = []
-
-    if isinstance(range_value, dict):
-        histogram_points = _extract_histogram_points_from_range(
-            figure, cast(dict[str, Any], range_value)
-        )
-
-    # Lasso selections may not include a rectangular range. In that case, use
-    # the selected histogram bin payload (pointNumbers) to recover samples.
-    if not histogram_points:
-        histogram_points = _extract_histogram_points_from_bins(
-            figure, all_points
-        )
-
-    if not histogram_points:
-        return
 
     histogram_curve_numbers = {
         trace_idx
         for trace_idx, trace in enumerate(figure.data)
         if getattr(trace, "type", None) == "histogram"
     }
+    if not histogram_curve_numbers:
+        return
 
-    # Drop existing histogram bin-level points, keep points from other traces.
+    # Expand bin payloads (those with pointNumbers) into sample rows.
+    # Points without pointNumbers are pre-computed sample rows (e.g. from
+    # add_selection) and are preserved through the filter step below.
+    histogram_points = _extract_histogram_points_from_bins(figure, all_points)
+
+    # Drop only bin-level payloads (those with pointNumbers); keep sample rows
+    # from other traces and pre-computed histogram rows (e.g. add_selection).
     filtered_points: list[dict[str, Any]] = []
     filtered_indices: list[int] = []
     seen = set()
@@ -977,7 +1336,7 @@ def _append_histogram_points_to_selection(
             continue
 
         curve_number = point.get("curveNumber")
-        if curve_number in histogram_curve_numbers:
+        if curve_number in histogram_curve_numbers and "pointNumbers" in point:
             continue
 
         filtered_points.append(point)
@@ -992,7 +1351,7 @@ def _append_histogram_points_to_selection(
         if key != (None, None):
             seen.add(key)
 
-    # Merge histogram sample rows with deduplication by (curveNumber, pointIndex).
+    # Merge bin-expanded sample rows with deduplication by (curveNumber, pointIndex).
     for point in histogram_points:
         key = (point.get("pointIndex"), point.get("curveNumber"))
         if key in seen:
@@ -1192,7 +1551,26 @@ def _build_histogram_sample_point(
     if paired_axis_value is not None:
         point[paired_axis_key] = paired_axis_value
 
-    _add_trace_point_metadata(point, trace, point_idx)
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    customdata = _get_indexed_value(
+        getattr(trace, "customdata", None), point_idx
+    )
+    if customdata is not None:
+        point["customdata"] = customdata
+
+    text = _get_indexed_value(getattr(trace, "text", None), point_idx)
+    if text is not None:
+        point["text"] = text
+
+    hovertext = _get_indexed_value(
+        getattr(trace, "hovertext", None), point_idx
+    )
+    if hovertext is not None:
+        point["hovertext"] = hovertext
+
     return point
 
 
@@ -1565,21 +1943,16 @@ def _build_bar_point(
         "pointNumber": int(point_idx),
     }
 
-    _add_trace_point_metadata(point, trace, point_idx)
-    return point
-
-
-def _add_trace_point_metadata(
-    point: dict[str, Any], trace: Any, point_idx: int
-) -> None:
     name = getattr(trace, "name", None)
     if name:
         point["name"] = name
 
     for field in ("customdata", "text", "hovertext"):
-        value = _get_indexed_value(getattr(trace, field, None), point_idx)
-        if value is not None:
-            point[field] = value
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+
+    return point
 
 
 def _append_map_scatter_points_to_selection(
