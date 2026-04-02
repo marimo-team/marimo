@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-base-to-string */
+/* oxlint-disable typescript/no-base-to-string */
 import type { FieldQuery } from "compassql/build/src/query/encoding";
 import { type FieldFunction, isAggregateOp, type TimeUnitOp } from "./types";
 

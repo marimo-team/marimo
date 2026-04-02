@@ -227,7 +227,7 @@ export const GlideDataEditor = <T,>({
 
     // Force re-render to update the total rows
     rerender();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
 
   const getCellContent = useCallback(

@@ -5,7 +5,7 @@ import type { EditorView } from "@codemirror/view";
 /**
  * Metadata for language adapters
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export type LanguageMetadata = Record<string, any>;
 
 /**

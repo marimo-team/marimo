@@ -57,7 +57,7 @@ export function useEventListener(
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const eventListener = (event: any) => savedListener.current(event);
     target.addEventListener(type, eventListener, options);
 

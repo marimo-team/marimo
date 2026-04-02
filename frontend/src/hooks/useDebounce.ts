@@ -78,7 +78,7 @@ export function useDebounceControlledState<T>(opts: {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export function useDebouncedCallback<T extends (...args: any[]) => unknown>(
   callback: T,
   delay: number,

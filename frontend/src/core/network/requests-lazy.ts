@@ -138,7 +138,7 @@ export function createLazyRequests(
     await runtimeManager.init();
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   function wrapRequest<T extends (...args: any[]) => Promise<any>>(
     request: T,
     key: keyof AllRequests,

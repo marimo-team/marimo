@@ -15,6 +15,6 @@ export function assertNever(x: never): never {
  */
 export function logNever(x: never): void {
   Logger.warn(`Unexpected object: ${JSON.stringify(x)}`);
-  // biome-ignore lint/correctness/noVoidTypeReturn: <explanation>
+  // oxlint-ignore-next-line -- noVoidTypeReturn: function returns void but value is needed for exhaustiveness
   return x;
 }

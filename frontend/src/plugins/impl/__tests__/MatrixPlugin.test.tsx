@@ -52,7 +52,7 @@ beforeEach(() => {
 
   // jsdom's PointerEvent doesn't properly inherit MouseEvent properties
   // like clientX. Polyfill it so fireEvent.pointerDown/Move/Up work.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   (globalThis as any).PointerEvent = class PointerEvent extends MouseEvent {
     readonly pointerId: number;
     constructor(type: string, init: PointerEventInit = {}) {

@@ -316,7 +316,7 @@ function parseSQLStatement(code: string): SQLParseInfo | null {
       startPosition,
     };
   } catch (error) {
-    // biome-ignore lint/suspicious/noConsole: warning ok
+    // oxlint-disable-next-line no-console -- warning ok
     console.warn("Failed to parse SQL statement", error);
     return null;
   }

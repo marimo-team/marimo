@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/** biome-ignore-all lint/suspicious/noConsole: for debugging */
+/* oxlint-disable no-console -- for debugging */
 // @ts-check
 import * as fs from "node:fs";
 import openapiTS, { astToString, COMMENT_HEADER } from "openapi-typescript";
@@ -46,7 +46,7 @@ function postTransform(content) {
   // UIElementId is a template literal, not a simple branded string.
   result = result.replace(
     /\bUIElementId: string;/,
-    // biome-ignore lint/suspicious/noTemplateCurlyInString: raw string, not a template
+    // oxlint-disable-next-line no-template-curly-in-string -- raw string, not a template
     'UIElementId: `${components["schemas"]["CellId"]}-${string}`;',
   );
 

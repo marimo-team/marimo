@@ -205,7 +205,7 @@ interface Data<T> {
   cellHoverTexts?: Record<string, Record<string, string | null>> | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type DataTableFunctions = {
   download_as: DownloadAsArgs;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;

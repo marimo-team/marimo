@@ -30,7 +30,7 @@ describe("Blob serialization and deserialization", () => {
     const serialized = await serializeBlob(testBlob);
     const deserialized = deserializeBlob(serialized);
     const reader = new FileReader();
-    // eslint-disable-next-line unicorn/prefer-blob-reading-methods
+    // oxlint-disable-next-line unicorn/prefer-blob-reading-methods
     reader.readAsText(deserialized);
     await new Promise((resolve) => {
       reader.onload = () => {

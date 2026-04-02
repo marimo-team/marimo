@@ -18,7 +18,7 @@ export function patchFetch(
 
   // Override the global fetch so when /@file/ is used, it returns the blob data
   window.fetch = async (input, init) => {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    // oxlint-disable-next-line typescript/no-base-to-string
     const urlString = input instanceof Request ? input.url : input.toString();
 
     if (urlString.startsWith("data:")) {

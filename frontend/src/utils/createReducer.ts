@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import { atom, useSetAtom } from "jotai";
 import type { Reducer } from "react";
@@ -139,7 +139,7 @@ export function createReducerAndAtoms<
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // oxlint-disable-next-line typescript/no-non-null-assertion
     return actionsMap.get(setState)!;
   }
 

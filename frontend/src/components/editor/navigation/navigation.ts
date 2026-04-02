@@ -614,7 +614,7 @@ export function useCellNavigationProps(
         if (isShortcutPressed(shortcut as HotkeyAction, evt)) {
           // If the handler is a function, it's a single-cell handler
           // and we only operate on the currently focused cell.
-          if (handler instanceof Function) {
+          if (typeof handler === "function") {
             const success = handler(cellId);
             if (success) {
               evt.preventDefault();

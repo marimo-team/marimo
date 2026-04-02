@@ -69,7 +69,7 @@ CellsRenderer.displayName = "CellsRenderer";
 interface PluginCellRendererProps extends PropsWithChildren<Props> {
   appConfig: AppConfig;
   mode: AppMode;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   plugin: ICellRendererPlugin<any, any>;
   layoutData: Partial<Record<LayoutType, LayoutData>>;
   finalLayout: LayoutType;

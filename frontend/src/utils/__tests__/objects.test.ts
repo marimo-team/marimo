@@ -29,9 +29,9 @@ describe("Objects", () => {
     });
 
     it("should return falsy input unchanged", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       expect(Objects.mapValues(null as any, (v) => v)).toBe(null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       expect(Objects.mapValues(undefined as any, (v) => v)).toBe(undefined);
     });
   });
@@ -249,7 +249,7 @@ describe("Objects", () => {
 
     it("should handle omitting non-existent keys", () => {
       const obj = { a: 1, b: 2 };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const result = Objects.omit(obj, ["c" as any]);
       expect(result).toEqual({ a: 1, b: 2 });
     });

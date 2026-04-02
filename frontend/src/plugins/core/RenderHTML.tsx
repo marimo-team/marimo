@@ -47,7 +47,7 @@ const removeWrappingBodyTags: TransformFn = (
     if (isValidElement(reactNode) && "props" in reactNode) {
       const props = reactNode.props as { children?: ReactNode };
       const children = props.children;
-      return <>{children}</>; // eslint-disable-line react/jsx-no-useless-fragment
+      return <>{children}</>; // oxlint-disable-line react/jsx-no-useless-fragment
     }
     return;
   }
@@ -62,7 +62,7 @@ const removeWrappingHtmlTags: TransformFn = (
     if (isValidElement(reactNode) && "props" in reactNode) {
       const props = reactNode.props as { children?: ReactNode };
       const children = props.children;
-      return <>{children}</>; // eslint-disable-line react/jsx-no-useless-fragment
+      return <>{children}</>; // oxlint-disable-line react/jsx-no-useless-fragment
     }
     return;
   }
@@ -104,7 +104,7 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
       script.src = src;
       document.head.append(script);
     }
-    // biome-ignore lint/complexity/noUselessFragments: this is intentional
+    // oxlint-disable-next-line react/jsx-no-useless-fragment
     return <></>;
   }
 };

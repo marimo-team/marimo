@@ -80,7 +80,7 @@ export interface NotebookState {
    */
   history: {
     name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;

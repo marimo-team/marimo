@@ -469,7 +469,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           resetInput();
         }}
         ref={formRef}
-        // biome-ignore lint/a11y/useSemanticElements: inert is used to disable the entire form
+        // oxlint-ignore-next-line -- inert is used to disable the entire form
         inert={props.disabled || undefined}
         className={cn(
           "flex w-full border-t border-(--slate-6) px-2 py-1 items-center",

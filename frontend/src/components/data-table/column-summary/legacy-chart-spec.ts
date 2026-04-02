@@ -282,7 +282,7 @@ export function getDataSpecAndSourceName<T>(data: string | T[]): {
       const base64 = extractBase64FromDataURL(data);
       const decoded = window.atob(base64);
 
-      // eslint-disable-next-line unicorn/prefer-ternary
+      // oxlint-disable-next-line unicorn/prefer-ternary
       if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
         dataSpec = {
           values: base64ToUint8Array(base64),

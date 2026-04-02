@@ -2,7 +2,7 @@ import * as mod from "node:module";
 import * as path from "node:path";
 import type { StorybookConfig } from "@storybook/react-vite";
 
-function absolutePath(value: string): any {
+function absolutePath(value: string) {
   const require = mod.createRequire(import.meta.url);
   return path.dirname(require.resolve(path.join(value, "package.json")));
 }

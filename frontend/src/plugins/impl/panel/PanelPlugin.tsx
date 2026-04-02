@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -74,7 +74,7 @@ interface PanelData {
 
 type T = Record<string, unknown>;
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type PluginFunctions = {
   send_to_widget: <T>(req: {
     message?: unknown;

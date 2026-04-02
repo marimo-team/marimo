@@ -815,7 +815,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
                 ...diag,
                 range: lens.reverseRange(diag.range, cellId),
               };
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              // oxlint-disable-next-line typescript/no-non-null-assertion
               diagnosticsByCellId.get(cellId)!.push(cellDiag);
               break; // Exit inner loop once we find the matching cell
             }

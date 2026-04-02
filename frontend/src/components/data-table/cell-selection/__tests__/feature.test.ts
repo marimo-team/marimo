@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import type { Cell, Column, Row, Table } from "@tanstack/react-table";
 import { describe, expect, it, vi } from "vitest";
