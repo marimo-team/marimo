@@ -139,6 +139,23 @@ def with_server(app: Starlette) -> Starlette:
     return app
 
 
+def test_skew_protection_skips_execute(edit_app: Starlette) -> None:
+    """POST /api/kernel/execute is exempt from skew protection."""
+    client = TestClient(edit_app, raise_server_exceptions=False)
+
+    # An invalid skew token would normally return 401, but the execute
+    # endpoint is exempt.  The endpoint itself will fail (no session),
+    # but it should NOT be blocked by skew protection (401).
+    response = client.post(
+        "/api/kernel/execute",
+        headers=token_header("fake-token", "wrong-skew-id"),
+        json={"code": "1+1"},
+    )
+    assert response.status_code != 401, (
+        "skew protection should not gate /api/kernel/execute"
+    )
+
+
 def test_skew_protection_disabled() -> None:
     """Test that skew protection can be disabled via CLI flag"""
     app = create_starlette_app(base_url="", skew_protection=False)

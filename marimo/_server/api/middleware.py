@@ -136,6 +136,9 @@ class SkewProtectionMiddleware:
             "application/x-www-form-urlencoded"
         ):
             return await self.app(scope, receive, send)
+        # If /api/kernel/execute, skip (agent-only endpoint)
+        if request.url.path.rstrip("/").endswith("/api/kernel/execute"):
+            return await self.app(scope, receive, send)
         # If ws, skip
         if request.url.path.startswith("/ws") or request.url.path.endswith(
             "/ws"
