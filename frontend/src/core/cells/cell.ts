@@ -62,7 +62,11 @@ export function transitionCell(
     case null:
       break;
     case "disabled-transitively":
-      // Everything should already be up to date from prepareCellForExecution
+      // Reset errored in case this cell is transitioning back from an
+      // ancestor-error state without going through queued (e.g. ancestor
+      // recovered). In the normal disabled path errored is already false,
+      // and if an error follows this message it will re-set errored=true.
+      nextCell.errored = false;
       break;
     case undefined:
       break;
