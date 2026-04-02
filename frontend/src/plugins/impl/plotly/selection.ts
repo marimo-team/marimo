@@ -15,10 +15,7 @@ export interface PlotlyClickSelection {
   selections: unknown[];
 }
 
-const CLICK_SELECTABLE_TRACE_TYPES = new Set([
-  "heatmap",
-  "histogram",
-]);
+const CLICK_SELECTABLE_TRACE_TYPES = new Set(["heatmap", "histogram"]);
 
 const STANDARD_POINT_KEYS: string[] = [
   "x",
