@@ -1,237 +1,199 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as Plotly from "plotly.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  extractClickSelection,
   extractIndices,
   extractPoints,
+  hasPureLineTrace,
+  lineSelectionButtons,
+  type ModeBarButton,
+  mergeModeBarButtonsToAdd,
+  shouldHandleClickSelection,
 } from "../selection";
 
-interface PlotlyPointInput {
-  data: {
-    type: string;
-    hovertemplate?: string | string[];
-  };
-  [key: string]: unknown;
+function createTrace(trace: Partial<Plotly.PlotData>): Plotly.Data {
+  return trace as unknown as Plotly.Data;
 }
 
-function makePoint(point: PlotlyPointInput): Plotly.PlotDatum {
-  return point as unknown as Plotly.PlotDatum;
+function createPlotDatum<T extends object>(overrides: T): Plotly.PlotDatum & T {
+  return overrides as unknown as Plotly.PlotDatum & T;
 }
 
-function makeClickEvent(
-  points: Plotly.PlotDatum[],
-): Readonly<Plotly.PlotMouseEvent> {
-  return { points } as unknown as Readonly<Plotly.PlotMouseEvent>;
-}
+describe("hasPureLineTrace", () => {
+  it("detects scatter and scattergl traces that are pure lines", () => {
+    expect(
+      hasPureLineTrace([
+        createTrace({ type: "scatter", mode: "lines" }),
+        createTrace({ type: "scattergl", mode: "text+lines" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("ignores non-line and marker traces", () => {
+    expect(
+      hasPureLineTrace([
+        createTrace({ type: "scatter", mode: "markers" }),
+        createTrace({ type: "scatter", mode: "lines+markers" }),
+        createTrace({ type: "bar" }),
+      ]),
+    ).toBe(false);
+  });
+});
+
+describe("lineSelectionButtons", () => {
+  it("creates dragmode buttons that update dragmode", () => {
+    const setDragmode = vi.fn();
+    const buttons = lineSelectionButtons(setDragmode);
+
+    expect(buttons).toHaveLength(2);
+    expect(
+      buttons.map((button) =>
+        typeof button === "string" ? button : button.name,
+      ),
+    ).toEqual(["line-box-select", "line-lasso-select"]);
+
+    const graphDiv = document.createElement(
+      "div",
+    ) as unknown as Plotly.PlotlyHTMLElement;
+    const clickEvent = new MouseEvent("click");
+
+    (buttons[0] as Exclude<ModeBarButton, string>).click(graphDiv, clickEvent);
+    (buttons[1] as Exclude<ModeBarButton, string>).click(graphDiv, clickEvent);
+
+    expect(setDragmode).toHaveBeenNthCalledWith(1, "select");
+    expect(setDragmode).toHaveBeenNthCalledWith(2, "lasso");
+  });
+});
+
+describe("mergeModeBarButtonsToAdd", () => {
+  it("deduplicates string buttons while preserving custom buttons", () => {
+    const customButton = {
+      name: "custom",
+      title: "Custom",
+      icon: { svg: "<svg />" },
+      click: vi.fn(),
+    } satisfies Exclude<ModeBarButton, string>;
+
+    expect(
+      mergeModeBarButtonsToAdd(
+        ["zoom2d", "lasso2d"],
+        ["lasso2d", customButton, "zoom2d"],
+      ),
+    ).toEqual(["zoom2d", "lasso2d", customButton]);
+  });
+});
+
+describe("shouldHandleClickSelection", () => {
+  it("accepts bar clicks", () => {
+    const barPoint = createPlotDatum({
+      data: { type: "bar" },
+    });
+
+    expect(shouldHandleClickSelection([barPoint])).toBe(true);
+  });
+
+  it("accepts heatmap clicks", () => {
+    const heatmapPoint = createPlotDatum({
+      data: { type: "heatmap" },
+    });
+
+    expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
+  });
+
+  it("accepts histogram clicks", () => {
+    const histogramPoint = createPlotDatum({
+      data: { type: "histogram" },
+    });
+
+    expect(shouldHandleClickSelection([histogramPoint])).toBe(true);
+  });
+
+  it("accepts scatter clicks when Plotly omits mode", () => {
+    const linePoint = createPlotDatum({
+      data: { type: "scatter" },
+    });
+
+    expect(shouldHandleClickSelection([linePoint])).toBe(true);
+  });
+
+  it("rejects non-line scatter marker clicks", () => {
+    const markerPoint = createPlotDatum({
+      data: { type: "scatter", mode: "markers" },
+    });
+
+    expect(shouldHandleClickSelection([markerPoint])).toBe(false);
+  });
+});
 
 describe("extractIndices", () => {
-  it("prefers pointIndex and falls back to pointNumber", () => {
+  it("prefers pointIndex and falls back to pointNumber and pointNumbers", () => {
     const points = [
-      makePoint({
-        pointIndex: 2,
-        pointNumber: 99,
-        data: { type: "scatter" },
-      }),
-      makePoint({
-        pointNumber: 4,
-        data: { type: "scattergl" },
-      }),
-      makePoint({
-        data: { type: "heatmap" },
-      }),
+      createPlotDatum({ pointIndex: 2 }),
+      createPlotDatum({ pointNumber: 5 }),
+      createPlotDatum({ pointNumbers: [Number.NaN, 8] }),
+      createPlotDatum({ pointNumbers: [Infinity] }),
     ];
 
-    expect(extractIndices(points)).toEqual([2, 4]);
+    expect(extractIndices(points)).toEqual([2, 5, 8]);
   });
 });
 
 describe("extractPoints", () => {
-  it("extracts parsed scatter payload fields from the hovertemplate", () => {
-    const points = [
-      makePoint({
-        x: 3,
-        y: 7,
-        curveNumber: 0,
-        pointIndex: 1,
-        customdata: ["B"],
-        data: {
-          type: "scatter",
-          hovertemplate:
-            "label=%{customdata[0]}<br>x=%{x}<br>y=%{y}<extra></extra>",
-        },
-      }),
-    ];
+  it("infers missing x/y from trace data for line clicks", () => {
+    const point = createPlotDatum({
+      pointNumber: 1,
+      data: { type: "scatter" },
+      fullData: {
+        type: "scatter",
+        mode: "lines",
+        x: new Float64Array([10, 20, 30]),
+        y: [100, 200, 300],
+      },
+    });
 
-    expect(extractPoints(points)).toEqual([
+    expect(extractPoints([point])).toEqual([
+      { pointNumber: 1, pointIndex: 1, x: 20, y: 200 },
+    ]);
+  });
+
+  it("parses hovertemplate values while keeping inferred point fields", () => {
+    const point = createPlotDatum({
+      pointIndex: 0,
+      customdata: ["Mustang", "USA"],
+      fullData: {
+        type: "scatter",
+        mode: "lines",
+        x: ["300"],
+        y: ["30"],
+        hovertemplate:
+          "Name=%{customdata[0]}<br>Origin=%{customdata[1]}<extra></extra>",
+      },
+    });
+
+    expect(extractPoints([point])).toEqual([
       {
-        x: 3,
-        y: 7,
-        curveNumber: 0,
-        pointIndex: 1,
-        label: "B",
+        pointIndex: 0,
+        x: "300",
+        y: "30",
+        Name: "Mustang",
+        Origin: "USA",
       },
     ]);
   });
 
-  it("keeps standard heatmap keys without hovertemplate parsing", () => {
-    const points = [
-      makePoint({
-        x: "B",
-        y: "Row 2",
-        z: 6,
-        curveNumber: 0,
-        pointIndex: 5,
-        data: { type: "heatmap", hovertemplate: "ignored=%{z}" },
-      }),
-    ];
-
-    expect(extractPoints(points)).toEqual([
-      {
-        x: "B",
-        y: "Row 2",
-        z: 6,
-        curveNumber: 0,
-        pointIndex: 5,
+  it("returns only standard fields for heatmaps", () => {
+    const point = createPlotDatum({
+      x: 1,
+      y: 2,
+      z: 3,
+      text: "ignored",
+      data: {
+        type: "heatmap",
+        hovertemplate: "Label=%{text}<extra></extra>",
       },
-    ]);
-  });
-});
-
-describe("extractClickSelection", () => {
-  it("returns undefined for unsupported trace types", () => {
-    const event = makeClickEvent([
-      makePoint({
-        x: "A",
-        y: 10,
-        pointIndex: 0,
-        data: { type: "bar" },
-      }),
-    ]);
-
-    expect(extractClickSelection(event)).toBeUndefined();
-  });
-
-  it("returns undefined when all points are non-click-selectable trace types", () => {
-    // scatter and scattergl use onSelected (box/lasso) for selection, not onClick.
-    // Clicks on these traces fire both plotly_click and plotly_selected; the
-    // latter provides a range and must be the authoritative source.
-    const event = makeClickEvent([
-      makePoint({
-        x: "ignore",
-        y: 1,
-        pointIndex: 0,
-        data: { type: "bar" },
-      }),
-      makePoint({
-        x: 2,
-        y: 5,
-        curveNumber: 1,
-        pointIndex: 3,
-        data: { type: "scatter" },
-      }),
-      makePoint({
-        x: 4,
-        y: 12,
-        curveNumber: 2,
-        pointNumber: 5,
-        data: { type: "scattergl" },
-      }),
-    ]);
-
-    expect(extractClickSelection(event)).toBeUndefined();
-  });
-
-  it("filters unsupported points and preserves supported click payloads", () => {
-    // bar is unsupported; histogram is supported and its pointNumbers must be
-    // forwarded so the backend can recover the exact sample rows.
-    const event = makeClickEvent([
-      makePoint({
-        x: "ignore",
-        y: 1,
-        pointIndex: 0,
-        data: { type: "bar" },
-      }),
-      makePoint({
-        x: 8,
-        y: 3,
-        curveNumber: 1,
-        pointNumber: 2,
-        pointNumbers: [4, 5, 6],
-        data: { type: "histogram" },
-      }),
-    ]);
-
-    expect(extractClickSelection(event)).toEqual({
-      selections: [],
-      range: undefined,
-      indices: [2],
-      points: [
-        {
-          x: 8,
-          y: 3,
-          curveNumber: 1,
-          pointNumber: 2,
-          pointNumbers: [4, 5, 6],
-        },
-      ],
     });
-  });
 
-  it("preserves histogram pointNumbers for backend row extraction", () => {
-    const event = makeClickEvent([
-      makePoint({
-        x: 8,
-        y: 2,
-        curveNumber: 0,
-        pointNumber: 3,
-        pointNumbers: [6, 7],
-        data: { type: "histogram" },
-      }),
-    ]);
-
-    expect(extractClickSelection(event)).toEqual({
-      selections: [],
-      range: undefined,
-      indices: [3],
-      points: [
-        {
-          x: 8,
-          y: 2,
-          curveNumber: 0,
-          pointNumber: 3,
-          pointNumbers: [6, 7],
-        },
-      ],
-    });
-  });
-
-  it("preserves standard heatmap click payloads", () => {
-    const event = makeClickEvent([
-      makePoint({
-        x: "C",
-        y: "Row 3",
-        z: 11,
-        curveNumber: 0,
-        pointIndex: 10,
-        data: { type: "heatmap" },
-      }),
-    ]);
-
-    expect(extractClickSelection(event)).toEqual({
-      selections: [],
-      range: undefined,
-      indices: [10],
-      points: [
-        {
-          x: "C",
-          y: "Row 3",
-          z: 11,
-          curveNumber: 0,
-          pointIndex: 10,
-        },
-      ],
-    });
+    expect(extractPoints([point])).toEqual([{ x: 1, y: 2, z: 3 }]);
   });
 });

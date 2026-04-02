@@ -1,7 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import os
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -13,6 +15,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
+    _bar_value_in_selection_range,
     _extract_bars_fallback,
     _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
@@ -21,6 +24,7 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_histogram_points_numpy,
     _extract_scatter_points_fallback,
     _extract_scatter_points_numpy,
+    _to_numeric_coord,
     plotly,
 )
 
@@ -568,9 +572,9 @@ def test_heatmap_curve_number() -> None:
     plot = plotly(fig)
 
     selection = {
-        "range": {"x": [-0.5, 1.5], "y": [-0.5, 0.5]},
-        "points": [],
-        "indices": [],
+        "range": {"x": [-0.5, 1.5], "y": [-0.5, 2.5]},
+        "points": [{"x": 1, "y": 1, "curveNumber": 0, "pointIndex": 0}],
+        "indices": [0],
     }
 
     result = plot._convert_value(selection)
@@ -918,6 +922,30 @@ def test_scatter_numpy_and_fallback_datetime_x_axis() -> None:
         assert np_p["y"] == fb_p["y"]
 
 
+def test_to_numeric_coord_normalizes_naive_datetimes_to_utc() -> None:
+    """Test naive datetimes align with UTC ISO strings for geometry checks."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("tzset unavailable on this platform")
+
+    original_tz = os.environ.get("TZ")
+    try:
+        os.environ["TZ"] = "America/Los_Angeles"
+        time.tzset()
+
+        naive_dt = datetime(2024, 1, 2, 3, 4, 5)
+        utc_string = "2024-01-02T03:04:05Z"
+        aware_dt = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+
+        assert _to_numeric_coord(naive_dt) == _to_numeric_coord(utc_string)
+        assert _to_numeric_coord(naive_dt) == _to_numeric_coord(aware_dt)
+    finally:
+        if original_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = original_tz
+        time.tzset()
+
+
 def test_bar_selection_datetime_x_axis() -> None:
     """Test bar chart with datetime x-axis."""
     base_date = datetime(2024, 1, 1)
@@ -994,6 +1022,36 @@ def test_line_chart_basic() -> None:
     assert plot.value == []
 
 
+def test_line_chart_click_payload() -> None:
+    """Test pure line click payload is preserved without range selection."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    click_payload = {
+        "points": [
+            {
+                "x": 3,
+                "y": 15,
+                "curveNumber": 0,
+                "pointNumber": 2,
+            }
+        ],
+        "indices": [2],
+    }
+
+    result = plot._convert_value(click_payload)
+
+    assert result == click_payload["points"]
+    assert plot.indices == [2]
+    assert plot.ranges == {}
+
+
 def test_line_chart_selection() -> None:
     """Test box selection on pure line chart."""
     fig = go.Figure(
@@ -1059,12 +1117,12 @@ def test_scattergl_line_selection() -> None:
     assert result[2]["Y"] == 25
 
 
-def test_scattergl_line_filters_by_x_range_only() -> None:
-    """Test scattergl line selection uses x-range only."""
+def test_scattergl_line_uses_xy_box_filtering() -> None:
+    """Test scattergl line selection applies both x/y range filtering."""
     fig = go.Figure(
         data=go.Scattergl(
             x=[1, 2, 3, 4, 5],
-            y=[10, 50, 15, 60, 30],  # y values outside narrow selection
+            y=[10, 50, 70, 60, 30],
             mode="lines",
         )
     )
@@ -1078,14 +1136,7 @@ def test_scattergl_line_filters_by_x_range_only() -> None:
 
     result = plot._convert_value(selection)
 
-    # Should include all points with x in [2, 4], regardless of y.
-    assert len(result) == 3
-    assert result[0]["x"] == 2
-    assert result[0]["y"] == 50
-    assert result[1]["x"] == 3
-    assert result[1]["y"] == 15
-    assert result[2]["x"] == 4
-    assert result[2]["y"] == 60
+    assert result == []
 
 
 def test_scattergl_selection_datetime_x_axis() -> None:
@@ -1227,7 +1278,7 @@ def test_line_markers_selection() -> None:
 def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> (
     None
 ):
-    """Test marker traces keep Plotly points while line traces use fallback."""
+    """Test marker traces keep Plotly points while pure lines use box filtering."""
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
@@ -1278,11 +1329,7 @@ def test_mixed_marker_and_line_selection_uses_trace_specific_fallback() -> (
             "name": "Markers",
         }
     ]
-    assert len(line_points) == 2
-    assert line_points[0]["x"] == 10
-    assert line_points[0]["y"] == 0
-    assert line_points[1]["x"] == 11
-    assert line_points[1]["y"] == 100
+    assert line_points == []
 
 
 def test_line_chart_with_axis_titles() -> None:
@@ -1472,39 +1519,54 @@ def test_line_chart_with_curve_number() -> None:
     assert curve_numbers == {0, 1}
 
 
-def test_line_chart_filters_by_x_range_only() -> None:
-    """Test that line chart selection filters by x-range, matching Altair behavior."""
+def test_line_chart_uses_xy_box_filtering() -> None:
+    """Test line chart selection applies both x/y range filtering."""
     fig = go.Figure(
         data=go.Scatter(
             x=[1, 2, 3, 4, 5],
-            y=[10, 50, 15, 60, 30],  # Varying y values
+            y=[10, 50, 70, 60, 30],
             mode="lines",
         )
     )
 
     plot = plotly(fig)
 
-    # Select x range 2-4, with narrow y range that wouldn't include all points
+    # Select x range 2-4 with y range that excludes all vertices/segments
     selection = {
         "range": {
             "x": [2, 4],
             "y": [10, 20],
-        },  # y range only covers some points
+        },
         "points": [],
         "indices": [],
     }
 
     result = plot._convert_value(selection)
 
-    # Should return ALL points in x-range [2,4], regardless of y
-    # This matches Altair behavior
-    assert len(result) == 3
-    assert result[0]["x"] == 2
-    assert result[0]["y"] == 50  # y=50 is outside [10,20] but still included
-    assert result[1]["x"] == 3
-    assert result[1]["y"] == 15
-    assert result[2]["x"] == 4
-    assert result[2]["y"] == 60  # y=60 is outside [10,20] but still included
+    assert result == []
+
+
+def test_line_chart_excludes_intersecting_segments_without_vertices() -> None:
+    """Test pure line box selection returns only vertices inside the box."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1],
+            y=[0, 10],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    # No vertex lies inside this box, even though the segment crosses through it.
+    selection = {
+        "range": {"x": [0.4, 0.6], "y": [4, 6]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == []
 
 
 def test_scatter_points_numpy_and_fallback() -> None:
@@ -1538,6 +1600,82 @@ def test_scatter_points_numpy_and_fallback() -> None:
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]
         assert np_point["curveNumber"] == fb_point["curveNumber"]
+
+
+def test_scatter_points_numpy_and_fallback_with_y_range() -> None:
+    """Test numpy/fallback parity for scatter extraction with x/y bounds."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1],
+            y=[0, 10],
+            mode="lines",
+        )
+    )
+
+    numpy_result = _extract_scatter_points_numpy(fig, 0.4, 0.6, 4, 6)
+    fallback_result = _extract_scatter_points_fallback(fig, 0.4, 0.6, 4, 6)
+
+    assert len(numpy_result) == len(fallback_result) == 0
+
+
+def test_scatter_points_categorical_y_uses_category_positions() -> None:
+    """Test repeated categorical y values share the same y-axis position."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1, 2, 3],
+            y=["A", "B", "B", "C"],
+            mode="lines",
+        )
+    )
+
+    numpy_result = _extract_scatter_points_numpy(fig, 0, 3, 0.5, 1.5)
+    fallback_result = _extract_scatter_points_fallback(fig, 0, 3, 0.5, 1.5)
+
+    assert [point["pointIndex"] for point in numpy_result] == [1, 2]
+    assert [point["pointIndex"] for point in fallback_result] == [1, 2]
+
+
+def test_scatter_points_categorical_x_uses_category_positions() -> None:
+    """Test repeated categorical x values share the same x-axis position."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=["A", "B", "B", "C"],
+            y=[10, 20, 30, 40],
+            mode="lines",
+        )
+    )
+
+    numpy_result = _extract_scatter_points_numpy(fig, 0.5, 1.5, 0, 100)
+    fallback_result = _extract_scatter_points_fallback(fig, 0.5, 1.5, 0, 100)
+
+    assert [point["pointIndex"] for point in numpy_result] == [1, 2]
+    assert [point["pointIndex"] for point in fallback_result] == [1, 2]
+
+
+def test_line_chart_lasso_selection_extracts_inside_points() -> None:
+    """Test pure line lasso selection returns only vertices inside polygon."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[0, 1, 2, 3],
+            y=[0, 2, 0, 2],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "lasso": {
+            "x": [-0.5, 2.5, 2.5, -0.5],
+            "y": [-0.5, -0.5, 0.5, 0.5],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert [p["pointIndex"] for p in result] == [0, 2]
+    assert [p["x"] for p in result] == [0, 2]
 
 
 def test_scattergl_points_numpy_and_fallback() -> None:
@@ -2795,3 +2933,82 @@ def test_scattermap_invalid_indices() -> None:
 
     assert len(result) == 1
     assert result[0]["pointIndex"] == 0
+
+
+def test_bar_value_in_selection_range_ignores_non_numeric_values() -> None:
+    """Test non-numeric bar values do not raise during overlap checks."""
+    trace = go.Bar(base=["bad-base"])
+
+    assert (
+        _bar_value_in_selection_range(
+            trace=trace,
+            point_idx=0,
+            point_value="bad-value",
+            selection_min=0,
+            selection_max=10,
+        )
+        is False
+    )
+
+
+def test_bar_chart_explicit_points_are_not_duplicated() -> None:
+    """Test that explicit Plotly bar points are not duplicated by fallback extraction."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C"],
+            y=[10, 20, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 1.5], "y": [0, 25]},
+        "points": [
+            {
+                "x": "A",
+                "y": 10,
+                "curveNumber": 0,
+                "pointNumber": 0,
+                "pointIndex": 0,
+                "Month": "A",
+                "Sales": 10,
+            },
+            {
+                "x": "B",
+                "y": 20,
+                "curveNumber": 0,
+                "pointNumber": 1,
+                "pointIndex": 1,
+                "Month": "B",
+                "Sales": 20,
+            },
+        ],
+        "indices": [0, 1],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert result == selection["points"]
+    assert plot.indices == [0, 1]
+
+
+def test_bar_chart_preserves_indices_when_empty_points_exist() -> None:
+    """Test bar index alignment when frontend emits empty point dicts."""
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=["A", "B"], y=[10, 20]))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [0.5, 1.5], "y": [0, 25]},
+        "points": [
+            {},
+            {"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1},
+        ],
+        "indices": [999, 1],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [{"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1}]
+    assert plot.indices == [1]
