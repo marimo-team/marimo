@@ -314,19 +314,19 @@ const DataTableInternal = <TData,>({
               virtualize={virtualize}
             />
           </Table>
+          <TableBottomBar
+            part="table-footer"
+            className="pt-1.5 pb-0.5 border-t border-border"
+            totalColumns={totalColumns}
+            pagination={pagination}
+            selection={selection}
+            onRowSelectionChange={onRowSelectionChange}
+            table={table}
+            getRowIds={getRowIds}
+            showPageSizeSelector={showPageSizeSelector}
+            tableLoading={reloading}
+          />
         </div>
-        <TableBottomBar
-          part="table-footer"
-          className="border-t border-border pt-1.5 pb-0.5"
-          totalColumns={totalColumns}
-          pagination={pagination}
-          selection={selection}
-          onRowSelectionChange={onRowSelectionChange}
-          table={table}
-          getRowIds={getRowIds}
-          showPageSizeSelector={showPageSizeSelector}
-          tableLoading={reloading}
-        />
       </CellSelectionProvider>
     </div>
   );
