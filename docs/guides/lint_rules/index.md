@@ -1,12 +1,10 @@
 # Lint Rules
 
-marimo includes a linter that helps you write better notebooks. The linter
-checks for various issues that could prevent your notebook from running
-correctly or cause confusion.
+marimo includes a comprehensive linting system that helps you write better, more reliable notebooks. The linter checks for various issues that could prevent your notebook from running correctly or cause confusion.
 
-## Usage
+## How to Use
 
-Run the linter using the CLI:
+You can run the linter using the CLI:
 
 ```bash
 # Check all notebooks in current directory
@@ -43,6 +41,7 @@ These issues may cause runtime problems.
 |------|------|-------------|----------|
 | [MR001](rules/self_import.md) | self-import | Importing a module with the same name as the file | ❌ |
 | [MR002](rules/branch_expression.md) | branch-expression | Branch statements with output expressions that won't be displayed | ❌ |
+| [MR003](rules/reusable_definition_order.md) | reusable-definition-order | Reusable definitions depending on later reusable definitions | ⚠️ |
 
 ### ✨ Formatting Rules
 
