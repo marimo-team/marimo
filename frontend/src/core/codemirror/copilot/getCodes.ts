@@ -27,7 +27,7 @@ export function getOtherCellsCode(otherCode: string) {
       return code;
     })
     .filter(Boolean)
-    .sort((a, b) => {
+    .toSorted((a, b) => {
       if (a.startsWith("import") && !b.startsWith("import")) {
         return -1;
       }

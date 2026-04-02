@@ -66,7 +66,7 @@ const {
       return true;
     });
 
-    const sortedTables = dedupedTables.sort((a, b) => {
+    const sortedTables = dedupedTables.toSorted((a, b) => {
       return a.name.localeCompare(b.name);
     });
 

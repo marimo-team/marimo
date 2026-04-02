@@ -14,7 +14,13 @@
     "**/e2e-tests/**"
   ],
   "categories": {
-    "correctness": "off"
+    "correctness": "error",
+    "nursery": "off",
+    "pedantic": "off",
+    "perf": "warn",
+    "restriction": "warn",
+    "style": "off",
+    "suspicious": "warn"
   },
   "rules": {
     // === Marimo custom rules ===
@@ -23,8 +29,7 @@
     "marimo/prefer-object-params": "warn",
     "marimo/atom-with-storage-args": "error",
 
-
-    // === ESLint core rules (were delegated to Biome, now oxlint handles them) ===
+    // === Core rules ===
     "no-var": "error",
     "no-console": "error",
     "no-debugger": "error",
@@ -40,8 +45,16 @@
     "eqeqeq": ["error", "smart"],
     "curly": "error",
     "array-callback-return": "warn",
+    // TODO: re-enable
+    "no-control-regex": "warn",
+    // TODO: re-enable
+    "no-unsafe-optional-chaining": "warn",
+    // TODO: re-enable
+    "no-unused-expressions": "warn",
+    // TODO: re-enable
+    "no-unused-vars": "warn",
 
-    // === TypeScript (from ESLint @typescript-eslint) ===
+    // === TypeScript ===
     "typescript/consistent-generic-constructors": "error",
     "typescript/consistent-type-definitions": "error",
     "typescript/no-confusing-non-null-assertion": "error",
@@ -49,8 +62,16 @@
     "typescript/prefer-ts-expect-error": "error",
     "typescript/no-empty-object-type": "off",
     "typescript/no-confusing-void-expression": "error",
-    // From Biome: useImportType
     "typescript/consistent-type-imports": ["error", { "disallowTypeAnnotations": false }],
+    "typescript/explicit-function-return-type": ["warn", {
+      "allowConciseArrowFunctionExpressionsStartingWithVoid": true,
+      "allowDirectConstAssertionInArrowFunctions": true,
+      "allowExpressions": true,
+      "allowFunctionsWithoutTypeParameters": true,
+      "allowHigherOrderFunctions": true,
+      "allowIIFEs": true,
+      "allowTypedFunctionExpressions": true,
+    }],
 
     // === Unicorn ===
     "unicorn/switch-case-braces": ["error", "avoid"],
@@ -59,30 +80,41 @@
     "unicorn/no-object-as-default-parameter": "error",
     "unicorn/prefer-number-properties": "error",
     "unicorn/prefer-ternary": "error",
-    // From Biome: useIsArray
     "unicorn/no-instanceof-array": "error",
 
     // === React ===
     "react/jsx-boolean-value": ["error", "always"],
     "react/jsx-pascal-case": "error",
-    // From Biome: noUselessFragments
+    "react/no-multi-comp": "off",
+    "react/jsx-filename-extension": "off",
     // TODO: re-enable as error
     "react/jsx-no-useless-fragment": "warn",
-    // From Biome: useSelfClosingElements
     "react/self-closing-comp": "error",
 
     // === React Hooks ===
-    // From Biome: useHookAtTopLevel
     "react-hooks/rules-of-hooks": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+
+    // === JSX A11y ===
+    // TODO: re-enable all of these as error
+    "jsx-a11y/click-events-have-key-events": "warn",
+    "jsx-a11y/heading-has-content": "warn",
+    "jsx-a11y/iframe-has-title": "warn",
+    "jsx-a11y/media-has-caption": "warn",
+    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/no-noninteractive-tabindex": "warn",
+    "jsx-a11y/no-static-element-interactions": "warn",
+    "jsx-a11y/prefer-tag-over-role": "warn",
+    "jsx-a11y/role-has-required-aria-props": "warn",
 
     // === Unicorn ===
-    // From Biome: useNodejsImportProtocol
     "unicorn/prefer-node-protocol": "error",
 
     // === Vitest ===
     "vitest/expect-expect": "warn",
     "vitest/no-identical-title": "error",
-    "vitest/no-commented-out-tests": "warn"
+    "vitest/no-commented-out-tests": "warn",
+    "vitest/require-mock-type-parameters": "warn",
   },
   "overrides": [
     {

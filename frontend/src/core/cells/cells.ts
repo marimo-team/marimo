@@ -1226,7 +1226,7 @@ const {
           i--;
         }
 
-        const collapseRanges = reversedCollapseRanges.reverse();
+        const collapseRanges = reversedCollapseRanges.toReversed();
         return column.collapseAll(collapseRanges);
       }),
     };

@@ -85,7 +85,7 @@ export function sortBy<T>(
   // Decorate/sort/undecorate to compute keys once per element
   return arr
     .map((item) => [key(item), item] as const)
-    .sort(([ka], [kb]) => {
+    .toSorted(([ka], [kb]) => {
       // Nullish values sort last
       if (ka == null && kb == null) {
         return 0;

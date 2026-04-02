@@ -24,7 +24,7 @@ export const CellLinkList: React.FC<Props> = ({
   skipScroll,
 }) => {
   const cellIndex = useCellIds();
-  const sortedCellIds = [...cellIds].sort((a, b) => {
+  const sortedCellIds = cellIds.toSorted((a, b) => {
     return cellIndex.inOrderIds.indexOf(a) - cellIndex.inOrderIds.indexOf(b);
   });
 

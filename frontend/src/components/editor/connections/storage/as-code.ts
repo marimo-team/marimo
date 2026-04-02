@@ -214,7 +214,7 @@ export function generateStorageCode(
   }
 
   const allImports = new Set([...secrets.imports, ...result.imports]);
-  const lines = [...allImports].sort();
+  const lines = [...allImports].toSorted();
   lines.push("");
   const secretsStr = secrets.formatSecrets();
   if (secretsStr) {

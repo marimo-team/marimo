@@ -210,7 +210,7 @@ export const PlotlyComponent = memo(
             return;
           }
           // Handle clicks for chart types where box/lasso selection
-          // is limited or unavailable (e.g. heatmaps, histograms, pure line traces).
+          // is limited or unavailable (e.g. bar, heatmaps, histograms, pure line traces).
           if (!shouldHandleClickSelection(evt.points)) {
             return;
           }

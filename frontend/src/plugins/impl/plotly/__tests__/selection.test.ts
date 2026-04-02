@@ -85,6 +85,14 @@ describe("mergeModeBarButtonsToAdd", () => {
 });
 
 describe("shouldHandleClickSelection", () => {
+  it("accepts bar clicks", () => {
+    const barPoint = createPlotDatum({
+      data: { type: "bar" },
+    });
+
+    expect(shouldHandleClickSelection([barPoint])).toBe(true);
+  });
+
   it("accepts heatmap clicks", () => {
     const heatmapPoint = createPlotDatum({
       data: { type: "heatmap" },

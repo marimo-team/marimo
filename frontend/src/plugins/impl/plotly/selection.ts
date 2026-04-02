@@ -2,6 +2,7 @@
 
 import { pick } from "lodash-es";
 import type * as Plotly from "plotly.js";
+
 import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
 
 type AxisName = string;
@@ -222,7 +223,12 @@ export function shouldHandleClickSelection(
 ): boolean {
   return points.some((point) => {
     const type = getTraceSource(point).type;
-    return type === "heatmap" || type === "histogram" || isLinePoint(point);
+    return (
+      type === "bar" ||
+      type === "heatmap" ||
+      type === "histogram" ||
+      isLinePoint(point)
+    );
   });
 }
 

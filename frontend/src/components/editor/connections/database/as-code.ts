@@ -964,7 +964,7 @@ export function generateDatabaseCode(
     ...generator.imports,
   ]);
 
-  const lines = [...imports].sort();
+  const lines = [...imports].toSorted();
   lines.push("");
   const secrets = secretsContainer.formatSecrets();
   if (secrets) {

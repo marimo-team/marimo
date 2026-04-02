@@ -209,6 +209,7 @@ export class LazyWebsocketTransport extends Transport {
         Logger.error("Copilot#sendData: Failed to reconnect transport", error);
         throw new Error(
           "Unable to connect to GitHub Copilot. Please check your settings and try again.",
+          { cause: error },
         );
       }
 

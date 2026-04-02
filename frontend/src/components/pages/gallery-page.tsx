@@ -83,7 +83,7 @@ const GalleryPage: React.FC = () => {
           thumbnailUrl,
         };
       })
-      .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      .toSorted((a, b) => a.relativePath.localeCompare(b.relativePath));
   }, [workspace?.files, workspace?.root]);
 
   const filteredFiles = useMemo(() => {

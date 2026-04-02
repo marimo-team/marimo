@@ -40,11 +40,11 @@ function getParamSignature(param: TParams): string {
     type: select.type,
     encodings:
       "encodings" in select && select.encodings
-        ? [...select.encodings].sort()
+        ? [...select.encodings].toSorted()
         : undefined,
     fields:
       "fields" in select && select.fields
-        ? [...select.fields].sort()
+        ? [...select.fields].toSorted()
         : undefined,
     bind: param.bind,
   };

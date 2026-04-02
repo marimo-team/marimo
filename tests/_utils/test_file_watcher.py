@@ -6,6 +6,7 @@ import os
 import shutil
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from unittest.mock import patch
 
 import pytest
 
@@ -149,6 +150,75 @@ async def test_file_watcher_manager() -> None:
         manager.stop_all()
         os.remove(tmp_path1)
         os.remove(tmp_path2)
+
+
+@patch("marimo._utils.file_watcher.PollingFileWatcher.POLL_SECONDS", 0.05)
+async def test_polling_file_watcher_transient_missing(tmp_path: Path) -> None:
+    """Test that the watcher survives a transient file deletion (e.g. vim save).
+
+    Editors like vim save by writing to a temp file, deleting the original,
+    and renaming the temp. The polling watcher should tolerate the brief
+    absence and fire the callback once the file reappears with new content.
+    """
+    tmp_file = tmp_path / "nb.py"
+    tmp_file.write_bytes(b"original")
+
+    callback_calls: list[Path] = []
+
+    async def test_callback(path: Path) -> None:
+        callback_calls.append(path)
+
+    loop = asyncio.get_event_loop()
+    watcher = PollingFileWatcher(tmp_file, test_callback, loop)
+    watcher.start()
+
+    await asyncio.sleep(0.1)
+
+    # Simulate vim-style save: delete original, then recreate
+    os.remove(tmp_file)
+    await asyncio.sleep(0.1)  # File is missing for a poll cycle
+    with open(tmp_file, "w") as f:  # noqa: ASYNC230
+        f.write("updated content")
+
+    # Wait for the watcher to detect the change
+    await asyncio.sleep(0.2)
+
+    watcher.stop()
+
+    # The watcher should still be running and have detected the change
+    assert watcher._missing_count == 0
+    assert len(callback_calls) >= 1
+    assert callback_calls[0] == tmp_file
+
+
+@patch("marimo._utils.file_watcher.PollingFileWatcher.MAX_MISSING_POLLS", 3)
+@patch("marimo._utils.file_watcher.PollingFileWatcher.POLL_SECONDS", 0.05)
+async def test_polling_file_watcher_permanently_missing(
+    tmp_path: Path,
+) -> None:
+    """Test that the watcher stops after MAX_MISSING_POLLS consecutive misses."""
+    tmp_file = tmp_path / "nb.py"
+    tmp_file.write_bytes(b"")
+
+    callback_calls: list[Path] = []
+
+    async def test_callback(path: Path) -> None:
+        callback_calls.append(path)
+
+    loop = asyncio.get_event_loop()
+    watcher = PollingFileWatcher(tmp_file, test_callback, loop)
+    watcher.start()
+
+    await asyncio.sleep(0.1)
+
+    # Remove the file permanently
+    os.remove(tmp_file)
+
+    # Wait for the watcher to exceed MAX_MISSING_POLLS and stop
+    await asyncio.sleep(0.5)
+
+    assert watcher._running is False
+    assert len(callback_calls) == 0
 
 
 # This test is not working and watchdog makes CI hang in other areas

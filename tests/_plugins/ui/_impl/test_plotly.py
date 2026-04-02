@@ -15,6 +15,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
+    _bar_value_in_selection_range,
     _extract_bars_fallback,
     _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
@@ -2932,3 +2933,82 @@ def test_scattermap_invalid_indices() -> None:
 
     assert len(result) == 1
     assert result[0]["pointIndex"] == 0
+
+
+def test_bar_value_in_selection_range_ignores_non_numeric_values() -> None:
+    """Test non-numeric bar values do not raise during overlap checks."""
+    trace = go.Bar(base=["bad-base"])
+
+    assert (
+        _bar_value_in_selection_range(
+            trace=trace,
+            point_idx=0,
+            point_value="bad-value",
+            selection_min=0,
+            selection_max=10,
+        )
+        is False
+    )
+
+
+def test_bar_chart_explicit_points_are_not_duplicated() -> None:
+    """Test that explicit Plotly bar points are not duplicated by fallback extraction."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C"],
+            y=[10, 20, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 1.5], "y": [0, 25]},
+        "points": [
+            {
+                "x": "A",
+                "y": 10,
+                "curveNumber": 0,
+                "pointNumber": 0,
+                "pointIndex": 0,
+                "Month": "A",
+                "Sales": 10,
+            },
+            {
+                "x": "B",
+                "y": 20,
+                "curveNumber": 0,
+                "pointNumber": 1,
+                "pointIndex": 1,
+                "Month": "B",
+                "Sales": 20,
+            },
+        ],
+        "indices": [0, 1],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert result == selection["points"]
+    assert plot.indices == [0, 1]
+
+
+def test_bar_chart_preserves_indices_when_empty_points_exist() -> None:
+    """Test bar index alignment when frontend emits empty point dicts."""
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=["A", "B"], y=[10, 20]))
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [0.5, 1.5], "y": [0, 25]},
+        "points": [
+            {},
+            {"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1},
+        ],
+        "indices": [999, 1],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [{"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1}]
+    assert plot.indices == [1]
