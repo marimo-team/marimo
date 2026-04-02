@@ -1621,3 +1621,23 @@ def test_is_any_ancestor_errored() -> None:
     assert not graph.is_any_ancestor_errored("0")
     assert not graph.is_any_ancestor_errored("1")
     assert not graph.is_any_ancestor_errored("2")
+
+
+def test_is_any_ancestor_errored_marimo_error() -> None:
+    """Test that is_any_ancestor_errored detects marimo-error status too."""
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    # Set cell 0 to marimo-error state (e.g. registration/syntax error)
+    graph.cells["0"].set_run_result_status("marimo-error")
+    assert not graph.is_any_ancestor_errored("0")  # no ancestors
+    assert graph.is_any_ancestor_errored("1")       # parent 0 has marimo-error
+
+    # Fix cell 0
+    graph.cells["0"].set_run_result_status("success")
+    assert not graph.is_any_ancestor_errored("1")

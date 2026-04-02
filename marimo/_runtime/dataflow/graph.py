@@ -145,7 +145,7 @@ class DirectedGraph(GraphTopology):
     def is_any_ancestor_errored(self, cell_id: CellId_t) -> bool:
         """Check if any ancestor of a cell has an error."""
         return any(
-            self.topology.cells[cid].run_result_status == "exception"
+            self.topology.cells[cid].run_result_status in ("exception", "marimo-error")
             for cid in self.ancestors(cell_id)
         )
 

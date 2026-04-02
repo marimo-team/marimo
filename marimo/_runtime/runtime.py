@@ -1815,10 +1815,18 @@ class Kernel:
             if (
                 self.graph.is_disabled(cid)
                 and not cell_impl.config.disabled
-                and cell_impl.run_result_status == "exception"
+                and cell_impl.run_result_status in ("exception", "marimo-error")
                 and not self.graph.is_any_ancestor_errored(cid)
             ):
                 cell_impl.set_run_result_status("disabled")
+                # Broadcast runtime state so frontend transitions out of
+                # error display; set_runtime_state calls
+                # CellNotificationUtils.broadcast_status internally.
+                cell_impl.set_runtime_state("disabled-transitively")
+                # Clear the error output shown in the UI.
+                CellNotificationUtils.broadcast_empty_output(
+                    cell_id=cid, status="disabled-transitively"
+                )
 
         await self._run_cells(
             dataflow.transitive_closure(
