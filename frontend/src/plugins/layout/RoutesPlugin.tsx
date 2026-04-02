@@ -69,7 +69,7 @@ const RoutesComponent = ({
   }, [handleFindMatch]);
 
   if (!matched) {
-    // oxlint-ignore-next-line react/jsx-no-useless-fragment -- this is intentional
+    // oxlint-disable-next-line react/jsx-no-useless-fragment
     return <></>;
   }
 

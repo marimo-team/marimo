@@ -104,7 +104,7 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
       script.src = src;
       document.head.append(script);
     }
-    // oxlint-ignore-next-line react/jsx-no-useless-fragment -- this is intentional
+    // oxlint-disable-next-line react/jsx-no-useless-fragment
     return <></>;
   }
 };

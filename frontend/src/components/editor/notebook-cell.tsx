@@ -704,7 +704,7 @@ const EditableCellComponent = ({
                     <a
                       href="https://links.marimo.app/reusable-definitions"
                       target="_blank"
-                      rel="noopener"
+                      rel="noreferrer"
                     >
                       <SquareFunctionIcon
                         size={16}
