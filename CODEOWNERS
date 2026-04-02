@@ -33,4 +33,3 @@ package.json @mscolnick @manzt
 
 # CI
 /.github/ @mscolnick @manzt
-biome.jsonc @mscolnick @manzt
