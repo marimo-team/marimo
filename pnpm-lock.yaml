@@ -19,9 +19,6 @@ importers:
 
   .:
     devDependencies:
-      '@biomejs/biome':
-        specifier: 2.3.13
-        version: 2.3.13
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1

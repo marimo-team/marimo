@@ -21,6 +21,8 @@
     "examples/**",
     "marimo/**",
     ".github/**",
-    "**/e2e-tests/**"
+    "**/e2e-tests/**",
+    "*.yaml",
+    "*.yml"
   ]
 }
