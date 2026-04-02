@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { startCase } from "lodash-es";
 import { AlertCircleIcon, CheckCircle2Icon, PowerOffIcon } from "lucide-react";
 import type React from "react";
 import { Spinner } from "@/components/icons/spinner";
@@ -18,6 +17,7 @@ import {
 } from "@/core/websocket/connection-utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
+import { Strings } from "@/utils/strings";
 
 const CHECK_HEALTH_INTERVAL_MS = 30_000;
 
@@ -84,7 +84,7 @@ export const BackendConnectionStatus: React.FC = () => {
       return "Not connected to a runtime";
     }
 
-    const baseStatus = startCase(connection.toLowerCase());
+    const baseStatus = Strings.startCase(connection.toLowerCase());
     const healthInfo = data?.lastChecked
       ? data.isHealthy
         ? "✓ Healthy"

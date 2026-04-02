@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
 import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";

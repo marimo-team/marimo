@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { once } from "lodash-es";
+import { once } from "@/utils/once";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";
@@ -45,15 +45,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     sendRestart: () => {
       return getClient()
         .POST("/api/kernel/restart_session", {
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    syncCellIds: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/sync/cell_ids", {
-          body: request,
           params: getParams(),
         })
         .then(handleResponseReturnNull);

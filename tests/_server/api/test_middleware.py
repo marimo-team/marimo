@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import socket
 import sys
 import time
 from multiprocessing import Process
@@ -358,13 +359,27 @@ def run_static_server():
     server.run()
 
 
+def _wait_for_server(host: str, port: int, timeout: float = 10.0) -> None:
+    """Poll until a TCP connection to host:port succeeds."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=0.5):
+                return
+        except OSError:
+            time.sleep(0.1)
+    raise RuntimeError(
+        f"Server on {host}:{port} did not start within {timeout}s"
+    )
+
+
 class TestProxyMiddleware:
     @pytest.fixture(scope="module")
     def target_server(self):
         """Start a separate `uvicorn` server for the target app."""
         process = Process(target=run_target_server, daemon=True)
         process.start()
-        time.sleep(1)  # Ensure the server has started before tests run
+        _wait_for_server("127.0.0.1", 8765)
         yield None
         process.terminate()
         process.join()
@@ -387,7 +402,7 @@ class TestProxyMiddleware:
         """Start a separate server for static files."""
         process = Process(target=run_static_server, daemon=True)
         process.start()
-        time.sleep(1)  # Ensure the server has started
+        _wait_for_server("127.0.0.1", 8766)
         yield None
         process.terminate()
         process.join()

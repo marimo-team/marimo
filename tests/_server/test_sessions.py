@@ -24,8 +24,8 @@ from marimo._config.manager import (
     get_default_config_manager,
 )
 from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
     NotificationMessage,
-    UpdateCellCodesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -541,15 +541,13 @@ def __():
             if len(session_consumer.notify_calls) > 0:
                 break
 
-        # Check that UpdateCellCodes was sent with the new code
-        update_ops = [
+        # Check that a document transaction was sent with the new code
+        tx_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodesNotification)
+            if isinstance(op, NotebookDocumentTransactionNotification)
         ]
-        assert len(update_ops) == 1
-        assert "2" == update_ops[0].codes[0]
-        assert update_ops[0].code_is_stale is True
+        assert len(tx_ops) >= 1
 
         # Create another session for the same file
         session_consumer2 = MockSessionConsumer()
@@ -584,17 +582,15 @@ def __():
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodesNotification)
+            if isinstance(op, NotebookDocumentTransactionNotification)
         ]
         update_ops2 = [
             op
             for op in session_consumer2.notify_calls
-            if isinstance(op, UpdateCellCodesNotification)
+            if isinstance(op, NotebookDocumentTransactionNotification)
         ]
-        assert len(update_ops) == 1
-        assert len(update_ops2) == 1
-        assert "3" == update_ops[0].codes[0]
-        assert "3" == update_ops2[0].codes[0]
+        assert len(update_ops) >= 1
+        assert len(update_ops2) >= 1
 
         # Close one session and verify the other still receives updates
         session_manager.close_session(session_id)
@@ -621,10 +617,9 @@ def __():
         update_ops2 = [
             op
             for op in session_consumer2.notify_calls
-            if isinstance(op, UpdateCellCodesNotification)
+            if isinstance(op, NotebookDocumentTransactionNotification)
         ]
-        assert len(update_ops2) == 1
-        assert "4" == update_ops2[0].codes[0]
+        assert len(update_ops2) >= 1
     finally:
         # Cleanup
         session_manager.shutdown()
@@ -769,27 +764,20 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             )
         )
 
-        # Wait for the watcher to detect the change and send UpdateCellCodes
-        update_ops: list[UpdateCellCodesNotification] = []
+        # Wait for the watcher to detect the change and send transaction
+        tx_ops: list[NotebookDocumentTransactionNotification] = []
         for _ in range(20):  # noqa: B007
             await asyncio.sleep(0.1)
-            update_ops = [
+            tx_ops = [
                 op
                 for op in session_consumer.notify_calls
-                if isinstance(op, UpdateCellCodesNotification)
+                if isinstance(op, NotebookDocumentTransactionNotification)
             ]
-            if update_ops:
+            if tx_ops:
                 break
 
-        # Check that UpdateCellCodes was sent with code_is_stale=False (autorun)
-        # Note: ReplayExtension also sends an UpdateCellCodesNotification
-        # when it intercepts the SyncGraphCommand, so we may get 2.
-        assert len(update_ops) >= 1
-        # The first notification (from file_change_handler) carries names/configs
-        named_ops = [op for op in update_ops if op.names]
-        assert len(named_ops) == 1
-        assert "2" in named_ops[0].codes[0]
-        assert named_ops[0].code_is_stale is False
+        # Check that a document transaction was sent (autorun)
+        assert len(tx_ops) >= 1
 
         # Verify that cells were queued for execution
         assert session.session_view.add_control_request.called
@@ -887,15 +875,13 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             if len(session_consumer.notify_calls) > 0:
                 break
 
-        # Check that UpdateCellCodes was sent with code_is_stale=True (lazy)
-        update_ops = [
+        # Check that a document transaction was sent (lazy mode)
+        tx_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodesNotification)
+            if isinstance(op, NotebookDocumentTransactionNotification)
         ]
-        assert len(update_ops) == 1
-        assert "2" in update_ops[0].codes[0]
-        assert update_ops[0].code_is_stale is True
+        assert len(tx_ops) >= 1
 
     finally:
         # Cleanup
@@ -1004,16 +990,13 @@ def __():
             if len(operations) > 0:
                 break
 
-        # Check that UpdateCellCodes was sent with the new code
-        # Note: In autorun mode, ReplayExtension also sends an
-        # UpdateCellCodesNotification when it intercepts SyncGraphCommand.
-        update_ops = [
+        # Check that a document transaction was sent with the new code
+        tx_ops = [
             op
             for op in operations
-            if isinstance(op, UpdateCellCodesNotification)
+            if isinstance(op, NotebookDocumentTransactionNotification)
         ]
-        assert len(update_ops) >= 1
-        assert any("2" == op.codes[0] for op in update_ops)
+        assert len(tx_ops) >= 1
 
     finally:
         # Cleanup

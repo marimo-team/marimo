@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Tooltip as TooltipPrimitive } from "radix-ui";
 import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";

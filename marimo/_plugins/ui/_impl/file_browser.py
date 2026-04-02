@@ -20,7 +20,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.validators import validate_one_of
 from marimo._runtime.functions import Function
 from marimo._utils.files import natural_sort
-from marimo._utils.paths import normalize_path
+from marimo._utils.paths import is_cloudpath, normalize_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -198,8 +198,7 @@ class file_browser(
 
         # Smart default limit based on path type
         if limit is None:
-            # Check if it's a cloud path
-            if self._path_cls.__module__.startswith("cloudpathlib"):
+            if is_cloudpath(self._initial_path):
                 limit = 50  # Conservative for cloud storage
             else:
                 limit = 10000  # High limit for local filesystems

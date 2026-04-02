@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+import { dequal as isEqual } from "dequal";
 import { type Atom, atom, createStore, useStore } from "jotai";
-import { isEqual } from "lodash-es";
 import { useEffect } from "react";
 
 /**

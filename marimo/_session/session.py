@@ -12,20 +12,14 @@ import contextlib
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
-import msgspec
-
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
-    NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
-from marimo._messaging.serde import (
-    serialize_kernel_message,
-    try_deserialize_kernel_notification_name,
-)
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._runtime.commands import (
@@ -47,7 +41,10 @@ from marimo._session.extensions.extensions import (
     ReplayExtension,
     SessionViewExtension,
 )
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import (
+    ExtensionRegistry,
+    SessionExtension,
+)
 from marimo._session.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
@@ -266,7 +263,8 @@ class SessionImpl(Session):
         )
         self.session_view = SessionView()
         self.config_manager = config_manager
-        self.extensions = extensions
+        self.extensions = ExtensionRegistry()
+        self.extensions.add(*extensions)
         self.scratchpad_lock = asyncio.Lock()
 
         self._kernel_manager.start_kernel()
@@ -312,7 +310,7 @@ class SessionImpl(Session):
         extension: SessionExtension,
     ) -> Iterator[SessionExtension]:
         """Attach an extension for the duration of the context."""
-        self.extensions.append(extension)
+        self.extensions.add(extension)
         extension.on_attach(self, self._event_bus)
         try:
             yield extension
@@ -328,12 +326,9 @@ class SessionImpl(Session):
 
     def flush_messages(self) -> None:
         """Flush any pending messages."""
-        # HACK: Ideally we don't need to reach into this extension directly
-        for extension in self.extensions:
-            if isinstance(extension, NotificationListenerExtension):
-                if extension.distributor is not None:
-                    extension.distributor.flush()
-                return
+        ext = self.extensions.get(NotificationListenerExtension)
+        if ext is not None:
+            ext.flush()
 
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
@@ -396,7 +391,7 @@ class SessionImpl(Session):
         an exception is raised.
         """
         # Consumers are also extensions, so we want to attach them to the session
-        self.extensions.append(session_consumer)
+        self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
         self.room.add_consumer(
             session_consumer,
@@ -421,26 +416,7 @@ class SessionImpl(Session):
         operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
-        """Write an operation to the session consumer and the session view."""
-        # Intercept document transactions: apply to session.document
-        # (stamps version), then re-serialize for broadcast.
-        # Kernel notifications arrive as bytes via the stream distributor;
-        # server-side callers (e.g. file-watch) pass typed objects.
-        if isinstance(operation, bytes):
-            name = try_deserialize_kernel_notification_name(operation)
-            if name == NotebookDocumentTransactionNotification.name:
-                try:
-                    operation = self._apply_document_transaction(
-                        msgspec.json.decode(
-                            operation,
-                            type=NotebookDocumentTransactionNotification,
-                        )
-                    )
-                except Exception:
-                    LOGGER.warning("Failed to decode document transaction")
-        elif isinstance(operation, NotebookDocumentTransactionNotification):
-            operation = self._apply_document_transaction(operation)
-
+        """Broadcast a notification to session consumers."""
         if isinstance(operation, bytes):
             notification = operation
         else:
@@ -448,18 +424,6 @@ class SessionImpl(Session):
 
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
-
-    def _apply_document_transaction(
-        self,
-        notif: NotebookDocumentTransactionNotification,
-    ) -> NotebookDocumentTransactionNotification:
-        """Apply to session.document, return with version stamped."""
-        try:
-            applied = self.document.apply(notif.transaction)
-            return NotebookDocumentTransactionNotification(transaction=applied)
-        except (ValueError, KeyError):
-            LOGGER.warning("Failed to apply document transaction")
-            return notif
 
     def close(self) -> None:
         """

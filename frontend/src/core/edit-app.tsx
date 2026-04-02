@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { usePrevious } from "@dnd-kit/utilities";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Tooltip } from "radix-ui";
+
+const TooltipProvider = Tooltip.Provider;
+
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
 import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
@@ -20,13 +23,11 @@ import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import {
-  cellIdsAtom,
   hasCellsAtom,
   notebookIsRunningAtom,
   numColumnsAtom,
   useCellActions,
 } from "./cells/cells";
-import { CellEffects } from "./cells/effects";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
@@ -35,7 +36,6 @@ import { viewStateAtom } from "./mode";
 import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
-import { useJotaiEffect } from "./state/jotai";
 import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
 
 interface AppProps {
@@ -58,8 +58,6 @@ export const EditApp: React.FC<AppProps> = ({
   appConfig,
   hideControls = false,
 }) => {
-  useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
-
   const { setCells, mergeAllColumns, collapseAllCells, expandAllCells } =
     useCellActions();
   const viewState = useAtomValue(viewStateAtom);

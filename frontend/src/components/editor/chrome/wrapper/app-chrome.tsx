@@ -14,7 +14,10 @@ import {
 import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Tooltip } from "radix-ui";
+
+const TooltipProvider = Tooltip.Provider;
+
 import { useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import useEvent from "react-use-event-hook";

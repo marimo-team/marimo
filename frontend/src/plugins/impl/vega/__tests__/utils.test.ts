@@ -33,4 +33,72 @@ describe("getContainerWidth", () => {
   it("should return undefined when width is explicitly undefined", () => {
     expect(getContainerWidth({ width: undefined })).toBeUndefined();
   });
+
+  it("should find width in nested facet spec", () => {
+    expect(
+      getContainerWidth({
+        $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+        facet: { column: { field: "Origin", type: "nominal" } },
+        spec: {
+          mark: "point",
+          encoding: {},
+          width: "container",
+        },
+      }),
+    ).toBe("container");
+  });
+
+  it("should find width in nested repeat spec", () => {
+    expect(
+      getContainerWidth({
+        $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+        repeat: { row: ["A", "B"] },
+        spec: {
+          mark: "point",
+          encoding: {},
+          width: "container",
+        },
+      }),
+    ).toBe("container");
+  });
+
+  it("should return undefined for nested spec without width", () => {
+    expect(
+      getContainerWidth({
+        facet: { column: { field: "Origin" } },
+        spec: { mark: "point", encoding: {} },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for hconcat (width on sub-specs)", () => {
+    expect(
+      getContainerWidth({
+        hconcat: [{ width: "container" }, { width: "container" }],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for vconcat (width on sub-specs)", () => {
+    expect(
+      getContainerWidth({
+        vconcat: [{ width: "container" }, { width: "container" }],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for compiled Vega spec (width as signal)", () => {
+    expect(
+      getContainerWidth({
+        $schema: "https://vega.github.io/schema/vega/v6.json",
+        autosize: { contains: "padding", type: "fit-x" },
+        signals: [
+          {
+            name: "width",
+            init: "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+          },
+        ],
+      }),
+    ).toBeUndefined();
+  });
 });

@@ -258,6 +258,7 @@ components:
       type: object
     Base64String:
       contentEncoding: base64
+      format: base64
       type: string
     BaseResponse:
       properties:
@@ -370,6 +371,7 @@ components:
       title: CellConfig
       type: object
     CellId:
+      format: cell-id
       type: string
     CellNotification:
       description: "Updates a cell's state in the frontend.\n\n    Only fields that\
@@ -620,7 +622,7 @@ components:
         \        cell_id: Cell where completion is requested."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         document:
           type: string
         id:
@@ -638,7 +640,7 @@ components:
     CodeCompletionRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         document:
           type: string
         id:
@@ -799,7 +801,7 @@ components:
         \ Length of prefix to replace.\n        options: Completion options to display."
       properties:
         completion_id:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         op:
           enum:
           - completion-result
@@ -841,7 +843,7 @@ components:
           - type: 'null'
           default: null
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           type: string
         config:
@@ -1224,7 +1226,7 @@ components:
         \ to debug.\n        request: HTTP request context if available."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -1241,7 +1243,7 @@ components:
     DebugCellRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
@@ -1255,7 +1257,7 @@ components:
       description: Remove a cell from the notebook.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - delete-cell
@@ -1270,7 +1272,7 @@ components:
         \ stale.\n\n    Attributes:\n        cell_id: Cell to delete."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - delete-cell
@@ -1282,7 +1284,7 @@ components:
     DeleteCellRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
       required:
       - cellId
       title: DeleteCellRequest
@@ -1417,7 +1419,7 @@ components:
         \        timestamp: Unix timestamp when command was created."
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           type: string
         request:
@@ -1446,7 +1448,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -1472,7 +1474,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -1907,7 +1909,7 @@ components:
     FocusCellRequest:
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
       required:
       - cellId
       title: FocusCellRequest
@@ -2194,7 +2196,7 @@ components:
           default: null
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         values:
           type: array
@@ -2252,7 +2254,7 @@ components:
         args:
           type: object
         functionCallId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         functionName:
           type: string
         namespace:
@@ -2273,7 +2275,7 @@ components:
         args:
           type: object
         functionCallId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         functionName:
           type: string
         namespace:
@@ -2571,8 +2573,6 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
-          - $ref: '#/components/schemas/UpdateCellCodesNotification'
-          - $ref: '#/components/schemas/UpdateCellIdsNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           discriminator:
             mapping:
@@ -2611,8 +2611,6 @@ components:
               storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
               storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
-              update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
-              update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
               validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
               variable-values: '#/components/schemas/VariableValuesNotification'
               variables: '#/components/schemas/VariablesNotification'
@@ -2715,7 +2713,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - list-sql-schemas
@@ -2733,7 +2731,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - engine
@@ -2753,7 +2751,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
         type:
@@ -2774,7 +2772,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
       required:
@@ -2790,7 +2788,7 @@ components:
         \ for this request."
       properties:
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - list-secret-keys
@@ -2802,7 +2800,7 @@ components:
     ListSecretKeysRequest:
       properties:
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       title: ListSecretKeysRequest
@@ -3094,7 +3092,7 @@ components:
           type: string
         sessionId:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/SessionId'
           - type: 'null'
           default: null
       required:
@@ -3267,7 +3265,7 @@ components:
               update: '#/components/schemas/ModelUpdateMessage'
             propertyName: method
         modelId:
-          type: string
+          $ref: '#/components/schemas/WidgetModelId'
         token:
           type: string
         type:
@@ -3383,7 +3381,7 @@ components:
               update: '#/components/schemas/ModelUpdateMessage'
             propertyName: method
         modelId:
-          type: string
+          $ref: '#/components/schemas/WidgetModelId'
         token:
           type: string
       required:
@@ -3457,7 +3455,7 @@ components:
           - type: 'null'
           default: null
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         type:
           enum:
           - move-cell
@@ -3734,7 +3732,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
         tableName:
@@ -3758,7 +3756,7 @@ components:
         engine:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         schema:
           type: string
         tableName:
@@ -3980,7 +3978,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         type:
           enum:
@@ -3991,6 +3989,7 @@ components:
       title: ReorderCells
       type: object
     RequestId:
+      format: request-id
       type: string
     RunningNotebooksResponse:
       properties:
@@ -4248,7 +4247,7 @@ components:
       properties:
         cellIds:
           items:
-            type: string
+            $ref: '#/components/schemas/CellId'
           type: array
         codes:
           items:
@@ -4389,12 +4388,13 @@ components:
       title: ServerConfig
       type: object
     SessionId:
+      format: session-id
       type: string
     SetCode:
       description: Replace a cell's source code.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         code:
           type: string
         type:
@@ -4410,7 +4410,7 @@ components:
       description: Partially update a cell's config. None fields are unchanged.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         column:
           anyOf:
           - type: integer
@@ -4438,7 +4438,7 @@ components:
       description: Rename a cell.
       properties:
         cellId:
-          type: string
+          $ref: '#/components/schemas/CellId'
         name:
           type: string
         type:
@@ -4489,7 +4489,7 @@ components:
     ShutdownSessionRequest:
       properties:
         sessionId:
-          type: string
+          $ref: '#/components/schemas/SessionId'
       required:
       - sessionId
       title: ShutdownSessionRequest
@@ -4713,7 +4713,7 @@ components:
           default: false
           type: boolean
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - namespace
@@ -4838,7 +4838,7 @@ components:
           - type: 'null'
           default: null
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - namespace
@@ -5031,6 +5031,7 @@ components:
       title: TyLanguageServerConfig
       type: object
     UIElementId:
+      format: ui-element-id
       type: string
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
@@ -5074,44 +5075,6 @@ components:
       - msg
       title: UnknownError
       type: object
-    UpdateCellCodesNotification:
-      description: "Updates cell code contents (kiosk mode and edit-mode file reload).\n\
-        \n    Attributes:\n        cell_ids: Cells to update.\n        codes: New\
-        \ code for each cell.\n        code_is_stale: If True, code was not executed\
-        \ on backend (output may not match).\n        names: Cell names for each cell\
-        \ (optional, for file reload).\n        configs: Cell configs for each cell\
-        \ (optional, for file reload)."
-      properties:
-        cell_ids:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        code_is_stale:
-          type: boolean
-        codes:
-          items:
-            type: string
-          type: array
-        configs:
-          default: []
-          items:
-            $ref: '#/components/schemas/CellConfig'
-          type: array
-        names:
-          default: []
-          items:
-            type: string
-          type: array
-        op:
-          enum:
-          - update-cell-codes
-      required:
-      - op
-      - cell_ids
-      - codes
-      - code_is_stale
-      title: UpdateCellCodesNotification
-      type: object
     UpdateCellConfigCommand:
       description: "Update cell configuration.\n\n    Updates cell-level settings\
         \ like disabled state, hide code, etc.\n\n    Attributes:\n        configs:\
@@ -5139,32 +5102,6 @@ components:
       required:
       - configs
       title: UpdateCellConfigRequest
-      type: object
-    UpdateCellIdsNotification:
-      description: "Updates cell ordering in notebook.\n\n    Attributes:\n      \
-        \  cell_ids: Complete ordered list of cell IDs."
-      properties:
-        cell_ids:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        op:
-          enum:
-          - update-cell-ids
-      required:
-      - op
-      - cell_ids
-      title: UpdateCellIdsNotification
-      type: object
-    UpdateCellIdsRequest:
-      properties:
-        cellIds:
-          items:
-            type: string
-          type: array
-      required:
-      - cellIds
-      title: UpdateCellIdsRequest
       type: object
     UpdateCellOutputsRequest:
       properties:
@@ -5216,7 +5153,7 @@ components:
       properties:
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         request:
           anyOf:
@@ -5240,7 +5177,7 @@ components:
       properties:
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         request:
           anyOf:
@@ -5260,7 +5197,7 @@ components:
       properties:
         objectIds:
           items:
-            type: string
+            $ref: '#/components/schemas/UIElementId'
           type: array
         values:
           type: array
@@ -5316,7 +5253,7 @@ components:
         query:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
         type:
           enum:
           - validate-sql
@@ -5344,7 +5281,7 @@ components:
         query:
           type: string
         requestId:
-          type: string
+          $ref: '#/components/schemas/RequestId'
       required:
       - requestId
       - query
@@ -5405,7 +5342,7 @@ components:
             $ref: '#/components/schemas/CellId'
           type: array
         name:
-          type: string
+          $ref: '#/components/schemas/VariableName'
         used_by:
           items:
             $ref: '#/components/schemas/CellId'
@@ -5417,6 +5354,7 @@ components:
       title: VariableDeclarationNotification
       type: object
     VariableName:
+      format: variable-name
       type: string
     VariableValue:
       description: "Variable value and type for variables panel.\n\n    Attributes:\n\
@@ -5487,6 +5425,7 @@ components:
       title: VenvConfig
       type: object
     WidgetModelId:
+      format: widget-model-id
       type: string
     WorkspaceFilesRequest:
       properties:
@@ -6682,26 +6621,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Send input to the stdin stream
-  /api/kernel/sync/cell_ids:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCellIdsRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Sync cell ids
   /api/kernel/takeover:
     post:
       parameters:

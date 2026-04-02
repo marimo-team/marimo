@@ -27,6 +27,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 )
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
+    DownloadAsResponse,
     SearchTableArgs,
     SearchTableResponse,
     SortArgs,
@@ -40,7 +41,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
 )
-from marimo._plugins.ui._impl.utils.dataframe import download_as
+from marimo._plugins.ui._impl.utils.dataframe import (
+    download_as,
+    get_bound_name,
+)
 from marimo._plugins.validators import (
     validate_no_integer_columns,
     validate_page_size,
@@ -330,7 +334,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             total_rows=result.get_num_rows(force=True) or 0,
         )
 
-    def _download_as(self, args: DownloadAsArgs) -> str:
+    def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
         """Download the transformed dataframe in the specified format.
 
         Downloads the dataframe with all current transformations applied.
@@ -340,23 +344,25 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 format must be one of 'csv', 'json', or 'parquet'.
 
         Returns:
-            str: URL to download the data file.
+            DownloadAsResponse: URL and filename for the downloaded file.
 
         Raises:
             ValueError: If format is not supported.
         """
-        # Get transformed dataframe
         df = self._value
-
-        # Get the table manager for the transformed data
         manager = self._get_cached_table_manager(df, self._limit)
-        return download_as(
+
+        bound_filename = get_bound_name(self._id)
+
+        url, filename = download_as(
             manager,
             args.format,
             csv_encoding=self._download_csv_encoding,
             csv_separator=self._download_csv_separator,
             json_ensure_ascii=self._download_json_ensure_ascii,
+            filename=bound_filename,
         )
+        return DownloadAsResponse(url=url, filename=filename)
 
     def _apply_filters_query_sort(
         self,

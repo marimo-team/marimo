@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as SelectPrimitive from "@radix-ui/react-select";
 import type { VariantProps } from "class-variance-authority";
 import {
   CheckIcon,
@@ -9,6 +8,7 @@ import {
   ChevronUpIcon,
   XIcon,
 } from "lucide-react";
+import { Select as SelectPrimitive } from "radix-ui";
 import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";

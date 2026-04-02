@@ -329,9 +329,8 @@ class TestDataframes:
         df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
         subject = ui.dataframe(df)
 
-        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
         csv_bytes = from_data_uri(csv_url)[1]
-        # Check that BOM is not included
         assert not csv_bytes.startswith(b"\xef\xbb\xbf")
 
     @staticmethod
@@ -345,9 +344,9 @@ class TestDataframes:
             download_csv_encoding="utf-8-sig",
         )
 
-        # CSV should include BOM
-        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
         csv_bytes = from_data_uri(csv_url)[1]
+        # CSV should include BOM
         assert csv_bytes.startswith(b"\xef\xbb\xbf")
         assert "こんにちは" in csv_bytes.decode("utf-8-sig")
 
@@ -362,7 +361,7 @@ class TestDataframes:
             download_csv_separator=";",
         )
 
-        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
         csv_text = from_data_uri(csv_url)[1].decode("utf-8")
         assert "A;B" in csv_text
         assert "1;x" in csv_text
@@ -378,8 +377,7 @@ class TestDataframes:
             download_json_ensure_ascii=False,
         )
 
-        # JSON should preserve characters without BOM when ensure_ascii is False
-        json_url = subject._download_as(DownloadAsArgs(format="json"))
+        json_url = subject._download_as(DownloadAsArgs(format="json")).url
         json_bytes = from_data_uri(json_url)[1]
         assert not json_bytes.startswith(b"\xef\xbb\xbf")
         json_text = json_bytes.decode("utf-8")
@@ -401,8 +399,9 @@ class TestDataframes:
         )
         subject = ui.dataframe(df)
 
-        # no transformations
-        download_url = subject._download_as(DownloadAsArgs(format=format_type))
+        download_url = subject._download_as(
+            DownloadAsArgs(format=format_type)
+        ).url
         assert download_url.startswith("data:")
 
         data_bytes = from_data_uri(download_url)[1]
@@ -426,8 +425,7 @@ class TestDataframes:
         # Apply some transformations (would be done through the UI)
         subject._value = df[df["age"] > 27]
 
-        # download with transformations applied
-        download_url = subject._download_as(DownloadAsArgs(format="json"))
+        download_url = subject._download_as(DownloadAsArgs(format="json")).url
         data_bytes = from_data_uri(download_url)[1]
 
         json_data = json.loads(data_bytes.decode("utf-8"))
@@ -447,7 +445,7 @@ class TestDataframes:
         df = pd.DataFrame({"A": [], "B": []})
         subject = ui.dataframe(df)
 
-        download_url = subject._download_as(DownloadAsArgs(format="csv"))
+        download_url = subject._download_as(DownloadAsArgs(format="csv")).url
         data_bytes = from_data_uri(download_url)[1]
 
         csv_content = data_bytes.decode("utf-8")
@@ -489,13 +487,56 @@ class TestDataframes:
             try:
                 download_url = subject._download_as(
                     DownloadAsArgs(format=format_type)
-                )
+                ).url
                 assert download_url.startswith("data:")
             except Exception as e:
                 # Some backends might not support all formats
                 pytest.skip(f"Backend doesn't support {format_type}: {e}")
 
         assert type(subject.value) is type(df)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_uses_bound_variable_name() -> None:
+        my_dataframe = pd.DataFrame({"A": [1, 2, 3], "B": ["x", "y", "z"]})
+        subject = ui.dataframe(my_dataframe)
+
+        mock_registry = Mock()
+        mock_registry.bound_names.return_value = {"my_dataframe"}
+
+        mock_ctx = Mock()
+        mock_ctx.ui_element_registry = mock_registry
+
+        mock_vfile = Mock()
+        mock_vfile.url = "data:text/csv;base64,dGVzdA=="
+        mock_vfile.filename = "random_name"
+
+        with (
+            patch(
+                "marimo._runtime.context.get_context",
+                return_value=mock_ctx,
+            ),
+            patch(
+                "marimo._plugins.ui._impl.utils.dataframe.get_context",
+                return_value=mock_ctx,
+            ),
+            patch(
+                "marimo._plugins.ui._impl.utils.dataframe.get_default_csv_encoding",
+                return_value="utf-8",
+            ),
+            patch(
+                "marimo._output.data.data.csv",
+                return_value=mock_vfile,
+            ),
+        ):
+            result = subject._download_as(DownloadAsArgs(format="csv"))
+
+        # The filename should be the bound variable name with extension
+        assert result.filename == "my_dataframe.csv"
+        # The URL should come from mo_data
+        assert result.url == "data:text/csv;base64,dGVzdA=="
 
     @staticmethod
     @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { isEqual } from "lodash-es";
+import { dequal as isEqual } from "dequal";
 import { type JSX, useEffect, useId, useState } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";

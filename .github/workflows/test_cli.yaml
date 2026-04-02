@@ -16,6 +16,7 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
+  UV_EXCLUDE_NEWER: "7 days"
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -148,12 +149,15 @@ jobs:
         with:
           name: testwheel
 
+      # xdist is disabled for CLI tests because they test process-level
+      # behavior (spawning marimo processes, port binding) that conflicts
+      # with parallel execution.
       - name: Test CLI
         shell: bash
         run: |
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl
-          uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
+          uv run --no-project pytest -v tests/_cli/test_cli* -p no:xdist --maxfail=2
 
   test_examples:
     needs: [changes]

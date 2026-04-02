@@ -12,6 +12,7 @@ permissions:
 
 env:
   TURBO_TEAM: marimo
+  UV_EXCLUDE_NEWER: "7 days"
 
 jobs:
   publish_release:
@@ -35,9 +36,6 @@ jobs:
         with:
           turbo-token: ${{ secrets.TURBO_TOKEN }}
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
 
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@v7
@@ -113,4 +111,3 @@ jobs:
     permissions:
       id-token: write  # Required for OIDC
       contents: read
-

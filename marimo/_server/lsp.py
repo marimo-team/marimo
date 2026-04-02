@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
 import socket
 import subprocess
 import time
@@ -108,6 +110,11 @@ class BaseLspServer(LspServer):
                 stderr=subprocess.DEVNULL if is_windows() else subprocess.PIPE,
                 stdin=None,
                 text=True,
+                # Create a new process group so we can kill the entire
+                # tree (parent + children) on shutdown. Without this,
+                # child processes (e.g. copilot language-server.cjs)
+                # survive after the parent node process is terminated.
+                start_new_session=not is_windows(),
             )
 
             LOGGER.debug(
@@ -364,6 +371,34 @@ class BaseLspServer(LspServer):
         except Exception as e:
             LOGGER.error(f"Error monitoring {self.id} LSP health: {e}")
 
+    def _signal_process_tree(self, sig: signal.Signals) -> None:
+        """Send a signal to the process and all its children.
+
+        On Unix/macOS we started the subprocess in its own session
+        (start_new_session=True) so we can signal the whole process group
+        with os.killpg(). This ensures child processes like the copilot
+        language-server.cjs are cleaned up on shutdown.
+        """
+        if self.process is None:
+            LOGGER.warning(
+                "LSP server not running, cannot signal process tree"
+            )
+            return
+
+        try:
+            pgid = os.getpgid(self.process.pid)
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            # Process or process group already exited; nothing to do.
+            return
+        except PermissionError:
+            # We can't signal the group; fall back to signalling
+            # the direct child only.
+            if sig == signal.SIGKILL:
+                self.process.kill()
+            else:
+                self.process.terminate()
+
     def stop(self) -> None:
         # Cancel health monitoring task
         if (
@@ -374,7 +409,12 @@ class BaseLspServer(LspServer):
 
         if self.process is not None:
             LOGGER.debug("Stopping LSP server at port %s", self.port)
-            self.process.terminate()
+
+            if is_windows():
+                self.process.terminate()
+            else:
+                self._signal_process_tree(signal.SIGTERM)
+
             try:
                 # Wait for graceful shutdown with timeout
                 self.process.wait(timeout=5)
@@ -384,7 +424,10 @@ class BaseLspServer(LspServer):
                 LOGGER.warning(
                     "LSP server did not stop gracefully, forcing kill"
                 )
-                self.process.kill()
+                if is_windows():
+                    self.process.kill()
+                else:
+                    self._signal_process_tree(signal.SIGKILL)
                 try:
                     self.process.wait(timeout=2)
                 except subprocess.TimeoutExpired:

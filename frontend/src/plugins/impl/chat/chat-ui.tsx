@@ -2,7 +2,10 @@
 
 import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
-import { PopoverAnchor } from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
+
+const PopoverAnchor = PopoverPrimitive.Anchor;
+
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   createUIMessageStreamResponse,
@@ -10,7 +13,6 @@ import {
   type TextUIPart,
   type UIMessageChunk,
 } from "ai";
-import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
   HelpCircleIcon,
@@ -57,6 +59,7 @@ import {
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
+import { Strings } from "@/utils/strings";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
 import type { ChatConfig } from "./types";
@@ -670,7 +673,7 @@ const ConfigPopup: React.FC<{
                 htmlFor={key}
                 className="flex w-full justify-between col-span-3 align-end"
               >
-                {startCase(key)}
+                {Strings.startCase(key)}
                 <Tooltip
                   delayDuration={200}
                   side="top"

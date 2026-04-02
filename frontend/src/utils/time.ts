@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-export type Milliseconds = number & { __type__: "milliseconds" };
+import type { TypedNumber } from "./typed";
 
-export type Seconds = number & { __type__: "seconds" };
+export type Milliseconds = TypedNumber<"milliseconds">;
+
+export type Seconds = TypedNumber<"seconds">;
 
 export class Time {
   private readonly ms: Milliseconds;

@@ -1,13 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
-import { type JSX, useState } from "react";
+import { type JSX, useRef, useState } from "react";
 import { z } from "zod";
 import {
   DebouncedInput,
   Input,
   OnBlurredInput,
 } from "../../components/ui/input";
+import { RANDOM_ID_ATTR } from "../../core/dom/ui-element-constants";
 import { cn } from "../../utils/cn";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
@@ -25,7 +26,11 @@ interface Data {
   disabled?: boolean;
   debounce?: boolean | number;
   fullWidth: boolean;
+  passwordHasValue?: boolean;
 }
+
+// Matches the masked dots.
+const MASK_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 
 export class TextInputPlugin implements IPlugin<T, Data> {
   tagName = "marimo-text";
@@ -40,11 +45,20 @@ export class TextInputPlugin implements IPlugin<T, Data> {
     fullWidth: z.boolean().default(false),
     disabled: z.boolean().optional(),
     debounce: z.optional(z.union([z.boolean(), z.number()])),
+    passwordHasValue: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
+    // Force remount on cell re-run so masked state resets cleanly
+    const remountKey =
+      props.data.kind === "password"
+        ? props.host
+            .closest(`[${RANDOM_ID_ATTR}]`)
+            ?.getAttribute(RANDOM_ID_ATTR)
+        : undefined;
     return (
       <TextComponent
+        key={remountKey ?? undefined}
         {...props.data}
         value={props.value}
         setValue={props.setValue}
@@ -59,9 +73,33 @@ interface TextComponentProps extends Data {
 }
 
 const TextComponent = (props: TextComponentProps) => {
-  const [valueOnBlur, setValueOnBlur] = useState(props.value);
+  // Before first real keystroke: show masked placeholder, suppress setValue.
+  // After first keystroke: normal password field.
+  const initiallyMasked =
+    props.kind === "password" && props.passwordHasValue === true;
+  const [masked, setMasked] = useState(initiallyMasked);
+  const hasTyped = useRef(false);
 
-  const valueToValidate = valueOnBlur == null ? props.value : valueOnBlur;
+  const value = masked ? "" : props.value;
+  const placeholder = masked ? MASK_PLACEHOLDER : props.placeholder;
+  const setValue: Setter<T> = masked
+    ? (v) => {
+        if (!hasTyped.current) {
+          return;
+        }
+        setMasked(false);
+        props.setValue(v);
+      }
+    : props.setValue;
+  // Capture-phase handler sets the ref synchronously before child onChange
+  const onInputCapture = masked
+    ? () => {
+        hasTyped.current = true;
+      }
+    : undefined;
+
+  const [valueOnBlur, setValueOnBlur] = useState(props.value);
+  const valueToValidate = valueOnBlur == null ? value : valueOnBlur;
   const isValid = validate(props.kind, valueToValidate);
 
   const icon: Record<InputType, JSX.Element | null> = {
@@ -73,80 +111,79 @@ const TextComponent = (props: TextComponentProps) => {
 
   const endAdornment = props.maxLength ? (
     <span className="text-muted-foreground text-xs font-medium">
-      {props.value.length}/{props.maxLength}
+      {value.length}/{props.maxLength}
     </span>
   ) : null;
 
-  if (props.debounce === true) {
-    return (
-      <Labeled label={props.label} fullWidth={props.fullWidth}>
-        <OnBlurredInput
-          data-testid="marimo-plugin-text-input"
-          type={props.kind}
-          icon={icon[props.kind]}
-          placeholder={props.placeholder}
-          maxLength={props.maxLength}
-          minLength={props.minLength}
-          required={props.minLength != null && props.minLength > 0}
-          disabled={props.disabled}
-          className={cn({
-            "border-destructive": !isValid,
-            "w-full": props.fullWidth,
-          })}
-          endAdornment={endAdornment}
-          value={props.value}
-          onValueChange={props.setValue}
-        />
-      </Labeled>
-    );
-  }
+  const inputClassName = cn({
+    "border-destructive": !isValid,
+    "w-full": props.fullWidth,
+  });
 
-  if (typeof props.debounce === "number") {
-    return (
-      <Labeled label={props.label} fullWidth={props.fullWidth}>
-        <DebouncedInput
-          data-testid="marimo-plugin-text-input"
-          type={props.kind}
-          icon={icon[props.kind]}
-          placeholder={props.placeholder}
-          maxLength={props.maxLength}
-          minLength={props.minLength}
-          required={props.minLength != null && props.minLength > 0}
-          disabled={props.disabled}
-          className={cn({
-            "border-destructive": !isValid,
-            "w-full": props.fullWidth,
-          })}
-          endAdornment={endAdornment}
-          value={props.value}
-          onValueChange={props.setValue}
-          onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
-          delay={props.debounce}
-        />
-      </Labeled>
+  let input: JSX.Element;
+
+  if (props.debounce === true) {
+    input = (
+      <OnBlurredInput
+        data-testid="marimo-plugin-text-input"
+        type={props.kind}
+        icon={icon[props.kind]}
+        placeholder={placeholder}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        required={props.minLength != null && props.minLength > 0}
+        disabled={props.disabled}
+        className={inputClassName}
+        endAdornment={endAdornment}
+        value={value}
+        onValueChange={setValue}
+        onInputCapture={onInputCapture}
+      />
+    );
+  } else if (typeof props.debounce === "number") {
+    input = (
+      <DebouncedInput
+        data-testid="marimo-plugin-text-input"
+        type={props.kind}
+        icon={icon[props.kind]}
+        placeholder={placeholder}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        required={props.minLength != null && props.minLength > 0}
+        disabled={props.disabled}
+        className={inputClassName}
+        endAdornment={endAdornment}
+        value={value}
+        onValueChange={setValue}
+        onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
+        delay={props.debounce}
+        onInputCapture={onInputCapture}
+      />
+    );
+  } else {
+    input = (
+      <Input
+        data-testid="marimo-plugin-text-input"
+        type={props.kind}
+        icon={icon[props.kind]}
+        placeholder={placeholder}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        required={props.minLength != null && props.minLength > 0}
+        disabled={props.disabled}
+        className={inputClassName}
+        endAdornment={endAdornment}
+        value={value}
+        onInput={(event) => setValue(event.currentTarget.value)}
+        onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
+        onInputCapture={onInputCapture}
+      />
     );
   }
 
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
-      <Input
-        data-testid="marimo-plugin-text-input"
-        type={props.kind}
-        icon={icon[props.kind]}
-        placeholder={props.placeholder}
-        maxLength={props.maxLength}
-        minLength={props.minLength}
-        required={props.minLength != null && props.minLength > 0}
-        disabled={props.disabled}
-        className={cn({
-          "border-destructive": !isValid,
-          "w-full": props.fullWidth,
-        })}
-        endAdornment={endAdornment}
-        value={props.value}
-        onInput={(event) => props.setValue(event.currentTarget.value)}
-        onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
-      />
+      {input}
     </Labeled>
   );
 };

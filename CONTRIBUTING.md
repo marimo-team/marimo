@@ -291,22 +291,6 @@ marimo server. This means that:
    develop on the frontend, but you will not be able to test the frontend in
    the same way that it will be used in production.
 
-## Editor settings
-
-If you use vscode, you might find the following `settings.json` useful:
-
-```json
-{
-  "editor.formatOnSave": true,
-  "editor.formatOnPaste": false,
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  }
-}
-```
 
 ## PRs
 

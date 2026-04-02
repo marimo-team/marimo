@@ -94,8 +94,6 @@ notifications
   SecretKeysResultNotification
   StartupLogsNotification
   UIElementMessageNotification
-  UpdateCellCodesNotification
-  UpdateCellIdsNotification
   ValidateSQLResultNotification
   VariableDeclarationNotification
   VariableValue
@@ -125,6 +123,8 @@ session
   SessionView
   extensions
     CachingExtension
+    EventAwareExtension
+    ExtensionRegistry
     HeartbeatExtension
     LoggingExtension
     NotificationListenerExtension

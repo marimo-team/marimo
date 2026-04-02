@@ -4,7 +4,7 @@
     "charliermarsh.ruff",
 
     // TypeScript/JavaScript/React
-    "biomejs.biome",
+    "void-zero.vite-plus-extension-pack",
     "ms-vscode.vscode-typescript-next",
   ],
 }

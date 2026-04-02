@@ -61,11 +61,9 @@ with app.setup:
         o.QueryParamsDeleteNotification,
         o.QueryParamsClearNotification,
         o.FocusCellNotification,
-        o.UpdateCellCodesNotification,
         o.SecretKeysResultNotification,
         o.CacheClearedNotification,
         o.CacheInfoNotification,
-        o.UpdateCellIdsNotification,
     ]
 
 

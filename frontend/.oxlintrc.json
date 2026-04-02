@@ -1,0 +1,113 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "react",
+    "vitest",
+    "import",
+    "node",
+    "jsx-a11y"
+  ],
+  "jsPlugins": [
+    "./lint/marimo-plugin.js"
+  ],
+  "ignorePatterns": [
+    "**/e2e-tests/**"
+  ],
+  "categories": {
+    "correctness": "off"
+  },
+  "rules": {
+    // === Marimo custom rules ===
+    "marimo/add-event-listener-object": "error",
+    "marimo/remove-event-listener-object": "error",
+    "marimo/prefer-object-params": "warn",
+    "marimo/atom-with-storage-args": "error",
+
+
+    // === ESLint core rules (were delegated to Biome, now oxlint handles them) ===
+    "no-var": "error",
+    "no-console": "error",
+    "no-debugger": "error",
+    "no-inner-declarations": "error",
+    "no-useless-constructor": "error",
+    "no-shadow-restricted-names": "error",
+    "no-redeclare": "off",
+    "no-empty": "warn",
+    "no-cond-assign": "warn",
+    "prefer-const": "error",
+    "prefer-template": "error",
+    "default-param-last": "error",
+    "eqeqeq": ["error", "smart"],
+    "curly": "error",
+    "array-callback-return": "warn",
+    "prefer-arrow-callback": "error",
+
+    // === TypeScript (from ESLint @typescript-eslint) ===
+    "typescript/consistent-generic-constructors": "error",
+    "typescript/consistent-type-definitions": "error",
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-dynamic-delete": "error",
+    "typescript/prefer-ts-expect-error": "error",
+    "typescript/no-empty-object-type": "off",
+    "typescript/no-confusing-void-expression": "error",
+    // From Biome: useImportType
+    "typescript/consistent-type-imports": ["error", { "disallowTypeAnnotations": false }],
+
+    // === Unicorn ===
+    "unicorn/switch-case-braces": ["error", "avoid"],
+    "unicorn/prefer-logical-operator-over-ternary": "error",
+    "unicorn/prefer-spread": "error",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/prefer-number-properties": "error",
+    "unicorn/prefer-ternary": "error",
+    // From Biome: useIsArray
+    "unicorn/no-instanceof-array": "error",
+
+    // === React ===
+    "react/jsx-boolean-value": ["error", "always"],
+    "react/jsx-pascal-case": "error",
+    // From Biome: noUselessFragments
+    "react/no-useless-fragment": "error",
+    // From Biome: useSelfClosingElements
+    "react/self-closing-comp": "error",
+
+    // === React Hooks ===
+    // From Biome: useHookAtTopLevel
+    "react-hooks/rules-of-hooks": "warn",
+
+    // === Import ===
+    // From Biome: noUnusedImports
+    "import/no-unused-imports": "error",
+
+    // === Node ===
+    // From Biome: useNodejsImportProtocol
+    "node/prefer-node-protocol": "error",
+
+    // === Vitest ===
+    "vitest/expect-expect": "warn",
+    "vitest/no-identical-title": "error",
+    "vitest/no-commented-out-tests": "warn"
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/__mocks__/**",
+        "**/vite.config.*",
+        "**/stories/**",
+        "**/Logger.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["**/__tests__/**"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        "typescript/unbound-method": "off"
+      }
+    }
+  ]
+}
