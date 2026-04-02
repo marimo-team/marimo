@@ -91,10 +91,9 @@ def prompt(url: str, claude: bool, codex: bool, opencode: bool) -> None:
 
     Example usage:
 
-        marimo pair prompt --url 'https://localhost:8000?auth=...'
-        marimo pair prompt --url 'https://localhost:8000?auth=...' --claude
-        marimo pair prompt --url 'https://localhost:8000?auth=...' --codex
-        marimo pair prompt --url 'https://localhost:8000?auth=...' --opencode
+        claude $(marimo pair prompt --url 'https://localhost:8000?auth=...' --claude)
+        codex $(marimo pair prompt --url 'https://localhost:8000?auth=...' --codex)
+        opencode $(marimo pair prompt --url 'https://localhost:8000?auth=...' --opencode)
     """
     for key, agent in AGENTS.items():
         if not locals()[key]:
