@@ -4,4 +4,4 @@ error[reusable-definition-order]: Reusable definition 'uses_offset' depends on r
    8 | def uses_offset(x: int = offset()) -> int:
      |     ^
    9 |     return x + 1
-hint: Move the referenced reusable definition(s) earlier in the notebook, before `uses_offset`. This can be applied with `marimo check --unsafe-fixes`.
+hint: Move the referenced reusable definition(s) earlier in the notebook, before `uses_offset`.
