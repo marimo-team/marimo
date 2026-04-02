@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Tooltip } from "radix-ui";
+
+const TooltipProvider = Tooltip.Provider;
+
 import React, { useState } from "react";
 import { z } from "zod";
 import { inferFieldTypes } from "@/components/data-table/columns";

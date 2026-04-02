@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type * as PopoverPrimitive from "@radix-ui/react-popover";
 import { GripHorizontalIcon } from "lucide-react";
+import type { Popover as PopoverPrimitive } from "radix-ui";
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 

@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Dialog as SheetPrimitive } from "radix-ui";
 import React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";

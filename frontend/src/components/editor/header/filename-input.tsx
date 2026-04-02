@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { PopoverAnchor } from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
+
+const PopoverAnchor = PopoverPrimitive.Anchor;
+
 import { FilePenIcon } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
 import {

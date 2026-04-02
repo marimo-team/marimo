@@ -1,12 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import {
   CheckIcon,
   ChevronRightIcon,
   DotFilledIcon,
 } from "@radix-ui/react-icons";
 import type { VariantProps } from "class-variance-authority";
+import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
 import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";

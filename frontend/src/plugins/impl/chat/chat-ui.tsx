@@ -2,7 +2,10 @@
 
 import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
-import { PopoverAnchor } from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
+
+const PopoverAnchor = PopoverPrimitive.Anchor;
+
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   createUIMessageStreamResponse,

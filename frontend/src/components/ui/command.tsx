@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { DialogProps } from "@radix-ui/react-dialog";
+import type { Dialog as DialogPrimitive } from "radix-ui";
+
+type DialogProps = DialogPrimitive.DialogProps;
+
 import type { VariantProps } from "class-variance-authority";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
