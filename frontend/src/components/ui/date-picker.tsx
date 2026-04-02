@@ -51,8 +51,9 @@ const DatePickerContent = ({
   </Popover>
 );
 
-interface DatePickerProps<T extends AriaDateValue>
-  extends AriaDatePickerProps<T> {
+interface DatePickerProps<
+  T extends AriaDateValue,
+> extends AriaDatePickerProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: AriaValidationResult) => string);
@@ -115,8 +116,9 @@ const DatePicker = <T extends AriaDateValue>({
   );
 };
 
-interface DateRangePickerProps<T extends AriaDateValue>
-  extends AriaDateRangePickerProps<T> {
+interface DateRangePickerProps<
+  T extends AriaDateValue,
+> extends AriaDateRangePickerProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: AriaValidationResult) => string);

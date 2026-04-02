@@ -25,8 +25,9 @@ export interface FocusRowInstance {
 declare module "@tanstack/react-table" {
   interface TableState extends FocusRowTableState {}
 
-  interface TableOptionsResolved<TData extends RowData>
-    extends FocusRowOptions {}
+  interface TableOptionsResolved<
+    TData extends RowData,
+  > extends FocusRowOptions {}
 
   interface Row<TData extends RowData> extends FocusRowInstance {}
 }

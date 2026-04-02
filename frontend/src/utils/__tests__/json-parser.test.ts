@@ -184,9 +184,8 @@ it("can convert json to markdown - with URLs", () => {
   `);
 
   // Mixed content - URL and text in same cell
-  expect(
-    jsonToMarkdown([{ info: "Visit https://example.com for more" }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ info: "Visit https://example.com for more" }]))
+    .toMatchInlineSnapshot(`
     "| info |
     |---|
     | Visit [https://example.com](https://example.com) for more |"
@@ -203,9 +202,8 @@ it("can convert json to markdown - with URLs", () => {
 });
 
 it("can convert json to markdown - handles nulls and undefined", () => {
-  expect(
-    jsonToMarkdown([{ a: null, b: undefined, c: 1 }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ a: null, b: undefined, c: 1 }]))
+    .toMatchInlineSnapshot(`
     "| a | b | c |
     |---|---|---|
     |  |  | 1 |"
@@ -226,18 +224,16 @@ it("can convert json to markdown - handles nulls and undefined", () => {
 
 it("can convert json to markdown - handles special characters", () => {
   // Pipes need to be escaped since they're markdown table delimiters
-  expect(
-    jsonToMarkdown([{ a: "value|with|pipes", b: "normal" }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ a: "value|with|pipes", b: "normal" }]))
+    .toMatchInlineSnapshot(`
     "| a | b |
     |---|---|
     | value\\|with\\|pipes | normal |"
   `);
 
   // Newlines should be replaced with spaces
-  expect(
-    jsonToMarkdown([{ a: "line1\nline2", b: "normal" }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ a: "line1\nline2", b: "normal" }]))
+    .toMatchInlineSnapshot(`
     "| a | b |
     |---|---|
     | line1 line2 | normal |"
@@ -252,9 +248,8 @@ it("can convert json to markdown - handles special characters", () => {
 });
 
 it("can convert json to markdown - handles different data types", () => {
-  expect(
-    jsonToMarkdown([{ str: "text", num: 42, bool: true, nil: null }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ str: "text", num: 42, bool: true, nil: null }]))
+    .toMatchInlineSnapshot(`
     "| str | num | bool | nil |
     |---|---|---|---|
     | text | 42 | true |  |"
@@ -282,9 +277,8 @@ it("can convert json to markdown - handles different data types", () => {
     | [1,2,3] |"
   `);
 
-  expect(
-    jsonToMarkdown([{ data: { nested: "value" } }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ data: { nested: "value" } }]))
+    .toMatchInlineSnapshot(`
     "| data |
     |---|
     | {"nested":"value"} |"
@@ -293,9 +287,8 @@ it("can convert json to markdown - handles different data types", () => {
 
 it("can convert json to markdown - handles existing markdown links", () => {
   // When input already contains a markdown link, it should be preserved as-is
-  expect(
-    jsonToMarkdown([{ link: "[Google](https://google.com)" }]),
-  ).toMatchInlineSnapshot(`
+  expect(jsonToMarkdown([{ link: "[Google](https://google.com)" }]))
+    .toMatchInlineSnapshot(`
     "| link |
     |---|
     | [Google](https://google.com) |"

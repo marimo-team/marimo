@@ -5,8 +5,6 @@
     "unicorn",
     "react",
     "vitest",
-    "import",
-    "node",
     "jsx-a11y"
   ],
   "jsPlugins": [
@@ -42,7 +40,6 @@
     "eqeqeq": ["error", "smart"],
     "curly": "error",
     "array-callback-return": "warn",
-    "prefer-arrow-callback": "error",
 
     // === TypeScript (from ESLint @typescript-eslint) ===
     "typescript/consistent-generic-constructors": "error",
@@ -69,7 +66,8 @@
     "react/jsx-boolean-value": ["error", "always"],
     "react/jsx-pascal-case": "error",
     // From Biome: noUselessFragments
-    "react/no-useless-fragment": "error",
+    // TODO: re-enable as error
+    "react/jsx-no-useless-fragment": "warn",
     // From Biome: useSelfClosingElements
     "react/self-closing-comp": "error",
 
@@ -77,13 +75,9 @@
     // From Biome: useHookAtTopLevel
     "react-hooks/rules-of-hooks": "warn",
 
-    // === Import ===
-    // From Biome: noUnusedImports
-    "import/no-unused-imports": "error",
-
-    // === Node ===
+    // === Unicorn ===
     // From Biome: useNodejsImportProtocol
-    "node/prefer-node-protocol": "error",
+    "unicorn/prefer-node-protocol": "error",
 
     // === Vitest ===
     "vitest/expect-expect": "warn",

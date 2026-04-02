@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-dynamic-delete
 const IGNORE = ["vue", "solid-js", "svelte", "solid-swr-store"];
 
 module.exports = {

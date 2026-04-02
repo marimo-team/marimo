@@ -34,8 +34,10 @@ import {
   useCellActionButtons,
 } from "../actions/useCellActionButton";
 
-interface Props
-  extends Pick<CellActionButtonProps, "cellId" | "getEditorView"> {
+interface Props extends Pick<
+  CellActionButtonProps,
+  "cellId" | "getEditorView"
+> {
   children: React.ReactNode;
 }
 

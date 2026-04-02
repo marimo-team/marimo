@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from marimo import _loggers
 from marimo._config.config import (
-    STORAGE_INSPECTOR_DEFAULT,
     MarimoConfig,
     PartialMarimoConfig,
     merge_default_config,
@@ -467,9 +466,6 @@ def _launch_pyodide_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-    if user_config.get("experimental", {}).get(
-        "storage_inspector", STORAGE_INSPECTOR_DEFAULT
-    ):
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(

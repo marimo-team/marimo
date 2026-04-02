@@ -2,6 +2,7 @@
 
 import { pick } from "lodash-es";
 import type * as Plotly from "plotly.js";
+
 import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
 
 type AxisName = string;

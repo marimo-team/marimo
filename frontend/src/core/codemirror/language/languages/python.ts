@@ -184,7 +184,7 @@ const tyLspClient = once((_: LSPConfig) => {
 const pyreflyClient = once(
   (lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig }) => {
     // oxlint-disable-next-line prefer-const -- reassigned after closure capture
-  let resyncCallback: (() => Promise<void>) | undefined;
+    let resyncCallback: (() => Promise<void>) | undefined;
 
     const transport = createTransport("pyrefly", async () => {
       await resyncCallback?.();
