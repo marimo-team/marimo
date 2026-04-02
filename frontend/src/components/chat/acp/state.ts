@@ -221,7 +221,7 @@ export function getSessionsByAgent(
 ): AgentSession[] {
   return sessions
     .filter((session) => session.agentId === agentId)
-    .sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+    .toSorted((a, b) => b.lastUsedAt - a.lastUsedAt);
 }
 
 export function getAllAgentIds(): ExternalAgentId[] {

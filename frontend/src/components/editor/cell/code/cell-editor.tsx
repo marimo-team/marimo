@@ -186,7 +186,7 @@ const CellEditorInternal = ({
         deleteCell: handleDelete,
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
-          for (const code of [...cells].reverse()) {
+          for (const code of [...cells].toReversed()) {
             cellActions.createNewCell({
               code,
               before: false,

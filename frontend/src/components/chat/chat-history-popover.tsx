@@ -33,7 +33,7 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
 
   const chats = useMemo(() => {
-    return [...chatState.chats.values()].sort(
+    return [...chatState.chats.values()].toSorted(
       (a, b) => b.updatedAt - a.updatedAt,
     );
   }, [chatState.chats]);

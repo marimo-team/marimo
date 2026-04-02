@@ -329,7 +329,7 @@ const PYTHON_VALUE_TYPES = [
   URL_TYPE,
   OBJECT_TYPE,
   FALLBACK_RENDERER,
-].reverse();
+].toReversed();
 // Last one wins, so we reverse the array.
 
 const JSON_VALUE_TYPES = [
@@ -339,7 +339,7 @@ const JSON_VALUE_TYPES = [
   JSON_NONE_TYPE,
   JSON_OBJECT_TYPE,
   JSON_FALLBACK_RENDERER,
-].reverse();
+].toReversed();
 
 function leafData(leaf: string): string {
   return leafDataAndMimeType(leaf)[0];

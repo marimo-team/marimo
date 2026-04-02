@@ -167,7 +167,8 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
       }
 
       // Move cells in the appropriate order to maintain relative positions
-      const sortedCells = direction === "up" ? cellIds : [...cellIds].reverse();
+      const sortedCells =
+        direction === "up" ? cellIds : [...cellIds].toReversed();
       sortedCells.forEach((cellId) => {
         moveCell({ cellId, before: direction === "up" });
       });
@@ -176,7 +177,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
 
   const sendSelectedCellsToTop = useEvent((cellIds: CellId[]) => {
     // Send in reverse order to maintain relative positions
-    [...cellIds].reverse().forEach((cellId) => {
+    [...cellIds].toReversed().forEach((cellId) => {
       sendToTop({ cellId });
     });
   });

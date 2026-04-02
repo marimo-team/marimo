@@ -132,7 +132,7 @@ describe("MultiMap", () => {
       multiMap.add("key2", 2);
       multiMap.add("key3", 3);
       const keys = [...multiMap.keys()];
-      expect(keys.sort()).toEqual(["key1", "key2", "key3"]);
+      expect(keys.toSorted()).toEqual(["key1", "key2", "key3"]);
     });
   });
 
@@ -204,7 +204,7 @@ describe("MultiMap", () => {
       multiMap.add("key3", 5);
 
       const flattened = multiMap.flatValues();
-      expect(flattened.sort()).toEqual([1, 2, 3, 4, 5]);
+      expect(flattened.toSorted()).toEqual([1, 2, 3, 4, 5]);
     });
 
     it("should handle empty arrays in values", () => {
@@ -213,7 +213,7 @@ describe("MultiMap", () => {
       multiMap.add("key2", 2);
 
       const flattened = multiMap.flatValues();
-      expect(flattened.sort()).toEqual([1, 2]);
+      expect(flattened.toSorted()).toEqual([1, 2]);
     });
   });
 

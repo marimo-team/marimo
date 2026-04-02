@@ -167,7 +167,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     return null;
   }
 
-  const reversedOutputs = [...consoleOutputs].reverse();
+  const reversedOutputs = [...consoleOutputs].toReversed();
   const isPdb = reversedOutputs.some(
     (output) =>
       typeof output.data === "string" && output.data.includes("(Pdb)"),
