@@ -12,6 +12,9 @@
   "jsPlugins": [
     "./lint/marimo-plugin.js"
   ],
+  "ignorePatterns": [
+    "**/e2e-tests/**"
+  ],
   "categories": {
     "correctness": "off"
   },
@@ -90,7 +93,6 @@
   "overrides": [
     {
       "files": [
-        "**/e2e-tests/**",
         "**/__mocks__/**",
         "**/vite.config.*",
         "**/stories/**",
@@ -98,12 +100,6 @@
       ],
       "rules": {
         "no-console": "off"
-      }
-    },
-    {
-      "files": ["**/e2e-tests/**"],
-      "rules": {
-        "typescript/await-thenable": "off"
       }
     },
     {

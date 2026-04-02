@@ -12,5 +12,15 @@
   "bracketSameLine": false,
   "bracketSpacing": true,
   "singleAttributePerLine": false,
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "ignorePatterns": [
+    "*.json",
+    "*.jsonc",
+    "tests/**",
+    "docs/**",
+    "examples/**",
+    "marimo/**",
+    ".github/**",
+    "**/e2e-tests/**"
+  ]
 }
