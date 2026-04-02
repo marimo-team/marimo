@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.8"
+__generated_with = "0.22.0"
 app = marimo.App(width="medium")
 
 
@@ -9,6 +9,7 @@ def _():
     import marimo as mo
     import pandas as pd
     from datetime import datetime
+
     return datetime, mo, pd
 
 
@@ -103,6 +104,20 @@ def _(mo, pd):
 def _(datetime, pd):
     dates_with_null = pd.DataFrame({"mixed": [datetime.now(), None]})
     dates_with_null
+    return
+
+
+@app.cell
+def _(mo, pd):
+    # Bug with inf re-render https://github.com/marimo-team/marimo/issues/8964
+    df = pd.DataFrame(
+        {
+            "ID_SBSC": [6013949] * 10,
+            "ID_DATE": [20260401] * 10,
+        },
+        index=pd.Index(["2026-04-01"] * 10, name="ID_DATE"),
+    )
+    mo.ui.table(df)
     return
 
 
