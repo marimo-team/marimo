@@ -151,7 +151,7 @@ export function sortByPrecedence<T>(
 ): [MimeType, T][] {
   const unknownPrecedence = precedence.size;
 
-  return [...entries].toSorted((a, b) => {
+  return entries.toSorted((a, b) => {
     const indexA = precedence.get(a[0]) ?? unknownPrecedence;
     const indexB = precedence.get(b[0]) ?? unknownPrecedence;
     return indexA - indexB;
