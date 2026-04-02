@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hmac
 import secrets
 import typing
 from typing import TYPE_CHECKING, Any, Optional
@@ -41,13 +42,15 @@ def validate_auth(
     cookie_session = CookieSession(conn.session)
 
     # Validate the cookie
-    if cookie_session.get_access_token() == auth_token:
+    if hmac.compare_digest(cookie_session.get_access_token(), auth_token):
         return True  # Success
 
     # Check for access_token
     if TOKEN_QUERY_PARAM in conn.query_params:
         # Validate the access_token
-        if conn.query_params[TOKEN_QUERY_PARAM] == auth_token:
+        if hmac.compare_digest(
+            conn.query_params[TOKEN_QUERY_PARAM], auth_token
+        ):
             LOGGER.debug("Validated access_token from query param")
             # Set the cookie
             cookie_session.set_access_token(auth_token)
@@ -57,7 +60,7 @@ def validate_auth(
     if form_dict is not None:
         # Validate the access_token
         password = form_dict.get("password")
-        if password == auth_token:
+        if password and hmac.compare_digest(password, auth_token):
             LOGGER.debug("Validated access_token from form data")
             # Set the cookie
             cookie_session.set_access_token(auth_token)
@@ -72,14 +75,20 @@ def validate_auth(
         scheme, _, credentials = auth.partition(" ")
         scheme_lower = scheme.lower()
 
-        if scheme_lower == "bearer" and credentials == auth_token:
+        if scheme_lower == "bearer" and hmac.compare_digest(
+            credentials, auth_token
+        ):
             LOGGER.debug("Validated bearer token from header")
             cookie_session.set_access_token(auth_token)
             return True  # Success
 
         if scheme_lower == "basic":
             username, password = _parse_basic_auth_credentials(credentials)
-            if username and password == auth_token:
+            if (
+                username
+                and password
+                and hmac.compare_digest(password, auth_token)
+            ):
                 LOGGER.debug("Validated basic auth from header")
                 cookie_session.set_access_token(auth_token)
                 cookie_session.set_username(username)

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -69,33 +70,30 @@ class TestPairPrompt:
 
 
 class TestPairPromptWithToken:
-    def test_with_token_writes_file_and_outputs_prompt(self) -> None:
-        result = _runner.invoke(
-            cli_main,
-            ["pair", "prompt", "--url", TEST_URL, "--with-token"],
-            input="my-secret-token\n",
-        )
+    def test_with_token_writes_file_and_outputs_prompt(
+        self, tmp_path: Path
+    ) -> None:
+        with patch(
+            "marimo._cli.pair.commands._token_dir", return_value=tmp_path
+        ):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "prompt", "--url", TEST_URL, "--with-token"],
+                input="my-secret-token\n",
+            )
         assert result.exit_code == 0
-        # Should output the prompt (not just the file path)
         assert TEST_URL in result.output
         assert "execute-code.sh" in result.output
         assert "token" in result.output.lower()
         assert "cat" in result.output
 
-        # Verify the token file was written
-        import hashlib
-
-        from marimo._cli.pair.commands import _token_dir
-
         url_hash = hashlib.sha256(TEST_URL.encode()).hexdigest()[:6]
-        token_file = _token_dir() / f"{url_hash}-token.txt"
+        token_file = tmp_path / f"{url_hash}-token.txt"
         assert token_file.exists()
         assert token_file.read_text() == "my-secret-token"
         assert oct(token_file.stat().st_mode & 0o777) == "0o600"
-        token_file.unlink()
 
-    def test_with_token_no_url_required(self) -> None:
-        # --url is still required by click even with --with-token
+    def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
             cli_main,
             ["pair", "prompt", "--with-token"],
@@ -103,8 +101,14 @@ class TestPairPromptWithToken:
         )
         assert result.exit_code != 0
 
-    def test_with_token_and_agent_flag(self) -> None:
-        with patch.object(AgentConfig, "has_skill", return_value=True):
+    def test_with_token_and_agent_flag(self, tmp_path: Path) -> None:
+        with (
+            patch.object(AgentConfig, "has_skill", return_value=True),
+            patch(
+                "marimo._cli.pair.commands._token_dir",
+                return_value=tmp_path,
+            ),
+        ):
             result = _runner.invoke(
                 cli_main,
                 [

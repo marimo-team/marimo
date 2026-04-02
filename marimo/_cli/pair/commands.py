@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,8 +15,16 @@ SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
 
 
+_cached_token_dir: Path | None = None
+
+
 def _token_dir() -> Path:
-    return Path(tempfile.gettempdir()) / "marimo"
+    import tempfile
+
+    global _cached_token_dir  # noqa: PLW0603
+    if _cached_token_dir is None:
+        _cached_token_dir = Path(tempfile.mkdtemp(prefix="marimo-pair-"))
+    return _cached_token_dir
 
 
 @dataclass(frozen=True)
@@ -96,7 +103,7 @@ def pair() -> None:
     "--with-token",
     is_flag=True,
     default=False,
-    help="Prompt for an auth token and export it as MARIMO_CODE_MODE_TOKEN.",
+    help="Prompt for an auth token and store it in a temp file.",
 )
 def prompt(
     url: str,
@@ -147,13 +154,19 @@ def prompt(
         token_file = token_dir / f"{url_hash}-token.txt"
         token = click.prompt("Auth token", hide_input=True, err=True)
         token_dir.mkdir(parents=True, exist_ok=True)
-        token_file.write_text(token)
-        os.chmod(token_file, 0o600)  # noqa: PTH101
+        # Use O_CREAT|O_EXCL|O_WRONLY to atomically create the file with
+        # restrictive permissions, avoiding TOCTOU and symlink attacks.
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(token_file, flags, 0o600)
+        try:
+            os.write(fd, token.encode())
+        finally:
+            os.close(fd)
 
         token_hint = (
             f"\n\nAn auth token is stored at {token_file}. "
-            f"Pass it via `execute-code.sh --url {url} "
-            f"--token $(cat {token_file})`."
+            f"Pass it via `execute-code.sh --url '{url}' "
+            f"--token \"$(cat '{token_file}')\"`."
         )
 
     # Output the prompt to the wrapper agent CLI

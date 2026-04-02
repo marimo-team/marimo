@@ -56,7 +56,7 @@ function useAuthToken(): string | null {
   useEffect(() => {
     fetch(asRemoteURL("/auth/token").href, { credentials: "include" })
       .then((res) =>
-        res.ok ? (res.json() as Promise<{ token: string }>) : null,
+        res.ok ? (res.json() as Promise<{ token: string | null }>) : null,
       )
       .then((data) => setToken(data?.token ?? null))
       .catch(() => setToken(null));

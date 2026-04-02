@@ -173,9 +173,12 @@ async def auth_token(request: Request) -> JSONResponse:
                                 nullable: true
     """
     state = AppState(request)
+    no_cache = {"Cache-Control": "no-store"}
     if not state.enable_auth:
-        return JSONResponse({"token": None})
-    return JSONResponse({"token": str(state.session_manager.auth_token)})
+        return JSONResponse({"token": None}, headers=no_cache)
+    return JSONResponse(
+        {"token": str(state.session_manager.auth_token)}, headers=no_cache
+    )
 
 
 def _with_trailing_slash(url: str) -> str:

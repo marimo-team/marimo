@@ -206,6 +206,7 @@ def test_auth_token_returns_token_when_authenticated(client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert data["token"] == str(AUTH_TOKEN)
+    assert response.headers["Cache-Control"] == "no-store"
 
 
 def test_auth_token_unauthenticated_returns_403(client: TestClient):
