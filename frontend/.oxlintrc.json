@@ -29,15 +29,21 @@
     "marimo/prefer-object-params": "warn",
     "marimo/atom-with-storage-args": "error",
 
+    // === Disabled category rules (too noisy / not applicable) ===
+    "no-use-before-define": "off",
+    "no-undefined": "off",
+    "react/react-in-jsx-scope": "off",
+    "typescript/explicit-module-boundary-types": "off",
+    "vitest/require-test-timeout": "off",
+    "vitest/require-mock-type-parameters": "off",
+
     // === Core rules ===
     "no-var": "error",
     "no-console": "error",
-    "no-debugger": "error",
     "no-constant-condition": "warn",
-    "no-irregular-whitespace": "error",
     "no-inner-declarations": "error",
     "no-useless-constructor": "error",
-    "no-shadow-restricted-names": "error",
+
     "no-redeclare": "off",
     "no-empty": "warn",
     "no-cond-assign": "warn",
@@ -121,7 +127,6 @@
     "vitest/expect-expect": "warn",
     "vitest/no-identical-title": "error",
     "vitest/no-commented-out-tests": "warn",
-    "vitest/require-mock-type-parameters": "warn",
   },
   "overrides": [
     {
