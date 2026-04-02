@@ -14,7 +14,7 @@ const addEventListenerObject = {
     },
     fixable: "code",
   },
-  create(context) {
+  createOnce(context) {
     return {
       CallExpression(node) {
         if (
@@ -51,7 +51,7 @@ const removeEventListenerObject = {
     },
     fixable: "code",
   },
-  create(context) {
+  createOnce(context) {
     return {
       CallExpression(node) {
         if (
@@ -91,7 +91,7 @@ const preferObjectParams = {
         "Prefer an options object instead of multiple positional arguments (3+)",
     },
   },
-  create(context) {
+  createOnce(context) {
     function check(node, nameNode) {
       const params = node.params;
       if (!params || params.length < 3) {
@@ -136,7 +136,7 @@ const atomWithStorageArgs = {
         "Require atomWithStorage to have at least 3 arguments (key, defaultValue, storage)",
     },
   },
-  create(context) {
+  createOnce(context) {
     return {
       CallExpression(node) {
         const callee = node.callee;
