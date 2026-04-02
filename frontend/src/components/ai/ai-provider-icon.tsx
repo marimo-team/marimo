@@ -36,8 +36,7 @@ const icons: Record<ProviderId | ExternalAgentId, string> = {
   opencode: OpencodeIcon,
 };
 
-export interface AiProviderIconProps
-  extends React.HTMLAttributes<HTMLImageElement> {
+export interface AiProviderIconProps extends React.HTMLAttributes<HTMLImageElement> {
   provider: keyof typeof icons | "openai-compatible";
   className?: string;
 }

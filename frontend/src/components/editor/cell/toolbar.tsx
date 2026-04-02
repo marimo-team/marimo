@@ -27,7 +27,8 @@ const toolbarItemVariants = cva(
 );
 
 interface ToolbarItemProps
-  extends VariantProps<typeof toolbarItemVariants>,
+  extends
+    VariantProps<typeof toolbarItemVariants>,
     React.HTMLAttributes<HTMLButtonElement> {
   tooltip: React.ReactNode;
   disabled?: boolean;

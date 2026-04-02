@@ -65,8 +65,10 @@ import { useSplitCellCallback } from "../cell/useSplitCell";
 import { NameCellInput } from "./name-cell-input";
 import type { ActionButton } from "./types";
 
-export interface CellActionButtonProps
-  extends Pick<CellData, "name" | "config"> {
+export interface CellActionButtonProps extends Pick<
+  CellData,
+  "name" | "config"
+> {
   cellId: CellId;
   status: RuntimeState;
   hasOutput: boolean;

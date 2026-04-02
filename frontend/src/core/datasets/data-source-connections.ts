@@ -32,8 +32,10 @@ const initialConnections: ConnectionsMap = new Map([
 ]);
 
 // Extend the backend type but override the name property with the strongly typed ConnectionName
-export interface DataSourceConnection
-  extends Omit<DataSourceConnectionType, "name"> {
+export interface DataSourceConnection extends Omit<
+  DataSourceConnectionType,
+  "name"
+> {
   name: ConnectionName;
 }
 

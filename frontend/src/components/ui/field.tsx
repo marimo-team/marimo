@@ -66,8 +66,7 @@ const fieldGroupVariants = cva("", {
 });
 
 interface GroupProps
-  extends AriaGroupProps,
-    VariantProps<typeof fieldGroupVariants> {}
+  extends AriaGroupProps, VariantProps<typeof fieldGroupVariants> {}
 
 const FieldGroup = ({ className, variant, ...props }: GroupProps) => {
   return (

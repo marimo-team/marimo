@@ -38,9 +38,7 @@ export const MARKDOWN_INITIAL_HIDE_CODE = true;
 /**
  * Language adapter for Markdown.
  */
-export class MarkdownLanguageAdapter
-  implements LanguageAdapter<MarkdownLanguageAdapterMetadata>
-{
+export class MarkdownLanguageAdapter implements LanguageAdapter<MarkdownLanguageAdapterMetadata> {
   private parser = new MarkdownParser();
 
   readonly type = "markdown";

@@ -91,13 +91,11 @@ export function customKeywordCompletionSource(): CompletionSource {
 
 // e.g. lazily load keyword docs
 const getKeywordDocs = once(async (): Promise<Record<string, unknown>> => {
-  const keywords = await import(
-    "@marimo-team/codemirror-sql/data/common-keywords.json"
-  );
+  const keywords =
+    await import("@marimo-team/codemirror-sql/data/common-keywords.json");
   // Include DuckDB for now, but we can remove this once we have a better way to handle dialect-specific keywords
-  const duckdbKeywords = await import(
-    "@marimo-team/codemirror-sql/data/duckdb-keywords.json"
-  );
+  const duckdbKeywords =
+    await import("@marimo-team/codemirror-sql/data/duckdb-keywords.json");
   return {
     ...keywords.default.keywords,
     ...duckdbKeywords.default.keywords,

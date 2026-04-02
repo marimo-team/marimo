@@ -63,8 +63,10 @@ import { stringifyUnknownValue } from "./utils";
 
 const TOP_K_ROWS = 30;
 
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue,
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
   justify?: "left" | "center" | "right";

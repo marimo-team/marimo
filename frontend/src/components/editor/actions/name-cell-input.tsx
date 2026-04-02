@@ -14,8 +14,10 @@ import { useOnMount } from "@/hooks/useLifecycle";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
-interface Props
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
+interface Props extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "onChange"
+> {
   value: string;
   onChange: (newName: string) => void;
   placeholder?: string;

@@ -183,8 +183,9 @@ const Calendar = <T extends AriaDateValue>({
   );
 };
 
-interface RangeCalendarProps<T extends AriaDateValue>
-  extends AriaRangeCalendarProps<T> {
+interface RangeCalendarProps<
+  T extends AriaDateValue,
+> extends AriaRangeCalendarProps<T> {
   errorMessage?: string;
 }
 

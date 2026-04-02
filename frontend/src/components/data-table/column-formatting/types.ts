@@ -48,8 +48,9 @@ declare module "@tanstack/react-table" {
   //merge column formatting's state with the existing table state
   interface TableState extends ColumnFormattingTableState {}
   //merge column formatting's options with the existing table options
-  interface TableOptionsResolved<TData extends RowData>
-    extends ColumnFormattingOptions {}
+  interface TableOptionsResolved<
+    TData extends RowData,
+  > extends ColumnFormattingOptions {}
   //merge column formatting's instance APIs with the existing table instance APIs
   interface Column<TData extends RowData> extends ColumnFormattingInstance {}
 }

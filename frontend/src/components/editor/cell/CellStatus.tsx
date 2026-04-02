@@ -16,11 +16,10 @@ import "./cell-status.css";
 import { formatDistanceToNow } from "date-fns";
 import { Time } from "@/utils/time";
 
-export interface CellStatusComponentProps
-  extends Pick<
-    CellRuntimeState,
-    "status" | "runStartTimestamp" | "interrupted" | "lastRunStartTimestamp"
-  > {
+export interface CellStatusComponentProps extends Pick<
+  CellRuntimeState,
+  "status" | "runStartTimestamp" | "interrupted" | "lastRunStartTimestamp"
+> {
   editing: boolean;
   edited: boolean;
   disabled: boolean;
