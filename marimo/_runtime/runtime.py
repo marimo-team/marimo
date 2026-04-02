@@ -34,7 +34,6 @@ from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import (
-    STORAGE_INSPECTOR_DEFAULT,
     ExecutionType,
     MarimoConfig,
     OnCellChangeType,
@@ -3592,9 +3591,6 @@ def launch_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-    if user_config.get("experimental", {}).get(
-        "storage_inspector", STORAGE_INSPECTOR_DEFAULT
-    ):
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(
