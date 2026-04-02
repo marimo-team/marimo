@@ -230,7 +230,8 @@ interface ComboboxItemOptions<TValue> {
 }
 
 export interface ComboboxItemProps<TValue>
-  extends ComboboxItemOptions<TValue>,
+  extends
+    ComboboxItemOptions<TValue>,
     Omit<
       React.ComponentProps<typeof CommandItem>,
       keyof ComboboxItemOptions<TValue> | "onSelect" | "role"

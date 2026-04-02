@@ -99,7 +99,9 @@
 
     /* Special case for particular components */
 
-    .output-area:has(> .output:only-child > marimo-ui-element:only-child > marimo-table) {
+    .output-area:has(
+      > .output:only-child > marimo-ui-element:only-child > marimo-table
+    ) {
       padding: 0 0 5px;
       max-height: none;
       overflow: hidden;
@@ -124,12 +126,12 @@
       }
     }
 
-    &> :first-child {
+    & > :first-child {
       border-top-left-radius: 9px;
       border-top-right-radius: 9px;
     }
 
-    &> :last-child {
+    & > :last-child {
       border-bottom-left-radius: 9px;
       border-bottom-right-radius: 9px;
     }
@@ -143,11 +145,11 @@
     }
   }
 
-  >[data-hidden="true"]~* {
+  > [data-hidden="true"] ~ * {
     border-top: none;
   }
 
-  >*~[data-hidden="true"] {
+  > * ~ [data-hidden="true"] {
     border-top: none;
   }
 
@@ -155,7 +157,6 @@
 
   &.stale,
   &.disabled.stale {
-
     .output-area,
     .cm-gutters,
     .cm {
@@ -170,7 +171,6 @@
   &.disabled.has-error,
   &.disabled:hover,
   &.disabled.has-error:hover {
-
     .output-area,
     .cm-gutters,
     .cm {
@@ -275,7 +275,7 @@
   &.borderless {
     border-color: transparent;
 
-    &>* {
+    & > * {
       border-bottom: none;
     }
 
@@ -325,7 +325,7 @@
   &.borderless {
     border-color: transparent;
 
-    &>* {
+    & > * {
       border-bottom: none;
     }
 
@@ -420,7 +420,6 @@
 
 /* Hide tray when dragging a cell, to prevent messing up the measurements. */
 .marimo-cell.is-moving {
-
   .tray::before,
   .tray::after {
     display: none;
@@ -513,7 +512,8 @@
 
 .marimo-output-stale.marimo-output-loading,
 .marimo-cell.stale .output-area.marimo-output-stale.marimo-output-loading,
-.marimo-cell.stale .console-output-area.marimo-output-stale.marimo-output-loading {
+.marimo-cell.stale
+  .console-output-area.marimo-output-stale.marimo-output-loading {
   opacity: 0.4;
   filter: grayscale(50%);
   transition: 300ms;

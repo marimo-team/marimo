@@ -206,7 +206,7 @@ function startWebSocketServer(
     }
     isShuttingDown = true;
     logger.log("Received shutdown signal, closing all connections...");
-    for (const client of Array.from(webSocketServer.clients)) {
+    for (const client of [...webSocketServer.clients]) {
       try {
         client.close();
       } catch (error) {

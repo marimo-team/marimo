@@ -23,17 +23,15 @@ describe("isInteractiveTarget", () => {
     expect(isInteractiveTarget(createMouseEvent(span, cell))).toBe(false);
   });
 
-  it.each([
-    "input",
-    "button",
-    "select",
-    "textarea",
-  ])("returns true when clicking a <%s>", (tag) => {
-    const cell = document.createElement("td");
-    const el = document.createElement(tag);
-    cell.append(el);
-    expect(isInteractiveTarget(createMouseEvent(el, cell))).toBe(true);
-  });
+  it.each(["input", "button", "select", "textarea"])(
+    "returns true when clicking a <%s>",
+    (tag) => {
+      const cell = document.createElement("td");
+      const el = document.createElement(tag);
+      cell.append(el);
+      expect(isInteractiveTarget(createMouseEvent(el, cell))).toBe(true);
+    },
+  );
 
   it("returns true when clicking an <a> link", () => {
     const cell = document.createElement("td");

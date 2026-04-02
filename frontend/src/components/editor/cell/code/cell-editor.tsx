@@ -47,7 +47,8 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
-  extends Pick<CellRuntimeState, "status">,
+  extends
+    Pick<CellRuntimeState, "status">,
     Pick<CellData, "id" | "code" | "serializedEditorState" | "config"> {
   runCell: () => void;
   theme: Theme;

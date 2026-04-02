@@ -11,9 +11,7 @@ const LazyImageComparisonComponent = React.lazy(
   () => import("../impl/image-comparison/ImageComparisonComponent"),
 );
 
-export class ImageComparisonPlugin
-  implements IStatelessPlugin<ImageComparisonData>
-{
+export class ImageComparisonPlugin implements IStatelessPlugin<ImageComparisonData> {
   tagName = "marimo-image-comparison";
 
   validator = z.object({

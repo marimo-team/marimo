@@ -41,8 +41,7 @@ const DateSegment = ({ className, ...props }: AriaDateSegmentProps) => {
 };
 
 interface DateInputProps
-  extends AriaDateInputProps,
-    VariantProps<typeof fieldGroupVariants> {}
+  extends AriaDateInputProps, VariantProps<typeof fieldGroupVariants> {}
 
 const DateInput = ({
   className,
@@ -61,8 +60,9 @@ const DateInput = ({
   );
 };
 
-interface DateFieldProps<T extends AriaDateValue>
-  extends AriaDateFieldProps<T> {
+interface DateFieldProps<
+  T extends AriaDateValue,
+> extends AriaDateFieldProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: AriaValidationResult) => string);
@@ -94,8 +94,9 @@ const DateField = <T extends AriaDateValue>({
   );
 };
 
-interface TimeFieldProps<T extends AriaTimeValue>
-  extends AriaTimeFieldProps<T> {
+interface TimeFieldProps<
+  T extends AriaTimeValue,
+> extends AriaTimeFieldProps<T> {
   label?: string;
   description?: string;
   errorMessage?: string | ((validation: AriaValidationResult) => string);
