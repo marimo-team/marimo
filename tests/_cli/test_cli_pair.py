@@ -62,3 +62,39 @@ class TestPairPrompt:
                 )
                 assert result.exit_code == 0, flag
                 assert TEST_URL in result.output, flag
+
+
+class TestPairPromptWithToken:
+    def test_with_token_writes_file_and_outputs_prompt(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", TEST_URL, "--with-token"],
+            input="my-secret-token\n",
+        )
+        assert result.exit_code == 0
+        # Should output the prompt (not just the file path)
+        assert TEST_URL in result.output
+        assert "execute-code.sh" in result.output
+        assert "token" in result.output.lower()
+        assert "cat" in result.output
+
+        # Verify the token file was written
+        import hashlib
+
+        from marimo._cli.pair.commands import _token_dir
+
+        url_hash = hashlib.sha256(TEST_URL.encode()).hexdigest()[:6]
+        token_file = _token_dir() / f"{url_hash}-token.txt"
+        assert token_file.exists()
+        assert token_file.read_text() == "my-secret-token"
+        assert oct(token_file.stat().st_mode & 0o777) == "0o600"
+        token_file.unlink()
+
+    def test_with_token_no_url_required(self) -> None:
+        # --url is still required by click even with --with-token
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--with-token"],
+            input="tok\n",
+        )
+        assert result.exit_code != 0

@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
+import os
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -11,6 +14,10 @@ from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
+
+
+def _token_dir() -> Path:
+    return Path(tempfile.gettempdir()) / "marimo"
 
 
 @dataclass(frozen=True)
@@ -85,16 +92,32 @@ def pair() -> None:
     default=False,
     help="Validate that the marimo-pair opencode skill is installed.",
 )
-def prompt(url: str, claude: bool, codex: bool, opencode: bool) -> None:
+@click.option(
+    "--with-token",
+    is_flag=True,
+    default=False,
+    help="Prompt for an auth token and export it as MARIMO_CODE_MODE_TOKEN.",
+)
+def prompt(
+    url: str,
+    claude: bool,
+    codex: bool,
+    opencode: bool,
+    with_token: bool,
+) -> None:
     """
     Generate a prompt for pair programming.
 
     Example usage:
 
-        claude $(marimo pair prompt --url 'https://localhost:8000?auth=...' --claude)
-        codex $(marimo pair prompt --url 'https://localhost:8000?auth=...' --codex)
-        opencode $(marimo pair prompt --url 'https://localhost:8000?auth=...' --opencode)
+        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude)"
+        codex "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --codex)"
+        opencode "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --opencode)"
+
+        # With an auth token
+        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
+    # Validate that the selected agents have the required skills
     selected_agents = {
         "claude": claude,
         "codex": codex,
@@ -116,12 +139,31 @@ def prompt(url: str, claude: bool, codex: bool, opencode: bool) -> None:
             )
             sys.exit(1)
 
+    # Prompt for token and write it to a temp file if --with-token is set
+    token_hint = ""
+    if with_token:
+        token_dir = _token_dir()
+        url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
+        token_file = token_dir / f"{url_hash}-token.txt"
+        token = click.prompt("Auth token", hide_input=True, err=True)
+        token_dir.mkdir(parents=True, exist_ok=True)
+        token_file.write_text(token)
+        os.chmod(token_file, 0o600)  # noqa: PTH101
+
+        token_hint = (
+            f"\n\nAn auth token is stored at {token_file}. "
+            f"Pass it via `execute-code.sh --url {url} "
+            f"--token $(cat {token_file})`."
+        )
+
+    # Output the prompt to the wrapper agent CLI
     click.echo(
         "Use the /marimo-pair skill to pair-program on a running "
         "marimo notebook.\n\n"
         f"Connect to the notebook at: {url}\n\n"
         f"Use `execute-code.sh --url {url}` from the marimo-pair "
-        "skill to execute code in the notebook. \n\n"
+        "skill to execute code in the notebook."
+        f"{token_hint}\n\n"
         "Once you are connected, send a fun toast to the user inside marimo letting them know you're ready to pair."
     )
 
