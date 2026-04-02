@@ -2,16 +2,18 @@
 
 ⚠️ **Runtime** ⚠️ Unsafe Fixable
 
-MR003: Reusable definitions depending on later reusable definitions.
+MR003: Invalid ordering of potentially reusable definitions.
 
 ## What it does
 
-marimo serializes reusable definitions in notebook order. This rule runs
-full-notebook top-level extraction and flags reusable definitions that fail
-specifically because another reusable definition is declared later.
+marimo serializes reusable definitions in notebook order. Like all python
+scripts, a reusable function cannot refer to a variable that has _not yet
+been defined_. While ordering in marimo normally doesn't matter, for reuse
+as a module or script, dependent top level definitions must be ordered
+correctly.
 
-The notebook still runs, but the affected definition is no longer reusable
-for export or import into another notebook or Python module.
+This rule flags and fixes function or class definitions that would normally
+be saved as "reusable", but cannot due to cell ordering.
 
 ## Why is this bad?
 
@@ -20,11 +22,6 @@ later in the notebook:
 
 - the definition cannot be serialized as reusable
 - imports from other notebooks or Python modules may fail
-- the notebook order no longer reflects the dependency order needed for
-  reuse
-
-This is a runtime issue because it affects reusability and portability,
-not basic notebook execution.
 
 ## Examples
 
@@ -32,6 +29,8 @@ not basic notebook execution.
 ```python
 @app.function
 def uses_offset(x: int = offset()) -> int:
+    # This will run in marimo, but will cause an error if run as a script!
+    # `offset` is not defined!
     return x + 1
 
 
@@ -42,25 +41,18 @@ def offset() -> int:
 
 **Problematic:**
 ```python
-@app.class_definition
-class Wrapped:
-    @decorate
-    def value(self) -> int:
-        return 1
+@app.cell
+def _():
+    # This could be reusable if it was defined after `decorate`.
+    class Wrapped:
+        @decorate
+        def value(self) -> int:
+            return 1
 
 
 @app.function
 def decorate(fn):
     return fn
-```
-
-**Not flagged:**
-```python
-@app.cell
-def _(scale):
-    def local_only(x: int = scale) -> int:
-        return x + 1
-    return
 ```
 
 ## References
@@ -96,6 +88,4 @@ marimo check --fix --unsafe-fixes my_notebook.py
 The unsafe fix reorders the provider cells earlier in the notebook. This
 is marked unsafe because changing cell order changes the document
 structure, even when the resulting notebook is still valid.
-
-Setup cells are not moved by this fix.
 

@@ -15,27 +15,33 @@ from marimo._lint.rules.base import UnsafeFixRule
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._types.ids import CellId_t
 
+_HINT_ORDER_DEPENDENT_PREFIX = HINT_ORDER_DEPENDENT.split("{}")[0]
+
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
+    from marimo._ast.toplevel import TopLevelStatus
     from marimo._lint.context import RuleContext
     from marimo._schemas.serialization import CellDef
 
 
 class ReusableDefinitionOrderRule(UnsafeFixRule):
-    """MR003: Reusable definitions depending on later reusable definitions.
+    """MR003: Invalid ordering of potentially reusable definitions.
 
-    This rule detects reusable definitions, such as ``@app.function`` and
-    ``@app.class_definition``, whose signature, decorators, or class bases
-    depend on another reusable definition that appears later in notebook order.
+    This rule detects cells that could be reusable definitions (i.e., decorated
+    with ``@app.function`` or ``@app.class_definition``) but which _cannot_ be
+    safely serialized as reusable due to the ordering of marimo cells.
+
 
     ## What it does
 
-    marimo serializes reusable definitions in notebook order. This rule runs
-    full-notebook top-level extraction and flags reusable definitions that fail
-    specifically because another reusable definition is declared later.
+    marimo serializes reusable definitions in notebook order. Like all python
+    scripts, a reusable function cannot refer to a variable that has _not yet
+    been defined_. While ordering in marimo normally doesn't matter, for reuse
+    as a module or script, dependent top level definitions must be ordered
+    correctly.
 
-    The notebook still runs, but the affected definition is no longer reusable
-    for export or import into another notebook or Python module.
+    This rule flags and fixes function or class definitions that would normally
+    be saved as "reusable", but cannot due to cell ordering.
 
     ## Why is this bad?
 
@@ -44,11 +50,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
 
     - the definition cannot be serialized as reusable
     - imports from other notebooks or Python modules may fail
-    - the notebook order no longer reflects the dependency order needed for
-      reuse
 
-    This is a runtime issue because it affects reusability and portability,
-    not basic notebook execution.
 
     ## Examples
 
@@ -56,6 +58,8 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
     ```python
     @app.function
     def uses_offset(x: int = offset()) -> int:
+        # This will run in marimo, but will cause an error if run as a script!
+        # `offset` is not defined!
         return x + 1
 
 
@@ -66,25 +70,18 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
 
     **Problematic:**
     ```python
-    @app.class_definition
-    class Wrapped:
-        @decorate
-        def value(self) -> int:
-            return 1
+    @app.cell
+    def _():
+        # This could be reusable if it was defined after `decorate`.
+        class Wrapped:
+            @decorate
+            def value(self) -> int:
+                return 1
 
 
     @app.function
     def decorate(fn):
         return fn
-    ```
-
-    **Not flagged:**
-    ```python
-    @app.cell
-    def _(scale):
-        def local_only(x: int = scale) -> int:
-            return x + 1
-        return
     ```
 
     ## Solution
@@ -115,7 +112,6 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
     is marked unsafe because changing cell order changes the document
     structure, even when the resulting notebook is still valid.
 
-    Setup cells are not moved by this fix.
 
     ## References
 
@@ -138,7 +134,10 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         for status, notebook_index in zip(
             extraction.statuses, notebook_indices
         ):
-            if status.hint != HINT_ORDER_DEPENDENT.format(status.dependencies):
+            if not (
+                status.hint
+                and status.hint.startswith(_HINT_ORDER_DEPENDENT_PREFIX)
+            ):
                 continue
 
             notebook_cell = ctx.notebook.cells[notebook_index]
@@ -160,8 +159,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
                 fixable="unsafe",
                 fix=(
                     "Move the referenced reusable definition(s) earlier in the "
-                    f"notebook, before `{definition_name}`. This can be applied "
-                    "with `marimo check --unsafe-fixes`."
+                    f"notebook, before `{definition_name}`."
                 ),
             )
             await ctx.add_diagnostic(diagnostic)
@@ -189,8 +187,9 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
             for status, notebook_index in zip(
                 extraction.statuses, notebook_indices
             ):
-                if status.hint != HINT_ORDER_DEPENDENT.format(
-                    status.dependencies
+                if not (
+                    status.hint
+                    and status.hint.startswith(_HINT_ORDER_DEPENDENT_PREFIX)
                 ):
                     continue
 
@@ -290,8 +289,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         return cell.lineno, cell.col_offset + 1
 
     @staticmethod
-    def _get_definition_name(status: object) -> str:
-        defs = getattr(status, "defs", set())
-        if defs:
-            return sorted(defs)[0]
-        return getattr(status, "name", "_")
+    def _get_definition_name(status: TopLevelStatus) -> str:
+        if status.defs:
+            return sorted(status.defs)[0]
+        return status.name
