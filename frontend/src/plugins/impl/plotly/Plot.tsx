@@ -4,7 +4,7 @@ import type * as PlotlyTypes from "plotly.js";
 // Import the pre-built dist bundle, not the source entry point.
 // The source entry point requires Node.js polyfills (e.g. `buffer/`)
 // that are unavailable in the browser/bundler environment.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// oxlint-disable-next-line typescript/ban-ts-comment
 // @ts-expect-error — no type declarations for dist path, we use PlotlyTypes above
 import Plotly from "plotly.js/dist/plotly";
 import { useEffect, useRef } from "react";
@@ -107,7 +107,7 @@ export const Plot = (props: PlotProps) => {
 
       const plotlyEl = el as unknown as PlotlyElement;
 
-      // eslint-disable-next-line @typescript-eslint/ban-types -- Plotly's event API uses generic function references
+      // oxlint-disable-next-line typescript/ban-types -- Plotly's event API uses generic function references
       const attached: {
         plotlyName: string;
         handler: (...args: never[]) => void;
@@ -131,7 +131,7 @@ export const Plot = (props: PlotProps) => {
         }
       };
       // Re-sync whenever any event handler prop changes
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // oxlint-disable-next-line react-hooks/exhaustive-deps
     },
     EVENT_NAMES.map((name) => props[propName(name)]),
   );

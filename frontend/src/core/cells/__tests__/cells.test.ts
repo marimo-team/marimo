@@ -45,7 +45,7 @@ vi.mock("@/core/codemirror/editing/commands", () => ({
 vi.mock("../scrollCellIntoView", async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...(actual as any),
     scrollToTop: vi.fn(),
     scrollToBottom: vi.fn(),
@@ -1023,7 +1023,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     expect((cell.output?.data as any)[0].msg).toBe(
       "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );

@@ -33,6 +33,8 @@
     "no-var": "error",
     "no-console": "error",
     "no-debugger": "error",
+    "no-constant-condition": "warn",
+    "no-irregular-whitespace": "error",
     "no-inner-declarations": "error",
     "no-useless-constructor": "error",
     "no-shadow-restricted-names": "error",
@@ -55,6 +57,9 @@
     "no-unused-vars": "warn",
 
     // === TypeScript ===
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/ban-ts-comment": "warn",
     "typescript/consistent-generic-constructors": "error",
     "typescript/consistent-type-definitions": "error",
     "typescript/no-confusing-non-null-assertion": "error",
@@ -89,6 +94,8 @@
     "react/jsx-filename-extension": "off",
     // TODO: re-enable as error
     "react/jsx-no-useless-fragment": "warn",
+    "react/jsx-no-target-blank": "warn",
+    "react/jsx-no-comment-textnodes": "warn",
     "react/self-closing-comp": "error",
 
     // === React Hooks ===

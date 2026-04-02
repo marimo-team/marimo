@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
 import { asRemoteURL } from "@/core/runtime/config";

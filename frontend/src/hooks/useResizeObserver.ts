@@ -28,10 +28,10 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
   options: UseResizeObserverOptions<T>,
 ): void {
   const { ref, box = "content-box", skip } = options;
-  // eslint-disable-next-line react/hook-use-state
+  // oxlint-disable-next-line react/hook-use-state
   const previousSize = useRef<Size>({ ...initialSize });
   const onResize = useRef<((size: Size) => void) | undefined>(undefined);
-  // eslint-disable-next-line react-hooks/react-compiler
+  // oxlint-disable-next-line react-hooks/react-compiler
   onResize.current = options.onResize;
 
   useEffect(() => {

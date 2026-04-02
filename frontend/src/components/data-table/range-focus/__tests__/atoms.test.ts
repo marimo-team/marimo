@@ -10,7 +10,7 @@ vi.mock("@/utils/copy", () => ({
 }));
 
 vi.mock("../utils", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const original = (await importOriginal()) as any;
   return {
     ...original,
@@ -28,7 +28,7 @@ import {
 } from "../atoms";
 import { getCellsBetween, getCellValues } from "../utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type T = any;
 
 // Create mock table and cells

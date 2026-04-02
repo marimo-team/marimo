@@ -25,7 +25,7 @@ async function globalTeardown() {
       "pkill -9 -f '[u]v.*run.*[m]arimo' || true",
     ];
     for (const cmd of killCmds) {
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      // oxlint-disable-next-line typescript/no-empty-function
       await execAsync(cmd).catch(() => {});
     }
     console.log("✅ Cleaned up marimo/uv processes");

@@ -46,7 +46,7 @@ interface Props {
   valueTypes?: "json" | "python";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const CopyButton: React.FC<DataItemProps<any>> = ({ value }) => {
   const skipCopy =
     typeof value === "string" &&
@@ -83,13 +83,13 @@ const CopyButton: React.FC<DataItemProps<any>> = ({ value }) => {
   );
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const JSONCopyButton: React.FC<DataItemProps<any>> = (props) => {
   // if
   return <CopyButton {...props} value={JSON.stringify(props.value, null, 2)} />;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const PyCopyButton: React.FC<DataItemProps<any>> = (props) => {
   return <CopyButton {...props} value={getCopyValue(props.value)} />;
 };
@@ -233,7 +233,7 @@ const LEAF_RENDERERS: Record<string, LeafRenderer> = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const MIME_TYPES: DataType<any>[] = Object.entries(LEAF_RENDERERS).map(
   ([leafType, render]) => ({
     is: (value) => typeof value === "string" && value.startsWith(leafType),

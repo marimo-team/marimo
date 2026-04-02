@@ -25,7 +25,7 @@ export type {
 } from "vega-lite/types_unstable/spec/unit.js";
 
 export type VegaLiteUnitSpec = TopLevelUnitSpec<Field>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export type GenericVegaSpec = GenericUnitSpec<any, any, any>;
 export type EncodingType = keyof Encoding<Field>;
 export type Encodings = Encoding<Field>;

@@ -402,7 +402,7 @@ describe("findDuplicateShortcuts", () => {
       });
 
       const provider = new HotkeyProvider(hotkeys, { platform: "mac" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const result = findDuplicateShortcuts(provider, "NonExistent" as any);
 
       // Should still work normally and detect the duplicate

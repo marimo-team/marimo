@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
@@ -47,7 +47,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     const blob = new Blob([js], { type: "application/javascript" });
     const objURL = URL.createObjectURL(blob);
     const worker = new Worker(
-      // eslint-disable-next-line unicorn/relative-url-style
+      // oxlint-disable-next-line unicorn/relative-url-style
       objURL,
       {
         type: "module",

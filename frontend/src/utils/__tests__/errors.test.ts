@@ -46,7 +46,7 @@ describe("prettyError", () => {
   });
 
   it("handles circular references", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const circular: any = { foo: "bar" };
     circular.self = circular;
     expect(prettyError(circular)).toBe("[object Object]");

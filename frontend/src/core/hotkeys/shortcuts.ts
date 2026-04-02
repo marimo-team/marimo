@@ -73,7 +73,7 @@ function areKeysPressed(keys: string[], e: IKeyboardEvent): boolean {
         // - US keyboards: "&"
         // - Some layouts: "7"
         // Using e.code (physical key) instead of e.key (produced character)
-        // eslint-disable-next-line unicorn/prefer-ternary
+        // oxlint-disable-next-line unicorn/prefer-ternary
         if (/^\d$/.test(key) && e.shiftKey) {
           satisfied &&= e.code === `Digit${key}`;
         } else {

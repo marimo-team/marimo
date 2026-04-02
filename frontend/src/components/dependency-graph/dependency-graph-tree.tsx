@@ -51,7 +51,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   layoutDirection,
   settings,
 }) => {
-  // eslint-disable-next-line react/hook-use-state
+  // oxlint-disable-next-line react/hook-use-state
   const [initial] = useState(() => {
     let elements = elementsBuilder.createElements(
       cellIds,

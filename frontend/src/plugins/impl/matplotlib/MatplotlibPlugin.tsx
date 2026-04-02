@@ -57,7 +57,7 @@ const MatplotlibComponent = (props: MatplotlibState) => {
       controller.abort();
       instance.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // No dependency array: intentionally syncs all props into the imperative

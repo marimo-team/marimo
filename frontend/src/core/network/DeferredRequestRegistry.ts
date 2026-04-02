@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-redeclare */
+/* oxlint-disable typescript/no-redeclare */
 import type { components } from "@marimo-team/marimo-api";
 import { Deferred } from "@/utils/Deferred";
 import { generateUUID } from "@/utils/uuid";

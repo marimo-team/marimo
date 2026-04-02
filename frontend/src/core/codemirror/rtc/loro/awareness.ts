@@ -185,7 +185,7 @@ export const createSelectionLayer = (): Extension =>
         .flatMap(([, state]) => {
           const selectionRange = EditorSelection.range(
             state.cursor.anchor,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            // oxlint-disable-next-line typescript/no-non-null-assertion
             state.cursor.head!,
           );
           const markers = RectangleMarker.forRange(

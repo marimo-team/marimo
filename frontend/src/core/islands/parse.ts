@@ -72,7 +72,7 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
     if (!apps.has(id)) {
       apps.set(id, { id, cells: [] });
     }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // oxlint-disable-next-line typescript/no-non-null-assertion
     const app = apps.get(id)!;
     const idx = app.cells.length;
     app.cells.push({

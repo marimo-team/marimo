@@ -230,7 +230,7 @@ describe("generateColumns", () => {
     });
 
     // "age" is a number column — should auto right-align
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[1].cell as any)({
       column: {
         columnDef: columns[1],
@@ -241,7 +241,7 @@ describe("generateColumns", () => {
     expect(cell?.props.className).toContain("text-right");
 
     // "name" is a string column — should remain left-aligned
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const nameCell = (columns[0].cell as any)({
       column: {
         columnDef: columns[0],
@@ -261,7 +261,7 @@ describe("generateColumns", () => {
     });
 
     // "age" is numeric but explicitly set to left
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[1].cell as any)({
       column: {
         columnDef: columns[1],
@@ -301,7 +301,7 @@ describe("generateColumns", () => {
     });
 
     // Assuming getCellStyleClass is a function that returns a class name
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[0].cell as any)({
       column: {
         columnDef: columns[0],
@@ -333,7 +333,7 @@ describe("generateColumns", () => {
     // Right-justified: parent wrapper should have items-end, sort/filter icons should flip to the left
     const { container: rightContainer } = render(
       <TooltipProvider>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
         {(columns[0].header as any)({ column: mockColumn(columns[0]) })}
       </TooltipProvider>,
     );
@@ -347,7 +347,7 @@ describe("generateColumns", () => {
     // Center-justified: parent wrapper should have items-center, no flex-row-reverse
     const { container: centerContainer } = render(
       <TooltipProvider>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
         {(columns[1].header as any)({ column: mockColumn(columns[1]) })}
       </TooltipProvider>,
     );
@@ -572,7 +572,7 @@ describe("LocaleNumber", () => {
         <LocaleNumber value={1_234_567.89} />
       </I18nProvider>,
     );
-    // eslint-disable-next-line no-irregular-whitespace
+    // oxlint-disable-next-line no-irregular-whitespace
     expect(container.textContent).toMatchInlineSnapshot(`"1 234 567,89"`);
   });
 

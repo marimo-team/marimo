@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-// eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
+// oxlint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
 const el = document.getElementById("root");
 if (el) {
   if (!window.__MARIMO_MOUNT_CONFIG__) {

@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-empty-interface */
+/* oxlint-disable typescript/no-empty-object-type */
 
 import type { OnChangeFn, RowData } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
@@ -38,7 +38,7 @@ export interface ColumnFormattingInstance {
   setColumnFormatting: (value?: FormatOption) => void;
   getColumnFormatting?: () => FormatOption | undefined;
   getCanFormat?: () => boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   applyColumnFormatting: (value: any) => any;
 }
 

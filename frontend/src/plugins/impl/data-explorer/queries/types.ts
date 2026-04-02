@@ -28,7 +28,7 @@ export interface Result {
   limit: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-redundant-type-constituents
+// oxlint-disable-next-line typescript/no-explicit-any, typescript/no-redundant-type-constituents
 export type TopLevelFacetedUnitSpec = TopLevel<FacetedUnitSpec<any, any>> & {
   data: NamedData;
 };

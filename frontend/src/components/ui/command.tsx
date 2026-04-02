@@ -61,7 +61,7 @@ const CommandInput = React.forwardRef<
 >(({ className, icon, rootClassName, ...props }, ref) => (
   <div
     className={cn("flex items-center border-b px-3", rootClassName)}
-    // eslint-disable-next-line react/no-unknown-property
+    // oxlint-disable-next-line react/no-unknown-property
     cmdk-input-wrapper=""
   >
     {icon === null ? null : (
