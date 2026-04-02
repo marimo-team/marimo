@@ -516,4 +516,37 @@ describe("onStream", () => {
       delta: "\n```",
     });
   });
+
+  it("should buffer partial fence and create cell when fence completes", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "text-start", id: "test-id" });
+
+    const mockCellId = cellId("mock-cell-id");
+    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+
+    // Chunk 1: partial fence (just two backticks)
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "``",
+    });
+
+    // Cell should NOT be created — fence is incomplete
+    expect(mockCreateNewCell).not.toHaveBeenCalled();
+
+    // Chunk 2: fence completes + code
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "`python\nsome code",
+    });
+
+    // NOW cell is created with actual code
+    expect(mockCreateNewCell).toHaveBeenCalledWith({
+      cellId: "__end__",
+      code: "some code",
+      before: false,
+      newCellId: "mock-cell-id",
+    });
+  });
 });
