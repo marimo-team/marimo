@@ -1233,7 +1233,11 @@ def _append_bar_items_to_selection(
     all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
     all_indices = cast(list[Any], selection_data.get("indices", []))
 
-    if not any(all_points) and not bar_items:
+    has_real_points = any(all_points)
+    if not has_real_points and not bar_items:
+        # Ensure empty-dict placeholders from the frontend do not leak through
+        selection_data["points"] = []
+        selection_data["indices"] = []
         return
 
     seen: set[tuple[int, int]] = set()

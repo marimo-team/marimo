@@ -15,7 +15,13 @@ import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
 import { Arrays } from "@/utils/arrays";
 import { Objects } from "@/utils/objects";
-import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
+import {
+  CLICK_SELECTABLE_TRACE_TYPES,
+  extractIndices,
+  extractPoints,
+  SUNBURST_DATA_KEYS,
+  TREE_MAP_DATA_KEYS,
+} from "./selection";
 import { usePlotlyLayout } from "./usePlotlyLayout";
 
 interface Data {
@@ -75,24 +81,6 @@ interface PlotlyPluginProps extends Data {
 const LazyPlot = lazy(() =>
   import("./Plot").then((mod) => ({ default: mod.Plot })),
 );
-
-const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
-  "color",
-  "curveNumber",
-  "entry",
-  "hovertext",
-  "id",
-  "label",
-  "parent",
-  "percentEntry",
-  "percentParent",
-  "percentRoot",
-  "pointNumber",
-  "root",
-  "value",
-] as const;
-const TREE_MAP_DATA_KEYS = SUNBURST_DATA_KEYS;
-const CLICK_SELECTABLE_TRACE_TYPES = new Set(["heatmap", "bar"]);
 
 export const PlotlyComponent = memo(
   ({ figure: originalFigure, value, setValue, config }: PlotlyPluginProps) => {
@@ -203,8 +191,8 @@ export const PlotlyComponent = memo(
           if (!evt) {
             return;
           }
-          // Only handle clicks for chart types where box/lasso selection
-          // (onSelected) doesn't work, such as heatmaps.
+          // Only handle clicks for trace types where onSelected is not
+          // triggered for single clicks (e.g. bar, heatmap).
           const isClickSelectable = evt.points.some((point) =>
             CLICK_SELECTABLE_TRACE_TYPES.has(point.data?.type ?? ""),
           );
@@ -215,7 +203,7 @@ export const PlotlyComponent = memo(
             ...prev,
             selections: Arrays.EMPTY,
             points: extractPoints(evt.points),
-            indices: getPointIndices(evt.points),
+            indices: extractIndices(evt.points),
             range: undefined,
           }));
         })}
@@ -229,7 +217,7 @@ export const PlotlyComponent = memo(
             selections:
               "selections" in evt ? (evt.selections as unknown[]) : [],
             points: extractPoints(evt.points),
-            indices: getPointIndices(evt.points),
+            indices: extractIndices(evt.points),
             range: evt.range,
           }));
         })}
@@ -244,71 +232,3 @@ export const PlotlyComponent = memo(
   },
 );
 PlotlyComponent.displayName = "PlotlyComponent";
-
-function getPointIndex(point: Plotly.PlotDatum): number | undefined {
-  return point.pointIndex ?? point.pointNumber;
-}
-
-function getPointIndices(points: Plotly.PlotDatum[]): number[] {
-  const indices: number[] = [];
-
-  for (const point of points) {
-    const index = getPointIndex(point);
-    if (index !== undefined) {
-      indices.push(index);
-    }
-  }
-
-  return indices;
-}
-
-/**
- * This is a hack to extract the points with their original keys,
- * instead of the ones that Plotly uses internally,
- * by using the hovertemplate.
- */
-const STANDARD_POINT_KEYS: string[] = [
-  "x",
-  "y",
-  "z",
-  "lat",
-  "lon",
-  "curveNumber",
-  "pointNumber",
-  "pointNumbers",
-  "pointIndex",
-];
-
-function extractPoints(
-  points: Plotly.PlotDatum[],
-): Record<AxisName, AxisDatum>[] {
-  if (!points) {
-    return [];
-  }
-
-  let parser: PlotlyTemplateParser | undefined;
-
-  return points.map((point) => {
-    const standardPointFields = Objects.pick(point, STANDARD_POINT_KEYS);
-
-    // Get the first hovertemplate
-    const hovertemplate = Array.isArray(point.data.hovertemplate)
-      ? point.data.hovertemplate[0]
-      : point.data.hovertemplate;
-
-    // For chart types with standard point keys (e.g. heatmaps),
-    // or when there's no hovertemplate, pick keys directly from the point.
-    if (!hovertemplate || point.data?.type === "heatmap") {
-      return standardPointFields;
-    }
-
-    // Update or create a parser
-    parser = parser
-      ? parser.update(hovertemplate)
-      : createParser(hovertemplate);
-    return {
-      ...standardPointFields,
-      ...parser.parse(point),
-    };
-  });
-}
