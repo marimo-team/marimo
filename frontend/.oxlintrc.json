@@ -45,13 +45,13 @@
     "eqeqeq": ["error", "smart"],
     "curly": "error",
     "array-callback-return": "warn",
-    // TODO: renable
+    // TODO: re-enable
     "no-control-regex": "warn",
-    // TODO: renable
+    // TODO: re-enable
     "no-unsafe-optional-chaining": "warn",
-    // TODO: renable
+    // TODO: re-enable
     "no-unused-expressions": "warn",
-    // TODO: renable
+    // TODO: re-enable
     "no-unused-vars": "warn",
 
     // === TypeScript ===
