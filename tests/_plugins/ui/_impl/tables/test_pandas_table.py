@@ -652,6 +652,40 @@ class TestPandasTableManager(unittest.TestCase):
             [("X", ("string", "str")), ("Y", ("integer", "int64"))],
         ]
 
+    def test_get_row_headers_index_column_name_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"ID_SOMETHING": [1, 2], "ID_DATE": [3, 4]},
+            index=pd.Index(["2026-04-01", "2026-04-02"], name="ID_DATE"),
+        )
+        manager = self.factory.create()(data)
+        headers = manager.get_row_headers()
+        # Index renamed to avoid collision with column of the same name
+        header_names = [h[0] for h in headers]
+        assert header_names == ["ID_DATE_index"]
+
+    def test_get_row_headers_multi_index_partial_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"x": [1, 2, 3], "y": [4, 5, 6]},
+            index=pd.MultiIndex.from_tuples(
+                [(1, 4), (2, 5), (3, 6)], names=["x", "z"]
+            ),
+        )
+        manager = self.factory.create()(data)
+        headers = manager.get_row_headers()
+        # Only the conflicting level is renamed
+        header_names = [h[0] for h in headers]
+        assert header_names == ["x_index", "z"]
+
+    def test_get_row_headers_no_conflict(self) -> None:
+        data = pd.DataFrame(
+            {"A": [1, 2, 3]},
+            index=pd.Index(["a", "b", "c"], name="idx"),
+        )
+        manager = self.factory.create()(data)
+        headers = manager.get_row_headers()
+        header_names = [h[0] for h in headers]
+        assert header_names == ["idx"]
+
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
