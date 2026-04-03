@@ -2326,24 +2326,33 @@ def _append_violin_points_to_selection(
             # range (which can fail on categorical axes and would discard richer
             # hovertemplate fields like custom ids).
             clean_points = existing_violin + existing_non_violin
-            clean_indices: list[int] = [
-                cast(int, p["pointIndex"])
-                for p in clean_points
-                if isinstance(p.get("pointIndex"), int)
-            ]
+            # Preserve incoming indices from the frontend payload rather than
+            # recomputing from pointIndex only — Plotly may send pointNumber
+            # instead. Map each point object to its original index by identity.
+            incoming_index_map = {
+                id(p): idx for idx, p in zip(all_indices, all_points) if p
+            }
+            clean_indices: list[int] = []
+            for p in clean_points:
+                idx = incoming_index_map.get(id(p))
+                if isinstance(idx, int):
+                    clean_indices.append(idx)
+                else:
+                    pid = _get_selection_point_id(p)
+                    if pid is not None:
+                        clean_indices.append(pid[1])
             selection_data["points"] = clean_points
             selection_data["indices"] = clean_indices
             return
 
         # No individual points from Plotly → points attribute is disabled.
-        # Extract underlying sample rows from the figure data for the violins
-        # whose category falls within the selection range.
-        range_dict = (
-            cast(dict[str, Any], range_value)
-            if isinstance(range_value, dict)
-            else {}
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        violin_points = _extract_violin_points_from_range(
+            figure, cast(dict[str, Any], range_value)
         )
-        violin_points = _extract_violin_points_from_range(figure, range_dict)
 
         if violin_points or existing_non_violin:
             seen: set[tuple[int, int]] = set()
@@ -2373,6 +2382,11 @@ def _append_violin_points_to_selection(
 
             selection_data["points"] = merged_points
             selection_data["indices"] = merged_indices
+        else:
+            # Range didn't overlap any violin category and no non-violin points
+            # exist — clear any stale placeholder dicts the frontend may have sent.
+            selection_data["points"] = []
+            selection_data["indices"] = []
         return
 
     # --- Click event path ---
@@ -2403,7 +2417,11 @@ def _append_violin_points_to_selection(
             if point_id is not None:
                 seen_ids.add(point_id)
             expanded_points.append(point)
-            if isinstance(point.get("pointIndex"), int):
+            # Use _get_selection_point_id to capture pointNumber as a fallback
+            # when pointIndex is absent (e.g. hovermode-'x' multi-trace clicks).
+            if point_id is not None:
+                expanded_indices.append(point_id[1])
+            elif isinstance(point.get("pointIndex"), int):
                 expanded_indices.append(cast(int, point["pointIndex"]))
             continue
 
@@ -2509,22 +2527,23 @@ def _extract_violin_points_numpy(
                 cat_max_p = _parse_datetime_bound(cat_max)
                 cat_mask = np.array(
                     [
-                        cat_min_p <= v <= cat_max_p
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
                         if _is_orderable_value(v)
                         else False
                         for v in cat_arr
                     ]
                 )
             else:
-                seen_order: dict[Any, int] = {}
+                seen_order: dict[Any, float] = {}
                 for v in cat_arr:
                     try:
                         if v not in seen_order:
-                            seen_order[v] = len(seen_order)
+                            seen_order[v] = float(len(seen_order))
                     except TypeError:
                         pass
                 positions = np.array(
-                    [seen_order.get(v, -1) for v in cat_arr], dtype=float
+                    [_safe_category_get(seen_order, v, -1) for v in cat_arr],
+                    dtype=np.float64,
                 )
                 cat_mask = (cat_max > positions - 0.5) & (
                     cat_min < positions + 0.5
@@ -2636,7 +2655,8 @@ def _extract_violin_points_fallback(
                 ):
                     cat_min_p = _parse_datetime_bound(cat_min)
                     cat_max_p = _parse_datetime_bound(cat_max)
-                    if not (cat_min_p <= cat_val <= cat_max_p):
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
                         continue
                 else:
                     try:
@@ -2672,14 +2692,20 @@ def _build_violin_sample_point(
     cat_source = getattr(trace, cat_key, None)
     if cat_source is None:
         cat_value: Any = getattr(trace, "name", None) or trace_idx
-    elif hasattr(cat_source, "__len__") and len(cat_source) == len(
-        getattr(trace, val_key, [])
-    ):
-        cat_value = _get_indexed_value(cat_source, point_idx)
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
     else:
-        cat_value = (
-            cat_source[0] if hasattr(cat_source, "__getitem__") else cat_source
-        )
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
 
     point: dict[str, Any] = {
         val_key: val_value,
