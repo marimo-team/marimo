@@ -190,7 +190,8 @@ class _CellsView:
         return self._doc.get_cell(self._resolve(key))
 
     def __iter__(self) -> Iterator[NotebookCell]:
-        yield from self._doc.cells
+        for cell_id in self._doc.cell_ids:
+            yield self._doc.get_cell(cell_id)
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
