@@ -2038,24 +2038,33 @@ def _append_box_points_to_selection(
             # the range (which can fail on categorical axes and would discard
             # richer hovertemplate fields like sample_id).
             clean_points = existing_box + existing_non_box
-            clean_indices: list[int] = [
-                cast(int, p["pointIndex"])
-                for p in clean_points
-                if isinstance(p.get("pointIndex"), int)
-            ]
+            # Preserve incoming indices from the frontend payload rather than
+            # recomputing from pointIndex only — Plotly may send pointNumber
+            # instead. Map each point object to its original index by identity.
+            incoming_index_map = {
+                id(p): idx for idx, p in zip(all_indices, all_points) if p
+            }
+            clean_indices: list[int] = []
+            for p in clean_points:
+                idx = incoming_index_map.get(id(p))
+                if isinstance(idx, int):
+                    clean_indices.append(idx)
+                else:
+                    pid = _get_selection_point_id(p)
+                    if pid is not None:
+                        clean_indices.append(pid[1])
             selection_data["points"] = clean_points
             selection_data["indices"] = clean_indices
             return
 
         # No individual points from Plotly → boxpoints is disabled.
-        # Extract underlying sample rows from the figure data for the boxes
-        # whose category falls within the selection range.
-        range_dict = (
-            cast(dict[str, Any], range_value)
-            if isinstance(range_value, dict)
-            else {}
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        box_points = _extract_box_points_from_range(
+            figure, cast(dict[str, Any], range_value)
         )
-        box_points = _extract_box_points_from_range(figure, range_dict)
 
         if box_points or existing_non_box:
             seen: set[tuple[int, int]] = set()
@@ -2083,6 +2092,11 @@ def _append_box_points_to_selection(
 
             selection_data["points"] = merged_points
             selection_data["indices"] = merged_indices
+        else:
+            # No box points and no non-box points in range: clear any frontend
+            # placeholder dicts that may have leaked into points/indices.
+            selection_data["points"] = []
+            selection_data["indices"] = []
         return
 
     # --- Click event path ---
@@ -2113,9 +2127,8 @@ def _append_box_points_to_selection(
                 continue
             if point_id is not None:
                 seen_ids.add(point_id)
+                expanded_indices.append(point_id[1])
             expanded_points.append(point)
-            if isinstance(point.get("pointIndex"), int):
-                expanded_indices.append(cast(int, point["pointIndex"]))
             continue
 
         point_numbers = point.get("pointNumbers")
@@ -2123,9 +2136,10 @@ def _append_box_points_to_selection(
             0 <= cast(int, curve_number) < len(figure.data)
         ):
             # No pointNumbers – pass through as-is
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                expanded_indices.append(point_id[1])
             expanded_points.append(point)
-            if isinstance(point.get("pointIndex"), int):
-                expanded_indices.append(cast(int, point["pointIndex"]))
             continue
 
         trace = figure.data[cast(int, curve_number)]
@@ -2149,15 +2163,56 @@ def _append_box_points_to_selection(
     selection_data["indices"] = expanded_indices
 
 
+def _build_global_category_order(
+    figure: go.Figure, trace_type: str
+) -> dict[Any, float]:
+    """Build a category-to-float-position mapping across all traces of the given type.
+
+    Using per-trace first-seen order causes the same category to get different
+    numeric positions in different traces (common with Plotly Express faceting/
+    coloring).  A single pre-built order from all traces ensures the positions
+    are consistent with the axis-global ordering Plotly uses for range values.
+    """
+    order: dict[Any, float] = {}
+    for trace in figure.data:
+        if getattr(trace, "type", None) != trace_type:
+            continue
+        orientation = getattr(trace, "orientation", "v") or "v"
+        cat_data = getattr(trace, "y" if orientation == "h" else "x", None)
+        val_data = getattr(trace, "x" if orientation == "h" else "y", None)
+        if val_data is None:
+            continue
+        n = len(val_data) if hasattr(val_data, "__len__") else 0
+        if n == 0:
+            continue
+        if cat_data is None:
+            cats: list[Any] = [getattr(trace, "name", None)]
+        elif isinstance(cat_data, (str, bytes)):
+            cats = [cat_data]
+        elif hasattr(cat_data, "__len__") and len(cat_data) == n:
+            cats = list(cat_data)
+        else:
+            try:
+                cats = [cat_data[0]]
+            except (TypeError, IndexError, KeyError):
+                cats = [cat_data]
+        for v in cats:
+            try:
+                if v not in order:
+                    order[v] = float(len(order))
+            except TypeError:
+                pass
+    return order
+
+
 def _extract_box_points_from_range(
     figure: go.Figure, range_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
     """Extract box plot underlying data points that fall within a selection range.
 
-    For each box trace, the category position (x for vertical, y for horizontal)
-    is compared against the selection range using the same categorical-span logic
-    used for bar charts.  All sample rows belonging to a selected box group are
-    returned regardless of their individual value.
+    For each box trace the category position (x for vertical, y for horizontal)
+    is compared against the selection range.  Only samples whose value coordinate
+    also falls within the selection rectangle are returned.
     """
     if DependencyManager.numpy.has():
         return _extract_box_points_numpy(figure, range_data)
@@ -2175,6 +2230,11 @@ def _extract_box_points_numpy(
 
     selected: list[dict[str, Any]] = []
 
+    # Build global category order once so that the same category gets the same
+    # numeric position across all traces (px faceting can produce traces with
+    # different/missing categories, making per-trace first-seen order wrong).
+    global_cat_order = _build_global_category_order(figure, "box")
+
     for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) != "box":
             continue
@@ -2184,10 +2244,12 @@ def _extract_box_points_numpy(
         # For horizontal boxes: y is the category axis, x holds data values.
         if orientation == "h":
             cat_range = y_range
+            val_range = x_range
             cat_data = getattr(trace, "y", None)
             val_data = getattr(trace, "x", None)
         else:
             cat_range = x_range
+            val_range = y_range
             cat_data = getattr(trace, "x", None)
             val_data = getattr(trace, "y", None)
 
@@ -2218,9 +2280,9 @@ def _extract_box_points_numpy(
             else:
                 cat_arr = cat_arr_raw.tolist()
 
+        # --- Category filter ---
         if cat_range:
             cat_min, cat_max = min(cat_range), max(cat_range)
-            # Determine if category axis is orderable (numeric/datetime)
             cat_np = np.asarray(cat_arr)
             cat_is_orderable = _is_orderable_axis(cat_np, cat_min)
 
@@ -2229,30 +2291,42 @@ def _extract_box_points_numpy(
                 cat_max_p = _parse_datetime_bound(cat_max)
                 cat_mask = np.array(
                     [
-                        cat_min_p <= v <= cat_max_p
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
                         if _is_orderable_value(v)
                         else False
                         for v in cat_arr
                     ]
                 )
             else:
-                # Categorical: determine unique groups and their integer positions
-                seen_order: dict[Any, int] = {}
-                for v in cat_arr:
-                    try:
-                        if v not in seen_order:
-                            seen_order[v] = len(seen_order)
-                    except TypeError:
-                        pass
+                # Use the global order so positions are consistent across traces
                 positions = np.array(
-                    [seen_order.get(v, -1) for v in cat_arr], dtype=float
+                    [
+                        _safe_category_get(global_cat_order, v, -1)
+                        for v in cat_arr
+                    ],
+                    dtype=np.float64,
                 )
                 cat_mask = (cat_max > positions - 0.5) & (
                     cat_min < positions + 0.5
                 )
         else:
-            # No category range constraint – include all samples
             cat_mask = np.ones(n, dtype=bool)
+
+        # --- Value filter ---
+        # Exclude samples whose value coordinate falls outside the selection
+        # rectangle (category match alone is insufficient).
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
+            val_mask = np.array(
+                [
+                    val_min_p <= v <= val_max_p
+                    if _is_orderable_value(v)
+                    else False
+                    for v in val_arr.tolist()
+                ]
+            )
+            cat_mask = cat_mask & val_mask
 
         selected_indices = np.where(cat_mask)[0]
         for i in selected_indices:
@@ -2272,6 +2346,9 @@ def _extract_box_points_fallback(
 
     selected: list[dict[str, Any]] = []
 
+    # Global category order for consistent positions across all box traces
+    global_cat_order = _build_global_category_order(figure, "box")
+
     for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) != "box":
             continue
@@ -2279,10 +2356,12 @@ def _extract_box_points_fallback(
         orientation = getattr(trace, "orientation", "v") or "v"
         if orientation == "h":
             cat_range = y_range
+            val_range = x_range
             cat_data = getattr(trace, "y", None)
             val_data = getattr(trace, "x", None)
         else:
             cat_range = x_range
+            val_range = y_range
             cat_data = getattr(trace, "x", None)
             val_data = getattr(trace, "y", None)
 
@@ -2296,43 +2375,52 @@ def _extract_box_points_fallback(
         # Build per-sample category list
         if cat_data is None:
             cat_list: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        elif isinstance(cat_data, (str, bytes)):
+            cat_list = [cat_data] * n
         elif hasattr(cat_data, "__len__") and len(cat_data) == n:
             cat_list = list(cat_data)
         else:
-            scalar = (
-                cat_data[0] if hasattr(cat_data, "__getitem__") else cat_data
-            )
+            try:
+                scalar: Any = cat_data[0]
+            except (TypeError, IndexError, KeyError):
+                scalar = cat_data
             cat_list = [scalar] * n
 
         if cat_range:
             cat_min, cat_max = min(cat_range), max(cat_range)
-            # Build category position map for categorical axes
-            seen_order: dict[Any, int] = {}
-            for v in cat_list:
-                try:
-                    if v not in seen_order:
-                        seen_order[v] = len(seen_order)
-                except TypeError:
-                    pass
+
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
 
         for i, cat_val in enumerate(cat_list):
+            # --- Category filter ---
             if cat_range:
                 if _is_orderable_value(cat_val) and _is_orderable_value(
                     cat_min
                 ):
                     cat_min_p = _parse_datetime_bound(cat_min)
                     cat_max_p = _parse_datetime_bound(cat_max)
-                    if not (cat_min_p <= cat_val <= cat_max_p):
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
                         continue
                 else:
-                    try:
-                        pos = seen_order.get(cat_val)
-                    except TypeError:
-                        continue
-                    if pos is None:
+                    pos = _safe_category_get(global_cat_order, cat_val, -1)
+                    if pos < 0:
                         continue
                     if not (cat_max > pos - 0.5 and cat_min < pos + 0.5):
                         continue
+
+            # --- Value filter ---
+            if val_range:
+                val_v = (
+                    val_data[i] if hasattr(val_data, "__getitem__") else None
+                )
+                if val_v is None or not (
+                    _is_orderable_value(val_v)
+                    and val_min_p <= val_v <= val_max_p
+                ):
+                    continue
 
             sample = _build_box_sample_point(trace, trace_idx, i)
             if sample is not None:
@@ -2358,14 +2446,20 @@ def _build_box_sample_point(
     cat_source = getattr(trace, cat_key, None)
     if cat_source is None:
         cat_value: Any = getattr(trace, "name", None) or trace_idx
-    elif hasattr(cat_source, "__len__") and len(cat_source) == len(
-        getattr(trace, val_key, [])
-    ):
-        cat_value = _get_indexed_value(cat_source, point_idx)
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
     else:
-        cat_value = (
-            cat_source[0] if hasattr(cat_source, "__getitem__") else cat_source
-        )
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
 
     point: dict[str, Any] = {
         val_key: val_value,
@@ -2441,24 +2535,33 @@ def _append_violin_points_to_selection(
             # range (which can fail on categorical axes and would discard richer
             # hovertemplate fields like custom ids).
             clean_points = existing_violin + existing_non_violin
-            clean_indices: list[int] = [
-                cast(int, p["pointIndex"])
-                for p in clean_points
-                if isinstance(p.get("pointIndex"), int)
-            ]
+            # Preserve incoming indices from the frontend payload rather than
+            # recomputing from pointIndex only — Plotly may send pointNumber
+            # instead. Map each point object to its original index by identity.
+            incoming_index_map = {
+                id(p): idx for idx, p in zip(all_indices, all_points) if p
+            }
+            clean_indices: list[int] = []
+            for p in clean_points:
+                idx = incoming_index_map.get(id(p))
+                if isinstance(idx, int):
+                    clean_indices.append(idx)
+                else:
+                    pid = _get_selection_point_id(p)
+                    if pid is not None:
+                        clean_indices.append(pid[1])
             selection_data["points"] = clean_points
             selection_data["indices"] = clean_indices
             return
 
         # No individual points from Plotly → points attribute is disabled.
-        # Extract underlying sample rows from the figure data for the violins
-        # whose category falls within the selection range.
-        range_dict = (
-            cast(dict[str, Any], range_value)
-            if isinstance(range_value, dict)
-            else {}
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        violin_points = _extract_violin_points_from_range(
+            figure, cast(dict[str, Any], range_value)
         )
-        violin_points = _extract_violin_points_from_range(figure, range_dict)
 
         if violin_points or existing_non_violin:
             seen: set[tuple[int, int]] = set()
@@ -2488,6 +2591,11 @@ def _append_violin_points_to_selection(
 
             selection_data["points"] = merged_points
             selection_data["indices"] = merged_indices
+        else:
+            # Range didn't overlap any violin category and no non-violin points
+            # exist — clear any stale placeholder dicts the frontend may have sent.
+            selection_data["points"] = []
+            selection_data["indices"] = []
         return
 
     # --- Click event path ---
@@ -2518,7 +2626,11 @@ def _append_violin_points_to_selection(
             if point_id is not None:
                 seen_ids.add(point_id)
             expanded_points.append(point)
-            if isinstance(point.get("pointIndex"), int):
+            # Use _get_selection_point_id to capture pointNumber as a fallback
+            # when pointIndex is absent (e.g. hovermode-'x' multi-trace clicks).
+            if point_id is not None:
+                expanded_indices.append(point_id[1])
+            elif isinstance(point.get("pointIndex"), int):
                 expanded_indices.append(cast(int, point["pointIndex"]))
             continue
 
@@ -2557,10 +2669,9 @@ def _extract_violin_points_from_range(
 ) -> list[dict[str, Any]]:
     """Extract violin plot underlying data points that fall within a selection range.
 
-    For each violin trace, the category position (x for vertical, y for
-    horizontal) is compared against the selection range.  All sample rows
-    belonging to a selected violin group are returned regardless of their
-    individual value.
+    For each violin trace the category position (x for vertical, y for
+    horizontal) is compared against the selection range.  Only samples whose
+    value coordinate also falls within the selection rectangle are returned.
     """
     if DependencyManager.numpy.has():
         return _extract_violin_points_numpy(figure, range_data)
@@ -2578,6 +2689,9 @@ def _extract_violin_points_numpy(
 
     selected: list[dict[str, Any]] = []
 
+    # Global category order so positions are consistent across all violin traces
+    global_cat_order = _build_global_category_order(figure, "violin")
+
     for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) != "violin":
             continue
@@ -2585,10 +2699,12 @@ def _extract_violin_points_numpy(
         orientation = getattr(trace, "orientation", "v") or "v"
         if orientation == "h":
             cat_range = y_range
+            val_range = x_range
             cat_data = getattr(trace, "y", None)
             val_data = getattr(trace, "x", None)
         else:
             cat_range = x_range
+            val_range = y_range
             cat_data = getattr(trace, "x", None)
             val_data = getattr(trace, "y", None)
 
@@ -2614,6 +2730,7 @@ def _extract_violin_points_numpy(
             else:
                 cat_arr = cat_arr_raw.tolist()
 
+        # --- Category filter ---
         if cat_range:
             cat_min, cat_max = min(cat_range), max(cat_range)
             cat_np = np.asarray(cat_arr)
@@ -2624,28 +2741,40 @@ def _extract_violin_points_numpy(
                 cat_max_p = _parse_datetime_bound(cat_max)
                 cat_mask = np.array(
                     [
-                        cat_min_p <= v <= cat_max_p
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
                         if _is_orderable_value(v)
                         else False
                         for v in cat_arr
                     ]
                 )
             else:
-                seen_order: dict[Any, int] = {}
-                for v in cat_arr:
-                    try:
-                        if v not in seen_order:
-                            seen_order[v] = len(seen_order)
-                    except TypeError:
-                        pass
+                # Use global order for consistent positions across traces
                 positions = np.array(
-                    [seen_order.get(v, -1) for v in cat_arr], dtype=float
+                    [
+                        _safe_category_get(global_cat_order, v, -1)
+                        for v in cat_arr
+                    ],
+                    dtype=np.float64,
                 )
                 cat_mask = (cat_max > positions - 0.5) & (
                     cat_min < positions + 0.5
                 )
         else:
             cat_mask = np.ones(n, dtype=bool)
+
+        # --- Value filter ---
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
+            val_mask = np.array(
+                [
+                    val_min_p <= v <= val_max_p
+                    if _is_orderable_value(v)
+                    else False
+                    for v in val_arr.tolist()
+                ]
+            )
+            cat_mask = cat_mask & val_mask
 
         selected_indices = np.where(cat_mask)[0]
         for i in selected_indices:
@@ -2665,6 +2794,9 @@ def _extract_violin_points_fallback(
 
     selected: list[dict[str, Any]] = []
 
+    # Global category order for consistent positions across all violin traces
+    global_cat_order = _build_global_category_order(figure, "violin")
+
     for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) != "violin":
             continue
@@ -2672,10 +2804,12 @@ def _extract_violin_points_fallback(
         orientation = getattr(trace, "orientation", "v") or "v"
         if orientation == "h":
             cat_range = y_range
+            val_range = x_range
             cat_data = getattr(trace, "y", None)
             val_data = getattr(trace, "x", None)
         else:
             cat_range = x_range
+            val_range = y_range
             cat_data = getattr(trace, "x", None)
             val_data = getattr(trace, "y", None)
 
@@ -2698,32 +2832,39 @@ def _extract_violin_points_fallback(
 
         if cat_range:
             cat_min, cat_max = min(cat_range), max(cat_range)
-            seen_order: dict[Any, int] = {}
-            for v in cat_list:
-                try:
-                    if v not in seen_order:
-                        seen_order[v] = len(seen_order)
-                except TypeError:
-                    pass
+
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
 
         for i, cat_val in enumerate(cat_list):
+            # --- Category filter ---
             if cat_range:
                 if _is_orderable_value(cat_val) and _is_orderable_value(
                     cat_min
                 ):
                     cat_min_p = _parse_datetime_bound(cat_min)
                     cat_max_p = _parse_datetime_bound(cat_max)
-                    if not (cat_min_p <= cat_val <= cat_max_p):
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
                         continue
                 else:
-                    try:
-                        pos = seen_order.get(cat_val)
-                    except TypeError:
-                        continue
-                    if pos is None:
+                    pos = _safe_category_get(global_cat_order, cat_val, -1)
+                    if pos < 0:
                         continue
                     if not (cat_max > pos - 0.5 and cat_min < pos + 0.5):
                         continue
+
+            # --- Value filter ---
+            if val_range:
+                val_v = (
+                    val_data[i] if hasattr(val_data, "__getitem__") else None
+                )
+                if val_v is None or not (
+                    _is_orderable_value(val_v)
+                    and val_min_p <= val_v <= val_max_p
+                ):
+                    continue
 
             sample = _build_violin_sample_point(trace, trace_idx, i)
             if sample is not None:
@@ -2749,14 +2890,20 @@ def _build_violin_sample_point(
     cat_source = getattr(trace, cat_key, None)
     if cat_source is None:
         cat_value: Any = getattr(trace, "name", None) or trace_idx
-    elif hasattr(cat_source, "__len__") and len(cat_source) == len(
-        getattr(trace, val_key, [])
-    ):
-        cat_value = _get_indexed_value(cat_source, point_idx)
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
     else:
-        cat_value = (
-            cat_source[0] if hasattr(cat_source, "__getitem__") else cat_source
-        )
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
 
     point: dict[str, Any] = {
         val_key: val_value,
