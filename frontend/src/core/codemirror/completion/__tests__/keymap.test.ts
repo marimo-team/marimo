@@ -1,8 +1,21 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { completionKeymap as defaultCompletionKeymap } from "@codemirror/autocomplete";
+import { EditorState } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
-import { filterCompletionBindings } from "../keymap";
+import { completionKeymap, filterCompletionBindings } from "../keymap";
+
+function hasEnterBinding(acceptOnEnter: boolean): boolean {
+  const state = EditorState.create({
+    extensions: [completionKeymap(acceptOnEnter)],
+  });
+
+  return state
+    .facet(keymap)
+    .flat()
+    .some((binding) => binding.key === "Enter");
+}
 
 describe("completionKeymap", () => {
   it("upstream includes the macOS-only completion bindings we care about", () => {
@@ -38,5 +51,13 @@ describe("completionKeymap", () => {
       keysToRemove,
     );
     expect(filtered.some((binding) => binding.key === "Enter")).toBe(false);
+  });
+
+  it("completionKeymap includes Enter when acceptOnEnter is true", () => {
+    expect(hasEnterBinding(true)).toBe(true);
+  });
+
+  it("completionKeymap removes Enter when acceptOnEnter is false", () => {
+    expect(hasEnterBinding(false)).toBe(false);
   });
 });

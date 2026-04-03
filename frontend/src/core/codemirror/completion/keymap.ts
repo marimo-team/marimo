@@ -22,7 +22,6 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   "Alt-`",
 ]);
 
-// AFTER
 export function filterCompletionBindings(
   bindings: readonly KeyBinding[],
   keysToRemove: Set<string | undefined> = KEYS_TO_REMOVE,
