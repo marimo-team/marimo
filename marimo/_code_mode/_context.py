@@ -117,7 +117,7 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
 
 
 class _CellsView:
-    """Read-only, ordered-dict-like view over notebook cells.
+    """Read-only, ordered view over notebook cells.
 
     Supports lookup by integer index, cell ID, or cell name::
 
@@ -126,12 +126,16 @@ class _CellsView:
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
 
-    Dict-like iteration::
+    Iteration yields ``NotebookCell`` objects directly::
 
-        for cid, cell in ctx.cells.items():
-            ...
+        for cell in ctx.cells:
+            print(cell.id, cell.code)
+
+    Dict-like access is also available::
+
         ctx.cells.keys()  # list of CellId_t
         ctx.cells.values()  # list of NotebookCell
+        ctx.cells.items()  # list of (CellId_t, NotebookCell)
         "my_cell" in ctx.cells  # membership test
     """
 
@@ -185,8 +189,8 @@ class _CellsView:
             return self._doc.cells[key]
         return self._doc.get_cell(self._resolve(key))
 
-    def __iter__(self) -> Iterator[CellId_t]:
-        yield from self._doc
+    def __iter__(self) -> Iterator[NotebookCell]:
+        yield from self._doc.cells
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
