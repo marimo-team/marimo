@@ -239,6 +239,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         if len(ordered) != len(graph):
             return None
         return ordered
+
     @staticmethod
     def _move_cells_before(
         cells: list[CellDef], source_indices: list[int], target_index: int
