@@ -267,6 +267,34 @@ describe("applyTransactionChanges edge cases", () => {
     `);
   });
 
+  it("delete-cell for nonexistent cell does not crash subsequent changes", () => {
+    setup("a", "b", "c");
+    const [, b] = state.cellIds.inOrderIds;
+    // Simulate the scenario from the bug report: a delete-cell for a cell ID
+    // that was never added to the frontend, followed by a create-cell and
+    // reorder.  The delete should be silently skipped, and the rest of the
+    // transaction should still apply.
+    apply([
+      { type: "delete-cell", cellId: cellId("nonexistent") },
+      {
+        type: "create-cell",
+        cellId: cellId("VrZA"),
+        code: "import altair as alt",
+        name: "",
+        config: { hide_code: true },
+      },
+      { type: "set-code", cellId: b, code: "updated" },
+    ]);
+    expect(pretty(state)).toMatchInlineSnapshot(`
+      "
+      0: 'a'
+      1: 'updated'
+      2: 'c'
+      VrZA: 'import altair as alt' [hide_code]
+      "
+    `);
+  });
+
   it("empty changes is a no-op", () => {
     setup("a", "b");
     apply([]);

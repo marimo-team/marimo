@@ -6,6 +6,7 @@ import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
+import type { CollapsibleTree } from "@/utils/id-tree";
 import {
   type CellColumnId,
   type CellIndex,
@@ -578,7 +579,17 @@ const {
       return state;
     }
 
-    const column = state.cellIds.findWithId(cellId);
+    let column: CollapsibleTree<CellId>;
+    try {
+      column = state.cellIds.findWithId(cellId);
+    } catch (error) {
+      // In case the cell was never sent to the user, we don't want to crash the app (or other actions being reduced).
+      Logger.error(
+        `Error deleting cell. Not found in any column: ${cellId}: ${error}`,
+      );
+      return state;
+    }
+
     const cellIndex = column.indexOfOrThrow(cellId);
     const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
     let scrollKey: CellId | null = null;
