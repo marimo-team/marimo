@@ -78,7 +78,9 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
 
     // Find exception errors and check for traceback
     const exceptionErrors = cell.output.data.filter(
-      (error) => "type" in error && error.type === "exception" || error.type === "internal",
+      (error) =>
+        ("type" in error && error.type === "exception") ||
+        error.type === "internal",
     );
 
     if (exceptionErrors.length > 0 && !didAlreadyToastError) {
@@ -94,13 +96,15 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         const handleClick = () => {
           store.set(tracebackModalAtom, {
             traceback: errorWithTraceback.traceback,
-            errorMessage: errorWithTraceback.msg || "An internal error occurred",
+            errorMessage:
+              errorWithTraceback.msg || "An internal error occurred",
           });
         };
 
         toast({
           title: "An internal error occurred",
-          description: errorWithTraceback.msg || "Click 'View' to see traceback",
+          description:
+            errorWithTraceback.msg || "Click 'View' to see traceback",
           variant: "danger",
           action: React.createElement(
             ToastAction,
