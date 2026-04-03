@@ -135,7 +135,7 @@ class TestCellsViewIteration:
         with _ctx(k) as ctx:
             assert len(ctx.cells) == 2
 
-    async def test_iteration_yields_cell_ids(self, k: Kernel) -> None:
+    async def test_iteration_yields_cells(self, k: Kernel) -> None:
         await k.run(
             [
                 cmd(cell_id="a", code="x = 1"),
@@ -143,8 +143,9 @@ class TestCellsViewIteration:
             ]
         )
         with _ctx(k) as ctx:
-            ids = list(ctx.cells)
-            assert ids == ["a", "b"]
+            cells = list(ctx.cells)
+            assert [c.id for c in cells] == ["a", "b"]
+            assert [c.code for c in cells] == ["x = 1", "y = 2"]
 
     async def test_keys(self, k: Kernel) -> None:
         await k.run(
@@ -271,6 +272,40 @@ class TestCellsViewRepr:
         assert "... 4 more cells ..." in r
         # Cell 11 not individually shown
         assert "[11]" not in r
+
+
+# ------------------------------------------------------------------
+# NotebookCell.__repr__
+# ------------------------------------------------------------------
+
+
+class TestNotebookCellRepr:
+    def test_repr_basic(self) -> None:
+        c = _cell("a1", "x = 1")
+        assert repr(c) == "NotebookCell(id='a1', code='x = 1')"
+
+    def test_repr_with_name(self) -> None:
+        c = _cell("a1", "import marimo as mo", name="setup")
+        assert repr(c) == (
+            "NotebookCell(id='a1', name='setup', code='import marimo as mo')"
+        )
+
+    def test_repr_long_code_truncated(self) -> None:
+        long_code = "x = " + "a" * 100
+        c = _cell("a1", long_code)
+        r = repr(c)
+        assert "..." in r
+        assert long_code[:80] in r
+
+    def test_repr_multiline_shows_first_line(self) -> None:
+        c = _cell("a1", "line1\nline2\nline3")
+        r = repr(c)
+        assert "line1..." in r
+        assert "line2" not in r
+
+    def test_repr_empty_code(self) -> None:
+        c = _cell("a1", "")
+        assert repr(c) == "NotebookCell(id='a1', code='')"
 
 
 # ------------------------------------------------------------------
