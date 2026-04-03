@@ -101,6 +101,14 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
   });
 
+  it("accepts violin clicks", () => {
+    const violinPoint = createPlotDatum({
+      data: { type: "violin" },
+    });
+
+    expect(shouldHandleClickSelection([violinPoint])).toBe(true);
+  });
+
   it("accepts histogram clicks", () => {
     const histogramPoint = createPlotDatum({
       data: { type: "histogram" },
