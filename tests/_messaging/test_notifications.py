@@ -7,6 +7,8 @@ from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
     CellNotification,
     InstallingPackageAlertNotification,
+    ModelLifecycleNotification,
+    ModelOpen,
     StartupLogsNotification,
     UIElementMessageNotification,
 )
@@ -137,3 +139,18 @@ def test_send_ui_element_message_broadcast() -> None:
     }
 
     assert stream.parsed_operations[0] == msg
+
+
+def test_model_lifecycle_notification_to_json_serializable() -> None:
+    """to_json_serializable must not double-encode buffers (regression test)."""
+    notif = ModelLifecycleNotification(
+        model_id="model-1",
+        message=ModelOpen(
+            state={"value": 42},
+            buffer_paths=[["data"]],
+            buffers=[b"hello"],
+        ),
+    )
+
+    result = notif.to_json_serializable()
+    assert result["message"]["buffers"] == ["aGVsbG8="]
