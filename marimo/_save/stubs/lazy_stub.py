@@ -1,11 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""msgspec schemas for lazy cache serialization."""
+"""msgspec schemas and format registries for lazy cache serialization."""
 
 from __future__ import annotations
 
+import io
 import pickle
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import msgspec
 
@@ -34,20 +35,9 @@ class Item(msgspec.Struct):
     # (code, filename, linenumber)
     function: Optional[tuple[str, str, int]] = None
     hash: Optional[str] = None
-
-    def __post_init__(self) -> None:
-        fields_set = sum(
-            1
-            for field in [
-                self.primitive,
-                self.reference,
-                self.module,
-                self.function,
-            ]
-            if field is not None
-        )
-        if fields_set > 1:
-            raise ValueError("Item can only have one value field set")
+    # Fully-qualified class name of the original value — used by format-aware
+    # deserializers (e.g. to distinguish pandas from polars Arrow blobs).
+    type_hint: Optional[str] = None
 
 
 class Meta(msgspec.Struct):
@@ -62,6 +52,130 @@ class Cache(msgspec.Struct):
     stateful_refs: list[str]
     meta: Meta
     ui_defs: list[str] = msgspec.field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Unified type-to-loader registry
+# ---------------------------------------------------------------------------
+
+# Maps fully-qualified class names to loader strategy strings.
+# String keys mean optional deps (numpy, polars, pandas) are never imported at
+# module load time — they are only imported when the serializer/deserializer
+# is actually called.
+#
+# Strategies:
+#   "inline"  — stored as a primitive/function/module field in the Item struct
+#   "ui"      — shared ui.pickle blob (UIElement family)
+#   "pickle"  — per-variable .pickle blob (default fallback)
+#   "npz"     — numpy .npz blob
+#   "arrow"   — Arrow IPC .arrow blob (polars and pandas)
+LAZY_STUB_LOOKUP: dict[str, str] = {
+    "builtins.int": "inline",
+    "builtins.str": "inline",
+    "builtins.float": "inline",
+    "builtins.bool": "inline",
+    "builtins.bytes": "inline",
+    "builtins.NoneType": "inline",
+    "marimo._save.stubs.function_stub.FunctionStub": "inline",
+    "marimo._save.stubs.module_stub.ModuleStub": "inline",
+    "marimo._save.stubs.ui_element_stub.UIElementStub": "ui",
+    # Optional third-party types — imported lazily only when encountered:
+    "numpy.ndarray": "npz",
+    "polars.dataframe.frame.DataFrame": "arrow",
+    "polars.series.series.Series": "arrow",
+    "pandas.DataFrame": "arrow",  # feather v2 IS Arrow IPC; pandas overrides __module__
+    "pandas.Series": "arrow",
+}
+
+# Runtime cache: type → loader string, populated by maybe_update_lazy_stub().
+_LAZY_STUB_CACHE: dict[type, str] = {}
+
+# ---------------------------------------------------------------------------
+# Deserializers — keyed by file extension
+# ---------------------------------------------------------------------------
+
+
+def _npz_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+    import numpy as np
+
+    return np.load(io.BytesIO(data), allow_pickle=False)
+
+
+def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+    # type_hint is the fq class name written by to_item() at save time.
+    # Using it (rather than schema metadata inspection) is explicit and
+    # version-stable across pyarrow/polars/pandas releases.
+    import pyarrow as pa
+
+    reader = pa.ipc.open_file(io.BytesIO(data))
+    table = reader.read_all()
+    if type_hint and type_hint.startswith("pandas."):
+        df = table.to_pandas()
+        if type_hint == "pandas.Series":
+            # Stored as a single-column DataFrame; recover as a Series.
+            return df.iloc[:, 0]
+        return df
+    import polars as pl
+
+    result = pl.from_arrow(table)
+    if type_hint == "polars.series.series.Series":
+        # Stored as a single-column DataFrame; recover as a Series.
+        return result.to_series(0)
+    return result
+
+
+def _pickle_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+    return pickle.loads(data)
+
+
+BLOB_DESERIALIZERS: dict[str, Callable[[bytes, Optional[str]], Any]] = {
+    ".pickle": _pickle_load,
+    ".npz": _npz_load,
+    ".arrow": _arrow_load,
+}
+
+# ---------------------------------------------------------------------------
+# Serializers — keyed by loader strategy string
+# ---------------------------------------------------------------------------
+
+
+def _npz_dump(obj: Any) -> bytes:
+    import numpy as np
+
+    buf = io.BytesIO()
+    np.save(buf, obj)
+    return buf.getvalue()
+
+
+def _arrow_dump(obj: Any) -> bytes:
+    # Duck-type dispatch:
+    #   polars DataFrame  → write_ipc()
+    #   pandas DataFrame  → to_feather()
+    #   Series (either)   → to_frame() first, then the appropriate DataFrame method
+    buf = io.BytesIO()
+    if hasattr(obj, "write_ipc"):  # polars DataFrame
+        obj.write_ipc(buf)
+    elif hasattr(obj, "to_feather"):  # pandas DataFrame
+        obj.to_feather(buf)
+    else:
+        # Series — promote to single-column DataFrame, then detect library
+        frame = obj.to_frame()
+        if hasattr(frame, "write_ipc"):  # polars Series → polars DataFrame
+            frame.write_ipc(buf)
+        else:  # pandas Series → pandas DataFrame
+            frame.to_feather(buf)
+    return buf.getvalue()
+
+
+BLOB_SERIALIZERS: dict[str, Callable[[Any], bytes]] = {
+    "pickle": pickle.dumps,
+    "npz": _npz_dump,
+    "arrow": _arrow_dump,
+}
+
+# ---------------------------------------------------------------------------
+# Stubs for deferred / immediate blob loading
+# ---------------------------------------------------------------------------
 
 
 class ReferenceStub:

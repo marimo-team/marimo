@@ -6,12 +6,13 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from marimo._save.stubs.function_stub import FunctionStub
-from marimo._save.stubs.lazy_stub import ReferenceStub
+from marimo._save.stubs.lazy_stub import LAZY_STUB_LOOKUP, ReferenceStub
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._save.stubs.pydantic_stub import PydanticStub
 from marimo._save.stubs.stubs import (
     CUSTOM_STUBS,
     CustomStub,
+    mro_lookup,
     register_stub,
 )
 from marimo._save.stubs.ui_element_stub import UIElementStub
@@ -22,18 +23,6 @@ _REGISTERED_NAMES: set[str] = set()
 # Dictionary mapping fully qualified class names to registration functions
 STUB_REGISTRATIONS: dict[str, Callable[[Any], None]] = {
     "pydantic.main.BaseModel": PydanticStub.register,
-}
-
-LAZY_STUB_LOOKUP: dict[type, str] = {
-    int: "inline",
-    str: "inline",
-    float: "inline",
-    bool: "inline",
-    bytes: "inline",
-    type(None): "inline",
-    FunctionStub: "inline",
-    ModuleStub: "inline",
-    UIElementStub: "ui",
 }
 
 
@@ -54,25 +43,13 @@ def maybe_register_stub(value: Any) -> bool:
     if value_type in CUSTOM_STUBS:
         return True
 
-    # Walk MRO to find matching base class
-    try:
-        mro_list = value_type.mro()
-    except BaseException:
-        # Some exotic metaclasses or broken types may raise when calling mro
-        mro_list = [value_type]
-
-    for cls in mro_list:
-        if not (hasattr(cls, "__module__") and hasattr(cls, "__name__")):
-            continue
-
-        cls_name = f"{cls.__module__}.{cls.__name__}"
-
-        if cls_name in STUB_REGISTRATIONS:
-            if cls_name not in _REGISTERED_NAMES:
-                _REGISTERED_NAMES.add(cls_name)
-                STUB_REGISTRATIONS[cls_name](value)
-            # After registration attempt, check if now in CUSTOM_STUBS
-            return value_type in CUSTOM_STUBS
+    result = mro_lookup(value_type, STUB_REGISTRATIONS)
+    if result is not None:
+        cls_name, register_fn = result
+        if cls_name not in _REGISTERED_NAMES:
+            _REGISTERED_NAMES.add(cls_name)
+            register_fn(value)
+        return value_type in CUSTOM_STUBS
 
     return False
 
@@ -104,5 +81,6 @@ __all__ = [
     "UIElementStub",
     "maybe_get_custom_stub",
     "maybe_register_stub",
+    "mro_lookup",
     "register_stub",
 ]
