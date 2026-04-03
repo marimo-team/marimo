@@ -200,6 +200,10 @@ video {
   outline: none;
 }
 
+.pa-item:focus-visible {
+  box-shadow: 0 0 0 2px var(--md-accent-fg-color);
+}
+
 .pa-item:hover,
 .pa-item:focus-visible {
   background: rgba(0, 0, 0, 0.04);

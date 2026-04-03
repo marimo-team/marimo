@@ -37,8 +37,9 @@
 
   async function getMarkdownContent() {
     try {
-      var url = window.location.origin + window.location.pathname;
-      var mdUrl = url.replace(/\/$/, "") + ".md";
+      var pathname = window.location.pathname;
+      var mdUrl =
+        pathname === "/" ? "/index.md" : pathname.replace(/\/$/, "") + ".md";
       var response = await fetch(mdUrl);
       if (response.ok) {
         var contentType = response.headers.get("content-type") || "";
@@ -59,24 +60,68 @@
     return clone.innerText;
   }
 
+  // --- Copy with fallback ---
+
+  function fallbackCopyText(text) {
+    var textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    var copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch (_) {
+      copied = false;
+    }
+    document.body.removeChild(textarea);
+    return copied;
+  }
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {
+      // Fall through to execCommand fallback
+    }
+    return fallbackCopyText(text);
+  }
+
   // --- Action handlers ---
 
   async function handleCopy(item) {
     var markdown = await getMarkdownContent();
-    await navigator.clipboard.writeText(markdown);
-    showCopied(item);
+    var ok = await copyText(markdown);
+    if (ok) {
+      showCopied(item);
+    } else {
+      showCopyError(item);
+    }
   }
 
   function handleOpenInClaude() {
     var pageUrl = window.location.href;
     var q = "Read from " + pageUrl + " so I can ask questions about it.";
-    window.open("https://claude.ai/new?q=" + encodeURIComponent(q), "_blank");
+    window.open(
+      "https://claude.ai/new?q=" + encodeURIComponent(q),
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   function handleOpenInChatGPT() {
     var pageUrl = window.location.href;
     var q = "Read from " + pageUrl + " so I can ask questions about it.";
-    window.open("https://chatgpt.com/?q=" + encodeURIComponent(q), "_blank");
+    window.open(
+      "https://chatgpt.com/?q=" + encodeURIComponent(q),
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   function handleConnectToCursor() {
@@ -87,7 +132,7 @@
     window.open(VSCODE_DEEP_LINK);
   }
 
-  // --- Show check animation on an item ---
+  // --- Feedback animations ---
 
   function showCopied(item) {
     var check = item.querySelector(".pa-check");
@@ -104,6 +149,36 @@
       if (desc) desc.textContent = origDesc;
     }, 1500);
   }
+
+  function showCopyError(item) {
+    var label = item.querySelector(".pa-item-label");
+    var desc = item.querySelector(".pa-item-desc");
+    var origLabel = label ? label.innerHTML : "";
+    var origDesc = desc ? desc.textContent : "";
+    if (label) label.textContent = "Copy failed";
+    if (desc) desc.textContent = "Try again or use Ctrl+C";
+    setTimeout(function () {
+      if (label) label.innerHTML = origLabel;
+      if (desc) desc.textContent = origDesc;
+    }, 2000);
+  }
+
+  // --- Singleton outside-click handler ---
+
+  var activeDropdown = null;
+
+  document.addEventListener("click", function (e) {
+    if (activeDropdown && !activeDropdown.contains(e.target)) {
+      var menu = activeDropdown.querySelector(".pa-menu");
+      var toggle = activeDropdown.querySelector(".pa-toggle");
+      if (menu && !menu.hidden) {
+        menu.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+        activeDropdown.classList.remove("pa-open");
+        toggle.focus();
+      }
+    }
+  });
 
   // --- Dropdown creation ---
 
@@ -195,6 +270,7 @@
       menu.hidden = false;
       toggle.setAttribute("aria-expanded", "true");
       container.classList.add("pa-open");
+      activeDropdown = container;
       if (items.length) items[0].focus();
     }
 
@@ -202,6 +278,8 @@
       menu.hidden = true;
       toggle.setAttribute("aria-expanded", "false");
       container.classList.remove("pa-open");
+      activeDropdown = null;
+      toggle.focus();
     }
 
     function isOpen() {
@@ -246,7 +324,6 @@
     container.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
         closeMenu();
-        toggle.focus();
         return;
       }
       if (!isOpen()) return;
@@ -260,13 +337,6 @@
         e.preventDefault();
         var prev = (currentIndex - 1 + items.length) % items.length;
         items[prev].focus();
-      }
-    });
-
-    // Close on outside click
-    document.addEventListener("click", function (e) {
-      if (isOpen() && !container.contains(e.target)) {
-        closeMenu();
       }
     });
 

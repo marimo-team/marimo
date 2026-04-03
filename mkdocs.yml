@@ -310,11 +310,11 @@ plugins:
   - search
   - git-revision-date-localized:
       fallback_to_build_date: true
-  # - social:
-  #     cards_layout_options:
-  #       background_color: '#FFFFFF'
-  #       color: '#000000'
-  #       font_family: Roboto
+  - social:
+      cards_layout_options:
+        background_color: '#FFFFFF'
+        color: '#000000'
+        font_family: Roboto
   - tags
   - redirects:
       redirect_maps: {}
