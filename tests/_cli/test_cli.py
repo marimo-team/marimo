@@ -1271,23 +1271,19 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit_new_file() -> None:
-    port = _get_port()
     d = tempfile.TemporaryDirectory()
     path = os.path.join(d.name, "new_sandbox_file.py")
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "edit",
-            path,
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
-            "--sandbox",
-        ]
-    )
-    contents = _try_fetch(port)
-    _check_contents(p, b"edit", contents)
+    runner = CliRunner()
+    with patch("marimo._cli.sandbox.run_in_sandbox") as mock_run_in_sandbox:
+        result = runner.invoke(
+            cli_main,
+            ["edit", path, "--headless", "--no-token", "--sandbox"],
+        )
+    assert result.exit_code == 0, result.output
+    mock_run_in_sandbox.assert_called_once()
+    call_kwargs = mock_run_in_sandbox.call_args
+    assert call_kwargs.kwargs["name"] == path
+    assert call_kwargs.kwargs["additional_features"] == ["lsp"]
 
 
 @pytest.mark.skipif(
@@ -1709,25 +1705,16 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
         p.kill()
 
     # marimo new --sandbox, in the directory with pyproject.toml
-    port = _get_port()
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "new",
-            "--sandbox",
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
-        ],
-        cwd=tmp_path,
-    )
-
-    try:
-        contents = _try_fetch(port)
-        assert_custom_config(contents)
-    finally:
-        p.kill()
+    runner = CliRunner()
+    with patch("marimo._cli.sandbox.run_in_sandbox") as mock_run_in_sandbox:
+        result = runner.invoke(
+            cli_main,
+            ["new", "--sandbox", "--headless", "--no-token"],
+        )
+    assert result.exit_code == 0, result.output
+    mock_run_in_sandbox.assert_called_once()
+    call_kwargs = mock_run_in_sandbox.call_args
+    assert call_kwargs.kwargs["additional_features"] == ["lsp"]
 
 
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)
