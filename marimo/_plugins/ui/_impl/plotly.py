@@ -2279,9 +2279,10 @@ def _append_box_points_to_selection(
     - Range/lasso with individual points already sent by Plotly (``boxpoints``
       enabled): Plotly already delivered the right individual data points via
       the ``onSelected`` event; pass them through unchanged.
-    - Range/lasso without individual points (``boxpoints`` disabled): extract
-      all underlying sample rows whose category position overlaps the selection
-      range from the figure data.
+    - Range selection without individual points (``boxpoints`` disabled):
+      extract all underlying sample rows whose category position overlaps the
+      selection range from the figure data. Lasso-only events (no ``range``
+      dict) are not supported in this path and are silently ignored.
     - Click events (no range/lasso): the frontend sends ``pointNumbers`` for
       the clicked box/whisker element; expand these into one dict per sample
       row so Python callers get row-level data.
@@ -2335,14 +2336,13 @@ def _append_box_points_to_selection(
             return
 
         # No individual points from Plotly → boxpoints is disabled.
-        # Extract underlying sample rows from the figure data for the boxes
-        # whose category falls within the selection range.
-        range_dict = (
-            cast(dict[str, Any], range_value)
-            if isinstance(range_value, dict)
-            else {}
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        box_points = _extract_box_points_from_range(
+            figure, cast(dict[str, Any], range_value)
         )
-        box_points = _extract_box_points_from_range(figure, range_dict)
 
         if box_points or existing_non_box:
             seen: set[tuple[int, int]] = set()
@@ -2406,22 +2406,23 @@ def _append_box_points_to_selection(
             continue
 
         point_numbers = point.get("pointNumbers")
-        if not isinstance(point_numbers, list) or not (
-            0 <= cast(int, curve_number) < len(figure.data)
+        if (
+            not isinstance(point_numbers, list)
+            or not isinstance(curve_number, numbers.Integral)
+            or not (0 <= int(curve_number) < len(figure.data))
         ):
-            # No pointNumbers – pass through as-is
+            # No pointNumbers or invalid curveNumber – pass through as-is
             expanded_points.append(point)
             if isinstance(point.get("pointIndex"), int):
                 expanded_indices.append(cast(int, point["pointIndex"]))
             continue
 
-        trace = figure.data[cast(int, curve_number)]
+        curve_number_int = int(curve_number)
+        trace = figure.data[curve_number_int]
         for raw_idx in point_numbers:
             if not isinstance(raw_idx, int):
                 continue
-            sample = _build_box_sample_point(
-                trace, cast(int, curve_number), raw_idx
-            )
+            sample = _build_box_sample_point(trace, curve_number_int, raw_idx)
             if sample is None:
                 continue
             point_id = _get_selection_point_id(sample)
@@ -2516,7 +2517,7 @@ def _extract_box_points_numpy(
                 cat_max_p = _parse_datetime_bound(cat_max)
                 cat_mask = np.array(
                     [
-                        cat_min_p <= v <= cat_max_p
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
                         if _is_orderable_value(v)
                         else False
                         for v in cat_arr
@@ -2621,12 +2622,15 @@ def _extract_box_points_fallback(
         # Build per-sample category list
         if cat_data is None:
             cat_list: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        elif isinstance(cat_data, (str, bytes)):
+            cat_list = [cat_data] * n
         elif hasattr(cat_data, "__len__") and len(cat_data) == n:
             cat_list = list(cat_data)
         else:
-            scalar = (
-                cat_data[0] if hasattr(cat_data, "__getitem__") else cat_data
-            )
+            try:
+                scalar: Any = cat_data[0]
+            except (TypeError, IndexError, KeyError):
+                scalar = cat_data
             cat_list = [scalar] * n
 
         if cat_range:
@@ -2647,7 +2651,8 @@ def _extract_box_points_fallback(
                 ):
                     cat_min_p = _parse_datetime_bound(cat_min)
                     cat_max_p = _parse_datetime_bound(cat_max)
-                    if not (cat_min_p <= cat_val <= cat_max_p):
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
                         continue
                 else:
                     try:
@@ -2683,14 +2688,20 @@ def _build_box_sample_point(
     cat_source = getattr(trace, cat_key, None)
     if cat_source is None:
         cat_value: Any = getattr(trace, "name", None) or trace_idx
-    elif hasattr(cat_source, "__len__") and len(cat_source) == len(
-        getattr(trace, val_key, [])
-    ):
-        cat_value = _get_indexed_value(cat_source, point_idx)
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
     else:
-        cat_value = (
-            cat_source[0] if hasattr(cat_source, "__getitem__") else cat_source
-        )
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
 
     point: dict[str, Any] = {
         val_key: val_value,

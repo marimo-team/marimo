@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #     "marimo",
 #     "pandas==2.3.3",
@@ -77,12 +77,16 @@ def _():
         if not selection:
             return empty
 
-        # Prefer sample_id embedded via customdata
-        ids = [
-            row["sample_id"]
-            for row in selection
-            if isinstance(row.get("sample_id"), str)
-        ]
+        # Prefer sample_id embedded via customdata.
+        # Box-body clicks embed sample_id as customdata[0], not a top-level key.
+        ids = []
+        for row in selection:
+            if isinstance(row.get("sample_id"), str):
+                ids.append(row["sample_id"])
+            else:
+                cd = row.get("customdata")
+                if isinstance(cd, (list, tuple)) and cd and isinstance(cd[0], str):
+                    ids.append(cd[0])
         if ids:
             return (
                 data[data["sample_id"].isin(ids)]
