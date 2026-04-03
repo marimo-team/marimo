@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -135,8 +134,8 @@ def prompt(
             continue
         if not agent.has_skill():
             click.echo(
-                f"The marimo-pair skill for {agent.name} is not installed.\n\n"
-                "Let the user know they need to install it with:\n\n"
+                f"The marimo-pair skill for {agent.name} could not be found.\n\n"
+                "Please install it with:\n\n"
                 "  npx skills add marimo-team/marimo-pair\n\n"
                 "or\n\n"
                 "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
@@ -144,7 +143,6 @@ def prompt(
                 "https://github.com/marimo-team/marimo-pair",
                 err=True,
             )
-            sys.exit(1)
 
     # Prompt for token and write it to a temp file if --with-token is set
     token_hint = ""
