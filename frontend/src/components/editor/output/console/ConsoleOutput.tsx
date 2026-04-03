@@ -103,7 +103,7 @@ export const ConsoleOutput = (props: Props) => {
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const shouldFollowOutputRef = useRef(true);
-  const prevRenderedOutputCountRef = useRef(0);
+  const prevRenderedContentSizeRef = useRef(0);
   const { wrapText, setWrapText } = useWrapText();
   const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
   const [stdinValue, setStdinValue] = React.useState("");
@@ -162,13 +162,20 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
     if (!hasOutputs) {
       shouldFollowOutputRef.current = true;
-      prevRenderedOutputCountRef.current = 0;
+      prevRenderedContentSizeRef.current = 0;
       return;
     }
 
+    // Track total content size instead of array length so that streaming
+    // updates that mutate an existing entry's data (e.g. carriage-return
+    // progress bars via collapseConsoleOutputs) also trigger auto-scroll.
+    const currentContentSize = consoleOutputs.reduce(
+      (sum, o) => sum + (typeof o.data === "string" ? o.data.length : 0),
+      0,
+    );
     const appendedOutput =
-      consoleOutputs.length > prevRenderedOutputCountRef.current;
-    prevRenderedOutputCountRef.current = consoleOutputs.length;
+      currentContentSize > prevRenderedContentSizeRef.current;
+    prevRenderedContentSizeRef.current = currentContentSize;
 
     if (!running || !appendedOutput || !shouldFollowOutputRef.current) {
       return;

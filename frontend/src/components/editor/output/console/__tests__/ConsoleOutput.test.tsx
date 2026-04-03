@@ -345,6 +345,14 @@ describe("ConsoleOutput auto-scroll", () => {
       scrollTop: 200,
     });
 
+    // Simulate content growth: scrollHeight increases as a new line is added.
+    // The auto-scroll effect should set scrollTop to the new bottom offset.
+    setScrollMetrics(consoleArea, {
+      clientHeight: 100,
+      scrollHeight: 400,
+      scrollTop: 200,
+    });
+
     rerender(
       <TooltipProvider>
         <ConsoleOutput
@@ -354,7 +362,7 @@ describe("ConsoleOutput auto-scroll", () => {
       </TooltipProvider>,
     );
 
-    expect(consoleArea.scrollTop).toBe(200);
+    expect(consoleArea.scrollTop).toBe(300); // scrollHeight - clientHeight = 400 - 100
   });
 
   it("does not auto-scroll when the user has scrolled away from the bottom", () => {
