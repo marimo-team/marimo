@@ -340,6 +340,17 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
+@pytest.fixture(scope="session")
+def default_snippets():
+    """Read all default snippets once per test session."""
+    import asyncio
+
+    from marimo._config.config import merge_default_config
+    from marimo._snippets.snippets import read_snippets
+
+    return asyncio.run(read_snippets(merge_default_config({})))
+
+
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 

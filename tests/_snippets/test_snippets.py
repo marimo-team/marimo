@@ -6,6 +6,7 @@ import pytest
 
 from marimo._config.config import merge_default_config
 from marimo._snippets.snippets import (
+    Snippets,
     get_title_from_code,
     read_snippet_filenames,
     read_snippets,
@@ -15,17 +16,17 @@ from marimo._utils.platform import is_windows
 TEST_DATA_DIR = str(Path(__file__).parent / "data")
 
 
-async def test_snippets() -> None:
-    snippets = await read_snippets(merge_default_config({}))
-    assert len(snippets.snippets) > 0
+def test_snippets(default_snippets: Snippets) -> None:
+    assert len(default_snippets.snippets) > 0
     # All have titles
-    for s in snippets.snippets:
+    for s in default_snippets.snippets:
         assert s.title
     # All have more than one section
-    assert all(len(s.sections) > 1 for s in snippets.snippets)
+    assert all(len(s.sections) > 1 for s in default_snippets.snippets)
     # All have a code section
     assert all(
-        any(section.code for section in s.sections) for s in snippets.snippets
+        any(section.code for section in s.sections)
+        for s in default_snippets.snippets
     )
 
 
