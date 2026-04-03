@@ -293,7 +293,7 @@ class TestLazyLoader(ABCTestLoader):
         not DependencyManager.numpy.has(), reason="numpy required"
     )
     def test_numpy_round_trip(self) -> None:
-        """numpy arrays survive save → flush → load via .npz format."""
+        """numpy arrays survive save → flush → load via .npy format."""
         import numpy as np
 
         loader = self.instance()

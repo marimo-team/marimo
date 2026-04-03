@@ -82,9 +82,9 @@ def to_item(
             hash=hash,
             type_hint=type_hint,
         )
-    if loader == "npz":
+    if loader == "npy":
         return Item(
-            reference=(path / f"{var_name}.npz").as_posix(),
+            reference=(path / f"{var_name}.npy").as_posix(),
             hash=hash,
             type_hint=type_hint,
         )

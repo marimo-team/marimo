@@ -81,7 +81,7 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     "marimo._save.stubs.module_stub.ModuleStub": "inline",
     "marimo._save.stubs.ui_element_stub.UIElementStub": "ui",
     # Optional third-party types — imported lazily only when encountered:
-    "numpy.ndarray": "npz",
+    "numpy.ndarray": "npy",
     "polars.dataframe.frame.DataFrame": "arrow",
     "polars.series.series.Series": "arrow",
     "pandas.DataFrame": "arrow",  # feather v2 IS Arrow IPC; pandas overrides __module__
@@ -96,7 +96,7 @@ _LAZY_STUB_CACHE: dict[type, str] = {}
 # ---------------------------------------------------------------------------
 
 
-def _npz_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+def _npy_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     DependencyManager.numpy.require("to load cached numpy arrays.")
     import numpy as np
 
@@ -137,7 +137,7 @@ def _pickle_load(data: bytes, type_hint: Optional[str] = None) -> Any:
 
 BLOB_DESERIALIZERS: dict[str, Callable[[bytes, Optional[str]], Any]] = {
     ".pickle": _pickle_load,
-    ".npz": _npz_load,
+    ".npy": _npy_load,
     ".arrow": _arrow_load,
 }
 
@@ -146,7 +146,7 @@ BLOB_DESERIALIZERS: dict[str, Callable[[bytes, Optional[str]], Any]] = {
 # ---------------------------------------------------------------------------
 
 
-def _npz_dump(obj: Any) -> bytes:
+def _npy_dump(obj: Any) -> bytes:
     DependencyManager.numpy.require("to save numpy arrays to cache.")
     import numpy as np
 
@@ -180,7 +180,7 @@ def _arrow_dump(obj: Any) -> bytes:
 
 BLOB_SERIALIZERS: dict[str, Callable[[Any], bytes]] = {
     "pickle": pickle.dumps,
-    "npz": _npz_dump,
+    "npy": _npy_dump,
     "arrow": _arrow_dump,
 }
 
