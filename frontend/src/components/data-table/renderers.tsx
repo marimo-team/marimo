@@ -27,7 +27,7 @@ import { DataTableContextMenu } from "./context-menu";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
-import { TABLE_ROW_HEIGHT_PX } from "./types";
+import { AUTO_WIDTH_MAX_COLUMNS, TABLE_ROW_HEIGHT_PX } from "./types";
 import { stringifyUnknownValue } from "./utils";
 
 export function renderTableHeader<TData>(
@@ -69,6 +69,9 @@ export function renderTableHeader<TData>(
         {renderHeaderGroup(table.getLeftHeaderGroups())}
         {renderHeaderGroup(table.getCenterHeaderGroups())}
         {renderHeaderGroup(table.getRightHeaderGroups())}
+        {table.getAllColumns().length <= AUTO_WIDTH_MAX_COLUMNS && (
+          <th className="w-full border-0" />
+        )}
       </TableRow>
     </TableHeader>
   );
@@ -230,6 +233,9 @@ export const DataTableBody = <TData,>({
         {renderCells(row.getLeftVisibleCells())}
         {renderCells(row.getCenterVisibleCells())}
         {renderCells(row.getRightVisibleCells())}
+        {columns.length <= AUTO_WIDTH_MAX_COLUMNS && (
+          <td className="border-0" />
+        )}
       </TableRow>
     );
   };
