@@ -258,6 +258,20 @@ class TestCellsViewRepr:
         v = _view([_cell("a", "x = 1")])
         assert str(v) == repr(v)
 
+    def test_repr_many_cells_truncated(self) -> None:
+        cells = [_cell(f"c{i}", f"x{i} = {i}") for i in range(15)]
+        v = _view(cells)
+        r = repr(v)
+        assert "CellsView(15 cells):" in r
+        # First 10 shown
+        assert "[9]" in r
+        # Last cell shown
+        assert "[14]" in r
+        # Middle omitted
+        assert "... 4 more cells ..." in r
+        # Cell 11 not individually shown
+        assert "[11]" not in r
+
 
 # ------------------------------------------------------------------
 # find()

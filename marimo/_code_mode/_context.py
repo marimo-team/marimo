@@ -248,14 +248,30 @@ class _CellsView:
     def __repr__(self) -> str:
         cells = self._doc.cells
         n = len(cells)
+        max_shown = 10
         lines = [f"CellsView({n} cell{'s' if n != 1 else ''}):"]
-        for i, c in enumerate(cells):
+
+        def _fmt(i: int, c: NotebookCell) -> str:
             first_line = c.code.split("\n", 1)[0]
             code_preview = first_line[:50]
             if len(first_line) > 50:
                 code_preview += "..."
             name_part = f" ({c.name})" if c.name else ""
-            lines.append(f"  [{i}] {c.id}{name_part} | {code_preview}")
+            return f"  [{i}] {c.id}{name_part} | {code_preview}"
+
+        if n <= max_shown:
+            for i, c in enumerate(cells):
+                lines.append(_fmt(i, c))
+        else:
+            for i, c in enumerate(cells[:max_shown]):
+                lines.append(_fmt(i, c))
+            omitted = n - max_shown - 1
+            if omitted > 0:
+                lines.append(
+                    f"  ... {omitted} more cell"
+                    f"{'s' if omitted != 1 else ''} ..."
+                )
+            lines.append(_fmt(n - 1, cells[-1]))
         return "\n".join(lines)
 
 
