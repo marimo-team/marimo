@@ -533,6 +533,56 @@ class TestInit:
 
 
 # ------------------------------------------------------------------
+# NotebookCell.__repr__
+# ------------------------------------------------------------------
+
+
+class TestNotebookCellRepr:
+    def test_simple(self) -> None:
+        cell = NotebookCell(
+            id=CellId_t("abc"), code="x = 1", name="", config=CellConfig()
+        )
+        assert repr(cell) == "NotebookCell(id='abc', code='x = 1')"
+
+    def test_with_name(self) -> None:
+        cell = NotebookCell(
+            id=CellId_t("abc"),
+            code="x = 1",
+            name="my_cell",
+            config=CellConfig(),
+        )
+        assert repr(cell) == (
+            "NotebookCell(id='abc', name='my_cell', code='x = 1')"
+        )
+
+    def test_multiline_shows_first_line_with_ellipsis(self) -> None:
+        cell = NotebookCell(
+            id=CellId_t("a"),
+            code="line1\nline2\nline3",
+            name="",
+            config=CellConfig(),
+        )
+        r = repr(cell)
+        assert "line1..." in r
+        assert "line2" not in r
+
+    def test_long_first_line_truncated(self) -> None:
+        long_code = "x = " + "a" * 100
+        cell = NotebookCell(
+            id=CellId_t("a"), code=long_code, name="", config=CellConfig()
+        )
+        r = repr(cell)
+        assert "..." in r
+        assert long_code[:80] in r
+
+    def test_empty_code(self) -> None:
+        cell = NotebookCell(
+            id=CellId_t("a"), code="", name="", config=CellConfig()
+        )
+        assert repr(cell) == "NotebookCell(id='a', code='')"
+
+
+# ------------------------------------------------------------------
 # ReorderCells
 # ------------------------------------------------------------------
 
