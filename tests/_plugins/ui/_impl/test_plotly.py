@@ -19,6 +19,8 @@ from marimo._plugins.ui._impl.plotly import (
     _compute_waterfall_bar_extents,
     _extract_bars_fallback,
     _extract_bars_numpy,
+    _extract_box_points_fallback,
+    _extract_box_points_numpy,
     _extract_heatmap_cells_fallback,
     _extract_heatmap_cells_numpy,
     _extract_histogram_points_fallback,
@@ -3332,3 +3334,259 @@ def test_waterfall_customdata_included() -> None:
     }
     result = plot._convert_value(selection)
     assert all(p.get("customdata") is not None for p in result)
+
+
+# ============================================================================
+# Box Plot Tests
+# ============================================================================
+
+
+def test_box_plot_basic_creation() -> None:
+    """Test that a box plot can be created and has empty initial selection."""
+    fig = go.Figure(data=go.Box(y=[1, 2, 3, 4, 5], name="Group A"))
+    plot = plotly(fig)
+
+    assert plot is not None
+    assert plot.value == []
+    assert plot.ranges == {}
+    assert plot.points == []
+    assert plot.indices == []
+
+
+def test_box_plot_click_expands_point_numbers() -> None:
+    """Clicking a box/whisker sends pointNumbers; Python expands them to rows."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "A", "B", "B"], y=[1, 2, 3, 4, 5]))
+    plot = plotly(fig)
+
+    # Simulate a click on box "A" – Plotly sends pointNumbers for the whole group
+    selection = {
+        "points": [
+            {
+                "x": "A",
+                "y": 2,
+                "pointIndex": 0,
+                "pointNumbers": [0, 1, 2],
+                "curveNumber": 0,
+            }
+        ],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 3
+    assert all(r["x"] == "A" for r in result)
+    assert [r["y"] for r in result] == [1, 2, 3]
+    assert [r["pointIndex"] for r in result] == [0, 1, 2]
+    assert all(r["curveNumber"] == 0 for r in result)
+
+
+def test_box_plot_click_without_point_numbers_passthrough() -> None:
+    """When pointNumbers is absent (individual boxpoint click), pass through."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "B"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {
+                "x": "A",
+                "y": 1,
+                "pointIndex": 0,
+                "curveNumber": 0,
+            }
+        ],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 1
+    assert result[0]["pointIndex"] == 0
+
+
+
+
+def test_extract_box_points_numpy_categorical() -> None:
+    """Numpy path: select category 'A' by index position."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "A", "B", "B"], y=[1, 2, 3, 4, 5]))
+
+    # Category "A" is at position 0; selection x range [−0.4, 0.4] covers it
+    range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
+    result = _extract_box_points_numpy(fig, range_data)
+
+    assert len(result) == 3
+    assert all(r["x"] == "A" for r in result)
+    assert [r["y"] for r in result] == [1, 2, 3]
+    assert [r["pointIndex"] for r in result] == [0, 1, 2]
+    assert all(r["curveNumber"] == 0 for r in result)
+
+
+def test_extract_box_points_fallback_categorical() -> None:
+    """Pure-Python path: mirrors numpy categorical selection."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "A", "B", "B"], y=[1, 2, 3, 4, 5]))
+
+    range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
+    result = _extract_box_points_fallback(fig, range_data)
+
+    assert len(result) == 3
+    assert all(r["x"] == "A" for r in result)
+    assert [r["y"] for r in result] == [1, 2, 3]
+
+
+def test_extract_box_points_numpy_all_categories() -> None:
+    """Select all categories when x range covers the full axis."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "B", "B"], y=[1, 2, 3, 4]))
+
+    range_data = {"x": [-1, 5], "y": [0, 10]}
+    result = _extract_box_points_numpy(fig, range_data)
+
+    assert len(result) == 4
+
+
+def test_extract_box_points_numpy_second_category() -> None:
+    """Select only the second category."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "B", "B"], y=[1, 2, 3, 4]))
+
+    # "B" is at position 1; selection x range [0.6, 1.4] covers only it
+    range_data = {"x": [0.6, 1.4], "y": [0, 10]}
+    result_numpy = _extract_box_points_numpy(fig, range_data)
+    result_fallback = _extract_box_points_fallback(fig, range_data)
+
+    assert len(result_numpy) == 2
+    assert all(r["x"] == "B" for r in result_numpy)
+    assert result_numpy == result_fallback
+
+
+def test_box_plot_range_selection_with_individual_points() -> None:
+    """When Plotly sends individual points via onSelected, pass them through."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "B", "B"], y=[10, 20, 30, 40]))
+    plot = plotly(fig)
+
+    # Simulate onSelected: Plotly sends individual points + range
+    selection: dict[str, Any] = {
+        "range": {"x": [-0.4, 0.4], "y": [0, 50]},
+        "points": [
+            {"x": "A", "y": 10, "pointIndex": 0, "curveNumber": 0},
+            {"x": "A", "y": 20, "pointIndex": 1, "curveNumber": 0},
+        ],
+        "indices": [0, 1],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Individual points from Plotly should be passed through as-is
+    assert len(result) == 2
+    assert all(r["x"] == "A" for r in result)
+    assert {r["y"] for r in result} == {10, 20}
+    assert {r["pointIndex"] for r in result} == {0, 1}
+
+
+def test_box_plot_range_selection_fallback_no_points() -> None:
+    """When no individual points are sent (boxpoints disabled), extract from range."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "B", "B"], y=[10, 20, 30, 40]))
+    plot = plotly(fig)
+
+    # Simulate onSelected with a range and NO individual point data
+    selection: dict[str, Any] = {
+        "range": {"x": [-0.4, 0.4], "y": [0, 50]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert all(r["x"] == "A" for r in result)
+    assert {r["y"] for r in result} == {10, 20}
+
+
+def test_box_plot_no_category_data() -> None:
+    """Box trace without explicit x uses trace name as category."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(y=[5, 10, 15], name="Group X"))
+    plot = plotly(fig)
+
+    # Range selection with no x range – all samples selected
+    selection: dict[str, Any] = {
+        "range": {"y": [0, 20]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 3
+    assert all(r.get("x") == "Group X" for r in result)
+
+
+def test_box_plot_horizontal_orientation() -> None:
+    """Horizontal box plots swap x/y roles for category and value."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Box(x=[1, 2, 3, 4, 5], y=["A", "A", "A", "B", "B"], orientation="h")
+    )
+
+    # Category "A" is at y-position 0; select it via y range
+    range_data = {"y": [-0.4, 0.4], "x": [0, 10]}
+    result_numpy = _extract_box_points_numpy(fig, range_data)
+    result_fallback = _extract_box_points_fallback(fig, range_data)
+
+    assert len(result_numpy) == 3
+    assert all(r["y"] == "A" for r in result_numpy)
+    assert [r["x"] for r in result_numpy] == [1, 2, 3]
+    assert result_numpy == result_fallback
+
+
+def test_box_plot_multiple_traces() -> None:
+    """Range selection across multiple box traces."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A"], y=[1, 2], name="trace0"))
+    fig.add_trace(go.Box(x=["A", "A"], y=[3, 4], name="trace1"))
+
+    range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
+    result = _extract_box_points_numpy(fig, range_data)
+
+    assert len(result) == 4
+    curve_numbers = {r["curveNumber"] for r in result}
+    assert curve_numbers == {0, 1}
+
+
+def test_box_plot_click_deduplication() -> None:
+    """Duplicate sample indices within pointNumbers are not repeated."""
+    fig = go.Figure()
+    fig.add_trace(go.Box(x=["A", "A", "A"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    # Two click points referencing the same group (edge case)
+    selection = {
+        "points": [
+            {
+                "x": "A",
+                "y": 1,
+                "pointIndex": 0,
+                "pointNumbers": [0, 1, 2],
+                "curveNumber": 0,
+            },
+            {
+                "x": "A",
+                "y": 1,
+                "pointIndex": 0,
+                "pointNumbers": [0, 1, 2],
+                "curveNumber": 0,
+            },
+        ],
+        "indices": [0, 0],
+    }
+
+    result = plot._convert_value(selection)
+    # Each sample should appear exactly once despite two click points for the same group
+    assert len(result) == 3
+    assert sorted(r["pointIndex"] for r in result) == [0, 1, 2]

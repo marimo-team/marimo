@@ -101,6 +101,14 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
   });
 
+  it("accepts box clicks", () => {
+    const boxPoint = createPlotDatum({
+      data: { type: "box" },
+    });
+
+    expect(shouldHandleClickSelection([boxPoint])).toBe(true);
+  });
+
   it("accepts histogram clicks", () => {
     const histogramPoint = createPlotDatum({
       data: { type: "histogram" },

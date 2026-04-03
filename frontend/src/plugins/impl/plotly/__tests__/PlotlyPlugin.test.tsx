@@ -111,4 +111,52 @@ describe("PlotlyPlugin", () => {
       range: undefined,
     });
   });
+
+  it("clicking a box element triggers onClick", async () => {
+    const setValue = vi.fn<Setter<unknown>>();
+
+    render(
+      <Suspense fallback={null}>
+        <PlotlyComponent
+          figure={{
+            data: [{ type: "box" }],
+            layout: {},
+            frames: null,
+          }}
+          value={undefined}
+          setValue={setValue}
+          host={document.createElement("div")}
+          config={{}}
+        />
+      </Suspense>,
+    );
+
+    await waitFor(() => {
+      expect(capturedPlotProps).not.toBeNull();
+    });
+
+    act(() => {
+      capturedPlotProps?.onClick?.({
+        points: [
+          {
+            data: { type: "box" },
+            x: "Group A",
+            y: 3,
+            pointIndex: 0,
+            pointNumber: 0,
+            curveNumber: 0,
+          },
+        ],
+      });
+    });
+
+    expect(setValue).toHaveBeenCalledTimes(1);
+    const updater = setValue.mock.calls[0][0] as (value: unknown) => unknown;
+    const result = updater({}) as {
+      points: unknown[];
+      indices: unknown[];
+    };
+    expect(result.points).toHaveLength(1);
+    expect(result.indices).toHaveLength(1);
+  });
 });

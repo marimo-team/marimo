@@ -225,6 +225,7 @@ export function shouldHandleClickSelection(
     const type = getTraceSource(point).type;
     return (
       type === "bar" ||
+      type === "box" ||
       type === "heatmap" ||
       type === "histogram" ||
       type === "waterfall" ||
