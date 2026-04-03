@@ -928,10 +928,14 @@ class AsyncCodeModeContext:
             )
             if new_multiply_defined:
                 # Show which existing cell(s) already define each name.
-                batch_ids = {op.cell_id for op in ops}
+                # Only exclude cells that were actually (re)registered
+                # during this dry run.  Moves and config-only updates
+                # do not register code, so their pre-existing
+                # definitions should still appear in the error details.
+                registered_ids = set(registered)
                 details: list[str] = []
                 for name in sorted(new_multiply_defined):
-                    existing = graph.get_defining_cells(name) - batch_ids
+                    existing = graph.get_defining_cells(name) - registered_ids
                     if existing:
                         labels = ", ".join(
                             self._cell_label(cid) for cid in sorted(existing)

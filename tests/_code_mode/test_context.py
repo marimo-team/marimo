@@ -386,6 +386,22 @@ class TestCombined:
             assert "'x' is already defined in" in msg
             assert "'0'" in msg
 
+    async def test_multiply_defined_two_new_cells_in_batch(
+        self, k: Kernel
+    ) -> None:
+        """Two new cells in the same batch defining the same name."""
+
+        async def _create_conflicting_cells() -> None:
+            with _ctx(k) as ctx:
+                async with ctx as nb:
+                    nb.create_cell("y = 1")
+                    nb.create_cell("y = 2")
+
+        # No pre-existing cell owns 'y', so the name appears
+        # without an "already defined in" detail.
+        with pytest.raises(RuntimeError, match=r"'y'"):
+            await _create_conflicting_cells()
+
     async def test_noop_batch(self, k: Kernel) -> None:
         """An empty context manager does nothing."""
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
