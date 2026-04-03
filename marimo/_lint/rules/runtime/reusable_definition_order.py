@@ -170,51 +170,75 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         del diagnostics
 
         cells = list(notebook.cells)
+        extraction, notebook_indices = self._extract_notebook(notebook)
+        provider_order = self._stable_provider_order(
+            extraction, notebook_indices
+        )
+        if provider_order is None:
+            return replace(notebook, cells=cells)
 
-        for _ in range(len(cells) * len(cells)):
-            extraction, notebook_indices = self._extract_notebook(
-                replace(notebook, cells=cells)
-            )
-            provider_indices = {
-                status.name: notebook_index
-                for status, notebook_index in zip(
-                    extraction.statuses, notebook_indices
-                )
-                if status.is_toplevel
-            }
-
-            moved = False
-            for status, notebook_index in zip(
-                extraction.statuses, notebook_indices
-            ):
-                if not (
-                    status.hint
-                    and status.hint.startswith(_HINT_ORDER_DEPENDENT_PREFIX)
-                ):
-                    continue
-
-                later_provider_indices = sorted(
-                    provider_indices[name]
-                    for name in status.dependencies
-                    if name in provider_indices
-                    and provider_indices[name] > notebook_index
-                )
-                if not later_provider_indices:
-                    continue
-
-                cells = self._move_cells_before(
-                    cells,
-                    source_indices=later_provider_indices,
-                    target_index=notebook_index,
-                )
-                moved = True
-                break
-
-            if not moved:
-                break
+        sorted_provider_positions = sorted(provider_order)
+        reordered_provider_cells = [cells[index] for index in provider_order]
+        for provider_position, cell in zip(
+            sorted_provider_positions, reordered_provider_cells
+        ):
+            cells[provider_position] = cell
 
         return replace(notebook, cells=cells)
 
+    def _stable_provider_order(
+        self, extraction: TopLevelExtraction, notebook_indices: list[int]
+    ) -> list[int] | None:
+        provider_indices = {
+            status.name: notebook_index
+            for status, notebook_index in zip(
+                extraction.statuses, notebook_indices
+            )
+            if status.is_toplevel
+        }
+        if not provider_indices:
+            return []
+
+        graph: dict[int, set[int]] = {
+            notebook_index: set()
+            for notebook_index in provider_indices.values()
+        }
+        indegree = {notebook_index: 0 for notebook_index in graph}
+
+        for status, notebook_index in zip(
+            extraction.statuses, notebook_indices
+        ):
+            if not status.is_toplevel:
+                continue
+            for dependency_name in status.dependencies:
+                dependency_index = provider_indices.get(dependency_name)
+                if (
+                    dependency_index is None
+                    or dependency_index == notebook_index
+                    or notebook_index in graph[dependency_index]
+                ):
+                    continue
+                graph[dependency_index].add(notebook_index)
+                indegree[notebook_index] += 1
+
+        ready = sorted(
+            notebook_index
+            for notebook_index, degree in indegree.items()
+            if degree == 0
+        )
+        ordered: list[int] = []
+        while ready:
+            notebook_index = ready.pop(0)
+            ordered.append(notebook_index)
+            for dependent_index in sorted(graph[notebook_index]):
+                indegree[dependent_index] -= 1
+                if indegree[dependent_index] == 0:
+                    ready.append(dependent_index)
+            ready.sort()
+
+        if len(ordered) != len(graph):
+            return None
+        return ordered
     @staticmethod
     def _move_cells_before(
         cells: list[CellDef], source_indices: list[int], target_index: int
