@@ -456,8 +456,14 @@ class WebSocketHandler(SessionConsumer):
         """
         try:
             await self.websocket.close(code, reason)
-        except AttributeError:
-            LOGGER.debug("Ignoring AttributeError during websocket close")
+        except AttributeError as e:
+            if "transfer_data_task" not in str(e):
+                raise
+            LOGGER.debug(
+                "Ignoring AttributeError during websocket close: "
+                "missing transfer_data_task",
+                exc_info=True,
+            )
 
     async def _close_already_connected(self) -> None:
         """Close the WebSocket with an 'already connected' error."""
