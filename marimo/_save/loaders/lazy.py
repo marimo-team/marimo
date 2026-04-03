@@ -195,17 +195,21 @@ class LazyLoader(BasePersistenceLoader):
             unique_keys.add(return_ref)
 
         def _load_blob(key: str) -> None:
-            data = self.store.get(key)
-            if data:
-                ext = Path(key).suffix
-                deserialize = BLOB_DESERIALIZERS.get(
-                    ext, BLOB_DESERIALIZERS[".pickle"]
-                )
-                type_hint = ref_type_hints.get(key) or (
-                    return_type_hint if key == return_ref else None
-                )
-                results.put((key, deserialize(data, type_hint)))
-            else:
+            try:
+                data = self.store.get(key)
+                if data:
+                    ext = Path(key).suffix
+                    deserialize = BLOB_DESERIALIZERS.get(
+                        ext, BLOB_DESERIALIZERS[".pickle"]
+                    )
+                    type_hint = ref_type_hints.get(key) or (
+                        return_type_hint if key == return_ref else None
+                    )
+                    results.put((key, deserialize(data, type_hint)))
+                else:
+                    results.put((key, _BlobStatus.MISSING))
+            except Exception as e:
+                LOGGER.warning("Failed to deserialize blob %s: %s", key, e)
                 results.put((key, _BlobStatus.MISSING))
 
         threads = [
@@ -217,14 +221,15 @@ class LazyLoader(BasePersistenceLoader):
 
         # N threads → N results guaranteed; no timeout needed.
         unpickled: dict[str, Any] = {}
-        for _ in unique_keys:
-            key, val = results.get()
-            if val is _BlobStatus.MISSING:
-                raise FileNotFoundError("Incomplete cache: missing blobs")
-            unpickled[key] = val
-
-        for t in threads:
-            t.join()
+        try:
+            for _ in unique_keys:
+                key, val = results.get()
+                if val is _BlobStatus.MISSING:
+                    raise FileNotFoundError("Incomplete cache: missing blobs")
+                unpickled[key] = val
+        finally:
+            for t in threads:
+                t.join()
 
         # Distribute to defs
         defs: dict[str, Any] = {}

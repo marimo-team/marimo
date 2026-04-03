@@ -22,7 +22,7 @@ def mro_lookup(
     """
     try:
         mro_list = value_type.mro()
-    except BaseException:
+    except Exception:
         mro_list = [value_type]
     for cls in mro_list:
         if not (hasattr(cls, "__module__") and hasattr(cls, "__name__")):

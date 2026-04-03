@@ -309,6 +309,9 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
 
+        assert list(Path(self.store.save_path).rglob("*.npy")), (
+            "expected .npy blob, got pickle fallback"
+        )
         loaded = loader.load_cache(key("np_hash", "Pure"))
         assert loaded is not None
         np.testing.assert_array_equal(loaded.defs["arr"], arr)
@@ -333,6 +336,9 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
 
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
         loaded = loader.load_cache(key("pl_hash", "Pure"))
         assert loaded is not None
         assert loaded.defs["df"].equals(df)
@@ -357,6 +363,9 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
 
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
         loaded = loader.load_cache(key("pl_series_hash", "Pure"))
         assert loaded is not None
         assert isinstance(loaded.defs["s"], pl.Series)
@@ -382,6 +391,9 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
 
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
         loaded = loader.load_cache(key("pd_hash", "Pure"))
         assert loaded is not None
         pd.testing.assert_frame_equal(loaded.defs["df"], df)
@@ -406,6 +418,9 @@ class TestLazyLoader(ABCTestLoader):
         assert loader.save_cache(cache)
         loader.flush()
 
+        assert list(Path(self.store.save_path).rglob("*.arrow")), (
+            "expected .arrow blob, got pickle fallback"
+        )
         loaded = loader.load_cache(key("pd_series_hash", "Pure"))
         assert loaded is not None
         assert isinstance(loaded.defs["s"], pd.Series)
