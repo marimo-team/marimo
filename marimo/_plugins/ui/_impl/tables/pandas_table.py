@@ -42,7 +42,7 @@ def _trivial_range_index(index: pd.Index) -> bool:
     return isinstance(index, pd.RangeIndex) and index.name is None
 
 
-def _resolve_index_name(name: object, columns: set[object]) -> str:
+def _resolve_index_name(name: object, columns: set[str]) -> str:
     """Return a non-conflicting index name by appending '_index' if needed."""
     return f"{name}_index" if name in columns else str(name)
 
