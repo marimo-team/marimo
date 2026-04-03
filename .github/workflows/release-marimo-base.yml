@@ -55,11 +55,14 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          verbose: true
+          attestations: false
 
       - name: 📤 Upload to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          verbose: true
           attestations: false
           repository-url: https://test.pypi.org/legacy/
 
