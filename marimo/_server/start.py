@@ -5,12 +5,13 @@ import os
 import re
 import subprocess
 import threading
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 import uvicorn
 
 from marimo._cli.print import echo
 from marimo._cli.sandbox import SandboxMode
+from marimo._config.config import PartialMarimoConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.setup import McpType, setup_mcp_server
@@ -187,6 +188,7 @@ def start(
     timeout: Optional[float] = None,
     sandbox_mode: SandboxMode | None = None,
     startup_tip: CliTip | None = None,
+    show_tracebacks: Optional[bool] = None,
 ) -> None:
     """
     Start the server.
@@ -256,6 +258,15 @@ def start(
     isolate_apps = is_multi and config_reader.experimental.get(
         "isolate_apps", False
     )
+
+    # Apply CLI overrides for runtime config if explicitly set
+    if show_tracebacks is not None:
+        config_reader = config_reader.with_overrides(
+            cast(
+                PartialMarimoConfig,
+                {"runtime": {"show_tracebacks": show_tracebacks}},
+            )
+        )
 
     session_manager = SessionManager(
         file_router=file_router,

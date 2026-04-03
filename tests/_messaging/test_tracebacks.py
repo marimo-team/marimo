@@ -129,6 +129,43 @@ class TestTracebacks:
         finally:
             HTTP_REQUEST_CTX.reset(token)
 
+    def test_write_traceback_suppressed_in_run_mode(self) -> None:
+        """In run mode with show_tracebacks=False, nothing is sent to the frontend."""
+        mock_stderr = MagicMock(spec=Stderr)
+        with (
+            patch("sys.stderr", mock_stderr),
+            patch("marimo._messaging.tracebacks.get_mode", return_value="run"),
+            patch(
+                "marimo._messaging.tracebacks._show_tracebacks_enabled",
+                return_value=False,
+            ),
+        ):
+            write_traceback(
+                'Traceback (most recent call last):\n  File "<stdin>", line 1, in <module>\nRuntimeError: secret'
+            )
+            mock_stderr._write_with_mimetype.assert_not_called()
+            mock_stderr.write.assert_not_called()
+
+    def test_write_traceback_forwarded_in_run_mode_with_show_tracebacks(
+        self,
+    ) -> None:
+        """In run mode with show_tracebacks=True, traceback is sent to the frontend."""
+        mock_stderr = MagicMock(spec=Stderr)
+        with (
+            patch("sys.stderr", mock_stderr),
+            patch("marimo._messaging.tracebacks.get_mode", return_value="run"),
+            patch(
+                "marimo._messaging.tracebacks._show_tracebacks_enabled",
+                return_value=True,
+            ),
+        ):
+            write_traceback(
+                'Traceback (most recent call last):\n  File "<stdin>", line 1, in <module>\nRuntimeError: visible'
+            )
+            mock_stderr._write_with_mimetype.assert_called_once()
+            _, kwargs = mock_stderr._write_with_mimetype.call_args
+            assert kwargs["mimetype"] == "application/vnd.marimo+traceback"
+
 
 class TestIsCodeModeRequest:
     def test_no_request_context(self) -> None:
