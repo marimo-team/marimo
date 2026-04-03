@@ -20,6 +20,7 @@ from starlette.staticfiles import StaticFiles
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
+from marimo._config.reader import find_nearest_pyproject_toml
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
@@ -199,7 +200,7 @@ def og_thumbnail(*, request: Request) -> Response:
 
 async def _fetch_index_html_from_url(asset_url: str) -> str:
     """Fetch index.html from the given asset URL."""
-    import marimo._utils.requests as requests
+    from marimo._utils import requests
     from marimo._version import __version__
 
     # Replace {version} placeholder if present
@@ -293,9 +294,11 @@ async def index(request: Request) -> HTMLResponse:
                 except Exception:
                     LOGGER.debug("Failed to pre-compute notebook snapshot")
 
-        # Make filename relative to file router's directory if possible
         filename = app_manager.filename
         directory = app_state.session_manager.file_router.directory
+        lsp_workspace = _resolve_lsp_workspace(filename, directory)
+
+        # Make filename relative to file router's directory if possible
         if filename and directory:
             try:
                 filename = str(Path(filename).relative_to(directory))
@@ -311,6 +314,7 @@ async def index(request: Request) -> HTMLResponse:
             app_config=app_config,
             filename=filename,
             filepath=absolute_filepath,
+            lsp_workspace=lsp_workspace,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
@@ -324,6 +328,25 @@ async def index(request: Request) -> HTMLResponse:
         html = _inject_service_worker(html, file_key)
 
     return HTMLResponse(html)
+
+
+def _resolve_lsp_workspace(
+    filename: str | None, directory: str | None
+) -> dict[str, str]:
+    if filename:
+        document_path = Path(filename)
+        start_path = Path(directory) if directory else document_path.parent
+    else:
+        start_path = Path(directory) if directory else Path.cwd()
+        document_path = start_path.joinpath("__marimo_notebook__.py")
+
+    pyproject_path = find_nearest_pyproject_toml(start_path)
+    root_path = pyproject_path.parent if pyproject_path else start_path
+
+    return {
+        "rootUri": root_path.as_uri(),
+        "documentUri": document_path.as_uri(),
+    }
 
 
 def _inject_service_worker(html: str, file_key: str) -> str:

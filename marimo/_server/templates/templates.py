@@ -47,6 +47,7 @@ def _get_mount_config(
     *,
     filename: Optional[str],
     cwd: Optional[str] = None,
+    lsp_workspace: Optional[dict[str, str]] = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
@@ -65,6 +66,7 @@ def _get_mount_config(
     options: dict[str, Any] = {
         "filename": filename or "",
         "cwd": cwd or "",
+        "lsp_workspace": lsp_workspace,
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
@@ -84,6 +86,7 @@ def _get_mount_config(
     return """{{
             "filename": {filename},
             "cwd": {cwd},
+            "lspWorkspace": {lsp_workspace},
             "mode": {mode},
             "version": {version},
             "serverToken": {server_token},
@@ -221,6 +224,7 @@ def notebook_page_template(
     app_config: _AppConfig,
     filename: Optional[str],
     filepath: Optional[str] = None,
+    lsp_workspace: Optional[dict[str, str]] = None,
     mode: SessionMode,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
@@ -260,6 +264,7 @@ def notebook_page_template(
         _get_mount_config(
             filename=filename,
             cwd=cwd,
+            lsp_workspace=lsp_workspace,
             mode="read" if mode == SessionMode.RUN else "edit",
             server_token=server_token,
             user_config=user_config,

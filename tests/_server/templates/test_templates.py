@@ -120,6 +120,24 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert '"cwd": ""' in result
         _assert_no_leftover_replacements(result)
 
+    def test_notebook_page_template_with_lsp_workspace(self) -> None:
+        root_uri = "file:///home/marimo/project"
+        document_uri = "file:///home/marimo/project/notebooks/notebook.py"
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=None,
+            lsp_workspace={"rootUri": root_uri, "documentUri": document_uri},
+            mode=self.mode,
+        )
+        assert f'"rootUri": "{root_uri}"' in result
+        assert f'"documentUri": "{document_uri}"' in result
+        _assert_no_leftover_replacements(result)
+
     def test_notebook_page_template_edit_mode(self) -> None:
         result = templates.notebook_page_template(
             html=self.html,

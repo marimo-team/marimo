@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -13,6 +14,7 @@ from marimo._server.api.endpoints.assets import _inject_service_worker
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
 from marimo._session.model import SessionMode
+from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import token_header, with_file_router
 
 if TYPE_CHECKING:
@@ -371,3 +373,53 @@ def test_index_includes_notebook_key_in_mount_config(
     # Verify notebook key is present in mount config by checking HTML content
     # The mount config is injected as JSON in the HTML
     assert '"notebook":' in response.text or "'notebook':" in response.text
+
+
+TEMP_PROJECT_DIR = TemporaryDirectory()
+Path(TEMP_PROJECT_DIR.name).joinpath("pyproject.toml").touch()
+SUBDIR = Path(TEMP_PROJECT_DIR.name).joinpath("subdir")
+SUBDIR.mkdir()
+NOTEBOOK_FILE = SUBDIR.joinpath("notebook.py")
+NOTEBOOK_FILE.touch()
+
+
+@with_file_router(AppFileRouter.from_filename(MarimoPath(NOTEBOOK_FILE)))
+def test_index_lsp_workspace_with_filename(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    root_uri = json.dumps(Path(TEMP_PROJECT_DIR.name).as_uri())
+    document_uri = json.dumps(NOTEBOOK_FILE.as_uri())
+    assert f'"rootUri": {root_uri}' in response.text
+    assert f'"documentUri": {document_uri}' in response.text
+
+
+@with_file_router(AppFileRouter.from_directory(TEMP_PROJECT_DIR.name))
+def test_index_lsp_workspace_with_root_directory(client: TestClient) -> None:
+    response = client.get("/?file=__new__file.py", headers=token_header())
+    root_path = Path(TEMP_PROJECT_DIR.name)
+    root_uri = json.dumps(root_path.as_uri())
+    document_path = root_path.joinpath("__marimo_notebook__.py")
+    document_uri = json.dumps(document_path.as_uri())
+    assert f'"rootUri": {root_uri}' in response.text
+    assert f'"documentUri": {document_uri}' in response.text
+
+
+@with_file_router(AppFileRouter.from_directory(str(SUBDIR)))
+def test_index_lsp_workspace_with_sub_directory(client: TestClient) -> None:
+    response = client.get("/?file=__new__file.py", headers=token_header())
+    root_path = Path(TEMP_PROJECT_DIR.name)
+    root_uri = json.dumps(root_path.as_uri())
+    document_path = SUBDIR.joinpath("__marimo_notebook__.py")
+    document_uri = json.dumps(document_path.as_uri())
+    assert f'"rootUri": {root_uri}' in response.text
+    assert f'"documentUri": {document_uri}' in response.text
+
+
+@with_file_router(AppFileRouter.new_file())
+def test_index_lsp_workspace_fallback_to_cwd(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    root_path = Path.cwd()
+    root_uri = json.dumps(root_path.as_uri())
+    document_path = root_path.joinpath("__marimo_notebook__.py")
+    document_uri = json.dumps(document_path.as_uri())
+    assert f'"rootUri": {root_uri}' in response.text
+    assert f'"documentUri": {document_uri}' in response.text
