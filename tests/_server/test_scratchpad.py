@@ -398,9 +398,7 @@ class TestScratchCellListener:
         assert not listener._queue.empty()
 
         idle = CellNotification(cell_id=SCRATCH_CELL_ID, status="idle")
-        listener.on_notification_sent(
-            session, serialize_kernel_message(idle)
-        )
+        listener.on_notification_sent(session, serialize_kernel_message(idle))
 
         events: list[str] = []
         async for event in listener.stream():
