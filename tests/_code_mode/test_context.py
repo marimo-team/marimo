@@ -718,3 +718,18 @@ class TestDocumentKernelDivergence:
                 new_id = nb.create_cell("x = 1")
 
         assert new_id not in {c.id for c in doc_only}
+
+
+class TestErrorReporting:
+    async def test_print_summary_reports_cell_errors(
+        self, k: Kernel, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """_print_summary writes cell runtime errors to stderr."""
+        with _ctx(k) as ctx:
+            async with ctx as nb:
+                cid = nb.create_cell("raise ValueError('boom')")
+                nb.run_cell(cid)
+
+        captured = capsys.readouterr()
+        assert "error in cell" in captured.err
+        assert "boom" in captured.err
