@@ -117,7 +117,7 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
 
 
 class _CellsView:
-    """Read-only, ordered-dict-like view over notebook cells.
+    """Read-only, ordered view over notebook cells.
 
     Supports lookup by integer index, cell ID, or cell name::
 
@@ -126,12 +126,16 @@ class _CellsView:
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
 
-    Dict-like iteration::
+    Iteration yields ``NotebookCell`` objects directly::
 
-        for cid, cell in ctx.cells.items():
-            ...
+        for cell in ctx.cells:
+            print(cell.id, cell.code)
+
+    Dict-like access is also available::
+
         ctx.cells.keys()  # list of CellId_t
         ctx.cells.values()  # list of NotebookCell
+        ctx.cells.items()  # list of (CellId_t, NotebookCell)
         "my_cell" in ctx.cells  # membership test
     """
 
@@ -164,7 +168,13 @@ class _CellsView:
             if cell.name == target:
                 return cell.id
 
-        raise KeyError(target)
+        available = ", ".join(c.id for c in self._doc.cells)
+        raise KeyError(
+            f"Cell {target!r} not found. "
+            f"Available cell IDs: [{available}]. "
+            f"IDs are stable across reorders — re-read ctx.cells "
+            f"if the notebook structure changed."
+        )
 
     def __len__(self) -> int:
         return len(self._doc)
@@ -179,8 +189,9 @@ class _CellsView:
             return self._doc.cells[key]
         return self._doc.get_cell(self._resolve(key))
 
-    def __iter__(self) -> Iterator[CellId_t]:
-        yield from self._doc
+    def __iter__(self) -> Iterator[NotebookCell]:
+        for cell_id in self._doc.cell_ids:
+            yield self._doc.get_cell(cell_id)
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
@@ -204,6 +215,69 @@ class _CellsView:
     def items(self) -> list[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
         return [(c.id, c) for c in self._doc.cells]
+
+    # ------------------------------------------------------------------
+    # Content search
+    # ------------------------------------------------------------------
+
+    def find(self, substring: str) -> list[NotebookCell]:
+        """Return cells whose code contains *substring*.
+
+        Performs a case-sensitive substring search on each cell's code.
+
+        Example::
+
+            ctx.cells.find("import marimo")
+        """
+        return [c for c in self._doc.cells if substring in c.code]
+
+    def grep(self, pattern: str) -> list[NotebookCell]:
+        """Return cells whose code matches the regex *pattern*.
+
+        Uses :func:`re.search` so the pattern can match anywhere in
+        the cell's code.
+
+        Example::
+
+            ctx.cells.grep(r"alt\\.Chart")
+        """
+        import re
+
+        compiled = re.compile(pattern)
+        return [c for c in self._doc.cells if compiled.search(c.code)]
+
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
+    def __repr__(self) -> str:
+        cells = self._doc.cells
+        n = len(cells)
+        max_shown = 10
+        lines = [f"CellsView({n} cell{'s' if n != 1 else ''}):"]
+
+        def _fmt(i: int, c: NotebookCell) -> str:
+            first_line = c.code.split("\n", 1)[0]
+            code_preview = first_line[:50]
+            if len(first_line) > 50:
+                code_preview += "..."
+            name_part = f" ({c.name})" if c.name else ""
+            return f"  [{i}] {c.id}{name_part} | {code_preview}"
+
+        if n <= max_shown:
+            for i, c in enumerate(cells):
+                lines.append(_fmt(i, c))
+        else:
+            for i, c in enumerate(cells[:max_shown]):
+                lines.append(_fmt(i, c))
+            omitted = n - max_shown - 1
+            if omitted > 0:
+                lines.append(
+                    f"  ... {omitted} more cell"
+                    f"{'s' if omitted != 1 else ''} ..."
+                )
+            lines.append(_fmt(n - 1, cells[-1]))
+        return "\n".join(lines)
 
 
 # ------------------------------------------------------------------
@@ -389,6 +463,18 @@ class AsyncCodeModeContext:
 
         for line in lines:
             sys.stdout.write(line + "\n")
+
+        # Report runtime errors for cells that were executed.
+        # This runs after _run_cells returns and the nested
+        # redirect_streams context has exited, so stderr is routed
+        # back to the scratch cell and captured by the SSE listener.
+        if _run:
+            for cell_id in _run:
+                cell = self.graph.cells.get(cell_id)
+                if cell is None or cell.exception is None:
+                    continue
+                label = self._cell_label(cell_id)
+                sys.stderr.write(f"error in cell {label}:\n{cell.exception}\n")
 
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: ``'id' (name)`` or ``'id'``."""
@@ -846,10 +932,28 @@ class AsyncCodeModeContext:
                 "async with cm.get_context(skip_validation=True) as ctx"
             )
             if new_multiply_defined:
+                # Show which existing cell(s) already define each name.
+                # Only exclude cells that were actually (re)registered
+                # during this dry run.  Moves and config-only updates
+                # do not register code, so their pre-existing
+                # definitions should still appear in the error details.
+                registered_ids = set(registered)
+                details: list[str] = []
+                for name in sorted(new_multiply_defined):
+                    existing = graph.get_defining_cells(name) - registered_ids
+                    if existing:
+                        labels = ", ".join(
+                            self._cell_label(cid) for cid in sorted(existing)
+                        )
+                        details.append(
+                            f"  - {name!r} is already defined in cell {labels}"
+                        )
+                    else:
+                        details.append(f"  - {name!r}")
                 raise RuntimeError(
-                    "Multiply-defined names: "
-                    f"{sorted(new_multiply_defined)}"
-                    f"{_skip_hint}"
+                    "Multiply-defined names:\n"
+                    + "\n".join(details)
+                    + _skip_hint
                 )
             if new_cycles:
                 raise RuntimeError(

@@ -60,3 +60,20 @@ You can include code in your application by using the `--include-code` flag when
 ```bash
 marimo run app.py --include-code
 ```
+
+### Redirecting standard output to the browser
+
+By default, Marimo doesn't send standard output (stdout) to the browser, but for debugging purposes you can enable this
+with `--redirect-console-to-browser`:
+
+```bash
+marimo run app.py --redirect-console-to-browser
+```
+
+### Showing error tracebacks in the browser
+
+By default, Marimo redacts error tracebacks in the browser for security reasons, but you can enable showing full tracebacks with `--show-tracebacks`:
+
+```bash
+marimo run app.py --show-tracebacks
+```

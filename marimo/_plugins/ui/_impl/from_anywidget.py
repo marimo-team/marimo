@@ -208,6 +208,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "js-hash": js_hash,
+                "model-id": model_id,
             },
             on_change=None,
         )

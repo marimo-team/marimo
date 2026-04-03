@@ -4,8 +4,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlparse
 
+from starlette.authentication import requires
 from starlette.responses import (
     HTMLResponse,
+    JSONResponse,
     RedirectResponse,
     Response,
 )
@@ -149,6 +151,33 @@ async def login_page(request: Request) -> HTMLResponse:
             "X-Frame-Options": "DENY",
             "X-Content-Type-Options": "nosniff",
         },
+    )
+
+
+@router.get("/token")
+@requires("edit")
+async def auth_token(request: Request) -> JSONResponse:
+    """
+    tags: [auth]
+    summary: Get the auth token for the current session
+    responses:
+        200:
+            description: The auth token (null if auth is disabled)
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            token:
+                                type: string
+                                nullable: true
+    """
+    state = AppState(request)
+    no_cache = {"Cache-Control": "no-store"}
+    if not state.enable_auth:
+        return JSONResponse({"token": None}, headers=no_cache)
+    return JSONResponse(
+        {"token": str(state.session_manager.auth_token)}, headers=no_cache
     )
 
 

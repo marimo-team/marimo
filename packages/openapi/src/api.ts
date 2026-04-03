@@ -3257,6 +3257,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/auth/token": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the auth token for the current session */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The auth token (null if auth is disabled) */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              token?: string | null;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, any>;
 export interface components {
@@ -5117,6 +5155,8 @@ export interface components {
       exception_type: string;
       msg: string;
       raising_cell: components["schemas"]["CellId"] | null;
+      /** @default null */
+      traceback?: string | null;
       /** @enum {unknown} */
       type: "exception";
     };
@@ -5735,6 +5775,9 @@ export interface components {
      *            The default is None.
      *         - `default_csv_encoding`: the default encoding for CSV exports.
      *             The default is `"utf-8"`.
+     *         - `show_tracebacks`: if `True`, show detailed error tracebacks in run mode.
+     *             When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
+     *             The default is `False`.
      */
     RuntimeConfig: {
       auto_instantiate: boolean;
@@ -5756,6 +5799,7 @@ export interface components {
       pythonpath?: string[];
       reactive_tests: boolean;
       serve_cached_sessions_in_apps?: boolean;
+      show_tracebacks?: boolean;
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";

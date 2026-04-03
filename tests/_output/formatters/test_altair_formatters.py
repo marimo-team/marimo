@@ -174,7 +174,7 @@ def test_altair_formatter_svg():
         mime, content = formatter(mock_chart)
 
         assert mime == "image/svg+xml"
-        assert content == "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+        assert content == "<svg></svg>"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")

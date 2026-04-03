@@ -10,6 +10,23 @@ import {
 } from "./events";
 import { parseInitialValue } from "./htmlUtils";
 
+/**
+ * Kernel-initiated UI value update, sent via the existing
+ * `send-ui-element-message` channel when `set_ui_value` (code_mode)
+ * changes a widget's value so the frontend can reflect the new state.
+ */
+interface UIValueUpdateMessage {
+  type: "marimo-ui-value-update";
+  value: ValueType;
+}
+
+function isUIValueUpdateMessage(msg: unknown): msg is UIValueUpdateMessage {
+  if (typeof msg !== "object" || msg === null) {
+    return false;
+  }
+  return "type" in msg && msg.type === "marimo-ui-value-update";
+}
+
 interface UIElementEntry {
   objectId: string;
   value: ValueType;
@@ -141,21 +158,38 @@ export class UIElementRegistry {
     const entry = this.entries.get(objectId);
     if (entry === undefined) {
       Logger.warn("UIElementRegistry missing entry", objectId);
-    } else {
+      return;
+    }
+
+    // Kernel-initiated value update — push into DOM elements without
+    // dispatching MarimoValueReadyEvent to avoid a round-trip.
+    if (isUIValueUpdateMessage(message)) {
+      entry.value = message.value;
       entry.elements.forEach((element) => {
         element.dispatchEvent(
-          MarimoIncomingMessageEvent.create({
-            bubbles: false, // only the intended target gets the message
+          MarimoValueUpdateEvent.create({
+            bubbles: false,
             composed: true,
-            detail: {
-              objectId: objectId,
-              message: message,
-              buffers: buffers,
-            },
+            detail: { value: message.value, element: element },
           }),
         );
       });
+      return;
     }
+
+    entry.elements.forEach((element) => {
+      element.dispatchEvent(
+        MarimoIncomingMessageEvent.create({
+          bubbles: false, // only the intended target gets the message
+          composed: true,
+          detail: {
+            objectId: objectId,
+            message: message,
+            buffers: buffers,
+          },
+        }),
+      );
+    });
   }
 
   /**

@@ -45,6 +45,9 @@ jobs:
           path: dist/
       - name: 📤 Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          verbose: true
 
       - name: 📢 Notify release result
         if: always()
@@ -96,6 +99,7 @@ jobs:
       - name: 📤 Upload to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          verbose: true
           repository-url: https://test.pypi.org/legacy/
 
   publish_dev_pypi_marimo_base:
@@ -116,6 +120,7 @@ jobs:
       - name: 📤 Upload to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          verbose: true
           repository-url: https://test.pypi.org/legacy/
 
   comment_pr:
