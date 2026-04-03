@@ -55,7 +55,7 @@ class TestPairPrompt:
                     cli_main,
                     ["pair", "prompt", "--url", TEST_URL, flag],
                 )
-                assert result.exit_code != 0, flag
+                assert result.exit_code == 0, flag
                 assert "could not be found" in result.output, flag
 
     def test_prompt_skill_installed(self) -> None:
@@ -139,7 +139,7 @@ class TestPairPromptWithToken:
                 ],
                 input="secret\n",
             )
-        assert result.exit_code != 0
+        assert result.exit_code == 0
         assert "could not be found" in result.output
 
     def test_without_token_no_token_hint(self) -> None:

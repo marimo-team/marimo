@@ -151,7 +151,6 @@ def prompt(
                 "https://github.com/marimo-team/marimo-pair",
                 err=True,
             )
-            raise SystemExit(1)
 
     # Prompt for token and write it to a temp file if --with-token is set
     token_hint = ""
