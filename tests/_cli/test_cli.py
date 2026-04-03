@@ -1271,19 +1271,21 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit_new_file() -> None:
-    d = tempfile.TemporaryDirectory()
-    path = os.path.join(d.name, "new_sandbox_file.py")
-    runner = CliRunner()
-    with patch("marimo._cli.sandbox.run_in_sandbox") as mock_run_in_sandbox:
-        result = runner.invoke(
-            cli_main,
-            ["edit", path, "--headless", "--no-token", "--sandbox"],
-        )
-    assert result.exit_code == 0, result.output
-    mock_run_in_sandbox.assert_called_once()
-    call_kwargs = mock_run_in_sandbox.call_args
-    assert call_kwargs.kwargs["name"] == path
-    assert call_kwargs.kwargs["additional_features"] == ["lsp"]
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "new_sandbox_file.py")
+        runner = CliRunner()
+        with patch(
+            "marimo._cli.sandbox.run_in_sandbox"
+        ) as mock_run_in_sandbox:
+            result = runner.invoke(
+                cli_main,
+                ["edit", path, "--headless", "--no-token", "--sandbox"],
+            )
+        assert result.exit_code == 0, result.output
+        mock_run_in_sandbox.assert_called_once()
+        call_kwargs = mock_run_in_sandbox.call_args
+        assert call_kwargs.kwargs["name"] == path
+        assert call_kwargs.kwargs["additional_features"] == ["lsp"]
 
 
 @pytest.mark.skipif(
@@ -1706,11 +1708,18 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
 
     # marimo new --sandbox, in the directory with pyproject.toml
     runner = CliRunner()
-    with patch("marimo._cli.sandbox.run_in_sandbox") as mock_run_in_sandbox:
-        result = runner.invoke(
-            cli_main,
-            ["new", "--sandbox", "--headless", "--no-token"],
-        )
+    original_dir = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        with patch(
+            "marimo._cli.sandbox.run_in_sandbox"
+        ) as mock_run_in_sandbox:
+            result = runner.invoke(
+                cli_main,
+                ["new", "--sandbox", "--headless", "--no-token"],
+            )
+    finally:
+        os.chdir(original_dir)
     assert result.exit_code == 0, result.output
     mock_run_in_sandbox.assert_called_once()
     call_kwargs = mock_run_in_sandbox.call_args
