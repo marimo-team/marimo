@@ -28,8 +28,15 @@ describe("completionKeymap", () => {
   });
 
   it("removes Enter when passed a keysToRemove set containing Enter", () => {
-    const keysToRemove = new Set<string | undefined>(["Escape", "Alt-`", "Enter"]);
-    const filtered = filterCompletionBindings(defaultCompletionKeymap, keysToRemove);
+    const keysToRemove = new Set<string | undefined>([
+      "Escape",
+      "Alt-`",
+      "Enter",
+    ]);
+    const filtered = filterCompletionBindings(
+      defaultCompletionKeymap,
+      keysToRemove,
+    );
     expect(filtered.some((binding) => binding.key === "Enter")).toBe(false);
   });
 });

@@ -22,17 +22,16 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   "Alt-`",
 ]);
 
-
-
 // AFTER
 export function filterCompletionBindings(
   bindings: readonly KeyBinding[],
   keysToRemove: Set<string | undefined> = KEYS_TO_REMOVE,
 ): readonly KeyBinding[] {
-  return bindings.filter((binding) =>
-    ![binding.key, binding.mac, binding.linux, binding.win].some((key) =>
-      keysToRemove.has(key),
-    ),
+  return bindings.filter(
+    (binding) =>
+      ![binding.key, binding.mac, binding.linux, binding.win].some((key) =>
+        keysToRemove.has(key),
+      ),
   );
 }
 
@@ -43,7 +42,8 @@ export function completionKeymap(acceptOnEnter = true): Extension {
   }
   const withoutKeysToRemove = filterCompletionBindings(
     defaultCompletionKeymap,
-    keysToRemove);
+    keysToRemove,
+  );
 
   return Prec.highest(
     keymap.of([

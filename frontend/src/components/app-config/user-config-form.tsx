@@ -119,7 +119,9 @@ const LOCALE_SYSTEM_VALUE = "__system__";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
-  const [acceptOnEnter, setAcceptOnEnter] = useAtom(acceptCompletionOnEnterAtom);
+  const [acceptOnEnter, setAcceptOnEnter] = useAtom(
+    acceptCompletionOnEnterAtom,
+  );
   const formElement = useRef<HTMLFormElement>(null);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const [activeCategory, setActiveCategory] = useAtom(
@@ -457,13 +459,16 @@ export const UserConfigForm: React.FC = () => {
                     <Checkbox
                       data-testid="accept-completion-on-enter-checkbox"
                       checked={acceptOnEnter}
-                      onCheckedChange={(checked) => setAcceptOnEnter(Boolean(checked))}
+                      onCheckedChange={(checked) =>
+                        setAcceptOnEnter(Boolean(checked))
+                      }
                     />
                   </FormControl>
                 </FormItem>
                 <FormDescription>
-                  When unchecked, pressing Enter inserts a new line instead of accepting
-                  an autocomplete suggestion. Use Tab to accept suggestions.
+                  When unchecked, pressing Enter inserts a new line instead of
+                  accepting an autocomplete suggestion. Use Tab to accept
+                  suggestions.
                 </FormDescription>
               </div>
               <FormField
