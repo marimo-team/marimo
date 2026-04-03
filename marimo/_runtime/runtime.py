@@ -88,6 +88,7 @@ from marimo._messaging.notification import (
     SQLTablePreviewNotification,
     StorageDownloadReadyNotification,
     StorageEntriesNotification,
+    UIElementMessageNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -1951,6 +1952,19 @@ class Kernel:
                     write_traceback(tmpio.read())
                 else:
                     updated_components.append(component)
+                    # Broadcast the new value to the frontend so the
+                    # rendered widget reflects kernel-initiated changes
+                    # (e.g. from code_mode's set_ui_value).
+                    broadcast_notification(
+                        UIElementMessageNotification(
+                            ui_element=object_id,
+                            message={
+                                "type": "marimo-ui-value-update",
+                                "value": value,
+                            },
+                        ),
+                        self.stream,
+                    )
 
             bound_names = {
                 name
