@@ -459,6 +459,18 @@ class AsyncCodeModeContext:
         for line in lines:
             sys.stdout.write(line + "\n")
 
+        # Report runtime errors for cells that were executed.
+        # This runs after _run_cells returns and the nested
+        # redirect_streams context has exited, so stderr is routed
+        # back to the scratch cell and captured by the SSE listener.
+        if _run:
+            for cell_id in _run:
+                cell = self.graph.cells.get(cell_id)
+                if cell is None or cell.exception is None:
+                    continue
+                label = self._cell_label(cell_id)
+                sys.stderr.write(f"error in cell {label}:\n{cell.exception}\n")
+
     def _cell_label(self, cell_id: CellId_t) -> str:
         """Return a display label: ``'id' (name)`` or ``'id'``."""
         short = repr(str(cell_id)[:8])
