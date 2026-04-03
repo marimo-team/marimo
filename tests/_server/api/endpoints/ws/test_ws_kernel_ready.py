@@ -48,6 +48,14 @@ def _manager(send_code: bool) -> MagicMock:
 class TestExtractCellDataFromDocument:
     """_extract_cell_data reads the document, not the cell_manager."""
 
+    def test_empty_document(self) -> None:
+        doc = NotebookDocument()
+        result = _extract_cell_data(doc, _manager(send_code=True))
+        assert result == ((), (), (), ())
+        # Run mode should also handle empty document
+        result = _extract_cell_data(doc, _manager(send_code=False))
+        assert result == ((), (), (), ())
+
     def test_basic_extraction(self) -> None:
         doc = _make_doc(
             ("a", "x = 1", "setup"),

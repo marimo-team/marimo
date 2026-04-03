@@ -105,6 +105,9 @@ def _extract_cell_data(
     Returns:
         Tuple of (codes, names, configs, cell_ids).
     """
+    if not document.cells:
+        return ((), (), (), ())
+
     if manager.should_send_code_to_frontend():
         # Send full cell data to frontend
         codes, names, configs, cell_ids = tuple(

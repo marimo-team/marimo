@@ -272,8 +272,8 @@ describe("applyTransactionChanges edge cases", () => {
     const [, b] = state.cellIds.inOrderIds;
     // Simulate the scenario from the bug report: a delete-cell for a cell ID
     // that was never added to the frontend, followed by a create-cell and
-    // reorder.  The delete should be silently skipped, and the rest of the
-    // transaction should still apply.
+    // a set-code update.  The delete should be silently skipped, and the rest
+    // of the transaction should still apply.
     apply([
       { type: "delete-cell", cellId: cellId("nonexistent") },
       {

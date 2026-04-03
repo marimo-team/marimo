@@ -583,10 +583,11 @@ const {
     try {
       column = state.cellIds.findWithId(cellId);
     } catch (error) {
-      // In case the cell was never sent to the user, we don't want to crash the app (or other actions being reduced).
-      Logger.error(
-        `Error deleting cell. Not found in any column: ${cellId}: ${error}`,
-      );
+      // Expected for kernel-only cells or out-of-order transactions.
+      Logger.warn("Skipping delete for missing cellId", {
+        cellId,
+        error,
+      });
       return state;
     }
 
