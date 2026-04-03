@@ -372,6 +372,20 @@ class TestCombined:
             assert k.globals["b"] == 101
             assert "1" not in _graph_codes(k)
 
+    async def test_multiply_defined_error_shows_existing_cell(
+        self, k: Kernel
+    ) -> None:
+        """Error message for multiply-defined names includes the existing cell."""
+        await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
+
+        with _ctx(k) as ctx:
+            with pytest.raises(RuntimeError) as exc_info:
+                async with ctx as nb:
+                    nb.create_cell("x = 2")
+            msg = str(exc_info.value)
+            assert "'x' is already defined in" in msg
+            assert "'0'" in msg
+
     async def test_noop_batch(self, k: Kernel) -> None:
         """An empty context manager does nothing."""
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])

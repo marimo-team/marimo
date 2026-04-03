@@ -927,10 +927,24 @@ class AsyncCodeModeContext:
                 "async with cm.get_context(skip_validation=True) as ctx"
             )
             if new_multiply_defined:
+                # Show which existing cell(s) already define each name.
+                batch_ids = {op.cell_id for op in ops}
+                details: list[str] = []
+                for name in sorted(new_multiply_defined):
+                    existing = graph.get_defining_cells(name) - batch_ids
+                    if existing:
+                        labels = ", ".join(
+                            self._cell_label(cid) for cid in sorted(existing)
+                        )
+                        details.append(
+                            f"  - {name!r} is already defined in cell {labels}"
+                        )
+                    else:
+                        details.append(f"  - {name!r}")
                 raise RuntimeError(
-                    "Multiply-defined names: "
-                    f"{sorted(new_multiply_defined)}"
-                    f"{_skip_hint}"
+                    "Multiply-defined names:\n"
+                    + "\n".join(details)
+                    + _skip_hint
                 )
             if new_cycles:
                 raise RuntimeError(
