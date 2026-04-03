@@ -23,10 +23,10 @@ from marimo._save.stubs import (
     ModuleStub,
 )
 from marimo._save.stubs.lazy_stub import (
+    _LAZY_STUB_CACHE,
     BLOB_DESERIALIZERS,
     BLOB_SERIALIZERS,
     LAZY_STUB_LOOKUP,
-    _LAZY_STUB_CACHE,
     Cache as CacheSchema,
     CacheType,
     ImmediateReferenceStub,
@@ -198,7 +198,9 @@ class LazyLoader(BasePersistenceLoader):
             data = self.store.get(key)
             if data:
                 ext = Path(key).suffix
-                deserialize = BLOB_DESERIALIZERS.get(ext, BLOB_DESERIALIZERS[".pickle"])
+                deserialize = BLOB_DESERIALIZERS.get(
+                    ext, BLOB_DESERIALIZERS[".pickle"]
+                )
                 type_hint = ref_type_hints.get(key) or (
                     return_type_hint if key == return_ref else None
                 )
@@ -315,14 +317,20 @@ class LazyLoader(BasePersistenceLoader):
         store = self.store
         return_ref = return_item.reference
         return_value = cache.meta.get("return", None)
-        return_loader = maybe_update_lazy_stub(return_value) if return_value is not None else "pickle"
+        return_loader = (
+            maybe_update_lazy_stub(return_value)
+            if return_value is not None
+            else "pickle"
+        )
         manifest_key = str(self.build_path(cache.key))
 
         def _serialize_and_write() -> None:
             """Serialize and write all blobs + manifest in background."""
             try:
                 if return_ref:
-                    serialize = BLOB_SERIALIZERS.get(return_loader, pickle.dumps)
+                    serialize = BLOB_SERIALIZERS.get(
+                        return_loader, pickle.dumps
+                    )
                     store.put(return_ref, serialize(return_value))
                 if ui_vars:
                     store.put(

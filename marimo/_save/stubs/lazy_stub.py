@@ -10,6 +10,7 @@ from typing import Any, Callable, Optional
 
 import msgspec
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._save.stores import get_store
 from marimo._save.stubs.stubs import CustomStub
 
@@ -96,8 +97,10 @@ _LAZY_STUB_CACHE: dict[type, str] = {}
 
 
 def _npz_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+    DependencyManager.numpy.require("to load cached numpy arrays.")
     import numpy as np
 
+    del type_hint
     return np.load(io.BytesIO(data), allow_pickle=False)
 
 
@@ -105,6 +108,9 @@ def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
     # version-stable across pyarrow/polars/pandas releases.
+    if not DependencyManager.pyarrow.has():
+        # pyarrow absent at save time means the blob is pickle-encoded.
+        return pickle.loads(data)
     import pyarrow as pa
 
     reader = pa.ipc.open_file(io.BytesIO(data))
@@ -125,6 +131,7 @@ def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
 
 
 def _pickle_load(data: bytes, type_hint: Optional[str] = None) -> Any:
+    del type_hint
     return pickle.loads(data)
 
 
@@ -140,6 +147,7 @@ BLOB_DESERIALIZERS: dict[str, Callable[[bytes, Optional[str]], Any]] = {
 
 
 def _npz_dump(obj: Any) -> bytes:
+    DependencyManager.numpy.require("to save numpy arrays to cache.")
     import numpy as np
 
     buf = io.BytesIO()
@@ -152,6 +160,9 @@ def _arrow_dump(obj: Any) -> bytes:
     #   polars DataFrame  → write_ipc()
     #   pandas DataFrame  → to_feather()
     #   Series (either)   → to_frame() first, then the appropriate DataFrame method
+    # Fall back to pickle when pyarrow is absent so the cache write never fails.
+    if not DependencyManager.pyarrow.has():
+        return pickle.dumps(obj)
     buf = io.BytesIO()
     if hasattr(obj, "write_ipc"):  # polars DataFrame
         obj.write_ipc(buf)
