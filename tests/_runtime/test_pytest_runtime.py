@@ -57,25 +57,47 @@ def test_smoke_test():
     # Give time for env changes to sync (helps with race conditions on Windows)
     asyncio.run(asyncio.sleep(0.1))
 
-    # sanity check for run
-    total = 0
+    # These cells test cross-cell fixture isolation and must run in their own
+    # pytest session so the fixture is intentionally absent from defs.
+    isolation_defs = {"test_cross_cell_fixture_fails", "test_missing_fixture"}
+
+    # Batch all non-isolation cells into a single run_pytest call.
+    # Each pytest.main() invocation has ~0.8s overhead, so batching 14 cells
+    # into one call saves ~10s.
+    batch_defs: set[str] = set()
+    batch_expected = [0, 0, 0, 0]  # passed, skipped, failed, errors
     for cell in app._cell_manager.cells():
-        if cell.__test__:
+        if cell and cell.__test__ and not (cell.defs & isolation_defs):
+            batch_defs.update(cell.defs)
+            for d in cell.defs:
+                for i, v in enumerate(def_count[d]):
+                    batch_expected[i] += v
+
+    response = run_pytest(defs=batch_defs, lcls=lcls, notebook_path=path)
+    assert (
+        response.passed,
+        response.skipped,
+        response.failed,
+        response.errors,
+    ) == tuple(batch_expected), response.output
+    total = response.total
+
+    # Isolation tests: run separately to verify fixture scoping errors
+    for cell in app._cell_manager.cells():
+        if cell and cell.__test__ and (cell.defs & isolation_defs):
             response = run_pytest(
                 defs=cell.defs, lcls=lcls, notebook_path=path
             )
+            expected = tuple(map(sum, zip(*[def_count[d] for d in cell.defs])))
             assert (
                 response.passed,
                 response.skipped,
                 response.failed,
                 response.errors,
-            ) == tuple(map(sum, zip(*[def_count[d] for d in cell.defs]))), (
-                response.output
-            )
+            ) == expected, response.output
             total += response.total
 
     os.environ["PYTEST_CURRENT_TEST"] = previous
-    # put it back on
 
     # Assert all cases captured, and nothing missed.
     # Total: 0+0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1+0+0+1+1+1 = 30
