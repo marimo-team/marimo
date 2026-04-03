@@ -6980,4 +6980,20 @@ paths:
       summary: Submit login form
       tags:
       - auth
+  /auth/token:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  token:
+                    nullable: true
+                    type: string
+                type: object
+          description: The auth token (null if auth is disabled)
+      summary: Get the auth token for the current session
+      tags:
+      - auth
 
