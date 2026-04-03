@@ -446,10 +446,23 @@ class WebSocketHandler(SessionConsumer):
             return False
         return True
 
+    async def _safe_close(self, code: int, reason: str) -> None:
+        """Close the WebSocket, ignoring errors from uninitialized state.
+
+        uvicorn never calls websockets' ``connection_open()``, so internal
+        attributes like ``transfer_data_task`` are missing. Closing a
+        websocket in that state raises ``AttributeError``. The connection
+        is cleaned up when the handler returns regardless.
+        """
+        try:
+            await self.websocket.close(code, reason)
+        except AttributeError:
+            LOGGER.debug("Ignoring AttributeError during websocket close")
+
     async def _close_already_connected(self) -> None:
         """Close the WebSocket with an 'already connected' error."""
         if self.websocket.application_state is WebSocketState.CONNECTED:
-            await self.websocket.close(
+            await self._safe_close(
                 WebSocketCodes.ALREADY_CONNECTED,
                 "MARIMO_ALREADY_CONNECTED",
             )
@@ -461,7 +474,7 @@ class WebSocketHandler(SessionConsumer):
             text = serialize_notification_for_websocket(notification)
             await self.websocket.send_text(text)
             # Then close with simple reason
-            await self.websocket.close(
+            await self._safe_close(
                 WebSocketCodes.UNEXPECTED_ERROR,
                 "MARIMO_KERNEL_STARTUP_ERROR",
             )
@@ -479,7 +492,7 @@ class WebSocketHandler(SessionConsumer):
         ) and self.websocket.application_state is WebSocketState.CONNECTED
         if is_connected:
             asyncio.create_task(
-                self.websocket.close(
+                self._safe_close(
                     WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
                 )
             )
