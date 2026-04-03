@@ -24,13 +24,21 @@ class AgentConfig:
         )
 
 
+def _claude_skill_dirs() -> list[Path]:
+    """Return all directories where a Claude Code skill may be installed.
+
+    Skills can live under skills/, plugins/, or plugins/marketplaces/ in
+    both the global (~/.claude) and local (.claude) config directories.
+    """
+    roots = [Path.home() / ".claude", Path.cwd() / ".claude"]
+    subdirs = ["skills", "plugins", str(Path("plugins") / "marketplaces")]
+    return [root / sub for root in roots for sub in subdirs]
+
+
 AGENTS: dict[str, AgentConfig] = {
     "claude": AgentConfig(
         name="Claude Code",
-        skill_dirs=[
-            Path.home() / ".claude" / "skills",
-            Path.cwd() / ".claude" / "skills",
-        ],
+        skill_dirs=_claude_skill_dirs(),
     ),
     "codex": AgentConfig(
         name="Codex",
