@@ -164,7 +164,13 @@ class _CellsView:
             if cell.name == target:
                 return cell.id
 
-        raise KeyError(target)
+        available = ", ".join(c.id for c in self._doc.cells)
+        raise KeyError(
+            f"Cell {target!r} not found. "
+            f"Available cell IDs: [{available}]. "
+            f"IDs are stable across reorders — re-read ctx.cells "
+            f"if the notebook structure changed."
+        )
 
     def __len__(self) -> int:
         return len(self._doc)
@@ -204,6 +210,69 @@ class _CellsView:
     def items(self) -> list[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
         return [(c.id, c) for c in self._doc.cells]
+
+    # ------------------------------------------------------------------
+    # Content search
+    # ------------------------------------------------------------------
+
+    def find(self, substring: str) -> list[NotebookCell]:
+        """Return cells whose code contains *substring*.
+
+        Performs a case-sensitive substring search on each cell's code.
+
+        Example::
+
+            ctx.cells.find("import marimo")
+        """
+        return [c for c in self._doc.cells if substring in c.code]
+
+    def grep(self, pattern: str) -> list[NotebookCell]:
+        """Return cells whose code matches the regex *pattern*.
+
+        Uses :func:`re.search` so the pattern can match anywhere in
+        the cell's code.
+
+        Example::
+
+            ctx.cells.grep(r"alt\\.Chart")
+        """
+        import re
+
+        compiled = re.compile(pattern)
+        return [c for c in self._doc.cells if compiled.search(c.code)]
+
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
+    def __repr__(self) -> str:
+        cells = self._doc.cells
+        n = len(cells)
+        max_shown = 10
+        lines = [f"CellsView({n} cell{'s' if n != 1 else ''}):"]
+
+        def _fmt(i: int, c: NotebookCell) -> str:
+            first_line = c.code.split("\n", 1)[0]
+            code_preview = first_line[:50]
+            if len(first_line) > 50:
+                code_preview += "..."
+            name_part = f" ({c.name})" if c.name else ""
+            return f"  [{i}] {c.id}{name_part} | {code_preview}"
+
+        if n <= max_shown:
+            for i, c in enumerate(cells):
+                lines.append(_fmt(i, c))
+        else:
+            for i, c in enumerate(cells[:max_shown]):
+                lines.append(_fmt(i, c))
+            omitted = n - max_shown - 1
+            if omitted > 0:
+                lines.append(
+                    f"  ... {omitted} more cell"
+                    f"{'s' if omitted != 1 else ''} ..."
+                )
+            lines.append(_fmt(n - 1, cells[-1]))
+        return "\n".join(lines)
 
 
 # ------------------------------------------------------------------
