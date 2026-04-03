@@ -33,8 +33,6 @@ from marimo._save.stubs.lazy_stub import (
 
 LOGGER = _loggers.marimo_logger()
 
-_MISSING = object()
-
 
 def to_item(
     path: Path,
@@ -146,8 +144,6 @@ class LazyLoader(BasePersistenceLoader):
             data = self.store.get(key)
             if data:
                 results.put((key, pickle.loads(data)))
-            else:
-                results.put((key, _MISSING))
 
         threads = [
             threading.Thread(target=_load_and_unpickle, args=(key,))
@@ -161,8 +157,7 @@ class LazyLoader(BasePersistenceLoader):
         for _ in unique_keys:
             try:
                 key, val = results.get(timeout=30)
-                if val is not _MISSING:
-                    unpickled[key] = val
+                unpickled[key] = val
             except queue.Empty:
                 break
 
