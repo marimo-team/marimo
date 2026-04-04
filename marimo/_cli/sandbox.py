@@ -202,23 +202,7 @@ def _uv_export_script_requirements_txt(
         capture_output=True,
         text=True,
     )
-    lines = result.stdout.split("\n")
-
-    # uv export returns local paths relative to the script file, but these
-    # lines get written to a temp requirements file consumed by
-    # `uv run --with-requirements`, which resolves relative paths from CWD.
-    # Convert relative paths to absolute using the script's directory as base.
-    # Applies to both editable (-e ../../) and non-editable (../../) sources.
-    script_dir = Path(name).resolve().parent
-    resolved = []
-    for line in lines:
-        editable = line.startswith("-e ")
-        path = line[3:].strip() if editable else line.strip()
-        if path.startswith("."):
-            path = str((script_dir / path).resolve())
-        prefix = "-e " if editable else ""
-        resolved.append(f"{prefix}{path}")
-    return resolved
+    return result.stdout.split("\n")
 
 
 def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
