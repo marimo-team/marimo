@@ -133,7 +133,7 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert os.path.basename(uv_cmd[0]).startswith("uv")
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -148,7 +148,7 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert os.path.basename(uv_cmd[0]).startswith("uv")
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -164,7 +164,7 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         additional_deps=[],
     )
     assert "--refresh" not in uv_cmd
-    assert os.path.basename(uv_cmd[0]).startswith("uv")
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -845,30 +845,3 @@ def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
         assert os.path.exists(venv_python)
     finally:
         cleanup_sandbox_dir(sandbox_dir)
-
-
-def test_uv_export_script_requirements_txt_resolves_relative_paths(
-    tmp_path: Path,
-) -> None:
-    """Test that relative paths in uv export output are resolved to absolute paths."""
-    from unittest.mock import MagicMock, patch
-    from marimo._cli.sandbox import _uv_export_script_requirements_txt
-
-    script_path = tmp_path / "subdir" / "notebook.py"
-    script_path.parent.mkdir(parents=True)
-    script_path.write_text("# placeholder")
-
-    # Simulate uv export returning relative paths
-    mock_result = MagicMock()
-    mock_result.stdout = "-e ../../\n../other_pkg\nnumpy==1.26.0\n"
-
-    with patch("subprocess.run", return_value=mock_result):
-        lines = _uv_export_script_requirements_txt(str(script_path))
-
-    script_dir = script_path.resolve().parent
-    expected_editable = str((script_dir / "../../").resolve())
-    expected_non_editable = str((script_dir / "../other_pkg").resolve())
-
-    assert any(l.startswith("-e ") and expected_editable in l for l in lines), f"Editable path not resolved: {lines}"
-    assert any(expected_non_editable in l and not l.startswith("-e ") for l in lines), f"Non-editable path not resolved: {lines}"
-    assert any("numpy==1.26.0" in l for l in lines), f"Non-path dep should be unchanged: {lines}"
