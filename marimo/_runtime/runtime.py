@@ -1402,12 +1402,37 @@ class Kernel:
             # common cases. We could also be more aggressive and run this before
             # every cell, or even before pickle.dump/pickle.dumps()
             with patches.patch_main_module_context(self._module):
+                # Snapshot disabled cells that are in an error/cancelled state
+                # BEFORE running, so we can clear them after the run if their
+                # ancestor recovered.
+                _pre_run_errored_disabled = {
+                    cid
+                    for cid, cell in self.graph.cells.items()
+                    if self.graph.is_disabled(cid)
+                    and cell.run_result_status in ("exception", "marimo-error", "cancelled")
+                }
                 while cell_ids := await self._run_cells_internal(cell_ids):
                     LOGGER.debug("Running state updates ...")
                     if self.lazy() and cell_ids:
                         self.graph.set_stale(cell_ids, prune_imports=True)
                         break
                 LOGGER.debug("Finished run.")
+                # Clear stale error state from disabled cells whose ancestor
+                # recovered. Uses pre-run snapshot since run_result_status is
+                # updated during the run.
+                for _cid in _pre_run_errored_disabled:
+                    _cell_impl = self.graph.cells[_cid]
+                    if not self.graph.is_any_ancestor_errored(_cid):
+                        _cell_impl.set_run_result_status("disabled")
+                        _status = (
+                            "idle"
+                            if _cell_impl.config.disabled
+                            else "disabled-transitively"
+                        )
+                        _cell_impl.set_runtime_state(_status)
+                        CellNotificationUtils.broadcast_empty_output(
+                            cell_id=_cid, status=_status
+                        )
 
     async def _if_autorun_then_run_cells(
         self, cell_ids: set[CellId_t]
@@ -1808,27 +1833,6 @@ class Kernel:
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
 
-        # Clear stale error state from disabled-transitively cells whose
-        # ancestor has recovered from an error. Without this, the disabled
-        # cell permanently shows the ancestor error even after it is fixed.
-        for cid, cell_impl in self.graph.cells.items():
-            if (
-                self.graph.is_disabled(cid)
-                and not cell_impl.config.disabled
-                and cell_impl.run_result_status
-                in ("exception", "marimo-error")
-                and not self.graph.is_any_ancestor_errored(cid)
-            ):
-                cell_impl.set_run_result_status("disabled")
-                # Broadcast runtime state so frontend transitions out of
-                # error display; set_runtime_state calls
-                # CellNotificationUtils.broadcast_status internally.
-                cell_impl.set_runtime_state("disabled-transitively")
-                # Clear the error output shown in the UI.
-                CellNotificationUtils.broadcast_empty_output(
-                    cell_id=cid, status="disabled-transitively"
-                )
-
         await self._run_cells(
             dataflow.transitive_closure(
                 self.graph,
@@ -1836,6 +1840,7 @@ class Kernel:
                 relatives=dataflow.get_import_block_relatives(self.graph),
             )
         )
+
         if self.module_watcher is not None:
             self.module_watcher.run_is_processed.set()
 
