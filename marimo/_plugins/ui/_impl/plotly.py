@@ -205,7 +205,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function supports scatter plots, scattergl plots, line charts, area
-    charts, bar charts, histograms, treemap charts, sunburst charts, and heatmaps.
+    charts, bar charts, histograms, funnel charts, treemap charts, sunburst
+    charts, and heatmaps.
 
     Examples:
         ```python
@@ -329,6 +330,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 if getattr(trace, "type", None) in (
                     "heatmap",
                     "bar",
+                    "funnel",
+                    "funnelarea",
                     "histogram",
                 ):
                     continue
@@ -485,6 +488,27 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # For bar charts with a range selection, extract all bars in range
         if has_bar and value.get("range"):
             _append_bar_items_to_selection(self._figure, self._selection_data)
+
+        has_funnel = any(
+            getattr(trace, "type", None) == "funnel"
+            for trace in self._figure.data
+        )
+
+        # For funnel charts, extract stages that fall within a range selection
+        # or pass through click data supplied by the frontend.
+        if has_funnel:
+            _append_funnel_points_to_selection(
+                self._figure, self._selection_data
+            )
+
+        has_funnelarea = any(
+            getattr(trace, "type", None) == "funnelarea"
+            for trace in self._figure.data
+        )
+
+        # For funnelarea, pass through the click data from the frontend.
+        if has_funnelarea:
+            _append_funnelarea_points_to_selection(self._selection_data)
 
         # For line/scatter charts, extract points from box/lasso selections.
         # Plotly may not send point data for pure line charts, so we extract manually.
@@ -1953,6 +1977,305 @@ def _build_bar_point(
             point[field] = val
 
     return point
+
+
+def _append_funnel_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Handle selection data for go.Funnel traces.
+
+    Two cases:
+    1. Range selection (dragmode="select"): extract funnel stages whose
+       position and value overlap the selection rectangle.
+    2. Click selection: points are already populated by the frontend with
+       x, y, label, value, and percent metrics — pass them through with
+       deduplication.
+    """
+    range_value = selection_data.get("range")
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    if isinstance(range_value, dict):
+        # Range selection: extract funnel stages within the rectangle.
+        funnel_items = _extract_funnel_stages_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+        has_real_points = any(all_points)
+        if not has_real_points and not funnel_items:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+
+        seen: set[tuple[int, int]] = set()
+        merged_points: list[dict[str, Any]] = []
+        merged_indices: list[int] = []
+
+        for point_idx, point in enumerate(all_points):
+            if not point:
+                continue
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+            merged_points.append(point)
+            if point_idx < len(all_indices) and isinstance(
+                all_indices[point_idx], int
+            ):
+                merged_indices.append(all_indices[point_idx])
+            elif point_id is not None:
+                merged_indices.append(point_id[1])
+
+        for point in funnel_items:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+                merged_indices.append(point_id[1])
+            merged_points.append(point)
+
+        selection_data["points"] = merged_points
+        selection_data["indices"] = merged_indices
+    else:
+        # Click selection: clean up empty-dict placeholders from the frontend.
+        clean_points = [p for p in all_points if p]
+        if not clean_points:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+        # Re-sync indices: prefer what the frontend sent, fall back to pointIndex.
+        incoming_index_map = {
+            id(p): idx
+            for idx, p in zip(all_indices, all_points)
+            if p and isinstance(idx, int)
+        }
+        clean_indices: list[int] = []
+        for p in clean_points:
+            idx = incoming_index_map.get(id(p))
+            if isinstance(idx, int):
+                clean_indices.append(idx)
+            else:
+                pi = p.get("pointIndex", p.get("pointNumber"))
+                if isinstance(pi, int):
+                    clean_indices.append(pi)
+        selection_data["points"] = clean_points
+        selection_data["indices"] = clean_indices
+
+
+def _extract_funnel_stages_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract funnel stages that fall within a box-selection range.
+
+    go.Funnel is structurally identical to a horizontal/vertical bar chart:
+    default orientation has x = numeric values, y = categorical stage labels.
+    A stage is selected when its category position is within the y-range AND
+    its value bar (from 0 to x) overlaps the x-range.
+    """
+    if not range_data.get("x") or not range_data.get("y"):
+        return []
+
+    x_range = range_data["x"]
+    y_range = range_data["y"]
+    x_min, x_max = min(x_range), max(x_range)
+    y_min, y_max = min(y_range), max(y_range)
+
+    if DependencyManager.numpy.has():
+        return _extract_funnel_stages_numpy(figure, x_min, x_max, y_min, y_max)
+    return _extract_funnel_stages_fallback(figure, x_min, x_max, y_min, y_max)
+
+
+def _extract_funnel_stages_numpy(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract funnel stages using numpy for vectorized filtering."""
+    import numpy as np
+
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "funnel":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        orientation = getattr(trace, "orientation", "h") or "h"
+        if orientation == "h":
+            val_data = x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            val_data = y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        n = len(val_data) if hasattr(val_data, "__len__") else 0
+        if n == 0:
+            continue
+
+        val_arr = np.asarray(val_data, dtype=np.float64)
+
+        # Category axis: each stage occupies position index ± 0.5
+        cat_positions = np.arange(n, dtype=np.float64)
+        cat_mask = (cat_max > cat_positions - 0.5) & (
+            cat_min < cat_positions + 0.5
+        )
+
+        # Value axis: funnel bar spans [0, v]; selected if bar overlaps [val_min, val_max].
+        # Overlap condition: val_min < v AND val_max > 0
+        if val_max <= 0:
+            continue  # selection is entirely in negative space — no overlap possible
+        val_mask = val_arr > val_min
+
+        mask = cat_mask & val_mask
+        for i in np.where(mask)[0]:
+            selected.append(
+                _build_funnel_stage_point(
+                    trace, trace_idx, int(i), x_data, y_data
+                )
+            )
+
+    return selected
+
+
+def _extract_funnel_stages_fallback(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract funnel stages using pure Python (fallback when numpy unavailable)."""
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "funnel":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        orientation = getattr(trace, "orientation", "h") or "h"
+        if orientation == "h":
+            val_data = x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            val_data = y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        # Value axis: funnel bar spans [0, v]; no overlap possible if val_max ≤ 0
+        numeric_val_max = _to_numeric_bar_value(val_max)
+        if numeric_val_max is None or numeric_val_max <= 0:
+            continue
+
+        numeric_val_min = _to_numeric_bar_value(val_min)
+
+        for i, val in enumerate(val_data):
+            # Category check: stage i spans (i-0.5, i+0.5)
+            cat_in_range = not (cat_max <= i - 0.5 or cat_min >= i + 0.5)
+            if not cat_in_range:
+                continue
+
+            # Value check: bar [0, val] overlaps selection [val_min, val_max]
+            # Overlap: val_min < val (bar reaches into selection range)
+            numeric_val = _to_numeric_bar_value(val)
+            if numeric_val is None or (
+                numeric_val_min is not None and numeric_val <= numeric_val_min
+            ):
+                continue
+
+            selected.append(
+                _build_funnel_stage_point(trace, trace_idx, i, x_data, y_data)
+            )
+
+    return selected
+
+
+def _build_funnel_stage_point(
+    trace: Any,
+    trace_idx: int,
+    point_idx: int,
+    x_data: Any,
+    y_data: Any,
+) -> dict[str, Any]:
+    """Build a selection point dict for a single funnel stage."""
+    x_val = _get_indexed_value(x_data, point_idx)
+    y_val = _get_indexed_value(y_data, point_idx)
+    # For horizontal funnels (default): y=category label, x=numeric value.
+    # For vertical funnels: x=category label, y=numeric value.
+    orientation = getattr(trace, "orientation", "h")
+    if orientation == "v":
+        label = x_val
+        value = y_val
+    else:
+        label = y_val
+        value = x_val
+    point: dict[str, Any] = {
+        "x": x_val,
+        "y": y_val,
+        "label": label,
+        "value": value,
+        "curveNumber": trace_idx,
+        "pointIndex": point_idx,
+        "pointNumber": point_idx,
+    }
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+    return point
+
+
+def _append_funnelarea_points_to_selection(
+    selection_data: dict[str, Any],
+) -> None:
+    """Pass through click data for go.FunnelArea traces.
+
+    FunnelArea is a sector-based chart (like sunburst) with no x/y axes, so
+    range/lasso selection is not applicable.  The frontend already populates
+    selection_data with label, value, and percent metrics on click; this
+    function only strips empty-dict placeholders and syncs indices.
+    """
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    clean_points = [p for p in all_points if p]
+    if not clean_points:
+        selection_data["points"] = []
+        selection_data["indices"] = []
+        return
+
+    incoming_index_map = {
+        id(p): idx
+        for idx, p in zip(all_indices, all_points)
+        if p and isinstance(idx, int)
+    }
+    clean_indices: list[int] = []
+    for p in clean_points:
+        idx = incoming_index_map.get(id(p))
+        if isinstance(idx, int):
+            clean_indices.append(idx)
+        else:
+            pi = p.get("pointNumber")
+            if isinstance(pi, int):
+                clean_indices.append(pi)
+    selection_data["points"] = clean_points
+    selection_data["indices"] = clean_indices
 
 
 def _append_map_scatter_points_to_selection(

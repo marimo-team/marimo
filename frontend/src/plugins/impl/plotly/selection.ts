@@ -24,6 +24,32 @@ const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
   "value",
 ] as const;
 
+// Fields emitted by go.Funnel click events: includes x/y coordinates plus
+// funnel-specific percent metrics.
+const FUNNEL_DATA_KEYS: string[] = [
+  "curveNumber",
+  "pointIndex",
+  "pointNumber",
+  "x",
+  "y",
+  "label",
+  "value",
+  "percentInitial",
+  "percentPrevious",
+  "percentTotal",
+] as const;
+
+// Fields emitted by go.FunnelArea click events: sector-based, no x/y.
+const FUNNEL_AREA_DATA_KEYS: string[] = [
+  "curveNumber",
+  "pointNumber",
+  "label",
+  "value",
+  "percentInitial",
+  "percentPrevious",
+  "percentTotal",
+] as const;
+
 const LINE_CLICK_TRACE_TYPES = new Set(["scatter", "scattergl"]);
 
 const STANDARD_POINT_KEYS: string[] = [
@@ -225,6 +251,8 @@ export function shouldHandleClickSelection(
     const type = getTraceSource(point).type;
     return (
       type === "bar" ||
+      type === "funnel" ||
+      type === "funnelarea" ||
       type === "heatmap" ||
       type === "histogram" ||
       isLinePoint(point)
@@ -296,12 +324,25 @@ export function extractPoints(
   let parser: PlotlyTemplateParser | undefined;
 
   return points.map((point) => {
+    const trace = getTraceSource(point);
+
+    // FunnelArea: sector-based chart with no x/y coordinates.
+    // Pick funnel-area-specific keys directly; hovertemplate parsing does not
+    // apply since there are no axis values to substitute.
+    if (trace.type === "funnelarea") {
+      return pick(point, FUNNEL_AREA_DATA_KEYS);
+    }
+
+    // Funnel: bar-like chart with x/y plus per-stage percent metrics.
+    // Return all funnel-specific keys so callers get percentInitial et al.
+    if (trace.type === "funnel") {
+      return pick(point, FUNNEL_DATA_KEYS);
+    }
+
     const standardPointFields = withInferredXY(
       point,
       pick(point, STANDARD_POINT_KEYS),
     );
-
-    const trace = getTraceSource(point);
 
     // Get the first hovertemplate
     const hovertemplate = Array.isArray(trace.hovertemplate)

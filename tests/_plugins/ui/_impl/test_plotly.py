@@ -18,6 +18,8 @@ from marimo._plugins.ui._impl.plotly import (
     _bar_value_in_selection_range,
     _extract_bars_fallback,
     _extract_bars_numpy,
+    _extract_funnel_stages_fallback,
+    _extract_funnel_stages_numpy,
     _extract_heatmap_cells_fallback,
     _extract_heatmap_cells_numpy,
     _extract_histogram_points_fallback,
@@ -3012,3 +3014,311 @@ def test_bar_chart_preserves_indices_when_empty_points_exist() -> None:
 
     assert result == [{"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1}]
     assert plot.indices == [1]
+
+
+# ============================================================================
+# Funnel chart tests
+# ============================================================================
+
+
+def test_funnel_basic() -> None:
+    """Funnel plot with no selection starts with empty value."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart", "Purchase"],
+            x=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+    assert plot.value == []
+    assert plot.indices == []
+
+
+def test_funnel_click_selection() -> None:
+    """Click on a funnel stage passes through with all funnel-specific fields."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart", "Purchase"],
+            x=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {
+                "x": 1000,
+                "y": "Visit",
+                "label": "Visit",
+                "value": 1000,
+                "percentInitial": 1.0,
+                "percentPrevious": 1.0,
+                "percentTotal": 1.0,
+                "curveNumber": 0,
+                "pointIndex": 0,
+                "pointNumber": 0,
+            }
+        ],
+        "indices": [0],
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 1
+    assert result[0]["x"] == 1000
+    assert result[0]["y"] == "Visit"
+    assert result[0]["percentInitial"] == 1.0
+    assert plot.indices == [0]
+
+
+def test_funnel_range_selection() -> None:
+    """Box selection on funnel extracts stages whose bar overlaps the range."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart", "Purchase"],
+            x=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+
+    # Range covers y positions 0 and 1 (Visit, Cart) with x overlap
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [500, 1100], "y": [-0.5, 1.5]},
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 2
+    labels = [p["y"] for p in result]
+    assert "Visit" in labels
+    assert "Cart" in labels
+    assert "Purchase" not in labels
+
+
+def test_funnel_range_selection_all_stages() -> None:
+    """Full range selects every funnel stage."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart", "Purchase"],
+            x=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [0, 1100], "y": [-0.5, 2.5]},
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 3
+
+
+def test_funnel_range_selection_empty() -> None:
+    """Range that misses all stages returns empty selection."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart", "Purchase"],
+            x=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+
+    # x range below all values
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-500, -1], "y": [-0.5, 2.5]},
+    }
+    result = plot._convert_value(selection)
+    assert result == []
+    assert plot.indices == []
+
+
+def test_funnel_numpy_and_fallback_match() -> None:
+    """numpy and fallback extraction produce identical results."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart", "Purchase"],
+            x=[1000, 800, 600],
+        )
+    )
+
+    x_min, x_max = 500.0, 1100.0
+    y_min, y_max = -0.5, 1.5
+
+    numpy_result = _extract_funnel_stages_numpy(
+        fig, x_min, x_max, y_min, y_max
+    )
+    fallback_result = _extract_funnel_stages_fallback(
+        fig, x_min, x_max, y_min, y_max
+    )
+
+    assert len(numpy_result) == len(fallback_result)
+    for np_pt, fb_pt in zip(
+        sorted(numpy_result, key=lambda p: p["pointIndex"]),
+        sorted(fallback_result, key=lambda p: p["pointIndex"]),
+    ):
+        assert np_pt["x"] == fb_pt["x"]
+        assert np_pt["y"] == fb_pt["y"]
+        assert np_pt["pointIndex"] == fb_pt["pointIndex"]
+
+
+def test_funnel_vertical_orientation() -> None:
+    """Vertical funnel (orientation='v') extracts stages correctly."""
+    fig = go.Figure(
+        data=go.Funnel(
+            x=["Visit", "Cart", "Purchase"],
+            y=[1000, 800, 600],
+            orientation="v",
+        )
+    )
+    plot = plotly(fig)
+
+    # For vertical funnel: x=labels (cat axis), y=values (val axis)
+    # y_range covers stages 0 and 1, x_range covers their positions
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 1.5], "y": [500, 1100]},
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 2
+    labels = [p["x"] for p in result]
+    assert "Visit" in labels
+    assert "Cart" in labels
+
+
+def test_funnel_multi_trace() -> None:
+    """Multiple funnel traces are each extracted independently."""
+    fig = go.Figure(
+        data=[
+            go.Funnel(y=["A", "B"], x=[100, 50], name="T1"),
+            go.Funnel(y=["A", "B"], x=[200, 80], name="T2"),
+        ]
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [0, 250], "y": [-0.5, 1.5]},
+    }
+    result = plot._convert_value(selection)
+    curve_numbers = {p["curveNumber"] for p in result}
+    assert curve_numbers == {0, 1}
+    assert len(result) == 4
+
+
+def test_funnel_customdata_included() -> None:
+    """customdata attached to funnel stages appears in extracted points."""
+    fig = go.Figure(
+        data=go.Funnel(
+            y=["Visit", "Cart"],
+            x=[1000, 800],
+            customdata=[["web", "US"], ["mobile", "EU"]],
+        )
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [0, 1100], "y": [-0.5, 1.5]},
+    }
+    result = plot._convert_value(selection)
+    assert any(p.get("customdata") is not None for p in result)
+
+
+def test_funnel_click_empty_placeholder_stripped() -> None:
+    """Empty-dict placeholders from the frontend are stripped on click."""
+    fig = go.Figure(data=go.Funnel(y=["Visit", "Cart"], x=[1000, 800]))
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {},
+            {"x": 1000, "y": "Visit", "curveNumber": 0, "pointIndex": 0},
+        ],
+        "indices": [999, 0],
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 1
+    assert result[0]["y"] == "Visit"
+    assert plot.indices == [0]
+
+
+# ============================================================================
+# FunnelArea chart tests
+# ============================================================================
+
+
+def test_funnelarea_basic() -> None:
+    """FunnelArea plot starts with empty value."""
+    fig = go.Figure(
+        data=go.Funnelarea(
+            labels=["Visit", "Cart", "Purchase"],
+            values=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+    assert plot.value == []
+    assert plot.indices == []
+
+
+def test_funnelarea_click_selection() -> None:
+    """Click on a funnelarea sector passes through label/value/percent fields."""
+    fig = go.Figure(
+        data=go.Funnelarea(
+            labels=["Visit", "Cart", "Purchase"],
+            values=[1000, 800, 600],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {
+                "label": "Cart",
+                "value": 800,
+                "percentInitial": 0.8,
+                "percentPrevious": 0.8,
+                "percentTotal": 0.8,
+                "curveNumber": 0,
+                "pointNumber": 1,
+            }
+        ],
+        "indices": [1],
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 1
+    assert result[0]["label"] == "Cart"
+    assert result[0]["value"] == 800
+    assert result[0]["percentInitial"] == 0.8
+    assert plot.indices == [1]
+
+
+def test_funnelarea_click_empty_placeholder_stripped() -> None:
+    """Empty-dict placeholders are stripped for funnelarea clicks."""
+    fig = go.Figure(
+        data=go.Funnelarea(
+            labels=["Visit", "Cart"],
+            values=[1000, 800],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {},
+            {
+                "label": "Visit",
+                "value": 1000,
+                "curveNumber": 0,
+                "pointNumber": 0,
+            },
+        ],
+        "indices": [999, 0],
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 1
+    assert result[0]["label"] == "Visit"
+    assert plot.indices == [0]
