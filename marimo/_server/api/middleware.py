@@ -14,7 +14,7 @@ from typing import (
     Optional,
     Union,
 )
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, unquote_plus, quote
 
 import starlette.status as status
 from starlette.authentication import (
@@ -511,7 +511,8 @@ class ProxyMiddleware:
         try:
             original_params = websocket.query_params
             if original_params:
-                ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
+                reescaped_params = [(k, quote(unquote_plus(v))) for k, v in original_params.items()]
+                ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in reescaped_params)}"
             await websocket.accept()
 
             # Try to connect to the upstream WebSocket with retries
