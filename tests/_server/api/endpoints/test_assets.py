@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, patch
 
@@ -15,7 +14,11 @@ from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
 from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
-from tests._server.mocks import token_header, with_file_router
+from tests._server.mocks import (
+    file_router_scope,
+    token_header,
+    with_file_router,
+)
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -77,30 +80,33 @@ def test_index_when_new_file(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
-TEMP_DIR = TemporaryDirectory()
+def test_index_with_directory(client: TestClient, tmp_path: Path) -> None:
+    with file_router_scope(
+        client, AppFileRouter.from_directory(str(tmp_path))
+    ):
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 200, response.text
+        content = response.text
+        assert "<marimo-filename" in content
+        assert '"mode": "home"' in content
+        assert "<title>marimo</title>" in content
 
 
-@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
-def test_index_with_directory(client: TestClient) -> None:
-    response = client.get("/", headers=token_header())
-    assert response.status_code == 200, response.text
-    content = response.text
-    assert "<marimo-filename" in content
-    assert '"mode": "home"' in content
-    assert "<title>marimo</title>" in content
-
-
-@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
-def test_index_with_directory_run_mode(client: TestClient) -> None:
+def test_index_with_directory_run_mode(
+    client: TestClient, tmp_path: Path
+) -> None:
     app_state = AppState.from_app(cast(Any, client.app))
     app_state.session_manager.mode = SessionMode.RUN
 
-    response = client.get("/", headers=token_header())
-    assert response.status_code == 200, response.text
-    content = response.text
-    assert "<marimo-filename" in content
-    assert '"mode": "gallery"' in content
-    assert "<title>marimo</title>" in content
+    with file_router_scope(
+        client, AppFileRouter.from_directory(str(tmp_path))
+    ):
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 200, response.text
+        content = response.text
+        assert "<marimo-filename" in content
+        assert '"mode": "gallery"' in content
+        assert "<title>marimo</title>" in content
 
 
 def test_favicon(client: TestClient) -> None:
@@ -375,43 +381,60 @@ def test_index_includes_notebook_key_in_mount_config(
     assert '"notebook":' in response.text or "'notebook':" in response.text
 
 
-TEMP_PROJECT_DIR = TemporaryDirectory()
-Path(TEMP_PROJECT_DIR.name).joinpath("pyproject.toml").touch()
-SUBDIR = Path(TEMP_PROJECT_DIR.name).joinpath("subdir")
-SUBDIR.mkdir()
-NOTEBOOK_FILE = SUBDIR.joinpath("notebook.py")
-NOTEBOOK_FILE.touch()
+def test_index_lsp_workspace_with_filename(
+    client: TestClient, tmp_path: Path
+) -> None:
+    temp_project_dir = tmp_path
+    temp_project_dir.joinpath("pyproject.toml").touch()
+    subdir = temp_project_dir.joinpath("subdir")
+    subdir.mkdir()
+    notebook_file = subdir.joinpath("notebook.py")
+    notebook_file.touch()
+
+    with file_router_scope(
+        client, AppFileRouter.from_filename(MarimoPath(notebook_file))
+    ):
+        response = client.get("/", headers=token_header())
+        root_uri = json.dumps(temp_project_dir.as_uri())
+        document_uri = json.dumps(notebook_file.as_uri())
+        assert f'"rootUri": {root_uri}' in response.text
+        assert f'"documentUri": {document_uri}' in response.text
 
 
-@with_file_router(AppFileRouter.from_filename(MarimoPath(NOTEBOOK_FILE)))
-def test_index_lsp_workspace_with_filename(client: TestClient) -> None:
-    response = client.get("/", headers=token_header())
-    root_uri = json.dumps(Path(TEMP_PROJECT_DIR.name).as_uri())
-    document_uri = json.dumps(NOTEBOOK_FILE.as_uri())
-    assert f'"rootUri": {root_uri}' in response.text
-    assert f'"documentUri": {document_uri}' in response.text
+def test_index_lsp_workspace_with_root_directory(
+    client: TestClient, tmp_path: Path
+) -> None:
+    temp_project_dir = tmp_path
+    temp_project_dir.joinpath("pyproject.toml").touch()
+
+    with file_router_scope(
+        client, AppFileRouter.from_directory(str(temp_project_dir))
+    ):
+        response = client.get("/?file=__new__file.py", headers=token_header())
+        root_path = temp_project_dir
+        root_uri = json.dumps(root_path.as_uri())
+        document_path = root_path.joinpath("__marimo_notebook__.py")
+        document_uri = json.dumps(document_path.as_uri())
+        assert f'"rootUri": {root_uri}' in response.text
+        assert f'"documentUri": {document_uri}' in response.text
 
 
-@with_file_router(AppFileRouter.from_directory(TEMP_PROJECT_DIR.name))
-def test_index_lsp_workspace_with_root_directory(client: TestClient) -> None:
-    response = client.get("/?file=__new__file.py", headers=token_header())
-    root_path = Path(TEMP_PROJECT_DIR.name)
-    root_uri = json.dumps(root_path.as_uri())
-    document_path = root_path.joinpath("__marimo_notebook__.py")
-    document_uri = json.dumps(document_path.as_uri())
-    assert f'"rootUri": {root_uri}' in response.text
-    assert f'"documentUri": {document_uri}' in response.text
+def test_index_lsp_workspace_with_sub_directory(
+    client: TestClient, tmp_path: Path
+) -> None:
+    temp_project_dir = tmp_path
+    temp_project_dir.joinpath("pyproject.toml").touch()
+    subdir = temp_project_dir.joinpath("subdir")
+    subdir.mkdir()
 
-
-@with_file_router(AppFileRouter.from_directory(str(SUBDIR)))
-def test_index_lsp_workspace_with_sub_directory(client: TestClient) -> None:
-    response = client.get("/?file=__new__file.py", headers=token_header())
-    root_path = Path(TEMP_PROJECT_DIR.name)
-    root_uri = json.dumps(root_path.as_uri())
-    document_path = SUBDIR.joinpath("__marimo_notebook__.py")
-    document_uri = json.dumps(document_path.as_uri())
-    assert f'"rootUri": {root_uri}' in response.text
-    assert f'"documentUri": {document_uri}' in response.text
+    with file_router_scope(client, AppFileRouter.from_directory(str(subdir))):
+        response = client.get("/?file=__new__file.py", headers=token_header())
+        root_path = temp_project_dir
+        root_uri = json.dumps(root_path.as_uri())
+        document_path = subdir.joinpath("__marimo_notebook__.py")
+        document_uri = json.dumps(document_path.as_uri())
+        assert f'"rootUri": {root_uri}' in response.text
+        assert f'"documentUri": {document_uri}' in response.text
 
 
 @with_file_router(AppFileRouter.new_file())
