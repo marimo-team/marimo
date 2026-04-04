@@ -1409,7 +1409,8 @@ class Kernel:
                     cid
                     for cid, cell in self.graph.cells.items()
                     if self.graph.is_disabled(cid)
-                    and cell.run_result_status in ("exception", "marimo-error", "cancelled")
+                    and cell.run_result_status
+                    in ("exception", "marimo-error", "cancelled")
                 }
                 while cell_ids := await self._run_cells_internal(cell_ids):
                     LOGGER.debug("Running state updates ...")
