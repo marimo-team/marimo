@@ -58,15 +58,21 @@ export function transitionCell(
         nextCell.lastRunStartTimestamp = message.timestamp as Seconds;
       }
       nextCell.debuggerActive = false;
+      // If output is being cleared (non-error), clear stopped/errored state
+      if (message.output != null && message.output.mimetype !== "application/vnd.marimo+error") {
+        nextCell.stopped = false;
+        nextCell.errored = false;
+      }
       break;
     case null:
       break;
     case "disabled-transitively":
-      // Reset errored in case this cell is transitioning back from an
-      // ancestor-error state without going through queued (e.g. ancestor
-      // recovered). In the normal disabled path errored is already false,
-      // and if an error follows this message it will re-set errored=true.
+      // Reset errored and stopped in case this cell is transitioning back
+      // from an ancestor-error state without going through queued (e.g.
+      // ancestor recovered). In the normal disabled path these are already
+      // false.
       nextCell.errored = false;
+      nextCell.stopped = false;
       break;
     case undefined:
       break;
