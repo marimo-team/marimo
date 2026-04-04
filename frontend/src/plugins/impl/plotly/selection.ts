@@ -227,6 +227,7 @@ export function shouldHandleClickSelection(
       type === "bar" ||
       type === "heatmap" ||
       type === "histogram" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });
