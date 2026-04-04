@@ -183,7 +183,7 @@ def test_altair_formatter_png():
 
     import altair as alt
 
-    # Create a mock chart with a _repr_mimebundle_ method that returns SVG
+    # Create a mock chart with a _repr_mimebundle_ method that returns PNG
     mock_chart = alt.Chart(get_data()).mark_point()
     with patch.object(
         alt.Chart,
