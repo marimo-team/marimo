@@ -51,6 +51,8 @@ class AltairFormatter(FormatterFactory):
             except Exception:
                 pass
 
+            # When the mimebundle is a tuple, it follows the format
+            # (data_dict, metadata_dict).
             if isinstance(mimebundle, tuple) and "image/png" in mimebundle[0]:
                 return _format_png_mimebundle(mimebundle)
 
