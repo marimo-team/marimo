@@ -335,7 +335,7 @@ def _resolve_lsp_workspace(
 ) -> dict[str, str]:
     if filename:
         document_path = Path(filename)
-        start_path = Path(directory) if directory else document_path.parent
+        start_path = document_path.parent
     else:
         start_path = Path(directory) if directory else Path.cwd()
         document_path = start_path.joinpath("__marimo_notebook__.py")
