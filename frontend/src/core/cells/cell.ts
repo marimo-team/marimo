@@ -59,7 +59,10 @@ export function transitionCell(
       }
       nextCell.debuggerActive = false;
       // If output is being cleared (non-error), clear stopped/errored state
-      if (message.output != null && message.output.mimetype !== "application/vnd.marimo+error") {
+      if (
+        message.output != null &&
+        message.output.mimetype !== "application/vnd.marimo+error"
+      ) {
         nextCell.stopped = false;
         nextCell.errored = false;
       }
