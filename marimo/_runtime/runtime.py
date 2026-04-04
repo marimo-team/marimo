@@ -27,7 +27,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellImpl
+from marimo._ast.cell import CellConfig, CellImpl, RuntimeStateType
 from marimo._ast.compiler import _build_source_position_map, compile_cell
 from marimo._ast.errors import ImportStarError
 from marimo._ast.names import SETUP_CELL_NAME
@@ -1425,10 +1425,11 @@ class Kernel:
                     _cell_impl = self.graph.cells[_cid]
                     if not self.graph.is_any_ancestor_errored(_cid):
                         _cell_impl.set_run_result_status("disabled")
-                        _status = (
+                        _status = cast(
+                            RuntimeStateType,
                             "idle"
                             if _cell_impl.config.disabled
-                            else "disabled-transitively"
+                            else "disabled-transitively",
                         )
                         _cell_impl.set_runtime_state(_status)
                         CellNotificationUtils.broadcast_empty_output(
