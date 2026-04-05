@@ -857,6 +857,7 @@ def test_uv_export_script_requirements_txt_resolves_relative_paths(
     to a temp requirements file where uv resolves them relative to CWD instead.
     """
     from unittest.mock import MagicMock, patch
+
     from marimo._cli.sandbox import _uv_export_script_requirements_txt
 
     script_path = tmp_path / "subdir" / "notebook.py"
@@ -864,7 +865,9 @@ def test_uv_export_script_requirements_txt_resolves_relative_paths(
     script_path.write_text("# placeholder")
 
     mock_result = MagicMock()
-    mock_result.stdout = "-e ../../\n../other_pkg\nnumpy==1.26.0\n/absolute/path\n\n"
+    mock_result.stdout = (
+        "-e ../../\n../other_pkg\nnumpy==1.26.0\n/absolute/path\n\n"
+    )
 
     with patch("subprocess.run", return_value=mock_result):
         lines = _uv_export_script_requirements_txt(str(script_path))
@@ -874,10 +877,15 @@ def test_uv_export_script_requirements_txt_resolves_relative_paths(
     expected_non_editable = str((script_dir / "../other_pkg").resolve())
 
     # Editable relative path resolved to absolute
-    assert any(l.startswith("-e ") and expected_editable in l for l in lines)
+    assert any(
+        line.startswith("-e ") and expected_editable in line for line in lines
+    )
     # Non-editable relative path resolved to absolute
-    assert any(expected_non_editable in l and not l.startswith("-e ") for l in lines)
+    assert any(
+        expected_non_editable in line and not line.startswith("-e ")
+        for line in lines
+    )
     # Regular dep unchanged
-    assert any("numpy==1.26.0" in l for l in lines)
+    assert any("numpy==1.26.0" in line for line in lines)
     # Absolute path unchanged
-    assert any("/absolute/path" in l for l in lines)
+    assert any("/absolute/path" in line for line in lines)
