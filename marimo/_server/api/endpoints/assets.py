@@ -330,6 +330,9 @@ async def index(request: Request) -> HTMLResponse:
     return HTMLResponse(html)
 
 
+DEFAULT_NOTEBOOK_NAME = "__marimo_notebook__.py"
+
+
 def _resolve_lsp_workspace(
     filename: str | None, directory: str | None
 ) -> dict[str, str]:
@@ -338,7 +341,7 @@ def _resolve_lsp_workspace(
         start_path = document_path.parent
     else:
         start_path = Path(directory) if directory else Path.cwd()
-        document_path = start_path.joinpath("__marimo_notebook__.py")
+        document_path = start_path.joinpath(DEFAULT_NOTEBOOK_NAME)
 
     pyproject_path = find_nearest_pyproject_toml(start_path)
     root_path = pyproject_path.parent if pyproject_path else start_path

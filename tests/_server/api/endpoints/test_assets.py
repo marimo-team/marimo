@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, patch
 
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.assets import _inject_service_worker
+from marimo._server.api.endpoints.assets import (
+    DEFAULT_NOTEBOOK_NAME,
+    _inject_service_worker,
+)
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
 from marimo._session.model import SessionMode
@@ -413,7 +416,7 @@ def test_index_lsp_workspace_with_root_directory(
         response = client.get("/?file=__new__file.py", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
-        document_path = root_path.joinpath("__marimo_notebook__.py")
+        document_path = root_path.joinpath(DEFAULT_NOTEBOOK_NAME)
         document_uri = json.dumps(document_path.as_uri())
         assert f'"rootUri": {root_uri}' in response.text
         assert f'"documentUri": {document_uri}' in response.text
@@ -431,7 +434,7 @@ def test_index_lsp_workspace_with_sub_directory(
         response = client.get("/?file=__new__file.py", headers=token_header())
         root_path = temp_project_dir
         root_uri = json.dumps(root_path.as_uri())
-        document_path = subdir.joinpath("__marimo_notebook__.py")
+        document_path = subdir.joinpath(DEFAULT_NOTEBOOK_NAME)
         document_uri = json.dumps(document_path.as_uri())
         assert f'"rootUri": {root_uri}' in response.text
         assert f'"documentUri": {document_uri}' in response.text
@@ -442,7 +445,7 @@ def test_index_lsp_workspace_fallback_to_cwd(client: TestClient) -> None:
     response = client.get("/", headers=token_header())
     root_path = Path.cwd()
     root_uri = json.dumps(root_path.as_uri())
-    document_path = root_path.joinpath("__marimo_notebook__.py")
+    document_path = root_path.joinpath(DEFAULT_NOTEBOOK_NAME)
     document_uri = json.dumps(document_path.as_uri())
     assert f'"rootUri": {root_uri}' in response.text
     assert f'"documentUri": {document_uri}' in response.text
