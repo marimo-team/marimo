@@ -866,10 +866,15 @@ def test_uv_export_script_requirements_txt_resolves_relative_paths(
 
     mock_result = MagicMock()
     mock_result.stdout = (
-        "-e ../../\n../other_pkg\nnumpy==1.26.0\n/absolute/path\n\n"
+        "-e ../../\n"
+        "../other_pkg\n"
+        "../pkg_with_marker ; python_version<'3.12'\n"
+        "numpy==1.26.0\n"
+        "/absolute/path\n"
+        "\n"
     )
 
-    with patch("subprocess.run", return_value=mock_result):
+    with patch("marimo._cli.sandbox.subprocess.run", return_value=mock_result):
         lines = _uv_export_script_requirements_txt(str(script_path))
 
     script_dir = script_path.resolve().parent
@@ -883,6 +888,12 @@ def test_uv_export_script_requirements_txt_resolves_relative_paths(
     # Non-editable relative path resolved to absolute
     assert any(
         expected_non_editable in line and not line.startswith("-e ")
+        for line in lines
+    )
+    # Relative path with environment marker: path resolved, marker preserved
+    expected_marker_path = str((script_dir / "../pkg_with_marker").resolve())
+    assert any(
+        expected_marker_path in line and "python_version<'3.12'" in line
         for line in lines
     )
     # Regular dep unchanged
