@@ -46,6 +46,7 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
+from marimo._messaging.errors import Error
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -97,6 +98,40 @@ CellStatusType = Literal[
     "queued",
     "running",
 ]
+
+CellErrorKind = Literal["graph", "runtime"]
+
+
+class CellError:
+    """An error affecting a notebook cell.
+
+    Parameters
+    ----------
+    kind : ``"graph"`` or ``"runtime"``
+        ``"graph"`` — a dataflow-graph error that *prevents* execution
+        (multiply-defined variable, cycle, etc.).
+        ``"runtime"`` — an exception raised during execution.
+    msg : str
+        Human-readable description.
+    exception : Exception | None
+        The original ``Exception`` for runtime errors; ``None`` for
+        graph errors.
+    """
+
+    __slots__ = ("exception", "kind", "msg")
+
+    def __init__(
+        self,
+        kind: CellErrorKind,
+        msg: str,
+        exception: Exception | None = None,
+    ) -> None:
+        self.kind = kind
+        self.msg = msg
+        self.exception = exception
+
+    def __repr__(self) -> str:
+        return f"CellError(kind={self.kind!r}, msg={self.msg!r})"
 
 
 class CellRuntimeState(Protocol):
@@ -167,17 +202,23 @@ class NotebookCell:
         Synthesized execution status. Priority order:
         transient state (queued/running/disabled) > stale > last run result.
         ``None`` if the cell has never been registered in the graph.
-    error : Exception | None
-        The exception from the last run, if any.
+    errors : list[str]
+        Human-readable descriptions of all errors affecting this cell.
+        Covers both runtime exceptions (e.g. ``NameError``) and graph
+        errors (multiply-defined variables, cycles, etc.).
     """
 
-    __slots__ = ("_cell", "_impl")
+    __slots__ = ("_cell", "_graph_errors", "_impl")
 
     def __init__(
-        self, cell: _NotebookCell, cell_impl: CellRuntimeState | None
+        self,
+        cell: _NotebookCell,
+        cell_impl: CellRuntimeState | None,
+        graph_errors: tuple[Error, ...] = (),
     ) -> None:
         self._cell = cell
         self._impl = cell_impl
+        self._graph_errors = graph_errors
 
     # -- document properties (delegated) --
 
@@ -261,10 +302,36 @@ class NotebookCell:
     def error(self) -> Exception | None:
         """The exception from the last run, if any.
 
-        Persists even when ``status`` changes to ``"stale"`` after
-        an edit — useful for inspecting what went wrong before the fix.
+        .. deprecated::
+            Use :attr:`errors` instead, which covers both runtime
+            exceptions and graph errors (multiply-defined vars, cycles).
         """
         return self._impl.exception if self._impl else None
+
+    @property
+    def errors(self) -> list[CellError]:
+        """All errors affecting this cell.
+
+        Returns a list of :class:`CellError` objects. Each has a
+        ``kind`` (``"graph"`` or ``"runtime"``), a human-readable
+        ``msg``, and for runtime errors the original ``exception``.
+
+        Returns an empty list when the cell is healthy.
+        """
+        result: list[CellError] = [
+            CellError(kind="graph", msg=err.describe())
+            for err in self._graph_errors
+        ]
+        if self._impl and self._impl.exception is not None:
+            exc = self._impl.exception
+            result.append(
+                CellError(
+                    kind="runtime",
+                    msg=f"{type(exc).__name__}: {exc}",
+                    exception=exc,
+                )
+            )
+        return result
 
     # -- display --
 
@@ -278,9 +345,11 @@ class NotebookCell:
             code_preview = first_line
         name_part = f", name={self.name!r}" if self.name else ""
         status_part = f", status={self.status!r}" if self.status else ""
+        errors = self.errors
+        errors_part = f", errors={errors!r}" if errors else ""
         return (
             f"NotebookCell(id={self.id!r}{name_part}"
-            f"{status_part}, code={code_preview!r})"
+            f"{status_part}{errors_part}, code={code_preview!r})"
         )
 
 
@@ -321,7 +390,8 @@ class _CellsView:
             impl = graph.cells.get(cell.id)
         except AttributeError:
             impl = None
-        return NotebookCell(cell, impl)
+        graph_errors = self._ctx._kernel.errors.get(cell.id, ())
+        return NotebookCell(cell, impl, graph_errors=graph_errors)
 
     def _cell_ids(self) -> list[CellId_t]:
         return list(self._doc)
