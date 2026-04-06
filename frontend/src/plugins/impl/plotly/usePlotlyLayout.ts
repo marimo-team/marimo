@@ -78,7 +78,7 @@ export function computeLayoutOnFigureChange(
   // Incompatible traces — only preserve dragmode, not axis settings
   return {
     ...base,
-    dragmode: prevLayout.dragmode,
+    ...("dragmode" in prevLayout ? { dragmode: prevLayout.dragmode } : {}),
   };
 }
 

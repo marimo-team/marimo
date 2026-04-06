@@ -130,6 +130,28 @@ describe("computeLayoutOnFigureChange", () => {
     expect(result.title).toEqual({ text: "Bar" });
   });
 
+  it("preserves nextFigure dragmode when prevLayout has no dragmode", () => {
+    const prevFigure = createFigure({}, [{ type: "histogram" } as Plotly.Data]);
+    const nextFigure = createFigure({ dragmode: "lasso" }, [
+      { type: "bar" } as Plotly.Data,
+    ]);
+    const prevLayout: Partial<Plotly.Layout> = {
+      xaxis: { range: [0, 10] },
+    };
+
+    const result = computeLayoutOnFigureChange(
+      nextFigure,
+      prevFigure,
+      prevLayout,
+    );
+
+    // nextFigure.layout.dragmode should be preserved via base, not overwritten
+    expect(result.dragmode).toBe("lasso");
+    // Axis settings are NOT preserved for incompatible traces
+    expect(result.xaxis).toBeUndefined();
+    expect(result.yaxis).toBeUndefined();
+  });
+
   it("uses shapes from new figure, not previous layout", () => {
     const nextFigure = createFigure({
       shapes: [{ type: "circle", x0: 0, x1: 1, y0: 0, y1: 1 }],
