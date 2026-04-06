@@ -220,7 +220,7 @@ class PathValidator:
                 # Handle errors like permission errors, etc.
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
-                    detail=f"Error resolving path {filepath}: {str(e)}",
+                    detail=f"Error resolving path {filepath}: {e!s}",
                 ) from e
 
         except HTTPException:
@@ -230,7 +230,7 @@ class PathValidator:
             # Catch any other unexpected errors
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail=f"Unexpected error validating path: {str(e)}",
+                detail=f"Unexpected error validating path: {e!s}",
             ) from e
 
     def validate_file_access(self, filepath: Path) -> None:

@@ -522,16 +522,12 @@ class TestHash:
                 _ = sleep
                 return 42
 
-            return
-
         @app.cell
         def _(mo, time):
             @mo.cache
             def module():
                 _ = time.sleep
                 return 42
-
-            return
 
         @app.cell
         def _(direct, module):

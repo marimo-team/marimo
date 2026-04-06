@@ -61,7 +61,7 @@ async def test_stop_output(execution_kernel: Kernel) -> None:
         [
             ExecuteCellCommand(
                 cell_id="0",
-                code="import marimo as mo; x = 0; mo.stop(True, 'stopped!'); y = 1",  # noqa: E501
+                code="import marimo as mo; x = 0; mo.stop(True, 'stopped!'); y = 1",
             ),
         ]
     )

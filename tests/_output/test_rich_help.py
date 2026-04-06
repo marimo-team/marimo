@@ -114,7 +114,6 @@ def test_doc_with_signature() -> None:
 
     def example_func(arg: str) -> None:
         """This is a docstring."""
-        pass
 
     result = _doc_with_signature(example_func)
     assert "```python" in result

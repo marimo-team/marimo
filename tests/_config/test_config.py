@@ -45,7 +45,7 @@ def test_configure_full() -> None:
 
 
 def test_configure_unknown() -> None:
-    assert_config({"super cool future config key": {"secret": "value"}})  # type: ignore[typeddict-unknown-key] # noqa: E501
+    assert_config({"super cool future config key": {"secret": "value"}})  # type: ignore[typeddict-unknown-key]
 
 
 def test_merge_config() -> None:

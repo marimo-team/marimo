@@ -34,7 +34,7 @@ _ALPHABET = string.ascii_letters + string.digits
 
 
 def random_filename(ext: str) -> str:
-    # adapted from: https://stackoverflow.com/questions/13484726/safe-enough-8-character-short-unique-random-string  # noqa: E501
+    # adapted from: https://stackoverflow.com/questions/13484726/safe-enough-8-character-short-unique-random-string
     # TODO(akshayka): should callers redraw if they get a collision?
     try:
         tid = str(threading.get_native_id())
@@ -296,7 +296,7 @@ class VirtualFileRegistry:
 
 
 def _without_leading_dot(ext: str) -> str:
-    return ext[1:] if ext.startswith(".") else ext
+    return ext.removeprefix(".")
 
 
 def read_virtual_file(filename: str, byte_length: int) -> bytes:

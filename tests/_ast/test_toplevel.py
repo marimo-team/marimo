@@ -27,8 +27,6 @@ class TestTopLevelStatus:
             def add(a: int, b: int) -> int:
                 return a + b
 
-            pass
-
         status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
         assert status.type == TopLevelType.CELL
         assert status.hint == toplevel.HINT_NOT_SINGLE
@@ -299,7 +297,7 @@ class TestTopLevelExtraction:
             def Y() -> float:
                 return 1.0
 
-            pass  # to make it a cell
+            # to make it a cell
 
         @app.cell
         def _(Y):
@@ -632,7 +630,6 @@ class TestTopLevelHook:
                 @staticmethod
                 def method() -> None:
                     print(__class__)
-                    return
 
         status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
         assert status.type == TopLevelType.TOPLEVEL
@@ -646,7 +643,7 @@ class TestTopLevelSQL:
 
         @app.function
         def create_and_query():
-            import duckdb  # noqa: F401
+            import duckdb
 
             duckdb.sql("CREATE TABLE t AS SELECT 1 AS id")
             return duckdb.sql("SELECT * FROM t").df()
@@ -663,7 +660,7 @@ class TestTopLevelSQL:
 
         @app.function
         def create_and_query():
-            import duckdb  # noqa: F401
+            import duckdb
 
             return duckdb.sql(
                 "CREATE TABLE t AS SELECT 1 AS id; SELECT * FROM t"
@@ -681,7 +678,7 @@ class TestTopLevelSQL:
 
         @app.function
         def attach_and_query():
-            import duckdb  # noqa: F401
+            import duckdb
 
             duckdb.sql(
                 "DETACH DATABASE IF EXISTS mydb; ATTACH DATABASE 'mydb.duckdb' AS mydb"
@@ -704,7 +701,7 @@ class TestTopLevelSQL:
 
         @app.function
         def query_external():
-            import duckdb  # noqa: F401
+            import duckdb
 
             return duckdb.sql("SELECT * FROM some_external_table").df()
 

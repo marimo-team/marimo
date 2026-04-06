@@ -297,7 +297,6 @@ class UIElement(Html, Generic[S, T]):
         This method must convert `value`, the JSON-decoded value sent by the
         frontend, to a value of type `T` for the `UIElement`.
         """
-        pass
 
     def _frontend_initial_value(self, value: S) -> S:
         """Return the initial value to embed in HTML sent to the frontend.

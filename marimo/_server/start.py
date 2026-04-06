@@ -67,9 +67,8 @@ def _execute_startup_command(
                         content="", status="start"
                     )
                 session.notify(content, from_consumer_id=None)
-            else:
-                buffer.content += content.content
-                buffer.status = content.status
+            buffer.content += content.content
+            buffer.status = content.status
 
         try:
             # Broadcast start message to all sessions
@@ -111,7 +110,7 @@ def _execute_startup_command(
 
         except Exception as e:
             # Broadcast error message
-            error_message = f"\nError executing startup command: {str(e)}\n"
+            error_message = f"\nError executing startup command: {e!s}\n"
             write_to_all_sessions(
                 StartupLogsNotification(content=error_message, status="done"),
                 buffer,

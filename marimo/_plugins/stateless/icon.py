@@ -77,7 +77,7 @@ def icon(
     )
 
 
-def _space_to_string(value: Union[str, int, float, None]) -> Optional[str]:
+def _space_to_string(value: Union[str, float, None]) -> Optional[str]:
     if value is None:
         return None
     if isinstance(value, str):

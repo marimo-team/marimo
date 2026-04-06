@@ -114,7 +114,6 @@ class ScriptRuntimeContext(RuntimeContext):
 
     def register_state_update(self, state: State[Any]) -> None:
         del state
-        return
 
     @contextmanager
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:

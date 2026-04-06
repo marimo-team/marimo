@@ -201,7 +201,7 @@ def get_column_preview_for_duckdb(
                     VEGAFUSION_MISSING_PACKAGES,
                 )
         except Exception as e:
-            LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
+            LOGGER.warning(f"Failed to generate Altair chart: {e!s}")
 
     return DataColumnPreviewNotification(
         table_name=fully_qualified_table_name,

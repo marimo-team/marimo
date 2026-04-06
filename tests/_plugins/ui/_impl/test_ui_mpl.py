@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from marimo._plugins.ui._impl.mpl import (  # noqa: E402
+from marimo._plugins.ui._impl.mpl import (
     BoxSelection,
     EmptySelection,
     LassoSelection,

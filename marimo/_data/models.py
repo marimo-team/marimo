@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta  # noqa: TCH003
+from datetime import date, datetime, time, timedelta  # noqa: TC003
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from marimo._types.ids import VariableName

@@ -40,8 +40,7 @@ def kebab_case(name: str) -> str:
     Removes 'Command' suffix and converts to kebab-case for discriminated union tags.
     Handles acronyms by keeping consecutive uppercase letters together.
     """
-    if name.endswith("Command"):
-        name = name[:-7]  # Remove 'Command' (7 characters)
+    name = name.removesuffix("Command")  # Remove 'Command' (7 characters)
     if not name:
         return name
     # Insert hyphens before uppercase letters that follow lowercase letters
@@ -62,8 +61,6 @@ class Command(
     camelCase field names. The "type" tag discriminates between commands during
     deserialization for type-safe routing.
     """
-
-    pass
 
 
 T = TypeVar("T")
@@ -530,8 +527,6 @@ class StopKernelCommand(Command):
     Used when closing a notebook or terminating a session.
     """
 
-    pass
-
 
 class CodeCompletionCommand(Command):
     """Request code completion suggestions.
@@ -834,8 +829,6 @@ class RefreshSecretsCommand(Command):
     Reloads secrets from the provider without restarting the kernel.
     """
 
-    pass
-
 
 class ClearCacheCommand(Command):
     """Clear all cached data.
@@ -844,16 +837,12 @@ class ClearCacheCommand(Command):
     Affects all cells using the @cache decorator.
     """
 
-    pass
-
 
 class GetCacheInfoCommand(Command):
     """Retrieve cache statistics.
 
     Collects cache usage info across all contexts (hit/miss rates, time saved, disk usage).
     """
-
-    pass
 
 
 CommandMessage = Union[

@@ -117,7 +117,7 @@ class IPythonFormatter(FormatterFactory):
             if old_update_display is not None:
                 IPython.display.update_display = old_update_display  # type: ignore
             else:
-                delattr(IPython.display, "update_display")
+                del IPython.display.update_display
 
             try:
                 IPython.core.display_functions.display = old_display  # type: ignore
@@ -126,7 +126,7 @@ class IPythonFormatter(FormatterFactory):
                         old_update_display  # type: ignore
                     )
                 else:
-                    delattr(IPython.core.display_functions, "update_display")
+                    del IPython.core.display_functions.update_display
             except AttributeError:
                 pass
 

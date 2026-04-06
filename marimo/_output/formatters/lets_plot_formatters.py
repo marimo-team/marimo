@@ -11,8 +11,8 @@ class LetsPlotFormatter(FormatterFactory):
         return "lets_plot"
 
     def register(self) -> None:
-        import lets_plot.plot.core  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import lets_plot.plot.subplots  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import lets_plot.plot.core  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        import lets_plot.plot.subplots  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         from marimo._output import formatting
 

@@ -52,7 +52,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
         """
-        pass
 
     @abc.abstractmethod
     def with_dynamic_directory(
@@ -80,7 +79,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
         """
-        pass
 
     @abc.abstractmethod
     def build(self) -> ASGIApp:
@@ -90,7 +88,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIApp: The built ASGI application.
         """
-        pass
 
 
 ValidateCallback: TypeAlias = Callable[
@@ -440,9 +437,9 @@ def create_asgi_app(
     from starlette.applications import Starlette
     from starlette.responses import RedirectResponse
 
-    import marimo._server.api.lifespans as lifespans
     from marimo._config.config import PartialMarimoConfig
     from marimo._config.manager import get_default_config_manager
+    from marimo._server.api import lifespans
     from marimo._server.file_router import AppFileRouter
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app

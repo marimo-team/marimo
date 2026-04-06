@@ -279,9 +279,9 @@ def _store_reference_to_output(
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
-        if contains_instance(run_result.output, UIElement):
-            cell.set_output(run_result.output)
-        elif callable(getattr(run_result.output, "_repr_mimebundle_", None)):
+        if contains_instance(run_result.output, UIElement) or callable(
+            getattr(run_result.output, "_repr_mimebundle_", None)
+        ):
             cell.set_output(run_result.output)
 
 

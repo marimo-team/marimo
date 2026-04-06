@@ -134,14 +134,12 @@ class AppFileRouter(abc.ABC):
         """
         If there is a unique file key, return it. Otherwise, return None.
         """
-        pass
 
     @abc.abstractmethod
     def maybe_get_single_file(self) -> Optional[MarimoFile]:
         """
         If there is a single file, return it. Otherwise, return None.
         """
-        pass
 
     @property
     @abc.abstractmethod
@@ -149,7 +147,6 @@ class AppFileRouter(abc.ABC):
         """
         Get all files in a recursive tree.
         """
-        pass
 
 
 class NewFileAppFileRouter(AppFileRouter):

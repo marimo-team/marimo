@@ -9,10 +9,10 @@ from markdown import Extension, Markdown, treeprocessors  # type: ignore
 if TYPE_CHECKING:
     from xml.etree.ElementTree import Element
 
-# Adapted from https://github.com/squidfunk/mkdocs-material/discussions/3660#discussioncomment-6725823  # noqa: E501
+# Adapted from https://github.com/squidfunk/mkdocs-material/discussions/3660#discussioncomment-6725823
 
 
-class ExternalLinksTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore[misc]  # noqa: E501
+class ExternalLinksTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore[misc]
     """
     Adds target="_blank" and rel="noopener" to external links.
     """
