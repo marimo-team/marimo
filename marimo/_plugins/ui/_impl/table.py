@@ -1315,19 +1315,25 @@ class table(
         )
 
         page_manager = self._searched_manager.take(take, skip)
+
+        if self._has_stable_row_id:
+            cell_row_ids = [str(rid) for rid in row_ids]
+        else:
+            cell_row_ids = [str(i) for i in range(take)]
+
         all_cells = [
-            TableCoordinate(row_id=str(i), column_name=col)
-            for i in range(take)
+            TableCoordinate(row_id=rid, column_name=col)
+            for rid in cell_row_ids
             for col in columns
         ]
         selected = page_manager.select_cells(all_cells)
 
-        # Group selected cells by page position, keyed by original row ID
-        pos_to_row_id = {str(i): str(rid) for i, rid in enumerate(row_ids)}
+        cell_to_orig: dict[str, str] = {
+            cid: str(rid) for cid, rid in zip(cell_row_ids, row_ids)
+        }
         lookup: dict[str, dict[str, Any]] = {}
         for cell in selected:
-            cell_row = str(cell.row)
-            row_str = pos_to_row_id.get(cell_row, cell_row)
+            row_str = cell_to_orig.get(str(cell.row), str(cell.row))
             if row_str not in lookup:
                 lookup[row_str] = {}
             lookup[row_str][cell.column] = cell.value
