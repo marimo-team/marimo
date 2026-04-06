@@ -67,13 +67,13 @@ jobs:
           echo "head_sha=$head_sha" >> $GITHUB_OUTPUT
 
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
           ref: ${{ steps.pr.outputs.head_sha }}
 
       - name: 📝 Initial Comment on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         id: comment
         with:
           script: |
@@ -92,7 +92,7 @@ jobs:
           turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
       - name: Adapt pyproject.toml to build marimo-base
         run: uv run ./scripts/modify_pyproject_for_marimo_base.py
@@ -124,7 +124,7 @@ jobs:
         run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           verbose: true
           repository-url: https://test.pypi.org/legacy/
@@ -136,7 +136,7 @@ jobs:
           npm version ${{ env.MARIMO_VERSION }} --no-git-tag-version
 
       - name: 📦 Upload frontend artifact for npm publish
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend-test-branch
           path: frontend/
@@ -161,11 +161,11 @@ jobs:
     if: always()
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: 📝 Update PR Comment on Success
         if: needs.publish_wasm_test.result == 'success'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         continue-on-error: true
         env:
           MARIMO_VERSION: ${{ needs.create-test-release.outputs.marimo_version }}
@@ -188,7 +188,7 @@ jobs:
 
       - name: 📝 Update PR Comment on Failure
         if: needs.create-test-release.result == 'failure' || needs.publish_wasm_test.result == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         continue-on-error: true
         env:
           COMMENT_ID: ${{ needs.create-test-release.outputs.comment_id }}
