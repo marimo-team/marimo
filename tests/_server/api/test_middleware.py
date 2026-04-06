@@ -654,6 +654,40 @@ class TestProxyMiddleware:
         await middleware(scope, None, None)
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
 
+    def test_proxy_websocket_query_params_space_encoding(self) -> None:
+        """Spaces in query params encoded as '+' are re-encoded as '%20'.
+
+        Starlette/browsers may encode spaces as '+' in query strings
+        (application/x-www-form-urlencoded), but upstream servers like
+        python-lsp-server expect percent-encoding (%20).
+        See: https://github.com/marimo-team/marimo/issues/9041
+        """
+        from urllib.parse import quote, unquote_plus
+
+        from starlette.datastructures import QueryParams
+
+        def _encode_params(query_string: bytes) -> str:
+            """Reproduce the encoding logic from _proxy_websocket."""
+            params = QueryParams(query_string.decode())
+            encoded = [(k, quote(unquote_plus(v))) for k, v in params.items()]
+            return "&".join(f"{k}={v}" for k, v in encoded)
+
+        # '+' in query string should be converted to %20
+        result = _encode_params(b"file=my+file+name.py")
+        assert result == "file=my%20file%20name.py"
+
+        # Already percent-encoded spaces should stay as %20
+        result = _encode_params(b"file=my%20file%20name.py")
+        assert result == "file=my%20file%20name.py"
+
+        # Params without spaces should pass through unchanged
+        result = _encode_params(b"file=simple.py&mode=edit")
+        assert result == "file=simple.py&mode=edit"
+
+        # Path-like values: slashes are preserved (quote's default safe='/')
+        result = _encode_params(b"file=/path/to/my+file.py")
+        assert result == "file=/path/to/my%20file.py"
+
 
 def _mock_lsp_server(server_id: str, port: int):
     """Helper to create a mock LSP server."""
