@@ -218,7 +218,7 @@ export const GlideDataEditor = <T,>({
 
     // Add new rows in order
     const sortedNewRows = [...newRows.entries()]
-      .sort(([a], [b]) => a - b)
+      .toSorted(([a], [b]) => a - b)
       .map(([, row]) => row);
 
     if (sortedNewRows.length > 0) {

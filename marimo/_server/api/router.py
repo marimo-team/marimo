@@ -10,6 +10,7 @@ from marimo._server.api.endpoints.config import router as config_router
 from marimo._server.api.endpoints.datasources import (
     router as datasources_router,
 )
+from marimo._server.api.endpoints.document import router as document_router
 from marimo._server.api.endpoints.documentation import (
     router as documentation_router,
 )
@@ -58,6 +59,9 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router.include_router(cache_router, prefix="/api/cache", name="cache")
     app_router.include_router(
         documentation_router, prefix="/api/documentation", name="documentation"
+    )
+    app_router.include_router(
+        document_router, prefix="/api/document", name="document"
     )
     app_router.include_router(
         datasources_router, prefix="/api/datasources", name="datasources"

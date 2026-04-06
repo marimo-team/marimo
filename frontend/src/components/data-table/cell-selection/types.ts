@@ -40,8 +40,9 @@ export interface CellSelectionInstance<TData extends RowData> {
 declare module "@tanstack/react-table" {
   interface TableState extends CellSelectionTableState {}
 
-  interface TableOptionsResolved<TData extends RowData>
-    extends CellSelectionOptions {}
+  interface TableOptionsResolved<
+    TData extends RowData,
+  > extends CellSelectionOptions {}
 
   interface Table<TData extends RowData> extends CellSelectionInstance<TData> {}
 

@@ -61,6 +61,73 @@ export const Arrays = {
   },
 };
 
+/**
+ * Create an array of numbers from 0 to length - 1.
+ */
+export function range(length: number): number[] {
+  return Array.from({ length }, (_, i) => i);
+}
+
+/**
+ * Remove duplicate values from an array.
+ */
+export function uniq<T>(arr: readonly T[]): T[] {
+  return [...new Set(arr)];
+}
+
+/**
+ * Sort an array by a key function, returning a new array.
+ */
+export function sortBy<T>(
+  arr: readonly T[],
+  key: (item: T) => string | number | undefined | null,
+): T[] {
+  // Decorate/sort/undecorate to compute keys once per element
+  return arr
+    .map((item) => [key(item), item] as const)
+    .toSorted(([ka], [kb]) => {
+      // Nullish values sort last
+      if (ka == null && kb == null) {
+        return 0;
+      }
+      if (ka == null) {
+        return 1;
+      }
+      if (kb == null) {
+        return -1;
+      }
+      if (ka < kb) {
+        return -1;
+      }
+      if (ka > kb) {
+        return 1;
+      }
+      return 0;
+    })
+    .map(([, item]) => item);
+}
+
+/**
+ * Split an array into two groups based on a predicate.
+ * Returns [pass, fail] where pass contains items that match
+ * and fail contains items that don't.
+ */
+export function partition<T>(
+  arr: readonly T[],
+  predicate: (item: T) => boolean,
+): [T[], T[]] {
+  const pass: T[] = [];
+  const fail: T[] = [];
+  for (const item of arr) {
+    if (predicate(item)) {
+      pass.push(item);
+    } else {
+      fail.push(item);
+    }
+  }
+  return [pass, fail];
+}
+
 export function arrayToggle<T>(arr: T[], item: T): T[] {
   if (!arr) {
     return [item];

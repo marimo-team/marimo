@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
     from marimo._config.manager import MarimoConfigManager
+    from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import commands
@@ -109,6 +110,7 @@ class Session(Protocol):
     initialization_id: str
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
+    document: NotebookDocument
     session_view: SessionView
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
@@ -173,7 +175,7 @@ class Session(Protocol):
         operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
-        """Write an operation to the session consumer and the session view."""
+        """Broadcast a notification to session consumers."""
         ...
 
     def instantiate(

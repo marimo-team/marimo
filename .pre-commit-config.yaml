@@ -39,12 +39,18 @@ repos:
       # Run the formatter
       - id: ruff-format
 
-  - repo: https://github.com/biomejs/pre-commit
-    rev: v2.3.13
+  # TODO: add back. this throws errors: thread 'tokio-rt-worker' (169) panicked at crates/oxc_allocator/src/pool/fixed_size.rs:112:67
+  # - repo: https://github.com/oxc-project/mirrors-oxlint
+  #   rev: v1.56.0
+  #   hooks:
+  #     - id: oxlint
+  #       args: [--fix, --quiet]
+  #       files: ^(frontend/src/|packages/)
+
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: v0.42.0
     hooks:
-      - id: biome-check
-        args: [--diagnostic-level, warn]
-        exclude: |
-          (?x)^(
-            docs/_static/.*|
-          )$
+      - id: oxfmt
+        args: [--write, --config, .oxfmtrc.json]
+        files: ^(frontend/src/|packages/)
+        'types_or': [javascript, jsx, ts, tsx]

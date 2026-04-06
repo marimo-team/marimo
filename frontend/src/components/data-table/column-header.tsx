@@ -2,7 +2,6 @@
 "use no memo";
 
 import type { Column, Table } from "@tanstack/react-table";
-import { capitalize } from "lodash-es";
 import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useLocale } from "react-aria";
@@ -24,6 +23,7 @@ import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { capitalize } from "@/utils/strings";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -63,8 +63,10 @@ import { stringifyUnknownValue } from "./utils";
 
 const TOP_K_ROWS = 30;
 
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue,
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
   justify?: "left" | "center" | "right";

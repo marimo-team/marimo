@@ -82,6 +82,7 @@ export class Tracer {
     }
 
     this.spans.forEach((span) => {
+      // oxlint-disable-next-line no-console -- intentional tracing output
       console.log(`Span: ${span.name}`);
       const childSpans = this.spans.filter(
         (s) =>

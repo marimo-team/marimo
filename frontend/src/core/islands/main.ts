@@ -113,14 +113,13 @@ export async function initialize() {
       case "installing-package-alert":
       case "completion-result":
       case "reload":
-      case "update-cell-codes":
-      case "update-cell-ids":
       case "focus-cell":
       case "variables":
       case "variable-values":
       case "data-column-preview":
       case "sql-table-preview":
       case "sql-table-list-preview":
+      case "sql-schema-list-preview":
       case "datasets":
       case "data-source-connections":
       case "validate-sql-result":
@@ -195,6 +194,8 @@ export async function initialize() {
       case "cache-info":
         return;
       case "kernel-startup-error":
+        return;
+      case "notebook-document-transaction":
         return;
       case "model-lifecycle":
         handleWidgetMessage(MODEL_MANAGER, msg.data);

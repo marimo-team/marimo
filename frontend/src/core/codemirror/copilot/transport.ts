@@ -36,7 +36,8 @@ export interface LazyWebsocketTransportOptions {
   retryDelayMs?: number;
 
   /**
-   * Maximum timeout for sendData operations in milliseconds.
+   * Default timeout for sendData operations in milliseconds.
+   * Used when the caller does not provide an explicit timeout.
    * @default 5000
    */
   maxTimeoutMs?: number;
@@ -60,6 +61,13 @@ export class LazyWebsocketTransport extends Transport {
   private delegate: WebSocketTransport | undefined;
   private pendingSubscriptions: Subscription[] = [];
   private readonly options: Required<LazyWebsocketTransportOptions>;
+  private needsReInitialization = false;
+
+  /**
+   * Callback invoked after the transport reconnects following a close or connection failure.
+   * Used by the LSP client to re-run the initialize handshake on the new connection.
+   */
+  onReconnect?: () => Promise<void>;
 
   constructor(options: LazyWebsocketTransportOptions) {
     super();
@@ -157,11 +165,11 @@ export class LazyWebsocketTransport extends Transport {
         );
         if (attempt === this.options.retries) {
           this.delegate = undefined;
+          this.needsReInitialization = true;
           // Show error toast on final retry
           this.options.showError(
             "GitHub Copilot Connection Error",
-            "Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n" +
-              prettyError(error),
+            `Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n${prettyError(error)}`,
           );
           throw error;
         }
@@ -183,6 +191,7 @@ export class LazyWebsocketTransport extends Transport {
   override close(): void {
     this.delegate?.close();
     this.delegate = undefined;
+    this.needsReInitialization = true;
   }
 
   override async sendData(
@@ -200,7 +209,27 @@ export class LazyWebsocketTransport extends Transport {
         Logger.error("Copilot#sendData: Failed to reconnect transport", error);
         throw new Error(
           "Unable to connect to GitHub Copilot. Please check your settings and try again.",
+          { cause: error },
         );
+      }
+
+      // Re-run LSP initialization handshake after reconnecting
+      if (this.needsReInitialization && this.onReconnect) {
+        Logger.log(
+          "Copilot#sendData: Re-initializing LSP after reconnection...",
+        );
+        try {
+          await this.onReconnect();
+          this.needsReInitialization = false;
+        } catch (error) {
+          // Close the uninitialized connection so the next attempt starts fresh
+          this.close();
+          Logger.error(
+            "Copilot#sendData: LSP re-initialization after reconnection failed",
+            error,
+          );
+          throw error;
+        }
       }
     }
 
@@ -211,11 +240,8 @@ export class LazyWebsocketTransport extends Transport {
       );
     }
 
-    // Clamp timeout to maxTimeoutMs
-    timeout = Math.min(
-      timeout ?? this.options.maxTimeoutMs,
-      this.options.maxTimeoutMs,
-    );
+    // Use maxTimeoutMs as default when no timeout is provided
+    timeout = timeout ?? this.options.maxTimeoutMs;
     return this.delegate.sendData(data, timeout);
   }
 }

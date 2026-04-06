@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { startCase } from "lodash-es";
 import {
   BookMarkedIcon,
   CheckIcon,
@@ -80,6 +79,7 @@ import {
 import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
 import type { ProgressState } from "@/utils/progress";
+import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
@@ -385,7 +385,7 @@ export function useNotebookActions() {
             return [];
           }
           return {
-            label: startCase(id),
+            label: Strings.startCase(id),
             rightElement: renderCheckboxElement(selectedPanel === id),
             icon: <Icon size={14} strokeWidth={1.5} />,
             handle: () => toggleApplication(id),

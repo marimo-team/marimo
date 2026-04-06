@@ -272,14 +272,6 @@ async def execute_code(
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
     session = app_state.require_current_session()
 
-    # Auto-instantiate so headless /api/execute works without a prior
-    # /api/instantiate call. The kernel no-ops if already instantiated,
-    # and queue ordering guarantees it completes before the scratchpad runs.
-    session.instantiate(
-        InstantiateNotebookRequest(object_ids=[], values=[], auto_run=True),
-        http_request=HTTPRequest.from_request(request),
-    )
-
     async def _watch_disconnect() -> None:
         """Wait for client disconnect and interrupt the kernel."""
         while True:
@@ -302,6 +294,7 @@ async def execute_code(
                         ExecuteScratchpadCommand(
                             code=body.code,
                             request=HTTPRequest.from_request(request),
+                            notebook_cells=tuple(session.document.cells),
                         ),
                         from_consumer_id=None,
                     )

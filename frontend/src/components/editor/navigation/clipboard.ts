@@ -106,7 +106,7 @@ export function useCellClipboard() {
 
             // Create new cells with the copied data before/after the current cell
             const currentCellId = cellId;
-            const reversedCells = clipboardData.cells.reverse();
+            const reversedCells = clipboardData.cells.toReversed();
             for (const cell of reversedCells) {
               actions.createNewCell({
                 cellId: currentCellId,

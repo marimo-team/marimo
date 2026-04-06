@@ -19,6 +19,10 @@ from marimo._session.extensions.extensions import (
     ReplayExtension,
     SessionViewExtension,
 )
+from marimo._session.extensions.types import (
+    EventAwareExtension,
+    ExtensionRegistry,
+)
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.types import KernelState
 from marimo._types.ids import CellId_t, RequestId, SessionId
@@ -314,12 +318,12 @@ class TestSessionViewExtension:
         extension.on_attach(mock_session, event_bus)
 
         assert extension in event_bus._listeners
-        assert extension.event_bus is not None
+        assert extension._event_bus is not None
 
         extension.on_detach()
 
         assert extension not in event_bus._listeners
-        assert extension.event_bus is None
+        assert extension._event_bus is None
 
     def test_command_added_to_view(self, mock_session, event_bus) -> None:
         """Test that commands are added to session view."""
@@ -398,12 +402,12 @@ class TestQueueExtension:
         extension.on_attach(mock_session, event_bus)
 
         assert extension in event_bus._listeners
-        assert extension.event_bus is not None
+        assert extension._event_bus is not None
 
         extension.on_detach()
 
         assert extension not in event_bus._listeners
-        assert extension.event_bus is None
+        assert extension._event_bus is None
 
     def test_command_added_to_queue(
         self, mock_session, event_bus, queue_manager
@@ -445,12 +449,12 @@ class TestReplayExtension:
         extension.on_attach(mock_session, event_bus)
 
         assert extension in event_bus._listeners
-        assert extension.event_bus is not None
+        assert extension._event_bus is not None
 
         extension.on_detach()
 
         assert extension not in event_bus._listeners
-        assert extension.event_bus is None
+        assert extension._event_bus is None
 
     def test_execute_command_replayed(self, mock_session, event_bus) -> None:
         """Test that ExecuteCellsCommand is replayed with notifications."""
@@ -465,7 +469,7 @@ class TestReplayExtension:
         )
         extension.on_received_command(mock_session, cmd, None)
 
-        assert mock_session.notify.call_count == 2
+        assert mock_session.notify.call_count == 1
         extension.on_detach()
 
     def test_sync_graph_command_replayed(
@@ -486,7 +490,7 @@ class TestReplayExtension:
         )
         extension.on_received_command(mock_session, cmd, None)
 
-        assert mock_session.notify.call_count == 2
+        assert mock_session.notify.call_count == 1
         extension.on_detach()
 
     def test_other_commands_not_replayed(
@@ -506,3 +510,120 @@ class TestReplayExtension:
 
         mock_session.notify.assert_not_called()
         extension.on_detach()
+
+
+class TestEventAwareExtension:
+    """Tests for EventAwareExtension base class."""
+
+    def test_attach_subscribes_and_sets_state(
+        self, mock_session, event_bus
+    ) -> None:
+        ext = EventAwareExtension()
+        ext.on_attach(mock_session, event_bus)
+
+        assert ext._session is mock_session
+        assert ext._event_bus is event_bus
+        assert ext in event_bus._listeners
+        # Properties work while attached
+        assert ext.session is mock_session
+        assert ext.event_bus is event_bus
+
+    def test_detach_unsubscribes_and_clears_state(
+        self, mock_session, event_bus
+    ) -> None:
+        ext = EventAwareExtension()
+        ext.on_attach(mock_session, event_bus)
+        ext.on_detach()
+
+        assert ext._session is None
+        assert ext._event_bus is None
+        assert ext not in event_bus._listeners
+
+    def test_properties_raise_when_detached(self) -> None:
+        ext = EventAwareExtension()
+        with pytest.raises(RuntimeError):
+            ext.session  # noqa: B018
+        with pytest.raises(RuntimeError):
+            ext.event_bus  # noqa: B018
+
+    def test_detach_without_attach_is_safe(self) -> None:
+        ext = EventAwareExtension()
+        ext.on_detach()  # should not raise
+
+
+class TestNotificationListenerFlush:
+    """Tests for NotificationListenerExtension.flush()."""
+
+    def test_flush_delegates_to_distributor(self) -> None:
+        ext = NotificationListenerExtension(Mock(), Mock())
+        ext.distributor = Mock()
+        ext.flush()
+        ext.distributor.flush.assert_called_once()
+
+    def test_flush_noop_without_distributor(self) -> None:
+        ext = NotificationListenerExtension(Mock(), Mock())
+        ext.distributor = None
+        ext.flush()  # should not raise
+
+
+class TestExtensionRegistry:
+    """Tests for ExtensionRegistry."""
+
+    def test_add_and_iterate(self) -> None:
+        reg = ExtensionRegistry()
+        a, b = Mock(), Mock()
+        reg.add(a, b)
+        assert list(reg) == [a, b]
+
+    def test_remove(self) -> None:
+        reg = ExtensionRegistry()
+        a = Mock()
+        reg.add(a)
+        reg.remove(a)
+        assert a not in reg
+
+    def test_remove_missing_is_safe(self) -> None:
+        reg = ExtensionRegistry()
+        reg.remove(Mock())  # should not raise
+
+    def test_get_by_type(self) -> None:
+        reg = ExtensionRegistry()
+        ext = LoggingExtension()
+        reg.add(ext)
+        assert reg.get(LoggingExtension) is ext
+        assert reg.get(HeartbeatExtension) is None
+
+    def test_iter_snapshots_list(self) -> None:
+        """Iteration uses a snapshot so mutations during iteration are safe."""
+        reg = ExtensionRegistry()
+        a, b = Mock(), Mock()
+        reg.add(a, b)
+        items = iter(reg)  # snapshot taken here
+        reg.remove(b)
+        assert list(items) == [a, b]  # snapshot still has b
+        assert b not in reg
+
+
+class TestEventBusEmitSafety:
+    """Tests that _emit snapshots the listener list."""
+
+    def test_unsubscribe_during_emit_is_safe(self) -> None:
+        bus = SessionEventBus()
+        calls: list[str] = []
+
+        listener_a = Mock()
+        listener_b = Mock()
+
+        listener_a.on_received_stdin = lambda _s, _t: (
+            calls.append("a"),
+            bus.unsubscribe(listener_a),
+        )
+        listener_b.on_received_stdin = lambda _s, _t: calls.append("b")
+
+        bus.subscribe(listener_a)
+        bus.subscribe(listener_b)
+        bus.emit_received_stdin(Mock(), "hi")
+
+        # Both were called even though a unsubscribed itself mid-emit
+        assert calls == ["a", "b"]
+        assert listener_a not in bus._listeners

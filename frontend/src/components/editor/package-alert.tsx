@@ -44,7 +44,7 @@ import {
   type UserConfig,
   UserConfigSchema,
 } from "../../core/config/config-schema";
-import { getDirtyValues } from "../app-config/user-config-form";
+import { getDirtyValues } from "../app-config/get-dirty-values";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,

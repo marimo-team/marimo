@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import textwrap
+from typing import TYPE_CHECKING
 
 from marimo._metadata.opengraph import (
     DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR,
     OpenGraphConfig,
     default_opengraph_image,
+    default_opengraph_image_abs,
     read_opengraph_from_file,
     read_opengraph_from_pyproject,
     resolve_opengraph_metadata,
 )
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_read_opengraph_from_pyproject() -> None:
@@ -101,13 +106,12 @@ def test_resolve_opengraph_metadata_defaults_image_if_present(
     path = tmp_path / "notebook.py"
     path.write_text(script, encoding="utf-8")
 
-    default_image = default_opengraph_image(str(path))
-    image_path = tmp_path / default_image
-    image_path.parent.mkdir(parents=True, exist_ok=True)
-    image_path.write_bytes(b"fake-png")
+    image_abs = default_opengraph_image_abs(str(path))
+    image_abs.parent.mkdir(parents=True, exist_ok=True)
+    image_abs.write_bytes(b"fake-png")
 
     resolved = resolve_opengraph_metadata(str(path))
-    assert resolved.image == default_image
+    assert resolved.image == default_opengraph_image(str(path))
 
 
 def test_resolve_opengraph_metadata_supports_https_url_image(tmp_path) -> None:
@@ -126,6 +130,44 @@ def test_resolve_opengraph_metadata_supports_https_url_image(tmp_path) -> None:
 
     resolved = resolve_opengraph_metadata(str(path))
     assert resolved.image == "https://example.com/opengraph.png"
+
+
+def test_default_opengraph_image_abs_follows_pycache_prefix(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prefix = tmp_path / "prefix"
+    monkeypatch.setattr("sys.pycache_prefix", str(prefix))
+
+    notebook = tmp_path / "project" / "notebook.py"
+    notebook.parent.mkdir(parents=True)
+    notebook.touch()
+
+    abs_path = default_opengraph_image_abs(str(notebook))
+    # Should be under the prefix, not next to the notebook.
+    assert str(abs_path).startswith(str(prefix))
+    assert abs_path.name == "opengraph.png"
+    assert "notebook" in abs_path.parts  # stem used as subdirectory
+
+
+def test_default_image_exists_with_pycache_prefix(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_default_image_exists finds images under the relocated __marimo__ dir."""
+    prefix = tmp_path / "prefix"
+    monkeypatch.setattr("sys.pycache_prefix", str(prefix))
+
+    notebook = tmp_path / "project" / "notebook.py"
+    notebook.parent.mkdir(parents=True)
+    notebook.touch()
+
+    # Image at the relocated path.
+    image = default_opengraph_image_abs(str(notebook))
+    image.parent.mkdir(parents=True)
+    image.write_bytes(b"fake-png")
+
+    from marimo._metadata.opengraph import _default_image_exists
+
+    assert _default_image_exists(str(notebook))
 
 
 def test_default_opengraph_placeholder_generator() -> None:

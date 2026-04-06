@@ -311,18 +311,17 @@ const ActionButtons: React.FC<{
   );
 };
 
-interface VerticalCellProps
-  extends Pick<
-    CellRuntimeState,
-    | "output"
-    | "consoleOutputs"
-    | "status"
-    | "stopped"
-    | "errored"
-    | "interrupted"
-    | "staleInputs"
-    | "runStartTimestamp"
-  > {
+interface VerticalCellProps extends Pick<
+  CellRuntimeState,
+  | "output"
+  | "consoleOutputs"
+  | "status"
+  | "stopped"
+  | "errored"
+  | "interrupted"
+  | "staleInputs"
+  | "runStartTimestamp"
+> {
   cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
@@ -483,7 +482,7 @@ export function groupCellsByColumn(
   });
 
   // Sort columns by index
-  return [...cellsByColumn.entries()].sort(([a], [b]) => a - b);
+  return [...cellsByColumn.entries()].toSorted(([a], [b]) => a - b);
 }
 
 /**

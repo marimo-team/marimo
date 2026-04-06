@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
+import { dequal as isEqual } from "dequal";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
-import { isEqual } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import {
@@ -29,6 +29,7 @@ import type { CellConfig } from "../network/types";
 import { isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { prepareCellForExecution, transitionCell } from "./cell";
+import { documentTransactionMiddleware } from "./document-changes";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -174,6 +175,7 @@ export interface CreateNewCellAction {
  */
 const {
   reducer,
+  addMiddleware,
   createActions,
   useActions,
   valueAtom: notebookAtom,
@@ -245,9 +247,10 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
-      untouchedNewCells: hideCode
-        ? new Set([...state.untouchedNewCells, newCellId])
-        : state.untouchedNewCells,
+      untouchedNewCells:
+        hideCode && !code
+          ? new Set([...state.untouchedNewCells, newCellId])
+          : state.untouchedNewCells,
     };
   },
   moveCell: (
@@ -587,7 +590,9 @@ const {
     const serializedEditorState = editorView?.state.toJSON({
       history: historyField,
     });
-    serializedEditorState.doc = state.cellData[cellId].code;
+    if (serializedEditorState) {
+      serializedEditorState.doc = state.cellData[cellId].code;
+    }
 
     // release the granular atom(s) created for this cell
     releaseCellAtoms(cellId);
@@ -756,13 +761,28 @@ const {
   },
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id;
-    const nextState = updateCellRuntimeState({
+    let nextState = updateCellRuntimeState({
       state,
       cellId,
       cellReducer: (cell) => {
         return transitionCell(cell, message);
       },
     });
+    // When a cell is queued for execution, snapshot the current code
+    // as lastCodeRun. This clears staleness for cells executed by the
+    // kernel (e.g. via code_mode). If the user edits during execution,
+    // code !== lastCodeRun keeps the cell stale.
+    if (message.status === "queued") {
+      nextState = updateCellData({
+        state: nextState,
+        cellId,
+        cellReducer: (cell) => ({
+          ...cell,
+          lastCodeRun: cell.code.trim(),
+          edited: false,
+        }),
+      });
+    }
     return {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
@@ -1206,7 +1226,7 @@ const {
           i--;
         }
 
-        const collapseRanges = reversedCollapseRanges.reverse();
+        const collapseRanges = reversedCollapseRanges.toReversed();
         return column.collapseAll(collapseRanges);
       }),
     };
@@ -1404,6 +1424,11 @@ const {
     };
   },
 });
+
+// We apply the middleware here (rather than inline in createReducerAndAtoms)
+// so that the document transaction middleware can import CellActions and
+// strictly type the dispatched actions without creating a circular dependency.
+addMiddleware(documentTransactionMiddleware);
 
 function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
   return (
@@ -1789,8 +1814,10 @@ export function createTracebackInfoAtom(
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.
  */
-export function useCellActions(): CellActions {
-  return useActions();
+export function useCellActions(
+  options: { skipMiddleware?: boolean } = {},
+): CellActions {
+  return useActions(options);
 }
 
 /**

@@ -68,22 +68,39 @@ class BreaklessListsTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore
     This makes lists more compact by removing <p> tags within <li> elements.
     """
 
-    def run(self, root: Element) -> None:
-        def is_only_child(parent: Element, child: Element) -> bool:
-            return len(parent) == 1 and parent[0] is child
+    LIST_TAGS = {"ul", "ol"}
 
+    def run(self, root: Element) -> None:
         for element in root.iter(tag="li"):
-            for p in element.findall(".//p"):
-                # If paragraph has no attributes and is the only child
-                if not p.attrib and is_only_child(element, p):
-                    # Swap the paragraph with the list item
-                    element.text = p.text
-                    element.tail = p.tail
-                    # Copy over the children
-                    for child in p:
-                        element.append(child)
-                    # Remove the paragraph tag
-                    element.remove(p)
+            self._unwrap_single_paragraph(element)
+
+    def _unwrap_single_paragraph(self, li: Element) -> None:
+        """Unwrap a <p> inside an <li> when it's safe to do so.
+
+        Safe cases:
+        - <li><p>text</p></li>  (only child)
+        - <li><p>text</p><ul>...</ul></li>  (one p + nested lists)
+
+        Unsafe (preserved):
+        - <li><p>para1</p><p>para2</p></li>  (multi-paragraph)
+        """
+        direct_ps = [c for c in li if c.tag == "p" and not c.attrib]
+        if len(direct_ps) != 1:
+            return
+
+        p = direct_ps[0]
+        others = [c for c in li if c is not p]
+        if not all(c.tag in self.LIST_TAGS for c in others):
+            return
+
+        # Lift p's text onto the li, preserving children.
+        # p.tail (whitespace between </p> and the next sibling) is
+        # intentionally dropped — markdown output only puts newlines there.
+        li.text = p.text
+        idx = list(li).index(p)
+        for i, child in enumerate(p):
+            li.insert(idx + i, child)
+        li.remove(p)
 
 
 class BreaklessListsExtension(Extension):  # type: ignore[misc]

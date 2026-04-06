@@ -2,7 +2,6 @@
 
 import { CommandList } from "cmdk";
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { sortBy } from "lodash-es";
 import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
@@ -28,6 +27,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import {
+  PreviewSQLSchemaList,
   PreviewSQLTable,
   PreviewSQLTableList,
 } from "@/core/datasets/request-registry";
@@ -48,6 +48,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { sortBy } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
@@ -80,6 +81,7 @@ const INDENT = {
   database: "pl-4",
   schemaEmpty: "pl-8",
   schema: "pl-7",
+  schemaLoading: "pl-8",
   tableLoading: "pl-11",
   tableSchemaless: "pl-8",
   tableWithSchema: "pl-12",
@@ -369,6 +371,49 @@ const SchemaList: React.FC<{
   hasSearch,
   searchValue,
 }) => {
+  const { addSchemaList } = useDataSourceActions();
+  const [schemasRequested, setSchemasRequested] = React.useState(false);
+
+  // Custom loading state, we need to wait for the data to propagate once requested
+  // useAsyncData's loading state may return false before data has propagated
+  const [schemasLoading, setSchemasLoading] = React.useState(false);
+
+  const { isPending, error } = useAsyncData(async () => {
+    if (schemas.length === 0 && engineName && !schemasRequested) {
+      setSchemasRequested(true);
+      setSchemasLoading(true);
+      try {
+        const previewSchemaList = await PreviewSQLSchemaList.request({
+          engine: engineName,
+          database: databaseName,
+        });
+
+        addSchemaList({
+          schemas: previewSchemaList.schemas ?? [],
+          sqlSchemaContext: {
+            engine: engineName,
+            database: databaseName,
+          },
+        });
+      } finally {
+        setSchemasLoading(false);
+      }
+    }
+  }, [schemas.length, engineName, databaseName, schemasRequested]);
+
+  if (isPending || schemasLoading) {
+    return (
+      <LoadingState
+        message="Loading schemas..."
+        className={INDENT.schemaLoading}
+      />
+    );
+  }
+
+  if (error) {
+    return <ErrorState error={error} className={INDENT.schemaLoading} />;
+  }
+
   if (schemas.length === 0) {
     return (
       <EmptyState

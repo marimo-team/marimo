@@ -57,9 +57,8 @@ describe("parseArgsKwargs", () => {
   it("should parse empty arglist", () => {
     const code = "fn()";
     const cursor = createCursor(code);
-    expect(
-      printResults(parseArgsKwargs(cursor, code), code),
-    ).toMatchInlineSnapshot(`
+    expect(printResults(parseArgsKwargs(cursor, code), code))
+      .toMatchInlineSnapshot(`
       {
         "args": [],
         "kwargs": [],
@@ -70,9 +69,8 @@ describe("parseArgsKwargs", () => {
   it("should parse positional arguments", () => {
     const code = "fn(a, b)";
     const cursor = createCursor(code);
-    expect(
-      printResults(parseArgsKwargs(cursor, code), code),
-    ).toMatchInlineSnapshot(`
+    expect(printResults(parseArgsKwargs(cursor, code), code))
+      .toMatchInlineSnapshot(`
       {
         "args": [
           ""VariableName" (3, 4, a)",
@@ -86,9 +84,8 @@ describe("parseArgsKwargs", () => {
   it("should parse keyword arguments", () => {
     const code = "fn(a=b, c=d)";
     const cursor = createCursor(code);
-    expect(
-      printResults(parseArgsKwargs(cursor, code), code),
-    ).toMatchInlineSnapshot(`
+    expect(printResults(parseArgsKwargs(cursor, code), code))
+      .toMatchInlineSnapshot(`
       {
         "args": [],
         "kwargs": [
@@ -108,9 +105,8 @@ describe("parseArgsKwargs", () => {
   it("should parse mixed arguments", () => {
     const code = "fn(a, b=c)";
     const cursor = createCursor(code);
-    expect(
-      printResults(parseArgsKwargs(cursor, code), code),
-    ).toMatchInlineSnapshot(`
+    expect(printResults(parseArgsKwargs(cursor, code), code))
+      .toMatchInlineSnapshot(`
       {
         "args": [
           ""VariableName" (3, 4, a)",
@@ -129,9 +125,8 @@ describe("parseArgsKwargs", () => {
     const code = "x";
     const tree = parsePythonAST(code);
     const cursor = tree.cursor();
-    expect(
-      printResults(parseArgsKwargs(cursor, code), code),
-    ).toMatchInlineSnapshot(`
+    expect(printResults(parseArgsKwargs(cursor, code), code))
+      .toMatchInlineSnapshot(`
       {
         "args": [],
         "kwargs": [],

@@ -8,12 +8,12 @@
     <link rel="preload" href="./assets/gradient-yHQUC_QB.png" as="image" />
     <link rel="preload" href="./assets/noise-60BoTA8O.png" as="image" />
     <!-- Preload the fonts -->
-    <link rel="preload" href="./assets/Lora-VariableFont_wght-B2ootaw-.ttf" as="font" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/PTSans-Regular-CxL0S8W7.ttf" as="font" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/PTSans-Bold-D9fedIX3.ttf" as="font" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/FiraMono-Regular-BTCkDNvf.ttf" as="font" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/FiraMono-Medium-DU3aDxX5.ttf" as="font" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/FiraMono-Bold-CLVRCuM9.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/Lora-VariableFont_wght-CZceb_kH.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/PTSans-Regular-Bam3NpBI.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/PTSans-Bold-C_DwAp7Z.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/FiraMono-Regular-CEsLFVD9.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/FiraMono-Medium-D5MAsWEG.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/FiraMono-Bold-C6PDArdf.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
@@ -23,18 +23,22 @@
 
     <script data-marimo="true">
       function __resizeIframe(obj) {
-        var scrollbarHeight = 20; // Max between windows, mac, and linux
+        const scrollbarHeight = 20; // Max between windows, mac, and linux
 
         function setHeight() {
-          var element = obj.contentWindow.document.documentElement;
+          // Guard against race condition where iframe isn't ready
+          if (!obj.contentWindow?.document?.documentElement) {
+            return;
+          }
+          const element = obj.contentWindow.document.documentElement;
           // If there is no vertical scrollbar, we don't need to resize the iframe
           if (element.scrollHeight === element.clientHeight) {
             return;
           }
 
           // Create a new height that includes the scrollbar height if it's visible
-          var hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
-          var newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+          const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+          const newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
 
           // Only update the height if it's different from the current height
           if (obj.style.height !== `${newHeight}px`) {
@@ -46,21 +50,29 @@
         setHeight();
 
         // Resize the iframe when the content changes
-        const resizeObserver = new ResizeObserver((entries) => {
+        const resizeObserver = new ResizeObserver((_entries) => {
           setHeight();
         });
-        resizeObserver.observe(obj.contentWindow.document.body);
+        // Only observe if iframe content is ready
+        if (obj.contentWindow?.document?.body) {
+          resizeObserver.observe(obj.contentWindow.document.body);
+        }
       }
     </script>
     <marimo-filename hidden>{{ filename }}</marimo-filename>
-    <script data-marimo="true">
-      window.__MARIMO_MOUNT_CONFIG__ = '{{ mount_config }}';
-    </script>
     <title>{{ title }}</title>
-    <script type="module" crossorigin src="./assets/index-h93-9ptT.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Bkoicf0g.css" />
+    <script type="module" crossorigin src="./assets/index-B8mbfE_Q.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/cells-jmgGt1lS.css">
+    <link rel="stylesheet" crossorigin href="./assets/markdown-renderer-DdDKmWlR.css">
+    <link rel="stylesheet" crossorigin href="./assets/JsonOutput-B7vuddcd.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-DtdvIKY3.css">
   </head>
   <body>
     <div id="root"></div>
+    <!-- This is a portal for the data editor to render in -->
+    <div id="portal" data-testid="glide-portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
+    <script data-marimo="true">
+      window.__MARIMO_MOUNT_CONFIG__ = '{{ mount_config }}';
+    </script>
   </body>
 </html>

@@ -1,12 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as ProgressPrimitive from "@radix-ui/react-progress";
+import { Progress as ProgressPrimitive } from "radix-ui";
 import * as React from "react";
 
 import { cn } from "@/utils/cn";
 
-interface ProgressProps
-  extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
+interface ProgressProps extends React.ComponentPropsWithoutRef<
+  typeof ProgressPrimitive.Root
+> {
   /**
    * When true, shows an indeterminate animated progress bar.
    */

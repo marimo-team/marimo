@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { uniq } from "lodash-es";
 import type { TopLevelSpec } from "vega-lite";
 import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
+import { uniq } from "@/utils/arrays";
 import { Marks } from "./marks";
 import {
   type Field,

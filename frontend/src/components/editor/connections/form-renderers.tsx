@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { partition } from "lodash-es";
 import { KeyIcon, PlusCircleIcon } from "lucide-react";
 import { createContext, type ReactNode, use } from "react";
 import { z } from "zod";
@@ -28,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { NumberField } from "@/components/ui/number-field";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { partition } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {
@@ -72,7 +72,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
       .map((provider) => provider.name);
 
     return {
-      secretKeys: result.secrets.flatMap((secret) => secret.keys).sort(),
+      secretKeys: result.secrets.flatMap((secret) => secret.keys).toSorted(),
       providerNames: providerNames,
     };
   }, []);

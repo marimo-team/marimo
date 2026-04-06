@@ -24,6 +24,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.commands import CodeCompletionCommand
 from marimo._session.queue import QueueType
+from marimo._types.ids import RequestId
 from marimo._utils.docs import MarimoConverter
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
@@ -334,7 +335,7 @@ def _get_completion_options(
 
 def _write_completion_result(
     stream: Stream,
-    completion_id: str,
+    completion_id: RequestId,
     prefix_length: int,
     options: list[CompletionOption],
 ) -> None:
@@ -348,7 +349,7 @@ def _write_completion_result(
     )
 
 
-def _write_no_completions(stream: Stream, completion_id: str) -> None:
+def _write_no_completions(stream: Stream, completion_id: RequestId) -> None:
     _write_completion_result(stream, completion_id, 0, [])
 
 

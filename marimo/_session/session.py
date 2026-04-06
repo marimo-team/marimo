@@ -15,6 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
+from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
 )
@@ -40,7 +41,10 @@ from marimo._session.extensions.extensions import (
     ReplayExtension,
     SessionViewExtension,
 )
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import (
+    ExtensionRegistry,
+    SessionExtension,
+)
 from marimo._session.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
@@ -61,6 +65,7 @@ from marimo._utils.repr import format_repr
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
+    from marimo._ast.cell_manager import CellManager
     from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
 
@@ -69,6 +74,29 @@ LOGGER = _loggers.marimo_logger()
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
+
+
+def _document_from_cell_manager(cell_manager: CellManager) -> NotebookDocument:
+    """Build a NotebookDocument from a CellManager's current state.
+
+    TODO: CellManager and NotebookDocument track overlapping state (cell
+    ordering, code, names, configs). Once the document model is wired
+    into all consumers, we should reconcile these — either CellManager
+    wraps a NotebookDocument internally, or it is replaced by a
+    different composition. For now, the document is populated from the
+    cell manager at session startup and the two coexist.
+    """
+    return NotebookDocument(
+        [
+            NotebookCell(
+                id=cd.cell_id,
+                code=cd.code,
+                name=cd.name,
+                config=cd.config,
+            )
+            for cd in cell_manager.cell_data()
+        ]
+    )
 
 
 class SessionImpl(Session):
@@ -230,9 +258,13 @@ class SessionImpl(Session):
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
+        self.document = _document_from_cell_manager(
+            app_file_manager.app.cell_manager
+        )
         self.session_view = SessionView()
         self.config_manager = config_manager
-        self.extensions = extensions
+        self.extensions = ExtensionRegistry()
+        self.extensions.add(*extensions)
         self.scratchpad_lock = asyncio.Lock()
 
         self._kernel_manager.start_kernel()
@@ -278,7 +310,7 @@ class SessionImpl(Session):
         extension: SessionExtension,
     ) -> Iterator[SessionExtension]:
         """Attach an extension for the duration of the context."""
-        self.extensions.append(extension)
+        self.extensions.add(extension)
         extension.on_attach(self, self._event_bus)
         try:
             yield extension
@@ -294,12 +326,9 @@ class SessionImpl(Session):
 
     def flush_messages(self) -> None:
         """Flush any pending messages."""
-        # HACK: Ideally we don't need to reach into this extension directly
-        for extension in self.extensions:
-            if isinstance(extension, NotificationListenerExtension):
-                if extension.distributor is not None:
-                    extension.distributor.flush()
-                return
+        ext = self.extensions.get(NotificationListenerExtension)
+        if ext is not None:
+            ext.flush()
 
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
@@ -362,7 +391,7 @@ class SessionImpl(Session):
         an exception is raised.
         """
         # Consumers are also extensions, so we want to attach them to the session
-        self.extensions.append(session_consumer)
+        self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
         self.room.add_consumer(
             session_consumer,
@@ -387,11 +416,12 @@ class SessionImpl(Session):
         operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
-        """Write an operation to the session consumer and the session view."""
+        """Broadcast a notification to session consumers."""
         if isinstance(operation, bytes):
             notification = operation
         else:
             notification = serialize_kernel_message(operation)
+
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
 

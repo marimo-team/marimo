@@ -27,7 +27,7 @@ export class CachingRequestRegistry<REQ, RES> {
       if (typeof o !== "object" || o === null) {
         return String(o);
       }
-      return JSON.stringify(o, Object.keys(o).sort(), 2);
+      return JSON.stringify(o, Object.keys(o).toSorted(), 2);
     };
   }
 

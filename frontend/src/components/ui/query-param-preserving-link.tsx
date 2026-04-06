@@ -3,8 +3,10 @@
 import React, { useRef } from "react";
 import { usePress } from "react-aria";
 
-interface QueryParamPreservingLinkProps
-  extends Omit<React.HTMLAttributes<HTMLAnchorElement>, "href"> {
+interface QueryParamPreservingLinkProps extends Omit<
+  React.HTMLAttributes<HTMLAnchorElement>,
+  "href"
+> {
   href: string;
   children: React.ReactNode;
 }

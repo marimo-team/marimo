@@ -2,16 +2,21 @@
 
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { capitalize } from "lodash-es";
 import { isPlatformWindows } from "@/core/hotkeys/shortcuts";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
+import { capitalize } from "@/utils/strings";
 import type { TypedString } from "@/utils/typed";
 import { generateUUID } from "@/utils/uuid";
 import type { ExternalAgentSessionId, SessionSupportType } from "./types";
 
 // Types
 export type TabId = TypedString<"TabId">;
-export type ExternalAgentId = "claude" | "gemini" | "codex" | "opencode";
+export type ExternalAgentId =
+  | "claude"
+  | "gemini"
+  | "codex"
+  | "opencode"
+  | "cursor";
 
 // No agents support loading sessions, so we limit to 1, otherwise
 // this is confusing to the user when switching between sessions
@@ -221,11 +226,11 @@ export function getSessionsByAgent(
 ): AgentSession[] {
   return sessions
     .filter((session) => session.agentId === agentId)
-    .sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+    .toSorted((a, b) => b.lastUsedAt - a.lastUsedAt);
 }
 
 export function getAllAgentIds(): ExternalAgentId[] {
-  return ["claude", "gemini", "codex", "opencode"];
+  return ["claude", "gemini", "codex", "opencode", "cursor"];
 }
 
 export function getAgentDisplayName(agentId: ExternalAgentId): string {
@@ -245,6 +250,8 @@ interface AgentConfig {
   port: number;
   command: string;
   sessionSupport: SessionSupportType;
+  /** One-time setup command the user must run before starting the agent. */
+  loginHint?: string;
 }
 
 const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
@@ -266,6 +273,11 @@ const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
   opencode: {
     port: 3023,
     command: "npx opencode-ai acp",
+    sessionSupport: "single",
+  },
+  cursor: {
+    port: 3025,
+    command: "agent acp",
     sessionSupport: "single",
   },
 };

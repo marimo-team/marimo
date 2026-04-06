@@ -35,7 +35,12 @@ from marimo._server.templates.templates import (
 )
 from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
-from marimo._utils.paths import marimo_package_path, normalize_path
+from marimo._utils.paths import (
+    MARIMO_DIR_NAME,
+    marimo_package_path,
+    normalize_path,
+    notebook_output_dir,
+)
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -137,7 +142,7 @@ def og_thumbnail(*, request: Request) -> Response:
         )
 
     notebook_dir = normalize_path(Path(notebook_path)).parent
-    marimo_dir = notebook_dir / "__marimo__"
+    marimo_dir = notebook_output_dir(notebook_path)
 
     # User-defined OpenGraph generators receive this context (file key, base URL, mode)
     # so they can compute metadata dynamically for gallery cards, social previews, and other modes.
@@ -164,7 +169,13 @@ def og_thumbnail(*, request: Request) -> Response:
 
         rel_path = Path(image)
         if not rel_path.is_absolute():
-            file_path = normalize_path(notebook_dir / rel_path)
+            # Resolve __marimo__/ relative paths against the
+            # (potentially relocated) marimo output directory.
+            parts = rel_path.parts
+            if parts and parts[0] == MARIMO_DIR_NAME:
+                file_path = normalize_path(marimo_dir / Path(*parts[1:]))
+            else:
+                file_path = normalize_path(notebook_dir / rel_path)
             # Only allow serving from the notebook's __marimo__ directory.
             try:
                 if file_path.is_file():
@@ -415,12 +426,15 @@ def virtual_file(
 
     chunks = read_virtual_file_chunked(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
+    # Do NOT set Content-Length here. StreamingResponse with an explicit
+    # Content-Length causes h11 LocalProtocolError ("Too little data for
+    # declared Content-Length") for large files. Omitting it lets h11 use
+    # chunked transfer encoding instead. See #8917.
     return StreamingResponse(
         content=chunks,
         media_type=mimetype,
         headers={
             "Cache-Control": "max-age=86400",
-            "Content-Length": byte_length,
         },
     )
 

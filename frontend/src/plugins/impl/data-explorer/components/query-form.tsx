@@ -5,7 +5,6 @@ import { ExpandedType } from "compassql/build/src/query/expandedtype";
 import { PrimitiveType, type Schema } from "compassql/build/src/schema";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
 import { useAtomValue } from "jotai";
-import { startCase } from "lodash-es";
 import { FunctionSquareIcon } from "lucide-react";
 import React from "react";
 import { Label } from "@/components/ui/label";
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Strings } from "@/utils/strings";
 import type { EncodingChannel, FieldDefinition } from "../encoding";
 import {
   MULTI_TEMPORAL_FUNCTIONS,
@@ -281,7 +281,7 @@ const FieldOptions = ({
                 {label && <SelectLabel>{label}</SelectLabel>}
                 {fns.map((fn) => (
                   <SelectItem key={fn} value={fn ?? NONE_FN}>
-                    {startCase(fn)}
+                    {Strings.startCase(fn)}
                   </SelectItem>
                 ))}
               </SelectGroup>

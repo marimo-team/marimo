@@ -34,7 +34,6 @@ from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import (
-    STORAGE_INSPECTOR_DEFAULT,
     ExecutionType,
     MarimoConfig,
     OnCellChangeType,
@@ -63,6 +62,11 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.notebook.changes import ReorderCells, Transaction
+from marimo._messaging.notebook.document import (
+    NotebookDocument,
+    notebook_document_context,
+)
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
@@ -73,15 +77,17 @@ from marimo._messaging.notification import (
     HumanReadableStatus,
     InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
+    NotebookDocumentTransactionNotification,
     PackageStatusType,
     RemoveUIElementsNotification,
     SecretKeysResultNotification,
+    SQLDatabaseMetadata,
     SQLMetadata,
+    SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StorageDownloadReadyNotification,
     StorageEntriesNotification,
-    UpdateCellIdsNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -133,6 +139,7 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
+    ListSQLSchemasCommand,
     ListSQLTablesCommand,
     ModelCommand,
     PreviewDatasetColumnCommand,
@@ -1341,7 +1348,7 @@ class Kernel:
                 VariablesNotification(
                     variables=[
                         VariableDeclarationNotification(
-                            name=variable,
+                            name=VariableName(variable),
                             declared_by=list(declared_by),
                             used_by=list(
                                 self.graph.get_referring_cells(
@@ -2146,7 +2153,12 @@ class Kernel:
             return
 
         broadcast_notification(
-            UpdateCellIdsNotification(cell_ids=list(request.cell_ids))
+            NotebookDocumentTransactionNotification(
+                transaction=Transaction(
+                    changes=(ReorderCells(cell_ids=tuple(request.cell_ids)),),
+                    source="kernel",
+                )
+            )
         )
 
         # Handle markdown cells specially during kernel-ready initialization
@@ -2288,7 +2300,15 @@ class Kernel:
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadCommand,
         ) -> None:
-            with http_request_context(request.request):
+            doc = (
+                NotebookDocument(list(request.notebook_cells))
+                if request.notebook_cells is not None
+                else None
+            )
+            with (
+                notebook_document_context(doc),
+                http_request_context(request.request),
+            ):
                 await self.run_scratchpad(request.code)
             broadcast_notification(CompletedRunNotification())
 
@@ -2392,6 +2412,10 @@ class Kernel:
         handler.register(
             ListSQLTablesCommand,
             self.datasets_callbacks.preview_sql_table_list,
+        )
+        handler.register(
+            ListSQLSchemasCommand,
+            self.datasets_callbacks.preview_sql_schema_list,
         )
         handler.register(
             ListDataSourceConnectionCommand,
@@ -2681,6 +2705,62 @@ class DatasetCallbacks:
                     tables=[],
                     error="Failed to get table list: " + str(e),
                     metadata=sql_metadata,
+                ),
+            )
+
+    @kernel_tracer.start_as_current_span("preview_sql_schema_list")
+    async def preview_sql_schema_list(
+        self, request: ListSQLSchemasCommand
+    ) -> None:
+        """Get a list of schemas from an SQL database
+
+        Args:
+            request (ListSQLSchemasCommand): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+        """
+        variable_name = cast(VariableName, request.engine)
+        database_name = request.database
+        sql_db_metadata = SQLDatabaseMetadata(
+            connection=variable_name,
+            database=database_name,
+        )
+
+        engine, error = self.get_engine_catalog(variable_name)
+        if error is not None or engine is None:
+            broadcast_notification(
+                SQLSchemaListPreviewNotification(
+                    request_id=request.request_id,
+                    schemas=[],
+                    error=error,
+                    metadata=sql_db_metadata,
+                ),
+            )
+            return
+
+        try:
+            schema_list = engine.get_schemas(
+                database=database_name,
+                include_tables=False,
+                include_table_details=False,
+            )
+            broadcast_notification(
+                SQLSchemaListPreviewNotification(
+                    request_id=request.request_id,
+                    schemas=schema_list,
+                    metadata=sql_db_metadata,
+                ),
+            )
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get schema list for database %s", database_name
+            )
+            broadcast_notification(
+                SQLSchemaListPreviewNotification(
+                    request_id=request.request_id,
+                    schemas=[],
+                    error="Failed to get schema list: " + str(e),
+                    metadata=sql_db_metadata,
                 ),
             )
 
@@ -3519,9 +3599,6 @@ def launch_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-    if user_config.get("experimental", {}).get(
-        "storage_inspector", STORAGE_INSPECTOR_DEFAULT
-    ):
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(

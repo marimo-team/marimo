@@ -11,7 +11,6 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { sortBy } from "lodash-es";
 import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
 import React, { memo, useMemo } from "react";
 import { useLocale } from "react-aria";
@@ -21,6 +20,7 @@ import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import type { Variable, Variables } from "@/core/variables/types";
+import { sortBy } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { DataTableColumnHeader } from "../data-table/column-header";
 import { CellLinkList } from "../editor/links/cell-link-list";
@@ -226,7 +226,7 @@ function sortData({
       break;
   }
 
-  return sort.desc ? sortedVariables.reverse() : sortedVariables;
+  return sort.desc ? sortedVariables.toReversed() : sortedVariables;
 }
 
 export const VariableTable: React.FC<Props> = memo(

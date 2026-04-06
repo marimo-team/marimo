@@ -59,6 +59,7 @@ export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
 export type ListSQLTablesRequest = schemas["ListSQLTablesRequest"];
+export type ListSQLSchemasRequest = schemas["ListSQLSchemasRequest"];
 export type ListDataSourceConnectionRequest =
   schemas["ListDataSourceConnectionRequest"];
 export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
@@ -79,7 +80,8 @@ export interface SetCellConfigRequest {
 }
 export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
 export type ModelRequest = schemas["ModelRequest"];
-export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
+export type NotebookDocumentTransactionRequest =
+  schemas["NotebookDocumentTransactionRequest"];
 export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
@@ -137,7 +139,9 @@ export interface EditRequests {
   saveAppConfig: (request: SaveAppConfigurationRequest) => Promise<null>;
   saveCellConfig: (request: SetCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
-  syncCellIds: (request: UpdateCellIdsRequest) => Promise<null>;
+  sendDocumentTransaction: (
+    request: NotebookDocumentTransactionRequest,
+  ) => Promise<null>;
   sendInstallMissingPackages: (
     request: InstallPackagesRequest,
   ) => Promise<null>;
@@ -146,6 +150,7 @@ export interface EditRequests {
   previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   previewSQLTable: (request: PreviewSQLTableRequest) => Promise<null>;
   previewSQLTableList: (request: ListSQLTablesRequest) => Promise<null>;
+  previewSQLSchemaList: (request: ListSQLSchemasRequest) => Promise<null>;
   previewDataSourceConnection: (
     request: ListDataSourceConnectionRequest,
   ) => Promise<null>;

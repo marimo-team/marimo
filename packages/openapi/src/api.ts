@@ -4,7 +4,7 @@
  */
 
 /** Branded string type — compile-time only. */
-type TypedString<T extends string> = string & { __type__: T };
+type TypedString<T extends string> = string & { __brand: T };
 
 export interface paths {
   "/@file/{filename_and_length}": {
@@ -448,6 +448,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_sql_schema_list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ListSQLSchemasRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview a list of schemas in an SQL database */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
@@ -514,6 +555,47 @@ export interface paths {
       };
       responses: {
         /** @description Preview a list of tables in an SQL schema */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/document/transaction": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply a document transaction */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2444,47 +2526,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/sync/cell_ids": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellIdsRequest"];
-        };
-      };
-      responses: {
-        /** @description Sync cell ids */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/takeover": {
     parameters: {
       query?: never;
@@ -3391,6 +3432,7 @@ export interface components {
       /** @default null */
       variant?: "danger" | null;
     };
+    /** Format: base64 */
     Base64String: TypedString<"Base64String">;
     /** BaseResponse */
     BaseResponse: {
@@ -3481,6 +3523,7 @@ export interface components {
       /** @default false */
       hide_code?: boolean;
     };
+    /** Format: cell-id */
     CellId: TypedString<"CellId">;
     /**
      * CellNotification
@@ -3636,7 +3679,7 @@ export interface components {
      *             cell_id: Cell where completion is requested.
      */
     CodeCompletionCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       document: string;
       id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
@@ -3644,7 +3687,7 @@ export interface components {
     };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       document: string;
       id: components["schemas"]["RequestId"];
     };
@@ -3730,7 +3773,7 @@ export interface components {
      *             options: Completion options to display.
      */
     CompletionResultNotification: {
-      completion_id: string;
+      completion_id: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       op: "completion-result";
       options: components["schemas"]["CompletionOption"][];
@@ -3740,6 +3783,22 @@ export interface components {
     CopyNotebookRequest: {
       destination: string;
       source: string;
+    };
+    /**
+     * CreateCell
+     * @description Insert a new cell into the notebook.
+     */
+    CreateCell: {
+      /** @default null */
+      after?: components["schemas"]["CellId"] | null;
+      /** @default null */
+      before?: components["schemas"]["CellId"] | null;
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      name: string;
+      /** @enum {unknown} */
+      type: "create-cell";
     };
     /**
      * CreateNotebookCommand
@@ -3961,7 +4020,7 @@ export interface components {
      *             request: HTTP request context if available.
      */
     DebugCellCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -3969,9 +4028,18 @@ export interface components {
     };
     /** DebugCellRequest */
     DebugCellRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+    };
+    /**
+     * DeleteCell
+     * @description Remove a cell from the notebook.
+     */
+    DeleteCell: {
+      cellId: components["schemas"]["CellId"];
+      /** @enum {unknown} */
+      type: "delete-cell";
     };
     /**
      * DeleteCellCommand
@@ -3984,13 +4052,13 @@ export interface components {
      *             cell_id: Cell to delete.
      */
     DeleteCellCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "delete-cell";
     };
     /** DeleteCellRequest */
     DeleteCellRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
     };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
@@ -4071,7 +4139,7 @@ export interface components {
      *             timestamp: Unix timestamp when command was created.
      */
     ExecuteCellCommand: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
       code: string;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4093,7 +4161,7 @@ export interface components {
      *             timestamp: Unix timestamp when command was created.
      */
     ExecuteCellsCommand: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4103,7 +4171,7 @@ export interface components {
     };
     /** ExecuteCellsRequest */
     ExecuteCellsRequest: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -4119,9 +4187,14 @@ export interface components {
      *         Attributes:
      *             code: Python code to execute.
      *             request: HTTP request context if available.
+     *             notebook_cells: Snapshot of notebook cells from the session document.
+     *                 Used to populate the document ContextVar so code_mode can read
+     *                 cell ordering, code, names, and configs.
      */
     ExecuteScratchpadCommand: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @enum {unknown} */
@@ -4130,6 +4203,8 @@ export interface components {
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
       code: string;
+      /** @default null */
+      notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
@@ -4225,6 +4300,8 @@ export interface components {
       /** @default null */
       contents?: string | null;
       file: components["schemas"]["FileInfo"];
+      /** @default false */
+      isBase64?: boolean;
       /** @default null */
       mimeType?: string | null;
     };
@@ -4318,7 +4395,7 @@ export interface components {
     };
     /** FocusCellRequest */
     FocusCellRequest: {
-      cellId: string;
+      cellId: components["schemas"]["CellId"];
     };
     /** FormatCellsRequest */
     FormatCellsRequest: {
@@ -4507,6 +4584,9 @@ export interface components {
      *             packages: Package name to status (queued/installing/installed/failed).
      *             logs: Optional streaming logs per package.
      *             log_status: Log stream status (append/start/done).
+     *             source: Which Python environment packages are installed into.
+     *                     "kernel" (default) installs in the kernel's venv; "server"
+     *                     installs in the server's own Python env.
      */
     InstallingPackageAlertNotification: {
       /** @default null */
@@ -4520,6 +4600,11 @@ export interface components {
       packages: {
         [key: string]: "failed" | "installed" | "installing" | "queued";
       };
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {
@@ -4529,7 +4614,7 @@ export interface components {
       codes?: {
         [key: string]: string;
       } | null;
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
     /**
@@ -4567,7 +4652,7 @@ export interface components {
      */
     InvokeFunctionCommand: {
       args: Record<string, any>;
-      functionCallId: string;
+      functionCallId: components["schemas"]["RequestId"];
       functionName: string;
       namespace: string;
       /** @enum {unknown} */
@@ -4576,7 +4661,7 @@ export interface components {
     /** InvokeFunctionRequest */
     InvokeFunctionRequest: {
       args: Record<string, any>;
-      functionCallId: string;
+      functionCallId: components["schemas"]["RequestId"];
       functionName: string;
       namespace: string;
     };
@@ -4698,6 +4783,7 @@ export interface components {
         | components["schemas"]["PreviewDatasetColumnCommand"]
         | components["schemas"]["PreviewSQLTableCommand"]
         | components["schemas"]["ListSQLTablesCommand"]
+        | components["schemas"]["ListSQLSchemasCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
         | components["schemas"]["StorageListEntriesCommand"]
@@ -4759,6 +4845,7 @@ export interface components {
         | components["schemas"]["DataColumnPreviewNotification"]
         | components["schemas"]["SQLTablePreviewNotification"]
         | components["schemas"]["SQLTableListPreviewNotification"]
+        | components["schemas"]["SQLSchemaListPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
@@ -4768,8 +4855,7 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["UpdateCellCodesNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"];
+        | components["schemas"]["NotebookDocumentTransactionNotification"];
     };
     /**
      * LanguageServersConfig
@@ -4794,6 +4880,25 @@ export interface components {
       type: string;
     };
     /**
+     * LintConfig
+     * @description Configuration for lint rule selection.
+     *
+     *         Follows ruff-inspired semantics for selecting which rules to run
+     *         during ``marimo check``.
+     *
+     *         **Keys.**
+     *
+     *         - ``select``: list of rule code prefixes that replaces the default
+     *           enabled set. Use ``"ALL"`` to select all rules.
+     *           Example: ``["MB", "MR001"]``
+     *         - ``ignore``: list of rule code prefixes to remove from the
+     *           enabled set.
+     */
+    LintConfig: {
+      ignore?: string[];
+      select?: string[];
+    };
+    /**
      * ListDataSourceConnectionCommand
      * @description List data source schemas.
      *
@@ -4816,6 +4921,31 @@ export interface components {
       packages: components["schemas"]["PackageDescription"][];
     };
     /**
+     * ListSQLSchemasCommand
+     * @description List schemas in an SQL database.
+     *
+     *         Retrieves names of all schemas in a database. Used by the SQL editor for
+     *         schema selection.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *             database: Database to query.
+     */
+    ListSQLSchemasCommand: {
+      database: string;
+      engine: string;
+      requestId: components["schemas"]["RequestId"];
+      /** @enum {unknown} */
+      type: "list-sql-schemas";
+    };
+    /** ListSQLSchemasRequest */
+    ListSQLSchemasRequest: {
+      database: string;
+      engine: string;
+      requestId: components["schemas"]["RequestId"];
+    };
+    /**
      * ListSQLTablesCommand
      * @description List tables in an SQL schema.
      *
@@ -4831,7 +4961,7 @@ export interface components {
     ListSQLTablesCommand: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
       /** @enum {unknown} */
       type: "list-sql-tables";
@@ -4840,7 +4970,7 @@ export interface components {
     ListSQLTablesRequest: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
     };
     /**
@@ -4853,13 +4983,13 @@ export interface components {
      *             request_id: Unique identifier for this request.
      */
     ListSecretKeysCommand: {
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "list-secret-keys";
     };
     /** ListSecretKeysRequest */
     ListSecretKeysRequest: {
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /** ListSecretKeysResponse */
     ListSecretKeysResponse: {
@@ -4980,6 +5110,7 @@ export interface components {
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];
+      lint?: components["schemas"]["LintConfig"];
       mcp?: components["schemas"]["MCPConfig"];
       package_management: components["schemas"]["PackageManagementConfig"];
       runtime: components["schemas"]["RuntimeConfig"];
@@ -5006,7 +5137,7 @@ export interface components {
       name: string;
       path: string;
       /** @default null */
-      sessionId?: string | null;
+      sessionId?: components["schemas"]["SessionId"] | null;
     };
     /**
      * MarimoInternalError
@@ -5111,7 +5242,7 @@ export interface components {
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
-      modelId: string;
+      modelId: components["schemas"]["WidgetModelId"];
       token?: string;
       /** @enum {unknown} */
       type: "model";
@@ -5175,7 +5306,7 @@ export interface components {
       message:
         | components["schemas"]["ModelUpdateMessage"]
         | components["schemas"]["ModelCustomMessage"];
-      modelId: string;
+      modelId: components["schemas"]["WidgetModelId"];
       token?: string;
     };
     /**
@@ -5203,12 +5334,59 @@ export interface components {
       method: "update";
       state: Record<string, any>;
     };
+    /**
+     * MoveCell
+     * @description Reposition a cell in the notebook.
+     */
+    MoveCell: {
+      /** @default null */
+      after?: components["schemas"]["CellId"] | null;
+      /** @default null */
+      before?: components["schemas"]["CellId"] | null;
+      cellId: components["schemas"]["CellId"];
+      /** @enum {unknown} */
+      type: "move-cell";
+    };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
       cells: components["schemas"]["CellId"][];
       name: string;
       /** @enum {unknown} */
       type: "multiple-defs";
+    };
+    /**
+     * NotebookCell
+     * @description A single cell in the document. Mutable — owned by the document.
+     */
+    NotebookCell: {
+      code: string;
+      config: components["schemas"]["CellConfig"];
+      id: components["schemas"]["CellId"];
+      name: string;
+    };
+    /**
+     * NotebookDocumentTransactionNotification
+     * @description Broadcasts an applied transaction to the frontend.
+     *
+     *         Sent by the session when the document changes (from any source).
+     *         The frontend applies the ops to update its local state.
+     */
+    NotebookDocumentTransactionNotification: {
+      /** @enum {unknown} */
+      op: "notebook-document-transaction";
+      transaction: components["schemas"]["Transaction"];
+    };
+    /** NotebookDocumentTransactionRequest */
+    NotebookDocumentTransactionRequest: {
+      changes: (
+        | components["schemas"]["CreateCell"]
+        | components["schemas"]["DeleteCell"]
+        | components["schemas"]["MoveCell"]
+        | components["schemas"]["ReorderCells"]
+        | components["schemas"]["SetCode"]
+        | components["schemas"]["SetName"]
+        | components["schemas"]["SetConfig"]
+      )[];
     };
     /**
      * OpenAiConfig
@@ -5343,7 +5521,7 @@ export interface components {
     PreviewSQLTableCommand: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
       tableName: string;
       /** @enum {unknown} */
@@ -5353,7 +5531,7 @@ export interface components {
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       schema: string;
       tableName: string;
     };
@@ -5503,6 +5681,19 @@ export interface components {
     RenameNotebookRequest: {
       filename: string;
     };
+    /**
+     * ReorderCells
+     * @description Replace the full cell ordering.
+     *
+     *         Cell IDs present in the document but missing from ``cell_ids``
+     *         are appended at the end. IDs not in the document are ignored.
+     */
+    ReorderCells: {
+      cellIds: components["schemas"]["CellId"][];
+      /** @enum {unknown} */
+      type: "reorder-cells";
+    };
+    /** Format: request-id */
     RequestId: TypedString<"RequestId">;
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
@@ -5578,6 +5769,18 @@ export interface components {
       watcher_on_save: "autorun" | "lazy";
     };
     /**
+     * SQLDatabaseMetadata
+     * @description SQL database metadata.
+     *
+     *         Attributes:
+     *             connection: Connection identifier.
+     *             database: Database name.
+     */
+    SQLDatabaseMetadata: {
+      connection: string;
+      database: string;
+    };
+    /**
      * SQLMetadata
      * @description SQL database and schema metadata.
      *
@@ -5592,6 +5795,26 @@ export interface components {
       schema: string;
       /** @enum {unknown} */
       type: "sql-metadata";
+    };
+    /**
+     * SQLSchemaListPreviewNotification
+     * @description List of SQL schemas in a database.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             metadata: Database and schema metadata.
+     *             schemas: Schemas in database.
+     *             error: Error message if failed.
+     */
+    SQLSchemaListPreviewNotification: {
+      /** @default null */
+      error?: string | null;
+      metadata: components["schemas"]["SQLDatabaseMetadata"];
+      /** @enum {unknown} */
+      op: "sql-schema-list-preview";
+      request_id: components["schemas"]["RequestId"];
+      /** @default [] */
+      schemas?: components["schemas"]["Schema"][];
     };
     /**
      * SQLTableListPreviewNotification
@@ -5654,7 +5877,7 @@ export interface components {
     };
     /** SaveNotebookRequest */
     SaveNotebookRequest: {
-      cellIds: string[];
+      cellIds: components["schemas"]["CellId"][];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       filename: string;
@@ -5723,7 +5946,43 @@ export interface components {
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
     };
+    /** Format: session-id */
     SessionId: TypedString<"SessionId">;
+    /**
+     * SetCode
+     * @description Replace a cell's source code.
+     */
+    SetCode: {
+      cellId: components["schemas"]["CellId"];
+      code: string;
+      /** @enum {unknown} */
+      type: "set-code";
+    };
+    /**
+     * SetConfig
+     * @description Partially update a cell's config. None fields are unchanged.
+     */
+    SetConfig: {
+      cellId: components["schemas"]["CellId"];
+      /** @default null */
+      column?: number | null;
+      /** @default null */
+      disabled?: boolean | null;
+      /** @default null */
+      hideCode?: boolean | null;
+      /** @enum {unknown} */
+      type: "set-config";
+    };
+    /**
+     * SetName
+     * @description Rename a cell.
+     */
+    SetName: {
+      cellId: components["schemas"]["CellId"];
+      name: string;
+      /** @enum {unknown} */
+      type: "set-name";
+    };
     /** SetupRootError */
     SetupRootError: {
       edges_with_vars: [string, string[], string][];
@@ -5745,7 +6004,7 @@ export interface components {
     };
     /** ShutdownSessionRequest */
     ShutdownSessionRequest: {
-      sessionId: string;
+      sessionId: components["schemas"]["SessionId"];
     };
     /** Snippet */
     Snippet: {
@@ -5896,7 +6155,7 @@ export interface components {
       path: string;
       /** @default false */
       preview?: boolean;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * StorageEntriesNotification
@@ -5974,7 +6233,7 @@ export interface components {
       namespace: string;
       /** @default null */
       prefix?: string | null;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * StorageNamespace
@@ -6059,6 +6318,28 @@ export interface components {
       source: "backend" | "frontend" | "mcp";
     };
     /**
+     * Transaction
+     * @description An atomic batch of changes applied to a NotebookDocument.
+     *
+     *         ``source`` identifies the writer (e.g. ``"frontend"``, ``"kernel"``).
+     *         ``version`` is ``None`` when created and stamped by
+     *         ``NotebookDocument.apply()``.
+     */
+    Transaction: {
+      changes: (
+        | components["schemas"]["CreateCell"]
+        | components["schemas"]["DeleteCell"]
+        | components["schemas"]["MoveCell"]
+        | components["schemas"]["ReorderCells"]
+        | components["schemas"]["SetCode"]
+        | components["schemas"]["SetName"]
+        | components["schemas"]["SetConfig"]
+      )[];
+      source: string;
+      /** @default null */
+      version?: number | null;
+    };
+    /**
      * TyLanguageServerConfig
      * @description Configuration options for Ty Language Server.
      *
@@ -6068,6 +6349,7 @@ export interface components {
     TyLanguageServerConfig: {
       enabled?: boolean;
     };
+    /** Format: ui-element-id */
     UIElementId: `${components["schemas"]["CellId"]}-${string}`;
     /**
      * UIElementMessageNotification
@@ -6095,28 +6377,6 @@ export interface components {
       type: "unknown";
     };
     /**
-     * UpdateCellCodesNotification
-     * @description Updates cell code contents (kiosk mode and edit-mode file reload).
-     *
-     *         Attributes:
-     *             cell_ids: Cells to update.
-     *             codes: New code for each cell.
-     *             code_is_stale: If True, code was not executed on backend (output may not match).
-     *             names: Cell names for each cell (optional, for file reload).
-     *             configs: Cell configs for each cell (optional, for file reload).
-     */
-    UpdateCellCodesNotification: {
-      cell_ids: components["schemas"]["CellId"][];
-      code_is_stale: boolean;
-      codes: string[];
-      /** @default [] */
-      configs?: components["schemas"]["CellConfig"][];
-      /** @default [] */
-      names?: string[];
-      /** @enum {unknown} */
-      op: "update-cell-codes";
-    };
-    /**
      * UpdateCellConfigCommand
      * @description Update cell configuration.
      *
@@ -6138,22 +6398,6 @@ export interface components {
       configs: {
         [key: string]: Record<string, any>;
       };
-    };
-    /**
-     * UpdateCellIdsNotification
-     * @description Updates cell ordering in notebook.
-     *
-     *         Attributes:
-     *             cell_ids: Complete ordered list of cell IDs.
-     */
-    UpdateCellIdsNotification: {
-      cell_ids: components["schemas"]["CellId"][];
-      /** @enum {unknown} */
-      op: "update-cell-ids";
-    };
-    /** UpdateCellIdsRequest */
-    UpdateCellIdsRequest: {
-      cellIds: string[];
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {
@@ -6203,7 +6447,7 @@ export interface components {
      *             token: Unique request identifier for deduplication.
      */
     UpdateUIElementCommand: {
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       token?: string;
@@ -6213,7 +6457,7 @@ export interface components {
     };
     /** UpdateUIElementRequest */
     UpdateUIElementRequest: {
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       token?: string;
@@ -6221,7 +6465,7 @@ export interface components {
     };
     /** UpdateUIElementValuesRequest */
     UpdateUIElementValuesRequest: {
-      objectIds: string[];
+      objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
     /**
@@ -6263,7 +6507,7 @@ export interface components {
       engine?: string | null;
       onlyParse: boolean;
       query: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
       /** @enum {unknown} */
       type: "validate-sql";
     };
@@ -6275,7 +6519,7 @@ export interface components {
       engine?: string | null;
       onlyParse: boolean;
       query: string;
-      requestId: string;
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * ValidateSQLResultNotification
@@ -6315,9 +6559,10 @@ export interface components {
      */
     VariableDeclarationNotification: {
       declared_by: components["schemas"]["CellId"][];
-      name: string;
+      name: components["schemas"]["VariableName"];
       used_by: components["schemas"]["CellId"][];
     };
+    /** Format: variable-name */
     VariableName: TypedString<"VariableName">;
     /**
      * VariableValue
@@ -6375,6 +6620,7 @@ export interface components {
       path?: string;
       writable?: boolean;
     };
+    /** Format: widget-model-id */
     WidgetModelId: TypedString<"WidgetModelId">;
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {

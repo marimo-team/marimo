@@ -56,18 +56,18 @@ function createMockCell(
 }
 
 function createMockTable(): Table<T> {
-  const mockToggleSelected = vi.fn().mockImplementation(function (this: {
-    isSelected: boolean;
-  }) {
-    this.isSelected = !this.isSelected;
-    return { isSelected: this.isSelected };
-  });
+  const mockToggleSelected = vi
+    .fn()
+    .mockImplementation(function (this: { isSelected: boolean }) {
+      this.isSelected = !this.isSelected;
+      return { isSelected: this.isSelected };
+    });
 
-  const mockGetIsSelected = vi.fn().mockImplementation(function (this: {
-    isSelected: boolean;
-  }) {
-    return this.isSelected;
-  });
+  const mockGetIsSelected = vi
+    .fn()
+    .mockImplementation(function (this: { isSelected: boolean }) {
+      return this.isSelected;
+    });
 
   const rows = [
     {

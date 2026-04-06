@@ -8,16 +8,12 @@ tracking recent files, managing caches, etc.
 from __future__ import annotations
 
 from marimo._server.recents import RecentFilesManager
-from marimo._session.events import (
-    SessionEventBus,
-    SessionEventListener,
-)
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import EventAwareExtension
 from marimo._session.session import Session
 from marimo._types.ids import SessionId
 
 
-class RecentsTrackerListener(SessionExtension, SessionEventListener):
+class RecentsTrackerListener(EventAwareExtension):
     """Event listener that tracks recently accessed files."""
 
     def __init__(self, recents_manager: RecentFilesManager) -> None:
@@ -26,20 +22,8 @@ class RecentsTrackerListener(SessionExtension, SessionEventListener):
         Args:
             recents_manager: Manager for recent files
         """
+        super().__init__()
         self._recents = recents_manager
-        self._event_bus: SessionEventBus | None = None
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        """Attach the recents tracker listener to a session."""
-        del session
-        self._event_bus = event_bus
-        self._event_bus.subscribe(self)
-
-    def on_detach(self) -> None:
-        """Detach the recents tracker listener from a session."""
-        if self._event_bus:
-            self._event_bus.unsubscribe(self)
-            self._event_bus = None
 
     async def on_session_created(self, session: Session) -> None:
         """Update recent files when a session is created."""

@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "schedule:monthly"],
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "7 days",
   "labels": ["dependencies"],
   "pin": {
     "enabled": false
@@ -62,7 +62,7 @@
         "!/.*typescript.*/",
         "!/.*openapi-fetch.*/",
         "!/.*react-aria.*/",
-        "!/.*biome.*/",
+        "!/.*@oxc.*/",
         // react-hook-form is pinned to 7.54.2
         "!/.*react-hook-form.*/",
         // vega-lite is pinned to 6.3.1
@@ -122,11 +122,11 @@
       "matchPackageNames": ["/.*eslint.*/"],
       "schedule": ["on the 28th day of the month"]
     },
-    // Group all biome dependencies
+    // Group all oxc dependencies
     {
-      "groupName": "all biome dependencies",
+      "groupName": "all oxc dependencies",
       "matchUpdateTypes": ["minor", "patch", "major"],
-      "matchPackageNames": ["/.*biome.*/"],
+      "matchPackageNames": ["/.*@oxc.*/", "oxlint", "oxfmt"],
       "schedule": ["on the 29th day of the month"]
     }
   ]

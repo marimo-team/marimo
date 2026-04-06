@@ -1,0 +1,139 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "react",
+    "vitest",
+    "jsx-a11y"
+  ],
+  "jsPlugins": [
+    "./lint/marimo-plugin.js"
+  ],
+  "ignorePatterns": [
+    "**/e2e-tests/**"
+  ],
+  "categories": {
+    "correctness": "error",
+    "nursery": "off",
+    "pedantic": "off",
+    "perf": "warn",
+    "restriction": "warn",
+    "style": "off",
+    "suspicious": "warn"
+  },
+  "rules": {
+    // === Marimo custom rules ===
+    "marimo/add-event-listener-object": "error",
+    "marimo/remove-event-listener-object": "error",
+    "marimo/prefer-object-params": "warn",
+    "marimo/atom-with-storage-args": "error",
+
+    // === Core rules ===
+    "no-var": "error",
+    "no-console": "error",
+    "no-debugger": "error",
+    "no-inner-declarations": "error",
+    "no-useless-constructor": "error",
+    "no-shadow-restricted-names": "error",
+    "no-redeclare": "off",
+    "no-empty": "warn",
+    "no-cond-assign": "warn",
+    "prefer-const": "error",
+    "prefer-template": "error",
+    "default-param-last": "error",
+    "eqeqeq": ["error", "smart"],
+    "curly": "error",
+    "array-callback-return": "warn",
+    // TODO: re-enable
+    "no-control-regex": "warn",
+    // TODO: re-enable
+    "no-unsafe-optional-chaining": "warn",
+    // TODO: re-enable
+    "no-unused-expressions": "warn",
+    // TODO: re-enable
+    "no-unused-vars": "warn",
+
+    // === TypeScript ===
+    "typescript/consistent-generic-constructors": "error",
+    "typescript/consistent-type-definitions": "error",
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-dynamic-delete": "error",
+    "typescript/prefer-ts-expect-error": "error",
+    "typescript/no-empty-object-type": "off",
+    "typescript/no-confusing-void-expression": "error",
+    "typescript/consistent-type-imports": ["error", { "disallowTypeAnnotations": false }],
+    "typescript/explicit-function-return-type": ["warn", {
+      "allowConciseArrowFunctionExpressionsStartingWithVoid": true,
+      "allowDirectConstAssertionInArrowFunctions": true,
+      "allowExpressions": true,
+      "allowFunctionsWithoutTypeParameters": true,
+      "allowHigherOrderFunctions": true,
+      "allowIIFEs": true,
+      "allowTypedFunctionExpressions": true,
+    }],
+
+    // === Unicorn ===
+    "unicorn/switch-case-braces": ["error", "avoid"],
+    "unicorn/prefer-logical-operator-over-ternary": "error",
+    "unicorn/prefer-spread": "error",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/prefer-number-properties": "error",
+    "unicorn/prefer-ternary": "error",
+    "unicorn/no-instanceof-array": "error",
+
+    // === React ===
+    "react/jsx-boolean-value": ["error", "always"],
+    "react/jsx-pascal-case": "error",
+    "react/no-multi-comp": "off",
+    "react/jsx-filename-extension": "off",
+    // TODO: re-enable as error
+    "react/jsx-no-useless-fragment": "warn",
+    "react/self-closing-comp": "error",
+
+    // === React Hooks ===
+    "react-hooks/rules-of-hooks": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+
+    // === JSX A11y ===
+    // TODO: re-enable all of these as error
+    "jsx-a11y/click-events-have-key-events": "warn",
+    "jsx-a11y/heading-has-content": "warn",
+    "jsx-a11y/iframe-has-title": "warn",
+    "jsx-a11y/media-has-caption": "warn",
+    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/no-noninteractive-tabindex": "warn",
+    "jsx-a11y/no-static-element-interactions": "warn",
+    "jsx-a11y/prefer-tag-over-role": "warn",
+    "jsx-a11y/role-has-required-aria-props": "warn",
+
+    // === Unicorn ===
+    "unicorn/prefer-node-protocol": "error",
+
+    // === Vitest ===
+    "vitest/expect-expect": "warn",
+    "vitest/no-identical-title": "error",
+    "vitest/no-commented-out-tests": "warn",
+    "vitest/require-mock-type-parameters": "warn",
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/__mocks__/**",
+        "**/vite.config.*",
+        "**/stories/**",
+        "**/Logger.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["**/__tests__/**"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        "typescript/unbound-method": "off"
+      }
+    }
+  ]
+}

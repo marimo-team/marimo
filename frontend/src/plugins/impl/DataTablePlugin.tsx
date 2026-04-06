@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Tooltip } from "radix-ui";
+
+const TooltipProvider = Tooltip.Provider;
+
 import type {
   ColumnFiltersState,
   OnChangeFn,
@@ -26,7 +29,6 @@ import type { CellSelectionState } from "@/components/data-table/cell-selection/
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
 import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
-import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
 import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
 import {
@@ -35,11 +37,11 @@ import {
 } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { LoadingTable } from "@/components/data-table/loading-table";
-import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
   type DownloadAsArgs,
   DownloadAsSchema,
 } from "@/components/data-table/schemas";
+import { TableExplorerPanel } from "@/components/data-table/table-explorer-panel/table-explorer-panel";
 import {
   type BinValues,
   type ColumnHeaderStats,
@@ -201,7 +203,6 @@ interface Data<T> {
   hasStableRowId: boolean;
   lazy: boolean;
   cellHoverTexts?: Record<string, Record<string, string | null>> | null;
-  downloadFileName?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -287,7 +288,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       // If lazy, this will preload the first page of data
       // without user confirmation.
       preload: z.boolean().default(false),
-      downloadFileName: z.string().optional(),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -469,6 +469,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   hoverTemplate?: string | null;
   cellHoverTexts?: Record<string, Record<string, string | null>> | null;
   toggleDisplayHeader?: () => void;
+  isChartBuilderOpen?: boolean;
   host: HTMLElement;
   cellId?: CellId | null;
 }
@@ -752,6 +753,7 @@ export const LoadingDataTableComponent = memo(
           > | null
         }
         toggleDisplayHeader={toggleDisplayHeader}
+        isChartBuilderOpen={displayHeader}
         getRow={getRow}
         cellId={cellId}
         maxHeight={props.maxHeight}
@@ -764,6 +766,7 @@ export const LoadingDataTableComponent = memo(
         {props.showChartBuilder ? (
           <TablePanel
             displayHeader={displayHeader}
+            onCloseChartBuilder={() => setDisplayHeader(false)}
             data={data?.rows || []}
             columns={props.totalColumns}
             totalRows={props.totalRows}
@@ -823,8 +826,8 @@ const DataTableComponent = ({
   cellStyles,
   hoverTemplate,
   cellHoverTexts,
-  downloadFileName,
   toggleDisplayHeader,
+  isChartBuilderOpen,
   calculate_top_k_rows,
   preview_column,
   getRow,
@@ -839,7 +842,8 @@ const DataTableComponent = ({
   }): JSX.Element => {
   const id = useId();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
-  const { isPanelOpen, togglePanel } = usePanelOwnership(id, cellId);
+  const { isPanelOpen, isAnyPanelOpen, togglePanel, panelType, setPanelType } =
+    usePanelOwnership(id, cellId);
 
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
@@ -874,10 +878,35 @@ const DataTableComponent = ({
     return memoizedUnclampedFieldTypes.slice(0, maxColumns);
   }, [maxColumns, memoizedUnclampedFieldTypes]);
 
+  // Compute max fractional digits per numeric column for consistent formatting.
+  const computedFractionDigits = useMemo(() => {
+    const result: Record<string, number> = {};
+    if (data && data.length > 0) {
+      for (const [colName, types] of memoizedClampedFieldTypes) {
+        if (types[0] === "number") {
+          let maxDecimals = 0;
+          for (const row of data) {
+            const val = (row as Record<string, unknown>)[colName];
+            if (typeof val === "number" && Number.isFinite(val)) {
+              const str = String(val);
+              const dotIdx = str.indexOf(".");
+              if (dotIdx !== -1) {
+                maxDecimals = Math.max(maxDecimals, str.length - dotIdx - 1);
+              }
+            }
+          }
+          result[colName] = maxDecimals;
+        }
+      }
+    }
+    return result;
+  }, [data, memoizedClampedFieldTypes]);
+
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
+  const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
 
   // If the field types are not set, we don't show them
@@ -898,6 +927,7 @@ const DataTableComponent = ({
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
         calculateTopKRows: calculate_top_k_rows,
+        fractionDigitsByColumn: fractionDigitsByColumn,
       }),
     [
       selection,
@@ -909,6 +939,7 @@ const DataTableComponent = ({
       memoizedWrappedColumns,
       headerTooltip,
       calculate_top_k_rows,
+      fractionDigitsByColumn,
     ],
   );
 
@@ -975,8 +1006,7 @@ const DataTableComponent = ({
   );
 
   const isSelectable = selection === "multi" || selection === "single";
-  const showColExplorer =
-    showColumnExplorer && preview_column && isPanelOpen("column-explorer");
+  const canShowColumnExplorer = showColumnExplorer && !!preview_column;
 
   const isInVscode = isInVscodeExtension();
 
@@ -1005,28 +1035,24 @@ const DataTableComponent = ({
         </Banner>
       )}
 
-      {isPanelOpen("row-viewer") && (
+      {isAnyPanelOpen && (showRowExplorer || canShowColumnExplorer) && (
         <ContextAwarePanelItem>
-          <RowViewerPanel
-            getRow={getRow}
-            fieldTypes={memoizedUnclampedFieldTypes}
-            totalRows={totalRows}
+          <TableExplorerPanel
             rowIdx={viewedRowIdx}
             setRowIdx={setViewedRow}
-            isSelectable={isSelectable}
-            isRowSelected={rowSelection[viewedRowIdx]}
-            handleRowSelectionChange={handleRowSelectionChange}
-          />
-        </ContextAwarePanelItem>
-      )}
-      {showColExplorer && (
-        <ContextAwarePanelItem>
-          <ColumnExplorerPanel
-            previewColumn={preview_column}
-            fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows}
+            fieldTypes={memoizedUnclampedFieldTypes}
+            getRow={getRow}
+            isSelectable={isSelectable}
+            isRowSelected={Boolean(rowSelection[viewedRowIdx])}
+            handleRowSelectionChange={handleRowSelectionChange}
+            previewColumn={preview_column}
             totalColumns={totalColumns}
             tableId={id}
+            showRowExplorer={showRowExplorer && !isInVscode}
+            showColumnExplorer={canShowColumnExplorer && !isInVscode}
+            activeTab={panelType}
+            onTabChange={setPanelType}
           />
         </ContextAwarePanelItem>
       )}
@@ -1055,7 +1081,6 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
-            downloadFileName={downloadFileName}
             enableSearch={enableSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
@@ -1070,13 +1095,16 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             showChartBuilder={showChartBuilder}
+            isChartBuilderOpen={isChartBuilderOpen}
             showPageSizeSelector={showPageSizeSelector}
             // Hidden in VSCode (for now) because we don't have a panel to show
-            // the column/row explorer.
-            showColumnExplorer={showColumnExplorer && !isInVscode}
-            showRowExplorer={showRowExplorer && !isInVscode}
+            // the table explorer.
+            showTableExplorer={
+              (showRowExplorer || canShowColumnExplorer) && !isInVscode
+            }
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
+            isAnyPanelOpen={isAnyPanelOpen}
             viewedRowIdx={viewedRowIdx}
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
           />

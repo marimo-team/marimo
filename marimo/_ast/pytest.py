@@ -417,7 +417,7 @@ def build_test_class(
             "marimo-team/marimo/issues."
         )
 
-    attrs = {var: h for var in defs if (h := hook(var)) is not None}
+    attrs = {var: h for var in sorted(defs) if (h := hook(var)) is not None}
     return type(name, (MarimoTest,), attrs)
 
 

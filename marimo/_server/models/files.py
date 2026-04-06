@@ -96,6 +96,7 @@ class FileDetailsResponse(msgspec.Struct, rename="camel"):
     file: FileInfo
     contents: Optional[str] = None
     mime_type: Optional[str] = None
+    is_base64: bool = False
 
 
 class FileCreateResponse(BaseResponse):

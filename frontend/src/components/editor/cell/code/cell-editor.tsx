@@ -47,7 +47,8 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
-  extends Pick<CellRuntimeState, "status">,
+  extends
+    Pick<CellRuntimeState, "status">,
     Pick<CellData, "id" | "code" | "serializedEditorState" | "config"> {
   runCell: () => void;
   theme: Theme;
@@ -185,7 +186,7 @@ const CellEditorInternal = ({
         deleteCell: handleDelete,
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
-          for (const code of [...cells].reverse()) {
+          for (const code of cells.toReversed()) {
             cellActions.createNewCell({
               code,
               before: false,

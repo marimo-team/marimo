@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from starlette.datastructures import State
     from uvicorn import Server
 
+    from marimo._cli.tips import CliTip
     from marimo._config.manager import MarimoConfigManager
     from marimo._server.session_manager import SessionManager
 
@@ -31,6 +32,7 @@ class StarletteServerStateInit:
     mcp_server_enabled: bool
     skew_protection: bool
     enable_auth: bool
+    startup_tip: CliTip | None = None
 
     def apply(self, state: State) -> None:
         for field, value in self.__dict__.items():

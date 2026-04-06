@@ -18,24 +18,22 @@ function createTransaction(spec: TransactionSpec) {
 }
 
 describe("shouldAutorunMarkdownUpdate", () => {
-  it.each([
-    "input.type",
-    "delete.backward",
-    "undo",
-    "redo",
-  ])("accepts local %s transactions", (userEvent) => {
-    const transaction = createTransaction({
-      changes: { from: 0, insert: "#" },
-      annotations: [Transaction.userEvent.of(userEvent)],
-    });
+  it.each(["input.type", "delete.backward", "undo", "redo"])(
+    "accepts local %s transactions",
+    (userEvent) => {
+      const transaction = createTransaction({
+        changes: { from: 0, insert: "#" },
+        annotations: [Transaction.userEvent.of(userEvent)],
+      });
 
-    expect(
-      shouldAutorunMarkdownUpdate({
-        docChanged: transaction.docChanged,
-        transactions: [transaction],
-      }),
-    ).toBe(true);
-  });
+      expect(
+        shouldAutorunMarkdownUpdate({
+          docChanged: transaction.docChanged,
+          transactions: [transaction],
+        }),
+      ).toBe(true);
+    },
+  );
 
   it("ignores formatting changes", () => {
     const transaction = createTransaction({

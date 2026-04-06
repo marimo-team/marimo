@@ -19,7 +19,7 @@ def _load_pyproject():
 def test_required_dependencies():
     pyproject = _load_pyproject()
     deps = sorted(pyproject["project"]["dependencies"])
-    snapshot("dependencies.txt", "\n".join(deps))
+    snapshot("dependencies.txt", "\n".join(deps), keep_version=True)
 
 
 @pytest.mark.parametrize(
@@ -29,4 +29,8 @@ def test_required_dependencies():
 def test_optional_dependencies(extra: str):
     pyproject = _load_pyproject()
     deps = sorted(pyproject["project"]["optional-dependencies"][extra])
-    snapshot(f"optional-dependencies-{extra}.txt", "\n".join(deps))
+    snapshot(
+        f"optional-dependencies-{extra}.txt",
+        "\n".join(deps),
+        keep_version=True,
+    )

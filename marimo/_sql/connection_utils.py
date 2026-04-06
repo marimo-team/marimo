@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._data.models import DataSourceConnection, DataTable
-from marimo._messaging.notification import SQLMetadata
+from marimo._data.models import DataSourceConnection, DataTable, Schema
+from marimo._messaging.notification import SQLDatabaseMetadata, SQLMetadata
 
 
 def update_table_in_connection(
@@ -33,6 +33,30 @@ def update_table_in_connection(
                     if table.name == updated_table.name:
                         schema.tables[i] = updated_table
                         return
+
+
+def update_schema_list_in_connection(
+    connections: list[DataSourceConnection],
+    sql_db_metadata: SQLDatabaseMetadata,
+    updated_schema_list: list[Schema],
+) -> None:
+    """Update a list of schemas in the connection hierarchy, updates in-place.
+
+    Args:
+        connections: List of data source connections
+        sql_db_metadata: SQL database metadata containing connection, database info
+        updated_schema_list: The updated list of schemas to replace the existing ones
+    """
+    for connection in connections:
+        if connection.name != sql_db_metadata.connection:
+            continue
+
+        for database in connection.databases:
+            if database.name != sql_db_metadata.database:
+                continue
+
+            database.schemas = updated_schema_list
+            return
 
 
 def update_table_list_in_connection(

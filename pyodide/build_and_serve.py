@@ -37,7 +37,7 @@ class WheelBuilderHandler(PatternMatchingEventHandler):
     def on_any_event(self, event) -> None:
         print(f"Change detected: {event.src_path}")  # noqa: T201
         print("Building wheel...")  # noqa: T201
-        subprocess.run(["hatch", "build"])
+        subprocess.run(["uv", "build"])
         print("Wheel built successfully.")  # noqa: T201
 
 

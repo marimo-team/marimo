@@ -25,7 +25,7 @@ import type { ListSecretKeysResponse } from "@/core/network/types";
 
 // dotenv providers should be at the top
 export function sortProviders(providers: ListSecretKeysResponse["keys"]) {
-  return providers.sort((a, b) => {
+  return providers.toSorted((a, b) => {
     if (a.provider === "env") {
       return 1;
     }

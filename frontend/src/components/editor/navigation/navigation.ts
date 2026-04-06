@@ -401,7 +401,7 @@ export function useCellNavigationProps(
           }
 
           // Move cells in the appropriate order to maintain relative positions
-          [...cellIds].reverse().forEach((cellId) => {
+          cellIds.toReversed().forEach((cellId) => {
             actions.moveCell({ cellId, before: false });
           });
           return true;
@@ -480,7 +480,7 @@ export function useCellNavigationProps(
         }),
         "cell.sendToTop": addSingleHandler((cellIds) => {
           // Send in reverse order to maintain relative positions
-          [...cellIds].reverse().forEach((cellId) => {
+          cellIds.toReversed().forEach((cellId) => {
             actions.sendToTop({ cellId });
           });
           return true;

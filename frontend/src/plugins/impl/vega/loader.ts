@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { tableFromIPC } from "@uwdata/flechette";
-import { isNumber } from "lodash-es";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { batchedArrowLoader, createBatchedLoader } from "./batched";
@@ -42,7 +41,9 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
     }
 
     const parsedInt = Number.parseInt(v, 10);
-    if (isNumber(parsedInt)) {
+    if (Number.isNaN(parsedInt)) {
+      return v;
+    } else {
       const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
       if (!needsBigInt) {
         return previousIntegerParserWithoutNaN(v);
@@ -54,8 +55,6 @@ const BIG_INT_MIDDLEWARE: Middleware = () => {
         // as BigInt
         return previousIntegerParserWithoutNaN(v);
       }
-    } else {
-      return "";
     }
   };
   typeParsers.number = (v: string) => {

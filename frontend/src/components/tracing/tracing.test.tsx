@@ -5,36 +5,36 @@ import { formatChartTime } from "./utils";
 describe("formatChartTime", () => {
   beforeAll(() => {
     // Mock Date to always use UTC
-    vi.spyOn(global.Date.prototype, "getFullYear").mockImplementation(function (
-      this: Date,
-    ) {
-      return this.getUTCFullYear();
-    });
-    vi.spyOn(global.Date.prototype, "getMonth").mockImplementation(function (
-      this: Date,
-    ) {
-      return this.getUTCMonth();
-    });
-    vi.spyOn(global.Date.prototype, "getDate").mockImplementation(function (
-      this: Date,
-    ) {
-      return this.getUTCDate();
-    });
-    vi.spyOn(global.Date.prototype, "getHours").mockImplementation(function (
-      this: Date,
-    ) {
-      return this.getUTCHours();
-    });
-    vi.spyOn(global.Date.prototype, "getMinutes").mockImplementation(function (
-      this: Date,
-    ) {
-      return this.getUTCMinutes();
-    });
-    vi.spyOn(global.Date.prototype, "getSeconds").mockImplementation(function (
-      this: Date,
-    ) {
-      return this.getUTCSeconds();
-    });
+    vi.spyOn(global.Date.prototype, "getFullYear").mockImplementation(
+      function (this: Date) {
+        return this.getUTCFullYear();
+      },
+    );
+    vi.spyOn(global.Date.prototype, "getMonth").mockImplementation(
+      function (this: Date) {
+        return this.getUTCMonth();
+      },
+    );
+    vi.spyOn(global.Date.prototype, "getDate").mockImplementation(
+      function (this: Date) {
+        return this.getUTCDate();
+      },
+    );
+    vi.spyOn(global.Date.prototype, "getHours").mockImplementation(
+      function (this: Date) {
+        return this.getUTCHours();
+      },
+    );
+    vi.spyOn(global.Date.prototype, "getMinutes").mockImplementation(
+      function (this: Date) {
+        return this.getUTCMinutes();
+      },
+    );
+    vi.spyOn(global.Date.prototype, "getSeconds").mockImplementation(
+      function (this: Date) {
+        return this.getUTCSeconds();
+      },
+    );
     vi.spyOn(global.Date.prototype, "getMilliseconds").mockImplementation(
       function (this: Date) {
         return this.getUTCMilliseconds();

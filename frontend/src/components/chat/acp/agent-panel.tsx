@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue } from "jotai";
-import { capitalize } from "lodash-es";
+import { useAtom } from "jotai";
 import {
   BotMessageSquareIcon,
   RefreshCwIcon,
@@ -9,7 +8,7 @@ import {
 } from "lucide-react";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { useAcpClient } from "use-acp";
+import { JsonRpcError, useAcpClient } from "use-acp";
 import {
   ConnectionStatus,
   PermissionRequest,
@@ -24,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { capitalize } from "@/utils/strings";
 import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
 import { ModelSelector } from "./model-selector";
@@ -95,7 +95,9 @@ interface AgentTitleProps {
 }
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
-  <span className="text-sm font-medium">{capitalize(currentAgentId)}</span>
+  <span className="text-sm font-medium">
+    {capitalize(currentAgentId ?? "")}
+  </span>
 ));
 AgentTitle.displayName = "AgentTitle";
 
@@ -205,7 +207,6 @@ interface EmptyStateProps {
 
 const EmptyState = memo<EmptyStateProps>(
   ({ currentAgentId, connectionState, onConnect, onDisconnect }) => {
-    const filename = useAtomValue(filenameAtom);
     return (
       <div className="flex flex-col h-full">
         <AgentPanelHeader
@@ -221,7 +222,7 @@ const EmptyState = memo<EmptyStateProps>(
             <PanelEmptyState
               title="No Agent Sessions"
               description="Create a new session to start a conversation"
-              action={<AgentSelector className="border-y-1 rounded" />}
+              action={<AgentSelector className="border-y rounded" />}
               icon={<BotMessageSquareIcon />}
             />
             {connectionState.status === "disconnected" && (
@@ -230,10 +231,13 @@ const EmptyState = memo<EmptyStateProps>(
                 title="Connect to an agent"
                 description={
                   <>
-                    Start agents by running these commands in your terminal:
+                    <span>
+                      Start agents by running these commands in your terminal.
+                    </span>
                     <br />
-                    Note: This must be in the directory{" "}
-                    {Paths.dirname(filename ?? "")}
+                    <span>
+                      Authenticate with the agent before starting a session.
+                    </span>
                   </>
                 }
               />
@@ -613,6 +617,15 @@ const ChatContent = memo<ChatContentProps>(
 ChatContent.displayName = "ChatContent";
 
 const NO_WS_SET = "_skip_auto_connect_";
+const AUTH_REQUIRED_CODE = -32_000;
+
+function getDataMessage(data: unknown): string | undefined {
+  if (data != null && typeof data === "object" && "message" in data) {
+    const msg = (data as Record<string, unknown>).message;
+    return typeof msg === "string" ? msg : undefined;
+  }
+  return undefined;
+}
 
 function getCwd(): string {
   const cwd = store.get(cwdAtom);
@@ -703,14 +716,31 @@ const AgentPanel: React.FC = () => {
   } = acpClient;
 
   useEffect(() => {
-    agent?.initialize({
-      protocolVersion: 1,
-      clientCapabilities: {
-        fs: {
-          readTextFile: true,
-          writeTextFile: true,
+    if (!agent) {
+      return;
+    }
+
+    const initAndAuth = async () => {
+      const response = await agent.initialize({
+        protocolVersion: 1,
+        clientCapabilities: {
+          fs: {
+            readTextFile: true,
+            writeTextFile: true,
+          },
         },
-      },
+      });
+
+      // We try to authenticate with the agent if it supports it.
+      // The user must then restart the session
+      const authMethods = response?.authMethods;
+      if (authMethods && authMethods.length > 0) {
+        await agent.authenticate({ methodId: authMethods[0].id });
+      }
+    };
+
+    initAndAuth().catch((error) => {
+      logger.error("Failed to initialize/authenticate agent", { error });
     });
   }, [agent]);
 
@@ -1039,18 +1069,37 @@ const AgentPanel: React.FC = () => {
 
   const renderBody = () => {
     if (error) {
+      const isAuthError =
+        error instanceof JsonRpcError && error.code === AUTH_REQUIRED_CODE;
+      const dataMessage =
+        error instanceof JsonRpcError ? getDataMessage(error.data) : undefined;
+      const displayError = dataMessage ? new Error(dataMessage) : error;
+
       return (
         <ErrorBanner
           className="w-3/4 mx-auto mt-10"
-          error={error}
+          error={displayError}
           action={
-            <Button
-              variant="linkDestructive"
-              size="sm"
-              onClick={() => setError(null)}
-            >
-              Dismiss
-            </Button>
+            isAuthError ? (
+              <Button
+                variant="linkDestructive"
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  handleNewSession();
+                }}
+              >
+                Restart session
+              </Button>
+            ) : (
+              <Button
+                variant="linkDestructive"
+                size="sm"
+                onClick={() => setError(null)}
+              >
+                Dismiss
+              </Button>
+            )
           }
         />
       );

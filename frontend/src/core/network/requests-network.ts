@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { once } from "lodash-es";
+import { once } from "@/utils/once";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";
@@ -49,10 +49,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    syncCellIds: async (request) => {
+    sendDocumentTransaction: async (request) => {
       await waitForConnectionOpen();
       return getClient()
-        .POST("/api/kernel/sync/cell_ids", {
+        .POST("/api/document/transaction", {
           body: request,
           params: getParams(),
         })
@@ -230,6 +230,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     previewSQLTableList: (request) => {
       return getClient()
         .POST("/api/datasources/preview_sql_table_list", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    previewSQLSchemaList: (request) => {
+      return getClient()
+        .POST("/api/datasources/preview_sql_schema_list", {
           body: request,
           params: getParams(),
         })

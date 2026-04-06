@@ -22,6 +22,7 @@ export class RuntimeManager {
     } catch (error) {
       throw new Error(
         `Invalid runtime URL: ${this.config.url}. ${error instanceof Error ? error.message : "Unknown error"}`,
+        { cause: error },
       );
     }
 

@@ -22,8 +22,9 @@ export interface ColumnWrappingInstance {
 declare module "@tanstack/react-table" {
   interface TableState extends ColumnWrappingTableState {}
 
-  interface TableOptionsResolved<TData extends RowData>
-    extends ColumnWrappingOptions {}
+  interface TableOptionsResolved<
+    TData extends RowData,
+  > extends ColumnWrappingOptions {}
 
   interface Column<TData extends RowData> extends ColumnWrappingInstance {}
 }
