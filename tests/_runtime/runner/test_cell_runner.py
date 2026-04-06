@@ -259,7 +259,9 @@ async def test_warnings_persist_across_reruns(
     # The cell's snapshot should contain no warning entries.
     await runner.run(er.cell_id)
     snapshot = k.globals["registry_snapshot"]
-    warning_entries = {k: v for k, v in snapshot.items() if k != "version"}
+    warning_entries = {
+        key: val for key, val in snapshot.items() if key != "version"
+    }
     assert warning_entries == {}, (
         f"__warningregistry__ was not cleared before cell re-execution: "
         f"{warning_entries}"
