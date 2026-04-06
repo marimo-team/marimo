@@ -1326,7 +1326,8 @@ class table(
         pos_to_row_id = {str(i): str(rid) for i, rid in enumerate(row_ids)}
         lookup: dict[str, dict[str, Any]] = {}
         for cell in selected:
-            row_str = pos_to_row_id.get(cell.row, cell.row)
+            cell_row = str(cell.row)
+            row_str = pos_to_row_id.get(cell_row, cell_row)
             if row_str not in lookup:
                 lookup[row_str] = {}
             lookup[row_str][cell.column] = cell.value
