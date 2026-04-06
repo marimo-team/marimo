@@ -161,10 +161,13 @@ def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
         def reducer_override(self, obj: Any) -> Any:
             if stub := maybe_get_custom_stub(obj):
                 return (bytes, (stub.to_bytes(),))
-            if not is_primitive(obj) and is_data_primitive(obj):
-                h = hashlib.new(hash_type, usedforsecurity=False)
-                h.update(_contiguous_tensor_bytes(obj))
-                return (bytes, (h.digest(),))
+            try:
+                if not is_primitive(obj) and is_data_primitive(obj):
+                    h = hashlib.new(hash_type, usedforsecurity=False)
+                    h.update(_contiguous_tensor_bytes(obj))
+                    return (bytes, (h.digest(),))
+            except (TypeError, ValueError):
+                pass
             return NotImplemented
 
     buf = io.BytesIO()
