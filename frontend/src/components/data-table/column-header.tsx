@@ -2,7 +2,13 @@
 "use no memo";
 
 import type { Column, Table } from "@tanstack/react-table";
-import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
+import {
+  EllipsisIcon,
+  FilterIcon,
+  MinusIcon,
+  TextIcon,
+  XIcon,
+} from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import {
@@ -69,7 +75,7 @@ interface DataTableColumnHeaderProps<
 > extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
-  justify?: "left" | "center" | "right";
+  subheader?: React.ReactNode;
   calculateTopKRows?: CalculateTopKRows;
   table?: Table<TData>;
 }
@@ -77,7 +83,7 @@ interface DataTableColumnHeaderProps<
 export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
-  justify,
+  subheader,
   className,
   calculateTopKRows,
   table,
@@ -92,49 +98,51 @@ export const DataTableColumnHeader = <TData, TValue>({
 
   // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
-    return <div className={cn(className)}>{header}</div>;
+    return (
+      <div className={cn(className)}>
+        {header}
+        {subheader}
+      </div>
+    );
   }
 
   const hasFilter = column.getFilterValue() !== undefined;
-  const hideIcon = !column.getIsSorted() && !hasFilter;
 
   return (
     <>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild={true}>
-          <div
-            className={cn(
-              "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-(--slate-3) data-[state=open]:bg-(--slate-3) data-[state=open]:border-border rounded px-1 -mx-1",
-              justify === "right" && "flex-row-reverse",
-              className,
-            )}
-            data-testid="data-table-sort-button"
-          >
-            <span className="flex-1">{header}</span>
-            <span
-              className={cn(
-                "h-5 py-1 px-1",
-                hideIcon &&
-                  "invisible group-hover:visible data-[state=open]:visible",
-              )}
-            >
-              {renderSortFilterIcon(column)}
-            </span>
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {renderDataType(column)}
-          {renderSorts(column, table)}
-          {renderCopyColumn(column)}
-          {renderColumnPinning(column)}
-          {renderColumnWrapping(column)}
-          {renderFormatOptions(column, locale)}
-          <DropdownMenuSeparator />
-          {renderMenuItemFilter(column)}
-          {renderFilterByValues(column, setIsFilterValueOpen)}
-          {hasFilter && <ClearFilterMenuItem column={column} />}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div
+        className={cn("group flex flex-col my-1 w-full select-none", className)}
+      >
+        <div className="flex items-center gap-1">
+          <span>{header}</span>
+          {column.getCanSort() && <SortButton column={column} />}
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild={true}>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4) text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 data-[state=open]:text-accent-foreground"
+                aria-label="Column options"
+                data-testid="data-table-column-menu-button"
+              >
+                <EllipsisIcon className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {renderDataType(column)}
+              {renderSorts(column, table)}
+              {renderCopyColumn(column)}
+              {renderColumnPinning(column)}
+              {renderColumnWrapping(column)}
+              {renderFormatOptions(column, locale)}
+              <DropdownMenuSeparator />
+              {renderMenuItemFilter(column)}
+              {renderFilterByValues(column, setIsFilterValueOpen)}
+              {hasFilter && <ClearFilterMenuItem column={column} />}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {subheader}
+      </div>
       {isFilterValueOpen && (
         <PopoverFilterByValues
           setIsFilterValueOpen={setIsFilterValueOpen}
@@ -146,28 +154,45 @@ export const DataTableColumnHeader = <TData, TValue>({
   );
 };
 
-export const DataTableColumnHeaderWithSummary = <TData, TValue>({
+const SortButton = <TData, TValue>({
   column,
-  header,
-  summary,
-  className,
-}: DataTableColumnHeaderProps<TData, TValue> & {
-  summary: React.ReactNode;
+}: {
+  column: Column<TData, TValue>;
 }) => {
+  const sortDirection = column.getIsSorted();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!sortDirection) {
+      column.toggleSorting(false, true); // asc
+    } else if (sortDirection === "asc") {
+      column.toggleSorting(true, true); // desc
+    } else {
+      column.clearSorting();
+    }
+  };
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={handleClick}
       className={cn(
-        "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
-        className,
+        "inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4)",
+        sortDirection
+          ? "text-accent-foreground"
+          : "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100",
       )}
+      aria-label={
+        sortDirection === "asc"
+          ? "Sorted ascending, click to sort descending"
+          : sortDirection === "desc"
+            ? "Sorted descending, click to clear sort"
+            : "Sort column ascending"
+      }
+      data-testid="data-table-sort-button"
     >
-      <DataTableColumnHeader
-        column={column}
-        header={header}
-        className={className}
-      />
-      {summary}
-    </div>
+      {renderSortFilterIcon(column)}
+    </button>
   );
 };
 
