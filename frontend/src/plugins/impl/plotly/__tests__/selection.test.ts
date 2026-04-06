@@ -117,6 +117,14 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([linePoint])).toBe(true);
   });
 
+  it("accepts waterfall clicks", () => {
+    const waterfallPoint = createPlotDatum({
+      data: { type: "waterfall" },
+    });
+
+    expect(shouldHandleClickSelection([waterfallPoint])).toBe(true);
+  });
+
   it("rejects non-line scatter marker clicks", () => {
     const markerPoint = createPlotDatum({
       data: { type: "scatter", mode: "markers" },
@@ -195,5 +203,19 @@ describe("extractPoints", () => {
     });
 
     expect(extractPoints([point])).toEqual([{ x: 1, y: 2, z: 3 }]);
+  });
+
+  it("returns x/y/pointIndex for waterfall clicks", () => {
+    const point = createPlotDatum({
+      x: "Revenue",
+      y: 400,
+      pointIndex: 1,
+      curveNumber: 0,
+      data: { type: "waterfall" },
+    });
+
+    expect(extractPoints([point])).toEqual([
+      { x: "Revenue", y: 400, pointIndex: 1, curveNumber: 0 },
+    ]);
   });
 });

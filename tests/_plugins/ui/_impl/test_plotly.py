@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
     _bar_value_in_selection_range,
+    _compute_waterfall_bar_extents,
     _extract_bars_fallback,
     _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
@@ -24,6 +25,8 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_histogram_points_numpy,
     _extract_scatter_points_fallback,
     _extract_scatter_points_numpy,
+    _extract_waterfall_bars_fallback,
+    _extract_waterfall_bars_numpy,
     _to_numeric_coord,
     plotly,
 )
@@ -3012,3 +3015,320 @@ def test_bar_chart_preserves_indices_when_empty_points_exist() -> None:
 
     assert result == [{"x": "B", "y": 20, "curveNumber": 0, "pointIndex": 1}]
     assert plot.indices == [1]
+
+
+# ============================================================================
+# Waterfall chart tests
+# ============================================================================
+
+
+def test_waterfall_basic() -> None:
+    """Waterfall plot starts with empty value."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue", "Costs", "Net"],
+            y=[1000, 400, -150, 0],
+            measure=["absolute", "relative", "relative", "total"],
+        )
+    )
+    plot = plotly(fig)
+    assert plot.value == []
+    assert plot.indices == []
+
+
+def test_waterfall_click_selection() -> None:
+    """Click on a waterfall bar passes through x, y, and pointIndex."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue", "Costs", "Net"],
+            y=[1000, 400, -150, 0],
+            measure=["absolute", "relative", "relative", "total"],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {
+                "x": "Revenue",
+                "y": 400,
+                "curveNumber": 0,
+                "pointIndex": 1,
+                "pointNumber": 1,
+            }
+        ],
+        "indices": [1],
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 1
+    assert result[0]["x"] == "Revenue"
+    assert result[0]["y"] == 400
+    assert plot.indices == [1]
+
+
+def test_waterfall_click_empty_placeholder_stripped() -> None:
+    """Empty-dict placeholders from the frontend are stripped on click."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue"],
+            y=[1000, 400],
+            measure=["absolute", "relative"],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "points": [
+            {},
+            {"x": "Revenue", "y": 400, "curveNumber": 0, "pointIndex": 1},
+        ],
+        "indices": [999, 1],
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 1
+    assert result[0]["x"] == "Revenue"
+    assert plot.indices == [1]
+
+
+def test_compute_waterfall_bar_extents_relative() -> None:
+    """Relative bars stack on top of each other."""
+    y = [100, 50, -30]
+    measures = ["relative", "relative", "relative"]
+    extents = _compute_waterfall_bar_extents(y, measures, base=0.0)
+    assert extents == [(0.0, 100.0), (100.0, 150.0), (120.0, 150.0)]
+
+
+def test_compute_waterfall_bar_extents_absolute_resets() -> None:
+    """An 'absolute' bar resets the running total."""
+    y = [100, 50, 200, -20]
+    measures = ["relative", "relative", "absolute", "relative"]
+    extents = _compute_waterfall_bar_extents(y, measures, base=0.0)
+    # After absolute bar at index 2: running_total = 200
+    assert extents[2] == (0.0, 200.0)
+    assert extents[3] == (180.0, 200.0)
+
+
+def test_compute_waterfall_bar_extents_total() -> None:
+    """A 'total' bar shows running total from base; does not change it."""
+    y = [500, 300, 0]
+    measures = ["absolute", "relative", "total"]
+    extents = _compute_waterfall_bar_extents(y, measures, base=0.0)
+    # running_total after absolute=500, after relative=800
+    # total bar = [0, 800]
+    assert extents[2] == (0.0, 800.0)
+
+
+def test_compute_waterfall_bar_extents_negative_relative() -> None:
+    """Negative relative bars extend downward; extents are sorted low-high."""
+    y = [400, -150]
+    measures = ["absolute", "relative"]
+    extents = _compute_waterfall_bar_extents(y, measures, base=0.0)
+    assert extents[0] == (0.0, 400.0)
+    # bar goes from 400 down to 250 → stored as (250, 400)
+    assert extents[1] == (250.0, 400.0)
+
+
+def test_waterfall_range_selection_partial() -> None:
+    """Box selection extracts only bars whose visual extent overlaps the range."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue", "Costs", "Net"],
+            y=[1000, 400, -150, 0],
+            measure=["absolute", "relative", "relative", "total"],
+        )
+    )
+    plot = plotly(fig)
+
+    # Visual extents:
+    #   Start:   [0, 1000]    (absolute)
+    #   Revenue: [1000, 1400] (relative)
+    #   Costs:   [1250, 1400] (relative, -150)
+    #   Net:     [0, 1250]    (total)
+    #
+    # y_range [1100, 1500] overlaps Revenue and Costs but NOT Start or Net.
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 2.5], "y": [1100.0, 1500.0]},
+    }
+    result = plot._convert_value(selection)
+    labels = [p["x"] for p in result]
+    assert "Revenue" in labels
+    assert "Costs" in labels
+    assert "Start" not in labels
+    assert "Net" not in labels
+
+
+def test_waterfall_range_selection_all_bars() -> None:
+    """Full y-range selects every bar."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue", "Costs", "Net"],
+            y=[1000, 400, -150, 0],
+            measure=["absolute", "relative", "relative", "total"],
+        )
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 3.5], "y": [0.0, 1500.0]},
+    }
+    result = plot._convert_value(selection)
+    assert len(result) == 4
+
+
+def test_waterfall_range_selection_empty() -> None:
+    """Range that misses all bars returns empty."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue"],
+            y=[1000, 400],
+            measure=["absolute", "relative"],
+        )
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 1.5], "y": [5000.0, 6000.0]},
+    }
+    result = plot._convert_value(selection)
+    assert result == []
+    assert plot.indices == []
+
+
+def test_waterfall_measure_included_in_range_extraction() -> None:
+    """Extracted points include the measure field."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue", "Net"],
+            y=[1000, 400, 0],
+            measure=["absolute", "relative", "total"],
+        )
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 2.5], "y": [0.0, 1500.0]},
+    }
+    result = plot._convert_value(selection)
+    measures = {p["x"]: p.get("measure") for p in result}
+    assert measures.get("Start") == "absolute"
+    assert measures.get("Revenue") == "relative"
+    assert measures.get("Net") == "total"
+
+
+def test_waterfall_numpy_and_fallback_match() -> None:
+    """numpy and fallback extraction produce identical results."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue", "Costs", "Net"],
+            y=[1000, 400, -150, 0],
+            measure=["absolute", "relative", "relative", "total"],
+        )
+    )
+
+    x_min, x_max = -0.5, 2.5
+    y_min, y_max = 1100.0, 1500.0
+
+    numpy_result = _extract_waterfall_bars_numpy(
+        fig, x_min, x_max, y_min, y_max
+    )
+    fallback_result = _extract_waterfall_bars_fallback(
+        fig, x_min, x_max, y_min, y_max
+    )
+
+    assert len(numpy_result) == len(fallback_result)
+    for np_pt, fb_pt in zip(
+        sorted(numpy_result, key=lambda p: p["pointIndex"]),
+        sorted(fallback_result, key=lambda p: p["pointIndex"]),
+    ):
+        assert np_pt["x"] == fb_pt["x"]
+        assert np_pt["y"] == fb_pt["y"]
+        assert np_pt["pointIndex"] == fb_pt["pointIndex"]
+
+
+def test_waterfall_horizontal_orientation() -> None:
+    """Horizontal waterfall (orientation='h') extracts bars correctly."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            y=["Start", "Revenue", "Costs"],
+            x=[500, 200, -80],
+            measure=["absolute", "relative", "relative"],
+            orientation="h",
+        )
+    )
+    plot = plotly(fig)
+
+    # Visual extents on x-axis:
+    #   Start:   [0, 500]
+    #   Revenue: [500, 700]
+    #   Costs:   [620, 700]
+    # x_range [550, 750] overlaps Revenue and Costs but not Start.
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [550.0, 750.0], "y": [-0.5, 2.5]},
+    }
+    result = plot._convert_value(selection)
+    labels = [p["y"] for p in result]
+    assert "Revenue" in labels
+    assert "Costs" in labels
+    assert "Start" not in labels
+
+
+def test_waterfall_multi_trace() -> None:
+    """Multiple waterfall traces are each extracted independently."""
+    fig = go.Figure(
+        data=[
+            go.Waterfall(
+                x=["A", "B"],
+                y=[100, 50],
+                measure=["absolute", "relative"],
+                name="T1",
+            ),
+            go.Waterfall(
+                x=["A", "B"],
+                y=[200, -30],
+                measure=["absolute", "relative"],
+                name="T2",
+            ),
+        ]
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 1.5], "y": [0.0, 300.0]},
+    }
+    result = plot._convert_value(selection)
+    curve_numbers = {p["curveNumber"] for p in result}
+    assert curve_numbers == {0, 1}
+    assert len(result) == 4
+
+
+def test_waterfall_customdata_included() -> None:
+    """customdata attached to bars appears in extracted points."""
+    fig = go.Figure(
+        data=go.Waterfall(
+            x=["Start", "Revenue"],
+            y=[1000, 400],
+            measure=["absolute", "relative"],
+            customdata=[["dept_A"], ["dept_B"]],
+        )
+    )
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [],
+        "indices": [],
+        "range": {"x": [-0.5, 1.5], "y": [0.0, 1500.0]},
+    }
+    result = plot._convert_value(selection)
+    assert all(p.get("customdata") is not None for p in result)
