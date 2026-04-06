@@ -17,7 +17,6 @@ import {
   EyeOffIcon,
   FastForwardIcon,
   FileIcon,
-  FilePlus2Icon,
   Files,
   FileTextIcon,
   FolderDownIcon,
@@ -44,6 +43,7 @@ import {
 } from "lucide-react";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { PairWithAgentModal } from "@/components/editor/actions/pair-with-agent-modal";
@@ -640,7 +640,7 @@ export function useNotebookActions() {
     },
 
     {
-      icon: <FilePlus2Icon size={14} strokeWidth={1.5} />,
+      icon: <MarimoPlusIcon size={14} strokeWidth={1.5} />,
       label: "New notebook",
       // If file is in the url, then we ran `marimo edit`
       // without a specific file
