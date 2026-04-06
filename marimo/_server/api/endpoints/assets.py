@@ -343,8 +343,10 @@ def _resolve_lsp_workspace(
         start_path = Path(directory) if directory else Path.cwd()
         document_path = start_path.joinpath(DEFAULT_NOTEBOOK_NAME)
 
-    pyproject_path = find_nearest_pyproject_toml(start_path)
-    root_path = pyproject_path.parent if pyproject_path else start_path
+    if pyproject_path := find_nearest_pyproject_toml(start_path):
+        root_path = pyproject_path.parent
+    else:
+        root_path = Path(directory) if directory else start_path
 
     return {
         "rootUri": root_path.as_uri(),
