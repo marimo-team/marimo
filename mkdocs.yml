@@ -32,6 +32,7 @@ extra_javascript:
   - _static/js/analytics.js
   - _static/js/math.js
   - _static/js/init_kapa_widget.js
+  - _static/js/page_actions.js
 markdown_extensions:
   - blocks:MarimoBlocksExtension
   - admonition

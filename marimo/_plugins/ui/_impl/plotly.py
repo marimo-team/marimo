@@ -205,7 +205,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function supports scatter plots, scattergl plots, line charts, area
-    charts, bar charts, histograms, treemap charts, sunburst charts, and heatmaps.
+    charts, bar charts, histograms, waterfall charts, treemap charts, sunburst
+    charts, and heatmaps.
 
     Examples:
         ```python
@@ -330,6 +331,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                     "heatmap",
                     "bar",
                     "histogram",
+                    "waterfall",
                 ):
                     continue
                 x_data = getattr(trace, "x", None)
@@ -485,6 +487,19 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # For bar charts with a range selection, extract all bars in range
         if has_bar and value.get("range"):
             _append_bar_items_to_selection(self._figure, self._selection_data)
+
+        has_waterfall = any(
+            getattr(trace, "type", None) == "waterfall"
+            for trace in self._figure.data
+        )
+
+        # For waterfall charts: extract bars within a range selection or pass
+        # through click data.  Waterfall bars stack, so extraction uses
+        # cumulative-sum positions rather than raw trace.y values.
+        if has_waterfall:
+            _append_waterfall_bars_to_selection(
+                self._figure, self._selection_data
+            )
 
         # For line/scatter charts, extract points from box/lasso selections.
         # Plotly may not send point data for pure line charts, so we extract manually.
@@ -1942,6 +1957,333 @@ def _build_bar_point(
         "pointIndex": int(point_idx),
         "pointNumber": int(point_idx),
     }
+
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+
+    return point
+
+
+def _compute_waterfall_bar_extents(
+    y_data: Any,
+    measures: Any,
+    base: float,
+) -> list[tuple[float, float]]:
+    """Return the visual (low, high) extent for each waterfall bar.
+
+    Waterfall bars stack on top of each other, so the visual position of
+    each bar depends on the cumulative sum of preceding relative bars:
+
+    * ``"absolute"`` — bar runs from *base* to y[i]; resets running total.
+    * ``"relative"`` — bar runs from running_total to running_total + y[i].
+    * ``"total"``    — bar runs from *base* to running_total (display only;
+      does not alter the running total).
+    """
+    running_total = base
+    extents: list[tuple[float, float]] = []
+
+    default_measure = "relative"
+    for i, y_val in enumerate(y_data):
+        try:
+            m = (
+                str(measures[i]).lower()
+                if measures is not None and i < len(measures)
+                else default_measure
+            )
+        except (IndexError, TypeError):
+            m = default_measure
+
+        try:
+            v = float(y_val)
+        except (TypeError, ValueError):
+            v = 0.0
+
+        if m == "absolute":
+            bar_lo, bar_hi = base, v
+            running_total = v
+        elif m == "total":
+            bar_lo, bar_hi = base, running_total
+        else:  # relative
+            bar_lo = running_total
+            bar_hi = running_total + v
+            running_total = bar_hi
+
+        extents.append((min(bar_lo, bar_hi), max(bar_lo, bar_hi)))
+
+    return extents
+
+
+def _append_waterfall_bars_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Handle selection data for go.Waterfall traces.
+
+    Two cases:
+    1. Range selection (dragmode="select"): extract waterfall bars whose
+       visual extent (accounting for stacking) overlaps the selection rectangle.
+    2. Click selection: pass through frontend-supplied points, stripping
+       empty-dict placeholders and re-syncing indices.
+    """
+    range_value = selection_data.get("range")
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    if isinstance(range_value, dict):
+        waterfall_items = _extract_waterfall_bars_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+        has_real_points = any(all_points)
+        if not has_real_points and not waterfall_items:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+
+        seen: set[tuple[int, int]] = set()
+        merged_points: list[dict[str, Any]] = []
+        merged_indices: list[int] = []
+
+        for point_idx, point in enumerate(all_points):
+            if not point:
+                continue
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+            merged_points.append(point)
+            if point_idx < len(all_indices) and isinstance(
+                all_indices[point_idx], int
+            ):
+                merged_indices.append(all_indices[point_idx])
+            elif point_id is not None:
+                merged_indices.append(point_id[1])
+
+        for point in waterfall_items:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+                merged_indices.append(point_id[1])
+            merged_points.append(point)
+
+        selection_data["points"] = merged_points
+        selection_data["indices"] = merged_indices
+    else:
+        # Click: strip empty placeholders, re-sync indices.
+        clean_points = [p for p in all_points if p]
+        if not clean_points:
+            selection_data["points"] = []
+            selection_data["indices"] = []
+            return
+        incoming_index_map = {
+            id(p): idx
+            for idx, p in zip(all_indices, all_points)
+            if p and isinstance(idx, int)
+        }
+        clean_indices: list[int] = []
+        for p in clean_points:
+            idx = incoming_index_map.get(id(p))
+            if isinstance(idx, int):
+                clean_indices.append(idx)
+            else:
+                pi = p.get("pointIndex", p.get("pointNumber"))
+                if isinstance(pi, int):
+                    clean_indices.append(pi)
+        selection_data["points"] = clean_points
+        selection_data["indices"] = clean_indices
+
+
+def _extract_waterfall_bars_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Dispatch to numpy or fallback waterfall extraction."""
+    if not range_data.get("x") or not range_data.get("y"):
+        return []
+
+    x_range = range_data["x"]
+    y_range = range_data["y"]
+    x_min, x_max = min(x_range), max(x_range)
+    y_min, y_max = min(y_range), max(y_range)
+
+    if DependencyManager.numpy.has():
+        return _extract_waterfall_bars_numpy(
+            figure, x_min, x_max, y_min, y_max
+        )
+    return _extract_waterfall_bars_fallback(figure, x_min, x_max, y_min, y_max)
+
+
+def _extract_waterfall_bars_numpy(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract waterfall bars using numpy for vectorized filtering."""
+    import numpy as np
+
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "waterfall":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        n = len(y_data) if hasattr(y_data, "__len__") else 0
+        if n == 0:
+            continue
+
+        orientation = getattr(trace, "orientation", None) or "v"
+        measures = getattr(trace, "measure", None)
+        trace_base = getattr(trace, "base", None)
+        base = (
+            float(trace_base) if isinstance(trace_base, (int, float)) else 0.0
+        )
+
+        if orientation == "h":
+            # Horizontal: y=labels (categorical), x=values (stacking)
+            cat_data, val_data = y_data, x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            # Vertical (default): x=labels (categorical), y=values (stacking)
+            cat_data, val_data = x_data, y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        # Category axis: orderable (numeric/datetime) or positional (categorical)
+        cat_arr = np.asarray(cat_data)
+        cat_is_orderable = _is_orderable_axis(cat_arr, cat_min)
+        if cat_is_orderable:
+            cat_min_p = _parse_datetime_bound(cat_min)
+            cat_max_p = _parse_datetime_bound(cat_max)
+            cat_mask = (cat_arr >= cat_min_p) & (cat_arr <= cat_max_p)
+        else:
+            cat_positions = np.arange(n, dtype=np.float64)
+            cat_mask = (cat_max > cat_positions - 0.5) & (
+                cat_min < cat_positions + 0.5
+            )
+
+        # Value axis: use stacked extents (low, high) for each bar
+        extents = _compute_waterfall_bar_extents(val_data, measures, base)
+        ext_arr = np.array(extents, dtype=np.float64)  # shape (n, 2)
+        bar_lo = ext_arr[:, 0]
+        bar_hi = ext_arr[:, 1]
+        # Overlap condition: val_min < bar_hi AND val_max > bar_lo
+        val_mask = (val_min < bar_hi) & (val_max > bar_lo)
+
+        mask = cat_mask & val_mask
+        for i in np.where(mask)[0]:
+            selected.append(
+                _build_waterfall_point(
+                    trace, trace_idx, int(i), x_data, y_data, measures
+                )
+            )
+
+    return selected
+
+
+def _extract_waterfall_bars_fallback(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract waterfall bars using pure Python (fallback when numpy unavailable)."""
+    selected: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "waterfall":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+        if x_data is None or y_data is None:
+            continue
+
+        n = len(y_data) if hasattr(y_data, "__len__") else 0
+        if n == 0:
+            continue
+
+        orientation = getattr(trace, "orientation", None) or "v"
+        measures = getattr(trace, "measure", None)
+        trace_base = getattr(trace, "base", None)
+        base = (
+            float(trace_base) if isinstance(trace_base, (int, float)) else 0.0
+        )
+
+        if orientation == "h":
+            cat_data, val_data = y_data, x_data
+            cat_min, cat_max = y_min, y_max
+            val_min, val_max = x_min, x_max
+        else:
+            cat_data, val_data = x_data, y_data
+            cat_min, cat_max = x_min, x_max
+            val_min, val_max = y_min, y_max
+
+        extents = _compute_waterfall_bar_extents(val_data, measures, base)
+
+        for i, (bar_lo, bar_hi) in enumerate(extents):
+            # Category check: orderable (numeric/datetime) or positional
+            cat_val = _get_indexed_value(cat_data, i)
+            if _is_orderable_value(cat_val) and _is_orderable_value(cat_min):
+                cat_min_p = _parse_datetime_bound(cat_min)
+                cat_max_p = _parse_datetime_bound(cat_max)
+                cat_val_p = _parse_datetime_bound(cat_val)
+                if not (cat_min_p <= cat_val_p <= cat_max_p):
+                    continue
+            else:
+                if cat_max <= i - 0.5 or cat_min >= i + 0.5:
+                    continue
+            # Value check: bar [bar_lo, bar_hi] overlaps [val_min, val_max]
+            if val_min >= bar_hi or val_max <= bar_lo:
+                continue
+            selected.append(
+                _build_waterfall_point(
+                    trace, trace_idx, i, x_data, y_data, measures
+                )
+            )
+
+    return selected
+
+
+def _build_waterfall_point(
+    trace: Any,
+    trace_idx: int,
+    point_idx: int,
+    x_data: Any,
+    y_data: Any,
+    measures: Any,
+) -> dict[str, Any]:
+    """Build a selection point dict for a single waterfall bar."""
+    x_val = _get_indexed_value(x_data, point_idx)
+    y_val = _get_indexed_value(y_data, point_idx)
+    point: dict[str, Any] = {
+        "x": x_val,
+        "y": y_val,
+        "curveNumber": trace_idx,
+        "pointIndex": point_idx,
+        "pointNumber": point_idx,
+    }
+    # Include the measure type so callers know if it's relative/absolute/total
+    try:
+        m = measures[point_idx] if measures is not None else None
+    except (IndexError, TypeError):
+        m = None
+    if m is not None:
+        point["measure"] = str(m)
 
     name = getattr(trace, "name", None)
     if name:
