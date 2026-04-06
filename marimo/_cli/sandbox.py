@@ -213,11 +213,20 @@ def _uv_export_script_requirements_txt(
     resolved = []
     for line in lines:
         editable = line.startswith("-e ")
-        path = line[3:].strip() if editable else line.strip()
-        if path.startswith("."):
-            path = str((script_dir / path).resolve())
+        rest = line[3:].strip() if editable else line.strip()
+        # Split off any environment markers ("; ...") or inline comments ("# ...")
+        # so we only resolve the path token itself.
+        for sep in (" ;", " #"):
+            if sep in rest:
+                path_token, remainder = rest.split(sep, 1)
+                remainder = sep.lstrip() + remainder
+                break
+        else:
+            path_token, remainder = rest, ""
+        if path_token.startswith("."):
+            path_token = str((script_dir / path_token).resolve())
         prefix = "-e " if editable else ""
-        resolved.append(f"{prefix}{path}")
+        resolved.append(f"{prefix}{path_token}{remainder}")
     return resolved
 
 
