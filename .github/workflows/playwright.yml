@@ -22,8 +22,8 @@ jobs:
     outputs:
       playwright: ${{ steps.filter.outputs.playwright }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           filters: |
@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Write TOML
         run: |
           echo "[runtime]" > .marimo.toml
@@ -65,7 +65,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
           python-version: 3.12
@@ -83,7 +83,7 @@ jobs:
           echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
 
       - name: 📦 Cache playwright binaries
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: playwright-cache
         with:
           path: |
@@ -102,7 +102,7 @@ jobs:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
 
       # - name: ☁️ Google Auth
-      #   uses: google-github-actions/auth@v2
+      #   uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
       #   # Skip on forks
       #   if: github.event.pull_request.head.repo.organization == 'marimo-team'
       #   with:
@@ -110,10 +110,10 @@ jobs:
 
       # - name: 🌲 Get branch name
       #   id: branch-name
-      #   uses: tj-actions/branch-names@v7
+      #   uses: tj-actions/branch-names@6c999acf206f5561e19f46301bb310e9e70d8815 # v7
 
       # - name: 📦 Upload to bucket (PR)
-      #   uses: google-github-actions/upload-cloud-storage@v2
+      #   uses: google-github-actions/upload-cloud-storage@c0f6160ff80057923ff50e5e567695cea181ec23 # v2
       #   # Only on PRs and not forks
       #   if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.organization == 'marimo-team'
       #   with:
@@ -121,7 +121,7 @@ jobs:
       #     path: frontend/e2e-tests/screenshots
 
       # - name: 📦 Upload to bucket (main)
-      #   uses: google-github-actions/upload-cloud-storage@v2
+      #   uses: google-github-actions/upload-cloud-storage@c0f6160ff80057923ff50e5e567695cea181ec23 # v2
       #   # Only on main branch and not forks
       #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.pull_request.head.repo.organization == 'marimo-team'
       #   with:
@@ -129,7 +129,7 @@ jobs:
       #     path: frontend/e2e-tests/screenshots
 
       - name: 📊 Upload report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
           name: playwright-report
