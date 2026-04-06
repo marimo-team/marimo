@@ -1294,6 +1294,46 @@ class table(
             return range(skip, skip + take)
         return response.row_ids[skip : skip + take]
 
+    def _get_page_cell_values(
+        self,
+        skip: int,
+        take: int,
+        total_rows: Union[int, Literal["too_many"]],
+    ) -> tuple[list[str], Union[list[int], range], dict[str, dict[str, Any]]]:
+        """Get column names, row IDs, and a {row_id: {col: value}} lookup
+        for the requested page. Takes the page slice once so callers
+        avoid per-cell full-DataFrame scans."""
+        columns = self._searched_manager.get_column_names()
+        response = self._get_row_ids(EmptyArgs())
+
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        row_ids: Union[list[int], range] = self._get_page_row_ids(
+            skip, take, response
+        )
+
+        page_manager = self._searched_manager.take(take, skip)
+        page_frame = getattr(page_manager, "as_frame", None)
+        page_data = page_frame() if page_frame is not None else page_manager.data
+
+        lookup: dict[str, dict[str, Any]] = {}
+        if self._has_stable_row_id and INDEX_COLUMN_NAME in columns:
+            page_row_ids = page_data[INDEX_COLUMN_NAME].to_list()
+            for i, rid in enumerate(page_row_ids):
+                row_dict: dict[str, Any] = {}
+                for col in columns:
+                    row_dict[col] = page_data[col][i]
+                lookup[str(rid)] = row_dict
+        else:
+            for i, rid in enumerate(row_ids):
+                row_dict = {}
+                for col in columns:
+                    row_dict[col] = page_data[col][i]
+                lookup[str(rid)] = row_dict
+
+        return columns, row_ids, lookup
+
     def _style_cells(
         self,
         skip: int,
@@ -1304,29 +1344,21 @@ class table(
         if self._style_cell is None:
             return None
 
-        def do_style_cell(row: str, col: str) -> dict[str, Any]:
-            selected_cells = self._searched_manager.select_cells(
-                [TableCoordinate(row_id=row, column_name=col)]
-            )
-            if not selected_cells or self._style_cell is None:
-                return {}
-            return self._style_cell(row, col, selected_cells[0].value)
-
-        columns = self._searched_manager.get_column_names()
-        response = self._get_row_ids(EmptyArgs())
-
-        # Clamp the take to the total number of rows
-        if total_rows != "too_many" and skip + take > total_rows:
-            take = total_rows - skip
-
-        row_ids: Union[list[int], range] = self._get_page_row_ids(
-            skip, take, response
+        columns, row_ids, lookup = self._get_page_cell_values(
+            skip, take, total_rows
         )
 
-        return {
-            str(row): {col: do_style_cell(str(row), col) for col in columns}
-            for row in row_ids
-        }
+        result: CellStyles = {}
+        for row in row_ids:
+            row_str = str(row)
+            row_values = lookup.get(row_str, {})
+            row_styles: dict[str, dict[str, Any]] = {}
+            for col in columns:
+                row_styles[col] = self._style_cell(
+                    row_str, col, row_values.get(col)
+                )
+            result[row_str] = row_styles
+        return result
 
     def _hover_cells(
         self,
@@ -1338,37 +1370,31 @@ class table(
         if self._hover_cell is None:
             return None
 
-        def do_hover_cell(row: str, col: str) -> Optional[str]:
-            selected_cells = self._searched_manager.select_cells(
-                [TableCoordinate(row_id=row, column_name=col)]
-            )
-            if not selected_cells or self._hover_cell is None:
-                return None
-            try:
-                value = selected_cells[0].value
-                result = self._hover_cell(row, col, value)
-                return str(result) if result is not None else None
-            except BaseException as e:
-                LOGGER.warning(
-                    "Failed to compute hover text for %s:%s: %s", row, col, e
-                )
-                return None
-
-        columns = self._searched_manager.get_column_names()
-        response = self._get_row_ids(EmptyArgs())
-
-        # Clamp the take to the total number of rows
-        if total_rows != "too_many" and skip + take > total_rows:
-            take = total_rows - skip
-
-        row_ids: Union[list[int], range] = self._get_page_row_ids(
-            skip, take, response
+        columns, row_ids, lookup = self._get_page_cell_values(
+            skip, take, total_rows
         )
 
-        return {
-            str(row): {col: do_hover_cell(str(row), col) for col in columns}
-            for row in row_ids
-        }
+        result: dict[RowId, dict[ColumnName, Optional[str]]] = {}
+        for row in row_ids:
+            row_str = str(row)
+            row_values = lookup.get(row_str, {})
+            row_hovers: dict[ColumnName, Optional[str]] = {}
+            for col in columns:
+                try:
+                    hover = self._hover_cell(
+                        row_str, col, row_values.get(col)
+                    )
+                    row_hovers[col] = (
+                        str(hover) if hover is not None else None
+                    )
+                except BaseException as e:
+                    LOGGER.warning(
+                        "Failed to compute hover text for %s:%s: %s",
+                        row_str, col, e,
+                    )
+                    row_hovers[col] = None
+            result[row_str] = row_hovers
+        return result
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
