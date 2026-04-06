@@ -120,7 +120,8 @@ export const DataTableColumnHeader = <TData, TValue>({
             <DropdownMenuTrigger asChild={true}>
               <button
                 type="button"
-                className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4) text-muted-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:text-accent-foreground"
+                className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4) text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 data-[state=open]:text-accent-foreground"
+                aria-label="Column options"
                 data-testid="data-table-column-menu-button"
               >
                 <EllipsisIcon className="h-3.5 w-3.5" />
@@ -179,8 +180,15 @@ const SortButton = <TData, TValue>({
         "inline-flex items-center justify-center h-5 w-5 rounded hover:bg-(--slate-4)",
         sortDirection
           ? "text-accent-foreground"
-          : "text-muted-foreground opacity-0 group-hover:opacity-100",
+          : "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 group-focus-within:opacity-100",
       )}
+      aria-label={
+        sortDirection === "asc"
+          ? "Sorted ascending, click to sort descending"
+          : sortDirection === "desc"
+            ? "Sorted descending, click to clear sort"
+            : "Sort column ascending"
+      }
       data-testid="data-table-sort-button"
     >
       {renderSortFilterIcon(column)}
