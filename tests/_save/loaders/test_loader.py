@@ -292,6 +292,30 @@ class TestLazyLoader(ABCTestLoader):
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(), reason="numpy required"
     )
+    def test_numpy_object_dtype_round_trip(self) -> None:
+        """Object-dtype numpy arrays survive save → flush → load via .npy."""
+        import numpy as np
+
+        loader = self.instance()
+        arr = np.array(["a", "b"], dtype=object)
+        cache = Cache(
+            defs={"arr": arr},
+            hash="np_obj_hash",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={"version": MARIMO_CACHE_VERSION},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+
+        loaded = loader.load_cache(key("np_obj_hash", "Pure"))
+        assert loaded is not None
+        np.testing.assert_array_equal(loaded.defs["arr"], arr)
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy required"
+    )
     def test_numpy_round_trip(self) -> None:
         """numpy arrays survive save → flush → load via .npy format."""
         import numpy as np

@@ -68,7 +68,7 @@ class Cache(msgspec.Struct):
 #   "inline"  — stored as a primitive/function/module field in the Item struct
 #   "ui"      — shared ui.pickle blob (UIElement family)
 #   "pickle"  — per-variable .pickle blob (default fallback)
-#   "npz"     — numpy .npz blob
+#   "npy"     — numpy .npy blob
 #   "arrow"   — Arrow IPC .arrow blob (polars and pandas)
 LAZY_STUB_LOOKUP: dict[str, str] = {
     "builtins.int": "inline",
@@ -84,7 +84,7 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     "numpy.ndarray": "npy",
     "polars.dataframe.frame.DataFrame": "arrow",
     "polars.series.series.Series": "arrow",
-    "pandas.DataFrame": "arrow",  # feather v2 IS Arrow IPC; pandas overrides __module__
+    "pandas.DataFrame": "arrow",
     "pandas.Series": "arrow",
 }
 
@@ -101,16 +101,14 @@ def _npy_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     import numpy as np
 
     del type_hint
-    return np.load(io.BytesIO(data), allow_pickle=False)
+    return np.load(io.BytesIO(data), allow_pickle=True)
 
 
 def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
     # version-stable across pyarrow/polars/pandas releases.
-    if not DependencyManager.pyarrow.has():
-        # pyarrow absent at save time means the blob is pickle-encoded.
-        return pickle.loads(data)
+    DependencyManager.pyarrow.require("to load cached Arrow IPC blobs.")
     import pyarrow as pa
 
     reader = pa.ipc.open_file(io.BytesIO(data))
@@ -126,7 +124,9 @@ def _arrow_load(data: bytes, type_hint: Optional[str] = None) -> Any:
     result = pl.from_arrow(table)
     if type_hint == "polars.series.series.Series":
         # Stored as a single-column DataFrame; recover as a Series.
-        return result.to_series(0)
+        if isinstance(result, pl.DataFrame):
+            return result.to_series(0)
+        return result
     return result
 
 

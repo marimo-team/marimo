@@ -74,7 +74,7 @@ def to_item(
     if loader is None:
         loader = maybe_update_lazy_stub(value)
 
-    type_hint = f"{type(value).__module__}.{type(value).__qualname__}"
+    type_hint = f"{type(value).__module__}.{type(value).__name__}"
 
     if loader == "pickle":
         return Item(
