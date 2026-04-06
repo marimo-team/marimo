@@ -2564,8 +2564,8 @@ class TestCacheDecorator:
 
         @cache with a DataFrame containing an object-dtype column previously
         raised: ValueError: The truth value of a DataFrame is ambiguous.
-        Caused by an unsafe truthiness check in get_type() at hash.py:517
-        that called bool() on the scope value instead of checking key presence.
+        Caused by an unsafe truthiness check in get_type() that called
+        bool() on the scope value instead of checking key presence.
         """
         await k.run(
             [
