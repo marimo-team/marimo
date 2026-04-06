@@ -8,7 +8,7 @@ from urllib.request import urlopen
 from marimo._config.config import Theme
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
-from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
+from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType, MimeBundle
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.altair_chart import (
@@ -45,11 +45,16 @@ class AltairFormatter(FormatterFactory):
             # If its HTML, we want to handle this ourselves
             # if its svg, vega, or png, then we want to pass that instead
             # because that means the user has configured the that renderer
-            mimebundle: MimeBundleOrTuple = {}
+            mimebundle: MimeBundle | tuple[MimeBundle, MimeBundle] = {}
             try:
                 mimebundle = chart._repr_mimebundle_() or {}  # type: ignore
             except Exception:
                 pass
+
+            # When the mimebundle is a tuple, it follows the format
+            # (data_dict, metadata_dict).
+            if isinstance(mimebundle, tuple) and "image/png" in mimebundle[0]:
+                return _format_png_mimebundle(mimebundle)
 
             # Handle where there are multiple mime types
             # return as a mimebundle
@@ -104,6 +109,24 @@ class AltairFormatter(FormatterFactory):
         # We don't need to apply this here because the theme is set in the
         # vega-lite component
         pass
+
+
+def _format_png_mimebundle(
+    png_mimebundle: tuple[MimeBundle, MimeBundle],
+) -> tuple[KnownMimeType, str]:
+    data_url = io_to_data_url(png_mimebundle[0]["image/png"], "image/png")
+    metadata = png_mimebundle[1]["image/png"]
+
+    mimebundle = {
+        "image/png": data_url or "",
+        METADATA_KEY: {
+            "image/png": {
+                "width": metadata["width"],
+                "height": metadata["height"],
+            }
+        },
+    }
+    return "application/vnd.marimo+mimebundle", json.dumps(mimebundle)
 
 
 # This is only needed since it seems that altair does not
