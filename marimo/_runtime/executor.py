@@ -98,6 +98,17 @@ class Executor(ABC):
 
 
 class DefaultExecutor(Executor):
+    @staticmethod
+    def _clear_warning_registry(glbls: dict[str, Any]) -> None:
+        """Clear the warning registry so warnings are shown on every run.
+
+        Python's warnings module stores a ``__warningregistry__`` dict in the
+        caller's global namespace to suppress duplicate warnings.  Because
+        marimo re-executes cells in the same globals dict, previously-seen
+        warnings would be silently suppressed on subsequent runs.
+        """
+        glbls.pop("__warningregistry__", None)
+
     async def execute_cell_async(
         self,
         cell: CellImpl,
@@ -107,6 +118,7 @@ class DefaultExecutor(Executor):
         if cell.body is None:
             return None
         assert cell.last_expr is not None
+        self._clear_warning_registry(glbls)
         try:
             if _is_coroutine(cell.body):
                 await eval(cell.body, glbls)
@@ -130,6 +142,7 @@ class DefaultExecutor(Executor):
         glbls: dict[str, Any],
         graph: DirectedGraph | None = None,
     ) -> Any:
+        self._clear_warning_registry(glbls)
         try:
             if cell.body is None:
                 return None

@@ -210,6 +210,62 @@ async def test_ui_element_update_skips_overridden_cells(
     assert embed_result.defs["x"] == 100
 
 
+async def test_warnings_persist_across_reruns(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Warnings should appear on every cell run, not just the first.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/4821
+
+    Python's default warning filter records shown warnings in
+    ``__warningregistry__`` (stored in the caller's globals) and suppresses
+    duplicates.  Because marimo re-executes cells in the same globals dict,
+    previously-seen warnings would be silently swallowed on subsequent runs
+    unless the registry is cleared before each execution.
+
+    The cell captures a snapshot of ``__warningregistry__`` at the start of
+    execution. If the executor properly clears the registry, the snapshot
+    should contain no warning entries (only the ``version`` key at most).
+    """
+    k = execution_kernel
+    # The cell records the registry state at the start of execution, then
+    # emits a warning (which populates the registry for the next run).
+    await k.run(
+        [
+            er := exec_req.get(
+                """
+                import warnings
+                registry_snapshot = dict(
+                    globals().get("__warningregistry__", {})
+                )
+                warnings.warn("test warning", UserWarning)
+                """
+            )
+        ]
+    )
+
+    runner = Runner(
+        roots=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+    )
+
+    # First run: populates the registry
+    await runner.run(er.cell_id)
+
+    # Second run: the executor should have cleared the registry before exec.
+    # The cell's snapshot should contain no warning entries.
+    await runner.run(er.cell_id)
+    snapshot = k.globals["registry_snapshot"]
+    warning_entries = {k: v for k, v in snapshot.items() if k != "version"}
+    assert warning_entries == {}, (
+        f"__warningregistry__ was not cleared before cell re-execution: "
+        f"{warning_entries}"
+    )
+
+
 async def test_converging_cell_stays_stopped_until_all_branches_trigger(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
