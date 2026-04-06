@@ -662,14 +662,14 @@ class TestProxyMiddleware:
         python-lsp-server expect percent-encoding (%20).
         See: https://github.com/marimo-team/marimo/issues/9041
         """
-        from urllib.parse import quote, unquote_plus
+        from urllib.parse import quote
 
         from starlette.datastructures import QueryParams
 
         def _encode_params(query_string: bytes) -> str:
             """Reproduce the encoding logic from _proxy_websocket."""
             params = QueryParams(query_string.decode())
-            encoded = [(k, quote(unquote_plus(v))) for k, v in params.items()]
+            encoded = [(k, quote(v)) for k, v in params.items()]
             return "&".join(f"{k}={v}" for k, v in encoded)
 
         # '+' in query string should be converted to %20
@@ -687,6 +687,10 @@ class TestProxyMiddleware:
         # Path-like values: slashes are preserved (quote's default safe='/')
         result = _encode_params(b"file=/path/to/my+file.py")
         assert result == "file=/path/to/my%20file.py"
+
+        # Literal plus signs (%2B) should be preserved, not turned into spaces
+        result = _encode_params(b"file=a%2Bb.py")
+        assert result == "file=a%2Bb.py"
 
 
 def _mock_lsp_server(server_id: str, port: int):

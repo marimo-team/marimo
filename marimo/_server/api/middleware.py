@@ -14,7 +14,7 @@ from typing import (
     Optional,
     Union,
 )
-from urllib.parse import quote, unquote_plus, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import starlette.status as status
 from starlette.authentication import (
@@ -511,12 +511,11 @@ class ProxyMiddleware:
         try:
             original_params = websocket.query_params
             if original_params:
-                # Re-encode query params: Starlette may decode spaces as '+'
-                # (application/x-www-form-urlencoded), but upstream servers
-                # like python-lsp-server expect percent-encoded (%20) values.
+                # Re-encode query params from Starlette's already-decoded
+                # values so spaces become %20 while preserving literal plus
+                # signs instead of incorrectly treating them as spaces.
                 encoded_params = [
-                    (k, quote(unquote_plus(v)))
-                    for k, v in original_params.items()
+                    (k, quote(v)) for k, v in original_params.items()
                 ]
                 ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in encoded_params)}"
             await websocket.accept()
