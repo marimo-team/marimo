@@ -41,7 +41,7 @@ export function createInitialLayout(figure: Figure): Partial<Plotly.Layout> {
 
 /**
  * Returns true if two figures have compatible trace types.
- * When traces are incompatible (different types or count), axis settings
+ * When traces are incompatible (different types, count, or order), axis settings
  * from the old figure should not be preserved as they would distort the
  * new chart. See https://github.com/marimo-team/marimo/issues/5898
  */
