@@ -241,6 +241,27 @@ describe("collapseConsoleOutputs", () => {
     expect(result[2].data).toBe("<pre>E\nF\nG\nH\n</pre>");
   });
 
+  it("should not crash when truncating with a single output at the limit boundary", () => {
+    // Create outputs that push truncation to the exact boundary
+    const consoleOutputs: OutputMessage[] = [
+      {
+        mimetype: "text/html",
+        channel: "output",
+        data: "<div>html1</div>",
+        timestamp: 0,
+      },
+      {
+        mimetype: "text/html",
+        channel: "output",
+        data: "<div>html2</div>",
+        timestamp: 0,
+      },
+    ];
+    // With limit=1, truncation must handle edge cases gracefully
+    const result = collapseConsoleOutputs(consoleOutputs, 1);
+    expect(result[0].data).toContain("Streaming output truncated");
+  });
+
   describe("ANSI escape sequences", () => {
     it("should handle cursor movement with collapse", () => {
       const consoleOutputs: OutputMessage[] = [
