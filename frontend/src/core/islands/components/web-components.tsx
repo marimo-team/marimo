@@ -113,6 +113,10 @@ export class MarimoIslandElement extends HTMLElement {
     // Capture config synchronously (before children get cleared by createRoot)
     const config = this.extractRenderConfig();
     queueMicrotask(() => {
+      // Guard against disconnect between connectedCallback and microtask
+      if (!this.isConnected) {
+        return;
+      }
       this.root = ReactDOM.createRoot(this);
       this.renderIsland(config);
     });

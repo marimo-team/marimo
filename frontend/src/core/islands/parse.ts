@@ -77,6 +77,13 @@ export function parseIslandElementsIntoApps(
       continue;
     }
 
+    // Non-reactive islands are static — they don't participate in the kernel
+    const reactive =
+      embed.getAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE) === "true";
+    if (!reactive) {
+      continue;
+    }
+
     const cellData = parseIslandElement(embed);
     if (!cellData) {
       Logger.warn(`Embedded marimo app ${appId} missing cell output or code.`);

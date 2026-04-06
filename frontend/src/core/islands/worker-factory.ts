@@ -57,10 +57,8 @@ export class DefaultWorkerFactory implements WorkerFactory {
       name: this.name,
     });
 
-    // Clean up blob URL on error
-    worker.addEventListener("error", () => {
-      URL.revokeObjectURL(objURL);
-    });
+    // Blob URL can be revoked once the worker has loaded the script
+    URL.revokeObjectURL(objURL);
 
     return worker;
   }

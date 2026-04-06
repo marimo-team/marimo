@@ -177,8 +177,11 @@ describe("useIslandControls", () => {
     });
     expect(result.current).toBe(true);
 
-    // Note: blur and mouseleave listeners are still active and will set pressed to false
-    // This is correct behavior to reset state when focus is lost
+    // Blur and mouseleave are also no-ops when alwaysShowRun is true
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(result.current).toBe(true);
   });
 
   it("should handle rapid key presses correctly", () => {

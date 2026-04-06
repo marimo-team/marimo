@@ -11,6 +11,7 @@ import "../../css/table.css";
 
 import "iconify-icon";
 
+import { Logger } from "@/utils/Logger";
 import { initializeIslands } from "./bootstrap";
 import { getGlobalBridge } from "./bridge";
 
@@ -22,4 +23,6 @@ export async function initialize() {
 }
 
 // Auto-initialize on module load
-initialize();
+void initialize().catch((error) => {
+  Logger.error("Failed to initialize islands:", error);
+});
