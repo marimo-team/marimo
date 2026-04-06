@@ -341,7 +341,7 @@ export function useAsyncData<T>(
     };
     setResult((prevResult) => {
       // If we have previous data, show reloading state
-      if (prevResult.status === "success") {
+      if (prevResult.status === "success" || prevResult.status === "loading") {
         return Result.loading(prevResult.data);
       }
       // Otherwise, show initial loading state
