@@ -1315,7 +1315,9 @@ class table(
 
         page_manager = self._searched_manager.take(take, skip)
         page_frame = getattr(page_manager, "as_frame", None)
-        page_data = page_frame() if page_frame is not None else page_manager.data
+        page_data = (
+            page_frame() if page_frame is not None else page_manager.data
+        )
 
         lookup: dict[str, dict[str, Any]] = {}
         if self._has_stable_row_id and INDEX_COLUMN_NAME in columns:
@@ -1381,16 +1383,14 @@ class table(
             row_hovers: dict[ColumnName, Optional[str]] = {}
             for col in columns:
                 try:
-                    hover = self._hover_cell(
-                        row_str, col, row_values.get(col)
-                    )
-                    row_hovers[col] = (
-                        str(hover) if hover is not None else None
-                    )
+                    hover = self._hover_cell(row_str, col, row_values.get(col))
+                    row_hovers[col] = str(hover) if hover is not None else None
                 except BaseException as e:
                     LOGGER.warning(
                         "Failed to compute hover text for %s:%s: %s",
-                        row_str, col, e,
+                        row_str,
+                        col,
+                        e,
                     )
                     row_hovers[col] = None
             result[row_str] = row_hovers
