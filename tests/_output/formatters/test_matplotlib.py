@@ -280,3 +280,42 @@ async def test_matplotlib_svg_rendering(
     assert mime_type == "image/svg+xml"
     assert isinstance(data, str)
     assert data.startswith("data:image/svg+xml;base64,PD94")
+
+
+@pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
+async def test_matplotlib_svg_rendering_in_layout(
+    executing_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that the SVG output can be used in a layout."""
+    from marimo._output.formatters.formatters import register_formatters
+
+    register_formatters(theme="light")
+
+    await executing_kernel.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                import matplotlib.pyplot as plt
+
+                fmt = plt.rcParams["savefig.format"]
+                plt.rcParams["savefig.format"] = "svg"
+
+                # Create a simple figure
+                fig, ax = plt.subplots(figsize=(4, 3))
+                ax.plot([1, 2, 3], [1, 2, 3])
+                result = mo.hstack([fig])._mime_()
+
+                plt.rcParams["savefig.format"] = fmt
+                """
+            )
+        ]
+    )
+
+    # Get the formatted result from kernel globals
+    mime_type, data = executing_kernel.globals["result"]
+
+    assert mime_type == "text/html"
+    assert isinstance(data, str)
+    assert data.startswith("<div")
+    assert '<img src="data:image/svg+xml;base64,' in data

@@ -343,6 +343,8 @@ def mime_to_html(mimetype: KnownMimeType, data: Any) -> Html:
         # when interpolating into markdown/a multiline string
         return Html(flatten_string(f"<span>{escape(data)}</span>"))
     elif mimetype == "image/svg+xml":
+        if isinstance(data, str) and data.startswith("data:image/svg+xml;"):
+            return Html(flatten_string(f'<img src="{data}" alt="" />'))
         return Html(data)
     elif mimetype.startswith("image"):
         return Html(flatten_string(f'<img src="{data}" alt="" />'))
