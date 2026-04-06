@@ -70,7 +70,11 @@ export function renderTableHeader<TData>(
         {renderHeaderGroup(table.getCenterHeaderGroups())}
         {renderHeaderGroup(table.getRightHeaderGroups())}
         {table.getAllColumns().length <= AUTO_WIDTH_MAX_COLUMNS && (
-          <th className="w-full border-0" aria-hidden="true" role="presentation" />
+          <th
+            className="w-full border-0"
+            aria-hidden="true"
+            role="presentation"
+          />
         )}
       </TableRow>
     </TableHeader>
