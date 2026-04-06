@@ -209,7 +209,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     foldGutter(),
     stringsAutoCloseBraces(),
     closeBrackets(),
-    completionKeymap(acceptCompletionOnEnter ?? true),
+    completionKeymap(acceptCompletionOnEnter),
     // to avoid clash with charDeleteBackward keymap
     Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),
