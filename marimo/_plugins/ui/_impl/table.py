@@ -650,9 +650,7 @@ class table(
             page_size = total_rows
         # pagination defaults to True if there are more than page_size rows
         if pagination is None:
-            if total_rows == "too_many":
-                pagination = True
-            elif total_rows > page_size:
+            if total_rows == "too_many" or total_rows > page_size:
                 pagination = True
             else:
                 pagination = False
@@ -1309,30 +1307,29 @@ class table(
         if total_rows != "too_many" and skip + take > total_rows:
             take = total_rows - skip
 
+        if take <= 0:
+            return columns, [], {}
+
         row_ids: Union[list[int], range] = self._get_page_row_ids(
             skip, take, response
         )
 
         page_manager = self._searched_manager.take(take, skip)
-        page_frame = getattr(page_manager, "as_frame", None)
-        page_data = (
-            page_frame() if page_frame is not None else page_manager.data
-        )
+        all_cells = [
+            TableCoordinate(row_id=str(i), column_name=col)
+            for i in range(take)
+            for col in columns
+        ]
+        selected = page_manager.select_cells(all_cells)
 
+        # Group selected cells by page position, keyed by original row ID
+        pos_to_row_id = {str(i): str(rid) for i, rid in enumerate(row_ids)}
         lookup: dict[str, dict[str, Any]] = {}
-        if self._has_stable_row_id and INDEX_COLUMN_NAME in columns:
-            page_row_ids = page_data[INDEX_COLUMN_NAME].to_list()
-            for i, rid in enumerate(page_row_ids):
-                row_dict: dict[str, Any] = {}
-                for col in columns:
-                    row_dict[col] = page_data[col][i]
-                lookup[str(rid)] = row_dict
-        else:
-            for i, rid in enumerate(row_ids):
-                row_dict = {}
-                for col in columns:
-                    row_dict[col] = page_data[col][i]
-                lookup[str(rid)] = row_dict
+        for cell in selected:
+            row_str = pos_to_row_id.get(cell.row, cell.row)
+            if row_str not in lookup:
+                lookup[row_str] = {}
+            lookup[row_str][cell.column] = cell.value
 
         return columns, row_ids, lookup
 
@@ -1553,7 +1550,7 @@ class table(
             return GetRowIdsResponse(
                 row_ids=[],
                 all_rows=False,
-                error=f"Failed to get row IDs: {str(e)}",
+                error=f"Failed to get row IDs: {e!s}",
             )
 
     # Override _mime_ to return a plain HTML representation in non-interactive environments
