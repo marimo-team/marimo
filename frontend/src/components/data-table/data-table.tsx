@@ -47,6 +47,7 @@ import { DataTableBody, renderTableHeader } from "./renderers";
 import { TableBottomBar } from "./TableBottomBar";
 import { TableTopBar } from "./TableTopBar";
 import {
+  AUTO_WIDTH_MAX_COLUMNS,
   type DataTableSelection,
   MIN_ROWS_TO_VIRTUALIZE,
   type TooManyRows,
@@ -300,7 +301,13 @@ const DataTableInternal = <TData,>({
             isAnyPanelOpen={isAnyPanelOpen}
             downloadAs={downloadAs}
           />
-          <Table className="relative" ref={tableRef}>
+          <Table
+            className={cn(
+              "relative",
+              columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
+            )}
+            ref={tableRef}
+          >
             {showLoadingBar && (
               <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
             )}
