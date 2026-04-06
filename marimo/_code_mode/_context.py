@@ -24,7 +24,7 @@ Usage::
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
@@ -51,7 +51,10 @@ from marimo._messaging.notebook.changes import (
     SetName,
     Transaction,
 )
-from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
+from marimo._messaging.notebook.document import (
+    NotebookCell as _NotebookCell,
+    NotebookDocument,
+)
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     Notification,
@@ -77,6 +80,35 @@ if TYPE_CHECKING:
     from marimo._ast.cell_manager import CellManager
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
+
+# A synthesized status for cells visible to agents.
+# Combines runtime state, staleness, and last run result into one value.
+CellStatusType = Literal[
+    "idle",  # ran successfully, up to date
+    "exception",  # cell raised an exception
+    "stale",  # inputs changed, needs re-run
+    "cancelled",  # ancestor raised an exception
+    "interrupted",  # execution was interrupted
+    "marimo-error",  # prevented from executing (e.g. multiply-defined var)
+    "disabled",  # cell is disabled
+    "queued",  # waiting to run
+    "running",  # currently executing
+]
+
+
+class CellRuntimeState(Protocol):
+    """The subset of ``CellImpl`` that ``NotebookCell`` reads."""
+
+    @property
+    def code(self) -> str: ...
+    @property
+    def runtime_state(self) -> str | None: ...
+    @property
+    def run_result_status(self) -> str | None: ...
+    @property
+    def stale(self) -> bool: ...
+    @property
+    def exception(self) -> Exception | None: ...
 
 
 LOGGER = _loggers.marimo_logger()
@@ -116,6 +148,127 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     )
 
 
+class NotebookCell:
+    """Read-only view of a single cell with runtime status.
+
+    Wraps the document-level cell data and enriches it with
+    live execution state from the kernel's dependency graph.
+
+    Properties
+    ----------
+    id : CellId_t
+    code : str
+    name : str
+    config : CellConfig
+    status : CellStatusType | None
+        Synthesized execution status. Priority order:
+        transient state (queued/running/disabled) > stale > last run result.
+        ``None`` if the cell has never been registered in the graph.
+    error : Exception | None
+        The exception from the last run, if any.
+    """
+
+    __slots__ = ("_cell", "_impl")
+
+    def __init__(
+        self, cell: _NotebookCell, cell_impl: CellRuntimeState | None
+    ) -> None:
+        self._cell = cell
+        self._impl = cell_impl
+
+    # -- document properties (delegated) --
+
+    @property
+    def id(self) -> CellId_t:
+        return self._cell.id
+
+    @property
+    def code(self) -> str:
+        return self._cell.code
+
+    @property
+    def name(self) -> str:
+        return self._cell.name
+
+    @property
+    def config(self) -> CellConfig:
+        return self._cell.config
+
+    # -- runtime properties --
+
+    def _is_stale(self) -> bool:
+        """Whether the cell needs to be (re-)run.
+
+        True when:
+        - The cell has code but was never run (no impl in the graph).
+        - The cell's code was edited since it was last run.
+        - The runtime marked the cell stale (lazy mode: inputs changed).
+        """
+        if self._impl is None:
+            return bool(self._cell.code)
+        return self._cell.code != self._impl.code or self._impl.stale
+
+    @property
+    def status(self) -> CellStatusType | None:
+        """Synthesized cell status.
+
+        Returns the most relevant status for the cell:
+
+        - Transient states (``"queued"``, ``"running"``, ``"disabled"``)
+          take priority.
+        - If the cell needs to be run (code edited, inputs changed,
+          or never run), returns ``"stale"``.
+        - Otherwise falls back to the last run result
+          (``"idle"``, ``"exception"``, ``"cancelled"``, etc.).
+        - Returns ``None`` if the cell is empty and has never been
+          registered in the graph.
+        """
+        if self._impl is None:
+            return "stale" if self._cell.code else None
+        # Transient runtime state takes priority.
+        rs = self._impl.runtime_state
+        if rs == "queued":
+            return "queued"
+        if rs == "running":
+            return "running"
+        if rs == "disabled-transitively":
+            return "disabled"
+        # Stale overrides last run result.
+        if self._is_stale():
+            return "stale"
+        # Fall back to last execution result.
+        rr = self._impl.run_result_status
+        if rr == "success":
+            return "idle"
+        return rr
+
+    @property
+    def error(self) -> Exception | None:
+        """The exception from the last run, if any.
+
+        Persists even when ``status`` changes to ``"stale"`` after
+        an edit — useful for inspecting what went wrong before the fix.
+        """
+        return self._impl.exception if self._impl else None
+
+    # -- display --
+
+    def __repr__(self) -> str:
+        first_line = self.code.split("\n", 1)[0]
+        if len(first_line) > 80:
+            code_preview = first_line[:80] + "..."
+        elif "\n" in self.code:
+            code_preview = first_line + "..."
+        else:
+            code_preview = first_line
+        name_part = f", name={self.name!r}" if self.name else ""
+        status_part = f", status={self.status!r}" if self.status else ""
+        return (
+            f"NotebookCell(id={self.id!r}{name_part}"
+            f"{status_part}, code={code_preview!r})"
+        )
+
+
 class _CellsView:
     """Read-only, ordered view over notebook cells.
 
@@ -126,16 +279,16 @@ class _CellsView:
         ctx.cells["Abcd1234"]  # by cell ID
         ctx.cells["my_cell"]  # by cell name
 
-    Iteration yields ``NotebookCell`` objects directly::
+    Iteration yields ``NotebookCell`` objects with runtime status::
 
         for cell in ctx.cells:
-            print(cell.id, cell.code)
+            print(cell.id, cell.code, cell.status)
 
     Dict-like access is also available::
 
         ctx.cells.keys()  # list of CellId_t
-        ctx.cells.values()  # list of NotebookCell
-        ctx.cells.items()  # list of (CellId_t, NotebookCell)
+        ctx.cells.values()  # list of CellView
+        ctx.cells.items()  # list of (CellId_t, CellView)
         "my_cell" in ctx.cells  # membership test
     """
 
@@ -145,6 +298,15 @@ class _CellsView:
     @property
     def _doc(self) -> NotebookDocument:
         return self._ctx._document
+
+    def _cell_view(self, cell: _NotebookCell) -> NotebookCell:
+        """Wrap a document cell with runtime state from the graph."""
+        try:
+            graph = self._ctx.graph
+            impl = graph.cells.get(cell.id)
+        except AttributeError:
+            impl = None
+        return NotebookCell(cell, impl)
 
     def _cell_ids(self) -> list[CellId_t]:
         return list(self._doc)
@@ -186,12 +348,12 @@ class _CellsView:
 
     def __getitem__(self, key: int | str) -> NotebookCell:
         if isinstance(key, int):
-            return self._doc.cells[key]
-        return self._doc.get_cell(self._resolve(key))
+            return self._cell_view(self._doc.cells[key])
+        return self._cell_view(self._doc.get_cell(self._resolve(key)))
 
     def __iter__(self) -> Iterator[NotebookCell]:
         for cell_id in self._doc.cell_ids:
-            yield self._doc.get_cell(cell_id)
+            yield self._cell_view(self._doc.get_cell(cell_id))
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, int):
@@ -210,11 +372,11 @@ class _CellsView:
 
     def values(self) -> list[NotebookCell]:
         """Return cell data in notebook order."""
-        return self._doc.cells
+        return [self._cell_view(c) for c in self._doc.cells]
 
     def items(self) -> list[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
-        return [(c.id, c) for c in self._doc.cells]
+        return [(c.id, self._cell_view(c)) for c in self._doc.cells]
 
     # ------------------------------------------------------------------
     # Content search
@@ -229,7 +391,9 @@ class _CellsView:
 
             ctx.cells.find("import marimo")
         """
-        return [c for c in self._doc.cells if substring in c.code]
+        return [
+            self._cell_view(c) for c in self._doc.cells if substring in c.code
+        ]
 
     def grep(self, pattern: str) -> list[NotebookCell]:
         """Return cells whose code matches the regex *pattern*.
@@ -244,31 +408,37 @@ class _CellsView:
         import re
 
         compiled = re.compile(pattern)
-        return [c for c in self._doc.cells if compiled.search(c.code)]
+        return [
+            self._cell_view(c)
+            for c in self._doc.cells
+            if compiled.search(c.code)
+        ]
 
     # ------------------------------------------------------------------
     # Display
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        cells = self._doc.cells
-        n = len(cells)
+        doc_cells = self._doc.cells
+        n = len(doc_cells)
         max_shown = 10
         lines = [f"CellsView({n} cell{'s' if n != 1 else ''}):"]
 
-        def _fmt(i: int, c: NotebookCell) -> str:
+        def _fmt(i: int, c: _NotebookCell) -> str:
+            cv = self._cell_view(c)
             first_line = c.code.split("\n", 1)[0]
             code_preview = first_line[:50]
             if len(first_line) > 50:
                 code_preview += "..."
             name_part = f" ({c.name})" if c.name else ""
-            return f"  [{i}] {c.id}{name_part} | {code_preview}"
+            status_part = f" [{cv.status}]" if cv.status else ""
+            return f"  [{i}] {c.id}{name_part}{status_part} | {code_preview}"
 
         if n <= max_shown:
-            for i, c in enumerate(cells):
+            for i, c in enumerate(doc_cells):
                 lines.append(_fmt(i, c))
         else:
-            for i, c in enumerate(cells[:max_shown]):
+            for i, c in enumerate(doc_cells[:max_shown]):
                 lines.append(_fmt(i, c))
             omitted = n - max_shown - 1
             if omitted > 0:
@@ -276,7 +446,7 @@ class _CellsView:
                     f"  ... {omitted} more cell"
                     f"{'s' if omitted != 1 else ''} ..."
                 )
-            lines.append(_fmt(n - 1, cells[-1]))
+            lines.append(_fmt(n - 1, doc_cells[-1]))
         return "\n".join(lines)
 
 
