@@ -379,6 +379,8 @@ def run_pytest(
                     "no:codecov",  # Disable codecov plugin to avoid duplicate reports
                     "-p",
                     "no:sugar",  # Disable sugar plugin to avoid duplicate reports
+                    "-p",
+                    "no:cacheprovider",  # Skip .pytest_cache I/O
                     notebook_path,
                 ],
                 plugins=[plugin],
