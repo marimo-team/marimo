@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import json
 from typing import Any
 from urllib.request import urlopen
@@ -17,6 +18,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     get_chart_mimetype,
     maybe_fix_vegafusion_background,
 )
+from marimo._utils.data_uri import build_data_url
 
 LOGGER = marimo_logger()
 
@@ -80,6 +82,9 @@ class AltairFormatter(FormatterFactory):
                         data_url = io_to_data_url(mime_response, mime_type)
                         return (mime_type, data_url or "")
                     if isinstance(mime_response, str):
+                        if mime_type == "image/svg+xml":
+                            data = base64.b64encode(mime_response.encode())
+                            return mime_type, build_data_url(mime_type, data)
                         return mime_type, mime_response
                     return mime_type, json.dumps(mime_response)
 
