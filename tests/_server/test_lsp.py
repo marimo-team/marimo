@@ -108,7 +108,7 @@ async def test_base_lsp_server_start_stop(
             mock_getpgid.assert_called_once_with(12345)
             mock_killpg.assert_called_once_with(12345, signal.SIGTERM)
     # Verify wait was called with timeout for graceful shutdown
-    mock_process.wait.assert_called_once_with(timeout=5)
+    mock_process.wait.assert_called_once_with(timeout=2)
     assert server.process is None
 
 
@@ -130,7 +130,7 @@ async def test_base_lsp_server_stop_force_kill_on_timeout(
 
     # Make wait() raise TimeoutExpired to simulate hung process
     mock_process.wait.side_effect = [
-        subprocess.TimeoutExpired("cmd", 5),  # First wait (terminate)
+        subprocess.TimeoutExpired("cmd", 2),  # First wait (terminate)
         None,  # Second wait (after kill)
     ]
 
