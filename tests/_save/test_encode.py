@@ -6,7 +6,13 @@ import array
 import pickle
 from typing import Any
 
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._save.encode import deterministic_dumps
+
+HAS_PANDAS = DependencyManager.pandas.has()
+HAS_NUMPY = DependencyManager.numpy.has()
 
 
 class _ArrayWithSet:
@@ -81,6 +87,10 @@ def test_0d_array() -> None:
     assert det1 == det2
 
 
+@pytest.mark.skipif(
+    not HAS_PANDAS or not HAS_NUMPY,
+    reason="pandas and numpy are required",
+)
 def test_dataframe_with_integer_columns() -> None:
     """Regression: pd.DataFrame(np.random.randn(3, 3)) has integer column names.
 
@@ -90,26 +100,20 @@ def test_dataframe_with_integer_columns() -> None:
     import numpy as np
     import pandas as pd
 
-    from marimo._dependencies.dependencies import DependencyManager
-
-    if not DependencyManager.pandas.has() or not DependencyManager.numpy.has():
-        return
-
     df = pd.DataFrame(np.random.randn(3, 3))
     # Must not raise
     result = deterministic_dumps(df, hash_type="sha256")
     assert isinstance(result, bytes)
 
 
+@pytest.mark.skipif(
+    not HAS_PANDAS or not HAS_NUMPY,
+    reason="pandas and numpy are required",
+)
 def test_dataframe_same_data_same_hash() -> None:
     """Two DataFrames with identical data must produce the same hash."""
     import numpy as np
     import pandas as pd
-
-    from marimo._dependencies.dependencies import DependencyManager
-
-    if not DependencyManager.pandas.has() or not DependencyManager.numpy.has():
-        return
 
     data = np.arange(9, dtype=float).reshape(3, 3)
     df1 = pd.DataFrame(data)
