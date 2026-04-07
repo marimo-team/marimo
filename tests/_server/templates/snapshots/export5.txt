@@ -93,6 +93,7 @@
       window.__MARIMO_MOUNT_CONFIG__ = {
             "filename": "notebook.py",
             "cwd": "",
+            "lspWorkspace": null,
             "mode": "read",
             "version": "0.0.0",
             "serverToken": "token",

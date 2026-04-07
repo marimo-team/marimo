@@ -36,7 +36,12 @@ import {
   DEFAULT_RUNTIME_CONFIG,
   runtimeConfigAtom,
 } from "./core/runtime/config";
-import { codeAtom, cwdAtom, filenameAtom } from "./core/saving/file-state";
+import {
+  codeAtom,
+  cwdAtom,
+  filenameAtom,
+  lspWorkspaceAtom,
+} from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
 import {
@@ -150,6 +155,16 @@ const mountOptionsSchema = z.object({
    * absolute working directory of the notebook
    */
   cwd: z.string().nullish().default(null),
+  /**
+   * LSP workspace information
+   */
+  lspWorkspace: z
+    .object({
+      rootUri: z.string(),
+      documentUri: z.string(),
+    })
+    .nullish()
+    .default(null),
   /**
    * notebook code
    */
@@ -287,6 +302,7 @@ function initStore(options: unknown) {
   // Files
   store.set(filenameAtom, parsedOptions.data.filename);
   store.set(cwdAtom, parsedOptions.data.cwd ?? null);
+  store.set(lspWorkspaceAtom, parsedOptions.data.lspWorkspace);
   store.set(codeAtom, parsedOptions.data.code);
   store.set(initialModeAtom, mode);
 
