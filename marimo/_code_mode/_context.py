@@ -382,9 +382,10 @@ class _CellsView:
         try:
             graph = self._ctx.graph
             impl = graph.cells.get(cell.id)
+            graph_errors = self._ctx._kernel.errors.get(cell.id, ())
         except AttributeError:
             impl = None
-        graph_errors = self._ctx._kernel.errors.get(cell.id, ())
+            graph_errors = ()
         return NotebookCell(cell, impl, graph_errors=graph_errors)
 
     def _cell_ids(self) -> list[CellId_t]:
