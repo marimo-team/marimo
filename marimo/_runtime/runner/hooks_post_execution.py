@@ -494,6 +494,27 @@ def _reset_matplotlib_context(
         exec("__marimo__._output.mpl.close_figures()", ctx.glbls)
 
 
+@kernel_tracer.start_as_current_span("flush_console")
+def _flush_console(
+    cell: CellImpl,
+    ctx: PostExecutionHookContext,
+    run_result: cell_runner.RunResult,
+) -> None:
+    """Flush buffered console output before marking the cell idle.
+
+    Console messages (stdout/stderr) are batched by a background thread
+    for performance.  Without an explicit flush, the messages may arrive
+    at the frontend *after* the cell is marked idle and ``completed-run``
+    is sent.  A subsequent run would then clear the console (via
+    ``console=[]``) before the user sees the output.
+    """
+    del cell
+    del run_result
+    del ctx
+    stream = get_context().stream
+    stream.flush_console()
+
+
 POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _set_imported_defs,
     _set_run_result_status,
@@ -506,6 +527,9 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
+    # Flush buffered console output so that stderr/stdout arrives at the
+    # frontend before the cell transitions to idle.
+    _flush_console,
     # set status to idle after all post-processing is done, in case the
     # other hooks take a long time (broadcast outputs can take a long time
     # if a formatter is slow).

@@ -14,7 +14,11 @@ from typing import (
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._messaging.console_output_worker import (
+    ConsoleMsg,
+    FlushMarker,
+    buffered_writer,
+)
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.types import (
     KernelMessage,
@@ -106,7 +110,9 @@ class ThreadSafeStream(Stream):
         if self.redirect_console:
             # Console outputs are buffered
             self.console_msg_cv = threading.Condition(threading.Lock())
-            self.console_msg_queue: deque[ConsoleMsg | None] = deque()
+            self.console_msg_queue: deque[ConsoleMsg | FlushMarker | None] = (
+                deque()
+            )
             self.buffered_console_thread = threading.Thread(
                 target=buffered_writer,
                 args=(self.console_msg_queue, self, self.console_msg_cv),
@@ -132,6 +138,21 @@ class ThreadSafeStream(Stream):
                     deserialize_kernel_notification_name(data),
                     e,
                 )
+
+    def flush_console(self) -> None:
+        """Force the buffered console writer to flush immediately.
+
+        Blocks until all pending console messages have been sent to the
+        frontend.  This ensures that stderr/stdout output produced during
+        cell execution is delivered before the cell is marked idle.
+        """
+        if not self.redirect_console:
+            return
+        marker = FlushMarker()
+        with self.console_msg_cv:
+            self.console_msg_queue.append(marker)
+            self.console_msg_cv.notify()
+        marker.done.wait()
 
     def stop(self) -> None:
         """Teardown resources created by the stream."""
@@ -263,8 +284,7 @@ class ThreadSafeStdout(Stdout):
         return False
 
     def flush(self) -> None:
-        # TODO(akshayka): maybe force the buffered writer to write
-        return
+        self._stream.flush_console()
 
     def _write_with_mimetype(
         self, data: str, mimetype: ConsoleMimeType
@@ -338,8 +358,7 @@ class ThreadSafeStderr(Stderr):
         return False
 
     def flush(self) -> None:
-        # TODO(akshayka): maybe force the buffered writer to write
-        return
+        self._stream.flush_console()
 
     def _write_with_mimetype(
         self, data: str, mimetype: ConsoleMimeType

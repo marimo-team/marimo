@@ -25,6 +25,10 @@ class Stream(abc.ABC):
     def write(self, data: KernelMessage) -> None:
         pass
 
+    def flush_console(self) -> None:
+        """Flush buffered console output, if any."""
+        return
+
     def stop(self) -> None:
         """Tear down resources, if any."""
         return
