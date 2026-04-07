@@ -8,10 +8,12 @@ import sys
 import time
 from multiprocessing import Process
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
 import pytest
 import uvicorn
 from starlette.applications import Starlette
+from starlette.datastructures import QueryParams
 from starlette.responses import Response
 from starlette.routing import Route
 from starlette.testclient import TestClient
@@ -19,6 +21,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from uvicorn import Config, Server
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
+from marimo._server.api.auth import TOKEN_QUERY_PARAM
 from marimo._server.api.middleware import (
     ProxyMiddleware,
     _AsyncHTTPClient,
@@ -654,6 +657,35 @@ class TestProxyMiddleware:
         await middleware(scope, None, None)
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
 
+    def test_proxy_websocket_strips_access_token(self) -> None:
+        """access_token is used for marimo auth and must not leak upstream."""
+
+        def _encode_params_without_token(query_string: bytes) -> str:
+            """Reproduce the encoding logic from _proxy_websocket."""
+            params = QueryParams(query_string.decode())
+            encoded = [
+                (k, quote(v))
+                for k, v in params.items()
+                if k != TOKEN_QUERY_PARAM
+            ]
+            if not encoded:
+                return ""
+            return "&".join(f"{k}={v}" for k, v in encoded)
+
+        # access_token should be stripped
+        result = _encode_params_without_token(
+            b"access_token=secret&file=test.py"
+        )
+        assert result == "file=test.py"
+
+        # Only access_token → empty string
+        result = _encode_params_without_token(b"access_token=secret")
+        assert result == ""
+
+        # No access_token → unchanged
+        result = _encode_params_without_token(b"file=test.py&mode=edit")
+        assert result == "file=test.py&mode=edit"
+
     def test_proxy_websocket_query_params_space_encoding(self) -> None:
         """Spaces in query params encoded as '+' are re-encoded as '%20'.
 
@@ -662,9 +694,6 @@ class TestProxyMiddleware:
         python-lsp-server expect percent-encoding (%20).
         See: https://github.com/marimo-team/marimo/issues/9041
         """
-        from urllib.parse import quote
-
-        from starlette.datastructures import QueryParams
 
         def _encode_params(query_string: bytes) -> str:
             """Reproduce the encoding logic from _proxy_websocket."""
