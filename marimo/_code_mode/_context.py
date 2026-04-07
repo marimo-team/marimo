@@ -27,7 +27,12 @@ import sys
 from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellImpl
+from marimo._ast.cell import (
+    CellConfig,
+    CellImpl,
+    RunResultStatusType,
+    RuntimeStateType,
+)
 from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import SETUP_CELL_NAME
@@ -100,9 +105,9 @@ class CellRuntimeState(Protocol):
     @property
     def code(self) -> str: ...
     @property
-    def runtime_state(self) -> str | None: ...
+    def runtime_state(self) -> RuntimeStateType | None: ...
     @property
-    def run_result_status(self) -> str | None: ...
+    def run_result_status(self) -> RunResultStatusType | None: ...
     @property
     def stale(self) -> bool: ...
     @property
