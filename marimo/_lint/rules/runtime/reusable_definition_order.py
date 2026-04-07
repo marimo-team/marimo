@@ -190,11 +190,15 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         self, extraction: TopLevelExtraction, notebook_indices: list[int]
     ) -> list[int] | None:
         provider_indices = {
-            status.name: notebook_index
+            self._get_definition_name(status): notebook_index
             for status, notebook_index in zip(
                 extraction.statuses, notebook_indices
             )
             if status.is_toplevel
+            or (
+                status.hint
+                and status.hint.startswith(_HINT_ORDER_DEPENDENT_PREFIX)
+            )
         }
         if not provider_indices:
             return []
@@ -208,7 +212,13 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         for status, notebook_index in zip(
             extraction.statuses, notebook_indices
         ):
-            if not status.is_toplevel:
+            if not (
+                status.is_toplevel
+                or (
+                    status.hint
+                    and status.hint.startswith(_HINT_ORDER_DEPENDENT_PREFIX)
+                )
+            ):
                 continue
             for dependency_name in status.dependencies:
                 dependency_index = provider_indices.get(dependency_name)

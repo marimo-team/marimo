@@ -95,6 +95,48 @@ if __name__ == "__main__":
     ]
 
 
+def test_reusable_definition_order_unsafe_fix_chained_dependencies():
+    code = """import marimo
+
+__generated_with = "0.18.0"
+app = marimo.App()
+
+
+@app.function
+def a(x: int = b()) -> int:
+    return x
+
+
+@app.function
+def b(x: int = c()) -> int:
+    return x
+
+
+@app.function
+def c() -> int:
+    return 1
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+    notebook = parse_notebook(code, filepath="test.py")
+    diagnostics = lint_notebook(notebook)
+
+    assert {d.code for d in diagnostics} == {"MR003"}
+
+    fixed = ReusableDefinitionOrderRule().apply_unsafe_fix(
+        notebook, diagnostics
+    )
+
+    assert [cell.name for cell in fixed.cells[:3]] == ["c", "b", "a"]
+    assert not [
+        diagnostic
+        for diagnostic in lint_notebook(fixed)
+        if diagnostic.code == "MR003"
+    ]
+
+
 def test_reusable_definition_order_unsafe_fix_does_not_move_for_setup():
     code = """import marimo
 
