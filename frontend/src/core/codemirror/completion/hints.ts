@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { EditorState, Text } from "@codemirror/state";
+import type { EditorState, Text, Transaction } from "@codemirror/state";
 import { EditorView, hoverTooltip } from "@codemirror/view";
+import { copilotIgnore } from "@valtown/codemirror-codeium";
 import { debounce } from "lodash-es";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { HTMLCellId } from "@/core/cells/ids";
@@ -30,7 +31,9 @@ export function hintTooltip(lspConfig: LSPConfig) {
             }
             return result;
           },
-          { hideOnChange: true },
+          {
+            hideOn: hideTooltipOnCopilotChange,
+          },
         ),
     cursorPositionDocumentation,
   ];
@@ -153,3 +156,17 @@ const cursorPositionDocumentation = EditorView.updateListener.of((update) => {
     debouncedAutocomplete(update.view, cursorPos);
   }
 });
+
+/**
+ * Equivalent to `hideOnChange: true` but ignores document changes from
+ * Codeium ghost text insertion/removal, which would otherwise dismiss
+ * hover tooltips every time a suggestion appears or disappears.
+ *
+ * See https://github.com/marimo-team/marimo/issues/5199
+ */
+export function hideTooltipOnCopilotChange(tr: Transaction): boolean {
+  if (tr.annotation(copilotIgnore) !== undefined) {
+    return false;
+  }
+  return !!(tr.docChanged || tr.selection);
+}

@@ -30,6 +30,7 @@ import { getRequestClient } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../../cells/state";
+import { hideTooltipOnCopilotChange } from "../../completion/hints";
 import { pythonCompletionSource } from "../../completion/completer";
 import type { PlaceholderType } from "../../config/types";
 import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
@@ -298,7 +299,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
       };
 
       const hoverOptions = {
-        hideOnChange: true,
+        hideOn: hideTooltipOnCopilotChange,
       };
 
       const clients: ILanguageServerClient[] = [];
