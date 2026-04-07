@@ -88,6 +88,15 @@ export class RuntimeManager {
       searchParams,
       /* restrictToKnownQueryParams =*/ false,
     );
+
+    // For cross-origin runtimes, pass the auth token as a query parameter.
+    // WebSocket connections cannot send custom headers (no Authorization
+    // header), and cross-origin cookies are blocked by browsers, so the
+    // access_token query param is the only way to authenticate.
+    if (!this.isSameOrigin && this.config.authToken) {
+      url.searchParams.set(KnownQueryParams.accessToken, this.config.authToken);
+    }
+
     return asWsUrl(url.toString());
   }
 
@@ -173,9 +182,10 @@ export class RuntimeManager {
       // If there is a redirect, update the URL in the config
       if (response.redirected) {
         Logger.debug(`Runtime redirected to ${response.url}`);
-        // strip /health from the URL
-        const baseUrl = response.url.replace(/\/health$/, "");
-        this.config.url = baseUrl;
+        // strip /health from the URL, using URL parsing to handle query params
+        const redirected = new URL(response.url);
+        redirected.pathname = redirected.pathname.replace(/\/health$/, "");
+        this.config.url = redirected.toString();
       }
 
       const success = response.ok;

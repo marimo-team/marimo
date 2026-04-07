@@ -86,6 +86,62 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("cross-origin auth token in WS URLs", () => {
+    it("should add access_token to WS URL when cross-origin with authToken", () => {
+      // example.com is cross-origin relative to the test environment (localhost)
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        lazy: true,
+        authToken: "my-secret-token",
+      });
+      const url = runtime.getWsURL("s_123" as SessionId);
+
+      expect(url.searchParams.get("access_token")).toBe("my-secret-token");
+      expect(url.searchParams.get("session_id")).toBe("s_123");
+    });
+
+    it("should not add access_token to WS URL when same-origin", () => {
+      const runtime = new RuntimeManager({
+        url: window.location.origin,
+        lazy: true,
+        authToken: "my-secret-token",
+      });
+      const url = runtime.getWsURL("s_123" as SessionId);
+
+      expect(url.searchParams.get("access_token")).toBeNull();
+    });
+
+    it("should not add access_token when no authToken is configured", () => {
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        lazy: true,
+      });
+      const url = runtime.getWsURL("s_123" as SessionId);
+
+      expect(url.searchParams.get("access_token")).toBeNull();
+    });
+
+    it("should add access_token to all WS URL types when cross-origin", () => {
+      const runtime = new RuntimeManager({
+        url: "https://sandbox.example.com",
+        lazy: true,
+        authToken: "my-secret-token",
+      });
+
+      const wsUrl = runtime.getWsURL("s_123" as SessionId);
+      const wsSyncUrl = runtime.getWsSyncURL("s_123" as SessionId);
+      const terminalUrl = runtime.getTerminalWsURL();
+
+      expect(wsUrl.searchParams.get("access_token")).toBe("my-secret-token");
+      expect(wsSyncUrl.searchParams.get("access_token")).toBe(
+        "my-secret-token",
+      );
+      expect(terminalUrl.searchParams.get("access_token")).toBe(
+        "my-secret-token",
+      );
+    });
+  });
+
   describe("getWsSyncURL", () => {
     it("should return WebSocket Sync URL", () => {
       const runtime = new RuntimeManager(mockConfig);
@@ -199,6 +255,33 @@ describe("RuntimeManager", () => {
       const result = await runtime.isHealthy();
 
       expect(result).toBe(false);
+    });
+
+    it("should update config.url on redirect, stripping /health from pathname", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        redirected: true,
+        url: "https://sandbox.example.com/health?some_value=abc123",
+      });
+
+      const runtime = new RuntimeManager(
+        {
+          ...mockConfig,
+          url: "https://backend.example.com/lazy?some_value=abc123",
+        },
+        true, // lazy — don't call init() in constructor
+      );
+      const result = await runtime.isHealthy();
+
+      expect(result).toBe(true);
+      // Should strip /health from pathname but preserve query params
+      const wsUrl = runtime.getWsURL("s_test" as SessionId);
+      expect(wsUrl.pathname).toBe("/ws");
+      expect(wsUrl.hostname).toBe("sandbox.example.com");
+
+      // Clean up side effects
+      document.querySelectorAll("base").forEach((el) => el.remove());
+      global.fetch = vi.fn().mockResolvedValue({ ok: false });
     });
   });
 
