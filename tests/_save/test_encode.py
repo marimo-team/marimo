@@ -79,3 +79,42 @@ def test_0d_array() -> None:
     det1 = deterministic_dumps(obj, "sha256")
     det2 = deterministic_dumps(obj, "sha256")
     assert det1 == det2
+
+
+def test_dataframe_with_integer_columns() -> None:
+    """Regression: pd.DataFrame(np.random.randn(3, 3)) has integer column names.
+
+    narwhals interprets df[0] as row selection, not column selection, causing
+    AttributeError: 'DataFrame' object has no attribute 'dtype'.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from marimo._dependencies.dependencies import DependencyManager
+
+    if not DependencyManager.pandas.has() or not DependencyManager.numpy.has():
+        return
+
+    df = pd.DataFrame(np.random.randn(3, 3))
+    # Must not raise
+    result = deterministic_dumps(df, hash_type="sha256")
+    assert isinstance(result, bytes)
+
+
+def test_dataframe_same_data_same_hash() -> None:
+    """Two DataFrames with identical data must produce the same hash."""
+    import numpy as np
+    import pandas as pd
+
+    from marimo._dependencies.dependencies import DependencyManager
+
+    if not DependencyManager.pandas.has() or not DependencyManager.numpy.has():
+        return
+
+    data = np.arange(9, dtype=float).reshape(3, 3)
+    df1 = pd.DataFrame(data)
+    df2 = pd.DataFrame(data.copy())
+
+    assert deterministic_dumps(df1, hash_type="sha256") == deterministic_dumps(
+        df2, hash_type="sha256"
+    )
