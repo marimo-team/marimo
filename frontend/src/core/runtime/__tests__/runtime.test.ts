@@ -89,11 +89,14 @@ describe("RuntimeManager", () => {
   describe("cross-origin auth token in WS URLs", () => {
     it("should add access_token to WS URL when cross-origin with authToken", () => {
       // example.com is cross-origin relative to the test environment (localhost)
-      const runtime = new RuntimeManager({
-        url: "https://sandbox.example.com",
-        lazy: true,
-        authToken: "my-secret-token",
-      });
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
       const url = runtime.getWsURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBe("my-secret-token");
@@ -101,32 +104,41 @@ describe("RuntimeManager", () => {
     });
 
     it("should not add access_token to WS URL when same-origin", () => {
-      const runtime = new RuntimeManager({
-        url: window.location.origin,
-        lazy: true,
-        authToken: "my-secret-token",
-      });
+      const runtime = new RuntimeManager(
+        {
+          url: window.location.origin,
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
       const url = runtime.getWsURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBeNull();
     });
 
     it("should not add access_token when no authToken is configured", () => {
-      const runtime = new RuntimeManager({
-        url: "https://sandbox.example.com",
-        lazy: true,
-      });
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com",
+          lazy: true,
+        },
+        true,
+      );
       const url = runtime.getWsURL("s_123" as SessionId);
 
       expect(url.searchParams.get("access_token")).toBeNull();
     });
 
     it("should add access_token to all WS URL types when cross-origin", () => {
-      const runtime = new RuntimeManager({
-        url: "https://sandbox.example.com",
-        lazy: true,
-        authToken: "my-secret-token",
-      });
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
 
       const wsUrl = runtime.getWsURL("s_123" as SessionId);
       const wsSyncUrl = runtime.getWsSyncURL("s_123" as SessionId);
@@ -278,6 +290,7 @@ describe("RuntimeManager", () => {
       const wsUrl = runtime.getWsURL("s_test" as SessionId);
       expect(wsUrl.pathname).toBe("/ws");
       expect(wsUrl.hostname).toBe("sandbox.example.com");
+      expect(wsUrl.searchParams.get("some_value")).toBe("abc123");
 
       // Clean up side effects
       document.querySelectorAll("base").forEach((el) => el.remove());
