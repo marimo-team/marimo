@@ -81,18 +81,16 @@ if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
 
-# A synthesized status for cells visible to agents.
-# Combines runtime state, staleness, and last run result into one value.
 CellStatusType = Literal[
-    "idle",  # ran successfully, up to date
-    "exception",  # cell raised an exception
-    "stale",  # inputs changed, needs re-run
-    "cancelled",  # ancestor raised an exception
-    "interrupted",  # execution was interrupted
-    "marimo-error",  # prevented from executing (e.g. multiply-defined var)
-    "disabled",  # cell is disabled
-    "queued",  # waiting to run
-    "running",  # currently executing
+    "idle",
+    "exception",
+    "stale",
+    "cancelled",
+    "interrupted",
+    "marimo-error",
+    "disabled",
+    "queued",
+    "running",
 ]
 
 
@@ -216,16 +214,21 @@ class NotebookCell:
     def status(self) -> CellStatusType | None:
         """Synthesized cell status.
 
-        Returns the most relevant status for the cell:
+        Possible values:
 
-        - Transient states (``"queued"``, ``"running"``, ``"disabled"``)
-          take priority.
-        - If the cell needs to be run (code edited, inputs changed,
-          or never run), returns ``"stale"``.
-        - Otherwise falls back to the last run result
-          (``"idle"``, ``"exception"``, ``"cancelled"``, etc.).
-        - Returns ``None`` if the cell is empty and has never been
-          registered in the graph.
+        - ``"idle"`` — ran successfully, up to date.
+        - ``"exception"`` — cell raised an exception.
+        - ``"stale"`` — needs re-run (code edited, inputs changed, or never run).
+        - ``"cancelled"`` — ancestor raised an exception.
+        - ``"interrupted"`` — execution was interrupted.
+        - ``"marimo-error"`` — prevented from executing (e.g. multiply-defined name).
+        - ``"disabled"`` — cell is disabled.
+        - ``"queued"`` — waiting to run.
+        - ``"running"`` — currently executing.
+        - ``None`` — empty cell, never registered in the graph.
+
+        Priority: transient state (queued/running/disabled) >
+        stale > last run result.
         """
         if self._impl is None:
             return "stale" if self._cell.code else None
