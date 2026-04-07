@@ -634,7 +634,16 @@ class AsyncCodeModeContext:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
-            await self._kernel._run_cells(cells_to_run)
+            code_lookup = {c.id: c.code for c in self._document.cells}
+            await self._kernel.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=cid,
+                        code=code_lookup[cid],
+                    )
+                    for cid in cells_to_run
+                ]
+            )
 
         # Flush queued UI updates as a single batch.
         if ui_updates:
