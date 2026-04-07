@@ -185,12 +185,52 @@ describe("RuntimeManager", () => {
       expect(url.pathname).toBe("/lsp/pylsp");
     });
 
-    it("should return copilot URL", () => {
-      const runtime = new RuntimeManager(mockConfig);
+    it("should return copilot URL without non-auth query params", () => {
+      const runtime = new RuntimeManager({
+        url: "https://example.com?foo=bar&baz=qux",
+        lazy: true,
+      });
       const url = runtime.getLSPURL("copilot");
 
       expect(url.protocol).toBe("wss:");
       expect(url.pathname).toBe("/lsp/copilot");
+      expect(url.searchParams.get("foo")).toBeNull();
+      expect(url.searchParams.get("baz")).toBeNull();
+    });
+
+    it("should preserve access_token on copilot URL when cross-origin", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com?foo=bar",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.getLSPURL("copilot");
+
+      expect(url.protocol).toBe("wss:");
+      expect(url.pathname).toBe("/lsp/copilot");
+      expect(url.searchParams.get("access_token")).toBe("my-secret-token");
+      // Other params should be stripped
+      expect(url.searchParams.get("foo")).toBeNull();
+    });
+
+    it("should not have access_token on copilot URL when same-origin", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: window.location.origin,
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.getLSPURL("copilot");
+
+      expect(url.protocol).toBe("ws:");
+      expect(url.pathname).toBe("/lsp/copilot");
+      expect(url.searchParams.get("access_token")).toBeNull();
+      expect(url.search).toBe("");
     });
   });
 

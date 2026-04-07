@@ -152,9 +152,15 @@ export class RuntimeManager {
    */
   getLSPURL(lsp: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly"): URL {
     if (lsp === "copilot") {
-      // For copilot, don't include any query parameters
+      // For copilot, strip all query parameters except the auth token.
+      // Copilot doesn't understand arbitrary query params, but we still
+      // need access_token for cross-origin authentication.
       const url = this.formatWsURL(`/lsp/${lsp}`);
+      const accessToken = url.searchParams.get(KnownQueryParams.accessToken);
       url.search = "";
+      if (accessToken) {
+        url.searchParams.set(KnownQueryParams.accessToken, accessToken);
+      }
       return url;
     }
     return this.formatWsURL(`/lsp/${lsp}`);
