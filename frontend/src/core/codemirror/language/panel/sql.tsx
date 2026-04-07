@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { SelectTriggerProps } from "@radix-ui/react-select";
+import type { Select as SelectPrimitive } from "radix-ui";
+
+type SelectTriggerProps = SelectPrimitive.SelectTriggerProps;
+
 import { useAtomValue } from "jotai";
 import {
   AlertCircle,

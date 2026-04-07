@@ -4,14 +4,13 @@ import { repl } from "@/utils/repl";
 import { getRequestClient } from "../network/requests";
 import { getResolvedMarimoConfig } from "./config";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// oxlint-disable-next-line typescript/no-empty-object-type
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
   cache_panel: boolean;
   external_agents: boolean;
-  storage_inspector: boolean;
   // Add new feature flags here
 }
 
@@ -21,7 +20,6 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
-  storage_inspector: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

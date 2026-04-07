@@ -44,7 +44,7 @@ interface Data {
  * is clicked, this plugin assumes the value of the associated plugin.
  */
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type Functions = {
   validate: (req: { value?: unknown }) => Promise<string | undefined | null>;
 };
@@ -80,8 +80,7 @@ export const FormPlugin = createPlugin("marimo-form")
   });
 
 export interface FormWrapperProps<T>
-  extends Omit<Data, "elementId">,
-    Functions {
+  extends Omit<Data, "elementId">, Functions {
   children: React.ReactNode;
   currentValue: T;
   newValue: T;

@@ -31,7 +31,7 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
       <StatusOverlay connection={connection} isRunning={isRunning} />
       <PyodideLoader>
         <WrappedWithSidebar>
-          {/** biome-ignore lint/correctness/useUniqueElementIds: ID is used by other components to grab the DOM element */}
+          {/** oxlint-ignore-next-line -- ID is used by other components to grab the DOM element */}
           <div
             id="App"
             data-config-width={width}

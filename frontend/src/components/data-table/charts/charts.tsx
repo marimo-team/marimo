@@ -257,7 +257,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           saveTabChartType(tab.tabName, chartType);
         };
         return (
-          <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-1">
+          <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-0">
             <ChartPanel
               tableData={data}
               chartConfig={tab.config}
@@ -475,7 +475,7 @@ export const ChartPanel: React.FC<{
   );
 
   return (
-    <div className="flex flex-row gap-2 h-full rounded-md border pr-2">
+    <div className="flex flex-row gap-2 h-full rounded-md border-t pr-2">
       <div
         className={`relative flex flex-col gap-2 overflow-auto px-2 py-3 scrollbar-thin transition-width duration-200 ${formCollapsed ? "w-8" : "w-[300px]"}`}
       >

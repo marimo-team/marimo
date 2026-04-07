@@ -43,7 +43,7 @@ export const LoadingTable = ({
           <TableBody>
             {Array.from({ length: pageSize }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: NUM_COLUMNS }).map((_, j) => (
+                {Array.from({ length: NUM_COLUMNS }).map((__, j) => (
                   <TableCell key={j}>
                     <div className="h-4 bg-(--slate-5) animate-pulse rounded-md w-[90%]" />
                   </TableCell>

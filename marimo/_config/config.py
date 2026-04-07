@@ -171,6 +171,9 @@ class RuntimeConfig(TypedDict):
        The default is None.
     - `default_csv_encoding`: the default encoding for CSV exports.
         The default is `"utf-8"`.
+    - `show_tracebacks`: if `True`, show detailed error tracebacks in run mode.
+        When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
+        The default is `False`.
     """
 
     auto_instantiate: bool
@@ -186,6 +189,7 @@ class RuntimeConfig(TypedDict):
     default_sql_output: SqlOutputType
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
+    show_tracebacks: NotRequired[bool]
 
 
 @mddoc
@@ -599,10 +603,6 @@ class ExperimentalConfig(TypedDict, total=False):
 # But maintain type safety for known flags
 ExperimentalConfigType = dict[str, Any]
 
-# Default for experimental.storage_inspector when not set by user.
-# Must match frontend default in feature-flag.tsx.
-STORAGE_INSPECTOR_DEFAULT = True
-
 
 @mddoc
 @dataclass
@@ -732,6 +732,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         ),
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",
+        "show_tracebacks": False,
     },
     "save": {
         "autosave": "after_delay",

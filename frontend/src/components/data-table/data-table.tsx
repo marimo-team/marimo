@@ -47,6 +47,7 @@ import { DataTableBody, renderTableHeader } from "./renderers";
 import { TableBottomBar } from "./TableBottomBar";
 import { TableTopBar } from "./TableTopBar";
 import {
+  AUTO_WIDTH_MAX_COLUMNS,
   type DataTableSelection,
   MIN_ROWS_TO_VIRTUALIZE,
   type TooManyRows,
@@ -300,7 +301,13 @@ const DataTableInternal = <TData,>({
             isAnyPanelOpen={isAnyPanelOpen}
             downloadAs={downloadAs}
           />
-          <Table className="relative" ref={tableRef}>
+          <Table
+            className={cn(
+              "relative",
+              columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
+            )}
+            ref={tableRef}
+          >
             {showLoadingBar && (
               <thead className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
             )}
@@ -314,19 +321,19 @@ const DataTableInternal = <TData,>({
               virtualize={virtualize}
             />
           </Table>
+          <TableBottomBar
+            part="table-footer"
+            className="pt-1.5 pb-0.5 border-t border-border"
+            totalColumns={totalColumns}
+            pagination={pagination}
+            selection={selection}
+            onRowSelectionChange={onRowSelectionChange}
+            table={table}
+            getRowIds={getRowIds}
+            showPageSizeSelector={showPageSizeSelector}
+            tableLoading={reloading}
+          />
         </div>
-        <TableBottomBar
-          part="table-footer"
-          className="border-t border-border pt-1.5 pb-0.5"
-          totalColumns={totalColumns}
-          pagination={pagination}
-          selection={selection}
-          onRowSelectionChange={onRowSelectionChange}
-          table={table}
-          getRowIds={getRowIds}
-          showPageSizeSelector={showPageSizeSelector}
-          tableLoading={reloading}
-        />
       </CellSelectionProvider>
     </div>
   );

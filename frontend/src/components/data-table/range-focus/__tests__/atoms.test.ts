@@ -10,7 +10,7 @@ vi.mock("@/utils/copy", () => ({
 }));
 
 vi.mock("../utils", async (importOriginal) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const original = (await importOriginal()) as any;
   return {
     ...original,
@@ -28,7 +28,7 @@ import {
 } from "../atoms";
 import { getCellsBetween, getCellValues } from "../utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type T = any;
 
 // Create mock table and cells
@@ -56,18 +56,18 @@ function createMockCell(
 }
 
 function createMockTable(): Table<T> {
-  const mockToggleSelected = vi.fn().mockImplementation(function (this: {
-    isSelected: boolean;
-  }) {
-    this.isSelected = !this.isSelected;
-    return { isSelected: this.isSelected };
-  });
+  const mockToggleSelected = vi
+    .fn()
+    .mockImplementation(function (this: { isSelected: boolean }) {
+      this.isSelected = !this.isSelected;
+      return { isSelected: this.isSelected };
+    });
 
-  const mockGetIsSelected = vi.fn().mockImplementation(function (this: {
-    isSelected: boolean;
-  }) {
-    return this.isSelected;
-  });
+  const mockGetIsSelected = vi
+    .fn()
+    .mockImplementation(function (this: { isSelected: boolean }) {
+      return this.isSelected;
+    });
 
   const rows = [
     {

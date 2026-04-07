@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { Slot } from "@radix-ui/react-slot";
+import { Slot as SlotPrimitive } from "radix-ui";
+
+const Slot = SlotPrimitive.Slot;
+
 import React, { type PropsWithChildren } from "react";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { Button } from "@/components/ui/button";

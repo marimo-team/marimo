@@ -14,7 +14,7 @@ interface Data {
   showLoadingIndicator: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type PluginFunctions = {
   load: (req: {}) => Promise<{
     html: string;

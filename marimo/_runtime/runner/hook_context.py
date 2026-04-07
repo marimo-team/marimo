@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, TypeAlias, Union
 
-from marimo._config.config import OnCellChangeType
+from marimo._config.config import MarimoConfig, OnCellChangeType
 from marimo._messaging.errors import Error
 from marimo._types.ids import CellId_t
 
@@ -83,6 +83,8 @@ class PostExecutionHookContext:
     # Whether data (variables, datasets, etc.) should be broadcast
     # to the frontend. Computed once per run to avoid repeated checks.
     should_broadcast_data: bool = False
+    # User configuration, for hooks that need access to runtime settings
+    user_config: MarimoConfig | None = None
 
 
 @dataclass(frozen=True)

@@ -34,7 +34,6 @@ from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import (
-    STORAGE_INSPECTOR_DEFAULT,
     ExecutionType,
     MarimoConfig,
     OnCellChangeType,
@@ -89,6 +88,7 @@ from marimo._messaging.notification import (
     SQLTablePreviewNotification,
     StorageDownloadReadyNotification,
     StorageEntriesNotification,
+    UIElementMessageNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -1477,6 +1477,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=run_hooks,
+            user_config=self.user_config,
         )
 
         # I/O
@@ -1779,6 +1780,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            user_config=self.user_config,
         )
 
         await runner.run_all()
@@ -1952,6 +1954,19 @@ class Kernel:
                     write_traceback(tmpio.read())
                 else:
                     updated_components.append(component)
+                    # Broadcast the new value to the frontend so the
+                    # rendered widget reflects kernel-initiated changes
+                    # (e.g. from code_mode's set_ui_value).
+                    broadcast_notification(
+                        UIElementMessageNotification(
+                            ui_element=object_id,
+                            message={
+                                "type": "marimo-ui-value-update",
+                                "value": value,
+                            },
+                        ),
+                        self.stream,
+                    )
 
             bound_names = {
                 name
@@ -3592,9 +3607,6 @@ def launch_kernel(
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
-    if user_config.get("experimental", {}).get(
-        "storage_inspector", STORAGE_INSPECTOR_DEFAULT
-    ):
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
 
     kernel = Kernel(

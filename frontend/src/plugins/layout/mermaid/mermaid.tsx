@@ -63,7 +63,7 @@ function randomAlpha() {
 }
 
 const Mermaid: React.FC<Props> = ({ diagram }) => {
-  // eslint-disable-next-line react/hook-use-state
+  // oxlint-disable-next-line react/hook-use-state
   const [id] = useState(() => randomAlpha());
 
   const darkMode = useTheme().theme === "dark";

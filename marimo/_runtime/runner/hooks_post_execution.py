@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import traceback as tb
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -32,7 +33,11 @@ from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
 )
-from marimo._messaging.tracebacks import write_traceback
+from marimo._messaging.tracebacks import (
+    _highlight_traceback,
+    _trim_traceback,
+    write_traceback,
+)
 from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -265,12 +270,18 @@ def _store_reference_to_output(
 ) -> None:
     del ctx
 
-    # Stores a reference to the output if it contains a UIElement;
-    # this is required to make RPCs work for unnamed UI elements.
+    # Stores a reference to the output if it contains a UIElement
+    # (required for RPCs on unnamed UI elements) or if it has a
+    # _repr_mimebundle_ method (required to keep descriptor-based
+    # anywidgets alive — their comm is closed on GC).
+    # The _repr_mimebundle_ check is intentionally broad; the cost
+    # is just one extra reference that's cleared on re-run.
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
         if contains_instance(run_result.output, UIElement):
+            cell.set_output(run_result.output)
+        elif callable(getattr(run_result.output, "_repr_mimebundle_", None)):
             cell.set_output(run_result.output)
 
 
@@ -401,12 +412,32 @@ def _broadcast_outputs(
         msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
+
+        # Include formatted traceback if enabled in config
+        formatted_traceback = None
+        show_tracebacks = False
+        if ctx.user_config is not None:
+            show_tracebacks = bool(
+                ctx.user_config["runtime"].get("show_tracebacks", False)
+            )
+
+        if show_tracebacks:
+            if (
+                isinstance(run_result.exception, BaseException)
+                and run_result.exception.__traceback__
+            ):
+                tb_lines = tb.format_exception(run_result.exception)
+                formatted_traceback = _highlight_traceback(
+                    _trim_traceback("".join(tb_lines))
+                )
+
         CellNotificationUtils.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
                     msg=msg,
                     exception_type=exception_type,
                     raising_cell=None,
+                    traceback=formatted_traceback,
                 )
             ],
             clear_console=False,

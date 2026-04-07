@@ -6,8 +6,7 @@ import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   bottomAdornment?: React.ReactNode;
 }
 

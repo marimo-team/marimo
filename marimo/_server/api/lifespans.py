@@ -213,9 +213,8 @@ async def server_registry(app: Starlette) -> AsyncIterator[None]:
     """Register this server in the local registry for discovery.
 
     Only servers started **without** an auth token (``--no-token``)
-    **and** without skew protection (``--no-skew-protection``) are
-    registered.  This ensures only servers that have explicitly opted
-    into relaxed local access are discoverable.
+    are registered.  This ensures only servers that have explicitly
+    opted into relaxed local access are discoverable.
     """
     from marimo._server.server_registry import (
         ServerRegistryEntry,
@@ -225,12 +224,13 @@ async def server_registry(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
 
     # Guard: only register when the user has opted into relaxed local
-    # access (no auth token, no skew protection).
-    if state.enable_auth or state.skew_protection:
+    # access (no auth token).  Skew protection is irrelevant here —
+    # it guards against frontend/server version mismatch and should
+    # not prevent agent-oriented discovery.
+    if state.enable_auth:
         LOGGER.debug(
-            "Skipping server registry: auth=%s, skew_protection=%s",
+            "Skipping server registry: auth=%s",
             state.enable_auth,
-            state.skew_protection,
         )
         yield
         return

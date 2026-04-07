@@ -28,6 +28,7 @@ from marimo._cli.errors import (
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup
+from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
@@ -1073,6 +1074,13 @@ Example:
     hidden=True,
     help="Custom asset URL for loading static resources. Can include {version} placeholder.",
 )
+@click.option(
+    "--show-tracebacks/--no-show-tracebacks",
+    is_flag=True,
+    default=None,
+    type=bool,
+    help="Show detailed error tracebacks in a modal when exceptions occur.",
+)
 @click.pass_context
 @click.argument(
     "name",
@@ -1101,6 +1109,7 @@ def run(
     trusted: Optional[bool],
     server_startup_command: Optional[str],
     asset_url: Optional[str],
+    show_tracebacks: Optional[bool],
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -1230,6 +1239,7 @@ def run(
         asset_url=asset_url,
         sandbox_mode=sandbox_mode,
         startup_tip=choose_startup_tip(click.get_current_context()),
+        show_tracebacks=show_tracebacks,
     )
 
 
@@ -1530,3 +1540,4 @@ main.command()(convert)
 main.add_command(export)
 main.add_command(config)
 main.add_command(development)
+main.add_command(pair)

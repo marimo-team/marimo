@@ -8,9 +8,8 @@ read these files to discover running instances — no marimo import or
 HTTP endpoint is required.
 
 SECURITY: Only instances that have opted into relaxed local access —
-started **without** an auth token (``--no-token``) **and** without
-skew protection (``--no-skew-protection``) — should be registered.
-See the guard in ``lifespans.server_registry``.
+started **without** an auth token (``--no-token``) — should be
+registered.  See the guard in ``lifespans.server_registry``.
 """
 
 from __future__ import annotations

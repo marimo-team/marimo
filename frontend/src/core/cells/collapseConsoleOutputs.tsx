@@ -108,6 +108,9 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
     timestamp: -1,
   };
   const output = consoleOutputs[cutoff];
+  if (output == null) {
+    return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
+  }
   if (output.mimetype === "text/plain") {
     invariant(typeof output.data === "string", "expected string");
     const outputLines = output.data.split("\n");

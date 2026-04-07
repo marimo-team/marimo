@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { usePrevious } from "@dnd-kit/utilities";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Tooltip } from "radix-ui";
+
+const TooltipProvider = Tooltip.Provider;
+
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
 import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";

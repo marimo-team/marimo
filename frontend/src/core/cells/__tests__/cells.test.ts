@@ -45,7 +45,7 @@ vi.mock("@/core/codemirror/editing/commands", () => ({
 vi.mock("../scrollCellIntoView", async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...(actual as any),
     scrollToTop: vi.fn(),
     scrollToBottom: vi.fn(),
@@ -1023,7 +1023,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any no-unsafe-optional-chaining
     expect((cell.output?.data as any)[0].msg).toBe(
       "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );
@@ -1207,6 +1207,47 @@ describe("cell reducer", () => {
       { ...STD_IN_1, response: "Marimo!" },
       { ...STD_IN_2, response: "" },
     ]);
+  });
+
+  it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
+    const STDOUT: OutputMessage = {
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "hello!",
+      timestamp: 1,
+    };
+
+    // Set the cell to running with a console output
+    actions.prepareForRun({ cellId: firstCellId });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
+    });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: STDOUT,
+      status: undefined,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
+    });
+
+    // Try to set stdin response with an out-of-bounds index
+    // This should not crash - it should return state unchanged
+    actions.setStdinResponse({
+      response: "test",
+      cellId: firstCellId,
+      outputIndex: 999,
+    });
+
+    // Cell state should be unchanged
+    const cell = cells[0];
+    expect(cell.consoleOutputs).toHaveLength(1);
+    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
   });
 
   it("can receive console when the cell is idle and will clear when starts again", () => {

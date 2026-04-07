@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable react-hooks/rules-of-hooks */
+/* oxlint-disable react-hooks/rules-of-hooks */
 
 import { dequal } from "dequal";
 import { useEffect, useMemo, useRef } from "react";
@@ -21,7 +21,7 @@ export function useDebugMounting(name: string) {
     return () => {
       Logger.debug(`🐛 [${name}] unmounted. Renders: ${renders.current}`);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -111,6 +111,6 @@ export function useMemoDebugChanges<T>(
     previousDeps.current = deps;
 
     return fn();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }

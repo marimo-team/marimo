@@ -1,7 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { OutputRenderer } from "../Output";
+import { cellId } from "@/__tests__/branded";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { OutputArea, OutputRenderer } from "../Output";
 
 describe("OutputRenderer renderFallback prop", () => {
   it("should use renderFallback for unsupported mimetypes", () => {
@@ -62,6 +64,39 @@ describe("OutputRenderer renderFallback prop", () => {
     expect(
       screen.getByText(/Unsupported mimetype: application\/unknown/),
     ).toBeInTheDocument();
+  });
+});
+
+describe("OutputArea null/undefined handling", () => {
+  it("should render null when output is null", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <OutputArea
+          output={null}
+          cellId={cellId("test")}
+          stale={false}
+          loading={false}
+          allowExpand={true}
+        />
+      </TooltipProvider>,
+    );
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("should render null when output is undefined", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <OutputArea
+          // @ts-expect-error -- testing runtime safety for undefined output
+          output={undefined}
+          cellId={cellId("test")}
+          stale={false}
+          loading={false}
+          allowExpand={true}
+        />
+      </TooltipProvider>,
+    );
+    expect(container.innerHTML).toBe("");
   });
 });
 

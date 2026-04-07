@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 /**
  * Debounces multiple calls to a loader function, returning the same promise for
@@ -14,7 +14,7 @@ export function batch<T, REQ extends unknown[]>(
   return (...args: REQ): Promise<T> => {
     const key = toKey(...args);
     if (requestCache.has(key)) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      // oxlint-disable-next-line typescript/no-non-null-assertion
       return requestCache.get(key)!;
     }
 

@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CheckedState } from "@radix-ui/react-checkbox";
+import type { Checkbox as CheckboxPrimitive } from "radix-ui";
+
+type CheckedState = CheckboxPrimitive.CheckedState;
+
 import { type JSX, useId } from "react";
 import { z } from "zod";
 import { Checkbox } from "../../components/ui/checkbox";

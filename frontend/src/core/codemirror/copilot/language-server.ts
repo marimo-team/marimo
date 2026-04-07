@@ -121,7 +121,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     ).request(method, params);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   override async notify(method: any, params: any): Promise<any> {
     logger.debug("#notify", method, params);
     return super.notify(method, params);

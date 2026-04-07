@@ -6,6 +6,7 @@ import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
+import type { CollapsibleTree } from "@/utils/id-tree";
 import {
   type CellColumnId,
   type CellIndex,
@@ -80,7 +81,7 @@ export interface NotebookState {
    */
   history: {
     name: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;
@@ -578,7 +579,18 @@ const {
       return state;
     }
 
-    const column = state.cellIds.findWithId(cellId);
+    let column: CollapsibleTree<CellId>;
+    try {
+      column = state.cellIds.findWithId(cellId);
+    } catch (error) {
+      // Expected for kernel-only cells or out-of-order transactions.
+      Logger.warn("Skipping delete for missing cellId", {
+        cellId,
+        error,
+      });
+      return state;
+    }
+
     const cellIndex = column.indexOfOrThrow(cellId);
     const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
     let scrollKey: CellId | null = null;
@@ -935,7 +947,7 @@ const {
       cellReducer: (cell) => {
         const consoleOutputs = [...cell.consoleOutputs];
         const stdinOutput = consoleOutputs[outputIndex];
-        if (stdinOutput.channel !== "stdin") {
+        if (stdinOutput == null || stdinOutput.channel !== "stdin") {
           Logger.warn("Expected stdin output");
           return cell;
         }
@@ -1226,7 +1238,7 @@ const {
           i--;
         }
 
-        const collapseRanges = reversedCollapseRanges.reverse();
+        const collapseRanges = reversedCollapseRanges.toReversed();
         return column.collapseAll(collapseRanges);
       }),
     };

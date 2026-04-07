@@ -32,7 +32,7 @@ import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses, KnownQueryParams } from "@/core/constants";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import { kernelStateAtom } from "@/core/kernel/state";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
@@ -121,6 +121,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         staleInputs={cell.staleInputs}
         name={cell.name}
         kiosk={kioskMode}
+        showErrorTracebacks={userConfig.runtime.show_tracebacks ?? false}
       />
     );
   };
@@ -311,18 +312,17 @@ const ActionButtons: React.FC<{
   );
 };
 
-interface VerticalCellProps
-  extends Pick<
-    CellRuntimeState,
-    | "output"
-    | "consoleOutputs"
-    | "status"
-    | "stopped"
-    | "errored"
-    | "interrupted"
-    | "staleInputs"
-    | "runStartTimestamp"
-  > {
+interface VerticalCellProps extends Pick<
+  CellRuntimeState,
+  | "output"
+  | "consoleOutputs"
+  | "status"
+  | "stopped"
+  | "errored"
+  | "interrupted"
+  | "staleInputs"
+  | "runStartTimestamp"
+> {
   cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
@@ -331,6 +331,7 @@ interface VerticalCellProps
   showCode: boolean;
   name: string;
   kiosk: boolean;
+  showErrorTracebacks: boolean;
 }
 
 const VerticalCell = memo(
@@ -351,6 +352,7 @@ const VerticalCell = memo(
     mode,
     name,
     kiosk,
+    showErrorTracebacks,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
 
@@ -428,7 +430,18 @@ const VerticalCell = memo(
     }
 
     const outputIsError = isErrorMime(output?.mimetype);
-    const hidden = errored || interrupted || stopped || outputIsError;
+    // When show_tracebacks is enabled, show error outputs inline
+    // instead of hiding them
+    const hasTraceback =
+      showErrorTracebacks &&
+      outputIsError &&
+      Array.isArray(output?.data) &&
+      output.data.some(
+        (e: MarimoError) =>
+          e.type === "exception" && "traceback" in e && e.traceback,
+      );
+    const hidden =
+      (errored || interrupted || stopped || outputIsError) && !hasTraceback;
     if (hidden) {
       return null;
     }
@@ -483,7 +496,7 @@ export function groupCellsByColumn(
   });
 
   // Sort columns by index
-  return [...cellsByColumn.entries()].sort(([a], [b]) => a - b);
+  return [...cellsByColumn.entries()].toSorted(([a], [b]) => a - b);
 }
 
 /**

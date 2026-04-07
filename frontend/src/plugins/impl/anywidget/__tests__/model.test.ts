@@ -58,13 +58,13 @@ describe("Model", () => {
   describe("public API", () => {
     it("should only expose AFM-compliant interface", () => {
       // Get all enumerable own properties
-      const ownProperties = Object.keys(model).sort();
+      const ownProperties = Object.keys(model).toSorted();
       // Get prototype methods (excluding constructor)
       const prototypeMethods = Object.getOwnPropertyNames(
         Object.getPrototypeOf(model),
       )
         .filter((name) => name !== "constructor")
-        .sort();
+        .toSorted();
 
       // Snapshot the public API to catch accidental leaks of internal methods
       expect({ ownProperties, prototypeMethods }).toMatchInlineSnapshot(`

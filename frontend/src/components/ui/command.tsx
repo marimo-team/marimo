@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { DialogProps } from "@radix-ui/react-dialog";
+import type { Dialog as DialogPrimitive } from "radix-ui";
+
+type DialogProps = DialogPrimitive.DialogProps;
+
 import type { VariantProps } from "class-variance-authority";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
@@ -58,7 +61,7 @@ const CommandInput = React.forwardRef<
 >(({ className, icon, rootClassName, ...props }, ref) => (
   <div
     className={cn("flex items-center border-b px-3", rootClassName)}
-    // eslint-disable-next-line react/no-unknown-property
+    // oxlint-disable-next-line react/no-unknown-property
     cmdk-input-wrapper=""
   >
     {icon === null ? null : (

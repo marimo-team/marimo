@@ -98,7 +98,7 @@ export abstract class AIContextProvider<
  * Registry for managing different AI context providers
  */
 export class AIContextRegistry<T extends AIContextItem> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   private providers = new Set<AIContextProvider<any>>();
 
   /**
@@ -106,7 +106,7 @@ export class AIContextRegistry<T extends AIContextItem> {
    */
   register<U extends AIContextItem>(
     provider: AIContextProvider<U>,
-    // eslint-disable-next-line @typescript-eslint/prefer-return-this-type
+    // oxlint-disable-next-line typescript/prefer-return-this-type
   ): AIContextRegistry<U | T> {
     this.providers.add(provider);
     return this;

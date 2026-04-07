@@ -53,6 +53,10 @@ class FileWatcher(ABC):
 
 class PollingFileWatcher(FileWatcher):
     POLL_SECONDS = 1.0  # Poll every 1s
+    # Number of consecutive missing-file polls before giving up.
+    # Some editors (e.g. vim) save by deleting and recreating files,
+    # so the file may be transiently absent.
+    MAX_MISSING_POLLS = 5
 
     def __init__(
         self,
@@ -64,6 +68,7 @@ class PollingFileWatcher(FileWatcher):
         self._running = False
         self.loop = loop
         self.last_modified: Optional[float] = self._get_modified()
+        self._missing_count = 0
 
     def start(self) -> None:
         self._running = True
@@ -81,8 +86,26 @@ class PollingFileWatcher(FileWatcher):
     async def _poll(self) -> None:
         while self._running:
             if not await async_path.exists(self.path):
-                LOGGER.warning(f"File at {self.path} does not exist.")
-                raise FileNotFoundError(f"File at {self.path} does not exist.")
+                self._missing_count += 1
+                if self._missing_count >= self.MAX_MISSING_POLLS:
+                    LOGGER.warning(
+                        f"File at {self.path} does not exist after "
+                        f"{self.MAX_MISSING_POLLS} consecutive checks. "
+                        "Stopping file watcher."
+                    )
+                    self._running = False
+                    return
+                LOGGER.debug(
+                    f"File at {self.path} temporarily missing "
+                    f"(attempt {self._missing_count}/"
+                    f"{self.MAX_MISSING_POLLS}). "
+                    "Will retry."
+                )
+                await asyncio.sleep(self.POLL_SECONDS)
+                continue
+
+            # File exists again; reset the missing counter
+            self._missing_count = 0
 
             # Check for file changes
             modified = self._get_modified()

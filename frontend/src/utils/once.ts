@@ -2,7 +2,7 @@
 
 import { arrayShallowEquals } from "./arrays";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export function once<T extends (...args: any[]) => any>(fn: T): T {
   let result: ReturnType<T>;
   let called = false;
@@ -18,7 +18,7 @@ export function once<T extends (...args: any[]) => any>(fn: T): T {
   } as T;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export function memoizeLastValue<T extends (...args: any[]) => any>(fn: T): T {
   let result: ReturnType<T>;
   let lastArgs: Parameters<T> | undefined;

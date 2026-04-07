@@ -76,7 +76,7 @@ export class CompletionBuilder {
    * Set a value at a nested path, creating intermediate objects as needed
    */
   private setAt(path: string[], value: SQLNamespace): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let current: any = this.schema;
     for (const key of path.slice(0, -1)) {
       if (!current[key]) {

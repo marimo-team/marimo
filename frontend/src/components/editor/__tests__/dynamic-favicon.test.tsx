@@ -176,7 +176,7 @@ describe("DynamicFavicon", () => {
       const { rerender } = render(<DynamicFavicon isRunning={true} />);
       rerender(<DynamicFavicon isRunning={false} />);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line typescript/unbound-method
       expect(Notification.requestPermission).toHaveBeenCalled();
     });
   });

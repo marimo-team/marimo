@@ -126,6 +126,7 @@ export const UserConfigSchema = z
         default_auto_download: z
           .array(z.enum(AUTO_DOWNLOAD_FORMATS))
           .prefault([]),
+        show_tracebacks: z.boolean().prefault(false),
       })
       .prefault({}),
     display: z
@@ -186,7 +187,6 @@ export const UserConfigSchema = z
       .looseObject({
         markdown: z.boolean().optional(),
         rtc: z.boolean().optional(),
-        storage_inspector: z.boolean().prefault(true),
         // Add new experimental features here
       })
       // Pass through so that we don't remove any extra keys that the user has added.

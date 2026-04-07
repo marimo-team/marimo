@@ -73,7 +73,7 @@ describe("dates", () => {
 
     describe("with different locales", () => {
       // Save original implementation
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+      // oxlint-disable-next-line typescript/unbound-method
       const originalToLocaleDateString = Date.prototype.toLocaleDateString;
 
       afterAll(() => {

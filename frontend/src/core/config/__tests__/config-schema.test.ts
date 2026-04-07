@@ -70,9 +70,7 @@ test("default UserConfig - empty", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {
-        "storage_inspector": true,
-      },
+      "experimental": {},
       "formatting": {
         "line_length": 79,
       },
@@ -92,6 +90,7 @@ test("default UserConfig - empty", () => {
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "reactive_tests": true,
+        "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
       "save": {
@@ -142,9 +141,7 @@ test("default UserConfig - one level", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {
-        "storage_inspector": true,
-      },
+      "experimental": {},
       "formatting": {
         "line_length": 79,
       },
@@ -164,6 +161,7 @@ test("default UserConfig - one level", () => {
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "reactive_tests": true,
+        "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
       "save": {

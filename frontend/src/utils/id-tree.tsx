@@ -43,7 +43,7 @@ export class TreeNode<T> {
     const stack = [...this.children];
 
     while (stack.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      // oxlint-disable-next-line typescript/no-non-null-assertion
       const node = stack.pop()!;
       count++;
 
@@ -62,7 +62,7 @@ export class TreeNode<T> {
     const stack = [...this.children];
 
     while (stack.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      // oxlint-disable-next-line typescript/no-non-null-assertion
       const node = stack.pop()!;
       result.push(node.value);
 

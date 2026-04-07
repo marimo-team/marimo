@@ -1722,9 +1722,9 @@ describe("tablesCompletionSource", () => {
       };
 
       const getCompletion = (extensions: Extension[]) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
         const ext = extensions.find((ext) => (ext as any).facet === undefined);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
         return (ext as any)?.value?.override?.[0];
       };
 
@@ -2140,7 +2140,7 @@ describe("tablesCompletionSource", () => {
       ...mockStore.get(dataSourceConnectionsAtom),
       connectionsMap: new Map([
         [TEST_ENGINE, newConnection],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
       ]) as any,
       latestEngineSelected: TEST_ENGINE,
     });
@@ -2153,7 +2153,7 @@ describe("tablesCompletionSource", () => {
     mockStore.set(dataSourceConnectionsAtom, {
       connectionsMap: new Map([
         [TEST_ENGINE, mockConnection],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
       ]) as any,
       latestEngineSelected: TEST_ENGINE,
     });

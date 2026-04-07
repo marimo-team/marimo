@@ -78,7 +78,7 @@ export function generateAltairChart(
 
     if (encodings?.tooltip) {
       const tooltip = encodings.tooltip;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const makeTooltip = (t: Record<string, any>) => {
         const kwargs = makeKwargs(t);
         return new FunctionCall("alt.Tooltip", kwargs);
@@ -149,7 +149,7 @@ ${variableName}
   `.trim();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 function makeKwargs<T extends Record<string, any>>(obj: T) {
   const result: Record<string, PythonCode> = {};
 

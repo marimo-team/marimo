@@ -9,6 +9,35 @@ import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
 import { SliderPlugin } from "../SliderPlugin";
 
+vi.mock("@/components/ui/slider", () => ({
+  Slider: ({
+    disabled,
+    onValueChange,
+    onValueCommit,
+    value,
+  }: {
+    disabled?: boolean;
+    onValueChange?: (value: number[]) => void;
+    onValueCommit?: (value: number[]) => void;
+    value: number[];
+  }) => (
+    <div>
+      <button
+        aria-label="Slider change"
+        disabled={disabled}
+        onClick={() => onValueChange?.([value[0] + 1])}
+        type="button"
+      />
+      <button
+        aria-label="Slider commit"
+        disabled={disabled}
+        onClick={() => onValueCommit?.(value)}
+        type="button"
+      />
+    </div>
+  ),
+}));
+
 SetupMocks.resizeObserver();
 
 describe("SliderPlugin", () => {
@@ -51,46 +80,45 @@ describe("SliderPlugin", () => {
     const plugin = new SliderPlugin();
     const setValue = vi.fn();
     const props = createProps(false, false, setValue);
-    const { container } = render(plugin.render(props));
+    const { getByRole } = render(plugin.render(props));
 
     act(() => {
       vi.advanceTimersByTime(0);
     });
 
-    const thumb = container.querySelector('[role="slider"]');
-    expect(thumb).toBeTruthy();
+    const changeButton = getByRole("button", { name: "Slider change" });
 
-    // Radix UI Slider updates on keyboard ArrowRight/ArrowLeft
     act(() => {
-      (thumb as HTMLElement)?.focus();
-      fireEvent.keyDown(thumb!, { key: "ArrowRight" });
+      fireEvent.click(changeButton);
     });
 
     expect(setValue).toHaveBeenCalledWith(6);
   });
 
-  it("slider does not trigger setValue immediately when debounce is true", () => {
+  it("slider waits until commit before calling setValue when debounce is true", () => {
     const plugin = new SliderPlugin();
     const setValue = vi.fn();
     const props = createProps(true, false, setValue);
-    const { container } = render(plugin.render(props));
+    const { getByRole } = render(plugin.render(props));
 
     act(() => {
       vi.advanceTimersByTime(0);
     });
 
-    const thumb = container.querySelector('[role="slider"]');
+    const changeButton = getByRole("button", { name: "Slider change" });
+    const commitButton = getByRole("button", { name: "Slider commit" });
 
     act(() => {
-      (thumb as HTMLElement)?.focus();
-      // Simulate just a programmatic change that Radix would trigger via pointer move
-      // which fires onValueChange but not onValueCommit yet
-      // Because we can't easily separated Radix's internal pointer events in jsdom, we
-      // test the main issue: editable input. We can trust Radix's onValueChange vs onValueCommit.
+      fireEvent.click(changeButton);
     });
 
-    // We verified above that NumberField works when debounce=true
     expect(setValue).not.toHaveBeenCalled();
+
+    act(() => {
+      fireEvent.click(commitButton);
+    });
+
+    expect(setValue).toHaveBeenCalledWith(6);
   });
 
   it("editable input triggers setValue immediately even when slider debounce is true", () => {

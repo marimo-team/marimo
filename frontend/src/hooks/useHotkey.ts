@@ -14,7 +14,7 @@ import { useEventListener } from "./useEventListener";
 
 type HotkeyHandler = (
   evt?: KeyboardEvent,
-  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+  // oxlint-disable-next-line typescript/no-invalid-void-type
 ) => boolean | void | undefined | Promise<void>;
 
 /**

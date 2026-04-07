@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { groupCellsByColumn, shouldHideCode } from "../vertical-layout";

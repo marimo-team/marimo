@@ -35,7 +35,7 @@ export interface FieldOptions {
   optionRegex?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
+// oxlint-disable-next-line typescript/no-redeclare
 export const FieldOptions = {
   of(options: FieldOptions): string {
     return JSON.stringify(options);

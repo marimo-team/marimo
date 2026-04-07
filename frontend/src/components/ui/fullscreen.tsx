@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { PopoverContentProps } from "@radix-ui/react-popover";
+import type { Popover } from "radix-ui";
+
+type PopoverContentProps = Popover.PopoverContentProps;
+
 import React, { useState } from "react";
 import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useEventListener } from "@/hooks/useEventListener";

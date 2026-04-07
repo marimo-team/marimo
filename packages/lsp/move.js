@@ -18,5 +18,5 @@ const oldPath = path.join(destDir, "language-server.js");
 const newPath = path.join(destDir, "language-server.cjs");
 fs.renameSync(oldPath, newPath);
 
-// biome-ignore lint/suspicious/noConsole: build script
+// oxlint-disable-next-line no-console -- build script
 console.log("Successfully copied and renamed language-server files");

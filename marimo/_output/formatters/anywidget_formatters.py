@@ -15,6 +15,13 @@ class AnyWidgetFormatter(FormatterFactory):
         import anywidget  # type: ignore [import-not-found]
 
         from marimo._output import formatting
+        from marimo._plugins.ui._impl.anywidget.comm_provider import (
+            patch_comm_create,
+        )
+
+        # Patch the comm library so anywidget's descriptor API
+        # (MimeBundleDescriptor) creates comms that work in marimo.
+        patch_comm_create()
 
         @formatting.formatter(anywidget.AnyWidget)
         def _from(lmap: anywidget.AnyWidget) -> tuple[KnownMimeType, str]:

@@ -1,0 +1,162 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "react",
+    "vitest",
+    "jsx-a11y"
+  ],
+  "jsPlugins": [
+    "./lint/marimo-plugin.js"
+  ],
+  "ignorePatterns": [
+    "**/e2e-tests/**"
+  ],
+  "categories": {
+    "correctness": "error",
+    "nursery": "off",
+    "pedantic": "off",
+    "perf": "warn",
+    "restriction": "warn",
+    "style": "off",
+    "suspicious": "warn"
+  },
+  "rules": {
+    // === Marimo custom rules ===
+    "marimo/add-event-listener-object": "error",
+    "marimo/remove-event-listener-object": "error",
+    "marimo/prefer-object-params": "warn",
+    "marimo/atom-with-storage-args": "error",
+
+    // === Disabled category rules (too noisy / not applicable) ===
+    "no-use-before-define": "off",
+    "no-undefined": "off",
+    "no-shadow": "off",
+    "no-eq-null": "off",
+    "no-plusplus": "off",
+    "no-param-reassign": "off",
+    "no-void": "off",
+    "no-await-in-loop": "off",
+    "complexity": "off",
+    "default-case": "off",
+    "class-methods-use-this": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/only-export-components": "off",
+    "typescript/explicit-module-boundary-types": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/prefer-add-event-listener": "off",
+    "vitest/require-test-timeout": "off",
+    "vitest/require-mock-type-parameters": "off",
+
+    // === Core rules ===
+    "no-var": "error",
+    "no-console": "error",
+    "no-constant-condition": "warn",
+    "no-inner-declarations": "error",
+    "no-useless-constructor": "error",
+
+    "no-redeclare": "off",
+    "no-empty": "warn",
+    "no-cond-assign": "warn",
+    "prefer-const": "error",
+    "prefer-template": "error",
+    "default-param-last": "error",
+    "eqeqeq": ["error", "smart"],
+    "curly": "error",
+    "array-callback-return": "warn",
+    "no-new": "off",
+    "no-bitwise": "off",
+    // TODO: re-enable
+    "no-control-regex": "warn",
+    // TODO: re-enable
+    "no-unsafe-optional-chaining": "warn",
+    // TODO: re-enable
+    "no-unused-expressions": "warn",
+    // TODO: re-enable
+    "no-unused-vars": "warn",
+
+    // === TypeScript ===
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/ban-ts-comment": "warn",
+    "typescript/consistent-generic-constructors": "error",
+    "typescript/consistent-type-definitions": "error",
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-dynamic-delete": "error",
+    "typescript/prefer-ts-expect-error": "error",
+    "typescript/no-empty-object-type": "off",
+    "typescript/no-confusing-void-expression": "error",
+    "typescript/consistent-type-imports": ["error", { "disallowTypeAnnotations": false }],
+    "typescript/explicit-function-return-type": "off",
+
+    // === Unicorn ===
+    "unicorn/switch-case-braces": ["error", "avoid"],
+    "unicorn/prefer-logical-operator-over-ternary": "error",
+    "unicorn/prefer-spread": "error",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/prefer-number-properties": "error",
+    "unicorn/prefer-ternary": "error",
+    "unicorn/no-instanceof-array": "error",
+
+    // === React ===
+    "react/no-array-index-key": "off",
+    "react/jsx-boolean-value": ["error", "always"],
+    "react/jsx-pascal-case": "error",
+    "react/no-multi-comp": "off",
+    "react/jsx-filename-extension": "off",
+    // TODO: re-enable as error
+    "react/jsx-no-useless-fragment": "warn",
+    "react/jsx-no-target-blank": "warn",
+    "react/jsx-no-comment-textnodes": "warn",
+    "react/self-closing-comp": "error",
+
+    // === React Hooks ===
+    "react-hooks/rules-of-hooks": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+
+    // === JSX A11y ===
+    // TODO: re-enable all of these as error
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/heading-has-content": "off",
+    "jsx-a11y/iframe-has-title": "warn",
+    "jsx-a11y/media-has-caption": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/no-noninteractive-tabindex": "warn",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/prefer-tag-over-role": "warn",
+    "jsx-a11y/role-has-required-aria-props": "warn",
+
+    "react/no-danger": "off",
+
+    // === Unicorn ===
+    "unicorn/prefer-node-protocol": "error",
+
+    // === Vitest ===
+    "vitest/expect-expect": "warn",
+    "vitest/no-identical-title": "error",
+    "vitest/no-commented-out-tests": "warn",
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/__mocks__/**",
+        "**/vite.config.*",
+        "**/stories/**",
+        "**/Logger.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["**/__tests__/**"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        "typescript/unbound-method": "off"
+      }
+    }
+  ]
+}

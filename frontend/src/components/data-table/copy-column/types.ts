@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-empty-interface */
+/* oxlint-disable typescript/no-empty-object-type */
 import type { RowData } from "@tanstack/react-table";
 
 export interface CopyColumnOptions {
@@ -12,8 +12,9 @@ export interface CopyColumnInstance {
 
 // Use declaration merging to add our new feature APIs
 declare module "@tanstack/react-table" {
-  interface TableOptionsResolved<TData extends RowData>
-    extends CopyColumnOptions {}
+  interface TableOptionsResolved<
+    TData extends RowData,
+  > extends CopyColumnOptions {}
 
   interface Column<TData extends RowData> extends CopyColumnInstance {}
 }

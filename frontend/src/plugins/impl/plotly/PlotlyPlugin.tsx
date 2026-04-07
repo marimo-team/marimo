@@ -14,8 +14,17 @@ import useEvent from "react-use-event-hook";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
 import { Arrays } from "@/utils/arrays";
-import { Objects } from "@/utils/objects";
-import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
+import {
+  extractIndices,
+  extractPoints,
+  extractSunburstPoints,
+  extractTreemapPoints,
+  hasPureLineTrace,
+  lineSelectionButtons,
+  type ModeBarButton,
+  mergeModeBarButtonsToAdd,
+  shouldHandleClickSelection,
+} from "./selection";
 import { usePlotlyLayout } from "./usePlotlyLayout";
 
 interface Data {
@@ -23,16 +32,17 @@ interface Data {
   config: Partial<Plotly.Config>;
 }
 
-type AxisName = string;
-type AxisDatum = unknown;
-
 type T =
   | {
-      points?: Record<AxisName, AxisDatum>[] | Plotly.PlotDatum[];
+      points?: Record<string, unknown>[] | Plotly.PlotDatum[];
       indices?: number[];
       range?: {
         x?: number[];
         y?: number[];
+      };
+      lasso?: {
+        x?: unknown[];
+        y?: unknown[];
       };
       // These are kept in the state to persist selections across re-renders
       // on the frontend, but likely not used in the backend.
@@ -76,23 +86,6 @@ const LazyPlot = lazy(() =>
   import("./Plot").then((mod) => ({ default: mod.Plot })),
 );
 
-const SUNBURST_DATA_KEYS: (keyof Plotly.SunburstPlotDatum)[] = [
-  "color",
-  "curveNumber",
-  "entry",
-  "hovertext",
-  "id",
-  "label",
-  "parent",
-  "percentEntry",
-  "percentParent",
-  "percentRoot",
-  "pointNumber",
-  "root",
-  "value",
-] as const;
-const TREE_MAP_DATA_KEYS = SUNBURST_DATA_KEYS;
-
 export const PlotlyComponent = memo(
   ({ figure: originalFigure, value, setValue, config }: PlotlyPluginProps) => {
     // Used for rendering LaTeX. TODO: Serve this library from Marimo
@@ -101,7 +94,7 @@ export const PlotlyComponent = memo(
     );
     const isScriptLoaded = scriptStatus === "ready";
 
-    const { figure, layout, handleReset } = usePlotlyLayout({
+    const { figure, layout, setLayout, handleReset } = usePlotlyLayout({
       originalFigure,
       initialValue: value,
       isScriptLoaded,
@@ -111,31 +104,48 @@ export const PlotlyComponent = memo(
       handleReset();
       setValue({});
     });
+    const handleSetDragmode = useEvent(
+      (dragmode: Plotly.Layout["dragmode"]) => {
+        setLayout((prev) => ({ ...prev, dragmode }));
+        setValue((prev) => ({ ...prev, dragmode }));
+      },
+    );
 
     const configMemo = useDeepCompareMemoize(config);
     const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
-      return {
-        displaylogo: false,
-        modeBarButtonsToAdd: [
-          // Custom button to reset the state
-          {
-            name: "reset",
-            title: "Reset state",
-            icon: {
-              svg: `
+      const hasPureLine = hasPureLineTrace(figure.data);
+      const defaultButtons: ModeBarButton[] = [
+        // Custom button to reset the state
+        {
+          name: "reset",
+          title: "Reset state",
+          icon: {
+            svg: `
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                 <path d="M3 3v5h5" />
               </svg>`,
-            },
-            click: handleResetWithClear,
           },
-        ],
+          click: handleResetWithClear,
+        },
+      ];
+      if (hasPureLine) {
+        defaultButtons.push(...lineSelectionButtons(handleSetDragmode));
+      }
+
+      return {
+        displaylogo: false,
         // Prioritize user's config
         ...configMemo,
+        modeBarButtonsToAdd: mergeModeBarButtonsToAdd(
+          defaultButtons,
+          configMemo.modeBarButtonsToAdd as
+            | readonly ModeBarButton[]
+            | undefined,
+        ),
       };
-    }, [handleResetWithClear, configMemo]);
+    }, [handleResetWithClear, handleSetDragmode, configMemo, figure.data]);
 
     return (
       <LazyPlot
@@ -170,6 +180,7 @@ export const PlotlyComponent = memo(
               points: Arrays.EMPTY,
               indices: Arrays.EMPTY,
               range: undefined,
+              lasso: undefined,
             };
           });
         })}
@@ -180,9 +191,7 @@ export const PlotlyComponent = memo(
 
           setValue((prev) => ({
             ...prev,
-            points: evt.points.map((point) =>
-              Objects.pick(point, TREE_MAP_DATA_KEYS),
-            ),
+            points: extractTreemapPoints(evt.points),
           }));
         })}
         onSunburstClick={useEvent((evt: Readonly<Plotly.PlotMouseEvent>) => {
@@ -192,9 +201,7 @@ export const PlotlyComponent = memo(
 
           setValue((prev) => ({
             ...prev,
-            points: evt.points.map((point) =>
-              Objects.pick(point, SUNBURST_DATA_KEYS),
-            ),
+            points: extractSunburstPoints(evt.points),
           }));
         })}
         config={plotlyConfig}
@@ -202,18 +209,20 @@ export const PlotlyComponent = memo(
           if (!evt) {
             return;
           }
-          // Only handle clicks for chart types where box/lasso selection
-          // (onSelected) doesn't work, such as heatmaps.
-          const isHeatmap = evt.points.some(
-            (point) => point.data?.type === "heatmap",
-          );
-          if (!isHeatmap) {
+          // Handle clicks for chart types where box/lasso selection
+          // is limited or unavailable (e.g. bar, heatmaps, histograms, pure line traces).
+          if (!shouldHandleClickSelection(evt.points)) {
             return;
           }
+          const extractedPoints = extractPoints(evt.points);
+          const extractedIndices = extractIndices(evt.points);
           setValue((prev) => ({
             ...prev,
-            points: extractPoints(evt.points),
-            indices: evt.points.map((point) => point.pointIndex),
+            selections: Arrays.EMPTY,
+            range: undefined,
+            lasso: undefined,
+            points: extractedPoints,
+            indices: extractedIndices,
           }));
         })}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
@@ -226,8 +235,12 @@ export const PlotlyComponent = memo(
             selections:
               "selections" in evt ? (evt.selections as unknown[]) : [],
             points: extractPoints(evt.points),
-            indices: evt.points.map((point) => point.pointIndex),
+            indices: extractIndices(evt.points),
             range: evt.range,
+            lasso:
+              "lassoPoints" in evt
+                ? (evt.lassoPoints as { x?: unknown[]; y?: unknown[] })
+                : undefined,
           }));
         })}
         className="w-full"
@@ -241,54 +254,3 @@ export const PlotlyComponent = memo(
   },
 );
 PlotlyComponent.displayName = "PlotlyComponent";
-
-/**
- * This is a hack to extract the points with their original keys,
- * instead of the ones that Plotly uses internally,
- * by using the hovertemplate.
- */
-const STANDARD_POINT_KEYS: string[] = [
-  "x",
-  "y",
-  "z",
-  "lat",
-  "lon",
-  "curveNumber",
-  "pointNumber",
-  "pointNumbers",
-  "pointIndex",
-];
-
-function extractPoints(
-  points: Plotly.PlotDatum[],
-): Record<AxisName, AxisDatum>[] {
-  if (!points) {
-    return [];
-  }
-
-  let parser: PlotlyTemplateParser | undefined;
-
-  return points.map((point) => {
-    const standardPointFields = Objects.pick(point, STANDARD_POINT_KEYS);
-
-    // Get the first hovertemplate
-    const hovertemplate = Array.isArray(point.data.hovertemplate)
-      ? point.data.hovertemplate[0]
-      : point.data.hovertemplate;
-
-    // For chart types with standard point keys (e.g. heatmaps),
-    // or when there's no hovertemplate, pick keys directly from the point.
-    if (!hovertemplate || point.data?.type === "heatmap") {
-      return standardPointFields;
-    }
-
-    // Update or create a parser
-    parser = parser
-      ? parser.update(hovertemplate)
-      : createParser(hovertemplate);
-    return {
-      ...standardPointFields,
-      ...parser.parse(point),
-    };
-  });
-}

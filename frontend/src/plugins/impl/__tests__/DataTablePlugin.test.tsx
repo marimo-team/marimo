@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { Tooltip } from "radix-ui";
+
+const TooltipProvider = Tooltip.Provider;
+
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeAll, describe, expect, it, vi } from "vitest";

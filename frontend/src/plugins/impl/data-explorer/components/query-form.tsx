@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-base-to-string */
+/* oxlint-disable typescript/no-base-to-string */
 
 import { ExpandedType } from "compassql/build/src/query/expandedtype";
 import { PrimitiveType, type Schema } from "compassql/build/src/schema";

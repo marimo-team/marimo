@@ -72,7 +72,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
       .map((provider) => provider.name);
 
     return {
-      secretKeys: result.secrets.flatMap((secret) => secret.keys).sort(),
+      secretKeys: result.secrets.flatMap((secret) => secret.keys).toSorted(),
       providerNames: providerNames,
     };
   }, []);

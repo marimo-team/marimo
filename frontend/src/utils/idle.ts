@@ -7,7 +7,7 @@
  */
 export function onIdle(callback: () => void) {
   if ("scheduler" in window) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     (window as any).scheduler.postTask(callback, {
       priority: "background",
     });

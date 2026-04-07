@@ -399,7 +399,30 @@ class BaseLspServer(LspServer):
             else:
                 self.process.terminate()
 
-    def stop(self) -> None:
+    def _close_pipes(self) -> None:
+        """Close stdout/stderr pipes to unblock the child process.
+
+        If the child is writing to a pipe whose buffer is full, it will
+        block forever.  Closing the parent's end of the pipe lets the
+        child receive EPIPE/SIGPIPE so it can exit, and prevents
+        process.wait() from deadlocking.
+        """
+        if self.process is None:
+            return
+        for stream in (self.process.stdout, self.process.stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+
+    def _begin_stop(self) -> None:
+        """Send termination signal and close pipes.
+
+        Call this on every server *before* calling _finish_stop() so that
+        all servers receive SIGTERM concurrently and the wait timeouts
+        don't stack up.
+        """
         # Cancel health monitoring task
         if (
             self._health_check_task is not None
@@ -415,26 +438,39 @@ class BaseLspServer(LspServer):
             else:
                 self._signal_process_tree(signal.SIGTERM)
 
-            try:
-                # Wait for graceful shutdown with timeout
-                self.process.wait(timeout=5)
-                LOGGER.debug("LSP server stopped gracefully")
-            except subprocess.TimeoutExpired:
-                # Force kill if process doesn't respond to terminate
-                LOGGER.warning(
-                    "LSP server did not stop gracefully, forcing kill"
-                )
-                if is_windows():
-                    self.process.kill()
-                else:
-                    self._signal_process_tree(signal.SIGKILL)
-                try:
-                    self.process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    LOGGER.error("Failed to kill LSP server process")
-            self.process = None
-        else:
+            # Close pipes so the child doesn't block writing to a full
+            # pipe buffer, which would prevent it from exiting and cause
+            # wait() to deadlock (see Python subprocess docs).
+            self._close_pipes()
+
+    def _finish_stop(self) -> None:
+        """Wait for the process to exit, force-killing if needed.
+
+        Must be called after _begin_stop().
+        """
+        if self.process is None:
             LOGGER.debug("LSP server not running")
+            return
+
+        try:
+            self.process.wait(timeout=2)
+            LOGGER.debug("LSP server stopped gracefully")
+        except subprocess.TimeoutExpired:
+            # Force kill if process doesn't respond to terminate
+            LOGGER.warning("LSP server did not stop gracefully, forcing kill")
+            if is_windows():
+                self.process.kill()
+            else:
+                self._signal_process_tree(signal.SIGKILL)
+            try:
+                self.process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                LOGGER.error("Failed to kill LSP server process")
+        self.process = None
+
+    def stop(self) -> None:
+        self._begin_stop()
+        self._finish_stop()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
         raise NotImplementedError()
@@ -823,8 +859,18 @@ class CompositeLspServer(LspServer):
         return alerts[0] if alerts else None
 
     def stop(self) -> None:
+        # Signal all servers to stop first (send SIGTERM + close pipes)
+        # so they shut down concurrently, then wait for each one.
+        # This avoids stacking the per-server wait timeouts.
         for server in self.servers.values():
-            server.stop()
+            if isinstance(server, BaseLspServer):
+                server._begin_stop()
+            else:
+                server.stop()
+                continue
+        for server in self.servers.values():
+            if isinstance(server, BaseLspServer):
+                server._finish_stop()
 
     def is_running(self) -> bool:
         return any(server.is_running() for server in self.servers.values())

@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import * as ToastPrimitives from "@radix-ui/react-toast";
 import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
+import { Toast as ToastPrimitives } from "radix-ui";
 import * as React from "react";
 
 import { cn } from "@/utils/cn";
@@ -118,7 +118,9 @@ ToastDescription.displayName = ToastPrimitives.Description.displayName;
 
 type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;
 
-type ToastActionElement = React.ReactElement<typeof ToastAction>;
+type ToastActionElement = React.ReactElement<
+  React.ComponentProps<typeof ToastAction>
+>;
 
 export {
   type ToastProps,

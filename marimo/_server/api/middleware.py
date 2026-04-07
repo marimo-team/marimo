@@ -14,7 +14,7 @@ from typing import (
     Optional,
     Union,
 )
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import starlette.status as status
 from starlette.authentication import (
@@ -37,7 +37,7 @@ from websockets import ClientConnection, ConnectionClosed, connect
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.api.auth import validate_auth
+from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.codes import WebSocketCodes
 from marimo._server.uvicorn_utils import close_uvicorn
@@ -135,6 +135,9 @@ class SkewProtectionMiddleware:
         if request.headers.get("Content-Type", "").startswith(
             "application/x-www-form-urlencoded"
         ):
+            return await self.app(scope, receive, send)
+        # If /api/kernel/execute, skip (agent-only endpoint)
+        if request.url.path.rstrip("/").endswith("/api/kernel/execute"):
             return await self.app(scope, receive, send)
         # If ws, skip
         if request.url.path.startswith("/ws") or request.url.path.endswith(
@@ -508,7 +511,19 @@ class ProxyMiddleware:
         try:
             original_params = websocket.query_params
             if original_params:
-                ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
+                # Re-encode query params from Starlette's already-decoded
+                # values so spaces become %20 while preserving literal plus
+                # signs instead of incorrectly treating them as spaces.
+                # Strip the access_token param — it's only used by marimo
+                # for authentication and should not be forwarded to
+                # upstream LSP servers.
+                encoded_params = [
+                    (k, quote(v))
+                    for k, v in original_params.items()
+                    if k != TOKEN_QUERY_PARAM
+                ]
+                if encoded_params:
+                    ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in encoded_params)}"
             await websocket.accept()
 
             # Try to connect to the upstream WebSocket with retries

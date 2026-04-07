@@ -1,8 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type * as LabelPrimitive from "@radix-ui/react-label";
-import { Slot } from "@radix-ui/react-slot";
 import { AlertCircleIcon } from "lucide-react";
+import { type Label as LabelPrimitive, Slot as SlotPrimitive } from "radix-ui";
 import * as React from "react";
 import {
   Controller,
@@ -130,14 +129,14 @@ const FormLabel = React.forwardRef<
 FormLabel.displayName = "FormLabel";
 
 const FormControl = React.forwardRef<
-  React.ElementRef<typeof Slot>,
-  React.ComponentPropsWithoutRef<typeof Slot>
+  React.ElementRef<typeof SlotPrimitive.Slot>,
+  React.ComponentPropsWithoutRef<typeof SlotPrimitive.Slot>
 >(({ ...props }, ref) => {
   const { error, formItemId, formDescriptionId, formMessageId } =
     useFormField();
 
   return (
-    <Slot
+    <SlotPrimitive.Slot
       ref={ref}
       id={formItemId}
       aria-describedby={

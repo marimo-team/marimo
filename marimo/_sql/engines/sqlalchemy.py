@@ -124,6 +124,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         """Quote an identifier based on the SQL dialect's quoting rules."""
         dialect_quoting: dict[str, tuple[re.Pattern[str], str, str]] = {
             "snowflake": (_SNOWFLAKE_NEEDS_QUOTING_RE, '"', '"'),
+            "starrocks": (_SNOWFLAKE_NEEDS_QUOTING_RE, "`", "`"),
         }
 
         if self.dialect not in dialect_quoting:
@@ -160,6 +161,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
         _use_database_dialect_command: dict[str, str] = {
             "snowflake": f"USE DATABASE {self._quote_identifier(database)}",
+            "starrocks": f"SET CATALOG {self._quote_identifier(database)}",
         }
         dialect_command = _use_database_dialect_command.get(self.dialect)
 
@@ -257,6 +259,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             "postgresql": "SELECT current_database()",
             "mssql": "SELECT DB_NAME()",
             "timeplus": "SELECT current_database()",
+            "starrocks": "SELECT CATALOG()",
         }
 
         # Try to get the database name by querying the database directly
@@ -350,6 +353,18 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
 
         return database_names
 
+    def _get_starrocks_database_names(self) -> list[str]:
+        """Get catalog names for StarRocks via 'SHOW CATALOGS'.
+
+        StarRocks uses a three-level hierarchy (Catalog → Database → Table)
+        which maps to marimo's (Database → Schema → Table).
+        """
+        from sqlalchemy import text
+
+        with self._connection.connect() as connection:
+            result = connection.execute(text("SHOW CATALOGS"))
+            return [str(row[0]) for row in result.fetchall()]
+
     @safe_execute(
         fallback=[],
         message="Failed to get database names",
@@ -361,8 +376,11 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         Returns a single-element list with the default database when
         the dialect has no dedicated discovery mechanism.
         """
-        if self.dialect.lower() == "snowflake":
+        dialect = self.dialect.lower()
+        if dialect == "snowflake":
             return self._get_snowflake_database_names()
+        if dialect == "starrocks":
+            return self._get_starrocks_database_names()
 
         return [self.default_database] if self.default_database else []
 
@@ -468,6 +486,8 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         dialect = self.dialect.lower()
         if dialect == "postgresql":
             return ["information_schema", "pg_catalog"]
+        if dialect == "starrocks":
+            return ["information_schema", "sys", "_statistics_"]
         return ["information_schema"]
 
     # -------------------------------------------------------------- #

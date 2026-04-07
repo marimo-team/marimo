@@ -34,8 +34,7 @@ export interface CellOutputData {
 // For the context provider
 // Currently, we enforce that cellOutput is present.
 interface CellOutputContextData
-  extends CellOutputData,
-    Record<string, unknown> {
+  extends CellOutputData, Record<string, unknown> {
   cellOutput: BaseOutput;
 }
 

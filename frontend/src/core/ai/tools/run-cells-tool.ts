@@ -50,9 +50,10 @@ const filePartSchema = z.object({
   mediaType: z.string(),
 }) satisfies z.ZodType<FileUIPart>;
 
-export class RunStaleCellsTool
-  implements AiTool<EmptyToolInput, RunStaleCellsOutput>
-{
+export class RunStaleCellsTool implements AiTool<
+  EmptyToolInput,
+  RunStaleCellsOutput
+> {
   readonly name = "run_stale_cells_tool";
   readonly description = description;
   readonly schema = z.object({});

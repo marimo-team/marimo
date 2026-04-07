@@ -16,7 +16,7 @@ export class MultiMap<K, V> {
 
   add(key: K, value: V): void {
     if (this.map.has(key)) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      // oxlint-disable-next-line typescript/no-non-null-assertion
       this.map.get(key)!.push(value);
     } else {
       this.map.set(key, [value]);

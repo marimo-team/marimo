@@ -1,10 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import type { AnyWidget } from "@anywidget/types";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
-import { RANDOM_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
@@ -22,17 +21,19 @@ import { BINDING_MANAGER, WIDGET_DEF_REGISTRY } from "./widget-binding";
 interface Data {
   jsUrl: string;
   jsHash: string;
+  modelId: WidgetModelId;
 }
 
 type AnyWidgetState = ModelState;
 
 /**
- * Initial value is a model_id reference.
- * The backend sends just { model_id: string } and the frontend
- * retrieves the actual state from the 'open' message.
+ * Value payload sent by the frontend on state updates.
+ *
+ * The initial value from the backend is empty — `model_id` is passed
+ * via immutable data attributes (`args`) so it survives value overwrites.
  */
 interface ModelIdRef {
-  model_id: WidgetModelId;
+  model_id?: WidgetModelId;
 }
 
 export function useAnyWidgetModule(opts: { jsUrl: string; jsHash: string }) {
@@ -118,14 +119,14 @@ export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
     z.object({
       jsUrl: z.string(),
       jsHash: z.string(),
+      modelId: z.string().transform((v) => v as WidgetModelId),
     }),
   )
   .withFunctions({})
   .renderer((props) => <AnyWidgetSlot {...props} />);
 
 const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
-  const { jsUrl, jsHash } = props.data;
-  const { model_id: modelId } = props.value;
+  const { jsUrl, jsHash, modelId } = props.data;
   const host = props.host as HTMLElementNotDerivedFromRef;
 
   const { jsModule, error } = useAnyWidgetModule({ jsUrl, jsHash });
@@ -145,18 +146,10 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     return <ErrorBanner error={error} />;
   }
 
-  // Find the closest parent element with an attribute of `random-id`
-  const randomId = props.host
-    .closest(`[${RANDOM_ID_ATTR}]`)
-    ?.getAttribute(RANDOM_ID_ATTR);
-  const key = randomId ?? jsUrl;
-
   return (
     <LoadedSlot
-      // Use the a key to force a re-render when the randomId (or jsUrl) changes
-      // Plugins may be stateful and we cannot make assumptions that we won't be
-      // so it is safer to just re-render.
-      key={key}
+      // Force remount when the widget module or model changes (cell re-run).
+      key={`${jsHash}:${modelId}`}
       widget={jsModule.default}
       modelId={modelId}
       host={host}

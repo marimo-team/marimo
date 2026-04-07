@@ -439,9 +439,8 @@ const OUTLINE_2: Outline = {
 };
 
 it("mergeOutlines", () => {
-  expect(
-    mergeOutlines([OUTLINE_1, null, OUTLINE_2, null]),
-  ).toMatchInlineSnapshot(`
+  expect(mergeOutlines([OUTLINE_1, null, OUTLINE_2, null]))
+    .toMatchInlineSnapshot(`
     {
       "items": [
         {

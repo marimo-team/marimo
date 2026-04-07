@@ -147,9 +147,8 @@ describe("download-file snippet", () => {
   });
 
   it("obstore gcs backend", () => {
-    expect(
-      downloadSnippet.getCode(makeCtx({ protocol: "gcs" })),
-    ).toMatchInlineSnapshot(`
+    expect(downloadSnippet.getCode(makeCtx({ protocol: "gcs" })))
+      .toMatchInlineSnapshot(`
       "from datetime import timedelta
       from obstore import sign
 
@@ -162,9 +161,8 @@ describe("download-file snippet", () => {
   });
 
   it("obstore cloudflare backend", () => {
-    expect(
-      downloadSnippet.getCode(makeCtx({ protocol: "cloudflare" })),
-    ).toMatchInlineSnapshot(`
+    expect(downloadSnippet.getCode(makeCtx({ protocol: "cloudflare" })))
+      .toMatchInlineSnapshot(`
       "from datetime import timedelta
       from obstore import sign
 

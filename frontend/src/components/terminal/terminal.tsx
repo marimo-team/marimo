@@ -143,7 +143,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
   const terminalRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // eslint-disable-next-line react/hook-use-state
+  // oxlint-disable-next-line react/hook-use-state
   const [{ terminal, fitAddon, searchAddon }] = useState(() => {
     // Create a new terminal instance
     const term = new Terminal({
@@ -300,7 +300,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     return () => {
       // noop
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
 
   // Process pending commands when terminal is ready
@@ -335,7 +335,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     }
 
     return;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   // On mount
@@ -373,7 +373,7 @@ const TerminalComponent: React.FC<TerminalComponentProps> = ({
     return () => {
       abortController.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

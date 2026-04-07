@@ -2,7 +2,10 @@
 
 import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
-import { PopoverAnchor } from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
+
+const PopoverAnchor = PopoverPrimitive.Anchor;
+
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   createUIMessageStreamResponse,
@@ -466,7 +469,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           resetInput();
         }}
         ref={formRef}
-        // biome-ignore lint/a11y/useSemanticElements: inert is used to disable the entire form
+        // oxlint-ignore-next-line -- inert is used to disable the entire form
         inert={props.disabled || undefined}
         className={cn(
           "flex w-full border-t border-(--slate-6) px-2 py-1 items-center",

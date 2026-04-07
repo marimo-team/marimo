@@ -62,7 +62,7 @@ interface FileInfo {
   is_directory: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type PluginFunctions = {
   list_directory: (req: { path: string }) => Promise<{
     files: FileInfo[];

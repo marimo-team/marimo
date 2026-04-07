@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import os
 import re
 import subprocess
@@ -330,6 +331,9 @@ class TestRunModeTrace:
 
         k = run_mode_kernel.k
         k.app_metadata.filename = str(notebook_file)
+
+        k.user_config = copy.deepcopy(k.user_config)
+        k.user_config["runtime"]["show_tracebacks"] = True
 
         cell_code = textwrap.dedent(
             """
