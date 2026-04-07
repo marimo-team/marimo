@@ -426,7 +426,9 @@ class TestEnrichedCellStatus:
         )
         enriched = EnrichedCell(cell, impl)
         assert enriched.status == "exception"
-        assert enriched.error is err
+        assert len(enriched.errors) == 1
+        assert enriched.errors[0].kind == "runtime"
+        assert enriched.errors[0].exception is err
 
     def test_code_edited_becomes_stale(self) -> None:
         cell = _cell("a", "x = 2")
@@ -443,7 +445,8 @@ class TestEnrichedCellStatus:
         enriched = EnrichedCell(cell, impl)
         assert enriched.status == "stale"
         # Error persists for inspection
-        assert enriched.error is err
+        assert len(enriched.errors) == 1
+        assert enriched.errors[0].exception is err
 
     def test_runtime_stale_flag(self) -> None:
         """Lazy mode: inputs changed but code is the same."""
@@ -506,10 +509,10 @@ class TestEnrichedCellStatus:
         assert enriched.name == "my_cell"
         assert enriched.config == CellConfig()
 
-    def test_error_none_when_no_impl(self) -> None:
+    def test_errors_empty_when_no_impl(self) -> None:
         cell = _cell("a", "x = 1")
         enriched = EnrichedCell(cell, None)
-        assert enriched.error is None
+        assert enriched.errors == []
 
 
 class TestEnrichedCellRepr:
