@@ -180,18 +180,22 @@ class NotebookCell:
 
     @property
     def id(self) -> CellId_t:
+        """The unique cell identifier."""
         return self._cell.id
 
     @property
     def code(self) -> str:
+        """The current source code of the cell."""
         return self._cell.code
 
     @property
     def name(self) -> str:
+        """The cell's display name (empty string if unnamed)."""
         return self._cell.name
 
     @property
     def config(self) -> CellConfig:
+        """The cell's configuration (e.g. disabled, hide_code)."""
         return self._cell.config
 
     # -- runtime properties --
@@ -287,8 +291,8 @@ class _CellsView:
     Dict-like access is also available::
 
         ctx.cells.keys()  # list of CellId_t
-        ctx.cells.values()  # list of CellView
-        ctx.cells.items()  # list of (CellId_t, CellView)
+        ctx.cells.values()  # list of NotebookCell
+        ctx.cells.items()  # list of (CellId_t, NotebookCell)
         "my_cell" in ctx.cells  # membership test
     """
 
