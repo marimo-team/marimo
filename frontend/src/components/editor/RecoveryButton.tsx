@@ -34,8 +34,8 @@ const RecoveryModal = (props: {
   };
 
   const getNotebookJSON = useEvent(() => {
-    const notebook = getNotebook();
-    const cells = notebookCells(notebook);
+    const notebookState = getNotebook();
+    const cells = notebookCells(notebookState);
     const notebook: Notebook["NotebookV1"] = {
       version: "1",
       metadata: {
