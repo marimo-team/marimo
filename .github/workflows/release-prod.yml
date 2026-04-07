@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: 📦 Build frontend
         uses: ./.github/actions/build-frontend
@@ -38,13 +38,13 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
       - name: 📦 Build marimo
         run: uv build
 
       - name: 📦 Upload marimo dist artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: pypi-marimo
           path: dist/
@@ -62,7 +62,7 @@ jobs:
           npm version ${{ steps.get_version.outputs.marimo_version }} --no-git-tag-version
 
       - name: 📦 Upload frontend artifact for npm publish
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend
           path: frontend/
@@ -84,7 +84,7 @@ jobs:
           ./islands/validate.sh
 
       - name: 📦 Upload islands artifact for npm publish
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend-islands
           path: frontend/

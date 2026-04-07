@@ -84,7 +84,7 @@ describe("IslandsPyodideBridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset the singleton by clearing the window property
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     delete (window as any)._marimo_private_IslandsPyodideBridge;
     // Access the singleton - creates a fresh instance
     bridge = IslandsPyodideBridge.INSTANCE;
@@ -92,7 +92,7 @@ describe("IslandsPyodideBridge", () => {
 
   afterEach(() => {
     // Clean up singleton
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     delete (window as any)._marimo_private_IslandsPyodideBridge;
   });
 

@@ -4,7 +4,7 @@ import { repl } from "@/utils/repl";
 import { getRequestClient } from "../network/requests";
 import { getResolvedMarimoConfig } from "./config";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// oxlint-disable-next-line typescript/no-empty-object-type
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   wasm_layouts: boolean; // Used in playground (community cloud)

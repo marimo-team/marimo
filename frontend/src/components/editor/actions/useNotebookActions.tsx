@@ -17,7 +17,6 @@ import {
   EyeOffIcon,
   FastForwardIcon,
   FileIcon,
-  FilePlus2Icon,
   Files,
   FileTextIcon,
   FolderDownIcon,
@@ -36,6 +35,7 @@ import {
   PresentationIcon,
   SettingsIcon,
   Share2Icon,
+  SparklesIcon,
   Undo2Icon,
   XCircleIcon,
   YoutubeIcon,
@@ -43,8 +43,10 @@ import {
 } from "lucide-react";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { PairWithAgentModal } from "@/components/editor/actions/pair-with-agent-modal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { toast } from "@/components/ui/use-toast";
 import {
@@ -344,6 +346,14 @@ export function useNotebookActions() {
     },
 
     {
+      icon: <SparklesIcon size={14} strokeWidth={1.5} />,
+      label: "Pair with an agent",
+      handle: async () => {
+        openModal(<PairWithAgentModal onClose={closeModal} />);
+      },
+    },
+
+    {
       icon: <Share2Icon size={14} strokeWidth={1.5} />,
       label: "Share",
       handle: NOOP_HANDLER,
@@ -630,7 +640,7 @@ export function useNotebookActions() {
     },
 
     {
-      icon: <FilePlus2Icon size={14} strokeWidth={1.5} />,
+      icon: <MarimoPlusIcon size={14} strokeWidth={1.5} />,
       label: "New notebook",
       // If file is in the url, then we ran `marimo edit`
       // without a specific file

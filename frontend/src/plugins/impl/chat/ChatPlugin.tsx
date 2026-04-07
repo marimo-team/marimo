@@ -13,7 +13,7 @@ const LazyChatbot = React.lazy(() =>
   import("./chat-ui").then((m) => ({ default: m.Chatbot })),
 );
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 export type PluginFunctions = {
   get_chat_history: (req: {}) => Promise<{ messages: UIMessage[] }>;
   delete_chat_history: (req: {}) => Promise<null>;

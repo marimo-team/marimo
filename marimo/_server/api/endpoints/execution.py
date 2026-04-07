@@ -272,6 +272,14 @@ async def execute_code(
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
     session = app_state.require_current_session()
 
+    # Register cells into the graph without executing them so that
+    # code_mode's run_cell can resolve dependencies. The kernel
+    # no-ops if already instantiated.
+    session.instantiate(
+        InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),
+        http_request=HTTPRequest.from_request(request),
+    )
+
     async def _watch_disconnect() -> None:
         """Wait for client disconnect and interrupt the kernel."""
         while True:

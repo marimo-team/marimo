@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/** biome-ignore-all lint/suspicious/noConsole: for debugging */
+/* oxlint-disable no-console -- for debugging */
 import { type Mock, vi } from "vitest";
 import { invariant } from "@/utils/invariant";
 
@@ -137,12 +137,12 @@ export const SetupMocks = {
           store[key] = value;
         }),
         removeItem: vi.fn((key: string) => {
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          // oxlint-disable-next-line typescript/no-dynamic-delete
           delete store[key];
         }),
         clear: vi.fn(() => {
           for (const key of Object.keys(store)) {
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            // oxlint-disable-next-line typescript/no-dynamic-delete
             delete store[key];
           }
         }),
@@ -179,7 +179,7 @@ export const SetupMocks = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export function asMock<T extends (...args: any[]) => unknown>(fn: T): Mock<T> {
   invariant(
     "mock" in fn,

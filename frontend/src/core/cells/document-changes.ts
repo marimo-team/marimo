@@ -25,6 +25,7 @@ import type { NotebookDocumentTransactionRequest } from "../network/types";
 import { store } from "../state/jotai";
 import type { CellActions, NotebookState } from "./cells";
 import type { CellId } from "./ids";
+import { SCRATCH_CELL_ID } from "./ids";
 import type { CellData } from "./types";
 
 export type DocumentChange =
@@ -572,8 +573,19 @@ const flushChanges = debounce(() => {
   void getRequestClient().sendDocumentTransaction({ changes });
 }, 400);
 
+function isScratchChange(change: DocumentChange): boolean {
+  if ("cellId" in change && change.cellId === SCRATCH_CELL_ID) {
+    return true;
+  }
+  return false;
+}
+
 function enqueue(change: DocumentChange) {
   if (store.get(kioskModeAtom)) {
+    return;
+  }
+  // The scratchpad cell is local-only — don't sync it to the document.
+  if (isScratchChange(change)) {
     return;
   }
   pendingChanges.push(change);

@@ -65,7 +65,7 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
   // Lint still wants use to have the same event listeners per instance (which
   // makes sense), so noop is used.
   const maybeNoop = (fn: (e: KeyboardEvent) => void) =>
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    // oxlint-disable-next-line typescript/no-empty-function
     alwaysShowRun ? () => {} : fn;
 
   useEventListener(

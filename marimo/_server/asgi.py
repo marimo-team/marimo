@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Protocol,
     Union,
+    cast,
 )
 
 if TYPE_CHECKING:
@@ -340,6 +341,7 @@ def create_asgi_app(
     session_ttl: int = 120,
     asset_url: Optional[str] = None,
     redirect_console_to_browser: bool = False,
+    show_tracebacks: bool = False,
     html_head: Optional[str] = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
@@ -357,6 +359,8 @@ def create_asgi_app(
             e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
         redirect_console_to_browser (bool, optional): Whether to redirect console output (stdout/stderr) to the browser.
             When True, console output will be displayed in the browser. Defaults to False.
+        show_tracebacks (bool, optional): Whether to show detailed error tracebacks in a modal.
+            When True, exceptions will display a clickable toast that opens a modal with the full traceback. Defaults to False.
         html_head (str, optional): Custom HTML string to inject into the <head> of every notebook page.
             This is useful for adding global analytics scripts, custom stylesheets, meta tags, etc.
             When a notebook also has its own `html_head_file` config, the global `html_head` is injected first,
@@ -437,6 +441,7 @@ def create_asgi_app(
     from starlette.responses import RedirectResponse
 
     import marimo._server.api.lifespans as lifespans
+    from marimo._config.config import PartialMarimoConfig
     from marimo._config.manager import get_default_config_manager
     from marimo._server.file_router import AppFileRouter
     from marimo._server.lsp import NoopLspServer
@@ -510,6 +515,14 @@ def create_asgi_app(
 
         @staticmethod
         def _create_app_for_file(base_url: str, file_path: str) -> ASGIApp:
+            # Apply runtime config override for show_tracebacks
+            app_config_reader = config_reader.with_overrides(
+                cast(
+                    PartialMarimoConfig,
+                    {"runtime": {"show_tracebacks": show_tracebacks}},
+                )
+            )
+
             session_manager = SessionManager(
                 file_router=AppFileRouter.from_filename(MarimoPath(file_path)),
                 mode=SessionMode.RUN,
@@ -518,7 +531,7 @@ def create_asgi_app(
                 # Currently we only support run mode,
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
-                config_manager=config_reader,
+                config_manager=app_config_reader,
                 # We don't pass any CLI args for now
                 # since we don't want to read arbitrary args and apply them
                 # to each application
@@ -549,7 +562,7 @@ def create_asgi_app(
             app.state.session_manager = session_manager
             app.state.base_url = base_url
             app.state.asset_url = asset_url
-            app.state.config_manager = config_reader
+            app.state.config_manager = app_config_reader
             app.state.enable_auth = enable_auth
             app.state.html_head = html_head
             return app

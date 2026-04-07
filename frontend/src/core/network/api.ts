@@ -108,7 +108,7 @@ export const API = {
     response: Response;
   }): Promise<T> => {
     if (response.error) {
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      // oxlint-disable-next-line typescript/prefer-promise-reject-errors
       return Promise.reject(response.error);
     }
     return Promise.resolve(response.data as T);
@@ -118,7 +118,7 @@ export const API = {
     response: Response;
   }): Promise<null> => {
     if (response.error) {
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      // oxlint-disable-next-line typescript/prefer-promise-reject-errors
       return Promise.reject(response.error);
     }
     return Promise.resolve(null);

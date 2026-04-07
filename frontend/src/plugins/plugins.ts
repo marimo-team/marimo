@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
 import { initializeUIElement } from "../core/dom/ui-element";

@@ -124,7 +124,7 @@ describe("arrays", () => {
     });
 
     it("should handle undefined/null array", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       expect(arrayToggle(undefined as any, 1)).toEqual([1]);
     });
 

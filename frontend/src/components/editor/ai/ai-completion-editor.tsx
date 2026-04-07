@@ -156,7 +156,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
       // Use complete to pass the prompt directly, else input might be empty
       complete(initialPrompt);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [triggerImmediately]);
 
   // Focus the input

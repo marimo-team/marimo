@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as api from "@marimo-team/marimo-api";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";

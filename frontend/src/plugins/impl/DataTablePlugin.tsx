@@ -205,7 +205,7 @@ interface Data<T> {
   cellHoverTexts?: Record<string, Record<string, string | null>> | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type DataTableFunctions = {
   download_as: DownloadAsArgs;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
@@ -704,7 +704,7 @@ export const LoadingDataTableComponent = memo(
           <LoadingTable
             pageSize={
               props.totalRows !== TOO_MANY_ROWS && props.totalRows > 0
-                ? props.totalRows
+                ? Math.min(props.totalRows, props.pageSize)
                 : props.pageSize
             }
           />

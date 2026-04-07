@@ -224,11 +224,13 @@ class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
         import base64
 
         d: dict[str, Any] = msgspec.to_builtins(self)
-        # bytes are not JSON-serializable; base64-encode each buffer
         msg = d.get("message", {})
         if "buffers" in msg:
             msg["buffers"] = [
-                base64.b64encode(b).decode("ascii") for b in msg["buffers"]
+                b
+                if isinstance(b, str)
+                else base64.b64encode(b).decode("ascii")
+                for b in msg["buffers"]
             ]
         return d
 
@@ -371,12 +373,16 @@ class InstallingPackageAlertNotification(
         packages: Package name to status (queued/installing/installed/failed).
         logs: Optional streaming logs per package.
         log_status: Log stream status (append/start/done).
+        source: Which Python environment packages are installed into.
+                "kernel" (default) installs in the kernel's venv; "server"
+                installs in the server's own Python env.
     """
 
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
     logs: Optional[dict[str, str]] = None  # package name -> log content
     log_status: Optional[Literal["append", "start", "done"]] = None
+    source: Literal["kernel", "server"] = "kernel"
 
 
 class ReconnectedNotification(Notification, tag="reconnected"):

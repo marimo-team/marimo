@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-/** biome-ignore-all lint/suspicious/noConsole: For logging */
+/* oxlint-disable no-console -- For logging */
 
 declare global {
   interface Window {

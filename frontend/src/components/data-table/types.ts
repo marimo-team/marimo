@@ -16,6 +16,10 @@ declare module "@tanstack/react-table" {
 export const TABLE_ROW_HEIGHT_PX = 24;
 export const TABLE_HEADER_HEIGHT_PX = 40;
 
+// Below this column count, the table uses w-auto with a filler column
+// to prevent columns from stretching unnecessarily
+export const AUTO_WIDTH_MAX_COLUMNS = 4;
+
 // Default number of visible rows when virtualizing without an explicit maxHeight.
 export const DEFAULT_VIRTUAL_ROWS = 15;
 

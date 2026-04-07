@@ -763,7 +763,7 @@ const AgentPanel: React.FC = () => {
       // We don't want to disconnect so users can switch between different
       // panels without losing their session
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [wsUrl]);
 
   const handleNewSession = useEvent(async () => {
@@ -889,7 +889,7 @@ const AgentPanel: React.FC = () => {
     };
 
     createOrResumeSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, agent, tabLastActiveSessionId, activeSessionId]);
 
   // Handler for prompt submission

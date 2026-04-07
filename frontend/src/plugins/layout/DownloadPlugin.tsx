@@ -35,7 +35,7 @@ interface Data {
   lazy?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type Functions = {
   /**
    * Function to call for lazy loading

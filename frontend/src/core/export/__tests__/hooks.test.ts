@@ -55,7 +55,7 @@ describe("useEnrichCellOutputs", () => {
 
   // Helper to set the mocked atom (cast to any to work around type mismatch)
   const setCellsRuntime = (value: Record<CellId, CellRuntimeState>) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     store.set(cellsRuntimeAtom as any, value);
   };
 

@@ -88,6 +88,7 @@ from marimo._messaging.notification import (
     SQLTablePreviewNotification,
     StorageDownloadReadyNotification,
     StorageEntriesNotification,
+    UIElementMessageNotification,
     ValidateSQLResultNotification,
     VariableDeclarationNotification,
     VariablesNotification,
@@ -1476,6 +1477,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=run_hooks,
+            user_config=self.user_config,
         )
 
         # I/O
@@ -1778,6 +1780,7 @@ class Kernel:
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
             hooks=scratchpad_hooks,
+            user_config=self.user_config,
         )
 
         await runner.run_all()
@@ -1951,6 +1954,19 @@ class Kernel:
                     write_traceback(tmpio.read())
                 else:
                     updated_components.append(component)
+                    # Broadcast the new value to the frontend so the
+                    # rendered widget reflects kernel-initiated changes
+                    # (e.g. from code_mode's set_ui_value).
+                    broadcast_notification(
+                        UIElementMessageNotification(
+                            ui_element=object_id,
+                            message={
+                                "type": "marimo-ui-value-update",
+                                "value": value,
+                            },
+                        ),
+                        self.stream,
+                    )
 
             bound_names = {
                 name
@@ -3276,7 +3292,9 @@ class PackagesCallbacks:
             pkg: "queued" for pkg in missing_packages
         }
         broadcast_notification(
-            InstallingPackageAlertNotification(packages=package_statuses)
+            InstallingPackageAlertNotification(
+                packages=package_statuses, source=request.source
+            )
         )
 
         def create_log_callback(pkg: str) -> LogCallback:
@@ -3286,6 +3304,7 @@ class PackagesCallbacks:
                         packages=package_statuses,
                         logs={pkg: log_line},
                         log_status="append",
+                        source=request.source,
                     ),
                 )
 
@@ -3298,7 +3317,9 @@ class PackagesCallbacks:
                 continue
             package_statuses[pkg] = "installing"
             broadcast_notification(
-                InstallingPackageAlertNotification(packages=package_statuses)
+                InstallingPackageAlertNotification(
+                    packages=package_statuses, source=request.source
+                )
             )
 
             # Send initial "start" log
@@ -3307,6 +3328,7 @@ class PackagesCallbacks:
                     packages=package_statuses,
                     logs={pkg: f"Installing {pkg}...\n"},
                     log_status="start",
+                    source=request.source,
                 )
             )
 
@@ -3321,6 +3343,7 @@ class PackagesCallbacks:
                         packages=package_statuses,
                         logs={pkg: f"Successfully installed {pkg}\n"},
                         log_status="done",
+                        source=request.source,
                     ),
                 )
             else:
@@ -3333,6 +3356,7 @@ class PackagesCallbacks:
                         packages=package_statuses,
                         logs={pkg: f"Failed to install {pkg}\n"},
                         log_status="done",
+                        source=request.source,
                     ),
                 )
 

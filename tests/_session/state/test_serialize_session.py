@@ -782,6 +782,7 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
             "exception_type": "ValueError",
             "msg": "Invalid value",
             "raising_cell": "cell1",
+            "traceback": None,
         },
         # Object format error
         UnknownError(msg="Runtime error occurred", error_type="RuntimeError"),
@@ -804,12 +805,12 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     cell = result["cells"][0]
     assert len(cell["outputs"]) == 2
 
-    # Check first error (dictionary with traceback)
+    # Check first error (dictionary with explicit no traceback)
     error1 = cell["outputs"][0]
     assert error1["type"] == "error"
     assert error1["ename"] == "exception"
     assert error1["evalue"] == "Invalid value"
-    assert error1["traceback"] == []
+    assert error1["traceback"] is None
 
     # Check second error (object format)
     error2 = cell["outputs"][1]

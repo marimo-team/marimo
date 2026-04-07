@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable react-hooks/rules-of-hooks */
+/* oxlint-disable react-hooks/rules-of-hooks */
 
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";

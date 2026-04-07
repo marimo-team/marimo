@@ -58,7 +58,7 @@ describe("isCustomMarimoElement", () => {
 });
 
 describe("connectedCallback - light DOM nesting detection", () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   let createRootSpy: any;
   const mockRoot = {
     render: vi.fn(),

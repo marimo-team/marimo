@@ -44,7 +44,7 @@ interface Data {
  * is clicked, this plugin assumes the value of the associated plugin.
  */
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// oxlint-disable-next-line typescript/consistent-type-definitions
 type Functions = {
   validate: (req: { value?: unknown }) => Promise<string | undefined | null>;
 };

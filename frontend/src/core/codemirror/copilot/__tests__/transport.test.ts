@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";

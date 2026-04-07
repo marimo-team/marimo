@@ -2149,7 +2149,10 @@ components:
       description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
         \        packages: Package name to status (queued/installing/installed/failed).\n\
         \        logs: Optional streaming logs per package.\n        log_status: Log\
-        \ stream status (append/start/done)."
+        \ stream status (append/start/done).\n        source: Which Python environment\
+        \ packages are installed into.\n                \"kernel\" (default) installs\
+        \ in the kernel's venv; \"server\"\n                installs in the server's\
+        \ own Python env."
       properties:
         log_status:
           anyOf:
@@ -2177,6 +2180,11 @@ components:
             - installing
             - queued
           type: object
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
       required:
       - op
       - packages
@@ -3064,6 +3072,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/CellId'
           - type: 'null'
+        traceback:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         type:
           enum:
           - exception
@@ -4035,7 +4048,10 @@ components:
         \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
         \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
         \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
-        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`."
+        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`.\n\
+        \    - `show_tracebacks`: if `True`, show detailed error tracebacks in run\
+        \ mode.\n        When enabled, exceptions will display a clickable toast that\
+        \ opens a modal with the full traceback.\n        The default is `False`."
       properties:
         auto_instantiate:
           type: boolean
@@ -4077,6 +4093,8 @@ components:
         reactive_tests:
           type: boolean
         serve_cached_sessions_in_apps:
+          type: boolean
+        show_tracebacks:
           type: boolean
         std_stream_max_bytes:
           type: integer
@@ -6978,6 +6996,22 @@ paths:
               schema:
                 type: string
       summary: Submit login form
+      tags:
+      - auth
+  /auth/token:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  token:
+                    nullable: true
+                    type: string
+                type: object
+          description: The auth token (null if auth is disabled)
+      summary: Get the auth token for the current session
       tags:
       - auth
 

@@ -49,7 +49,7 @@ function createConnectionTransport(
 export function useConnectionTransport(options: UseConnectionTransportOptions) {
   const { onOpen, onMessage, onClose, onError, waitToConnect } = options;
 
-  // eslint-disable-next-line react/hook-use-state
+  // oxlint-disable-next-line react/hook-use-state
   const [transport] = useState<IConnectionTransport>(() => {
     const socket = createConnectionTransport(options);
 
@@ -83,7 +83,7 @@ export function useConnectionTransport(options: UseConnectionTransportOptions) {
       transport.removeEventListener("error", onError);
       transport.removeEventListener("message", onMessage);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [transport]);
 
   return transport;

@@ -108,7 +108,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     React.useImperativeHandle(
       ref,
-      // eslint-disable-next-line @typescript-eslint/non-nullable-type-assertion-style
+      // oxlint-disable-next-line typescript/non-nullable-type-assertion-style
       () => buttonRef.current as HTMLButtonElement,
     );
 

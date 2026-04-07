@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dndBundle } from "../dnd";

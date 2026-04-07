@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* oxlint-disable typescript/no-explicit-any */
 
 import { toast } from "@/components/ui/use-toast";
 import { userConfigAtom } from "@/core/config/config";
@@ -76,7 +76,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Create save worker
     const saveWorker = new Worker(
-      // eslint-disable-next-line unicorn/relative-url-style
+      // oxlint-disable-next-line unicorn/relative-url-style
       new URL("./worker/save-worker.ts", import.meta.url),
       {
         type: "module",
@@ -96,7 +96,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Create a worker
     const worker = new Worker(
-      // eslint-disable-next-line unicorn/relative-url-style
+      // oxlint-disable-next-line unicorn/relative-url-style
       new URL("./worker/worker.ts", import.meta.url),
       {
         type: "module",

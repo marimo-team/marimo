@@ -59,11 +59,12 @@ def _maybe_as_anywidget_html(
 
     inner = build_ui_plugin(
         component_name="marimo-anywidget",
-        initial_value={"model_id": model_id},
+        initial_value={},
         label=None,
         args={
             "js-url": js_url,
             "js-hash": js_hash,
+            "model-id": model_id,
         },
     )
     # Wrap in <marimo-ui-element> so the plugin gets proper lifecycle

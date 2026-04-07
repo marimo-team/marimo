@@ -401,7 +401,7 @@ export function useCellNavigationProps(
           }
 
           // Move cells in the appropriate order to maintain relative positions
-          [...cellIds].toReversed().forEach((cellId) => {
+          cellIds.toReversed().forEach((cellId) => {
             actions.moveCell({ cellId, before: false });
           });
           return true;
@@ -480,7 +480,7 @@ export function useCellNavigationProps(
         }),
         "cell.sendToTop": addSingleHandler((cellIds) => {
           // Send in reverse order to maintain relative positions
-          [...cellIds].toReversed().forEach((cellId) => {
+          cellIds.toReversed().forEach((cellId) => {
             actions.sendToTop({ cellId });
           });
           return true;
@@ -614,7 +614,7 @@ export function useCellNavigationProps(
         if (isShortcutPressed(shortcut as HotkeyAction, evt)) {
           // If the handler is a function, it's a single-cell handler
           // and we only operate on the currently focused cell.
-          if (handler instanceof Function) {
+          if (typeof handler === "function") {
             const success = handler(cellId);
             if (success) {
               evt.preventDefault();

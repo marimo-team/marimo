@@ -52,7 +52,7 @@ const Editor = (opts: { extensions?: Extension[] }): React.ReactNode => {
     });
 
     return () => view.destroy();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [ref.current]);
 
   return <div className="cm" ref={ref} />;

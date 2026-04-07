@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-base-to-string */
+/* oxlint-disable typescript/no-base-to-string */
 import * as cql from "compassql/build/src";
 import { createStore, Provider, useAtomValue } from "jotai";
 import { ListFilterIcon } from "lucide-react";
@@ -268,7 +268,7 @@ const HorizontalCarouselItem = ({
   );
 };
 // Make the plot responsive
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 function makeResponsive(spec: any) {
   // NOTE: for row/column, this applies to the inner plot
   // so we tend to overflow due to the legends,

@@ -134,7 +134,7 @@ const mockRequestClient = MockRequestClient.create();
 // Helper to setup selection
 const setupSelection = () => {
   const { reducer, cellSelectionAtom } = selectionTesting;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const dispatch = (action: any) => {
     store.set(cellSelectionAtom, (prev: CellSelectionState) =>
       reducer(prev, action),

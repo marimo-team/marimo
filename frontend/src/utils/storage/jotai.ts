@@ -46,5 +46,5 @@ export function adaptForLocalStorage<Value, Serializable>(opts: {
 /**
  * A JSON storage adapter that uses the best available storage.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export const jotaiJsonStorage = createJSONStorage<any>(() => availableStorage);

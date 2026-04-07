@@ -360,7 +360,8 @@ class TestScratchCellListener:
         assert payload["data"] == "hello\n"
 
     @pytest.mark.asyncio
-    async def test_ignores_other_cells(self) -> None:
+    async def test_ignores_other_cell_status(self) -> None:
+        """Status-only notifications from non-scratch cells are ignored."""
         from marimo._messaging.serde import serialize_kernel_message
 
         listener = ScratchCellListener()
@@ -376,6 +377,37 @@ class TestScratchCellListener:
             session, serialize_kernel_message(other_cell)
         )
         assert listener._queue.empty()
+
+    @pytest.mark.asyncio
+    async def test_captures_other_cell_console(self) -> None:
+        """Console output from non-scratch cells is captured."""
+        from marimo._messaging.serde import serialize_kernel_message
+
+        listener = ScratchCellListener()
+        event_bus = MagicMock()
+        session = MagicMock()
+        listener.on_attach(session, event_bus)
+
+        other_console = CellNotification(
+            cell_id="other_cell_id",
+            console=CellOutput.stderr("error trace\n"),
+        )
+        listener.on_notification_sent(
+            session, serialize_kernel_message(other_console)
+        )
+        assert not listener._queue.empty()
+
+        idle = CellNotification(cell_id=SCRATCH_CELL_ID, status="idle")
+        listener.on_notification_sent(session, serialize_kernel_message(idle))
+
+        events: list[str] = []
+        async for event in listener.stream():
+            events.append(event)
+
+        assert len(events) == 1
+        name, payload = _parse_sse(events[0])
+        assert name == "stderr"
+        assert payload["data"] == "error trace\n"
 
     @pytest.mark.asyncio
     async def test_stream_cancelled_on_disconnect(self) -> None:

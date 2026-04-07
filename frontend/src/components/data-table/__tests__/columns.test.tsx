@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Column } from "@tanstack/react-table";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { I18nProvider } from "react-aria";
-import { describe, expect, it, test } from "vitest";
+import { describe, expect, it, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { parseContent } from "@/utils/url-parser";
 import {
@@ -230,7 +230,7 @@ describe("generateColumns", () => {
     });
 
     // "age" is a number column — should auto right-align
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[1].cell as any)({
       column: {
         columnDef: columns[1],
@@ -241,7 +241,7 @@ describe("generateColumns", () => {
     expect(cell?.props.className).toContain("text-right");
 
     // "name" is a string column — should remain left-aligned
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const nameCell = (columns[0].cell as any)({
       column: {
         columnDef: columns[0],
@@ -261,7 +261,7 @@ describe("generateColumns", () => {
     });
 
     // "age" is numeric but explicitly set to left
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[1].cell as any)({
       column: {
         columnDef: columns[1],
@@ -301,7 +301,7 @@ describe("generateColumns", () => {
     });
 
     // Assuming getCellStyleClass is a function that returns a class name
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const cell = (columns[0].cell as any)({
       column: {
         columnDef: columns[0],
@@ -312,7 +312,7 @@ describe("generateColumns", () => {
     expect(cell?.props.className).toContain("center");
   });
 
-  it("should apply text justification to column header parents", () => {
+  it("should always left-align column headers regardless of text justification", () => {
     const columns = generateColumns({
       rowHeaders: [],
       selection: null,
@@ -330,33 +330,112 @@ describe("generateColumns", () => {
       columnDef: { meta: col.meta },
     });
 
-    // Right-justified: parent wrapper should have items-end, sort/filter icons should flip to the left
+    // Even with right justification, header is left-aligned with sort + menu buttons
     const { container: rightContainer } = render(
       <TooltipProvider>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
         {(columns[0].header as any)({ column: mockColumn(columns[0]) })}
       </TooltipProvider>,
     );
+    expect(
+      rightContainer.querySelector("[data-testid='data-table-sort-button']"),
+    ).toBeTruthy();
+    expect(
+      rightContainer.querySelector(
+        "[data-testid='data-table-column-menu-button']",
+      ),
+    ).toBeTruthy();
+    // No flex-row-reverse or items-end on header
     const rightWrapper = rightContainer.firstElementChild;
-    expect(rightWrapper?.className).toContain("items-end");
-    const rightHeader = rightContainer.querySelector(
-      "[data-testid='data-table-sort-button']",
-    );
-    expect(rightHeader?.className).toContain("flex-row-reverse");
+    expect(rightWrapper?.className).not.toContain("items-end");
+    expect(rightWrapper?.className).not.toContain("flex-row-reverse");
 
-    // Center-justified: parent wrapper should have items-center, no flex-row-reverse
+    // Same for center-justified column
     const { container: centerContainer } = render(
       <TooltipProvider>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
         {(columns[1].header as any)({ column: mockColumn(columns[1]) })}
       </TooltipProvider>,
     );
+    expect(
+      centerContainer.querySelector("[data-testid='data-table-sort-button']"),
+    ).toBeTruthy();
+    expect(
+      centerContainer.querySelector(
+        "[data-testid='data-table-column-menu-button']",
+      ),
+    ).toBeTruthy();
     const centerWrapper = centerContainer.firstElementChild;
-    expect(centerWrapper?.className).toContain("items-center");
-    const centerHeader = centerContainer.querySelector(
+    expect(centerWrapper?.className).not.toContain("items-center");
+    expect(centerWrapper?.className).not.toContain("flex-row-reverse");
+  });
+
+  it("should cycle sort button through asc, desc, and clear on clicks", () => {
+    const columns = generateColumns({
+      rowHeaders: [],
+      selection: null,
+      fieldTypes,
+    });
+
+    const toggleSorting = vi.fn();
+    const clearSorting = vi.fn();
+    let sortDirection: false | "asc" | "desc" = false;
+
+    const mockColumn = (col: (typeof columns)[number]) => ({
+      id: col.id,
+      getCanSort: () => true,
+      getCanFilter: () => false,
+      getIsSorted: () => sortDirection,
+      getSortIndex: () => -1,
+      getFilterValue: () => undefined,
+      toggleSorting,
+      clearSorting,
+      columnDef: { meta: col.meta },
+    });
+
+    const mock = mockColumn(columns[0]);
+
+    const { container, rerender } = render(
+      <TooltipProvider>
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
+        {(columns[0].header as any)({ column: mock })}
+      </TooltipProvider>,
+    );
+
+    const sortButton = container.querySelector(
       "[data-testid='data-table-sort-button']",
     );
-    expect(centerHeader?.className).not.toContain("flex-row-reverse");
+    expect(sortButton).toBeTruthy();
+
+    // first click unsorted > asc
+    fireEvent.click(sortButton!);
+    expect(toggleSorting).toHaveBeenCalledWith(false, true);
+
+    // Simulate asc state and re-render
+    sortDirection = "asc";
+    rerender(
+      <TooltipProvider>
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
+        {(columns[0].header as any)({ column: mock })}
+      </TooltipProvider>,
+    );
+
+    // second click asc >dsc
+    fireEvent.click(sortButton!);
+    expect(toggleSorting).toHaveBeenCalledWith(true, true);
+
+    // Simulate desc state and re-render
+    sortDirection = "desc";
+    rerender(
+      <TooltipProvider>
+        {/* oxlint-disable-next-line typescript/no-explicit-any */}
+        {(columns[0].header as any)({ column: mock })}
+      </TooltipProvider>,
+    );
+
+    // third click back to unsorted
+    fireEvent.click(sortButton!);
+    expect(clearSorting).toHaveBeenCalled();
   });
 
   it("should not include index column if it exists", () => {
@@ -572,7 +651,7 @@ describe("LocaleNumber", () => {
         <LocaleNumber value={1_234_567.89} />
       </I18nProvider>,
     );
-    // eslint-disable-next-line no-irregular-whitespace
+    // oxlint-disable-next-line no-irregular-whitespace
     expect(container.textContent).toMatchInlineSnapshot(`"1 234 567,89"`);
   });
 

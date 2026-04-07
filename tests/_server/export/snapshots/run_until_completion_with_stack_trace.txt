@@ -19,7 +19,8 @@
         "type": "exception",
         "msg": "Failed to authenticate. The correct password is 's3cret'.",
         "exception_type": "ValueError",
-        "raising_cell": null
+        "raising_cell": null,
+        "traceback": null
       }
     ],
     "console": [

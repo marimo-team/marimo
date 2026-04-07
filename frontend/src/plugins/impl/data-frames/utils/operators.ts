@@ -194,7 +194,7 @@ export function isConditionValueValid(operator: string, value: unknown) {
   return possibleSchemas.some((schema) => schema.safeParse(value).success);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const safeGet = (obj: any, key: string): [z.ZodType] | [] => {
   if (obj[key]) {
     return obj[key];

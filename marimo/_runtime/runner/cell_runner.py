@@ -15,7 +15,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.variables import unmangle_local
-from marimo._config.config import ExecutionType, OnCellChangeType
+from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
@@ -135,6 +135,7 @@ class Runner:
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
+        user_config: MarimoConfig | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -144,6 +145,7 @@ class Runner:
         )
         self.execution_context = execution_context
         self._hooks = hooks
+        self.user_config = user_config
 
         # runtime globals
         self.glbls = glbls
@@ -719,6 +721,7 @@ class Runner:
             cancelled_cells=self.cancelled_cells,
             all_temporaries=all_temporaries,
             should_broadcast_data=_should_broadcast_data(),
+            user_config=self.user_config,
         )
 
         while self.pending():

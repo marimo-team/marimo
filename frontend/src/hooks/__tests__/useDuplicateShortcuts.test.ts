@@ -17,7 +17,7 @@ function createHotkeys(
   keys: Partial<Record<HotkeyAction, Hotkey>>,
 ): Record<HotkeyAction, Hotkey> {
   return new Proxy(keys as Record<HotkeyAction, Hotkey>, {
-    // biome-ignore lint: ok to have three arguments here (It's a web API)
+    // oxlint-ignore-next-line -- ok to have three arguments here (It's a web API)
     get(target, p, receiver) {
       const key = Reflect.get(target, p, receiver);
       if (key === "undefined") {
@@ -402,7 +402,7 @@ describe("findDuplicateShortcuts", () => {
       });
 
       const provider = new HotkeyProvider(hotkeys, { platform: "mac" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const result = findDuplicateShortcuts(provider, "NonExistent" as any);
 
       // Should still work normally and detect the duplicate

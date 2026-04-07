@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import unittest.mock
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock
 
 import msgspec
@@ -816,9 +817,14 @@ def test_pyodide_bridge_export_markdown(
 
 async def test_pyodide_bridge_read_snippets(
     pyodide_bridge: PyodideBridge,
+    default_snippets: Any,
 ) -> None:
     """Test reading snippets through the bridge."""
-    result = await pyodide_bridge.read_snippets()
+    with unittest.mock.patch(
+        "marimo._pyodide.pyodide_session.read_snippets",
+        return_value=default_snippets,
+    ):
+        result = await pyodide_bridge.read_snippets()
     data = json.loads(result)
 
     assert isinstance(data, dict)
