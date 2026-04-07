@@ -367,7 +367,7 @@ export const OutputArea = React.memo(
     forceExpand,
     className,
   }: OutputAreaProps) => {
-    if (output === null) {
+    if (output == null) {
       return null;
     }
     if (output.channel === "output" && output.data === "") {
