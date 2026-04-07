@@ -193,7 +193,11 @@ export class RuntimeManager {
         this.setDOMBaseUri(this.config.url);
       }
       return success;
-    } catch {
+    } catch (error) {
+      Logger.error(
+        `Failed to check health: ${error instanceof Error ? error.message : "Unknown error"}`,
+        { cause: error },
+      );
       return false;
     }
   }
