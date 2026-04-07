@@ -166,8 +166,9 @@ def deterministic_dumps(obj: Any, hash_type: str) -> bytes:
                     h = hashlib.new(hash_type, usedforsecurity=False)
                     h.update(_contiguous_tensor_bytes(obj))
                     return (bytes, (h.digest(),))
-            except (TypeError, ValueError):
+            except Exception:
                 pass
+            # Falls back to parent pickle
             return NotImplemented
 
     buf = io.BytesIO()
