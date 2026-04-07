@@ -217,13 +217,15 @@ function startWebSocketServer(
         logger.error("Error while closing WebSocket server:", error);
       }
     });
-    // Force-exit if graceful shutdown takes too long. Use unref() so
-    // this timer doesn't keep the process alive if cleanup finishes
-    // earlier.
+    // Force-exit if graceful shutdown takes too long. The parent
+    // process (Python) sends SIGTERM to the whole process group, so
+    // child LSP processes already received the signal — we just need
+    // to exit promptly.  Use unref() so this timer doesn't keep the
+    // process alive if cleanup finishes earlier.
     setTimeout(() => {
       logger.error("Forced shutdown after timeout, exiting process.");
       process.exit(0);
-    }, 5000).unref();
+    }, 500).unref();
   };
 
   process.on("SIGTERM", shutdown);
