@@ -577,6 +577,15 @@ class AsyncCodeModeContext:
                 self._dry_run_compile(ops)
             await self._apply_ops(ops, cells_to_run)
         elif cells_to_run:
+            # If the notebook hasn't been instantiated yet (graph is empty),
+            # register all cells into the graph first so run_cell can
+            # resolve dependencies.
+            if not self._kernel.graph.cells:
+                reqs = list(
+                    self._kernel._uninstantiated_execution_requests.values()
+                )
+                if reqs:
+                    await self._kernel.run(reqs)
             await self._kernel._run_cells(cells_to_run)
 
         # Flush queued UI updates as a single batch.
