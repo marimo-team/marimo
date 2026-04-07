@@ -92,9 +92,9 @@ describe("LSP Server Integration", () => {
 
     // Process should have exited (0 = graceful shutdown, null = signal)
     expect(code === 0 || code === null).toBe(true);
-    expect(proc.exitCode !== undefined || proc.signalCode !== undefined).toBe(
-      true,
-    );
+    // Verify the process actually terminated: exitCode is non-null for
+    // normal exit, signalCode is non-null for signal-based termination.
+    expect(proc.exitCode !== null || proc.signalCode !== null).toBe(true);
   });
 
   it("should start with typed copilot command", async () => {
@@ -117,8 +117,6 @@ describe("LSP Server Integration", () => {
     const code = await exitCode;
 
     expect(code === 0 || code === null).toBe(true);
-    expect(proc.exitCode !== undefined || proc.signalCode !== undefined).toBe(
-      true,
-    );
+    expect(proc.exitCode !== null || proc.signalCode !== null).toBe(true);
   });
 });
