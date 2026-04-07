@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Optional, TypeVar, Union
+from typing import TypeVar, Union
 
 T = TypeVar("T")
 

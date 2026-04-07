@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import sys
 import types
-from typing import Any, ClassVar, Literal, Optional, TypedDict, Union
+from typing import Any, ClassVar, Literal, Optional, TypedDict
 
 import pytest
 

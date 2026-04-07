@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 from marimo._runtime.commands import HTTPRequest
 

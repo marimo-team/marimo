@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import datetime
 import string
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 import narwhals.stable.v2 as nw
 import pytest
