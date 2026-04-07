@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
@@ -21,6 +21,10 @@ from marimo._session.model import SessionMode
 from marimo._session.notebook import read_css_file, read_html_head_file
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
+
+if TYPE_CHECKING:
+    from marimo._server.api.endpoints.assets import LspWorkspace
+
 
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
 
@@ -47,7 +51,7 @@ def _get_mount_config(
     *,
     filename: Optional[str],
     cwd: Optional[str] = None,
-    lsp_workspace: Optional[dict[str, str]] = None,
+    lsp_workspace: Optional[LspWorkspace] = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
@@ -224,7 +228,7 @@ def notebook_page_template(
     app_config: _AppConfig,
     filename: Optional[str],
     filepath: Optional[str] = None,
-    lsp_workspace: Optional[dict[str, str]] = None,
+    lsp_workspace: Optional[LspWorkspace] = None,
     mode: SessionMode,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
