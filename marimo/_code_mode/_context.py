@@ -24,6 +24,7 @@ Usage::
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
 
 from marimo import _loggers
@@ -102,6 +103,7 @@ CellStatusType = Literal[
 CellErrorKind = Literal["graph", "runtime"]
 
 
+@dataclass(frozen=True, slots=True)
 class CellError:
     """An error affecting a notebook cell.
 
@@ -118,17 +120,9 @@ class CellError:
         graph errors.
     """
 
-    __slots__ = ("exception", "kind", "msg")
-
-    def __init__(
-        self,
-        kind: CellErrorKind,
-        msg: str,
-        exception: Exception | None = None,
-    ) -> None:
-        self.kind = kind
-        self.msg = msg
-        self.exception = exception
+    kind: CellErrorKind
+    msg: str
+    exception: Exception | None = None
 
     def __repr__(self) -> str:
         return f"CellError(kind={self.kind!r}, msg={self.msg!r})"
