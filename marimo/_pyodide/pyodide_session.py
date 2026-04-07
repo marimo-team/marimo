@@ -46,6 +46,8 @@ from marimo._server.export.exporter import Exporter
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
+    FileCopyRequest,
+    FileCopyResponse,
     FileCreateRequest,
     FileCreateResponse,
     FileDeleteRequest,
@@ -367,6 +369,20 @@ class PyodideBridge:
         body = self._parse(request, FileDeleteRequest)
         success = self.file_system.delete_file_or_directory(body.path)
         response = FileDeleteResponse(success=success)
+        return self._dump(response)
+
+    def copy_file_or_directory(
+        self,
+        request: str,
+    ) -> str:
+        body = self._parse(request, FileCopyRequest)
+        try:
+            info = self.file_system.copy_file_or_directory(
+                body.path, body.new_path
+            )
+            response = FileCopyResponse(success=True, info=info)
+        except Exception as e:
+            response = FileCopyResponse(success=False, message=str(e))
         return self._dump(response)
 
     def move_file_or_directory(

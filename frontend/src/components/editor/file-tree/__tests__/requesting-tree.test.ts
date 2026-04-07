@@ -8,6 +8,7 @@ import { RequestingTree } from "../requesting-tree";
 const sendListFiles = vi.fn();
 const sendCreateFileOrFolder = vi.fn();
 const sendDeleteFileOrFolder = vi.fn();
+const sendCopyFileOrFolder = vi.fn();
 const sendRenameFileOrFolder = vi.fn();
 
 vi.mock("@/components/ui/use-toast", () => MockModules.toast());
@@ -21,6 +22,7 @@ describe("RequestingTree", () => {
       listFiles: sendListFiles,
       createFileOrFolder: sendCreateFileOrFolder,
       deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
       renameFileOrFolder: sendRenameFileOrFolder,
     });
     sendListFiles.mockResolvedValue({
@@ -169,6 +171,17 @@ describe("RequestingTree", () => {
     `);
   });
 
+  test("copy should duplicate a file", async () => {
+    sendCopyFileOrFolder.mockResolvedValue({ success: true });
+
+    await requestingTree.copy("1.1", "file1_copy");
+    expect(sendCopyFileOrFolder).toHaveBeenCalledWith({
+      path: "/root/file1",
+      newPath: "/root/file1_copy",
+    });
+    expect(mockOnChange).toHaveBeenCalled();
+  });
+
   test("createFile should create a new file", async () => {
     sendCreateFileOrFolder.mockResolvedValue({ success: true });
 
@@ -236,6 +249,7 @@ describe("RequestingTree", () => {
         listFiles: sendListFiles,
         createFileOrFolder: sendCreateFileOrFolder,
         deleteFileOrFolder: sendDeleteFileOrFolder,
+        copyFileOrFolder: sendCopyFileOrFolder,
         renameFileOrFolder: sendRenameFileOrFolder,
       });
       sendListFiles.mockRejectedValue(new Error("Network error"));
@@ -263,6 +277,23 @@ describe("RequestingTree", () => {
       });
     });
 
+    test("copy should handle API failure", async () => {
+      sendCopyFileOrFolder.mockResolvedValue({
+        success: false,
+        message: "Error duplicating",
+      });
+
+      await requestingTree.copy("1.1", "file1_copy");
+      expect(sendCopyFileOrFolder).toHaveBeenCalledWith({
+        path: "/root/file1",
+        newPath: "/root/file1_copy",
+      });
+      expect(toast).toHaveBeenCalledWith({
+        title: "Failed",
+        description: "Error duplicating",
+      });
+    });
+
     test("move should handle missing parent node gracefully", async () => {
       await requestingTree.move(["1.x"], "2");
       expect(sendRenameFileOrFolder).not.toHaveBeenCalled();
@@ -284,6 +315,7 @@ describe("RequestingTree", () => {
         listFiles: sendListFiles,
         createFileOrFolder: sendCreateFileOrFolder,
         deleteFileOrFolder: sendDeleteFileOrFolder,
+        copyFileOrFolder: sendCopyFileOrFolder,
         renameFileOrFolder: sendRenameFileOrFolder,
       });
 
@@ -305,6 +337,7 @@ describe("RequestingTree", () => {
         listFiles: sendListFiles,
         createFileOrFolder: sendCreateFileOrFolder,
         deleteFileOrFolder: sendDeleteFileOrFolder,
+        copyFileOrFolder: sendCopyFileOrFolder,
         renameFileOrFolder: sendRenameFileOrFolder,
       });
 

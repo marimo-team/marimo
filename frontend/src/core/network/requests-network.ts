@@ -312,6 +312,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    sendCopyFileOrFolder: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/files/copy", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
     sendRenameFileOrFolder: async (request) => {
       await waitForConnectionOpen();
       return getClient()

@@ -148,18 +148,7 @@ class OSFileSystem(FileSystem):
             raise ValueError("Cannot create file or directory with empty name")
 
         full_path = Path(path) / name
-        # If the file already exists, generate a new name
-        if full_path.exists():
-            i = 1
-            name_without_extension = full_path.stem
-            extension = full_path.suffix
-            while True:
-                new_name = f"{name_without_extension}_{i}{extension}"
-                new_full_path = full_path.parent / new_name
-                if not new_full_path.exists():
-                    full_path = new_full_path
-                    break
-                i += 1
+        full_path = generate_unique_path(full_path)
 
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
@@ -196,6 +185,14 @@ class OSFileSystem(FileSystem):
         else:
             os.remove(path)
         return True
+
+    def copy_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+        new_path = str(generate_unique_path(new_path))
+        if Path(path).is_dir():
+            shutil.copytree(path, new_path)
+        else:
+            shutil.copy2(path, new_path)
+        return self.get_details(new_path).file
 
     def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
         file_name = os.path.basename(new_path)
@@ -459,3 +456,19 @@ def safe_move(src: str, dst: str) -> None:
         else:
             shutil.copy2(src, dst)
             src_path.unlink()
+
+
+def generate_unique_path(new_path: str | Path) -> Path:
+    # If the file already exists, generate a new name
+    new_path = Path(new_path)
+    if not new_path.exists():
+        return new_path
+    i = 1
+    name_without_extension = new_path.stem
+    extension = new_path.suffix
+    while True:
+        new_name = f"{name_without_extension}_{i}{extension}"
+        new_path = new_path.parent / new_name
+        if not new_path.exists():
+            return new_path
+        i += 1

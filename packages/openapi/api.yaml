@@ -1632,6 +1632,35 @@ components:
       - download
       title: ExportAsScriptRequest
       type: object
+    FileCopyRequest:
+      properties:
+        newPath:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      - newPath
+      title: FileCopyRequest
+      type: object
+    FileCopyResponse:
+      properties:
+        info:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FileInfo'
+          default: null
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        success:
+          type: boolean
+      required:
+      - success
+      title: FileCopyResponse
+      type: object
     FileCreateRequest:
       properties:
         contents:
@@ -6026,6 +6055,20 @@ paths:
           description: Update the cell outputs
         400:
           description: File must be saved before downloading
+  /api/files/copy:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileCopyRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCopyResponse'
+          description: Copy a file or directory
   /api/files/create:
     post:
       requestBody:

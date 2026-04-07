@@ -17,6 +17,7 @@ export class RequestingTree {
     listFiles: EditRequests["sendListFiles"];
     createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
     deleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"];
+    copyFileOrFolder: EditRequests["sendCopyFileOrFolder"];
     renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
   };
 
@@ -24,6 +25,7 @@ export class RequestingTree {
     listFiles: EditRequests["sendListFiles"];
     createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
     deleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"];
+    copyFileOrFolder: EditRequests["sendCopyFileOrFolder"];
     renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
   }) {
     this.callbacks = callbacks;
@@ -72,6 +74,33 @@ export class RequestingTree {
     this.delegate.update({ id, changes: { children: data.files } });
     this.onChange(this.delegate.data);
     return true;
+  }
+
+  async copy(id: string, newName: string): Promise<void> {
+    const node = this.delegate.find(id);
+    if (!node) {
+      return;
+    }
+    const currentPath = node.data.path as FilePath;
+    const parentPath = this.path.dirname(currentPath);
+    const newPath = this.path.join(parentPath, newName);
+    const newFile = await this.callbacks
+      .copyFileOrFolder({
+        path: currentPath,
+        newPath: newPath,
+      })
+      .then(this.handleResponse);
+    if (!newFile?.info) {
+      return;
+    }
+    this.delegate.create({
+      parentId: node.parent?.id ?? null,
+      index: 0,
+      data: newFile.info,
+    });
+    this.onChange(this.delegate.data);
+    // Refresh the parent folder
+    await this.refreshAll([parentPath]);
   }
 
   async rename(id: string, name: string): Promise<void> {

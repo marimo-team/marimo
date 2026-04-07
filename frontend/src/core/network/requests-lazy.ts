@@ -90,6 +90,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendSearchFiles: "startConnection",
   sendCreateFileOrFolder: "throwError",
   sendDeleteFileOrFolder: "throwError",
+  sendCopyFileOrFolder: "throwError",
   sendRenameFileOrFolder: "throwError",
   sendUpdateFile: "throwError",
   sendFileDetails: "throwError",

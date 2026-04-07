@@ -5,7 +5,10 @@ from typing import Literal
 
 import pytest
 
-from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.files.os_file_system import (
+    OSFileSystem,
+    generate_unique_path,
+)
 from marimo._server.models.files import FileDetailsResponse
 from marimo._utils.files import natural_sort
 
@@ -681,3 +684,20 @@ def test_search_includes_file_metadata(
     assert file_info.is_directory is False
     assert file_info.is_marimo_file is False
     assert file_info.last_modified is not None
+
+
+def test_generate_unique_path_new_path(tmp_path: Path) -> None:
+    base_path = tmp_path / "file.txt"
+    unique_path = generate_unique_path(base_path)
+    assert unique_path == base_path
+
+
+def test_generate_unique_path_existing_path(tmp_path: Path) -> None:
+    base_path = tmp_path / "file.txt"
+    base_path.touch()
+    existing_path = tmp_path / "file_1.txt"
+    existing_path.touch()
+
+    unique_path = generate_unique_path(base_path)
+    assert not unique_path.exists()
+    assert unique_path.name == "file_2.txt"

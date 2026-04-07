@@ -51,6 +51,11 @@ class FileSystem(ABC):
         """Delete a file or directory."""
 
     @abstractmethod
+    def copy_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+        """Duplicate or copy a file or directory."""
+        pass
+
+    @abstractmethod
     def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
         """Rename or move a file or directory."""
 
