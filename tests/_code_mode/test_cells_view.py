@@ -454,6 +454,20 @@ class TestEnrichedCellStatus:
         enriched = EnrichedCell(cell, impl)
         assert enriched.status == "stale"
 
+    def test_registered_but_never_run_is_stale(self) -> None:
+        """Cell registered in graph with matching code but never executed."""
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1")  # run_result_status=None
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "stale"
+
+    def test_registered_empty_never_run_is_none(self) -> None:
+        """Empty cell registered in graph but never executed."""
+        cell = _cell("a", "")
+        impl = _MockImpl(code="")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status is None
+
     def test_queued_takes_priority(self) -> None:
         cell = _cell("a", "x = 1")
         impl = _MockImpl(code="x = 1", runtime_state="queued")

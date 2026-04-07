@@ -74,7 +74,7 @@ from marimo._types.ids import CellId_t, UIElementId
 from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
     from types import TracebackType
 
     from marimo._ast.cell_manager import CellManager
@@ -245,6 +245,9 @@ class NotebookCell:
             return "stale"
         # Fall back to last execution result.
         rr = self._impl.run_result_status
+        if rr is None:
+            # Registered in the graph but never executed.
+            return "stale" if self._cell.code else None
         if rr == "success":
             return "idle"
         return rr
@@ -294,8 +297,8 @@ class _CellsView:
     Dict-like access is also available::
 
         ctx.cells.keys()  # list of CellId_t
-        ctx.cells.values()  # list of NotebookCell
-        ctx.cells.items()  # list of (CellId_t, NotebookCell)
+        ctx.cells.values()  # sequence of NotebookCell
+        ctx.cells.items()  # sequence of (CellId_t, NotebookCell)
         "my_cell" in ctx.cells  # membership test
     """
 
@@ -373,15 +376,15 @@ class _CellsView:
                 return False
         return False
 
-    def keys(self) -> list[CellId_t]:
+    def keys(self) -> Sequence[CellId_t]:
         """Return cell IDs in notebook order."""
         return self._doc.cell_ids
 
-    def values(self) -> list[NotebookCell]:
+    def values(self) -> Sequence[NotebookCell]:
         """Return cell data in notebook order."""
         return [self._cell_view(c) for c in self._doc.cells]
 
-    def items(self) -> list[tuple[CellId_t, NotebookCell]]:
+    def items(self) -> Sequence[tuple[CellId_t, NotebookCell]]:
         """Return (cell_id, cell_data) pairs in notebook order."""
         return [(c.id, self._cell_view(c)) for c in self._doc.cells]
 
@@ -389,7 +392,7 @@ class _CellsView:
     # Content search
     # ------------------------------------------------------------------
 
-    def find(self, substring: str) -> list[NotebookCell]:
+    def find(self, substring: str) -> Sequence[NotebookCell]:
         """Return cells whose code contains *substring*.
 
         Performs a case-sensitive substring search on each cell's code.
@@ -402,7 +405,7 @@ class _CellsView:
             self._cell_view(c) for c in self._doc.cells if substring in c.code
         ]
 
-    def grep(self, pattern: str) -> list[NotebookCell]:
+    def grep(self, pattern: str) -> Sequence[NotebookCell]:
         """Return cells whose code matches the regex *pattern*.
 
         Uses :func:`re.search` so the pattern can match anywhere in
