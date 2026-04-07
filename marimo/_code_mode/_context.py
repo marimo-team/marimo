@@ -196,10 +196,12 @@ class NotebookCell:
         Synthesized execution status. Priority order:
         transient state (queued/running/disabled) > stale > last run result.
         ``None`` if the cell has never been registered in the graph.
-    errors : list[str]
-        Human-readable descriptions of all errors affecting this cell.
-        Covers both runtime exceptions (e.g. ``NameError``) and graph
-        errors (multiply-defined variables, cycles, etc.).
+    errors : list[CellError]
+        Structured errors affecting this cell.
+        Each entry is a ``CellError`` with ``kind``, ``msg``, and
+        ``exception`` fields. Covers both runtime exceptions
+        (e.g. ``NameError``) and graph errors (multiply-defined
+        variables, cycles, etc.).
     """
 
     __slots__ = ("_cell", "_graph_errors", "_impl")
@@ -291,16 +293,6 @@ class NotebookCell:
         if rr == "success":
             return "idle"
         return rr
-
-    @property
-    def error(self) -> Exception | None:
-        """The exception from the last run, if any.
-
-        .. deprecated::
-            Use :attr:`errors` instead, which covers both runtime
-            exceptions and graph errors (multiply-defined vars, cycles).
-        """
-        return self._impl.exception if self._impl else None
 
     @property
     def errors(self) -> list[CellError]:
