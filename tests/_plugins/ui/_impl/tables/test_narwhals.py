@@ -1473,7 +1473,10 @@ def test_sort_values_with_mixed_types() -> None:
 
     # multi-column sort with one mixed column
     sorted_manager = manager.sort_values(
-        [SortArgs(by="mixed", descending=False), SortArgs(by="normal", descending=False)]
+        [
+            SortArgs(by="mixed", descending=False),
+            SortArgs(by="normal", descending=False),
+        ]
     )
     assert sorted_manager.get_num_rows() == 7
 
