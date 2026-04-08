@@ -151,6 +151,37 @@ export function hasPureLineTrace(
   });
 }
 
+/**
+ * Return true when any scatter/scattergl trace has a non-empty fill or a
+ * stackgroup, i.e. it is an area chart.
+ *
+ * Area traces built with `mode="none"` have no visible line or markers, so
+ * `hasPureLineTrace` returns false for them even though they need select/lasso
+ * buttons just as much as `mode="lines"` area charts.  This function covers
+ * that gap and is OR-ed with `hasPureLineTrace` in the config builder.
+ */
+export function hasAreaTrace(
+  data: readonly Plotly.Data[] | undefined,
+): boolean {
+  if (!data) {
+    return false;
+  }
+
+  return data.some((trace) => {
+    const t = trace as Record<string, unknown>;
+    // Only scatter/scattergl can be area traces.
+    if (t.type !== undefined && !LINE_CLICK_TRACE_TYPES.has(String(t.type))) {
+      return false;
+    }
+    // A trace is an area trace when fill is a non-empty string other than
+    // "none", OR it belongs to a stackgroup (px.area always sets stackgroup).
+    return (
+      (typeof t.fill === "string" && t.fill !== "" && t.fill !== "none") ||
+      t.stackgroup != null
+    );
+  });
+}
+
 function createDragmodeButton(
   name: string,
   title: string,
@@ -229,6 +260,7 @@ export function shouldHandleClickSelection(
       type === "heatmap" ||
       type === "histogram" ||
       type === "waterfall" ||
+      type === "violin" ||
       isLinePoint(point)
     );
   });

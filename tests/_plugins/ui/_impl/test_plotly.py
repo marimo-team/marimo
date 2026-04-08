@@ -27,6 +27,8 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_histogram_points_numpy,
     _extract_scatter_points_fallback,
     _extract_scatter_points_numpy,
+    _extract_violin_points_fallback,
+    _extract_violin_points_numpy,
     _extract_waterfall_bars_fallback,
     _extract_waterfall_bars_numpy,
     _to_numeric_coord,
@@ -3338,12 +3340,19 @@ def test_waterfall_customdata_included() -> None:
 
 # ============================================================================
 # Box Plot Tests
-# ============================================================================
-
+# =====================================================================
 
 def test_box_plot_basic_creation() -> None:
     """Test that a box plot can be created and has empty initial selection."""
     fig = go.Figure(data=go.Box(y=[1, 2, 3, 4, 5], name="Group A"))
+=======
+# Violin Plot Tests
+# ============================================================================
+
+
+def test_violin_plot_basic_creation() -> None:
+    """Test that a violin plot can be created and has empty initial selection."""
+    fig = go.Figure(data=go.Violin(y=[1, 2, 3, 4, 5], name="Group A"))
     plot = plotly(fig)
 
     assert plot is not None
@@ -3360,6 +3369,12 @@ def test_box_plot_click_expands_point_numbers() -> None:
     plot = plotly(fig)
 
     # Simulate a click on box "A" – Plotly sends pointNumbers for the whole group
+def test_violin_click_expands_point_numbers() -> None:
+    """Clicking a violin body sends pointNumbers; Python expands them to rows."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "A", "B", "B"], y=[1, 2, 3, 4, 5]))
+    plot = plotly(fig)
+
     selection = {
         "points": [
             {
@@ -3397,6 +3412,14 @@ def test_box_plot_click_without_point_numbers_passthrough() -> None:
                 "curveNumber": 0,
             }
         ],
+def test_violin_click_without_point_numbers_passthrough() -> None:
+    """When pointNumbers is absent (individual point click), pass through."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "B"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    selection = {
+        "points": [{"x": "A", "y": 1, "pointIndex": 0, "curveNumber": 0}],
         "indices": [0],
     }
 
@@ -3416,6 +3439,13 @@ def test_extract_box_points_numpy_categorical() -> None:
     # Category "A" is at position 0; selection x range [−0.4, 0.4] covers it
     range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
     result = _extract_box_points_numpy(fig, range_data)
+def test_extract_violin_points_numpy_categorical() -> None:
+    """Numpy path: select category 'A' by index position."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "A", "B", "B"], y=[1, 2, 3, 4, 5]))
+
+    range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
+    result = _extract_violin_points_numpy(fig, range_data)
 
     assert len(result) == 3
     assert all(r["x"] == "A" for r in result)
@@ -3431,6 +3461,13 @@ def test_extract_box_points_fallback_categorical() -> None:
 
     range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
     result = _extract_box_points_fallback(fig, range_data)
+def test_extract_violin_points_fallback_categorical() -> None:
+    """Pure-Python path: mirrors numpy categorical selection."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "A", "B", "B"], y=[1, 2, 3, 4, 5]))
+
+    range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
+    result = _extract_violin_points_fallback(fig, range_data)
 
     assert len(result) == 3
     assert all(r["x"] == "A" for r in result)
@@ -3457,6 +3494,14 @@ def test_extract_box_points_numpy_second_category() -> None:
     range_data = {"x": [0.6, 1.4], "y": [0, 10]}
     result_numpy = _extract_box_points_numpy(fig, range_data)
     result_fallback = _extract_box_points_fallback(fig, range_data)
+def test_extract_violin_points_numpy_second_category() -> None:
+    """Select only the second category; numpy and fallback agree."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "B", "B"], y=[1, 2, 3, 4]))
+
+    range_data = {"x": [0.6, 1.4], "y": [0, 10]}
+    result_numpy = _extract_violin_points_numpy(fig, range_data)
+    result_fallback = _extract_violin_points_fallback(fig, range_data)
 
     assert len(result_numpy) == 2
     assert all(r["x"] == "B" for r in result_numpy)
@@ -3470,6 +3515,12 @@ def test_box_plot_range_selection_with_individual_points() -> None:
     plot = plotly(fig)
 
     # Simulate onSelected: Plotly sends individual points + range
+def test_violin_range_selection_with_individual_points() -> None:
+    """When Plotly sends individual points via onSelected, pass them through."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "B", "B"], y=[10, 20, 30, 40]))
+    plot = plotly(fig)
+
     selection: dict[str, Any] = {
         "range": {"x": [-0.4, 0.4], "y": [0, 50]},
         "points": [
@@ -3495,6 +3546,17 @@ def test_box_plot_range_selection_fallback_no_points() -> None:
     plot = plotly(fig)
 
     # Simulate onSelected with a range and NO individual point data
+    assert len(result) == 2
+    assert all(r["x"] == "A" for r in result)
+    assert {r["pointIndex"] for r in result} == {0, 1}
+
+
+def test_violin_range_selection_fallback_no_points() -> None:
+    """When no individual points are sent (points disabled), extract from range."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "B", "B"], y=[10, 20, 30, 40]))
+    plot = plotly(fig)
+
     selection: dict[str, Any] = {
         "range": {"x": [-0.4, 0.4], "y": [0, 50]},
         "points": [],
@@ -3515,6 +3577,12 @@ def test_box_plot_no_category_data() -> None:
     plot = plotly(fig)
 
     # Range selection with no x range – all samples selected
+def test_violin_no_category_data() -> None:
+    """Violin trace without explicit x uses trace name as category."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(y=[5, 10, 15], name="Group X"))
+    plot = plotly(fig)
+
     selection: dict[str, Any] = {
         "range": {"y": [0, 20]},
         "points": [],
@@ -3538,6 +3606,20 @@ def test_box_plot_horizontal_orientation() -> None:
     range_data = {"y": [-0.4, 0.4], "x": [0, 10]}
     result_numpy = _extract_box_points_numpy(fig, range_data)
     result_fallback = _extract_box_points_fallback(fig, range_data)
+def test_violin_horizontal_orientation() -> None:
+    """Horizontal violin plots swap x/y roles for category and value."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Violin(
+            x=[1, 2, 3, 4, 5],
+            y=["A", "A", "A", "B", "B"],
+            orientation="h",
+        )
+    )
+
+    range_data = {"y": [-0.4, 0.4], "x": [0, 10]}
+    result_numpy = _extract_violin_points_numpy(fig, range_data)
+    result_fallback = _extract_violin_points_fallback(fig, range_data)
 
     assert len(result_numpy) == 3
     assert all(r["y"] == "A" for r in result_numpy)
@@ -3566,6 +3648,25 @@ def test_box_plot_click_deduplication() -> None:
     plot = plotly(fig)
 
     # Two click points referencing the same group (edge case)
+def test_violin_multiple_traces() -> None:
+    """Range selection across multiple violin traces."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A"], y=[1, 2], name="trace0"))
+    fig.add_trace(go.Violin(x=["A", "A"], y=[3, 4], name="trace1"))
+
+    range_data = {"x": [-0.4, 0.4], "y": [0, 10]}
+    result = _extract_violin_points_numpy(fig, range_data)
+
+    assert len(result) == 4
+    assert {r["curveNumber"] for r in result} == {0, 1}
+
+
+def test_violin_click_deduplication() -> None:
+    """Duplicate sample indices within pointNumbers are not repeated."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "A"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
     selection = {
         "points": [
             {
@@ -3590,3 +3691,65 @@ def test_box_plot_click_deduplication() -> None:
     # Each sample should appear exactly once despite two click points for the same group
     assert len(result) == 3
     assert sorted(r["pointIndex"] for r in result) == [0, 1, 2]
+
+    assert len(result) == 3
+    assert sorted(r["pointIndex"] for r in result) == [0, 1, 2]
+
+
+def test_violin_and_bar_range_selection_interaction() -> None:
+    """Mixed violin+bar figure: both trace types appear in the range result."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A"], y=[1, 2]))
+    fig.add_trace(go.Bar(x=["A"], y=[10]))
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "range": {"x": [-0.4, 0.4], "y": [0, 15]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    curve_numbers = {r["curveNumber"] for r in result}
+    assert 0 in curve_numbers  # violin trace
+    assert 1 in curve_numbers  # bar trace
+
+
+def test_violin_lasso_without_range_skips_extraction() -> None:
+    """Lasso event without a range dict does not extract violin rows."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "B"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "lasso": {"x": [0.5, 1.0, 0.5], "y": [0, 10, 10]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+    assert result == []
+
+
+def test_violin_click_with_empty_point_numbers_produces_no_rows() -> None:
+    """Click with empty pointNumbers list expands to zero points."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "A"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [
+            {
+                "x": "A",
+                "y": 1,
+                "pointIndex": 0,
+                "pointNumbers": [],
+                "curveNumber": 0,
+            }
+        ],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+    assert result == []
