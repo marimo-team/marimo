@@ -361,16 +361,33 @@ export function extractPoints(
     const trace = getTraceSource(point);
 
     // FunnelArea: sector-based chart with no x/y coordinates.
-    // Pick funnel-area-specific keys directly; hovertemplate parsing does not
-    // apply since there are no axis values to substitute.
+    // Pick funnel-area-specific keys, then merge any hovertemplate-parsed
+    // fields (e.g. customdata columns) so user-defined fields are preserved.
     if (trace.type === "funnelarea") {
-      return pick(point, FUNNEL_AREA_DATA_KEYS);
+      const base = pick(point, FUNNEL_AREA_DATA_KEYS);
+      const ht = Array.isArray(trace.hovertemplate)
+        ? trace.hovertemplate[0]
+        : trace.hovertemplate;
+      if (!ht) {
+        return base;
+      }
+      parser = parser ? parser.update(ht) : createParser(ht);
+      return { ...base, ...parser.parse(point) };
     }
 
     // Funnel: bar-like chart with x/y plus per-stage percent metrics.
-    // Return all funnel-specific keys so callers get percentInitial et al.
+    // Pick funnel-specific keys, then merge hovertemplate-parsed fields so
+    // callers get both percentInitial et al. and any user-defined columns.
     if (trace.type === "funnel") {
-      return pick(point, FUNNEL_DATA_KEYS);
+      const base = pick(point, FUNNEL_DATA_KEYS);
+      const ht = Array.isArray(trace.hovertemplate)
+        ? trace.hovertemplate[0]
+        : trace.hovertemplate;
+      if (!ht) {
+        return base;
+      }
+      parser = parser ? parser.update(ht) : createParser(ht);
+      return { ...base, ...parser.parse(point) };
     }
 
     const standardPointFields = withInferredXY(
