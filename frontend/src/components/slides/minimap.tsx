@@ -132,6 +132,7 @@ function useVisibleCellIds(
     );
 
     const observeAll = () => {
+      intersectionObserver.disconnect();
       for (const el of container.querySelectorAll<HTMLElement>(
         "[data-cell-id]",
       )) {

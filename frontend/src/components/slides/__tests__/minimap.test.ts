@@ -224,9 +224,15 @@ describe("useVisibleCellIds", () => {
     const ref = { current: container };
 
     const { unmount } = renderHook(() => useVisibleCellIds(ref));
+
+    // 1 disconnect from the initial observeAll() call
+    expect(intersectionDisconnectSpy).toHaveBeenCalledTimes(1);
+    expect(mutationDisconnectSpy).not.toHaveBeenCalled();
+
     unmount();
 
-    expect(intersectionDisconnectSpy).toHaveBeenCalledTimes(1);
+    // +1 disconnect from cleanup
+    expect(intersectionDisconnectSpy).toHaveBeenCalledTimes(2);
     expect(mutationDisconnectSpy).toHaveBeenCalledTimes(1);
   });
 });
