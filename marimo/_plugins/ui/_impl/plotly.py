@@ -2319,7 +2319,6 @@ def _build_waterfall_point(
     return point
 
 
-
 def _append_funnel_points_to_selection(
     figure: go.Figure, selection_data: dict[str, Any]
 ) -> None:

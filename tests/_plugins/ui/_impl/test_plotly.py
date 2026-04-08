@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
     _bar_value_in_selection_range,
+    _compute_waterfall_bar_extents,
     _extract_bars_fallback,
     _extract_bars_numpy,
     _extract_funnel_stages_fallback,
@@ -26,7 +27,6 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_histogram_points_numpy,
     _extract_scatter_points_fallback,
     _extract_scatter_points_numpy,
-    _compute_waterfall_bar_extents,
     _extract_waterfall_bars_fallback,
     _extract_waterfall_bars_numpy,
     _to_numeric_coord,
@@ -3325,6 +3325,7 @@ def test_funnelarea_click_empty_placeholder_stripped() -> None:
     assert len(result) == 1
     assert result[0]["label"] == "Visit"
     assert plot.indices == [0]
+
 
 # ============================================================================
 # Waterfall chart tests
