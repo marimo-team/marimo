@@ -2329,8 +2329,8 @@ def _append_funnel_points_to_selection(
     1. Range selection (dragmode="select"): extract funnel stages whose
        position and value overlap the selection rectangle.
     2. Click selection: points are already populated by the frontend with
-       x, y, label, value, and percent metrics — pass them through with
-       deduplication.
+       x, y, label, value, and percent metrics — pass them through after
+       filtering empty placeholders and re-syncing indices.
     """
     range_value = selection_data.get("range")
     all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
@@ -2462,7 +2462,27 @@ def _extract_funnel_stages_numpy(
         if n == 0:
             continue
 
-        val_arr = np.asarray(val_data, dtype=np.float64)
+        try:
+            val_arr = np.asarray(val_data, dtype=np.float64)
+        except (TypeError, ValueError):
+            # Non-numeric entries (e.g. None) in val_data — fall back to the
+            # element-wise path so that non-numeric stages are silently skipped.
+            numeric_val_min = _to_numeric_bar_value(val_min)
+            for i, val in enumerate(val_data):
+                if not (cat_max > i - 0.5 and cat_min < i + 0.5):
+                    continue
+                numeric_val = _to_numeric_bar_value(val)
+                if numeric_val is None or (
+                    numeric_val_min is not None
+                    and numeric_val < numeric_val_min
+                ):
+                    continue
+                selected.append(
+                    _build_funnel_stage_point(
+                        trace, trace_idx, i, x_data, y_data
+                    )
+                )
+            continue
 
         # Category axis: each stage occupies position index ± 0.5
         cat_positions = np.arange(n, dtype=np.float64)
@@ -2471,10 +2491,10 @@ def _extract_funnel_stages_numpy(
         )
 
         # Value axis: funnel bar spans [0, v]; selected if bar overlaps [val_min, val_max].
-        # Overlap condition: val_min < v AND val_max > 0
+        # Overlap condition: val_min <= v AND val_max > 0
         if val_max <= 0:
             continue  # selection is entirely in negative space — no overlap possible
-        val_mask = val_arr > val_min
+        val_mask = val_arr >= val_min
 
         mask = cat_mask & val_mask
         for i in np.where(mask)[0]:
@@ -2530,10 +2550,10 @@ def _extract_funnel_stages_fallback(
                 continue
 
             # Value check: bar [0, val] overlaps selection [val_min, val_max]
-            # Overlap: val_min < val (bar reaches into selection range)
+            # Overlap: val_min <= val (bar reaches into or touches selection range)
             numeric_val = _to_numeric_bar_value(val)
             if numeric_val is None or (
-                numeric_val_min is not None and numeric_val <= numeric_val_min
+                numeric_val_min is not None and numeric_val < numeric_val_min
             ):
                 continue
 
