@@ -1209,6 +1209,47 @@ describe("cell reducer", () => {
     ]);
   });
 
+  it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
+    const STDOUT: OutputMessage = {
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "hello!",
+      timestamp: 1,
+    };
+
+    // Set the cell to running with a console output
+    actions.prepareForRun({ cellId: firstCellId });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
+    });
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: undefined,
+      console: STDOUT,
+      status: undefined,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
+    });
+
+    // Try to set stdin response with an out-of-bounds index
+    // This should not crash - it should return state unchanged
+    actions.setStdinResponse({
+      response: "test",
+      cellId: firstCellId,
+      outputIndex: 999,
+    });
+
+    // Cell state should be unchanged
+    const cell = cells[0];
+    expect(cell.consoleOutputs).toHaveLength(1);
+    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
+  });
+
   it("can receive console when the cell is idle and will clear when starts again", () => {
     const OLD_STDOUT: OutputMessage = {
       channel: "stdout",

@@ -128,9 +128,8 @@ class ABCTestLoader(ABC):
         assert not loader.cache_hit(key("hash1", "Deferred"))
 
         # Empty file should miss
-        empty_path = loader.build_path(key("empty", "Pure"))
-        empty_path.parent.mkdir(parents=True, exist_ok=True)
-        empty_path.write_bytes(b"")
+        empty_key = str(loader.build_path(key("empty", "Pure")))
+        self.store.put(empty_key, b"")
         assert not loader.cache_hit(key("empty", "Pure"))
 
         assert loader.hits == 1

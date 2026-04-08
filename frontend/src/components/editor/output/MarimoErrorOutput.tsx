@@ -25,6 +25,7 @@ import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
+import { renderHTML } from "@/plugins/core/RenderHTML";
 
 const Tip = (props: {
   title?: string;
@@ -486,13 +487,9 @@ export const MarimoErrorOutput = ({
                       {processTextForUrls(error.msg, `exception-${idx}`)}
                     </p>
                     {"traceback" in error && error.traceback ? (
-                      <div
-                        className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text"
-                        // biome-ignore lint/security/noDangerouslySetInnerHtml: traceback from backend
-                        dangerouslySetInnerHTML={{
-                          __html: error.traceback,
-                        }}
-                      />
+                      <div className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
+                        {renderHTML({ html: error.traceback })}
+                      </div>
                     ) : (
                       <div className="text-muted-foreground mt-2">
                         See the console area for a traceback.
@@ -504,13 +501,9 @@ export const MarimoErrorOutput = ({
                     {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell} />
                     {"traceback" in error && error.traceback && (
-                      <div
-                        className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text"
-                        // biome-ignore lint/security/noDangerouslySetInnerHtml: traceback from backend
-                        dangerouslySetInnerHTML={{
-                          __html: error.traceback,
-                        }}
-                      />
+                      <div className="font-code text-sm mt-2 p-3 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
+                        {renderHTML({ html: error.traceback })}
+                      </div>
                     )}
                   </div>
                 )}

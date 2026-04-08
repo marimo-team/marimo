@@ -87,18 +87,15 @@ def is_data_primitive(value: Any) -> bool:
 
         try:
             return bool(
-                nw.narwhalify(
-                    lambda df: all(
-                        df[col].dtype.is_numeric() for col in df.columns
-                    )
-                )(value)
+                all(
+                    dtype.is_numeric()
+                    for dtype in nw.from_native(value)
+                    .collect_schema()
+                    .dtypes()
+                )
             )
-        except Exception as err:
-            raise err from ValueError(
-                "Unexpected datatype, narwhals was unable to normalize "
-                "dataframe. Please report this to "
-                "github.com/marimo-team/marimo"
-            )
+        except Exception:
+            return False
     # Otherwise may be a closely related array object
     return True
 

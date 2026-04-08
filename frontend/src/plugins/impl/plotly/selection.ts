@@ -170,10 +170,7 @@ export function hasAreaTrace(
   return data.some((trace) => {
     const t = trace as Record<string, unknown>;
     // Only scatter/scattergl can be area traces.
-    if (
-      t.type !== undefined &&
-      !LINE_CLICK_TRACE_TYPES.has(String(t.type))
-    ) {
+    if (t.type !== undefined && !LINE_CLICK_TRACE_TYPES.has(String(t.type))) {
       return false;
     }
     // A trace is an area trace when fill is a non-empty string other than
@@ -261,6 +258,7 @@ export function shouldHandleClickSelection(
       type === "bar" ||
       type === "heatmap" ||
       type === "histogram" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -91,7 +92,8 @@ class TestPairPromptWithToken:
         token_file = tmp_path / f"{url_hash}-token.txt"
         assert token_file.exists()
         assert token_file.read_text() == "my-secret-token"
-        assert oct(token_file.stat().st_mode & 0o777) == "0o600"
+        if sys.platform != "win32":
+            assert oct(token_file.stat().st_mode & 0o777) == "0o600"
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(

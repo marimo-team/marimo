@@ -947,7 +947,7 @@ const {
       cellReducer: (cell) => {
         const consoleOutputs = [...cell.consoleOutputs];
         const stdinOutput = consoleOutputs[outputIndex];
-        if (stdinOutput.channel !== "stdin") {
+        if (stdinOutput == null || stdinOutput.channel !== "stdin") {
           Logger.warn("Expected stdin output");
           return cell;
         }

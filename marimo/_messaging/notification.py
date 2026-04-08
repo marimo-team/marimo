@@ -373,12 +373,16 @@ class InstallingPackageAlertNotification(
         packages: Package name to status (queued/installing/installed/failed).
         logs: Optional streaming logs per package.
         log_status: Log stream status (append/start/done).
+        source: Which Python environment packages are installed into.
+                "kernel" (default) installs in the kernel's venv; "server"
+                installs in the server's own Python env.
     """
 
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
     logs: Optional[dict[str, str]] = None  # package name -> log content
     log_status: Optional[Literal["append", "start", "done"]] = None
+    source: Literal["kernel", "server"] = "kernel"
 
 
 class ReconnectedNotification(Notification, tag="reconnected"):

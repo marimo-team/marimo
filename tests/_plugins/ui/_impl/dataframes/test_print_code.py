@@ -497,10 +497,12 @@ def test_print_code_result_matches_actual_transform_pandas(
             ]
             if sortable_cols:
                 code_result = code_result.sort_values(
-                    by=sortable_cols
+                    by=sortable_cols,
+                    key=lambda col: col.astype(str),
                 ).reset_index(drop=True)
                 real_result = real_result.sort_values(
-                    by=sortable_cols
+                    by=sortable_cols,
+                    key=lambda col: col.astype(str),
                 ).reset_index(drop=True)
 
         pd.testing.assert_frame_equal(code_result, real_result)
