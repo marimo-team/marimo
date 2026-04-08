@@ -13,7 +13,7 @@ jobs:
   enforce-label:
     runs-on: ubuntu-latest
     steps:
-      - uses: yogevbd/enforce-label-action@2.2.2
+      - uses: yogevbd/enforce-label-action@a3c219da6b8fa73f6ba62b68ff09c469b3a1c024 # 2.2.2
         with:
           REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview,dependencies,other"
           REQUIRED_LABELS_ANY_DESCRIPTION: "🏷️ Select at least one label: ['enhancement','bug','documentation','internal','preview','dependencies','other']"

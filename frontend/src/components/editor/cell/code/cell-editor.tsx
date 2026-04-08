@@ -13,6 +13,7 @@ import { useCellActions } from "@/core/cells/cells";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { setupCodeMirror } from "@/core/codemirror/cm";
+import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
@@ -146,6 +147,7 @@ const CellEditorInternal = ({
   });
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const acceptCompletionOnEnter = useAtomValue(acceptCompletionOnEnterAtom);
   const afterToggleMarkdown = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
@@ -212,6 +214,7 @@ const CellEditorInternal = ({
         },
       },
       completionConfig: userConfig.completion,
+      acceptCompletionOnEnter,
       keymapConfig: userConfig.keymap,
       lspConfig: userConfig.language_servers,
       theme,
@@ -261,6 +264,7 @@ const CellEditorInternal = ({
     return extensions;
   }, [
     cellId,
+    acceptCompletionOnEnter,
     userConfig.keymap,
     userConfig.completion,
     userConfig.language_servers,

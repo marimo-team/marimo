@@ -39,12 +39,12 @@ jobs:
       id-token: write
     steps:
       - name: 📥 Download marimo dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: pypi-marimo
           path: dist/
       - name: 📤 Upload to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           skip-existing: true
           verbose: true
@@ -52,7 +52,7 @@ jobs:
       - name: 📢 Notify release result
         if: always()
         continue-on-error: true
-        uses: marimo-team/internal-gh-actions/release-notification@main
+        uses: marimo-team/internal-gh-actions/release-notification@ba06d4db1f3c5c9b86983ce409e57196f8376777 # main
         with:
           status: ${{ job.status }}
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}
@@ -92,12 +92,12 @@ jobs:
       id-token: write
     steps:
       - name: 📥 Download marimo dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: pypi-marimo-dev
           path: dist/
       - name: 📤 Upload to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           verbose: true
           repository-url: https://test.pypi.org/legacy/
@@ -113,12 +113,12 @@ jobs:
       id-token: write
     steps:
       - name: 📥 Download marimo-base dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: pypi-marimo-base-dev
           path: dist/
       - name: 📤 Upload to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           verbose: true
           repository-url: https://test.pypi.org/legacy/
@@ -132,7 +132,7 @@ jobs:
       pull-requests: write
     steps:
       - name: 📝 Comment PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         continue-on-error: true
         env:
           MARIMO_VERSION: ${{ needs.build_dev.outputs.marimo_version }}

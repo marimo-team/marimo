@@ -72,6 +72,7 @@ export function resourceExtension(opts: {
       keymap.of([
         {
           key: "Tab",
+          preventDefault: true,
           run: (view: EditorView) => {
             return acceptCompletion(view);
           },

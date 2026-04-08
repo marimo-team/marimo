@@ -237,14 +237,19 @@ class NarwhalsTableManager(
 
         result = _calculate_top_k_rows(frame)
         value_counts: list[tuple[Any, int]] = []
+        col_dtype = self.data.collect_schema()[column]
 
-        # NaNs and Infs serialize to null, which isn't distingushable from normal nulls
-        # so instead we set to string values
+        # NaNs and Infs serialize to null, which isn't distinguishable from
+        # normal nulls, so we replace them with string tokens — but only for
+        # float columns where NaN/Inf are meaningful distinct values.
+        # For non-float columns (e.g. strings), NaN is just pandas' missing
+        # value sentinel and should stay as None.
+        is_float_col = col_dtype.is_float()
         for row in result.rows():
             value = unwrap_py_scalar(row[0])
             count = int(unwrap_py_scalar(row[1]))
             if isinstance(value, float) and math.isnan(value):
-                value = NAN_VALUE
+                value = NAN_VALUE if is_float_col else None
             elif isinstance(value, float) and math.isinf(value) and value > 0:
                 value = POSITIVE_INF
             elif isinstance(value, float) and math.isinf(value) and value < 0:
@@ -278,9 +283,7 @@ class NarwhalsTableManager(
             return ("time", dtype_string)
         elif dtype == nw.Date:
             return ("date", dtype_string)
-        elif dtype == nw.Datetime:
-            return ("datetime", dtype_string)
-        elif dtype.is_temporal():
+        elif dtype == nw.Datetime or dtype.is_temporal():
             return ("datetime", dtype_string)
         elif dtype.is_numeric():
             return ("number", dtype_string)
@@ -463,35 +466,7 @@ class NarwhalsTableManager(
                         ),
                     }
                 )
-        elif is_narwhals_integer_type(dtype):
-            exprs.update(
-                {
-                    "unique": col.n_unique(),
-                    "min": col.min(),
-                    "max": col.max(),
-                    "mean": col.mean(),
-                    "std": col.std(),
-                    "median": col.median(),
-                }
-            )
-            if supports_numeric_quantiles:
-                exprs.update(
-                    {
-                        "p5": col.quantile(
-                            0.05, interpolation=quantile_interpolation
-                        ),
-                        "p25": col.quantile(
-                            0.25, interpolation=quantile_interpolation
-                        ),
-                        "p75": col.quantile(
-                            0.75, interpolation=quantile_interpolation
-                        ),
-                        "p95": col.quantile(
-                            0.95, interpolation=quantile_interpolation
-                        ),
-                    }
-                )
-        elif dtype.is_numeric():
+        elif is_narwhals_integer_type(dtype) or dtype.is_numeric():
             exprs.update(
                 {
                     "unique": col.n_unique(),

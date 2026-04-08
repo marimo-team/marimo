@@ -241,6 +241,44 @@ describe("collapseConsoleOutputs", () => {
     expect(result[2].data).toBe("<pre>E\nF\nG\nH\n</pre>");
   });
 
+  it("should not crash when truncating with a single output at the limit boundary", () => {
+    // Create outputs that push truncation to the exact boundary
+    const consoleOutputs: OutputMessage[] = [
+      {
+        mimetype: "text/html",
+        channel: "output",
+        data: "<div>html1</div>",
+        timestamp: 0,
+      },
+      {
+        mimetype: "text/html",
+        channel: "output",
+        data: "<div>html2</div>",
+        timestamp: 0,
+      },
+    ];
+    // With limit=1, truncation must handle edge cases gracefully
+    const result = collapseConsoleOutputs(consoleOutputs, 1);
+    expect(result[0].data).toContain("Streaming output truncated");
+  });
+
+  it("should handle truncation when cutoff indexes past the end of the array", () => {
+    // With maxLines=0, the truncation loop never runs, causing cutoff
+    // to index past the array. This exercises the `output == null`
+    // defensive branch in truncateHead().
+    const consoleOutputs: OutputMessage[] = [
+      {
+        mimetype: "text/html",
+        channel: "output",
+        data: "<div>content</div>",
+        timestamp: 0,
+      },
+    ];
+    const result = collapseConsoleOutputs(consoleOutputs, 0);
+    expect(result).toHaveLength(1);
+    expect(result[0].data).toContain("Streaming output truncated");
+  });
+
   describe("ANSI escape sequences", () => {
     it("should handle cursor movement with collapse", () => {
       const consoleOutputs: OutputMessage[] = [

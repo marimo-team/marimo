@@ -88,6 +88,15 @@ export class RuntimeManager {
       searchParams,
       /* restrictToKnownQueryParams =*/ false,
     );
+
+    // For cross-origin runtimes, pass the auth token as a query parameter.
+    // WebSocket connections cannot send custom headers (no Authorization
+    // header), and cross-origin cookies are blocked by browsers, so the
+    // access_token query param is the only way to authenticate.
+    if (!this.isSameOrigin && this.config.authToken) {
+      url.searchParams.set(KnownQueryParams.accessToken, this.config.authToken);
+    }
+
     return asWsUrl(url.toString());
   }
 
@@ -143,9 +152,15 @@ export class RuntimeManager {
    */
   getLSPURL(lsp: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly"): URL {
     if (lsp === "copilot") {
-      // For copilot, don't include any query parameters
+      // For copilot, strip all query parameters except the auth token.
+      // Copilot doesn't understand arbitrary query params, but we still
+      // need access_token for cross-origin authentication.
       const url = this.formatWsURL(`/lsp/${lsp}`);
+      const accessToken = url.searchParams.get(KnownQueryParams.accessToken);
       url.search = "";
+      if (accessToken) {
+        url.searchParams.set(KnownQueryParams.accessToken, accessToken);
+      }
       return url;
     }
     return this.formatWsURL(`/lsp/${lsp}`);
@@ -173,9 +188,10 @@ export class RuntimeManager {
       // If there is a redirect, update the URL in the config
       if (response.redirected) {
         Logger.debug(`Runtime redirected to ${response.url}`);
-        // strip /health from the URL
-        const baseUrl = response.url.replace(/\/health$/, "");
-        this.config.url = baseUrl;
+        // strip /health from the URL, using URL parsing to handle query params
+        const redirected = new URL(response.url);
+        redirected.pathname = redirected.pathname.replace(/\/health$/, "");
+        this.config.url = redirected.toString();
       }
 
       const success = response.ok;
@@ -183,7 +199,11 @@ export class RuntimeManager {
         this.setDOMBaseUri(this.config.url);
       }
       return success;
-    } catch {
+    } catch (error) {
+      Logger.error(
+        `Failed to check health: ${error instanceof Error ? error.message : "Unknown error"}`,
+        { cause: error },
+      );
       return false;
     }
   }

@@ -255,6 +255,7 @@ export function shouldHandleClickSelection(
       type === "funnelarea" ||
       type === "heatmap" ||
       type === "histogram" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });

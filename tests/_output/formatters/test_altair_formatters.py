@@ -178,6 +178,31 @@ def test_altair_formatter_svg():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
+def test_altair_formatter_png():
+    AltairFormatter().register()
+
+    import altair as alt
+
+    # Create a mock chart with a _repr_mimebundle_ method that returns PNG
+    mock_chart = alt.Chart(get_data()).mark_point()
+    with patch.object(
+        alt.Chart,
+        "_repr_mimebundle_",
+        return_value=(
+            {"image/png": b"png"},
+            {"image/png": {"width": 10, "height": 20}},
+        ),
+    ):
+        formatter = get_formatter(mock_chart)
+        assert formatter is not None
+        mime, content = formatter(mock_chart)
+
+        assert mime == "application/vnd.marimo+mimebundle"
+        assert content.startswith('{"image/png": "data:image/png;base64,cG5n"')
+        assert content.endswith('{"image/png": {"width": 10, "height": 20}}}')
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
 @pytest.mark.parametrize(
     "df",
     create_dataframes(

@@ -206,41 +206,30 @@ export function generateColumns<T>({
             </div>
           ) : null;
 
-        const justify = getJustify(key);
-
-        const headerWithType = (
-          <div
+        const headerName = (
+          <span
             className={cn(
-              "flex flex-col",
-              justify === "center" && "items-center",
-              justify === "right" && "items-end",
+              "font-bold",
+              headerTitle && "underline decoration-dotted",
             )}
           >
-            <span
-              className={cn(
-                "font-bold",
-                headerTitle && "underline decoration-dotted",
-              )}
-            >
-              {key === "" ? " " : key}
-            </span>
-            {dtypeHeader}
-          </div>
+            {key === "" ? " " : key}
+          </span>
         );
 
         const headerWithTooltip = headerTitle ? (
           <Tooltip content={headerTitle} delayDuration={300}>
-            {headerWithType}
+            {headerName}
           </Tooltip>
         ) : (
-          headerWithType
+          headerName
         );
 
         const dataTableColumnHeader = (
           <DataTableColumnHeader
             header={headerWithTooltip}
+            subheader={dtypeHeader}
             column={column}
-            justify={justify}
             calculateTopKRows={calculateTopKRows}
             table={table}
           />
@@ -255,8 +244,6 @@ export function generateColumns<T>({
           <div
             className={cn(
               "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
-              justify === "center" && "items-center",
-              justify === "right" && "items-end",
             )}
           >
             {dataTableColumnHeader}
@@ -283,13 +270,13 @@ export function generateColumns<T>({
 
         const dataType = column.columnDef.meta?.dataType;
         const isNumeric = dataType === "number" || dataType === "integer";
-        const cellStyles = getCellStyleClass(
+        const cellStyles = getCellStyleClass({
           justify,
           wrapped,
           canSelectCell,
-          isCellSelected,
+          isSelected: isCellSelected,
           isNumeric,
-        );
+        });
 
         const renderedCell = renderCellValue({
           column,
@@ -448,13 +435,19 @@ function getFilterTypeForFieldType(
   }
 }
 
-function getCellStyleClass(
-  justify: "left" | "center" | "right" | undefined,
-  wrapped: boolean | undefined,
-  canSelectCell: boolean,
-  isSelected: boolean,
-  isNumeric?: boolean,
-): string {
+function getCellStyleClass({
+  justify = "left",
+  wrapped,
+  canSelectCell,
+  isSelected,
+  isNumeric = false,
+}: {
+  justify: "left" | "center" | "right" | undefined;
+  wrapped: boolean | undefined;
+  canSelectCell: boolean;
+  isSelected: boolean;
+  isNumeric?: boolean;
+}): string {
   return cn(
     canSelectCell && "cursor-pointer",
     isSelected &&

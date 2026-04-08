@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CopyIcon } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 
 interface TracebackModalProps {
   isOpen: boolean;
@@ -29,7 +31,7 @@ export const TracebackModal: React.FC<TracebackModalProps> = ({
   const handleCopy = async () => {
     // Strip HTML tags for clipboard
     const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = traceback;
+    tempDiv.innerHTML = sanitizeHtml(traceback);
     const textContent = tempDiv.textContent || tempDiv.innerText || "";
 
     try {
@@ -73,10 +75,9 @@ export const TracebackModal: React.FC<TracebackModalProps> = ({
               Copy
             </Button>
           </div>
-          <div
-            className="font-code text-sm p-4 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text"
-            dangerouslySetInnerHTML={{ __html: traceback }}
-          />
+          <div className="font-code text-sm p-4 bg-muted rounded border overflow-auto max-h-[50vh] cursor-text select-text">
+            {renderHTML({ html: traceback })}
+          </div>
         </div>
         <AlertDialogFooter>
           <AlertDialogAction onClick={onClose}>Close</AlertDialogAction>
