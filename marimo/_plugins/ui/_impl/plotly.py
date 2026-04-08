@@ -504,18 +504,6 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 self._figure, self._selection_data
             )
 
-        has_violin = any(
-            getattr(trace, "type", None) == "violin"
-            for trace in self._figure.data
-        )
-
-        # For violin plots: expand pointNumbers from click events into individual
-        # data points, and extract underlying points from range selections.
-        if has_violin:
-            _append_violin_points_to_selection(
-                self._figure, self._selection_data
-            )
-
         # For line/scatter charts, extract points from box/lasso selections.
         # Plotly may not send point data for pure line charts, so we extract manually.
         if has_scatter and (value.get("range") or value.get("lasso")):
@@ -3159,7 +3147,6 @@ def _extract_violin_points_fallback(
     y_range = range_data.get("y")
 
     selected: list[dict[str, Any]] = []
-
 
     for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) != "violin":
