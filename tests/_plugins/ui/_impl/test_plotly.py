@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
     _bar_value_in_selection_range,
+    _compute_waterfall_bar_extents,
     _extract_bars_fallback,
     _extract_bars_numpy,
     _extract_box_points_fallback,
@@ -28,7 +29,6 @@ from marimo._plugins.ui._impl.plotly import (
     _extract_scatter_points_numpy,
     _extract_violin_points_fallback,
     _extract_violin_points_numpy,
-    _compute_waterfall_bar_extents,
     _extract_waterfall_bars_fallback,
     _extract_waterfall_bars_numpy,
     _to_numeric_coord,
@@ -3651,6 +3651,7 @@ def test_strip_chart_customdata_preserved() -> None:
     assert len(result) == 2
     assert result[0]["customdata"] == "id_0"
     assert result[1]["customdata"] == "id_1"
+
 
 # ============================================================================
 # Waterfall chart tests
