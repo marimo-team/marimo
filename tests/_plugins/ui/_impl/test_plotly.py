@@ -3564,3 +3564,61 @@ def test_violin_click_deduplication() -> None:
     assert len(result) == 3
     assert sorted(r["pointIndex"] for r in result) == [0, 1, 2]
 
+
+def test_violin_and_bar_range_selection_interaction() -> None:
+    """Mixed violin+bar figure: both trace types appear in the range result."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A"], y=[1, 2]))
+    fig.add_trace(go.Bar(x=["A"], y=[10]))
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "range": {"x": [-0.4, 0.4], "y": [0, 15]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    curve_numbers = {r["curveNumber"] for r in result}
+    assert 0 in curve_numbers  # violin trace
+    assert 1 in curve_numbers  # bar trace
+
+
+def test_violin_lasso_without_range_skips_extraction() -> None:
+    """Lasso event without a range dict does not extract violin rows."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "B"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "lasso": {"x": [0.5, 1.0, 0.5], "y": [0, 10, 10]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+    assert result == []
+
+
+def test_violin_click_with_empty_point_numbers_produces_no_rows() -> None:
+    """Click with empty pointNumbers list expands to zero points."""
+    fig = go.Figure()
+    fig.add_trace(go.Violin(x=["A", "A", "A"], y=[1, 2, 3]))
+    plot = plotly(fig)
+
+    selection: dict[str, Any] = {
+        "points": [
+            {
+                "x": "A",
+                "y": 1,
+                "pointIndex": 0,
+                "pointNumbers": [],
+                "curveNumber": 0,
+            }
+        ],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+    assert result == []

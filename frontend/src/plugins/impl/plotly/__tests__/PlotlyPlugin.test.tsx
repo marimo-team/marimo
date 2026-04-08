@@ -152,8 +152,13 @@ describe("PlotlyPlugin", () => {
 
     expect(setValue).toHaveBeenCalledTimes(1);
     const updater = setValue.mock.calls[0][0] as (value: unknown) => unknown;
-    const result = updater({}) as { points: unknown[]; indices: unknown[] };
-    expect(result.points).toHaveLength(1);
-    expect(result.indices).toHaveLength(1);
+    expect(updater({})).toEqual({
+      selections: [],
+      points: [
+        { x: "Group A", y: 3, curveNumber: 0, pointNumber: 0, pointIndex: 0 },
+      ],
+      indices: [0],
+      range: undefined,
+    });
   });
 });

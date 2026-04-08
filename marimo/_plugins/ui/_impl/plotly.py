@@ -2460,10 +2460,12 @@ def _extract_violin_points_from_range(
 ) -> list[dict[str, Any]]:
     """Extract violin plot underlying data points that fall within a selection range.
 
-    For each violin trace, the category position (x for vertical, y for
-    horizontal) is compared against the selection range.  All sample rows
-    belonging to a selected violin group are returned regardless of their
-    individual value.
+    For each violin trace, both the category axis (x for vertical, y for
+    horizontal) and the value axis are compared against the selection range.
+    Only sample rows whose category group overlaps the selection *and* whose
+    individual value falls within the value-axis bounds are returned.  When the
+    value-axis range is absent from ``range_data`` (e.g. a selection spanning
+    the full y-axis) all rows in matching categories are included.
     """
     if DependencyManager.numpy.has():
         return _extract_violin_points_numpy(figure, range_data)
@@ -2473,7 +2475,14 @@ def _extract_violin_points_from_range(
 def _extract_violin_points_numpy(
     figure: go.Figure, range_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Extract violin plot data points from a selection range using numpy."""
+    """Extract violin plot data points from a selection range using numpy.
+
+    Filters by both the category axis (which violin group falls inside the
+    selection box) and the value axis (which individual sample values fall
+    inside the selection box).  When ``points`` is disabled in the Plotly
+    figure, Plotly does not send individual point coordinates, so we derive
+    inclusion from the underlying trace arrays.
+    """
     import numpy as np
 
     x_range = range_data.get("x")
@@ -2488,10 +2497,12 @@ def _extract_violin_points_numpy(
         orientation = getattr(trace, "orientation", "v") or "v"
         if orientation == "h":
             cat_range = y_range
+            val_range = x_range
             cat_data = getattr(trace, "y", None)
             val_data = getattr(trace, "x", None)
         else:
             cat_range = x_range
+            val_range = y_range
             cat_data = getattr(trace, "x", None)
             val_data = getattr(trace, "y", None)
 
@@ -2551,6 +2562,18 @@ def _extract_violin_points_numpy(
         else:
             cat_mask = np.ones(n, dtype=bool)
 
+        if val_range:
+            val_min_f = float(min(val_range))
+            val_max_f = float(max(val_range))
+            try:
+                val_numeric = val_arr.astype(float)
+                val_mask = (val_numeric >= val_min_f) & (
+                    val_numeric <= val_max_f
+                )
+                cat_mask = cat_mask & val_mask
+            except (ValueError, TypeError):
+                pass  # non-numeric values; skip value filtering
+
         selected_indices = np.where(cat_mask)[0]
         for i in selected_indices:
             sample = _build_violin_sample_point(trace, trace_idx, int(i))
@@ -2601,7 +2624,12 @@ def _build_waterfall_point(
 def _extract_violin_points_fallback(
     figure: go.Figure, range_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Extract violin plot data points from a selection range (pure Python)."""
+    """Extract violin plot data points from a selection range (pure Python).
+
+    Filters by both the category axis (which violin group falls inside the
+    selection box) and the value axis (which individual sample values fall
+    inside the selection box).  Used when numpy is unavailable.
+    """
     x_range = range_data.get("x")
     y_range = range_data.get("y")
 
@@ -2614,10 +2642,12 @@ def _extract_violin_points_fallback(
         orientation = getattr(trace, "orientation", "v") or "v"
         if orientation == "h":
             cat_range = y_range
+            val_range = x_range
             cat_data = getattr(trace, "y", None)
             val_data = getattr(trace, "x", None)
         else:
             cat_range = x_range
+            val_range = y_range
             cat_data = getattr(trace, "x", None)
             val_data = getattr(trace, "y", None)
 
@@ -2668,6 +2698,16 @@ def _extract_violin_points_fallback(
                     if not (cat_max > pos - 0.5 and cat_min < pos + 0.5):
                         continue
 
+            if val_range:
+                val_min_f = float(min(val_range))
+                val_max_f = float(max(val_range))
+                try:
+                    val_f = float(val_data[i])
+                    if not (val_min_f <= val_f <= val_max_f):
+                        continue
+                except (TypeError, ValueError):
+                    pass  # non-numeric value; skip value filtering
+
             sample = _build_violin_sample_point(trace, trace_idx, i)
             if sample is not None:
                 selected.append(sample)
@@ -2710,6 +2750,7 @@ def _build_violin_sample_point(
     point: dict[str, Any] = {
         val_key: val_value,
         "pointIndex": point_idx,
+        "pointNumber": point_idx,
         "curveNumber": trace_idx,
     }
     if cat_value is not None:
