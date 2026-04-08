@@ -73,6 +73,7 @@ export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
   enableAI: boolean;
+  acceptCompletionOnEnter?: boolean;
   cellActions: CodemirrorCellActions;
   completionConfig: CompletionConfig;
   keymapConfig: KeymapConfig;
@@ -175,6 +176,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     theme,
     hotkeys,
     completionConfig,
+    acceptCompletionOnEnter,
     cellId,
     lspConfig,
     diagnosticsConfig,
@@ -207,7 +209,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     foldGutter(),
     stringsAutoCloseBraces(),
     closeBrackets(),
-    completionKeymap(),
+    completionKeymap(acceptCompletionOnEnter),
     // to avoid clash with charDeleteBackward keymap
     Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),

@@ -34,6 +34,7 @@ import { getRequestClient } from "@/core/network/requests";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 import { copyToClipboard } from "@/utils/copy";
 import {
   elementContainsMarimoCellFile,
@@ -173,9 +174,9 @@ export const MarimoTracebackOutput = ({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  // Strip HTML from the traceback
+                  // Strip HTML from the traceback (sanitize first to prevent XSS)
                   const div = document.createElement("div");
-                  div.innerHTML = traceback;
+                  div.innerHTML = sanitizeHtml(traceback);
                   const textContent = div.textContent || "";
                   copyToClipboard(textContent);
                 }}
@@ -193,7 +194,7 @@ export const MarimoTracebackOutput = ({
 
 function lastLine(text: string): string {
   const el = document.createElement("div");
-  el.innerHTML = text;
+  el.innerHTML = sanitizeHtml(text);
   const lines = el.textContent?.split("\n").filter(Boolean);
   return lines?.at(-1) || "";
 }

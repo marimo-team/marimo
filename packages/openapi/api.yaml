@@ -2149,7 +2149,10 @@ components:
       description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
         \        packages: Package name to status (queued/installing/installed/failed).\n\
         \        logs: Optional streaming logs per package.\n        log_status: Log\
-        \ stream status (append/start/done)."
+        \ stream status (append/start/done).\n        source: Which Python environment\
+        \ packages are installed into.\n                \"kernel\" (default) installs\
+        \ in the kernel's venv; \"server\"\n                installs in the server's\
+        \ own Python env."
       properties:
         log_status:
           anyOf:
@@ -2177,6 +2180,11 @@ components:
             - installing
             - queued
           type: object
+        source:
+          default: kernel
+          enum:
+          - kernel
+          - server
       required:
       - op
       - packages

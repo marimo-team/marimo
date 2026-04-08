@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: 📦 Build frontend
         uses: ./.github/actions/build-frontend
@@ -40,7 +40,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
       - name: Adapt pyproject.toml to build marimo-base
         run: uv run ./scripts/modify_pyproject_for_marimo_base.py
@@ -52,14 +52,14 @@ jobs:
         run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           skip-existing: true
           verbose: true
           attestations: false
 
       - name: 📤 Upload to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           skip-existing: true
           verbose: true
@@ -69,7 +69,7 @@ jobs:
       - name: 📢 Notify release result
         if: always()
         continue-on-error: true
-        uses: marimo-team/internal-gh-actions/release-notification@main
+        uses: marimo-team/internal-gh-actions/release-notification@ba06d4db1f3c5c9b86983ce409e57196f8376777 # main
         with:
           status: ${{ job.status }}
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}

@@ -229,6 +229,7 @@ export function shouldHandleClickSelection(
       type === "heatmap" ||
       type === "histogram" ||
       type === "violin" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });

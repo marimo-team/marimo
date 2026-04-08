@@ -4622,6 +4622,9 @@ export interface components {
      *             packages: Package name to status (queued/installing/installed/failed).
      *             logs: Optional streaming logs per package.
      *             log_status: Log stream status (append/start/done).
+     *             source: Which Python environment packages are installed into.
+     *                     "kernel" (default) installs in the kernel's venv; "server"
+     *                     installs in the server's own Python env.
      */
     InstallingPackageAlertNotification: {
       /** @default null */
@@ -4635,6 +4638,11 @@ export interface components {
       packages: {
         [key: string]: "failed" | "installed" | "installing" | "queued";
       };
+      /**
+       * @default kernel
+       * @enum {unknown}
+       */
+      source?: "kernel" | "server";
     };
     /** InstantiateNotebookRequest */
     InstantiateNotebookRequest: {

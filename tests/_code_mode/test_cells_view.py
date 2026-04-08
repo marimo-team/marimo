@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
@@ -11,8 +12,14 @@ if TYPE_CHECKING:
 
 import re
 
+from inline_snapshot import snapshot
+
 from marimo._ast.cell import CellConfig
-from marimo._code_mode._context import AsyncCodeModeContext, _CellsView
+from marimo._code_mode._context import (
+    AsyncCodeModeContext,
+    NotebookCell as EnrichedCell,
+    _CellsView,
+)
 from marimo._messaging.notebook.document import (
     NotebookCell,
     NotebookDocument,
@@ -211,7 +218,7 @@ def _cell(cell_id: str, code: str, name: str = "") -> NotebookCell:
 def _view(cells: list[NotebookCell]) -> _CellsView:
     doc = NotebookDocument(cells)
     ctx = type("_MockCtx", (), {"_document": doc})()
-    return _CellsView(ctx)  # type: ignore[arg-type]
+    return _CellsView(ctx)
 
 
 # ------------------------------------------------------------------
@@ -222,20 +229,20 @@ def _view(cells: list[NotebookCell]) -> _CellsView:
 class TestCellsViewRepr:
     def test_repr_empty(self) -> None:
         v = _view([])
-        assert repr(v) == "CellsView(0 cells):"
+        assert repr(v) == snapshot("CellsView(0 cells):")
 
     def test_repr_single_cell(self) -> None:
         v = _view([_cell("a1", "x = 1")])
-        r = repr(v)
-        assert r.startswith("CellsView(1 cell):")
-        assert "[0] a1 | x = 1" in r
+        assert repr(v) == snapshot("""\
+CellsView(1 cell):
+  [0] a1 [stale] | x = 1""")
 
     def test_repr_multiple_cells(self) -> None:
         v = _view([_cell("a", "x = 1"), _cell("b", "y = 2")])
-        r = repr(v)
-        assert "CellsView(2 cells):" in r
-        assert "[0] a | x = 1" in r
-        assert "[1] b | y = 2" in r
+        assert repr(v) == snapshot("""\
+CellsView(2 cells):
+  [0] a [stale] | x = 1
+  [1] b [stale] | y = 2""")
 
     def test_repr_with_name(self) -> None:
         v = _view([_cell("a", "import marimo as mo", name="setup")])
@@ -246,7 +253,6 @@ class TestCellsViewRepr:
         v = _view([_cell("a", long_code)])
         r = repr(v)
         assert "..." in r
-        # First 50 chars of first line + "..."
         assert long_code[:50] + "..." in r
 
     def test_repr_multiline_shows_first_line(self) -> None:
@@ -264,13 +270,9 @@ class TestCellsViewRepr:
         v = _view(cells)
         r = repr(v)
         assert "CellsView(15 cells):" in r
-        # First 10 shown
         assert "[9]" in r
-        # Last cell shown
         assert "[14]" in r
-        # Middle omitted
         assert "... 4 more cells ..." in r
-        # Cell 11 not individually shown
         assert "[11]" not in r
 
 
@@ -381,6 +383,174 @@ class TestCellsViewGrep:
 # ------------------------------------------------------------------
 # Error messages
 # ------------------------------------------------------------------
+
+
+# ------------------------------------------------------------------
+# NotebookCell (enriched) status
+# ------------------------------------------------------------------
+
+
+@dataclasses.dataclass
+class _MockImpl:
+    """Minimal stand-in for CellImpl — satisfies ``CellRuntimeState`` protocol."""
+
+    code: str = ""
+    runtime_state: str | None = None
+    run_result_status: str | None = None
+    stale: bool = False
+    exception: Exception | None = None
+
+
+class TestEnrichedCellStatus:
+    def test_no_impl_empty_returns_none(self) -> None:
+        cell = _cell("a", "")
+        enriched = EnrichedCell(cell, None)
+        assert enriched.status is None
+
+    def test_no_impl_with_code_returns_stale(self) -> None:
+        cell = _cell("a", "x = 1")
+        enriched = EnrichedCell(cell, None)
+        assert enriched.status == "stale"
+
+    def test_success_maps_to_idle(self) -> None:
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1", run_result_status="success")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "idle"
+
+    def test_exception_status(self) -> None:
+        err = ValueError("boom")
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(
+            code="x = 1", run_result_status="exception", exception=err
+        )
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "exception"
+        assert len(enriched.errors) == 1
+        assert enriched.errors[0].kind == "runtime"
+        assert enriched.errors[0].exception is err
+
+    def test_code_edited_becomes_stale(self) -> None:
+        cell = _cell("a", "x = 2")
+        impl = _MockImpl(code="x = 1", run_result_status="success")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "stale"
+
+    def test_code_edited_after_error_becomes_stale(self) -> None:
+        err = ZeroDivisionError()
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(
+            code="1 / 0", run_result_status="exception", exception=err
+        )
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "stale"
+        # Error persists for inspection
+        assert len(enriched.errors) == 1
+        assert enriched.errors[0].exception is err
+
+    def test_runtime_stale_flag(self) -> None:
+        """Lazy mode: inputs changed but code is the same."""
+        cell = _cell("a", "y = x + 1")
+        impl = _MockImpl(
+            code="y = x + 1", run_result_status="success", stale=True
+        )
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "stale"
+
+    def test_registered_but_never_run_is_stale(self) -> None:
+        """Cell registered in graph with matching code but never executed."""
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1")  # run_result_status=None
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "stale"
+
+    def test_registered_empty_never_run_is_none(self) -> None:
+        """Empty cell registered in graph but never executed."""
+        cell = _cell("a", "")
+        impl = _MockImpl(code="")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status is None
+
+    def test_queued_takes_priority(self) -> None:
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1", runtime_state="queued")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "queued"
+
+    def test_running_takes_priority(self) -> None:
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1", runtime_state="running")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "running"
+
+    def test_disabled_transitively_maps_to_disabled(self) -> None:
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1", runtime_state="disabled-transitively")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "disabled"
+
+    def test_cancelled_status(self) -> None:
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1", run_result_status="cancelled")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "cancelled"
+
+    def test_marimo_error_status(self) -> None:
+        cell = _cell("a", "x = 1")
+        impl = _MockImpl(code="x = 1", run_result_status="marimo-error")
+        enriched = EnrichedCell(cell, impl)
+        assert enriched.status == "marimo-error"
+
+    def test_delegates_document_properties(self) -> None:
+        cell = _cell("a1", "x = 1", name="my_cell")
+        enriched = EnrichedCell(cell, None)
+        assert enriched.id == "a1"
+        assert enriched.code == "x = 1"
+        assert enriched.name == "my_cell"
+        assert enriched.config == CellConfig()
+
+    def test_errors_empty_when_no_impl(self) -> None:
+        cell = _cell("a", "x = 1")
+        enriched = EnrichedCell(cell, None)
+        assert enriched.errors == []
+
+
+class TestEnrichedCellRepr:
+    def test_repr_no_impl_with_code(self) -> None:
+        cell = _cell("a1", "x = 1")
+        enriched = EnrichedCell(cell, None)
+        assert repr(enriched) == snapshot(
+            "NotebookCell(id='a1', status='stale', code='x = 1')"
+        )
+
+    def test_repr_no_impl_empty(self) -> None:
+        cell = _cell("a1", "")
+        enriched = EnrichedCell(cell, None)
+        assert repr(enriched) == snapshot("NotebookCell(id='a1', code='')")
+
+    def test_repr_with_status(self) -> None:
+        cell = _cell("a1", "x = 1")
+        impl = _MockImpl(code="x = 1", run_result_status="exception")
+        enriched = EnrichedCell(cell, impl)
+        assert repr(enriched) == snapshot(
+            "NotebookCell(id='a1', status='exception', code='x = 1')"
+        )
+
+    def test_repr_with_name_and_status(self) -> None:
+        cell = _cell("a1", "import os", name="setup")
+        impl = _MockImpl(code="import os", run_result_status="success")
+        enriched = EnrichedCell(cell, impl)
+        assert repr(enriched) == snapshot(
+            "NotebookCell(id='a1', name='setup', status='idle', code='import os')"
+        )
+
+    def test_repr_stale_from_code_edit(self) -> None:
+        cell = _cell("a1", "x = 2")
+        impl = _MockImpl(code="x = 1", run_result_status="success")
+        enriched = EnrichedCell(cell, impl)
+        assert repr(enriched) == snapshot(
+            "NotebookCell(id='a1', status='stale', code='x = 2')"
+        )
 
 
 class TestCellsViewErrorMessages:

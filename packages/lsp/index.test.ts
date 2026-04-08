@@ -70,7 +70,7 @@ describe("parseTypedCommand", () => {
 
 describe("LSP Server Integration", () => {
   it("should start and be killable", async () => {
-    const process = childProcess.spawn("node", [
+    const proc = childProcess.spawn("node", [
       "./dist/index.cjs",
       "--lsp",
       "echo hello",
@@ -78,22 +78,27 @@ describe("LSP Server Integration", () => {
       path.join(os.tmpdir(), "lsp-server-test.log"),
     ]);
 
+    // Register the exit listener BEFORE sending the signal to avoid
+    // a race where the process exits before the listener is attached.
+    const exitCode = new Promise<number | null>((resolve) => {
+      proc.on("exit", (code) => resolve(code));
+    });
+
     // Give it a moment to start
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Kill the process
-    process.kill();
+    proc.kill();
+    const code = await exitCode;
 
-    // Wait for process to die
-    await new Promise<void>((resolve) => {
-      process.on("exit", () => resolve());
-    });
-
-    expect(process.killed).toBe(true);
+    // Process should have exited (0 = graceful shutdown, null = signal)
+    expect(code === 0 || code === null).toBe(true);
+    // Verify the process actually terminated: exitCode is non-null for
+    // normal exit, signalCode is non-null for signal-based termination.
+    expect(proc.exitCode !== null || proc.signalCode !== null).toBe(true);
   });
 
   it("should start with typed copilot command", async () => {
-    const process = childProcess.spawn("node", [
+    const proc = childProcess.spawn("node", [
       "./dist/index.cjs",
       "--lsp",
       "copilot:echo copilot-test",
@@ -101,17 +106,17 @@ describe("LSP Server Integration", () => {
       path.join(os.tmpdir(), "lsp-server-copilot-test.log"),
     ]);
 
+    const exitCode = new Promise<number | null>((resolve) => {
+      proc.on("exit", (code) => resolve(code));
+    });
+
     // Give it a moment to start
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Kill the process
-    process.kill();
+    proc.kill();
+    const code = await exitCode;
 
-    // Wait for process to die
-    await new Promise<void>((resolve) => {
-      process.on("exit", () => resolve());
-    });
-
-    expect(process.killed).toBe(true);
+    expect(code === 0 || code === null).toBe(true);
+    expect(proc.exitCode !== null || proc.signalCode !== null).toBe(true);
   });
 });

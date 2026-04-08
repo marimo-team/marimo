@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import tempfile
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
@@ -19,6 +20,8 @@ from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.testclient import TestClient
 
 
@@ -92,6 +95,21 @@ if __name__ == "__main__":
     return sm
 
 
+@contextlib.contextmanager
+def file_router_scope(
+    client: TestClient, file_router: AppFileRouter
+) -> Iterator[None]:
+    session_manager: SessionManager = cast(
+        Any, client.app
+    ).state.session_manager
+    original_file_router = session_manager.file_router
+    session_manager.file_router = file_router
+    try:
+        yield
+    finally:
+        session_manager.file_router = original_file_router
+
+
 def with_file_router(
     file_router: AppFileRouter,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
@@ -99,15 +117,8 @@ def with_file_router(
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient, *args: Any, **kwargs: Any) -> None:
-            session_manager: SessionManager = cast(
-                Any, client.app
-            ).state.session_manager
-            original_file_router = session_manager.file_router
-            session_manager.file_router = file_router
-
-            func(client, *args, **kwargs)
-
-            session_manager.file_router = original_file_router
+            with file_router_scope(client, file_router):
+                func(client, *args, **kwargs)
 
         return wrapper
 

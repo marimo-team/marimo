@@ -1,3 +1,10 @@
+!!! tip "Use marimo pair to give agents access to running marimo notebook sessions"
+
+    For the best experience using Claude Code with marimo, we recommend
+    [marimo pair](marimo_pair.md), an agent skill that gives Claude Code
+    full access to your running notebook, including reading variables, running
+    cells, and manipulating UI elements.
+
 Claude lets you customise the marimo editing experience with its agent. This page lists some worthwhile utilities, and we also provide compelling use cases related to marimo notebooks.
 
 ### Slash commands
