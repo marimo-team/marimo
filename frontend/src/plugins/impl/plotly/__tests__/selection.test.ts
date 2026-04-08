@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   extractIndices,
   extractPoints,
+  hasAreaTrace,
   hasPureLineTrace,
   lineSelectionButtons,
   type ModeBarButton,
@@ -99,6 +100,14 @@ describe("shouldHandleClickSelection", () => {
     });
 
     expect(shouldHandleClickSelection([heatmapPoint])).toBe(true);
+  });
+
+  it("accepts violin clicks", () => {
+    const violinPoint = createPlotDatum({
+      data: { type: "violin" },
+    });
+
+    expect(shouldHandleClickSelection([violinPoint])).toBe(true);
   });
 
   it("accepts histogram clicks", () => {
@@ -233,5 +242,69 @@ describe("extractPoints", () => {
     expect(extractPoints([point])).toEqual([
       { x: "Revenue", y: 400, pointIndex: 1, curveNumber: 0 },
     ]);
+  });
+});
+
+describe("hasAreaTrace", () => {
+  it("detects scatter trace with tozeroy fill", () => {
+    expect(
+      hasAreaTrace([createTrace({ type: "scatter", fill: "tozeroy" })]),
+    ).toBe(true);
+  });
+
+  it("detects scatter trace with tonexty fill", () => {
+    expect(
+      hasAreaTrace([createTrace({ type: "scatter", fill: "tonexty" })]),
+    ).toBe(true);
+  });
+
+  it("detects scatter trace with stackgroup (px.area pattern)", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "scatter", mode: "lines", stackgroup: "one" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("detects area traces with mode=none (fill-only, no visible line)", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "scatter", fill: "tozeroy", mode: "none" }),
+      ]),
+    ).toBe(true);
+  });
+
+  it("ignores scatter traces with no fill and no stackgroup", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "scatter", mode: "lines" }),
+        createTrace({ type: "scatter", mode: "markers" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("ignores scatter traces with fill=none", () => {
+    expect(hasAreaTrace([createTrace({ type: "scatter", fill: "none" })])).toBe(
+      false,
+    );
+  });
+
+  it("ignores scatter traces with fill=empty string", () => {
+    expect(
+      hasAreaTrace([createTrace({ type: "scatter", fill: "" as "none" })]),
+    ).toBe(false);
+  });
+
+  it("ignores non-scatter traces", () => {
+    expect(
+      hasAreaTrace([
+        createTrace({ type: "bar" }),
+        createTrace({ type: "heatmap" }),
+      ]),
+    ).toBe(false);
+  });
+
+  it("returns false for undefined data", () => {
+    expect(hasAreaTrace(undefined)).toBe(false);
   });
 });
