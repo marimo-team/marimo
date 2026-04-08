@@ -233,7 +233,7 @@ Guide](module_autoreloading.md)
 ## Watching for data changes
 
 marimo supports watching data files and automatically refreshing cells that
-depend on them using [`mo.watch.file`][marimo.watch.file] and [mo.watch.directory][`marimo.watch.directory`].
+depend on them using [`mo.watch.file`][marimo.watch.file] and [`mo.watch.directory`][marimo.watch.directory].
 
 Learn more in the [watch API documentation](../../api/watch.md).
 
