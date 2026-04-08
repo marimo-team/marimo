@@ -14,7 +14,9 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, TypedDict
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
+from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
+from marimo._server.codes import WebSocketCodes
 from marimo._server.router import APIRouter
 from marimo._session.model import SessionMode
 from marimo._utils.platform import is_pyodide, is_windows
@@ -353,6 +355,13 @@ def supports_terminal() -> bool:
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     app_state = AppState(websocket)
+
+    if app_state.enable_auth and not validate_auth(websocket):
+        await websocket.close(
+            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+        )
+        return
+
     if app_state.mode != SessionMode.EDIT:
         await websocket.close(
             code=1008, reason="Terminal only available in edit mode"
