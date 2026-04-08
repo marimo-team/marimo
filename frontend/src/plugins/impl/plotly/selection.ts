@@ -141,13 +141,13 @@ export function hasPureLineTrace(
   }
 
   return data.some((trace) => {
-    const traceType = (trace as { type?: unknown }).type;
+    const t = trace as Record<string, unknown>;
     const isScatterLike =
-      traceType === undefined || LINE_CLICK_TRACE_TYPES.has(String(traceType));
+      t.type === undefined || LINE_CLICK_TRACE_TYPES.has(String(t.type));
     if (!isScatterLike) {
       return false;
     }
-    return isPureLineMode((trace as { mode?: unknown }).mode);
+    return isPureLineMode(t.mode);
   });
 }
 
