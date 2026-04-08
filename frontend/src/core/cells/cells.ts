@@ -338,6 +338,49 @@ const {
           scrollKey: cellId,
         };
   },
+  moveCellToIndex: (
+    state,
+    action: {
+      cellId: CellId;
+      columnId: CellColumnId;
+      index: number;
+    },
+  ) => {
+    const { cellId, columnId, index } = action;
+    const fromColumn = state.cellIds.findWithId(cellId);
+    const fromIndex = fromColumn.indexOfOrThrow(cellId);
+
+    const destinationColumn = state.cellIds.get(columnId);
+    if (!destinationColumn) {
+      return state;
+    }
+
+    const clampedIndex = Math.max(0, Math.min(index, destinationColumn.length));
+    const adjustedIndex =
+      fromColumn.id === columnId && fromIndex < clampedIndex
+        ? clampedIndex - 1
+        : clampedIndex;
+
+    if (fromColumn.id === columnId && fromIndex === adjustedIndex) {
+      return state;
+    }
+
+    const withoutCell = state.cellIds.deleteById(cellId);
+    const updatedColumn = withoutCell.get(columnId);
+    if (!updatedColumn) {
+      return state;
+    }
+
+    return {
+      ...state,
+      cellIds: withoutCell.insertId(
+        cellId,
+        columnId,
+        Math.max(0, Math.min(adjustedIndex, updatedColumn.length)),
+      ),
+      scrollKey: null,
+    };
+  },
   dropCellOverCell: (state, action: { cellId: CellId; overCellId: CellId }) => {
     const { cellId, overCellId } = action;
 
