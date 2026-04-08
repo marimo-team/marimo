@@ -41,9 +41,13 @@ const SlidesComponent = ({
 
   useEffect(() => {
     if (activeIndex != null && el.current?.swiper.realIndex !== activeIndex) {
-      el.current?.swiper.slideTo(activeIndex);
+      if (wrapAround) {
+        el.current?.swiper.slideToLoop(activeIndex);
+      } else {
+        el.current?.swiper.slideTo(activeIndex);
+      }
     }
-  }, [activeIndex]);
+  }, [activeIndex, wrapAround]);
 
   useEventListener(document, "fullscreenchange", () => {
     if (document.fullscreenElement) {

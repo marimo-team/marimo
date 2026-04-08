@@ -65,7 +65,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   }
 
   return (
-    <div className="pr-18 pb-5 flex-1 flex flex-row max-h-[95%] gap-2">
+    <div className="pr-18 pb-5 flex-1 flex flex-row max-h-11/12 gap-2">
       <SlidesMinimap
         cells={cellsWithOutput}
         canReorder={!isMultiColumn}

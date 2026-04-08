@@ -1,3 +1,5 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
 import { useCellActions, useCellIds } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellColumnId } from "@/utils/id-tree";

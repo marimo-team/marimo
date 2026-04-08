@@ -1,3 +1,5 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
 import { outputIsLoading } from "@/core/cells/cell";
 import { OutputArea } from "../editor/Output";
 import { memo } from "react";
