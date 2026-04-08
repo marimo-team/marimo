@@ -302,6 +302,8 @@ class CellCreationStream {
     }
     // Clear all state
     this.buffer = "";
+    this.createdCells = [];
+    this.hasMarimoImport = false;
   }
 }
 
