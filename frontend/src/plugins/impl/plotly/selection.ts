@@ -261,7 +261,6 @@ export function shouldHandleClickSelection(
       type === "histogram" ||
       type === "violin" ||
       type === "waterfall" ||
-      type === "violin" ||
       isLinePoint(point)
     );
   });
