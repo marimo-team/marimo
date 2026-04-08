@@ -53,6 +53,7 @@ interface SlideThumbnailCardProps extends React.HTMLAttributes<HTMLDivElement> {
   isActiveSlide?: boolean;
   isActiveDragSource?: boolean;
   isOverlay?: boolean;
+  isVisible?: boolean;
   ref?: React.Ref<HTMLDivElement>;
 }
 
@@ -61,6 +62,7 @@ interface SlideThumbnailRowProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   isActiveSlide?: boolean;
   dropIndicator?: DropPosition | null;
   isActiveDragSource?: boolean;
+  isVisible?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
@@ -77,11 +79,79 @@ const THUMBNAIL_SCALE = 0.3;
 const MINIMAP_AUTO_SCROLL = {
   threshold: { x: 0, y: 0.1 },
 };
-const HALF_MINIMAP_GAP = 8;
+const MINIMAP_GAP = 8;
+const VISIBILITY_ROOT_MARGIN = "200px 0px";
 const minimapCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
 };
+
+/**
+ * Tracks which `[data-cell-id]` elements inside a scrollable container are
+ * within (or near) the viewport using a single shared IntersectionObserver.
+ * A MutationObserver re-observes when children are added or removed.
+ * Off-screen thumbnails can skip rendering expensive <Slide> content.
+ */
+function useVisibleCellIds(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+): ReadonlySet<CellId> {
+  const [visibleIds, setVisibleIds] = useState<ReadonlySet<CellId>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        setVisibleIds((prev) => {
+          const next = new Set(prev);
+          let changed = false;
+          for (const entry of entries) {
+            const id = (entry.target as HTMLElement).dataset.cellId as
+              | CellId
+              | undefined;
+            if (!id) {
+              continue;
+            }
+            if (entry.isIntersecting && !next.has(id)) {
+              next.add(id);
+              changed = true;
+            } else if (!entry.isIntersecting && next.has(id)) {
+              next.delete(id);
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+      },
+      { root: container, rootMargin: VISIBILITY_ROOT_MARGIN },
+    );
+
+    const observeAll = () => {
+      for (const el of container.querySelectorAll<HTMLElement>(
+        "[data-cell-id]",
+      )) {
+        intersectionObserver.observe(el);
+      }
+    };
+
+    observeAll();
+
+    const mutationObserver = new MutationObserver(observeAll);
+    mutationObserver.observe(container, { childList: true });
+
+    return () => {
+      intersectionObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [containerRef]);
+
+  return visibleIds;
+}
 
 export const SlidesMinimap = ({
   cells,
@@ -92,6 +162,7 @@ export const SlidesMinimap = ({
   const cellIds = useCellIds();
   const { moveCellToIndex } = useCellActions();
   const containerRef = useRef<HTMLDivElement>(null);
+  const visibleIds = useVisibleCellIds(containerRef);
   const [activeId, setActiveId] = useState<CellId | null>(null);
   const [dropTarget, setDropTarget] = useState<ProjectedDropTarget | null>(
     null,
@@ -172,6 +243,7 @@ export const SlidesMinimap = ({
             key={cell.id}
             cell={cell}
             isActiveSlide={cell.id === activeCellId}
+            isVisible={visibleIds.has(cell.id)}
             onClick={() => onSlideClick(index)}
           />
         ))}
@@ -202,6 +274,7 @@ export const SlidesMinimap = ({
               cell={cell}
               isActive={activeId === cell.id}
               isActiveSlide={cell.id === activeCellId}
+              isVisible={visibleIds.has(cell.id)}
               dropIndicator={
                 dropTarget?.overId === cell.id && activeId !== cell.id
                   ? dropTarget.position
@@ -247,6 +320,7 @@ interface SortableSlideThumbnailProps {
   dropIndicator?: DropPosition | null;
   isActive: boolean;
   isActiveSlide?: boolean;
+  isVisible?: boolean;
   onClick?: () => void;
 }
 
@@ -255,6 +329,7 @@ const SortableSlideThumbnail = ({
   dropIndicator,
   isActive,
   isActiveSlide,
+  isVisible,
   onClick,
 }: SortableSlideThumbnailProps) => {
   const { attributes, listeners, setNodeRef } = useSortable({
@@ -268,6 +343,7 @@ const SortableSlideThumbnail = ({
       dropIndicator={dropIndicator}
       isActiveDragSource={isActive}
       isActiveSlide={isActiveSlide}
+      isVisible={isVisible}
       onClick={onClick}
       {...attributes}
       {...listeners}
@@ -282,13 +358,14 @@ const SlideThumbnailRow = ({
   dropIndicator,
   isActiveSlide = false,
   isActiveDragSource = false,
+  isVisible,
   onClick,
   ref,
   ...props
 }: SlideThumbnailRowProps) => {
   const rowStyle: React.CSSProperties = {
-    paddingTop: HALF_MINIMAP_GAP,
-    paddingBottom: HALF_MINIMAP_GAP,
+    paddingTop: MINIMAP_GAP,
+    paddingBottom: MINIMAP_GAP,
     ...style,
   };
 
@@ -319,6 +396,7 @@ const SlideThumbnailRow = ({
         cell={cell}
         isActiveSlide={isActiveSlide}
         isActiveDragSource={isActiveDragSource}
+        isVisible={isVisible}
       />
     </button>
   );
@@ -331,12 +409,14 @@ const SlideThumbnailCard = ({
   isActiveSlide = false,
   isActiveDragSource = false,
   isOverlay = false,
+  isVisible = false,
   ref,
   ...props
 }: SlideThumbnailCardProps) => {
   const outerStyle: React.CSSProperties = {
     width: THUMBNAIL_WIDTH,
     height: THUMBNAIL_HEIGHT,
+    contain: "strict",
     ...(isOverlay
       ? null
       : {
@@ -345,6 +425,8 @@ const SlideThumbnailCard = ({
         }),
     ...style,
   };
+
+  const showContent = isVisible || isOverlay;
 
   return (
     <div
@@ -361,17 +443,19 @@ const SlideThumbnailCard = ({
       style={outerStyle}
       {...props}
     >
-      <div
-        className="flex p-6 box-border pointer-events-none mo-slide-content overflow-hidden"
-        style={{
-          transform: `scale(${THUMBNAIL_SCALE})`,
-          transformOrigin: "top left",
-          width: THUMBNAIL_WIDTH / THUMBNAIL_SCALE,
-          height: THUMBNAIL_HEIGHT / THUMBNAIL_SCALE,
-        }}
-      >
-        <Slide cellId={cell.id} status={cell.status} output={cell.output} />
-      </div>
+      {showContent && (
+        <div
+          className="flex p-6 box-border pointer-events-none mo-slide-content overflow-hidden"
+          style={{
+            transform: `scale(${THUMBNAIL_SCALE})`,
+            transformOrigin: "top left",
+            width: THUMBNAIL_WIDTH / THUMBNAIL_SCALE,
+            height: THUMBNAIL_HEIGHT / THUMBNAIL_SCALE,
+          }}
+        >
+          <Slide cellId={cell.id} status={cell.status} output={cell.output} />
+        </div>
+      )}
     </div>
   );
 };
