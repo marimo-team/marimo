@@ -66,7 +66,8 @@ export const Events = {
       e.target instanceof HTMLTextAreaElement ||
       e.target instanceof HTMLSelectElement ||
       (e.target instanceof HTMLElement &&
-        (e.target.isContentEditable ||
+        (e.target.tagName.startsWith("MARIMO") ||
+          e.target.isContentEditable ||
           e.target.tagName === "BUTTON" ||
           e.target.closest("[role='textbox']") !== null ||
           e.target.closest("[contenteditable='true']") !== null ||
