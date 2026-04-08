@@ -390,6 +390,85 @@ def test_copy_file_with_relative_paths(client: TestClient) -> None:
     try_assert_n_times(5, _assert_contents)
 
 
+@with_session(SESSION_ID)
+def test_path_traversal_save_blocked(client: TestClient) -> None:
+    """Save endpoint must not write outside the router's directory."""
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+    directory = str(path.parent)
+    file_router = get_session_manager(client).file_router
+
+    with patch.object(
+        type(file_router),
+        "directory",
+        new_callable=lambda: property(lambda _: directory),
+    ):
+        # Attempt to save outside the directory via path traversal
+        traversal_path = str(path.parent.parent / "escaped.py")
+        response = client.post(
+            "/api/kernel/save",
+            headers=HEADERS,
+            json={
+                "cellIds": ["1"],
+                "codes": ["import marimo as mo"],
+                "names": ["cell"],
+                "configs": [{}],
+                "filename": traversal_path,
+            },
+        )
+        assert response.status_code == 403, response.text
+
+
+@with_session(SESSION_ID)
+def test_path_traversal_rename_blocked(client: TestClient) -> None:
+    """Rename endpoint must not move files outside the router's directory."""
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+    directory = str(path.parent)
+    file_router = get_session_manager(client).file_router
+
+    with patch.object(
+        type(file_router),
+        "directory",
+        new_callable=lambda: property(lambda _: directory),
+    ):
+        traversal_path = str(path.parent.parent / "escaped.py")
+        response = client.post(
+            "/api/kernel/rename",
+            headers=HEADERS,
+            json={"filename": traversal_path},
+        )
+        assert response.status_code == 403, response.text
+
+
+@with_session(SESSION_ID)
+def test_path_traversal_copy_blocked(client: TestClient) -> None:
+    """Copy endpoint must not write outside the router's directory."""
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+    directory = str(path.parent)
+    file_router = get_session_manager(client).file_router
+
+    with patch.object(
+        type(file_router),
+        "directory",
+        new_callable=lambda: property(lambda _: directory),
+    ):
+        traversal_dest = str(path.parent.parent / "escaped.py")
+        response = client.post(
+            "/api/kernel/copy",
+            headers=HEADERS,
+            json={
+                "source": filename,
+                "destination": traversal_dest,
+            },
+        )
+        assert response.status_code == 403, response.text
+
+
 @with_websocket_session(SESSION_ID)
 def test_rename_propagates(
     client: TestClient, websocket: WebSocketTestSession
