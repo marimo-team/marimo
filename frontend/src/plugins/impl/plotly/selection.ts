@@ -141,13 +141,13 @@ export function hasPureLineTrace(
   }
 
   return data.some((trace) => {
-    const traceType = (trace as { type?: unknown }).type;
+    const t = trace as Record<string, unknown>;
     const isScatterLike =
-      traceType === undefined || LINE_CLICK_TRACE_TYPES.has(String(traceType));
+      t.type === undefined || LINE_CLICK_TRACE_TYPES.has(String(t.type));
     if (!isScatterLike) {
       return false;
     }
-    return isPureLineMode((trace as { mode?: unknown }).mode);
+    return isPureLineMode(t.mode);
   });
 }
 
@@ -168,21 +168,19 @@ export function hasAreaTrace(
   }
 
   return data.some((trace) => {
-    const traceType = (trace as { type?: unknown }).type;
+    const t = trace as Record<string, unknown>;
     // Only scatter/scattergl can be area traces.
     if (
-      traceType !== undefined &&
-      !LINE_CLICK_TRACE_TYPES.has(String(traceType))
+      t.type !== undefined &&
+      !LINE_CLICK_TRACE_TYPES.has(String(t.type))
     ) {
       return false;
     }
-    const fill = (trace as { fill?: unknown }).fill;
-    const stackgroup = (trace as { stackgroup?: unknown }).stackgroup;
     // A trace is an area trace when fill is a non-empty string other than
     // "none", OR it belongs to a stackgroup (px.area always sets stackgroup).
     return (
-      (typeof fill === "string" && fill !== "" && fill !== "none") ||
-      stackgroup != null
+      (typeof t.fill === "string" && t.fill !== "" && t.fill !== "none") ||
+      t.stackgroup != null
     );
   });
 }
