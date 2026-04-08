@@ -523,3 +523,7 @@ function resolveDropTarget({
 function asCellId(id: UniqueIdentifier): CellId | null {
   return typeof id === "string" ? (id as CellId) : null;
 }
+
+export const exportedForTesting = {
+  useVisibleCellIds,
+};
