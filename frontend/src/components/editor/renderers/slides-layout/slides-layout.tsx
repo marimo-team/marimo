@@ -65,6 +65,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   }
 
   return (
+    // Use 11/12 to ensure all content fits on the page (no overflow, scrolling required)
     <div className="pr-18 pb-5 flex-1 flex flex-row max-h-11/12 gap-2">
       <SlidesMinimap
         cells={cellsWithOutput}

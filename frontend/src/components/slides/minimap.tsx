@@ -143,20 +143,23 @@ export const SlidesMinimap = ({
   };
 
   const handleDragEnd = (_event: DragEndEvent) => {
-    if (activeId && dropTarget) {
-      const resolvedTarget = resolveDropTarget({
-        cellIds,
-        activeId,
-        target: dropTarget,
-      });
-      if (resolvedTarget) {
-        moveCellToIndex(resolvedTarget);
+    try {
+      if (activeId && dropTarget) {
+        const resolvedTarget = resolveDropTarget({
+          cellIds,
+          activeId,
+          target: dropTarget,
+        });
+        if (resolvedTarget) {
+          moveCellToIndex(resolvedTarget);
+        }
       }
+    } catch (e) {
+      Logger.warn("Drop failed", e);
+    } finally {
+      resetDragState();
     }
-
-    resetDragState();
   };
-
   if (!canReorder) {
     return (
       <SlideThumbnailsContainer ref={containerRef}>
@@ -411,7 +414,10 @@ function resolveDropTarget({
   activeId: CellId;
   target: ProjectedDropTarget;
 }): ResolvedDropTarget | null {
-  if (cellIds.colLength !== 1 || activeId === target.overId) {
+  if (activeId === target.overId) {
+    return null;
+  }
+  if (cellIds.colLength !== 1) {
     Logger.warn("Multi-column mode is not supported");
     return null;
   }
