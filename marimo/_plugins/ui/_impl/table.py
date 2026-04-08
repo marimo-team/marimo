@@ -1360,9 +1360,18 @@ class table(
             row_values = lookup.get(row_str, {})
             row_styles: dict[str, dict[str, Any]] = {}
             for col in columns:
-                row_styles[col] = self._style_cell(
-                    row_str, col, row_values.get(col)
-                )
+                try:
+                    row_styles[col] = self._style_cell(
+                        row_str, col, row_values.get(col)
+                    )
+                except BaseException as e:
+                    LOGGER.warning(
+                        "Failed to compute style for %s:%s: %s",
+                        row_str,
+                        col,
+                        e,
+                    )
+                    row_styles[col] = {}
             result[row_str] = row_styles
         return result
 
