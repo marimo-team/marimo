@@ -215,12 +215,13 @@ export function toDocumentChanges(
       ];
     }
 
-    // dropCellOverCell/dropCellOverColumn → set-config + reorder-cells
+    // dropCellOverCell/dropCellOverColumn/moveCellToIndex → set-config + reorder-cells
     // Drag-and-drop reorders can move cells within or across columns.
     // We emit config changes for cells whose column changed, then
     // the full ordering.
     case "dropCellOverCell":
     case "dropCellOverColumn":
+    case "moveCellToIndex":
       return columnChanges(prevState, newState);
 
     // updateCellCode → set-code
