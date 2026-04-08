@@ -139,7 +139,6 @@ describe("shouldHandleClickSelection", () => {
     });
 
     expect(shouldHandleClickSelection([waterfallPoint])).toBe(true);
-
   });
 
   it("rejects non-line scatter marker clicks", () => {
@@ -277,7 +276,7 @@ describe("extractPoints", () => {
         curveNumber: 0,
         pointNumber: 1,
       },
-
+    ]);
   });
 
   it("returns x/y/pointIndex for waterfall clicks", () => {
@@ -291,10 +290,6 @@ describe("extractPoints", () => {
 
     expect(extractPoints([point])).toEqual([
       { x: "Revenue", y: 400, pointIndex: 1, curveNumber: 0 },
-
-    ]);
-  });
-
     ]);
   });
 });
