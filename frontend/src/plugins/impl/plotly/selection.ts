@@ -259,8 +259,8 @@ export function shouldHandleClickSelection(
       type === "box" ||
       type === "heatmap" ||
       type === "histogram" ||
-      type === "waterfall" ||
       type === "violin" ||
+      type === "waterfall" ||
       isLinePoint(point)
     );
   });

@@ -205,8 +205,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function supports scatter plots, scattergl plots, line charts, area
-    charts, bar charts, box plots, violin plots, histograms, waterfall charts,
-    treemap charts, sunburst charts, and heatmaps.
+    charts, bar charts, box plots, violin plots, strip charts, histograms,
+    waterfall charts, treemap charts, sunburst charts, and heatmaps.
 
     Examples:
         ```python
@@ -332,7 +332,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                     "violin",
                     "heatmap",
                     "bar",
+                    "box",
                     "histogram",
+                    "violin",
                     "waterfall",
                 ):
                     continue
@@ -503,28 +505,6 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 self._figure, self._selection_data
             )
 
-        has_box = any(
-            getattr(trace, "type", None) == "box"
-            for trace in self._figure.data
-        )
-
-        # For box plots: expand pointNumbers from click events into individual
-        # data points, and extract underlying points from range selections.
-        if has_box:
-            _append_box_points_to_selection(self._figure, self._selection_data)
-
-        has_violin = any(
-            getattr(trace, "type", None) == "violin"
-            for trace in self._figure.data
-        )
-
-        # For violin plots: expand pointNumbers from click events into individual
-        # data points, and extract underlying points from range selections.
-        if has_violin:
-            _append_violin_points_to_selection(
-                self._figure, self._selection_data
-            )
-
         # For line/scatter charts, extract points from box/lasso selections.
         # Plotly may not send point data for pure line charts, so we extract manually.
         if has_scatter and (value.get("range") or value.get("lasso")):
@@ -541,6 +521,28 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # This enables row-level reactive workflows from histogram selections.
         if has_histogram:
             _append_histogram_points_to_selection(
+                self._figure, self._selection_data
+            )
+
+        has_box = any(
+            getattr(trace, "type", None) == "box"
+            for trace in self._figure.data
+        )
+
+        # For box plots (including strip charts which use go.Box traces),
+        # expand click pointNumbers and range selections into individual sample rows.
+        if has_box:
+            _append_box_points_to_selection(self._figure, self._selection_data)
+
+        has_violin = any(
+            getattr(trace, "type", None) == "violin"
+            for trace in self._figure.data
+        )
+
+        # For violin plots, expand click pointNumbers and range selections
+        # into individual sample rows.
+        if has_violin:
+            _append_violin_points_to_selection(
                 self._figure, self._selection_data
             )
 
@@ -3141,6 +3143,507 @@ def _build_waterfall_point(
         m = None
     if m is not None:
         point["measure"] = str(m)
+
+    name = getattr(trace, "name", None)
+    if name:
+        point["name"] = name
+
+    for field in ("customdata", "text", "hovertext"):
+        val = _get_indexed_value(getattr(trace, field, None), point_idx)
+        if val is not None:
+            point[field] = val
+
+    return point
+
+
+def _append_box_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Expand box plot selections into individual underlying data points.
+
+    Handles three cases:
+    - Range/lasso with individual points already sent by Plotly (``boxpoints``
+      enabled): Plotly already delivered the right individual data points via
+      the ``onSelected`` event; pass them through unchanged.
+    - Range/lasso without individual points (``boxpoints`` disabled): extract
+      all underlying sample rows whose category position overlaps the selection
+      range from the figure data.
+    - Click events (no range/lasso): the frontend sends ``pointNumbers`` for
+      the clicked box/whisker element; expand these into one dict per sample
+      row so Python callers get row-level data.
+
+    This also handles strip charts (``px.strip()``) which are rendered as
+    ``go.Box`` traces with ``boxpoints="all"`` and transparent fills.
+    """
+    all_points = cast(list[dict[str, Any]], selection_data.get("points", []))
+    all_indices = cast(list[Any], selection_data.get("indices", []))
+
+    box_curve_numbers = {
+        trace_idx
+        for trace_idx, trace in enumerate(figure.data)
+        if getattr(trace, "type", None) == "box"
+    }
+    if not box_curve_numbers:
+        return
+
+    range_value = selection_data.get("range")
+    lasso_value = selection_data.get("lasso")
+
+    # --- Range/lasso selection path (onSelected event) ---
+    if isinstance(range_value, dict) or isinstance(lasso_value, dict):
+        # Partition existing points by whether they come from a box trace.
+        existing_box = [
+            p
+            for p in all_points
+            if p and p.get("curveNumber") in box_curve_numbers
+        ]
+        existing_non_box = [
+            p
+            for p in all_points
+            if p and p.get("curveNumber") not in box_curve_numbers
+        ]
+        existing_non_box_indices = [
+            idx
+            for idx, p in zip(all_indices, all_points)
+            if p and p.get("curveNumber") not in box_curve_numbers
+        ]
+
+        if existing_box:
+            # Plotly already sent the individual selected data points because
+            # boxpoints is enabled.  Use them as-is; do NOT re-extract from
+            # the range (which can fail on categorical axes and would discard
+            # richer hovertemplate fields like sample_id).
+            clean_points = existing_box + existing_non_box
+            # Preserve incoming indices from the frontend payload rather than
+            # recomputing from pointIndex only — Plotly may send pointNumber
+            # instead. Map each point object to its original index by identity.
+            incoming_index_map = {
+                id(p): idx for idx, p in zip(all_indices, all_points) if p
+            }
+            clean_indices: list[int] = []
+            for p in clean_points:
+                idx = incoming_index_map.get(id(p))
+                if isinstance(idx, int):
+                    clean_indices.append(idx)
+                else:
+                    pid = _get_selection_point_id(p)
+                    if pid is not None:
+                        clean_indices.append(pid[1])
+            selection_data["points"] = clean_points
+            selection_data["indices"] = clean_indices
+            return
+
+        # No individual points from Plotly → boxpoints is disabled.
+        # Only extract from a range selection; lasso events without a range
+        # dict would pass an empty range_dict and incorrectly select all rows.
+        if not isinstance(range_value, dict):
+            return
+        box_points = _extract_box_points_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+
+        if box_points or existing_non_box:
+            seen: set[tuple[int, int]] = set()
+            merged_points: list[dict[str, Any]] = []
+            merged_indices: list[int] = []
+
+            for idx, point in zip(existing_non_box_indices, existing_non_box):
+                point_id = _get_selection_point_id(point)
+                if point_id is not None:
+                    if point_id in seen:
+                        continue
+                    seen.add(point_id)
+                merged_points.append(point)
+                if isinstance(idx, int):
+                    merged_indices.append(idx)
+
+            for point in box_points:
+                point_id = _get_selection_point_id(point)
+                if point_id is not None:
+                    if point_id in seen:
+                        continue
+                    seen.add(point_id)
+                    merged_indices.append(point_id[1])
+                merged_points.append(point)
+
+            selection_data["points"] = merged_points
+            selection_data["indices"] = merged_indices
+        else:
+            # No box points and no non-box points in range: clear any frontend
+            # placeholder dicts that may have leaked into points/indices.
+            selection_data["points"] = []
+            selection_data["indices"] = []
+        return
+
+    # --- Click event path ---
+    # Box/whisker clicks include pointNumbers (all raw-data indices in the group).
+    # Expand each such click-point into individual sample rows.
+    has_box_click_with_numbers = any(
+        p.get("curveNumber") in box_curve_numbers and "pointNumbers" in p
+        for p in all_points
+        if p
+    )
+    if not has_box_click_with_numbers:
+        return
+
+    expanded_points: list[dict[str, Any]] = []
+    expanded_indices: list[int] = []
+    seen_ids: set[tuple[int, int]] = set()
+
+    for point in all_points:
+        if not point:
+            continue
+
+        curve_number = point.get("curveNumber")
+
+        # Passthrough non-box points unchanged
+        if curve_number not in box_curve_numbers:
+            point_id = _get_selection_point_id(point)
+            if point_id is not None and point_id in seen_ids:
+                continue
+            if point_id is not None:
+                seen_ids.add(point_id)
+                expanded_indices.append(point_id[1])
+            expanded_points.append(point)
+            continue
+
+        point_numbers = point.get("pointNumbers")
+        if not isinstance(point_numbers, list) or not (
+            0 <= cast(int, curve_number) < len(figure.data)
+        ):
+            # No pointNumbers – pass through as-is
+            point_id = _get_selection_point_id(point)
+            if point_id is not None:
+                expanded_indices.append(point_id[1])
+            expanded_points.append(point)
+            continue
+
+        trace = figure.data[cast(int, curve_number)]
+        for raw_idx in point_numbers:
+            if not isinstance(raw_idx, int):
+                continue
+            sample = _build_box_sample_point(
+                trace, cast(int, curve_number), raw_idx
+            )
+            if sample is None:
+                continue
+            point_id = _get_selection_point_id(sample)
+            if point_id is not None and point_id in seen_ids:
+                continue
+            if point_id is not None:
+                seen_ids.add(point_id)
+            expanded_points.append(sample)
+            expanded_indices.append(raw_idx)
+
+    selection_data["points"] = expanded_points
+    selection_data["indices"] = expanded_indices
+
+
+def _build_global_category_order(
+    figure: go.Figure, trace_type: str
+) -> dict[Any, float]:
+    """Build a category-to-float-position mapping across all traces of the given type.
+
+    Using per-trace first-seen order causes the same category to get different
+    numeric positions in different traces (common with Plotly Express faceting/
+    coloring).  A single pre-built order from all traces ensures the positions
+    are consistent with the axis-global ordering Plotly uses for range values.
+    """
+    order: dict[Any, float] = {}
+    for trace in figure.data:
+        if getattr(trace, "type", None) != trace_type:
+            continue
+        orientation = getattr(trace, "orientation", "v") or "v"
+        cat_data = getattr(trace, "y" if orientation == "h" else "x", None)
+        val_data = getattr(trace, "x" if orientation == "h" else "y", None)
+        if val_data is None:
+            continue
+        n = len(val_data) if hasattr(val_data, "__len__") else 0
+        if n == 0:
+            continue
+        if cat_data is None:
+            cats: list[Any] = [getattr(trace, "name", None)]
+        elif isinstance(cat_data, (str, bytes)):
+            cats = [cat_data]
+        elif hasattr(cat_data, "__len__") and len(cat_data) == n:
+            cats = list(cat_data)
+        else:
+            try:
+                cats = [cat_data[0]]
+            except (TypeError, IndexError, KeyError):
+                cats = [cat_data]
+        for v in cats:
+            try:
+                if v not in order:
+                    order[v] = float(len(order))
+            except TypeError:
+                pass
+    return order
+
+
+def _extract_box_points_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract box plot underlying data points that fall within a selection range.
+
+    For each box trace the category position (x for vertical, y for horizontal)
+    is compared against the selection range.  Only samples whose value coordinate
+    also falls within the selection rectangle are returned.
+    """
+    if DependencyManager.numpy.has():
+        return _extract_box_points_numpy(figure, range_data)
+    return _extract_box_points_fallback(figure, range_data)
+
+
+def _extract_box_points_numpy(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract box plot data points from a selection range using numpy."""
+    import numpy as np
+
+    x_range = range_data.get("x")
+    y_range = range_data.get("y")
+
+    selected: list[dict[str, Any]] = []
+
+    # Build global category order once so that the same category gets the same
+    # numeric position across all traces (px faceting can produce traces with
+    # different/missing categories, making per-trace first-seen order wrong).
+    global_cat_order = _build_global_category_order(figure, "box")
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "box":
+            continue
+
+        orientation = getattr(trace, "orientation", "v") or "v"
+        # For vertical boxes: x is the category axis, y holds data values.
+        # For horizontal boxes: y is the category axis, x holds data values.
+        if orientation == "h":
+            cat_range = y_range
+            val_range = x_range
+            cat_data = getattr(trace, "y", None)
+            val_data = getattr(trace, "x", None)
+        else:
+            cat_range = x_range
+            val_range = y_range
+            cat_data = getattr(trace, "x", None)
+            val_data = getattr(trace, "y", None)
+
+        if val_data is None:
+            continue
+
+        val_arr = np.asarray(val_data)
+        n = len(val_arr)
+        if n == 0:
+            continue
+
+        # Build per-sample category array.  A box trace can have:
+        #   - cat_data as an array (one category per sample, same length as val)
+        #   - cat_data as a scalar / None (all samples share one category)
+        if cat_data is None:
+            # No explicit category; Plotly uses the trace name / index.
+            cat_arr: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        else:
+            cat_arr_raw = np.asarray(cat_data)
+            if cat_arr_raw.ndim == 0 or len(cat_arr_raw) != n:
+                # Scalar category
+                cat_val = (
+                    cat_arr_raw.item()
+                    if hasattr(cat_arr_raw, "item") and cat_arr_raw.ndim == 0
+                    else (cat_arr_raw[0] if len(cat_arr_raw) > 0 else None)
+                )
+                cat_arr = [cat_val] * n
+            else:
+                cat_arr = cat_arr_raw.tolist()
+
+        # --- Category filter ---
+        if cat_range:
+            cat_min, cat_max = min(cat_range), max(cat_range)
+            cat_np = np.asarray(cat_arr)
+            cat_is_orderable = _is_orderable_axis(cat_np, cat_min)
+
+            if cat_is_orderable:
+                cat_min_p = _parse_datetime_bound(cat_min)
+                cat_max_p = _parse_datetime_bound(cat_max)
+                cat_mask = np.array(
+                    [
+                        cat_min_p <= _parse_datetime_bound(v) <= cat_max_p
+                        if _is_orderable_value(v)
+                        else False
+                        for v in cat_arr
+                    ]
+                )
+            else:
+                # Use the global order so positions are consistent across traces
+                positions = np.array(
+                    [
+                        _safe_category_get(global_cat_order, v, -1)
+                        for v in cat_arr
+                    ],
+                    dtype=np.float64,
+                )
+                cat_mask = (cat_max > positions - 0.5) & (
+                    cat_min < positions + 0.5
+                )
+        else:
+            cat_mask = np.ones(n, dtype=bool)
+
+        # --- Value filter ---
+        # Exclude samples whose value coordinate falls outside the selection
+        # rectangle (category match alone is insufficient).
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
+            val_mask = np.array(
+                [
+                    val_min_p <= v <= val_max_p
+                    if _is_orderable_value(v)
+                    else False
+                    for v in val_arr.tolist()
+                ]
+            )
+            cat_mask = cat_mask & val_mask
+
+        selected_indices = np.where(cat_mask)[0]
+        for i in selected_indices:
+            sample = _build_box_sample_point(trace, trace_idx, int(i))
+            if sample is not None:
+                selected.append(sample)
+
+    return selected
+
+
+def _extract_box_points_fallback(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract box plot data points from a selection range (pure Python)."""
+    x_range = range_data.get("x")
+    y_range = range_data.get("y")
+
+    selected: list[dict[str, Any]] = []
+
+    # Global category order for consistent positions across all box traces
+    global_cat_order = _build_global_category_order(figure, "box")
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "box":
+            continue
+
+        orientation = getattr(trace, "orientation", "v") or "v"
+        if orientation == "h":
+            cat_range = y_range
+            val_range = x_range
+            cat_data = getattr(trace, "y", None)
+            val_data = getattr(trace, "x", None)
+        else:
+            cat_range = x_range
+            val_range = y_range
+            cat_data = getattr(trace, "x", None)
+            val_data = getattr(trace, "y", None)
+
+        if val_data is None:
+            continue
+
+        n = len(val_data)
+        if n == 0:
+            continue
+
+        # Build per-sample category list
+        if cat_data is None:
+            cat_list: list[Any] = [getattr(trace, "name", trace_idx)] * n
+        elif isinstance(cat_data, (str, bytes)):
+            cat_list = [cat_data] * n
+        elif hasattr(cat_data, "__len__") and len(cat_data) == n:
+            cat_list = list(cat_data)
+        else:
+            try:
+                scalar: Any = cat_data[0]
+            except (TypeError, IndexError, KeyError):
+                scalar = cat_data
+            cat_list = [scalar] * n
+
+        if cat_range:
+            cat_min, cat_max = min(cat_range), max(cat_range)
+
+        if val_range:
+            val_min_p = _parse_datetime_bound(min(val_range))
+            val_max_p = _parse_datetime_bound(max(val_range))
+
+        for i, cat_val in enumerate(cat_list):
+            # --- Category filter ---
+            if cat_range:
+                if _is_orderable_value(cat_val) and _is_orderable_value(
+                    cat_min
+                ):
+                    cat_min_p = _parse_datetime_bound(cat_min)
+                    cat_max_p = _parse_datetime_bound(cat_max)
+                    cat_val_p = _parse_datetime_bound(cat_val)
+                    if not (cat_min_p <= cat_val_p <= cat_max_p):
+                        continue
+                else:
+                    pos = _safe_category_get(global_cat_order, cat_val, -1)
+                    if pos < 0:
+                        continue
+                    if not (cat_max > pos - 0.5 and cat_min < pos + 0.5):
+                        continue
+
+            # --- Value filter ---
+            if val_range:
+                val_v = (
+                    val_data[i] if hasattr(val_data, "__getitem__") else None
+                )
+                if val_v is None or not (
+                    _is_orderable_value(val_v)
+                    and val_min_p <= val_v <= val_max_p
+                ):
+                    continue
+
+            sample = _build_box_sample_point(trace, trace_idx, i)
+            if sample is not None:
+                selected.append(sample)
+
+    return selected
+
+
+def _build_box_sample_point(
+    trace: Any, trace_idx: int, point_idx: int
+) -> Optional[dict[str, Any]]:
+    """Build a row-level selection payload for a single box plot data point."""
+    orientation = getattr(trace, "orientation", "v") or "v"
+    if orientation == "h":
+        val_key, cat_key = "x", "y"
+    else:
+        val_key, cat_key = "y", "x"
+
+    val_value = _get_indexed_value(getattr(trace, val_key, None), point_idx)
+    if val_value is None:
+        return None
+
+    cat_source = getattr(trace, cat_key, None)
+    if cat_source is None:
+        cat_value: Any = getattr(trace, "name", None) or trace_idx
+    elif isinstance(cat_source, (str, bytes)):
+        cat_value = cat_source
+    else:
+        try:
+            cat_len = (
+                len(cat_source) if hasattr(cat_source, "__len__") else None
+            )
+        except TypeError:
+            cat_len = None
+        if cat_len == len(getattr(trace, val_key, [])):
+            cat_value = _get_indexed_value(cat_source, point_idx)
+        else:
+            indexed = _get_indexed_value(cat_source, 0)
+            cat_value = indexed if indexed is not None else cat_source
+
+    point: dict[str, Any] = {
+        val_key: val_value,
+        "pointIndex": point_idx,
+        "curveNumber": trace_idx,
+    }
+    if cat_value is not None:
+        point[cat_key] = cat_value
 
     name = getattr(trace, "name", None)
     if name:

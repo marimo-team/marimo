@@ -134,6 +134,22 @@ describe("shouldHandleClickSelection", () => {
     expect(shouldHandleClickSelection([linePoint])).toBe(true);
   });
 
+  it("accepts box plot clicks", () => {
+    const boxPoint = createPlotDatum({
+      data: { type: "box" },
+    });
+
+    expect(shouldHandleClickSelection([boxPoint])).toBe(true);
+  });
+
+  it("accepts violin plot clicks", () => {
+    const violinPoint = createPlotDatum({
+      data: { type: "violin" },
+    });
+
+    expect(shouldHandleClickSelection([violinPoint])).toBe(true);
+  });
+
   it("accepts waterfall clicks", () => {
     const waterfallPoint = createPlotDatum({
       data: { type: "waterfall" },
