@@ -1434,6 +1434,50 @@ def test_sort_values_with_nulls(df: Any) -> None:
     assert last is None or isnan(last)
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_sort_values_with_mixed_types() -> None:
+    """Sorting a column with mixed types (int, str, float, bool, None)
+    should not raise, falling back to string comparison."""
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "mixed": [42, "hello", 3.14, True, None, "world", 7],
+            "normal": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
+        }
+    )
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # descending
+    sorted_manager = manager.sort_values(
+        [SortArgs(by="mixed", descending=True)]
+    )
+    assert sorted_manager.get_num_rows() == 7
+    values = sorted_manager.as_frame()["mixed"].to_list()
+    # None/NaN should be last
+    assert values[-1] is None or (
+        isinstance(values[-1], float) and isnan(values[-1])
+    )
+
+    # ascending
+    sorted_manager = manager.sort_values(
+        [SortArgs(by="mixed", descending=False)]
+    )
+    assert sorted_manager.get_num_rows() == 7
+    values = sorted_manager.as_frame()["mixed"].to_list()
+    assert values[-1] is None or (
+        isinstance(values[-1], float) and isnan(values[-1])
+    )
+
+    # multi-column sort with one mixed column
+    sorted_manager = manager.sort_values(
+        [SortArgs(by="mixed", descending=False), SortArgs(by="normal", descending=False)]
+    )
+    assert sorted_manager.get_num_rows() == 7
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",

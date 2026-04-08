@@ -746,13 +746,39 @@ class NarwhalsTableManager(
         if not by:
             return self
 
-        # Extract columns and descending flags for Narwhals/Polars
+        # Narwhals supports sorting by multiple columns
+        # and specifying ascending/descending order for each column
         columns = [sort_arg.by for sort_arg in by]
         descending = [sort_arg.descending for sort_arg in by]
 
-        return self.with_new_data(
-            self.data.sort(columns, descending=descending, nulls_last=True)
+        # Object-dtype columns have mixed types that can't be compared
+        # directly. Sort those by string representation via temp columns.
+        # if no object-dtype columns are being sorted, sort directly.
+        # Note: this is only for pandas and other backends which supports object dtype
+        df = self.data
+        schema = df.collect_schema()
+        has_mixed = any(schema[col] == nw.Object for col in columns)
+
+        if not has_mixed:
+            return self.with_new_data(
+                df.sort(columns, descending=descending, nulls_last=True)
+            )
+
+        temp_cols: list[str] = []
+        sort_cols: list[str] = []
+        for col in columns:
+            if schema[col] == nw.Object:
+                temp = f"__sort_{col}"
+                df = df.with_columns(nw.col(col).cast(nw.String).alias(temp))
+                temp_cols.append(temp)
+                sort_cols.append(temp)
+            else:
+                sort_cols.append(col)
+
+        df = df.sort(sort_cols, descending=descending, nulls_last=True).drop(
+            temp_cols
         )
+        return self.with_new_data(df)
 
     def __repr__(self) -> str:
         rows = self.get_num_rows(force=False)
