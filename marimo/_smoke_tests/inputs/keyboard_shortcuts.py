@@ -4,7 +4,6 @@
 # ///
 #
 # Smoke test for keyboard_shortcut on ui.button (#4230).
-# Run with: marimo edit frontend/e2e-tests/py/keyboard_shortcuts.py
 #
 # Manual test plan:
 #   1. Click into each input/textarea/editor below and press "K".
@@ -151,8 +150,8 @@ def _(key, mo, mod_button, mod_count):
             mo.md(f"**{key} button fired: {mc} time(s)**"),
             mod_button,
             mo.md(
-                "Pressing plain **K** in the text input below should type 'k'. "
-                "Only **Ctrl-K** should trigger this button."
+                f"Pressing plain **K** in the text input below should type 'k'. "
+                f"Only **{key}** should trigger this button."
             ),
         ]
     )
