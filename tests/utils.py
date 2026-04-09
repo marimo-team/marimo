@@ -11,7 +11,7 @@ from marimo._messaging.msgspec_encoder import (
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
     import msgspec
 

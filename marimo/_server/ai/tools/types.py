@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import Any, Literal, Optional, TypeVar
 
 from marimo._config.config import CopilotMode
 

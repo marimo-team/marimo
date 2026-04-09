@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Callable, Optional, TypedDict
+from typing import TYPE_CHECKING, Optional, TypedDict
 
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
     import ast
+    from collections.abc import Callable
 
     from marimo._messaging.errors import MarimoSQLError
 

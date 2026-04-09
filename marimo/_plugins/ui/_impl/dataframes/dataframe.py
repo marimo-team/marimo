@@ -4,8 +4,8 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
     Optional,
@@ -55,6 +55,9 @@ from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
 from marimo._utils.variable_name import infer_variable_name
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 TOO_MANY_ROWS = 100_000
 

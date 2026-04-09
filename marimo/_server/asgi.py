@@ -4,12 +4,11 @@ from __future__ import annotations
 import abc
 import logging
 from asyncio import iscoroutine
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
-    Callable,
     Optional,
     Protocol,
     Union,

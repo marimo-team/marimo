@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
@@ -16,6 +16,8 @@ from marimo._messaging.types import KernelMessage
 from marimo._server.api.endpoints.ws.ws_formatter import format_wire_message
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from starlette.websockets import WebSocket
 
 LOGGER = _loggers.marimo_logger()

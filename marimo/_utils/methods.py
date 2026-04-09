@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import inspect
 import types
-from typing import Any, Callable, cast
+from collections.abc import Callable
+from typing import Any, cast
 
 
 def is_callable_method(obj: Any, attr: str) -> bool:

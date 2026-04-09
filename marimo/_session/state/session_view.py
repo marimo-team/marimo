@@ -73,7 +73,10 @@ class ModelReplayState:
 
     @staticmethod
     def from_open(model_id: WidgetModelId, msg: ModelOpen) -> ModelReplayState:
-        buffers = {tuple(p): b for p, b in zip(msg.buffer_paths, msg.buffers)}
+        buffers = {
+            tuple(p): b
+            for p, b in zip(msg.buffer_paths, msg.buffers, strict=False)
+        }
         return ModelReplayState(
             model_id=model_id,
             state=dict(msg.state),
@@ -91,7 +94,7 @@ class ModelReplayState:
         }
         # Merge new state and buffers
         self.state.update(msg.state)
-        for path, buf in zip(msg.buffer_paths, msg.buffers):
+        for path, buf in zip(msg.buffer_paths, msg.buffers, strict=False):
             self.buffers[tuple(path)] = buf
 
     def to_notification(self) -> ModelLifecycleNotification:

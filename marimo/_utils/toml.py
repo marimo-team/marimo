@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import sys
-from typing import IO, TYPE_CHECKING, Any, Callable, Union
+from typing import IO, TYPE_CHECKING, Any, Union
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 # tomllib is available in python 3.11+ and is much faster than tomlkit

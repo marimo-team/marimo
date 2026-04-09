@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from starlette.websockets import WebSocket, WebSocketState
 
@@ -54,6 +54,9 @@ from marimo._session.model import (
     SessionMode,
 )
 from marimo._types.ids import CellId_t, ConsumerId
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

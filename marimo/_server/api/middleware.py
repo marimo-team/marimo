@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Optional,
     Union,

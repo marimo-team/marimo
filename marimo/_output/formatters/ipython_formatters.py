@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class IPythonFormatter(FormatterFactory):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -15,6 +16,9 @@ from marimo._ast.toplevel import (
 )
 from marimo._ast.variables import BUILTINS
 from marimo._dependencies.dependencies import DependencyManager
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
@@ -149,7 +153,7 @@ class TestTopLevelExtraction:
     @staticmethod
     def test_decorator_reversed(app) -> None:
         with app.setup:
-            from typing import Callable
+            pass
 
         @app.cell
         def second(wrap):
@@ -170,7 +174,7 @@ class TestTopLevelExtraction:
     @staticmethod
     def test_decorator(app) -> None:
         with app.setup:
-            from typing import Callable
+            pass
 
         @app.cell
         def first():

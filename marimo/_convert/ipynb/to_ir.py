@@ -7,8 +7,9 @@ import logging
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Union
+from typing import Any, Union
 
 from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 
@@ -1274,7 +1275,9 @@ def bind_cell_metadata(
     - If marimo-specific metadata is present, it is used to restore cell config.
     """
     cells: list[CodeCell] = []
-    for source, meta, hide_code in zip(sources, metadata, hide_flags):
+    for source, meta, hide_code in zip(
+        sources, metadata, hide_flags, strict=False
+    ):
         tags: set[str] = set(meta.get("tags", []))
 
         # Extract marimo-specific cell config if present

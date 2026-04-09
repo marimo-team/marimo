@@ -261,7 +261,7 @@ class TopLevelExtraction:
         # Run through and get defs + refs, and a naive attempt at resolving cell
         # status.
         for idx, (code, name, config) in enumerate(
-            zip(codes, names, cell_configs)
+            zip(codes, names, cell_configs, strict=False)
         ):
             status = TopLevelStatus(
                 CellId_t(str(idx)), code, name, config, self.allowed_refs

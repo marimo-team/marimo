@@ -13,7 +13,6 @@ from html import escape
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Optional,
     TypeVar,
@@ -34,7 +33,7 @@ from marimo._runtime.functions import Function
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from marimo._plugins.ui._impl.input import form as form_plugin
 

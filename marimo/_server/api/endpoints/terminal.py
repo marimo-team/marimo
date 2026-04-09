@@ -9,7 +9,7 @@ import signal
 import struct
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -22,7 +22,7 @@ from marimo._session.model import SessionMode
 from marimo._utils.platform import is_pyodide, is_windows
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 LOGGER = _loggers.marimo_logger()
 

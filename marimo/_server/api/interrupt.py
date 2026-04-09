@@ -5,13 +5,16 @@ import asyncio
 import signal
 import sys
 import time
-from typing import Callable
+from typing import TYPE_CHECKING
 
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._utils.print import (
     TAB,
     print_,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class InterruptHandler:

@@ -12,6 +12,7 @@ import time
 import traceback
 import weakref
 from collections import abc
+from collections.abc import Callable
 
 # NB: maxsize follows functools.cache, but renamed max_size outside of drop-in
 # api.
@@ -19,7 +20,6 @@ from sys import maxsize as MAXINT
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Concatenate,
     Generic,
     Optional,
@@ -291,7 +291,10 @@ class _cache_call(CacheContext, Generic[P, R]):
             )
 
         # Rewrite scoped args to prevent shadowed variables
-        arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
+        arg_dict = {
+            f"{ARG_PREFIX}{k}": v
+            for (k, v) in zip(self._args, args, strict=False)
+        }
         kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Fill in default values for arguments not explicitly provided
         # This ensures cache hashes are based on resolved argument values

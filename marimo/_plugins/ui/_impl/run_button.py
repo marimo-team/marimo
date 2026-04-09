@@ -1,12 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Final, Literal, Optional
+from typing import TYPE_CHECKING, Any, Final, Literal, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.input import button
 from marimo._runtime.context.types import ContextNotInitializedError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc

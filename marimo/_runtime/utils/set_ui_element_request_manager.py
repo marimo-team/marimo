@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 from marimo._runtime.commands import (
     BatchableCommand,
@@ -15,6 +15,7 @@ from marimo._types.ids import UIElementId, WidgetModelId
 
 if TYPE_CHECKING:
     import asyncio
+    from collections.abc import Callable
 
 A = TypeVar("A")
 B = TypeVar("B")
@@ -130,7 +131,9 @@ def _merge_model_commands(
             }
             # Merge state and buffers
             model_state[mid].update(cmd.message.state)
-            for path, buf in zip(cmd.message.buffer_paths, cmd.buffers):
+            for path, buf in zip(
+                cmd.message.buffer_paths, cmd.buffers, strict=False
+            ):
                 model_buffers[mid][tuple(path)] = buf
 
     for mid in model_state:

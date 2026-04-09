@@ -33,8 +33,7 @@ from marimo._schemas.serialization import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
 
 FnNode: TypeAlias = Union[ast.FunctionDef, ast.AsyncFunctionDef]
@@ -898,7 +897,9 @@ def is_equal_ast(
         assert isinstance(other, list)
         if len(basis) != len(other):
             return False
-        return all(is_equal_ast(a, b) for a, b in zip(basis, other))
+        return all(
+            is_equal_ast(a, b) for a, b in zip(basis, other, strict=False)
+        )
 
     for key, value in vars(basis).items():
         # Scrub positional data not relevant for comparison.

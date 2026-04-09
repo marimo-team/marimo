@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import textwrap
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from unittest.mock import patch
 
 import pytest

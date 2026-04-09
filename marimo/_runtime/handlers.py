@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._messaging.notification import InterruptedNotification
@@ -15,6 +15,8 @@ from marimo._runtime.control_flow import MarimoInterrupt
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._runtime.runtime import Kernel
 
 

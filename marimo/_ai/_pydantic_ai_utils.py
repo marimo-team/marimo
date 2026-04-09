@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._messaging.msgspec_encoder import asdict
@@ -12,6 +12,8 @@ from marimo._server.models.completion import UIMessage as ServerUIMessage
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pydantic_ai import FunctionToolset
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
 

@@ -9,11 +9,12 @@ import queue
 import sys
 import threading
 import time
+from collections.abc import Callable
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest

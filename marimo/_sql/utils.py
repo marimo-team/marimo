@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import SqlOutputType
@@ -14,6 +14,8 @@ from marimo._runtime.context.types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import duckdb
     import pandas as pd
     import polars as pl
