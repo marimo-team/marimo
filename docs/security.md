@@ -64,8 +64,6 @@ See the [Authentication guide](guides/deploying/authentication.md) for more deta
 
 These restrictions prevent code execution without explicit user consent.
 
-## Supported Versions
-
 ## Security Advisories
 
 marimo publishes security advisories for vulnerabilities that affect production deployments, particularly long-running applications.

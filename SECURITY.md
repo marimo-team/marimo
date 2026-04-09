@@ -9,7 +9,7 @@ We provide security patches for the latest stable release only. We encourage all
 ## Reporting a Vulnerability
 
 To report a security vulnerability, [please draft an advisory through
-Github](https://github.com/marimo-team/marimo/security/advisories/new), or
+GitHub](https://github.com/marimo-team/marimo/security/advisories/new), or
 email the marimo team; security [at] marimo [dot] io.
 
 Please include:
