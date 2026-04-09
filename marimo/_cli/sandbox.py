@@ -216,11 +216,20 @@ def _uv_export_script_requirements_txt(
         rest = line[3:].strip() if editable else line.strip()
         # Split off any environment markers ("; ...") or inline comments ("# ...")
         # so we only resolve the path token itself.
-        for sep in (" ;", " #"):
-            if sep in rest:
-                path_token, remainder = rest.split(sep, 1)
-                remainder = sep.lstrip() + remainder
+        # Preserve the original separator exactly. Environment markers
+        # may appear without a leading space (e.g. ;python_version<"3.12").
+        # Inline comments must be preceded by whitespace to be valid.
+        marker_idx = rest.find(";")
+        comment_idx = -1
+        for i, char in enumerate(rest):
+            if char == "#" and i > 0 and rest[i - 1].isspace():
+                comment_idx = i
                 break
+        split_points = [idx for idx in (marker_idx, comment_idx) if idx != -1]
+        if split_points:
+            split_idx = min(split_points)
+            path_token = rest[:split_idx]
+            remainder = rest[split_idx:]
         else:
             path_token, remainder = rest, ""
         if path_token.startswith("."):
