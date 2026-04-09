@@ -183,7 +183,7 @@ def prompt(
         f"Use `execute-code.sh --url {url}` from the marimo-pair "
         "skill to execute code in the notebook."
         f"{token_hint}\n\n"
-        "Once you are connected, send a fun toast to the user inside marimo letting them know you're ready to pair."
+        "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
     )
 
 
