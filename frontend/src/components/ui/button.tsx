@@ -114,11 +114,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const handleKeyPress = React.useCallback(
       (e: KeyboardEvent) => {
-        if (!keyboardShortcut) {
+        if (!keyboardShortcut || e.defaultPrevented) {
           return;
         }
 
-        // Ignore keyboard events from input elements
         if (Events.shouldIgnoreKeyboardEvent(e)) {
           return;
         }
