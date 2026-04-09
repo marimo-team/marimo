@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useId } from "react";
+import { type JSX, useCallback, useId } from "react";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
@@ -69,6 +69,27 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
     onChange(withoutNaN(newValue));
   };
 
+  const step = props.step ?? 1;
+  const precision = countDecimals(step);
+
+  const handleIncrement = useCallback(() => {
+    const current = toFinite(value, props.start ?? 0);
+    let next = roundToPrecision(current + step, precision);
+    if (props.stop != null && next > props.stop) {
+      next = props.stop;
+    }
+    handleChange(next);
+  }, [value, step, precision, props.start, props.stop]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDecrement = useCallback(() => {
+    const current = toFinite(value, props.start ?? 0);
+    let next = roundToPrecision(current - step, precision);
+    if (props.start != null && next < props.start) {
+      next = props.start;
+    }
+    handleChange(next);
+  }, [value, step, precision, props.start, props.stop]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <NumberField
@@ -80,8 +101,11 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         // and can lead to leaving the old value in forms (https://github.com/marimo-team/marimo/issues/7352)
         // We out NaNs later
         value={value ?? Number.NaN}
-        step={props.step}
+        // step is NOT passed to AriaNumberField to avoid React Aria's
+        // step-snapping behavior (minValue + n*step) — see #9106
         onChange={handleChange}
+        onIncrement={handleIncrement}
+        onDecrement={handleDecrement}
         id={id}
         aria-label={props.label || "Number input"}
         isDisabled={props.disabled}
@@ -95,4 +119,25 @@ function withoutNaN(value: number | null | undefined): number | null {
     return null;
   }
   return value;
+}
+
+/** Return value if it's a finite number, otherwise fallback. */
+function toFinite(value: number | null | undefined, fallback: number): number {
+  if (value == null || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return value;
+}
+
+/** Count the decimal digits in a number (e.g. 0.001 → 3). */
+function countDecimals(n: number): number {
+  const s = String(n);
+  const dot = s.indexOf(".");
+  return dot === -1 ? 0 : s.length - dot - 1;
+}
+
+/** Round to avoid float drift (e.g. 0.1+0.2 → 0.30000000000000004). */
+function roundToPrecision(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
 }

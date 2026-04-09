@@ -15,10 +15,19 @@ import { maxFractionalDigits } from "@/utils/numbers";
 export interface NumberFieldProps extends AriaNumberFieldProps {
   placeholder?: string;
   variant?: "default" | "xs";
+  /**
+   * Custom increment handler. When provided, the stepper buttons and
+   * arrow keys call this instead of React Aria's built-in step behavior.
+   * This avoids React Aria's step-snapping which forces values to align
+   * with minValue + n*step.
+   */
+  onIncrement?: () => void;
+  /** Custom decrement handler. See onIncrement. */
+  onDecrement?: () => void;
 }
 
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
-  ({ placeholder, variant = "default", ...props }, ref) => {
+  ({ placeholder, variant = "default", onIncrement, onDecrement, ...props }, ref) => {
     const { locale } = useLocale();
     return (
       <AriaNumberField
@@ -46,6 +55,14 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
             onKeyDown={(e) => {
               if (e.key === "ArrowUp" || e.key === "ArrowDown") {
                 e.stopPropagation();
+                if (onIncrement || onDecrement) {
+                  e.preventDefault();
+                  if (e.key === "ArrowUp") {
+                    onIncrement?.();
+                  } else {
+                    onDecrement?.();
+                  }
+                }
               }
             }}
             className={cn(
@@ -58,27 +75,67 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
             )}
           />
           <div className={"flex flex-col border-s-2"}>
-            <StepperButton
-              slot="increment"
-              isDisabled={props.isDisabled}
-              variant={variant}
-            >
-              <ChevronUp
-                aria-hidden={true}
-                className={cn("w-3 h-3 -mb-px", variant === "xs" && "w-2 h-2")}
-              />
-            </StepperButton>
+            {onIncrement ? (
+              <PlainStepperButton
+                onClick={onIncrement}
+                disabled={props.isDisabled}
+                variant={variant}
+                aria-label="Increment"
+              >
+                <ChevronUp
+                  aria-hidden={true}
+                  className={cn(
+                    "w-3 h-3 -mb-px",
+                    variant === "xs" && "w-2 h-2",
+                  )}
+                />
+              </PlainStepperButton>
+            ) : (
+              <StepperButton
+                slot="increment"
+                isDisabled={props.isDisabled}
+                variant={variant}
+              >
+                <ChevronUp
+                  aria-hidden={true}
+                  className={cn(
+                    "w-3 h-3 -mb-px",
+                    variant === "xs" && "w-2 h-2",
+                  )}
+                />
+              </StepperButton>
+            )}
             <div className={"h-px shrink-0 divider bg-border z-10"} />
-            <StepperButton
-              slot="decrement"
-              isDisabled={props.isDisabled}
-              variant={variant}
-            >
-              <ChevronDown
-                aria-hidden={true}
-                className={cn("w-3 h-3 -mt-px", variant === "xs" && "w-2 h-2")}
-              />
-            </StepperButton>
+            {onDecrement ? (
+              <PlainStepperButton
+                onClick={onDecrement}
+                disabled={props.isDisabled}
+                variant={variant}
+                aria-label="Decrement"
+              >
+                <ChevronDown
+                  aria-hidden={true}
+                  className={cn(
+                    "w-3 h-3 -mt-px",
+                    variant === "xs" && "w-2 h-2",
+                  )}
+                />
+              </PlainStepperButton>
+            ) : (
+              <StepperButton
+                slot="decrement"
+                isDisabled={props.isDisabled}
+                variant={variant}
+              >
+                <ChevronDown
+                  aria-hidden={true}
+                  className={cn(
+                    "w-3 h-3 -mt-px",
+                    variant === "xs" && "w-2 h-2",
+                  )}
+                />
+              </StepperButton>
+            )}
           </div>
         </div>
       </AriaNumberField>
@@ -96,6 +153,27 @@ const StepperButton = (props: ButtonProps & { variant?: "default" | "xs" }) => {
         "disabled:cursor-not-allowed disabled:opacity-50",
         !props.isDisabled && "hover:text-primary hover:bg-muted",
         props.variant === "default" ? "px-0.5" : "px-0.25",
+      )}
+    />
+  );
+};
+
+const PlainStepperButton = (
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: "default" | "xs";
+  },
+) => {
+  const { variant, ...rest } = props;
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      {...rest}
+      className={cn(
+        "cursor-default text-muted-foreground outline-hidden focus-visible:text-primary",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        !props.disabled && "hover:text-primary hover:bg-muted",
+        variant === "default" || variant === undefined ? "px-0.5" : "px-0.25",
       )}
     />
   );

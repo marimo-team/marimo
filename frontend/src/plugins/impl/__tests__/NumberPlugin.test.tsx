@@ -357,6 +357,46 @@ describe("NumberPlugin", () => {
     expect(input.value).toBe("5");
   });
 
+  it("does not snap value to step increments from start (#9106)", () => {
+    const plugin = new NumberPlugin();
+    const host = document.createElement("div");
+    const setValue = vi.fn();
+
+    // When start=1.25557 and step=0.001, the value 2.23 is NOT a valid
+    // step from start (1.25557 + 974*0.001 = 2.22957). React Aria would
+    // snap 2.23 to 2.22957, but we should display the exact value.
+    const props: IPluginProps<
+      number | null,
+      z.infer<(typeof plugin)["validator"]>
+    > = {
+      host,
+      value: 2.23,
+      setValue,
+      data: {
+        start: 1.25557,
+        stop: 20,
+        step: 0.001,
+        label: null,
+        debounce: false,
+        fullWidth: false,
+      },
+      functions: {},
+    };
+
+    const { getByRole } = render(plugin.render(props));
+
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+
+    const input = getByRole("textbox", {
+      name: "Number input",
+    }) as HTMLInputElement;
+
+    // The displayed value must be 2.23, not snapped to 2.22957 or 2.2296
+    expect(input.value).toBe("2.23");
+  });
+
   it("renders with custom label", () => {
     const plugin = new NumberPlugin();
     const host = document.createElement("div");
