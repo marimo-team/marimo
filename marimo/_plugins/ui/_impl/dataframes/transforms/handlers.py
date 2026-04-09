@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+from collections.abc import Callable
 from functools import reduce
 from typing import TYPE_CHECKING, Any
 
@@ -21,9 +22,12 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ColumnConversionTransform,
     ExpandDictTransform,
     ExplodeColumnsTransform,
+    FilterCondition,
+    FilterGroup,
     FilterRowsTransform,
     GroupByTransform,
     PivotTransform,
+    RangeValue,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -55,6 +59,20 @@ __all__ = [
 
 
 DataFrame = nw.LazyFrame[IntoLazyFrame]
+
+
+def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
+    """
+    Convert a value whether it's a list or single value.
+    Ignore None as they usually raise errors when converted
+    """
+    if isinstance(v, (tuple, list)):
+        return [
+            converter(str(item)) if item is not None else None for item in v
+        ]
+    if v is None:
+        return None
+    return converter(str(v))
 
 
 class NarwhalsTransformHandler(TransformHandler[DataFrame]):
@@ -123,170 +141,255 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         return result
 
     @staticmethod
-    def handle_filter_rows(
-        df: DataFrame, transform: FilterRowsTransform
-    ) -> DataFrame:
-        if not transform.where:
-            return df
+    def _evaluate_condition(df: DataFrame, condition: FilterCondition) -> Expr:
+        column = col(condition.column_id)
+        column_name = str(condition.column_id)
+        value = condition.value
+        dtype = df.collect_schema().get(column_name)
 
-        filter_expr: nw.Expr | None = None
-
-        def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
-            """
-            Convert a value whether it's a list or single value.
-            Ignore None as they usually raise errors when converted
-            """
-            if isinstance(v, (tuple, list)):
-                return [
-                    converter(str(item)) if item is not None else None
-                    for item in v
-                ]
-            if v is None:
-                return None
-            return converter(str(v))
-
-        for condition in transform.where:
-            # Don't convert to string if already a string or int
-            # Narwhals col() can handle both strings and integers
-            column = col(condition.column_id)
-            column_name = str(condition.column_id)
-            value = condition.value
-            dtype = df.collect_schema().get(column_name)
-
-            # Convert string values to the appropriate type based on dtype
-            if dtype == nw.Datetime:
-                value = convert_value(value, datetime.datetime.fromisoformat)
-            elif dtype == nw.Date:
-                value = convert_value(value, datetime.date.fromisoformat)
-            elif dtype == nw.Time:
-                value = convert_value(value, datetime.time.fromisoformat)
-            elif dtype == nw.Object:
-                # Object dtype may contain date/datetime/Decimal values
-                # (e.g., pandas stores these as Python objects)
-                try:
-                    sample = (
-                        df.select(column_name)
-                        .filter(~col(column_name).is_null())
-                        .head(1)
-                        .collect()
-                        .get_column(column_name)
-                        .to_list()
-                    )
-                    if sample:
-                        if isinstance(sample[0], datetime.datetime):
-                            value = convert_value(
-                                value, datetime.datetime.fromisoformat
-                            )
-                        elif isinstance(sample[0], datetime.date):
-                            value = convert_value(
-                                value, datetime.date.fromisoformat
-                            )
-                        elif isinstance(sample[0], datetime.time):
-                            value = convert_value(
-                                value, datetime.time.fromisoformat
-                            )
-                        elif isinstance(sample[0], decimal.Decimal):
-                            # Cast to Float64 so Decimal values can be compared, minor precision loss
-                            value = convert_value(value, float)
-                            column = column.cast(nw.Float64)
-                except Exception:
-                    pass
-
-            # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
-            if (
-                isinstance(value, tuple)
-                and any(
-                    token in value
-                    for token in [NAN_VALUE, POSITIVE_INF, NEGATIVE_INF]
+        # Convert string values to the appropriate type based on dtype
+        if dtype == nw.Datetime:
+            value = convert_value(value, datetime.datetime.fromisoformat)
+        elif dtype == nw.Date:
+            value = convert_value(value, datetime.date.fromisoformat)
+        elif dtype == nw.Time:
+            value = convert_value(value, datetime.time.fromisoformat)
+        elif dtype == nw.Object:
+            # Object dtype may contain date/datetime/Decimal values
+            # (e.g., pandas stores these as Python objects)
+            try:
+                sample = (
+                    df.select(column_name)
+                    .filter(~col(column_name).is_null())
+                    .head(1)
+                    .collect()
+                    .get_column(column_name)
+                    .to_list()
                 )
-                and dtype is not None
-                and dtype.is_float()  # Note: this doesn't cover Object types for pandas
-            ):
-                value = convert_value(value, float)
-            elif dtype is not None and dtype.is_decimal():
-                # Cast to Float64 so Decimal values can be compared, minor precision loss
-                value = convert_value(value, float)
-                column = column.cast(nw.Float64)
+                if sample:
+                    if isinstance(sample[0], datetime.datetime):
+                        value = convert_value(
+                            value, datetime.datetime.fromisoformat
+                        )
+                    elif isinstance(sample[0], datetime.date):
+                        value = convert_value(
+                            value, datetime.date.fromisoformat
+                        )
+                    elif isinstance(sample[0], datetime.time):
+                        value = convert_value(
+                            value, datetime.time.fromisoformat
+                        )
+                    elif isinstance(sample[0], decimal.Decimal):
+                        # Cast to Float64 so Decimal values can be compared, minor precision loss
+                        value = convert_value(value, float)
+                        column = column.cast(nw.Float64)
+            except Exception:
+                pass
 
-            # Build the expression based on the operator
-            condition_expr: nw.Expr
-            if condition.operator == "==":
-                condition_expr = column == value
-            elif condition.operator == "!=":
-                condition_expr = column != value
-            elif condition.operator == ">":
-                condition_expr = column > value
-            elif condition.operator == "<":
-                condition_expr = column < value
-            elif condition.operator == ">=":
-                condition_expr = column >= value
-            elif condition.operator == "<=":
-                condition_expr = column <= value
-            elif condition.operator == "is_true":
-                condition_expr = column == True  # type: ignore[comparison-overlap] # noqa: E712
-            elif condition.operator == "is_false":
-                condition_expr = column == False  # type: ignore[comparison-overlap] # noqa: E712
-            elif condition.operator == "is_null":
-                condition_expr = column.is_null()
-            elif condition.operator == "is_not_null":
-                condition_expr = ~column.is_null()
-            elif condition.operator == "equals":
-                condition_expr = column == value
-            elif condition.operator == "does_not_equal":
-                condition_expr = column != value
-            elif condition.operator == "contains":
-                # Fill null before string operation to avoid pandas issues
-                condition_expr = column.fill_null("").str.contains(
+        # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
+        if (
+            isinstance(value, tuple)
+            and any(
+                token in value
+                for token in [NAN_VALUE, POSITIVE_INF, NEGATIVE_INF]
+            )
+            and dtype is not None
+            and dtype.is_float()  # Note: this doesn't cover Object types for pandas
+        ):
+            value = convert_value(value, float)
+        elif dtype is not None and dtype.is_decimal():
+            # Cast to Float64 so Decimal values can be compared, minor precision loss
+            value = convert_value(value, float)
+            column = column.cast(nw.Float64)
+
+        # Build the expression based on the operator
+        condition_expr: nw.Expr
+
+        is_negated = condition.negate
+        match condition.operator:
+            case "==":
+                condition_expr = (
+                    column != value if is_negated else column == value
+                )
+            case "!=":
+                condition_expr = (
+                    column == value if is_negated else column != value
+                )
+            case ">":
+                condition_expr = (
+                    column <= value if is_negated else column > value
+                )
+            case "<":
+                condition_expr = (
+                    column >= value if is_negated else column < value
+                )
+            case ">=":
+                condition_expr = (
+                    column < value if is_negated else column >= value
+                )
+            case "<=":
+                condition_expr = (
+                    column > value if is_negated else column <= value
+                )
+            case "is_true":
+                condition_expr = (
+                    column == False  # type: ignore[comparison-overlap] # noqa: E712
+                    if is_negated
+                    else column == True  # type: ignore[comparison-overlap] # noqa: E712
+                )
+            case "is_false":
+                condition_expr = (
+                    column == True  # type: ignore[comparison-overlap] # noqa: E712
+                    if is_negated
+                    else column == False  # type: ignore[comparison-overlap] # noqa: E712
+                )
+            case "is_null":
+                condition_expr = (
+                    ~column.is_null() if is_negated else column.is_null()
+                )
+            case "is_not_null":
+                condition_expr = (
+                    column.is_null() if is_negated else ~column.is_null()
+                )
+            case "equals":
+                condition_expr = (
+                    column != value if is_negated else column == value
+                )
+            case "does_not_equal":
+                condition_expr = (
+                    column == value if is_negated else column != value
+                )
+            case "contains":
+                base_expr = column.fill_null("").str.contains(
                     str(value), literal=True
                 )
-            elif condition.operator == "regex":
-                # Fill null before string operation to avoid pandas issues
-                condition_expr = column.fill_null("").str.contains(
+                condition_expr = (
+                    ~base_expr & ~column.is_null() if is_negated else base_expr
+                )
+            case "regex":
+                base_expr = column.fill_null("").str.contains(
                     str(value), literal=False
                 )
-            elif condition.operator == "starts_with":
-                # Fill null before string operation to avoid pandas issues
-                condition_expr = column.fill_null("").str.starts_with(
-                    str(value)
+                condition_expr = (
+                    ~base_expr & ~column.is_null() if is_negated else base_expr
                 )
-            elif condition.operator == "ends_with":
-                # Fill null before string operation to avoid pandas issues
-                condition_expr = column.fill_null("").str.ends_with(str(value))
-            elif condition.operator == "in":
-                # is_in doesn't support None values, so we need to handle them separately
+            case "starts_with":
+                base_expr = column.fill_null("").str.starts_with(str(value))
+                condition_expr = (
+                    ~base_expr & ~column.is_null() if is_negated else base_expr
+                )
+            case "ends_with":
+                base_expr = column.fill_null("").str.ends_with(str(value))
+                condition_expr = (
+                    ~base_expr & ~column.is_null() if is_negated else base_expr
+                )
+            case "in":
                 if value is not None and None in value:
-                    condition_expr = column.is_in(value) | column.is_null()
-                else:
-                    condition_expr = column.is_in(value or [])
-            elif condition.operator == "not_in":
-                # ~is_in returns null for null values, so we need to explicitly include/exclude nulls
-                if value is not None and None in value:
-                    condition_expr = ~column.is_in(value) & ~column.is_null()
+                    condition_expr = (
+                        ~column.is_in(value) & ~column.is_null()
+                        if is_negated
+                        else column.is_in(value) | column.is_null()
+                    )
                 else:
                     condition_expr = (
                         ~column.is_in(value or []) | column.is_null()
+                        if is_negated
+                        else column.is_in(value or [])
                     )
-            else:
+            case "not_in":
+                if value is not None and None in value:
+                    base_expr = ~column.is_in(value) & ~column.is_null()
+                    condition_expr = (
+                        column.is_in(value) | column.is_null()
+                        if is_negated
+                        else base_expr
+                    )
+                else:
+                    base_expr = ~column.is_in(value or []) | column.is_null()
+                    condition_expr = (
+                        column.is_in(value or []) if is_negated else base_expr
+                    )
+            case "between":
+                if isinstance(value, RangeValue):
+                    if is_negated:
+                        condition_expr = (column < value.min) | (
+                            column > value.max
+                        )
+                    else:
+                        condition_expr = (column >= value.min) & (
+                            column <= value.max
+                        )
+                else:
+                    raise TypeError(
+                        f"between operator requires RangeValue, got {type(value)}"
+                    )
+            case "is_empty":
+                condition_expr = (
+                    (column != "") | column.is_null()
+                    if is_negated
+                    else (column == "") & ~column.is_null()
+                )
+            case _:
                 assert_never(condition.operator)
 
-            # Combine the condition expression with the filter expression
-            if filter_expr is None:
-                filter_expr = condition_expr
+        return condition_expr
+
+    @staticmethod
+    def _evaluate_filter_group(
+        df: DataFrame, group: FilterGroup
+    ) -> Expr | None:
+        operator = group.operator
+        conditions = group.children
+        filter_expr: Expr | None = None
+
+        for condition in conditions:
+            expr: Expr | None = None
+            if isinstance(condition, FilterCondition):
+                expr = NarwhalsTransformHandler._evaluate_condition(
+                    df, condition
+                )
+            elif isinstance(condition, FilterGroup):
+                expr = NarwhalsTransformHandler._evaluate_filter_group(
+                    df, condition
+                )
             else:
-                filter_expr = filter_expr & condition_expr
+                assert_never(condition)
+
+            if expr is None:
+                continue
+
+            if filter_expr is None:
+                filter_expr = expr
+            else:
+                if operator == "and":
+                    filter_expr = filter_expr & expr
+                elif operator == "or":
+                    filter_expr = filter_expr | expr
+                else:
+                    assert_never(operator)
+
+        if filter_expr is not None and group.negate:
+            filter_expr = ~filter_expr
+
+        return filter_expr
+
+    @staticmethod
+    def handle_filter_rows(
+        df: DataFrame, transform: FilterRowsTransform
+    ) -> DataFrame:
+        filter_expr = NarwhalsTransformHandler._evaluate_filter_group(
+            df, transform.where
+        )
 
         if filter_expr is None:
             return df
 
-        # Handle the operation (keep_rows or remove_rows)
         if transform.operation == "keep_rows":
-            result = df.filter(filter_expr)
+            return df.filter(filter_expr)
         elif transform.operation == "remove_rows":
-            result = df.filter(~filter_expr)  # type: ignore[operator]
+            return df.filter(~filter_expr)  # type: ignore[operator]
         else:
             assert_never(transform.operation)
-
-        return result
 
     @staticmethod
     def handle_group_by(

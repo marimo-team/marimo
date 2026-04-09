@@ -33,6 +33,8 @@ Operator = Literal[
     "ends_with",
     "in",
     "not_in",
+    "between",
+    "is_empty",
 ]
 Aggregation = Literal[
     "count",
@@ -62,15 +64,39 @@ class TransformType(Enum):
 
 
 @dataclass(frozen=True)
-class Condition:
+class RangeValue:
+    min: int | float | str
+    max: int | float | str
+
+
+@dataclass(frozen=True)
+class FilterCondition:
     column_id: ColumnId
     operator: Operator
+    type: Literal["condition"] = "condition"
     value: Any | None = None
+    negate: bool = False
 
     def __hash__(self) -> int:
-        return hash((self.column_id, self.operator, self.value))
+        return hash(
+            (self.type, self.column_id, self.operator, self.value, self.negate)
+        )
 
     def __post_init__(self) -> None:
+        if self.operator == "between" and isinstance(self.value, dict):
+            if "min" not in self.value or "max" not in self.value:
+                raise ValueError(
+                    "value must be a dict with 'min' and 'max' keys for 'between' operator"
+                )
+
+            object.__setattr__(
+                self,
+                "value",
+                RangeValue(
+                    min=self.value["min"],
+                    max=self.value["max"],
+                ),
+            )
         if self.operator == "in" or self.operator == "not_in":
             if isinstance(self.value, list):
                 # Hack to convert to tuple for frozen dataclass
@@ -82,6 +108,75 @@ class Condition:
                 raise ValueError(
                     "value must be a list or tuple for 'in' or 'not_in' operator"
                 )
+
+
+@dataclass(frozen=True)
+class FilterGroup:
+    children: tuple[FilterCondition | FilterGroup, ...]
+    type: Literal["group"] = "group"
+    operator: Literal["and", "or"] = "and"
+    negate: bool = False
+
+    def __post_init__(self) -> None:
+        if isinstance(self.children, list):
+            object.__setattr__(self, "children", tuple(self.children))
+
+
+DTYPE_OPERATORS: dict[str, frozenset[Operator]] = {
+    "number": frozenset(
+        {
+            "==",
+            "!=",
+            "<",
+            ">",
+            "<=",
+            ">=",
+            "is_null",
+            "is_not_null",
+            "in",
+            "not_in",
+            "between",
+        }
+    ),
+    "boolean": frozenset({"is_true", "is_false", "is_null", "is_not_null"}),
+    "str": frozenset(
+        {
+            "equals",
+            "does_not_equal",
+            "contains",
+            "regex",
+            "starts_with",
+            "ends_with",
+            "is_null",
+            "is_not_null",
+            "in",
+            "not_in",
+            "is_empty",
+        }
+    ),
+    "temporal": frozenset(
+        {"==", "!=", "<", ">", "<=", ">=", "is_null", "is_not_null", "between"}
+    ),
+}
+
+
+def conditions_to_filter_group(
+    conditions: list[FilterCondition],
+) -> FilterGroup:
+    return FilterGroup(
+        type="group",
+        operator="and",
+        children=tuple(conditions),
+        negate=False,
+    )
+
+
+def validate_operator_for_dtype(operator: Operator, dtype: str) -> bool:
+    allowed = DTYPE_OPERATORS.get(dtype, frozenset())
+    if not allowed:
+        # unknown data type, allow all operators
+        return True
+    return operator in allowed
 
 
 @dataclass
@@ -111,7 +206,7 @@ class SortColumnTransform:
 class FilterRowsTransform:
     type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
-    where: list[Condition]
+    where: FilterGroup
 
 
 @dataclass

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -30,9 +31,11 @@ from marimo._plugins.ui._impl.dataframes.transforms.apply import (
     apply_transforms_to_df,
 )
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
-    Condition,
+    FilterCondition,
+    FilterGroup,
     FilterRowsTransform,
     TransformType,
+    validate_operator_for_dtype,
 )
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
@@ -135,7 +138,7 @@ class SearchTableArgs:
     page_number: int
     query: str | None = None
     sort: list[SortArgs] | None = None
-    filters: list[Condition] | None = None
+    filters: FilterGroup | None = None
     limit: int | None = None
     max_columns: int | MaxColumnsNotProvided | None = MAX_COLUMNS_NOT_PROVIDED
 
@@ -202,6 +205,52 @@ def get_default_table_max_columns() -> int:
         return DEFAULT_MAX_COLUMNS
     else:
         return ctx.marimo_config["display"]["default_table_max_columns"]
+
+
+_DATATYPE_TO_CATEGORY: dict[str, str] = {
+    "string": "str",
+    "boolean": "boolean",
+    "integer": "number",
+    "number": "number",
+    "date": "temporal",
+    "datetime": "temporal",
+    "time": "temporal",
+}
+
+
+def _filter_valid_columns(
+    group: FilterGroup,
+    column_dtypes: dict[str, str],
+) -> FilterGroup:
+    """Recursively remove conditions on non-existent columns
+    or with invalid operators for the column dtype."""
+    valid_children = []
+    for child in group.children:
+        if isinstance(child, FilterCondition):
+            if child.column_id not in column_dtypes:
+                continue
+            category = _DATATYPE_TO_CATEGORY.get(
+                column_dtypes[child.column_id], ""
+            )
+            if not validate_operator_for_dtype(child.operator, category):
+                LOGGER.warning(
+                    "Invalid operator '%s' for dtype '%s' on column '%s'",
+                    child.operator,
+                    column_dtypes[child.column_id],
+                    child.column_id,
+                )
+                continue
+            valid_children.append(child)
+        elif isinstance(child, FilterGroup):
+            filtered = _filter_valid_columns(child, column_dtypes)
+            if filtered.children:
+                valid_children.append(filtered)
+    return FilterGroup(
+        type="group",
+        operator=group.operator,
+        children=tuple(valid_children),
+        negate=group.negate,
+    )
 
 
 @mddoc
@@ -799,11 +848,7 @@ class table(
             self._has_any_selection = len(coordinates) > 0
             return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
-            indices = [
-                int(v)
-                for v in value
-                if isinstance(v, int) or isinstance(v, str)
-            ]
+            indices = [int(v) for v in value if isinstance(v, (int, str))]
             self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
@@ -1147,40 +1192,37 @@ class table(
     @functools.lru_cache(maxsize=1)  # noqa: B019
     def _apply_filters_query_sort_cached(
         self,
-        filters: tuple[Condition, ...] | None,
+        filters: FilterGroup | None,
         query: str | None,
         sort: tuple[SortArgs, ...] | None,
     ) -> TableManager[Any]:
         """Cached version that expects hashable arguments."""
         return self._apply_filters_query_sort(
-            list(filters) if filters else None,
+            filters,
             query,
             list(sort) if sort else None,
         )
 
     def _apply_filters_query_sort(
         self,
-        filters: list[Condition] | None,
+        filters: FilterGroup | None,
         query: str | None,
         sort: list[SortArgs] | None,
     ) -> TableManager[Any]:
         result = self._manager
 
-        if filters:
-            # Filter out conditions for columns that don't exist
-            existing_columns = set(result.get_column_names())
-            valid_filters = [
-                condition
-                for condition in filters
-                if condition.column_id in existing_columns
-            ]
+        if filters and filters.children:
+            column_dtypes = {
+                name: dtype for name, (dtype, _) in result.get_field_types()
+            }
+            valid_group = _filter_valid_columns(filters, column_dtypes)
 
-            if valid_filters:
+            if valid_group.children:
                 data = apply_transforms_to_df(
                     result.data,
                     FilterRowsTransform(
                         type=TransformType.FILTER_ROWS,
-                        where=valid_filters,
+                        where=valid_group,
                         operation="keep_rows",
                     ),
                 )
@@ -1474,7 +1516,7 @@ class table(
             else self._apply_filters_query_sort
         )
         result = filter_function(
-            tuple(args.filters) if args.filters else None,  # type: ignore
+            args.filters,
             args.query,
             tuple(args.sort) if args.sort else None,  # type: ignore
         )

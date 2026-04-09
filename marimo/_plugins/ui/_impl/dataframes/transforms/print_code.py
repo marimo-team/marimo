@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
-    Condition,
+    FilterCondition,
     Transform,
     TransformType,
 )
@@ -32,7 +32,7 @@ def python_print_transforms(
 def python_print_pandas(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    def generate_where_clause(df_name: str, where: Condition) -> str:
+    def generate_where_clause(df_name: str, where: FilterCondition) -> str:
         column_id, operator, value = (
             where.column_id,
             where.operator,
@@ -108,11 +108,15 @@ def python_print_pandas(
         return f"{df_name}.sort_values({args})"
 
     elif transform.type == TransformType.FILTER_ROWS:
-        operation, where = transform.operation, transform.where
-        if not where:
+        operation, group = transform.operation, transform.where
+        if not group.children:
             return df_name
         where_clauses = [
-            generate_where_clause(df_name, condition) for condition in where
+            generate_where_clause(df_name, condition)
+            for condition in group.children
+            if isinstance(
+                condition, FilterCondition
+            )  # TODO: handle nested FilterGroup (OR, negate)
         ]
         if operation == "keep_rows" and len(where_clauses) == 1:
             return f"{df_name}[{where_clauses[0]}]"
@@ -288,7 +292,7 @@ def python_print_pandas(
 def python_print_polars(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    def generate_where_clause_polars(where: Condition) -> str:
+    def generate_where_clause_polars(where: FilterCondition) -> str:
         column_id, operator, value = (
             where.column_id,
             where.operator,
@@ -354,11 +358,15 @@ def python_print_polars(
         return f"{df_name}.sort({_as_literal(column_id)}, descending={not ascending}, nulls_last={na_position == 'last'})"
 
     elif transform.type == TransformType.FILTER_ROWS:
-        operation, where = transform.operation, transform.where
-        if not where:
+        operation, group = transform.operation, transform.where
+        if not group.children:
             return df_name
         where_clauses = [
-            generate_where_clause_polars(condition) for condition in where
+            generate_where_clause_polars(condition)
+            for condition in group.children
+            if isinstance(
+                condition, FilterCondition
+            )  # TODO: handle nested FilterGroup (OR, negate)
         ]
         if operation == "keep_rows" and len(where_clauses) == 1:
             return f"{df_name}.filter({where_clauses[0]})"
@@ -505,7 +513,7 @@ def python_print_polars(
 def python_print_ibis(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    def generate_where_clause(df_name: str, where: Condition) -> str:
+    def generate_where_clause(df_name: str, where: FilterCondition) -> str:
         column_id, operator, value = (
             where.column_id,
             where.operator,
@@ -572,10 +580,13 @@ def python_print_ibis(
         return f"{df_name}.order_by([{df_name}[{_as_literal(column_id)}].{'asc' if ascending else 'desc'}()])"
 
     elif transform.type == TransformType.FILTER_ROWS:
-        conditions, operation = transform.where, transform.operation
+        group, operation = transform.where, transform.operation
         expressions = [
             generate_where_clause(df_name, condition)
-            for condition in conditions
+            for condition in group.children
+            if isinstance(
+                condition, FilterCondition
+            )  # TODO: handle nested FilterGroup (OR, negate)
         ]
         expression = " & ".join(expressions)
         return (
