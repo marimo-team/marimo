@@ -109,7 +109,9 @@ def test_isolation_cells(notebook_env):
                 defs=cell.defs, lcls=lcls, notebook_path=path
             )
             expected = tuple(
-                map(sum, zip(*[_DEF_COUNT[d] for d in cell.defs]))
+                map(
+                    sum, zip(*[_DEF_COUNT[d] for d in cell.defs], strict=False)
+                )
             )
             assert (
                 response.passed,

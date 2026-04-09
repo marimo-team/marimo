@@ -7,6 +7,7 @@ import os
 import sys
 import threading
 from collections.abc import (
+    Callable,
     Iterable,
     Iterator,
     Mapping,
@@ -18,7 +19,6 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
     Optional,
     ParamSpec,
@@ -69,8 +69,9 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import FrameType, TracebackType
+    from typing import TypeGuard
 
-    from typing_extensions import TypeGuard, TypeIs
+    from typing_extensions import TypeIs
 
     from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
@@ -292,6 +293,7 @@ class App:
             self._cell_manager.codes(),
             self._cell_manager.names(),
             self._cell_manager.configs(),
+            strict=False,
         ):
             cell = None
             cell_data = self._cell_manager._cell_data.get(cell_id)
@@ -1011,7 +1013,7 @@ class InternalApp:
     ) -> InternalApp:
         new_cell_manager = CellManager()
         for cell_id, code, name, config in zip(
-            cell_ids, codes, names, configs
+            cell_ids, codes, names, configs, strict=False
         ):
             cell = None
             # If the cell exists, the cell data should be set.

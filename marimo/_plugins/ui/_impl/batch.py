@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Optional,
     TypeVar,
@@ -16,7 +15,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import ItemsView, Iterator, ValuesView
+    from collections.abc import Callable, ItemsView, Iterator, ValuesView
 
 U = TypeVar("U")
 V = TypeVar("V")

@@ -267,7 +267,7 @@ class ExecuteCellsCommand(Command):
                 request=self.request,
                 timestamp=self.timestamp,
             )
-            for cell_id, code in zip(self.cell_ids, self.codes)
+            for cell_id, code in zip(self.cell_ids, self.codes, strict=False)
         ]
 
     def __post_init__(self) -> None:
@@ -401,7 +401,7 @@ class UpdateUIElementCommand(Command):
             return UpdateUIElementCommand(
                 object_ids=[], values=[], request=request
             )
-        object_ids, values = zip(*ids_and_values)
+        object_ids, values = zip(*ids_and_values, strict=False)
         return UpdateUIElementCommand(
             object_ids=list(object_ids),
             values=list(values),
@@ -415,7 +415,7 @@ class UpdateUIElementCommand(Command):
         Returns:
             List of (id, value) tuples.
         """
-        return list(zip(self.object_ids, self.values))
+        return list(zip(self.object_ids, self.values, strict=False))
 
 
 class InvokeFunctionCommand(Command):

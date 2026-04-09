@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from asyncio import iscoroutine
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 from starlette.responses import (
     FileResponse,

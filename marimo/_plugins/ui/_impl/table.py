@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
     Optional,
@@ -74,7 +73,7 @@ from marimo._utils.narwhals_utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from narwhals.typing import IntoLazyFrame
 
@@ -1329,7 +1328,8 @@ class table(
         selected = page_manager.select_cells(all_cells)
 
         cell_to_orig: dict[str, str] = {
-            cid: str(rid) for cid, rid in zip(cell_row_ids, row_ids)
+            cid: str(rid)
+            for cid, rid in zip(cell_row_ids, row_ids, strict=False)
         }
         lookup: dict[str, dict[str, Any]] = {}
         for cell in selected:

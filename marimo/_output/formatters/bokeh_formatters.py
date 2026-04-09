@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType
@@ -10,6 +10,9 @@ from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.utils import flatten_string
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class BokehFormatter(FormatterFactory):

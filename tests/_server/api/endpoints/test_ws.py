@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,6 +31,8 @@ from tests._server.conftest import get_kernel_tasks, get_user_config_manager
 from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from starlette.testclient import TestClient, WebSocketTestSession
 
 

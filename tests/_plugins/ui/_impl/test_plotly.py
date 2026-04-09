@@ -770,7 +770,7 @@ def test_heatmap_numpy_and_fallback_produce_same_results() -> None:
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
     # Compare each cell
-    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted):
+    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_cell["x"] == fb_cell["x"]
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
@@ -863,7 +863,7 @@ def test_heatmap_numpy_and_fallback_datetime_x_axis() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted):
+    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_cell["x"] == fb_cell["x"]
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
@@ -922,7 +922,7 @@ def test_scatter_numpy_and_fallback_datetime_x_axis() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_p, fb_p in zip(numpy_sorted, fallback_sorted):
+    for np_p, fb_p in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_p["x"] == fb_p["x"]
         assert np_p["y"] == fb_p["y"]
 
@@ -1002,7 +1002,7 @@ def test_bar_numpy_and_fallback_datetime_x_axis() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_bar["x"] == fb_bar["x"]
         assert np_bar["y"] == fb_bar["y"]
 
@@ -1601,7 +1601,7 @@ def test_scatter_points_numpy_and_fallback() -> None:
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
     # Compare each point
-    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]
         assert np_point["curveNumber"] == fb_point["curveNumber"]
@@ -1705,7 +1705,7 @@ def test_scattergl_points_numpy_and_fallback() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_point["x"] == fb_point["x"]
         assert np_point["y"] == fb_point["y"]
         assert np_point["curveNumber"] == fb_point["curveNumber"]
@@ -2578,7 +2578,7 @@ def test_bar_numpy_and_fallback_match_categorical() -> None:
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
     # Compare each bar
-    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_bar["x"] == fb_bar["x"]
         assert np_bar["y"] == fb_bar["y"]
         assert np_bar["curveNumber"] == fb_bar["curveNumber"]
@@ -2607,7 +2607,7 @@ def test_bar_numpy_and_fallback_match_numeric() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_bar["x"] == fb_bar["x"]
         assert np_bar["y"] == fb_bar["y"]
         assert np_bar["curveNumber"] == fb_bar["curveNumber"]
@@ -2637,7 +2637,7 @@ def test_bar_numpy_and_fallback_match_horizontal() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_bar["x"] == fb_bar["x"]
         assert np_bar["y"] == fb_bar["y"]
         assert np_bar["curveNumber"] == fb_bar["curveNumber"]
@@ -2659,7 +2659,7 @@ def test_histogram_numpy_and_fallback_match_numeric() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_point == fb_point
 
 
@@ -2742,7 +2742,7 @@ def test_histogram_numpy_and_fallback_match_categorical() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_point == fb_point
 
 
@@ -2774,7 +2774,7 @@ def test_heatmap_numpy_and_fallback_numeric_axes() -> None:
     numpy_sorted = sorted(numpy_result, key=sort_key)
     fallback_sorted = sorted(fallback_result, key=sort_key)
 
-    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted):
+    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted, strict=False):
         assert np_cell["x"] == fb_cell["x"]
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
@@ -3249,6 +3249,7 @@ def test_waterfall_numpy_and_fallback_match() -> None:
     for np_pt, fb_pt in zip(
         sorted(numpy_result, key=lambda p: p["pointIndex"]),
         sorted(fallback_result, key=lambda p: p["pointIndex"]),
+        strict=False,
     ):
         assert np_pt["x"] == fb_pt["x"]
         assert np_pt["y"] == fb_pt["y"]

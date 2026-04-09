@@ -6,7 +6,7 @@ import pathlib
 import sys
 import threading
 import time
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
 from marimo._messaging.types import Stream
@@ -19,6 +19,7 @@ from marimo._runtime.reload.autoreload import (
 
 if TYPE_CHECKING:
     import types
+    from collections.abc import Callable
 
     from marimo._types.ids import CellId_t
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
@@ -21,7 +21,7 @@ from marimo._messaging.types import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 LOGGER = _loggers.marimo_logger()
 

@@ -5,11 +5,10 @@ import base64
 import dataclasses
 import sys
 import traceback
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
-    Callable,
     Final,
     Literal,
     Optional,

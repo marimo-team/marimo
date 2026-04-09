@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from marimo._ast.names import DEFAULT_CELL_NAME
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
 NodeRef: TypeAlias = Union[ast.stmt, ast.expr]
 

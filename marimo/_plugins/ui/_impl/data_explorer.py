@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Final, Optional
+from typing import TYPE_CHECKING, Any, Final, Optional
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
@@ -10,6 +10,8 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.typing import IntoDataFrame
 
 

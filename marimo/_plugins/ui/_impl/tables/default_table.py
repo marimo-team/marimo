@@ -467,8 +467,8 @@ class DefaultTableManager(TableManager[JsonTableData]):
             column_values = data.values()
             column_names = list(data.keys())
             return [
-                dict(zip(column_names, row_values))
-                for row_values in zip(*column_values)
+                dict(zip(column_names, row_values, strict=False))
+                for row_values in zip(*column_values, strict=False)
             ]
 
         # If its a dictionary, convert to key-value pairs

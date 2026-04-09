@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Optional,
     cast,
 )
@@ -228,7 +227,7 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Iterator, Sequence
+    from collections.abc import Awaitable, Callable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement

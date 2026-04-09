@@ -8,7 +8,7 @@ import hashlib
 import inspect
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional
 
 from marimo._ast.transformers import DeprivateVisitor, get_hashable_ast
 from marimo._ast.variables import (
@@ -46,6 +46,7 @@ from marimo._save.stubs import maybe_get_custom_stub
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from types import CodeType
 
     from marimo._ast.cell import CellImpl
@@ -518,7 +519,7 @@ class BlockHasher:
                 ref_list = ", ".join(
                     [
                         f"{ref}: {get_type(ref)} ({str(e)})"
-                        for ref, e in zip(failed, exceptions)
+                        for ref, e in zip(failed, exceptions, strict=False)
                     ]
                 )
                 # Note ExceptionGroup nicest here, but only available in 3.11

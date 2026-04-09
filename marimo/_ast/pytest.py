@@ -6,9 +6,9 @@ import copy
 import functools
 import inspect
 import itertools
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 
 from marimo._ast.cell import Cell
 from marimo._ast.fast_stack import fast_stack

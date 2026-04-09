@@ -6,7 +6,6 @@ import numbers
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Optional,
     cast,
@@ -23,6 +22,8 @@ from marimo._plugins.ui._core.ui_element import UIElement
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import plotly.graph_objects as go  # type:ignore
 
 # Selection is a dictionary of the form:
@@ -339,7 +340,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 y_data = getattr(trace, "y", None)
                 if x_data is None or y_data is None:
                     continue
-                for point_idx, (x, y) in enumerate(zip(x_data, y_data)):
+                for point_idx, (x, y) in enumerate(
+                    zip(x_data, y_data, strict=False)
+                ):
                     # Early exit if x is not in range
                     if not (selection.x0 <= x <= selection.x1):
                         continue
@@ -1035,7 +1038,9 @@ def _extract_scatter_points_fallback(
         y_category_positions = _category_position_map(y_data)
 
         # First pass: include points directly inside current selection bounds.
-        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+        for point_idx, (x_val, y_val) in enumerate(
+            zip(x_data, y_data, strict=False)
+        ):
             x_in_range = False
 
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
@@ -1195,7 +1200,7 @@ def _extract_scatter_points_from_lasso(
 
         polygon_x: list[float] = []
         polygon_y: list[float] = []
-        for raw_x, raw_y in zip(lasso_x, lasso_y):
+        for raw_x, raw_y in zip(lasso_x, lasso_y, strict=False):
             x_coord = _to_numeric_coord(raw_x)
             if x_coord is None:
                 x_coord = _safe_category_get(x_category_to_index, raw_x, -1)
@@ -1219,7 +1224,9 @@ def _extract_scatter_points_from_lasso(
         if not polygon_x:
             continue
 
-        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+        for point_idx, (x_val, y_val) in enumerate(
+            zip(x_data, y_data, strict=False)
+        ):
             x_coord = _to_numeric_coord(x_val)
             if x_coord is None:
                 try:
@@ -2097,7 +2104,7 @@ def _append_waterfall_bars_to_selection(
             return
         incoming_index_map = {
             id(p): idx
-            for idx, p in zip(all_indices, all_points)
+            for idx, p in zip(all_indices, all_points, strict=False)
             if p and isinstance(idx, int)
         }
         clean_indices: list[int] = []
@@ -2316,7 +2323,7 @@ def _append_violin_points_to_selection(
         ]
         existing_non_violin_indices = [
             idx
-            for idx, p in zip(all_indices, all_points)
+            for idx, p in zip(all_indices, all_points, strict=False)
             if p and p.get("curveNumber") not in violin_curve_numbers
         ]
 
@@ -2330,7 +2337,9 @@ def _append_violin_points_to_selection(
             # recomputing from pointIndex only — Plotly may send pointNumber
             # instead. Map each point object to its original index by identity.
             incoming_index_map = {
-                id(p): idx for idx, p in zip(all_indices, all_points) if p
+                id(p): idx
+                for idx, p in zip(all_indices, all_points, strict=False)
+                if p
             }
             clean_indices: list[int] = []
             for p in clean_points:
@@ -2360,7 +2369,7 @@ def _append_violin_points_to_selection(
             merged_indices: list[int] = []
 
             for idx, point in zip(
-                existing_non_violin_indices, existing_non_violin
+                existing_non_violin_indices, existing_non_violin, strict=False
             ):
                 point_id = _get_selection_point_id(point)
                 if point_id is not None:

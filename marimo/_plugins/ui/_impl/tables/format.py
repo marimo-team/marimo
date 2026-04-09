@@ -1,7 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Union
+from collections.abc import Callable
+from typing import Union
 
 from marimo import _loggers
 from marimo._plugins.core.web_component import JSONType

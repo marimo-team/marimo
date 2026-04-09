@@ -647,7 +647,7 @@ class AsyncCodeModeContext:
 
         # Flush queued UI updates as a single batch.
         if ui_updates:
-            object_ids, values = zip(*ui_updates)
+            object_ids, values = zip(*ui_updates, strict=False)
             await self._kernel.set_ui_element_value(
                 UpdateUIElementCommand(
                     object_ids=list(object_ids),

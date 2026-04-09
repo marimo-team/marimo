@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import tempfile
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._config.manager import (
     MarimoConfigManager,
@@ -20,7 +20,7 @@ from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from starlette.testclient import TestClient
 

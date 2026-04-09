@@ -14,7 +14,7 @@ import token as token_types
 import warnings
 from tokenize import TokenError, tokenize
 from types import CodeType, FrameType
-from typing import Any, Callable, Optional, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Optional, TypeAlias, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -32,6 +32,9 @@ from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type

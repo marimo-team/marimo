@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -24,6 +24,9 @@ from marimo._ast.variables import is_local
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.error_utils import log_sql_error
 from marimo._utils.strings import standardize_annotation_quotes
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

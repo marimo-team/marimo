@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import json
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from html import escape
-from typing import Any, Callable, Optional, TypeVar, cast
+from typing import Any, Optional, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 from marimo import _loggers
 from marimo._config.config import Theme

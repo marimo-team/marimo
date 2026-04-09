@@ -678,7 +678,9 @@ class Cell:
         arg_names = sorted((self._cell.refs - allowed_refs) - self._cell.defs)
         argc = len(arg_names)
 
-        call_args = {name: arg for name, arg in zip(arg_names, args)}
+        call_args = {
+            name: arg for name, arg in zip(arg_names, args, strict=False)
+        }
         call_args.update(kwargs)
         call_argc = len(call_args.keys()) + len(self._pytest_reserved)
 
