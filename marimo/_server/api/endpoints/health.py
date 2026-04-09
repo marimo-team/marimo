@@ -115,6 +115,7 @@ async def list_sessions(request: Request) -> JSONResponse:
 
 
 @router.get("/api/version")
+@requires("edit")
 async def version(request: Request) -> PlainTextResponse:
     """
     responses:
@@ -336,6 +337,7 @@ async def usage(request: Request) -> JSONResponse:
 
 
 @router.get("/api/status/connections")
+@requires("edit")
 async def connections(request: Request) -> JSONResponse:
     """
     responses:
