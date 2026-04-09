@@ -512,6 +512,34 @@ class TestDynamicDirectoryMiddleware(unittest.TestCase):
         assert response.status_code == 404
         assert response.text == "Not Found"
 
+    def test_path_traversal_blocked(self):
+        # Create a file outside the configured directory
+        parent_dir = Path(self.temp_dir).parent
+        outside_file = parent_dir / "secret.py"
+        outside_file.write_text(contents)
+        try:
+            # Raw traversal
+            response = self.client.get("/apps/../secret/")
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+
+            # URL-encoded traversal (%2e%2e = ..)
+            response = self.client.get("/apps/%2e%2e/secret/")
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+
+            # Double-encoded
+            response = self.client.get("/apps/%252e%252e/secret/")
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+
+            # Nested traversal
+            response = self.client.get("/apps/nested/../../secret/")
+            assert response.status_code == 404
+            assert response.text == "Not Found"
+        finally:
+            outside_file.unlink(missing_ok=True)
+
     def test_valid_app_path(self):
         response = self.client.get("/apps/test_app/")
         assert response.status_code == 200

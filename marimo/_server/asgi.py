@@ -143,16 +143,32 @@ class DynamicDirectoryMiddleware:
         LOGGER.debug(f"Redirecting to: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=307)
 
+    def _is_within_directory(self, path: Path) -> bool:
+        """Check that path resolves to a location within self.directory."""
+        try:
+            path.resolve().relative_to(self.directory.resolve())
+            return True
+        except ValueError:
+            return False
+
     def _find_matching_file(
         self, relative_path: str
     ) -> Optional[tuple[Path, str]]:
         """Find a matching Python file in the directory structure.
         Returns tuple of (matching file, remaining path) if found, None otherwise.
         """
+        # Reject path traversal segments
+        if ".." in relative_path.split("/"):
+            return None
+
         # Try direct match first, skip if relative path has an extension
         if not Path(relative_path).suffix:
             direct_match = self.directory / f"{relative_path}.py"
-            if not direct_match.name.startswith("_") and direct_match.exists():
+            if (
+                not direct_match.name.startswith("_")
+                and self._is_within_directory(direct_match)
+                and direct_match.exists()
+            ):
                 return (direct_match, "")
 
         # Try nested path by progressively checking each part
@@ -167,6 +183,7 @@ class DynamicDirectoryMiddleware:
             if (
                 cache_key in self._app_cache
                 and not potential_path.name.startswith("_")
+                and self._is_within_directory(potential_path)
             ):
                 return (potential_path.with_suffix(".py"), "/".join(remaining))
 
