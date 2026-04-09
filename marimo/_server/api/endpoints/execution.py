@@ -46,6 +46,7 @@ router = APIRouter()
 
 
 @router.post("/set_ui_element_value")
+@requires("read")
 async def set_ui_element_values(
     *,
     request: Request,
@@ -86,6 +87,7 @@ async def set_ui_element_values(
 
 
 @router.post("/set_model_value")
+@requires("read")
 async def set_model_values(
     *,
     request: Request,
@@ -151,6 +153,7 @@ async def instantiate(
 
 
 @router.post("/function_call")
+@requires("read")
 async def function_call(
     *,
     request: Request,
