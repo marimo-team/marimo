@@ -12,8 +12,6 @@ from marimo._runtime import dataflow
 from marimo._runtime.app.common import RunOutput
 from marimo._runtime.context.types import (
     get_context,
-    runtime_context_installed,
-    teardown_context,
 )
 from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import (
@@ -33,6 +31,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
+    from marimo._runtime.context.script_context import ScriptRuntimeContext
 
 
 class AppScriptRunner:
@@ -82,6 +81,7 @@ class AppScriptRunner:
     def _run_synchronous(
         self,
         post_execute_hooks: list[Callable[[], Any]],
+        script_context: ScriptRuntimeContext,
     ) -> RunOutput:
         with patch_main_module_context(
             create_main_module(
@@ -93,40 +93,47 @@ class AppScriptRunner:
         ) as module:
             glbls = module.__dict__
             glbls.update(self._glbls)
+            script_context.set_globals(glbls)
 
             outputs: dict[CellId_t, Any] = {}
-            while self.cells_to_run:
-                cid = self.cells_to_run.popleft()
-                if cid in self.cells_cancelled:
-                    continue
-                # Set up has already run in this case.
-                if cid == CellId_t(SETUP_CELL_NAME):
-                    for hook in post_execute_hooks:
-                        hook()
-                    continue
-
-                cell = self.app.graph.cells[cid]
-                with get_context().with_cell_id(cid):
-                    try:
-                        output = self._executor.execute_cell(
-                            cell, glbls, self.app.graph
-                        )
-                        outputs[cid] = output
-                    except MarimoRuntimeException as e:
-                        unwrapped_exception: BaseException | None = e.__cause__
-
-                        if isinstance(unwrapped_exception, MarimoStopError):
-                            self._cancel(cid)
-                        else:
-                            raise e
-                    finally:
+            with script_context.install():
+                while self.cells_to_run:
+                    cid = self.cells_to_run.popleft()
+                    if cid in self.cells_cancelled:
+                        continue
+                    # Set up has already run in this case.
+                    if cid == CellId_t(SETUP_CELL_NAME):
                         for hook in post_execute_hooks:
                             hook()
+                        continue
+
+                    cell = self.app.graph.cells[cid]
+                    with get_context().with_cell_id(cid):
+                        try:
+                            output = self._executor.execute_cell(
+                                cell, glbls, self.app.graph
+                            )
+                            outputs[cid] = output
+                        except MarimoRuntimeException as e:
+                            unwrapped_exception: BaseException | None = (
+                                e.__cause__
+                            )
+
+                            if isinstance(
+                                unwrapped_exception, MarimoStopError
+                            ):
+                                self._cancel(cid)
+                            else:
+                                raise e
+                        finally:
+                            for hook in post_execute_hooks:
+                                hook()
         return outputs, glbls
 
     async def _run_asynchronous(
         self,
         post_execute_hooks: list[Callable[[], Any]],
+        script_context: ScriptRuntimeContext,
     ) -> RunOutput:
         with patch_main_module_context(
             create_main_module(
@@ -138,41 +145,47 @@ class AppScriptRunner:
         ) as module:
             glbls = module.__dict__
             glbls.update(self._glbls)
+            script_context.set_globals(glbls)
 
             outputs: dict[CellId_t, Any] = {}
 
-            while self.cells_to_run:
-                cid = self.cells_to_run.popleft()
-                if cid in self.cells_cancelled:
-                    continue
+            with script_context.install():
+                while self.cells_to_run:
+                    cid = self.cells_to_run.popleft()
+                    if cid in self.cells_cancelled:
+                        continue
 
-                if cid == CellId_t(SETUP_CELL_NAME):
-                    for hook in post_execute_hooks:
-                        hook()
-                    continue
-
-                cell = self.app.graph.cells[cid]
-                with get_context().with_cell_id(cid):
-                    try:
-                        output = await self._executor.execute_cell_async(
-                            cell, glbls, self.app.graph
-                        )
-                        outputs[cid] = output
-                    except MarimoRuntimeException as e:
-                        unwrapped_exception: BaseException | None = e.__cause__
-
-                        if isinstance(unwrapped_exception, MarimoStopError):
-                            self._cancel(cid)
-                        else:
-                            raise e
-                    finally:
+                    if cid == CellId_t(SETUP_CELL_NAME):
                         for hook in post_execute_hooks:
                             hook()
+                        continue
+
+                    cell = self.app.graph.cells[cid]
+                    with get_context().with_cell_id(cid):
+                        try:
+                            output = await self._executor.execute_cell_async(
+                                cell, glbls, self.app.graph
+                            )
+                            outputs[cid] = output
+                        except MarimoRuntimeException as e:
+                            unwrapped_exception: BaseException | None = (
+                                e.__cause__
+                            )
+
+                            if isinstance(
+                                unwrapped_exception, MarimoStopError
+                            ):
+                                self._cancel(cid)
+                            else:
+                                raise e
+                        finally:
+                            for hook in post_execute_hooks:
+                                hook()
         return outputs, glbls
 
     def run(self) -> RunOutput:
         from marimo._runtime.context.script_context import (
-            initialize_script_context,
+            create_script_context,
         )
 
         app = self.app
@@ -189,16 +202,15 @@ class AppScriptRunner:
                 is_async = True
                 break
 
-        installed_script_context = False
-        try:
-            if not runtime_context_installed():
-                # script context is ephemeral, only installed while the app is
-                # running
-                initialize_script_context(
-                    app=app, stream=NoopStream(), filename=self.filename
-                )
-                installed_script_context = True
+        # Always create a fresh ScriptRuntimeContext and install it for the
+        # duration of execution.  install() saves/restores any pre-existing
+        # context (e.g. an outer notebook's KernelRuntimeContext), so SQL cells
+        # that call get_context().globals see the correct inner-app globals.
+        script_context = create_script_context(
+            app=app, stream=NoopStream(), filename=self.filename
+        )
 
+        try:
             # formatters aren't automatically registered when running as a
             # script
             from marimo._output.formatters.formatters import (
@@ -219,11 +231,13 @@ class AppScriptRunner:
                 outputs, defs = asyncio.run(
                     self._run_asynchronous(
                         post_execute_hooks=post_execute_hooks,
+                        script_context=script_context,
                     )
                 )
             else:
                 outputs, defs = self._run_synchronous(
                     post_execute_hooks=post_execute_hooks,
+                    script_context=script_context,
                 )
             return outputs, defs
 
@@ -247,6 +261,3 @@ class AppScriptRunner:
             # from "None" to indicate this is an Error propagation, and to not
             # muddy the stacktrace from the failing cells themselves.
             raise e.__cause__ from None  # type: ignore
-        finally:
-            if installed_script_context:
-                teardown_context()

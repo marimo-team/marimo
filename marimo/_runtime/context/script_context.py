@@ -17,15 +17,10 @@ from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
     ExecutionContext,
     RuntimeContext,
-    initialize_context,
 )
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
-from marimo._runtime.patches import (
-    create_main_module,
-    patch_main_module_context,
-)
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
@@ -44,6 +39,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     def __post_init__(self) -> None:
         self._cli_args: CLIArgs | None = None
+        self._glbls: dict[str, Any] | None = None
         self._argv = sys.argv
         self._query_params = QueryParams({}, _registry=self.state_registry)
 
@@ -53,14 +49,16 @@ class ScriptRuntimeContext(RuntimeContext):
 
     @property
     def globals(self) -> dict[str, Any]:
-        with patch_main_module_context(
-            create_main_module(
-                file=None, input_override=None, print_override=None
+        if self._glbls is None:
+            raise RuntimeError(
+                "ScriptRuntimeContext.globals accessed before "
+                "set_globals() was called."
             )
-        ) as module:
-            glbls = module.__dict__
-        glbls.update(sys.modules["__main__"].__dict__)
-        return glbls
+        return self._glbls
+
+    def set_globals(self, glbls: dict[str, Any]) -> None:
+        """Set the globals dict for this script context."""
+        self._glbls = glbls
 
     @property
     def execution_context(self) -> ExecutionContext | None:
@@ -139,13 +137,10 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._app
 
 
-def initialize_script_context(
+def create_script_context(
     app: InternalApp, stream: Stream, filename: str | None
-) -> None:
-    """Initializes thread-local/session-specific context.
-
-    Must be called exactly once for each client thread.
-    """
+) -> ScriptRuntimeContext:
+    """Creates a ScriptRuntimeContext."""
     from marimo._runtime.virtual_file import (
         InMemoryStorage,
         VirtualFileRegistry,
@@ -153,7 +148,7 @@ def initialize_script_context(
     from marimo._save.cache import CacheState
     from marimo._save.stores import get_store
 
-    runtime_context = ScriptRuntimeContext(
+    return ScriptRuntimeContext(
         _app=app,
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
@@ -171,4 +166,3 @@ def initialize_script_context(
         filename=filename,
         app_config=app.config,
     )
-    initialize_context(runtime_context=runtime_context)
