@@ -210,28 +210,14 @@ describe("Events.fromCodeMirror", () => {
     editor.append(line);
     document.body.append(editor);
 
-    expect(Events.fromCodeMirror(fakeEvent(line))).toBe(true);
+    expect(Events.fromCodeMirror(line)).toBe(true);
     editor.remove();
   });
 
   test("returns false when target is not inside .cm-editor", () => {
     const div = document.createElement("div");
     document.body.append(div);
-    expect(Events.fromCodeMirror(fakeEvent(div))).toBe(false);
+    expect(Events.fromCodeMirror(div)).toBe(false);
     div.remove();
-  });
-
-  test("uses composedPath when available (shadow DOM)", () => {
-    const editor = document.createElement("div");
-    editor.className = "cm-editor";
-    const line = document.createElement("div");
-    editor.append(line);
-    document.body.append(editor);
-
-    const host = document.createElement("div");
-    const event = fakeNativeEvent(host, line);
-    expect(Events.fromCodeMirror(event)).toBe(true);
-
-    editor.remove();
   });
 });

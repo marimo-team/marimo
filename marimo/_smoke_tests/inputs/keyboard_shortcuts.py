@@ -127,27 +127,28 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mod_count = mo.state(0)
+    mod_count, set_mod_count = mo.state(0)
+    key = "Cmd-Shift-L"
 
 
     def _on_mod_click(_: object) -> None:
-        mod_count.set_value(lambda n: n + 1)
+        set_mod_count(lambda n: n + 1)
 
 
     mod_button = mo.ui.button(
-        label="Trigger with Ctrl-K",
+        label=f"Trigger with {key}",
         on_click=_on_mod_click,
-        keyboard_shortcut="Ctrl-K",
+        keyboard_shortcut=key,
     )
-    return mod_button, mod_count
+    return key, mod_button, mod_count
 
 
 @app.cell
-def _(mo, mod_button, mod_count):
+def _(key, mo, mod_button, mod_count):
     mc = mod_count()
     mo.vstack(
         [
-            mo.md(f"**Ctrl-K button fired: {mc} time(s)**"),
+            mo.md(f"**{key} button fired: {mc} time(s)**"),
             mod_button,
             mo.md(
                 "Pressing plain **K** in the text input below should type 'k'. "
@@ -155,16 +156,6 @@ def _(mo, mod_button, mod_count):
             ),
         ]
     )
-    return
-
-
-@app.cell
-def _(mo):
-    mod_text = mo.ui.text(
-        label="Type K here (Ctrl-K fires button, plain K should not)",
-        placeholder="type here…",
-    )
-    mod_text
     return
 
 
