@@ -66,8 +66,6 @@ These restrictions prevent code execution without explicit user consent.
 
 ## Supported Versions
 
-We provide security patches for the latest stable release only. We encourage all users to stay on the latest version.
-
 ## Security Advisories
 
 marimo publishes security advisories for vulnerabilities that affect production deployments, particularly long-running applications.
