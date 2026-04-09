@@ -18,13 +18,15 @@ from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     AggregateTransform,
     ColumnConversionTransform,
-    Condition,
     DataFrameType,
     ExpandDictTransform,
     ExplodeColumnsTransform,
+    FilterCondition,
+    FilterGroup,
     FilterRowsTransform,
     GroupByTransform,
     PivotTransform,
+    RangeValue,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -296,7 +298,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator=">=", value=2)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator=">=", value=2
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -308,13 +318,18 @@ class TestTransformHandler:
             transform = FilterRowsTransform(
                 type=TransformType.FILTER_ROWS,
                 operation="keep_rows",
-                where=[
-                    Condition(
-                        column_id="A",
-                        operator=cast(Any, operator),
-                        value="foo",
-                    )
-                ],
+                where=FilterGroup(
+                    type="group",
+                    operator="and",
+                    children=[
+                        FilterCondition(
+                            type="condition",
+                            column_id="A",
+                            operator=cast(Any, operator),
+                            value="foo",
+                        )
+                    ],
+                ),
             )
             result = apply(df, transform)
             assert_frame_equal(result, pd.DataFrame({"A": ["foo"]}))
@@ -336,7 +351,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[Condition(column_id="B", operator="!=", value=5)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="B", operator="!=", value=5
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -358,7 +381,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="<", value=4)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator="<", value=4
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -380,7 +411,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[Condition(column_id="A", operator="==", value=2)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator="==", value=2
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -402,7 +441,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="B", operator=">=", value=5)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="B", operator=">=", value=5
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -424,7 +471,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[Condition(column_id="B", operator="<", value=6)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="B", operator="<", value=6
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -451,11 +506,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="date", operator="==", value=date(2001, 1, 1)
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="date",
+                        operator="==",
+                        value=date(2001, 1, 1),
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -477,7 +539,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="in", value=[1, 2])],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=[1, 2],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -504,13 +577,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="date",
-                    operator="in",
-                    value=["2001-01-01"],  # Backend will receive as string
-                ),
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="date",
+                        operator="in",
+                        value=["2001-01-01"],  # Backend will receive as string
+                    ),
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -538,13 +616,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A",
-                    operator="in",
-                    value=["1.99", "3.25"],
-                ),
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=["1.99", "3.25"],
+                    ),
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -579,13 +662,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A",
-                    operator="in",
-                    value=["0.10"],
-                ),
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=["0.10"],
+                    ),
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -612,13 +700,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A",
-                    operator="in",
-                    value=["1.12345678901234567"],
-                ),
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=["1.12345678901234567"],
+                    ),
+                ],
+            ),
         )
         result = apply(df, transform)
         assert df_size(result) == 1
@@ -644,34 +737,72 @@ class TestTransformHandler:
         eq_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="==", value="0.50")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="==",
+                        value="0.50",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, eq_transform)) == 1
 
         gte_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator=">=", value="1.99")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator=">=",
+                        value="1.99",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, gte_transform)) == 2
 
         lt_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="<", value="1.00")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="<",
+                        value="1.00",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, lt_transform)) == 1
 
         not_in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A",
-                    operator="not_in",
-                    value=["0.50"],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="not_in",
+                        value=["0.50"],
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, not_in_transform)) == 2
 
@@ -687,9 +818,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(column_id="A", operator="in", value=["1.99", "3.25"])
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=["1.99", "3.25"],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert df_size(result) == 2
@@ -697,14 +837,36 @@ class TestTransformHandler:
         eq_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="==", value="0.50")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="==",
+                        value="0.50",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, eq_transform)) == 1
 
         gte_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator=">=", value="1.99")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator=">=",
+                        value="1.99",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, gte_transform)) == 2
 
@@ -724,22 +886,36 @@ class TestTransformHandler:
         eq_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(column_id="d", operator="==", value="2024-06-15")
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="d",
+                        operator="==",
+                        value="2024-06-15",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, eq_transform)) == 1
 
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="d",
-                    operator="in",
-                    value=["2024-01-01", "2024-12-31"],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="d",
+                        operator="in",
+                        value=["2024-01-01", "2024-12-31"],
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, in_transform)) == 2
 
@@ -754,9 +930,18 @@ class TestTransformHandler:
         eq_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(column_id="d", operator="==", value="2024-06-15")
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="d",
+                        operator="==",
+                        value="2024-06-15",
+                    )
+                ],
+            ),
         )
         assert df_size(apply(df, eq_transform)) == 1
 
@@ -779,7 +964,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="in", value=[[1, 2]])],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=[[1, 2]],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -806,11 +1002,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A", operator="in", value=[{"a": 1, "b": 2}]
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=[{"a": 1, "b": 2}],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -839,11 +1042,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A", operator="in", value=[{"a": 1, "b": None}]
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=[{"a": 1, "b": None}],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -869,7 +1079,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="in", value=[None])],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="in",
+                        value=[None],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -891,7 +1112,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="not_in", value=[1, 2])],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="not_in",
+                        value=[1, 2],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -915,11 +1147,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="A", operator="not_in", value=["foo", "bar"]
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="not_in",
+                        value=["foo", "bar"],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -945,9 +1184,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(column_id="A", operator="not_in", value=[1, 2, None])
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="not_in",
+                        value=[1, 2, None],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -975,7 +1223,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="not_in", value=[1, 2])],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="A",
+                        operator="not_in",
+                        value=[1, 2],
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         if nw.dependencies.is_pandas_dataframe(result):
@@ -1002,10 +1261,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(column_id="A", operator=">=", value=3),
-                Condition(column_id="B", operator="<=", value=3),
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator=">=", value=3
+                    ),
+                    FilterCondition(
+                        type="condition", column_id="B", operator="<=", value=3
+                    ),
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -1029,10 +1296,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[
-                Condition(column_id="A", operator="==", value=2),
-                Condition(column_id="B", operator="==", value=4),
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator="==", value=2
+                    ),
+                    FilterCondition(
+                        type="condition", column_id="B", operator="==", value=4
+                    ),
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -1054,7 +1329,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator="is_true")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator="is_true"
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -1062,7 +1345,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[Condition(column_id="A", operator="is_false")],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator="is_false"
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -1084,7 +1375,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="B", operator=">=", value=2)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="B", operator=">=", value=2
+                    )
+                ],
+            ),
         )
         with pytest.raises(expected):
             apply(df, transform)
@@ -1110,7 +1409,15 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id=1, operator=">=", value=2)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id=1, operator=">=", value=2
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert_frame_equal(result, expected)
@@ -1124,13 +1431,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="column_a",
-                    operator="equals",
-                    value="alpha",
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="column_a",
+                        operator="equals",
+                        value="alpha",
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert df_size(result) == 1
@@ -1138,13 +1450,18 @@ class TestTransformHandler:
         transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="column_a",
-                    operator="does_not_equal",
-                    value="alpha",
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="column_a",
+                        operator="does_not_equal",
+                        value="alpha",
+                    )
+                ],
+            ),
         )
         result = apply(df, transform)
         assert df_size(result) == 2
@@ -1152,11 +1469,18 @@ class TestTransformHandler:
         ends_with_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="column_a", operator="ends_with", value="mma"
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="column_a",
+                        operator="ends_with",
+                        value="mma",
+                    )
+                ],
+            ),
         )
         result = apply(df, ends_with_transform)
         assert df_size(result) == 1
@@ -1164,11 +1488,18 @@ class TestTransformHandler:
         contains_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="column_a", operator="contains", value="mma"
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="column_a",
+                        operator="contains",
+                        value="mma",
+                    )
+                ],
+            ),
         )
         result = apply(df, contains_transform)
         assert df_size(result) == 1
@@ -1176,13 +1507,18 @@ class TestTransformHandler:
         does_not_contain_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[
-                Condition(
-                    column_id="column_a",
-                    operator="contains",
-                    value="mma",
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="column_a",
+                        operator="contains",
+                        value="mma",
+                    )
+                ],
+            ),
         )
         result = apply(df, does_not_contain_transform)
         assert df_size(result) == 2
@@ -1190,11 +1526,18 @@ class TestTransformHandler:
         starts_with_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="column_a", operator="starts_with", value="alp"
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="column_a",
+                        operator="starts_with",
+                        value="alp",
+                    )
+                ],
+            ),
         )
         result = apply(df, starts_with_transform)
         assert df_size(result) == 1
@@ -1756,7 +2099,15 @@ class TestTransformHandler:
         filter_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[Condition(column_id="A", operator=">=", value=2)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="A", operator=">=", value=2
+                    )
+                ],
+            ),
         )
         transformations = Transformations([sort_transform, filter_transform])
         # Verify the next transformation
@@ -1785,7 +2136,15 @@ class TestTransformHandler:
         filter_again_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="remove_rows",
-            where=[Condition(column_id="B", operator="==", value=5)],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition", column_id="B", operator="==", value=5
+                    )
+                ],
+            ),
         )
         transformations = Transformations(
             [sort_transform, filter_transform, filter_again_transform]
@@ -1910,13 +2269,18 @@ class TestTransformHandler:
         eq_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="date",
-                    operator="==",
-                    value="2001-01-01",
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="date",
+                        operator="==",
+                        value="2001-01-01",
+                    )
+                ],
+            ),
         )
         result = apply(df, eq_transform)
         assert_frame_equal(result, expected)
@@ -1924,13 +2288,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="date",
-                    operator="in",
-                    value=["2001-01-01"],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="date",
+                        operator="in",
+                        value=["2001-01-01"],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal(result, expected)
@@ -1956,13 +2325,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[NAN_VALUE],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[NAN_VALUE],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
@@ -1986,13 +2360,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[None],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[None],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
@@ -2020,13 +2399,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[NAN_VALUE],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[NAN_VALUE],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
@@ -2051,13 +2435,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[POSITIVE_INF],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[POSITIVE_INF],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
@@ -2082,13 +2471,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[NEGATIVE_INF],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[NEGATIVE_INF],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
@@ -2124,13 +2518,18 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[NAN_VALUE, POSITIVE_INF, None],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[NAN_VALUE, POSITIVE_INF, None],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
@@ -2167,13 +2566,615 @@ class TestTransformHandler:
         in_transform = FilterRowsTransform(
             type=TransformType.FILTER_ROWS,
             operation="keep_rows",
-            where=[
-                Condition(
-                    column_id="nulls",
-                    operator="in",
-                    value=[NAN_VALUE, POSITIVE_INF, None],
-                )
-            ],
+            where=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="nulls",
+                        operator="in",
+                        value=[NAN_VALUE, POSITIVE_INF, None],
+                    )
+                ],
+            ),
         )
         result = apply(df, in_transform)
         assert_frame_equal_with_nans(result, expected)
+
+    # --- between operator ---
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+                create_test_dataframes({"A": [2, 3, 4]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_between_int(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="between",
+                        value=RangeValue(min=2, max=4),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1.0, 2.5, 3.0, 4.5, 5.0]}),
+                create_test_dataframes({"A": [2.5, 3.0]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_between_float(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="between",
+                        value=RangeValue(min=2.0, max=3.5),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": [1, 2, None, 4, 5]}, strict=False
+                ),
+                create_test_dataframes({"A": [2, 4]}, strict=False),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_between_with_nulls(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="between",
+                        value=RangeValue(min=2, max=4),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+                create_test_dataframes({"A": [1, 5]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_between_negate(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="between",
+                        value=RangeValue(min=2, max=4),
+                        negate=True,
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+                create_test_dataframes({"A": [3]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_between_min_equals_max(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="between",
+                        value=RangeValue(min=3, max=3),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+    )
+    def test_filter_between_min_gt_max_empty(df: DataFrameType) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="between",
+                        value=RangeValue(min=5, max=2),
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert df_size(result) == 0
+
+    # --- is_empty operator ---
+
+    @staticmethod
+    def test_filter_is_empty() -> None:
+        df = pd.DataFrame({"A": ["foo", "", None, "bar", ""]})
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[FilterCondition(column_id="A", operator="is_empty")]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, pd.DataFrame({"A": ["", ""]}))
+
+    @staticmethod
+    def test_filter_is_empty_no_nulls_matched() -> None:
+        df = pd.DataFrame({"A": [None, None, None]})
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[FilterCondition(column_id="A", operator="is_empty")]
+            ),
+        )
+        result = apply(df, transform)
+        assert df_size(result) == 0
+
+    @staticmethod
+    def test_filter_is_empty_negate() -> None:
+        df = pd.DataFrame({"A": ["foo", "", None, "bar", ""]})
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A", operator="is_empty", negate=True
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, pd.DataFrame({"A": ["foo", None, "bar"]}))
+
+    # --- FilterGroup with OR ---
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+                create_test_dataframes({"A": [1, 4, 5]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_group_or(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                operator="or",
+                children=[
+                    FilterCondition(column_id="A", operator="==", value=1),
+                    FilterCondition(column_id="A", operator=">=", value=4),
+                ],
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3], "B": ["x", "y", "z"]}),
+                create_test_dataframes({"A": [1, 3], "B": ["x", "z"]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_group_or_different_columns(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                operator="or",
+                children=[
+                    FilterCondition(column_id="A", operator="==", value=1),
+                    FilterCondition(
+                        column_id="B", operator="equals", value="z"
+                    ),
+                ],
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    # --- Nested FilterGroups ---
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": [1, 2, 3, 4, 5], "B": [10, 20, 30, 40, 50]}
+                ),
+                create_test_dataframes({"A": [2, 3, 5], "B": [20, 30, 50]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_nested_and_or(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        # (A >= 2 AND A <= 3) OR (B == 50)
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                operator="or",
+                children=[
+                    FilterGroup(
+                        operator="and",
+                        children=[
+                            FilterCondition(
+                                column_id="A", operator=">=", value=2
+                            ),
+                            FilterCondition(
+                                column_id="A", operator="<=", value=3
+                            ),
+                        ],
+                    ),
+                    FilterCondition(column_id="B", operator="==", value=50),
+                ],
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": [1, 2, 3, 4, 5], "B": [10, 20, 30, 40, 50]}
+                ),
+                create_test_dataframes({"A": [2, 4], "B": [20, 40]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_filter_nested_or_and(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        # (A == 2 OR A == 4) AND (B >= 20 OR B <= 40)
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                operator="and",
+                children=[
+                    FilterGroup(
+                        operator="or",
+                        children=[
+                            FilterCondition(
+                                column_id="A", operator="==", value=2
+                            ),
+                            FilterCondition(
+                                column_id="A", operator="==", value=4
+                            ),
+                        ],
+                    ),
+                    FilterGroup(
+                        operator="or",
+                        children=[
+                            FilterCondition(
+                                column_id="B", operator=">=", value=20
+                            ),
+                            FilterCondition(
+                                column_id="B", operator="<=", value=40
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    # --- Negate on condition ---
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3]}),
+                create_test_dataframes({"A": [1, 3]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_negate_equals(df: DataFrameType, expected: DataFrameType) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A", operator="==", value=2, negate=True
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": [1, 2, None, 4]},
+                    strict=False,
+                    exclude=["pyarrow", "ibis"],
+                ),
+                create_test_dataframes(
+                    {"A": [1, 4]},
+                    strict=False,
+                    exclude=["pyarrow", "ibis"],
+                ),
+                strict=True,
+            )
+        ),
+    )
+    def test_negate_in_with_nulls(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="in",
+                        value=[2, None],
+                        negate=True,
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    def test_negate_contains() -> None:
+        df = pd.DataFrame({"A": ["foo", "bar", None, "foobar"]})
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A",
+                        operator="contains",
+                        value="foo",
+                        negate=True,
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, pd.DataFrame({"A": ["bar"]}))
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": [True, False, None]}, strict=False
+                ),
+                create_test_dataframes({"A": [False]}, strict=False),
+                strict=True,
+            )
+        ),
+    )
+    def test_negate_is_true(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A", operator="is_true", negate=True
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, None, 3]}, strict=False),
+                create_test_dataframes({"A": [1, 3]}, strict=False),
+                strict=True,
+            )
+        ),
+    )
+    def test_negate_is_null(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                children=[
+                    FilterCondition(
+                        column_id="A", operator="is_null", negate=True
+                    )
+                ]
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    # --- Group negate ---
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+                create_test_dataframes({"A": [1, 4, 5]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_group_negate(df: DataFrameType, expected: DataFrameType) -> None:
+        # NOT(A >= 2 AND A <= 3) -> A < 2 OR A > 3
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                operator="and",
+                negate=True,
+                children=[
+                    FilterCondition(column_id="A", operator=">=", value=2),
+                    FilterCondition(column_id="A", operator="<=", value=3),
+                ],
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
+                create_test_dataframes({"A": [2, 3, 4]}),
+                strict=True,
+            )
+        ),
+    )
+    def test_group_negate_or(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        # NOT(A <= 1 OR A >= 5) -> A > 1 AND A < 5
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(
+                operator="or",
+                negate=True,
+                children=[
+                    FilterCondition(column_id="A", operator="<=", value=1),
+                    FilterCondition(column_id="A", operator=">=", value=5),
+                ],
+            ),
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    # --- Empty group ---
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes({"A": [1, 2, 3]}),
+    )
+    def test_empty_group_returns_all(df: DataFrameType) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=FilterGroup(children=()),
+        )
+        result = apply(df, transform)
+        assert df_size(result) == 3
