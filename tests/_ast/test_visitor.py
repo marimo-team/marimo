@@ -229,13 +229,7 @@ def test_starred_assignment() -> None:
 
 
 def test_scope_does_not_leak() -> None:
-    code = "\n".join(
-        [
-            "def foo():",
-            "  z = 0",
-            "z",
-        ]
-    )
+    code = "def foo():\n  z = 0\nz"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -247,13 +241,7 @@ def test_scope_does_not_leak() -> None:
 
 
 def test_nested_comprehensions() -> None:
-    code = "\n".join(
-        [
-            "[(i, j) for i in range(10) for j in range(i)]",
-            "{(i, j) for i in range(10) for j in range(i)}",
-            "{i: j for i in range(10) for j in range(i)}",
-        ]
-    )
+    code = "[(i, j) for i in range(10) for j in range(i)]\n{(i, j) for i in range(10) for j in range(i)}\n{i: j for i in range(10) for j in range(i)}"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -263,11 +251,7 @@ def test_nested_comprehensions() -> None:
 
 
 def test_comprehension_generator() -> None:
-    code = "\n".join(
-        [
-            "[x for x in x]",
-        ]
-    )
+    code = "[x for x in x]"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -277,11 +261,7 @@ def test_comprehension_generator() -> None:
 
 
 def test_nested_comprehension_generator() -> None:
-    code = "\n".join(
-        [
-            "[x for x in x for x in x]",
-        ]
-    )
+    code = "[x for x in x for x in x]"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -291,11 +271,7 @@ def test_nested_comprehension_generator() -> None:
 
 
 def test_nested_comprehension_generator_with_named_expr() -> None:
-    code = "\n".join(
-        [
-            "[(x := x) for x in x for x in x]",
-        ]
-    )
+    code = "[(x := x) for x in x for x in x]"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -396,14 +372,7 @@ def test_shadowed_param_in_comprehension_not_required_ref() -> None:
 
 
 def test_walrus_leaks_to_global_in_comprehension() -> None:
-    code = "\n".join(
-        [
-            "def foo(): a",
-            "[(a := (i, (b := j))) for i in range(10) for j in range(i)]",
-            "{(c := (i, j)) for i in range(10) for j in range(i)}",
-            "{i: (d := j) for i in range(10) for j in range(i)}",
-        ]
-    )
+    code = "def foo(): a\n[(a := (i, (b := j))) for i in range(10) for j in range(i)]\n{(c := (i, j)) for i in range(10) for j in range(i)}\n{i: (d := j) for i in range(10) for j in range(i)}"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -455,9 +424,7 @@ def test_pep572_walrus_comprehension_examples() -> None:
 
 
 def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
-    code = "\n".join(
-        ["def f():", "  [(x := 0) for i in range(5)]", "  y = x + 1"]
-    )
+    code = "def f():\n  [(x := 0) for i in range(5)]\n  y = x + 1"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -469,16 +436,8 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
 
 
 def test_assignments_in_multiple_scopes() -> None:
-    code = "\n".join(
-        [
-            "a = 0",
-            "def foo():",
-            "  b = 0",
-            "  c = 0",
-            "  def bar():",
-            "    d = 0",
-            "e = 0",
-        ]
+    code = (
+        "a = 0\ndef foo():\n  b = 0\n  c = 0\n  def bar():\n    d = 0\ne = 0"
     )
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
@@ -709,11 +668,7 @@ def test_call_ref() -> None:
 
 def test_call_defined() -> None:
     # fmt: off
-    code = "\n".join([
-        "def foo():",
-        "  pass",
-        "foo()"
-    ])
+    code = "def foo():\n  pass\nfoo()"
     # fmt: on
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
@@ -996,28 +951,7 @@ def test_from_import_star() -> None:
 
 
 def test_try_block() -> None:
-    code = "\n".join(
-        [
-            "f = 2",
-            "try:",
-            "  v = 1 / 0",
-            "except TypeError as e:",
-            "  err = e",
-            "  e = 0",
-            "  x = out_of_scope",
-            "  print(f'caught {type(e)} with nested {e.exceptions}')",
-            "except OSError as f:",
-            "  err2 = f",
-            "  try:",
-            "    y = 1 / 0",
-            "  except ZeroDivisionError as g:",
-            "    err3 = g",
-            "else:",
-            "  w = 1",
-            "finally:",
-            "  z = 3",
-        ]
-    )
+    code = "f = 2\ntry:\n  v = 1 / 0\nexcept TypeError as e:\n  err = e\n  e = 0\n  x = out_of_scope\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept OSError as f:\n  err2 = f\n  try:\n    y = 1 / 0\n  except ZeroDivisionError as g:\n    err3 = g\nelse:\n  w = 1\nfinally:\n  z = 3"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1031,23 +965,7 @@ def test_try_block() -> None:
 
 @pytest.mark.skipif("sys.version_info < (3, 11)")
 def test_try_star_block() -> None:
-    code = "\n".join(
-        [
-            "try:",
-            (
-                "  raise ExceptionGroup('eg', "
-                "[ValueError(1), TypeError(2), OSError(3)])"
-            ),
-            "except* TypeError as e:",
-            "  print(f'caught {type(e)} with nested {e.exceptions}')",
-            "except* OSError as f:",
-            "  print(f'caught {type(f)} with nested {f.exceptions}')",
-            "else:",
-            "  print('Type and Os not raised')",
-            "finally:",
-            "  print('finally')",
-        ]
-    )
+    code = "try:\n  raise ExceptionGroup('eg', [ValueError(1), TypeError(2), OSError(3)])\nexcept* TypeError as e:\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept* OSError as f:\n  print(f'caught {type(f)} with nested {f.exceptions}')\nelse:\n  print('Type and Os not raised')\nfinally:\n  print('finally')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1102,14 +1020,7 @@ def test_type_var_generic_function() -> None:
 
 
 def test_private_ref_requirement_caught() -> None:
-    code = "\n".join(
-        [
-            "x = 1",
-            "_x = 1",
-            "def foo():",
-            "  z = _x + x + X",
-        ]
-    )
+    code = "x = 1\n_x = 1\ndef foo():\n  z = _x + x + X"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1209,11 +1120,7 @@ HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql('select * from cars')",
-        ]
-    )
+    code = "df = mo.sql('select * from cars')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1223,11 +1130,7 @@ def test_sql_statement() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_marimo_sql() -> None:
-    code = "\n".join(
-        [
-            "df = marimo.sql('select * from cars')",
-        ]
-    )
+    code = "df = marimo.sql('select * from cars')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1253,11 +1156,7 @@ def test_sql_statement_with_duckdb_sql(code: str) -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_f_string() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql(f'select * from cars where name = {name}')",
-        ]
-    )
+    code = "df = mo.sql(f'select * from cars where name = {name}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1267,11 +1166,7 @@ def test_sql_statement_with_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_rf_string() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql(rf'select * from cars where name = {name}')",
-        ]
-    )
+    code = "df = mo.sql(rf'select * from cars where name = {name}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1419,12 +1314,7 @@ def test_sql_empty_statement_duckdb() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_multiple_tables() -> None:
-    code = "\n".join(
-        [
-            "df = mo.sql('select * from cars left join"
-            " cars2 on cars.id = cars2.id')",
-        ]
-    )
+    code = "df = mo.sql('select * from cars left join cars2 on cars.id = cars2.id')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1434,11 +1324,7 @@ def test_sql_multiple_tables() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_from_another_module() -> None:
-    code = "\n".join(
-        [
-            "df = lib.sql('select * from cars')",
-        ]
-    )
+    code = "df = lib.sql('select * from cars')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1448,12 +1334,7 @@ def test_sql_from_another_module() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_statement_with_url() -> None:
-    code = "\n".join(
-        [
-            'mo.sql("CREATE OR replace TABLE cars as '
-            "FROM 'https://datasets.marimo.app/cars.csv';\")",
-        ]
-    )
+    code = "mo.sql(\"CREATE OR replace TABLE cars as FROM 'https://datasets.marimo.app/cars.csv';\")"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1483,14 +1364,7 @@ def test_sql_statement_with_function() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_unparsable_sql_doesnt_fail() -> None:
-    code = "\n".join(
-        [
-            # duckdb will raise a BinderError, but codegen shouldnt fail.
-            # sqlglot can still extract table refs even when duckdb can't
-            # parse the SQL.
-            "df = mo.sql('select * from cars where cars.foo = ANY({bar})')",
-        ]
-    )
+    code = "df = mo.sql('select * from cars where cars.foo = ANY({bar})')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1500,11 +1374,7 @@ def test_unparsable_sql_doesnt_fail() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_attach() -> None:
-    code = "\n".join(
-        [
-            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"
-        ]
-    )
+    code = "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password=password' as db\")"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1514,11 +1384,7 @@ def test_sql_attach() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_attach_f_string() -> None:
-    code = "\n".join(
-        [
-            "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"
-        ]
-    )
+    code = "mo.sql(f\"ATTACH 'dbname=postgres user=postgres host=127.0.0.1 password={PASSWORD}' as db\")"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1528,7 +1394,7 @@ def test_sql_attach_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_int_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT * FROM df LIMIT {lim}')"])
+    code = "mo.sql(f'SELECT * FROM df LIMIT {lim}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1538,7 +1404,7 @@ def test_sql_int_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_column_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT {col} FROM df LIMIT {lim}')"])
+    code = "mo.sql(f'SELECT {col} FROM df LIMIT {lim}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1548,7 +1414,7 @@ def test_sql_column_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_value_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT * FROM df WHERE {col} = {val}')"])
+    code = "mo.sql(f'SELECT * FROM df WHERE {col} = {val}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
@@ -1558,7 +1424,7 @@ def test_sql_value_f_string() -> None:
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
 def test_sql_table_f_string() -> None:
-    code = "\n".join(["mo.sql(f'SELECT * FROM {my_table} LIMIT {lim}')"])
+    code = "mo.sql(f'SELECT * FROM {my_table} LIMIT {lim}')"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)

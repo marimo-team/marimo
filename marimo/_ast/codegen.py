@@ -389,7 +389,7 @@ def to_top_functiondef(
             decorator = to_decorator(cell.config, fn="class_definition")
         else:
             decorator = to_decorator(cell.config, fn="function")
-        return "\n".join([decorator, cell.code.strip()])
+        return f"{decorator}\n{cell.code.strip()}"
     return ""
 
 

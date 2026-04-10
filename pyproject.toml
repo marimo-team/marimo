@@ -332,7 +332,6 @@ ignore = [
     "BLE001", # Do not catch blind exception: `Exception`
     "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
     "PLW1510", # `subprocess.run` without explicit `check`
-    "FLY002", # Static join to f-string
     "RUF059", # Unused unpacked variable
     "S110", # `try`-`except`-`pass`
     "TRY004", # Type check without `TypeError`
