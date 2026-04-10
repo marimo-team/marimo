@@ -11,7 +11,7 @@ def test_html() -> None:
     assert vfile.filename.endswith(".html")
     assert (
         vfile.url
-        == "data:text/html;base64,PGh0bWw+PGJvZHk+PGgxPkhlbGxvLCBIVE1MITwvaDE+PC9ib2R5PjwvaHRtbD4="  # noqa: E501
+        == "data:text/html;base64,PGh0bWw+PGJvZHk+PGgxPkhlbGxvLCBIVE1MITwvaDE+PC9ib2R5PjwvaHRtbD4="
     )
 
 
@@ -69,7 +69,7 @@ def test_sanitize_json_bigint() -> None:
     }
     assert (
         mo_data.sanitize_json_bigint(data_dict)
-        == '{"bigint":{"$bigint":"9007199254740992"},"nested":{"bigint":{"$bigint":"9007199254740993"},"regular":42}}'  # noqa: E501
+        == '{"bigint":{"$bigint":"9007199254740992"},"nested":{"bigint":{"$bigint":"9007199254740993"},"regular":42}}'
     )
 
 

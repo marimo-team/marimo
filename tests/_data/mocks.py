@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -21,8 +21,8 @@ EAGER_LIBS: list[DFType] = ["pandas", "polars", "pyarrow"]
 def create_dataframes(
     data: dict[str, Sequence[Any]],
     *,
-    include: Optional[list[DFType]] = None,
-    exclude: Optional[list[DFType]] = None,
+    include: list[DFType] | None = None,
+    exclude: list[DFType] | None = None,
     strict: bool = True,
 ) -> list[IntoDataFrame]:
     dfs: list[IntoDataFrame] = []

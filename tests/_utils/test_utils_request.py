@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -111,10 +111,10 @@ def test_response_raise_for_status():
 def test_make_request(
     method: str,
     url: str,
-    params: Optional[dict[str, str]],
-    headers: Optional[dict[str, str]],
-    data: Optional[Union[dict[str, Any], str]],
-    json_data: Optional[dict[str, Any]],
+    params: dict[str, str] | None,
+    headers: dict[str, str] | None,
+    data: dict[str, Any] | str | None,
+    json_data: dict[str, Any] | None,
     expected_body: bytes,
     expected_headers: dict[str, str],
 ):
@@ -251,13 +251,13 @@ def test_http_error_handling():
 
 def test_request_error_handling():
     """Test that other exceptions are converted to RequestError."""
-    with patch(
-        "urllib.request.urlopen", side_effect=Exception("Network error")
+    with (
+        patch(
+            "urllib.request.urlopen", side_effect=Exception("Network error")
+        ),
+        pytest.raises(RequestError, match="Request failed: Network error"),
     ):
-        with pytest.raises(
-            RequestError, match="Request failed: Network error"
-        ):
-            _make_request("GET", "https://api.example.com")
+        _make_request("GET", "https://api.example.com")
 
 
 @pytest.mark.parametrize(
@@ -304,7 +304,7 @@ def test_request_error_handling():
     ],
 )
 def test_url_parameter_handling(
-    url: str, params: Optional[dict[str, str]], expected_url: str
+    url: str, params: dict[str, str] | None, expected_url: str
 ):
     mock_response = MagicMock()
     mock_response.getcode.return_value = 200

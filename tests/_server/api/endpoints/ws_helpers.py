@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import (
@@ -46,7 +46,7 @@ def headers(session_id: str) -> dict[str, str]:
 
 
 def assert_kernel_ready_response(
-    raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
+    raw_data: dict[str, Any], response: dict[str, Any] | None = None
 ) -> None:
     if response is None:
         response = create_response({})

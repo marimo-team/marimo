@@ -343,7 +343,7 @@ class TestScriptCache:
             with persistent_cache(name="one",
                                   _loader=MockLoader(
                                     data={"X": 7, "Y": 8})
-                                  ) as cache:  # noqa: E501
+                                  ) as cache:
                 Y = 9
                 X = 10
             # fmt: on

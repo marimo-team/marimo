@@ -114,7 +114,7 @@ def test_split_packages() -> None:
         "bar==2.0; sys_platform=='win32'",
     ]
     assert split_packages(
-        "foo==1.0; python_version=='3.7.*' bar==2.0; implementation_name=='cpython'"  # noqa: E501
+        "foo==1.0; python_version=='3.7.*' bar==2.0; implementation_name=='cpython'"
     ) == [
         "foo==1.0; python_version=='3.7.*'",
         "bar==2.0; implementation_name=='cpython'",

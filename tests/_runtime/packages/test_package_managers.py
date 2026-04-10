@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -67,7 +67,7 @@ def test_update_script_metadata() -> None:
         def _run_sync(
             self,
             command: list[str],
-            log_callback: Optional[LogCallback] = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del log_callback
             runs_calls.append(command)
@@ -102,7 +102,7 @@ def test_update_script_metadata_with_version_map() -> None:
         def _run_sync(
             self,
             command: list[str],
-            log_callback: Optional[LogCallback] = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del log_callback
             runs_calls.append(command)
@@ -139,7 +139,7 @@ def test_update_script_metadata_with_mapping() -> None:
         def _run_sync(
             self,
             command: list[str],
-            log_callback: Optional[LogCallback] = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del log_callback
             runs_calls.append(command)
@@ -198,7 +198,7 @@ def test_update_script_metadata_marimo_packages() -> None:
         def _run_sync(
             self,
             command: list[str],
-            log_callback: Optional[LogCallback] = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del log_callback
             runs_calls.append(command)
@@ -471,7 +471,7 @@ async def test_pip_install_with_log_callback() -> None:
         async def run(
             self,
             command: list[str],
-            log_callback: Optional[LogCallback] = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del command
             if log_callback:
@@ -567,8 +567,8 @@ async def test_package_manager_install_method_with_callback() -> None:
             package: str,
             *,
             upgrade: bool,
-            group: Optional[str] = None,
-            log_callback: Optional[LogCallback] = None,
+            group: str | None = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del group
             del upgrade
@@ -597,7 +597,7 @@ def test_update_script_metadata_with_git_dependencies() -> None:
         def _run_sync(
             self,
             command: list[str],
-            log_callback: Optional[LogCallback] = None,
+            log_callback: LogCallback | None = None,
         ) -> bool:
             del log_callback
             runs_calls.append(command)

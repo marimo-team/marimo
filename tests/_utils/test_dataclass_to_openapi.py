@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import sys
 import types
-from typing import Any, ClassVar, Literal, Optional, TypedDict, Union
+from typing import Any, ClassVar, Literal, TypedDict
 
 import pytest
 
@@ -16,7 +16,7 @@ from marimo._utils.dataclass_to_openapi import (
 class Address:
     street: str
     city: str
-    zip_code: Optional[int]
+    zip_code: int | None
     kind: Literal["home", "work"]
 
 
@@ -74,8 +74,8 @@ def test_dataclass_to_openapi_with_camelcase() -> None:
 @dataclasses.dataclass
 class Node:
     value: int
-    left: Optional[Node]
-    right: Optional[Node]
+    left: Node | None
+    right: Node | None
 
 
 def test_recursive_dataclass_to_openapi() -> None:
@@ -93,7 +93,7 @@ def test_recursive_dataclass_to_openapi() -> None:
     }
 
 
-Colors = Union[Literal["red"], Literal["green"], Literal["blue"]]
+Colors = Literal["red", "green", "blue"]
 
 
 def test_named_union() -> None:
@@ -112,7 +112,7 @@ def test_named_union() -> None:
 @dataclasses.dataclass
 class Theme:
     primary_color: Colors
-    secondary_color: Optional[Colors]
+    secondary_color: Colors | None
 
 
 def test_nested_named_union() -> None:
@@ -151,7 +151,7 @@ def test_class_var() -> None:
 def test_optional() -> None:
     openapi_spec = PythonTypeToOpenAPI(
         name_overrides={}, camel_case=False
-    ).convert(Optional[str], {})
+    ).convert(str | None, {})
     assert openapi_spec == {
         "type": "string",
         "nullable": True,
@@ -159,7 +159,7 @@ def test_optional() -> None:
 
 
 def test_pipe_union_nullable() -> None:
-    """types.UnionType (X | None) should be handled like Optional[X]."""
+    """types.UnionType (X | None) should be handled like str | None."""
     pipe_type = str | None
     assert type(pipe_type) is types.UnionType
     openapi_spec = PythonTypeToOpenAPI(
@@ -228,7 +228,7 @@ if sys.version_info >= (3, 11):
 def test_not_required() -> None:
     class NotRequiredDict(TypedDict):
         not_required_item: NotRequired[str]
-        optional_item: Optional[str]
+        optional_item: str | None
 
     openapi_spec = PythonTypeToOpenAPI(
         name_overrides={}, camel_case=False
@@ -249,7 +249,7 @@ def test_not_required() -> None:
 def test_not_required_total_false() -> None:
     class NotRequiredDictTotalFalse(TypedDict, total=False):
         not_required_item: NotRequired[str]
-        optional_item: Optional[str]
+        optional_item: str | None
 
     openapi_spec = PythonTypeToOpenAPI(
         name_overrides={}, camel_case=False
@@ -270,7 +270,7 @@ def test_not_required_as_dataclass() -> None:
     @dataclasses.dataclass
     class NotRequiredDictAsDataclass(TypedDict):
         not_required_item: NotRequired[str]
-        optional_item: Optional[str]
+        optional_item: str | None
 
     openapi_spec = PythonTypeToOpenAPI(
         name_overrides={}, camel_case=False
@@ -295,7 +295,7 @@ def test_not_required_as_dataclass_total_false() -> None:
     @dataclasses.dataclass
     class NotRequiredDictAsDataclassTotalFalse(TypedDict, total=False):
         not_required_item: NotRequired[str]
-        optional_item: Optional[str]
+        optional_item: str | None
 
     openapi_spec = PythonTypeToOpenAPI(
         name_overrides={}, camel_case=False
