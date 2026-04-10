@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import ast
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._data.models import (
@@ -35,7 +35,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
     def __init__(
         self,
         connection: Connection,
-        engine_name: Optional[VariableName] = None,
+        engine_name: VariableName | None = None,
     ):
         super().__init__(connection, engine_name)
 
@@ -146,7 +146,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 return cursor_result.fetch_dataframe()
             return cursor_result
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         with self._connection.cursor() as cursor:
             try:
                 return str(cursor.cur_catalog())
@@ -154,7 +154,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 LOGGER.debug("Failed to get default database. Reason: %s.", e)
                 return None
 
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         with self._connection.cursor() as cursor:
             try:
                 result = cursor.execute("SELECT current_schema()")
@@ -169,9 +169,9 @@ class RedshiftEngine(SQLConnection["Connection"]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """Get catalogs from the engine. Redshift only supports one catalog per connection.
 
@@ -218,7 +218,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -329,7 +329,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get detailed metadata for a given table in a database."""
 
         with self._connection.cursor() as cursor:
@@ -405,7 +405,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
     def _resolve_table_type(self, table_type: str) -> DataTableType:
         return "view" if table_type == "VIEW" else "table"
 
-    def _get_data_type(self, data_type: str) -> Optional[DataType]:
+    def _get_data_type(self, data_type: str) -> DataType | None:
         data_type = data_type.lower()
         if "cardinal_number" in data_type:
             return "number"
@@ -414,7 +414,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
         return None
 
     def _resolve_should_auto_discover(
-        self, value: Union[bool, Literal["auto"]]
+        self, value: bool | Literal["auto"]
     ) -> bool:
         # Opt to not auto-discover for now
         if value == "auto":

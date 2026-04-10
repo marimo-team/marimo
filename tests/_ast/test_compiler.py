@@ -30,7 +30,7 @@ class TestParseCell:
 
     @staticmethod
     def test_local_variables() -> None:
-        code = "__ = 10\n_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"  # noqa: E501
+        code = "__ = 10\n_, y = f(x)\ndef _foo():\n  _bar = 0\nimport _secret_module as module"
         cell = compile_cell(code)
         assert cell.defs == {"module", "y"}
         assert cell.refs == {"f", "x"}
@@ -354,8 +354,8 @@ class TestCellFactory:
         """Defs inferred from function code, not returns"""
 
         def f() -> None:
-            x = 10  # noqa: F841
-            y = 20  # noqa: F841
+            x = 10
+            y = 20
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert cell._cell.defs == {"x", "y"}
@@ -366,7 +366,7 @@ class TestCellFactory:
         """Refs inferred from function code, not args"""
 
         def f() -> None:
-            x = y  # noqa: F841 F821
+            x = y  # noqa: F821
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert cell._cell.defs == {"x"}
@@ -451,7 +451,7 @@ class TestSemicolon:
     @staticmethod
     def test_return_string_semicolon() -> None:
         def f() -> None:
-            "#; splits on ;# are less than ideal"  # noqa: B018 Contains a ;#
+            "#; splits on ;# are less than ideal"
 
         cell = compiler.cell_factory(f, cell_id="0")
         assert (
@@ -462,7 +462,7 @@ class TestSemicolon:
     def test_return_string_semicolon_suppressed() -> None:
         # fmt: off
         def f() -> None:
-            "#; splits on ;# are less than ideal";  # noqa: B018 E703 Contains a ;#
+            "#; splits on ;# are less than ideal";  # noqa: E703 Contains a ;#
         # fmt: on
 
         cell = compiler.cell_factory(f, cell_id="0")
@@ -863,11 +863,13 @@ class TestCellAstMatchesRawAst:
         import ast
 
         # For decorated nodes, check decorator line numbers
-        if isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        if (
+            isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            )
+            and node.decorator_list
         ):
-            if node.decorator_list:
-                return min(d.lineno for d in node.decorator_list)
+            return min(d.lineno for d in node.decorator_list)
         return node.lineno
 
     def _assert_fixed_ast_contains_line(

@@ -8,7 +8,7 @@ import re
 import sys
 import textwrap
 import tokenize
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
@@ -49,7 +49,7 @@ def pop_setup_cell(
     code: list[str],
     names: list[str],
     configs: list[CellConfig],
-) -> Optional[CellImpl]:
+) -> CellImpl | None:
     # Find the cell named setup, compile, and remove the index from all lists.
     if SETUP_CELL_NAME not in names:
         return None
@@ -151,7 +151,7 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
 
 
 def to_decorator(
-    config: Optional[CellConfig],
+    config: CellConfig | None,
     fn: Decorators = "cell",
 ) -> str:
     if config is None or not config.is_different_from_default():
@@ -178,7 +178,7 @@ def format_markdown(cell: CellImpl) -> str:
         "prefix": "",
         "suffix": "",
     }
-    key: Optional[str] = "prefix"
+    key: str | None = "prefix"
     tokenizes_fstring = sys.version_info >= (3, 12)
     start_tokens = (
         (tokenize.STRING, tokenize.FSTRING_START)
@@ -225,7 +225,7 @@ def construct_markdown_call(markdown: str, quote: str, tag: str) -> str:
     )
 
 
-def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
+def build_setup_section(setup_cell: CellImpl | None) -> str:
     if setup_cell is None:
         return ""
     block = setup_cell.code
@@ -266,7 +266,7 @@ def to_annotated_string(
     if not variable_data:
         return response
     for name in names:
-        if name in variable_data and variable_data[name]:
+        if variable_data.get(name):
             variable = variable_data[name]
             annotation = variable.annotation_data
             if annotation:
@@ -282,10 +282,10 @@ def to_annotated_string(
 def to_functiondef(
     cell: CellImpl,
     name: str,
-    allowed_refs: Optional[set[Name]] = None,
-    used_refs: Optional[set[Name]] = None,
+    allowed_refs: set[Name] | None = None,
+    used_refs: set[Name] | None = None,
     fn: Literal["cell"] = "cell",
-    variable_data: Optional[dict[str, VariableData]] = None,
+    variable_data: dict[str, VariableData] | None = None,
 ) -> str:
     # allowed refs are a combination of top level imports and unshadowed
     # builtins.
@@ -372,7 +372,7 @@ def to_functiondef(
 
 
 def to_top_functiondef(
-    cell: CellImpl, allowed_refs: Optional[set[str]] = None
+    cell: CellImpl, allowed_refs: set[str] | None = None
 ) -> str:
     # For the top-level function criteria to be satisfied,
     # the cell, it must pass basic checks in the cell impl.
@@ -394,7 +394,7 @@ def to_top_functiondef(
 
 
 def generate_unparsable_cell(
-    code: str, name: Optional[str], config: CellConfig
+    code: str, name: str | None, config: CellConfig
 ) -> str:
     text = ["app._unparsable_cell("]
     # If code contains triple quotes, we can't use raw strings with delimiters
@@ -473,7 +473,7 @@ def safe_serialize_cell(
     return code
 
 
-def generate_app_constructor(config: Optional[_AppConfig]) -> str:
+def generate_app_constructor(config: _AppConfig | None) -> str:
     updates = {}
     # only include a config setting if it's not a default setting, to
     # avoid unnecessary edits to the app file
@@ -504,7 +504,7 @@ def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
     )
 
 
-def _extract_header_comments(ir: NotebookSerializationV1) -> Optional[str]:
+def _extract_header_comments(ir: NotebookSerializationV1) -> str | None:
     """Extract script preamble from header.
 
     For markdown notebooks, Header.value may contain YAML-encoded frontmatter
@@ -538,8 +538,8 @@ def generate_filecontents(
     codes: list[str],
     names: list[str],
     cell_configs: list[CellConfig],
-    config: Optional[_AppConfig] = None,
-    header_comments: Optional[str] = None,
+    config: _AppConfig | None = None,
+    header_comments: str | None = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
 
@@ -594,7 +594,7 @@ def is_multiline_comment(node: ast.stmt) -> bool:
     return False
 
 
-def get_header_comments(filename: str | Path) -> Optional[str]:
+def get_header_comments(filename: str | Path) -> str | None:
     """Gets the header comments from a file. Returns
     None if the file does not exist or the header is
     invalid, which is determined by:

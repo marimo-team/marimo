@@ -4,7 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import sys
-from typing import TYPE_CHECKING, Any, Union, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
@@ -43,8 +43,8 @@ def empty_df(native_df: IntoLazyFrame) -> IntoLazyFrame: ...
 
 
 def empty_df(
-    native_df: Union[IntoDataFrame, IntoLazyFrame],
-) -> Union[IntoDataFrame, IntoLazyFrame]:
+    native_df: IntoDataFrame | IntoLazyFrame,
+) -> IntoDataFrame | IntoLazyFrame:
     """
     Get an empty dataframe with the same schema as the given dataframe.
     """
@@ -208,8 +208,8 @@ def upgrade_narwhals_df(df: nw.LazyFrame[Any]) -> nw.LazyFrame[Any]: ...
 
 
 def upgrade_narwhals_df(
-    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
-) -> Union[nw.DataFrame[Any], nw.LazyFrame[Any]]:
+    df: nw.DataFrame[Any] | nw.LazyFrame[Any],
+) -> nw.DataFrame[Any] | nw.LazyFrame[Any]:
     """
     Upgrade a narwhals dataframe to the latest version.
     """
@@ -229,8 +229,8 @@ def downgrade_narwhals_df_to_v1(
 
 
 def downgrade_narwhals_df_to_v1(
-    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
-) -> Union[nw.DataFrame[Any], nw.LazyFrame[Any]]:
+    df: nw.DataFrame[Any] | nw.LazyFrame[Any],
+) -> nw.DataFrame[Any] | nw.LazyFrame[Any]:
     """
     Downgrade a narwhals dataframe to the latest version.
     """
@@ -267,13 +267,11 @@ def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
 
 
 if TYPE_CHECKING:
-    UndoCallback = Callable[
-        [Union[nw.LazyFrame[Any], nw.DataFrame[Any]]], IntoFrame
-    ]
+    UndoCallback = Callable[[nw.LazyFrame[Any] | nw.DataFrame[Any]], IntoFrame]
 
 
 def _to_lazyframe(
-    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
+    df: nw.DataFrame[Any] | nw.LazyFrame[Any],
     original_backend: IntoBackend[Any],
 ) -> nw.LazyFrame[Any]:
     if is_narwhals_lazyframe(df):
@@ -291,7 +289,7 @@ def _to_lazyframe(
 
 
 def _to_dataframe(
-    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
+    df: nw.DataFrame[Any] | nw.LazyFrame[Any],
 ) -> nw.DataFrame[Any]:
     if is_narwhals_dataframe(df):
         return df
@@ -327,7 +325,7 @@ def make_lazy(
     original_backend = nw_df.implementation
     lazy_df = nw_df.lazy()
 
-    def undo(result: Union[nw.LazyFrame[Any], nw.DataFrame[Any]]) -> Any:
+    def undo(result: nw.LazyFrame[Any] | nw.DataFrame[Any]) -> Any:
         """Convert back to the original type (lazy or eager)."""
         if not is_narwhals_dataframe(result) and not is_narwhals_lazyframe(
             result

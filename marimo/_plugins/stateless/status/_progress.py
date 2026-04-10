@@ -9,7 +9,6 @@ from typing import (
     Any,
     Generic,
     Literal,
-    Optional,
     TypeVar,
     cast,
     overload,
@@ -40,9 +39,9 @@ class _Progress(Html):
 
     def __init__(
         self,
-        title: Optional[str],
-        subtitle: Optional[str],
-        total: Optional[int],
+        title: str | None,
+        subtitle: str | None,
+        total: int | None,
         show_rate: bool,
         show_eta: bool,
     ) -> None:
@@ -62,8 +61,8 @@ class _Progress(Html):
     def update_progress(
         self,
         increment: int = 1,
-        title: Optional[str] = None,
-        subtitle: Optional[str] = None,
+        title: str | None = None,
+        subtitle: str | None = None,
     ) -> None:
         """Update the progress indicator. Thread-safe.
 
@@ -134,7 +133,7 @@ class _Progress(Html):
             ),
         )
 
-    def _calculate_rate(self) -> Optional[float]:
+    def _calculate_rate(self) -> float | None:
         diff = time.time() - self.start_time
         if diff == 0:
             return None
@@ -143,13 +142,13 @@ class _Progress(Html):
         # As the UI will format it as "2s per iter"
         return round(rate, 2) if rate >= 1 else rate
 
-    def _get_rate(self) -> Optional[float]:
+    def _get_rate(self) -> float | None:
         if self.show_rate:
             return self._calculate_rate()
         else:
             return None
 
-    def _get_eta(self) -> Optional[float]:
+    def _get_eta(self) -> float | None:
         if self.show_eta and self.total is not None:
             rate = self._calculate_rate()
             if rate is not None and rate > 0:
@@ -260,8 +259,8 @@ class spinner:
 
     def __init__(
         self,
-        title: Optional[str] = None,
-        subtitle: Optional[str] = None,
+        title: str | None = None,
+        subtitle: str | None = None,
         remove_on_exit: bool = True,
     ):
         self.title = title
@@ -326,11 +325,11 @@ class progress_bar(Generic[S]):
         self,
         collection: Collection[S] = ...,
         *,
-        title: Optional[str] = ...,
-        subtitle: Optional[str] = ...,
-        completion_title: Optional[str] = ...,
-        completion_subtitle: Optional[str] = ...,
-        total: Optional[int] = ...,
+        title: str | None = ...,
+        subtitle: str | None = ...,
+        completion_title: str | None = ...,
+        completion_subtitle: str | None = ...,
+        total: int | None = ...,
         show_rate: bool = ...,
         show_eta: bool = ...,
         remove_on_exit: bool = ...,
@@ -342,10 +341,10 @@ class progress_bar(Generic[S]):
         self,
         collection: Iterator[S] | AsyncIterable[S] = ...,
         *,
-        title: Optional[str] = ...,
-        subtitle: Optional[str] = ...,
-        completion_title: Optional[str] = ...,
-        completion_subtitle: Optional[str] = ...,
+        title: str | None = ...,
+        subtitle: str | None = ...,
+        completion_title: str | None = ...,
+        completion_subtitle: str | None = ...,
         total: int = ...,
         show_rate: bool = ...,
         show_eta: bool = ...,
@@ -358,10 +357,10 @@ class progress_bar(Generic[S]):
         self,
         collection: None = ...,
         *,
-        title: Optional[str] = ...,
-        subtitle: Optional[str] = ...,
-        completion_title: Optional[str] = ...,
-        completion_subtitle: Optional[str] = ...,
+        title: str | None = ...,
+        subtitle: str | None = ...,
+        completion_title: str | None = ...,
+        completion_subtitle: str | None = ...,
         total: int = ...,
         show_rate: bool = ...,
         show_eta: bool = ...,
@@ -371,15 +370,16 @@ class progress_bar(Generic[S]):
 
     def __init__(
         self,
-        collection: Optional[
-            Collection[S] | Iterator[S] | AsyncIterable[S]
-        ] = None,
+        collection: Collection[S]
+        | Iterator[S]
+        | AsyncIterable[S]
+        | None = None,
         *,
-        title: Optional[str] = None,
-        subtitle: Optional[str] = None,
-        completion_title: Optional[str] = None,
-        completion_subtitle: Optional[str] = None,
-        total: Optional[int] = None,
+        title: str | None = None,
+        subtitle: str | None = None,
+        completion_title: str | None = None,
+        completion_subtitle: str | None = None,
+        total: int | None = None,
         show_rate: bool = True,
         show_eta: bool = True,
         remove_on_exit: bool = False,
@@ -483,7 +483,7 @@ class progress_bar(Generic[S]):
 def toast(
     title: str,
     description: str = "",
-    kind: Optional[Literal["danger"]] = None,
+    kind: Literal["danger"] | None = None,
 ) -> None:
     """Show a toast notification.
 

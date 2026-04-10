@@ -133,7 +133,6 @@ class GraphRule(LintRule):
             graph: The dependency graph to validate
             ctx: The lint context to add diagnostics to
         """
-        pass
 
 
 class MultipleDefinitionsRule(GraphRule):

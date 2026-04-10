@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._lint.context import LintContext, RuleContext
 from marimo._lint.diagnostic import Severity
@@ -25,8 +25,8 @@ class EarlyStoppingConfig:
         self,
         stop_on_breaking: bool = False,
         stop_on_runtime: bool = False,
-        max_diagnostics: Optional[int] = None,
-        stop_on_first_of_severity: Optional[Severity] = None,
+        max_diagnostics: int | None = None,
+        stop_on_first_of_severity: Severity | None = None,
     ):
         self.stop_on_breaking = stop_on_breaking
         self.stop_on_runtime = stop_on_runtime
@@ -59,7 +59,7 @@ class RuleEngine:
     def __init__(
         self,
         rules: list[LintRule],
-        early_stopping: Optional[EarlyStoppingConfig] = None,
+        early_stopping: EarlyStoppingConfig | None = None,
     ):
         self.rules = rules
         self.early_stopping = early_stopping or EarlyStoppingConfig()
@@ -105,7 +105,7 @@ class RuleEngine:
                     diagnostic, diagnostic_count
                 ):
                     # Cancel remaining tasks
-                    for task in pending_tasks.keys():
+                    for task in pending_tasks:
                         task.cancel()
 
                     # Wait for cancellations to complete
@@ -142,8 +142,8 @@ class RuleEngine:
     @classmethod
     def create_default(
         cls,
-        early_stopping: Optional[EarlyStoppingConfig] = None,
-        lint_config: Optional[LintConfig] = None,
+        early_stopping: EarlyStoppingConfig | None = None,
+        lint_config: LintConfig | None = None,
     ) -> RuleEngine:
         """Create a RuleEngine with rules filtered by configuration.
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -136,7 +136,7 @@ def prune_cells_for_overrides(
     graph: DirectedGraph,
     execution_order: Collection[CellId_t],
     overrides: dict[str, Any],
-    excluded: Optional[CellId_t] = None,
+    excluded: CellId_t | None = None,
 ) -> list[CellId_t]:
     """Prune cells from execution when their definitions are overridden.
 
@@ -250,9 +250,9 @@ def get_import_block_relatives(
 
 
 __all__ = [
+    "DirectedGraph",
     "Edge",
     "EdgeWithVar",
-    "DirectedGraph",
     "Runner",
     "get_cycles",
     "get_import_block_relatives",

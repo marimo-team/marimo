@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._types.ids import CellId_t
 
@@ -201,7 +201,7 @@ def _match_cell_ids_by_similarity(
     previous_lookup = group_lookup(prev_ids, prev_codes)
     next_lookup = group_lookup(next_ids, next_codes)
 
-    result: list[Optional[CellId_t]] = [None] * len(next_codes)
+    result: list[CellId_t | None] = [None] * len(next_codes)
     filled = 0
     for idx, code in enumerate(next_codes):
         if code in previous_lookup:

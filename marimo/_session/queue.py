@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Protocol, TypeVar, Union
+from typing import TYPE_CHECKING, Protocol, TypeVar
 
 if TYPE_CHECKING:
     from marimo._runtime import commands
@@ -22,11 +22,9 @@ class QueueType(Protocol[T]):
     stubs and implementations stay aligned.
     """
 
-    def get(
-        self, block: bool = True, timeout: Union[float, None] = None
-    ) -> T: ...
+    def get(self, block: bool = True, timeout: float | None = None) -> T: ...
     def put(
-        self, obj: T, /, block: bool = True, timeout: Union[float, None] = None
+        self, obj: T, /, block: bool = True, timeout: float | None = None
     ) -> None: ...
     def get_nowait(self) -> T: ...
     def put_nowait(self, item: T, /) -> None: ...
@@ -69,4 +67,4 @@ class ProcessLike(Protocol):
 
     def terminate(self) -> None: ...
 
-    def join(self, timeout: Optional[float] = None) -> None: ...
+    def join(self, timeout: float | None = None) -> None: ...

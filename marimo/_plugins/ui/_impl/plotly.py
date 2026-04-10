@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Final,
-    Optional,
     cast,
 )
 
@@ -134,7 +133,7 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
     return False
 
 
-def _to_numeric_coord(value: Any) -> Optional[float]:
+def _to_numeric_coord(value: Any) -> float | None:
     """Convert a numeric/datetime-like value to a float for geometry tests."""
     import datetime
 
@@ -264,11 +263,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def __init__(
         self,
         figure: go.Figure,
-        config: Optional[dict[str, Any]] = None,
-        renderer_name: Optional[str] = None,
+        config: dict[str, Any] | None = None,
+        renderer_name: str | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[JSONType], None]] = None,
+        on_change: Callable[[JSONType], None] | None = None,
     ) -> None:
         DependencyManager.plotly.require("for `mo.ui.plotly`")
 
@@ -823,7 +822,7 @@ def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
 def _extract_scatter_points_from_range(
     figure: go.Figure,
     range_data: dict[str, Any],
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points in a selection range.
 
@@ -868,7 +867,7 @@ def _extract_scatter_points_numpy(
     x_max: float,
     y_min: Any = None,
     y_max: Any = None,
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points from selection bounds using numpy."""
     import numpy as np
@@ -997,7 +996,7 @@ def _extract_scatter_points_fallback(
     x_max: float,
     y_min: Any = None,
     y_max: Any = None,
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
@@ -1156,7 +1155,7 @@ def _point_in_polygon(
 def _extract_scatter_points_from_lasso(
     figure: go.Figure,
     lasso_data: dict[str, Any],
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points that fall inside a lasso polygon."""
     lasso_x = lasso_data.get("x")
@@ -1561,7 +1560,7 @@ def _extract_histogram_points_from_bins(
 
 def _build_histogram_sample_point(
     trace: Any, trace_idx: int, point_idx: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Build a row-level selection payload point from a histogram trace."""
     orientation = getattr(trace, "orientation", "v")
     if orientation is None:
@@ -2726,7 +2725,7 @@ def _extract_violin_points_fallback(
 
 def _build_violin_sample_point(
     trace: Any, trace_idx: int, point_idx: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Build a row-level selection payload for a single violin plot data point."""
     orientation = getattr(trace, "orientation", "v") or "v"
     if orientation == "h":

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 import msgspec
 
@@ -27,7 +27,7 @@ class VariableContext(msgspec.Struct, rename="camel"):
 
 class AiCompletionContext(msgspec.Struct, rename="camel"):
     schema: list[SchemaTable] = msgspec.field(default_factory=list)
-    variables: list[Union[VariableContext, str]] = msgspec.field(
+    variables: list[VariableContext | str] = msgspec.field(
         default_factory=list
     )
     plain_text: str = ""
@@ -49,8 +49,8 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
     include_other_code: str
     code: str
     ui_messages: list[UIMessage] = []
-    selected_text: Optional[str] = None
-    context: Optional[AiCompletionContext] = None
+    selected_text: str | None = None
+    context: AiCompletionContext | None = None
     language: Language = "python"
 
 
@@ -69,6 +69,6 @@ class ChatRequest(msgspec.Struct, rename="camel"):
     context: AiCompletionContext
     include_other_code: str
     ui_messages: list[UIMessage]
-    tools: Optional[list[ToolDefinition]] = None
-    model: Optional[str] = None
-    variables: Optional[list[Union[VariableContext, str]]] = None
+    tools: list[ToolDefinition] | None = None
+    model: str | None = None
+    variables: list[VariableContext | str] | None = None

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import urllib.parse
-from typing import Optional, Union
 
 
 def flatten_string(text: str) -> str:
@@ -10,8 +9,8 @@ def flatten_string(text: str) -> str:
 
 
 def create_style(
-    pairs: dict[str, Union[str, int, float, None]],
-) -> Optional[str]:
+    pairs: dict[str, str | int | float | None],
+) -> str | None:
     if not pairs:
         return None
 
@@ -28,7 +27,7 @@ def uri_decode_component(code: str) -> str:
     return urllib.parse.unquote(code)
 
 
-def normalize_dimension(value: Union[int, float, str, None]) -> Optional[str]:
+def normalize_dimension(value: float | str | None) -> str | None:
     """Normalize dimension value to CSS string.
 
     Handles:

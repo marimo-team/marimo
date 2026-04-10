@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, NewType, Optional
+from typing import Literal, NewType
 
 import msgspec
 
@@ -32,9 +32,9 @@ class LspServerHealth(msgspec.Struct, rename="camel"):
     server_id: LspServerId
     status: LspServerStatus
     port: int
-    last_ping_ms: Optional[float] = None
-    error: Optional[str] = None
-    started_at: Optional[float] = None  # Unix timestamp
+    last_ping_ms: float | None = None
+    error: str | None = None
+    started_at: float | None = None  # Unix timestamp
 
 
 class LspHealthResponse(msgspec.Struct, rename="camel"):
@@ -47,7 +47,7 @@ class LspHealthResponse(msgspec.Struct, rename="camel"):
 class LspRestartRequest(msgspec.Struct, rename="camel"):
     """Request to restart LSP servers."""
 
-    server_ids: Optional[list[LspServerId]] = (
+    server_ids: list[LspServerId] | None = (
         None  # None = restart failed servers
     )
 

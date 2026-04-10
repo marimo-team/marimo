@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
@@ -17,8 +17,8 @@ def read_marimo_config(path: str) -> PartialMarimoConfig:
 
 
 def read_pyproject_marimo_config(
-    pyproject_path: Union[str, Path],
-) -> Optional[PartialMarimoConfig]:
+    pyproject_path: str | Path,
+) -> PartialMarimoConfig | None:
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = toml_reader.read(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
@@ -52,7 +52,7 @@ def sanitize_pyproject_dict(
 
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
-) -> Optional[PartialMarimoConfig]:
+) -> PartialMarimoConfig | None:
     """Get the marimo config from a pyproject.toml dictionary."""
     marimo_tool_config = pyproject_dict.get("tool", {}).get("marimo", None)
     if marimo_tool_config is None:
@@ -67,8 +67,8 @@ def get_marimo_config_from_pyproject_dict(
 
 
 def find_nearest_pyproject_toml(
-    start_path: Union[str, Path],
-) -> Optional[Path]:
+    start_path: str | Path,
+) -> Path | None:
     """Find the nearest pyproject.toml file."""
     path = Path(start_path)
     root = path.anchor

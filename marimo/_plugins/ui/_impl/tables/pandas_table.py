@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import io
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v2 as nw
 
@@ -111,7 +111,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             # headers
             def to_csv_str(
                 self,
-                format_mapping: Optional[FormatMapping] = None,
+                format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
             ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
@@ -126,7 +126,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def to_json_str(
                 self,
-                format_mapping: Optional[FormatMapping] = None,
+                format_mapping: FormatMapping | None = None,
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
@@ -260,7 +260,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return out.getvalue()
 
             def apply_formatting(
-                self, format_mapping: Optional[FormatMapping]
+                self, format_mapping: FormatMapping | None
             ) -> PandasTableManager:
                 if not format_mapping:
                     return self

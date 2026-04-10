@@ -99,9 +99,9 @@ def maybe_get_custom_stub(value: Any) -> CustomStub | None:
 
 __all__ = [
     "CUSTOM_STUBS",
+    "LAZY_STUB_LOOKUP",
     "CustomStub",
     "FunctionStub",
-    "LAZY_STUB_LOOKUP",
     "ModuleStub",
     "ReferenceStub",
     "UIElementStub",

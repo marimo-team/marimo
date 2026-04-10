@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import io
-from typing import Optional, Union
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
@@ -13,13 +12,13 @@ from marimo._plugins.core.media import io_to_data_url
 
 @mddoc
 def video(
-    src: Union[str, bytes, io.BytesIO, io.BufferedReader],
+    src: str | bytes | io.BytesIO | io.BufferedReader,
     controls: bool = True,
     muted: bool = False,
     autoplay: bool = False,
     loop: bool = False,
-    width: Optional[Union[int, str]] = None,
-    height: Optional[Union[int, str]] = None,
+    width: int | str | None = None,
+    height: int | str | None = None,
     rounded: bool = False,
 ) -> Html:
     """Render an video as HTML.

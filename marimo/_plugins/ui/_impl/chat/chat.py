@@ -5,7 +5,7 @@ import inspect
 import json
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Final, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Final, Literal, cast
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -204,12 +204,12 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         self,
         model: Callable[[list[ChatMessage], ChatModelConfig], object],
         *,
-        prompts: Optional[list[str]] = None,
-        on_message: Optional[Callable[[list[ChatMessage]], None]] = None,
+        prompts: list[str] | None = None,
+        on_message: Callable[[list[ChatMessage]], None] | None = None,
         show_configuration_controls: bool = False,
-        config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
-        allow_attachments: Union[bool, list[str]] = False,
-        max_height: Optional[int] = None,
+        config: ChatModelConfigDict | None = DEFAULT_CONFIG,
+        allow_attachments: bool | list[str] = False,
+        max_height: int | None = None,
         disabled: bool = False,
     ) -> None:
         self._model = model
@@ -387,7 +387,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             await self._handle_streaming_response(response)
             # For streaming, we don't have a final response string to add to history
             # The frontend will add the accumulated message
-            return None
+            return
 
         if inspect.isawaitable(response):
             response = await response

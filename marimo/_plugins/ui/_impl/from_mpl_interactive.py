@@ -5,7 +5,7 @@ import base64
 import functools
 import io
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from marimo import _loggers
@@ -152,8 +152,6 @@ def _get_mpl_js_vfile() -> VirtualFile:
 class ModelIdRef(dict):  # type: ignore[type-arg]
     """Wire-format value: just a model_id reference."""
 
-    pass
-
 
 class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
     """UIElement wrapping an interactive matplotlib figure.
@@ -162,7 +160,7 @@ class mpl_interactive(UIElement[ModelIdRef, dict[str, Any]]):
     separate WebSocket server, enabling support in WASM/Pyodide.
     """
 
-    def __init__(self, figure: Union[Figure, SubFigure]) -> None:
+    def __init__(self, figure: Figure | SubFigure) -> None:
         self._figure = figure
 
         # Create FigureManagerWebAgg

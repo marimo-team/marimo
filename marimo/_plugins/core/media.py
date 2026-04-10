@@ -5,7 +5,7 @@ import base64
 import io
 import mimetypes
 import pathlib
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 import narwhals.stable.v2 as nw
@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
 
 def guess_mime_type(
-    src: Union[str, bytes, io.BytesIO, io.BufferedReader, None],
-) -> Optional[str]:
+    src: str | bytes | io.BytesIO | io.BufferedReader | None,
+) -> str | None:
     """Guess the MIME type of a file."""
     if src is None:
         return None
@@ -41,24 +41,22 @@ def guess_mime_type(
     return None
 
 
-def mime_type_to_ext(mime_type: str) -> Optional[str]:
+def mime_type_to_ext(mime_type: str) -> str | None:
     return mimetypes.guess_extension(mime_type, strict=False)
 
 
 def io_to_data_url(
-    src: Union[
-        str,
-        bytes,
-        io.BytesIO,
-        io.BufferedReader,
-        pathlib.Path,
-        PILImage,
-        npt.NDArray[Any],
-        DataFrame,
-        None,
-    ],
+    src: str
+    | bytes
+    | io.BytesIO
+    | io.BufferedReader
+    | pathlib.Path
+    | PILImage
+    | npt.NDArray[Any]
+    | DataFrame
+    | None,
     fallback_mime_type: str,
-) -> Optional[str]:
+) -> str | None:
     """Convert various data types to a data URL.
 
     Supports:
@@ -140,7 +138,7 @@ def io_to_data_url(
     return str(src)
 
 
-def is_data_empty(data: Union[str, bytes, io.BytesIO, Any]) -> bool:
+def is_data_empty(data: str | bytes | io.BytesIO | Any) -> bool:
     """Check if a data object is empty."""
     if isinstance(data, str):
         return data == ""

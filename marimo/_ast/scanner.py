@@ -15,7 +15,6 @@ import re
 import token as token_types
 import tokenize as tokenize_mod
 from dataclasses import dataclass
-from typing import Optional
 
 # Cell boundary types
 CELL_TYPES = frozenset({"cell", "function", "class_definition"})
@@ -201,7 +200,7 @@ class _BoundaryDetector:
 
 def _try_tokenize(
     source: str,
-) -> tuple[list[tokenize_mod.TokenInfo], Optional[tuple[int, Exception]]]:
+) -> tuple[list[tokenize_mod.TokenInfo], tuple[int, Exception] | None]:
     """Tokenize source, returning tokens produced + optional error info."""
     tokens: list[tokenize_mod.TokenInfo] = []
     readline = io.StringIO(source).readline

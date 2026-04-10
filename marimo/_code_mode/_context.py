@@ -171,7 +171,7 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
-        raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
+        raise RuntimeError("code mode requires a running kernel context")
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
         runtime_ctx._kernel,

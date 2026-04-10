@@ -8,7 +8,7 @@ to HTML without needing to use internal template functions directly.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, Optional, cast
+from typing import Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
@@ -33,7 +33,7 @@ def _get_html_template() -> str:
     return index_html.read_text(encoding="utf-8")
 
 
-def _parse_config(config: Optional[dict[str, Any]]) -> MarimoConfig:
+def _parse_config(config: dict[str, Any] | None) -> MarimoConfig:
     """Parse config dict to MarimoConfig."""
     if config is None:
         return cast(MarimoConfig, {})
@@ -41,7 +41,7 @@ def _parse_config(config: Optional[dict[str, Any]]) -> MarimoConfig:
 
 
 def _parse_partial_config(
-    config: Optional[dict[str, Any]],
+    config: dict[str, Any] | None,
 ) -> PartialMarimoConfig:
     """Parse config dict to PartialMarimoConfig."""
     if config is None:

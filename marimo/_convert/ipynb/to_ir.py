@@ -9,7 +9,7 @@ import sys
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Union
+from typing import Any
 
 from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 
@@ -314,13 +314,13 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         if not double:
             return "\n".join(
                 [
-                    "# magic command not supported in marimo; please file an issue to add support",  # noqa: E501
+                    "# magic command not supported in marimo; please file an issue to add support",
                     f"# {command + ' ' + source}",
                 ]
             )
 
         result = [
-            "# magic command not supported in marimo; please file an issue to add support",  # noqa: E501
+            "# magic command not supported in marimo; please file an issue to add support",
             f"# {command}",
         ]
         if source:
@@ -547,8 +547,7 @@ def _normalize_git_url_package(package: str) -> str:
         repo_name = path.rstrip("/").split("/")[-1]
 
         # Remove .git extension if present
-        if repo_name.endswith(".git"):
-            repo_name = repo_name[:-4]
+        repo_name = repo_name.removesuffix(".git")
 
         # If we couldn't extract a name, use a placeholder
         if not repo_name:
@@ -1529,7 +1528,7 @@ def convert_from_ipynb_to_notebook_ir(
     sources: list[str] = []
     metadata: list[dict[str, Any]] = []
     hide_flags: list[bool] = []
-    inline_meta: Union[str, None] = None
+    inline_meta: str | None = None
 
     for cell in notebook["cells"]:
         source = (

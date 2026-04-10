@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 
 __all__ = [
     "NotebookCellHooks",
-    "Priority",
-    "PreparationHook",
-    "PreExecutionHook",
-    "PostExecutionHook",
     "OnFinishHook",
+    "PostExecutionHook",
+    "PreExecutionHook",
+    "PreparationHook",
+    "Priority",
     "create_default_hooks",
 ]
 

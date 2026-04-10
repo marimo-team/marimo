@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -56,8 +56,8 @@ def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
 def create_test_dataframes(
     data: dict[str, list[Any]],
     *,
-    include: Optional[list[str]] = None,
-    exclude: Optional[list[str]] = None,
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
     strict: bool = True,
 ) -> list[DataFrameType]:
     """Create test dataframes including ibis if available."""

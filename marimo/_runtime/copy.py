@@ -9,12 +9,11 @@ from typing import (
     Any,
     Generic,
     TypeVar,
-    Union,
     cast,
 )
 
 T = TypeVar("T")
-Ref = Union[weakref.ReferenceType[T], Callable[[], T]]
+Ref = weakref.ReferenceType[T] | Callable[[], T]
 
 
 class CloneError(Exception):
@@ -114,7 +113,7 @@ def shadow_wrap(ref_cls: type[_Copy[T]], base: T) -> T:
             # manage it,
             if _fixed[0]:
                 _ro_fail()
-            super.__setattr__(self, name, value)
+            super().__setattr__(name, value)
 
         def __setitem__(self, name: str, value: Any) -> None:
             _ro_fail()

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
@@ -44,8 +44,8 @@ class FileChangeResult:
     """Result of handling a file change."""
 
     handled: bool
-    error: Optional[str] = None
-    changed_cell_ids: Optional[set[CellId_t]] = None
+    error: str | None = None
+    changed_cell_ids: set[CellId_t] | None = None
 
 
 class ReloadStrategy(Protocol):

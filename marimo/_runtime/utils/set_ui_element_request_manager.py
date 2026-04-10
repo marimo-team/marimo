@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from marimo._runtime.commands import (
     BatchableCommand,
@@ -43,7 +43,7 @@ class _RunAccumulator(Generic[A, B]):
         self._merge_a = a[1]
         self._merge_b = b[1]
         self._current_run: list[A] | list[B] = []
-        self._current_type: type[A] | type[B] | None = None
+        self._current_type: type[A | B] | None = None
         self._result: list[A | B] = []
 
     def push(self, cmd: A | B) -> None:
@@ -96,7 +96,7 @@ def _merge_ui_commands(
     ]
 
 
-BufferPath = tuple[Union[str, int], ...]
+BufferPath = tuple[str | int, ...]
 
 
 def _merge_model_commands(

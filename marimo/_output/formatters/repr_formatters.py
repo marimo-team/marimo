@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.iframe import maybe_wrap_in_iframe
@@ -23,7 +23,7 @@ MEDIA_MIME_PREFIXES = (
 
 def _maybe_as_anywidget_html(
     contents: dict[str, Any],
-) -> Optional[tuple[KnownMimeType, str]]:
+) -> tuple[KnownMimeType, str] | None:
     """If the mimebundle is for an anywidget, return ``text/html``.
 
     Converts ``application/vnd.jupyter.widget-view+json`` mimebundles
@@ -83,7 +83,7 @@ def _maybe_as_anywidget_html(
 
 def maybe_get_repr_formatter(
     obj: Any,
-) -> Optional[Callable[[Any], tuple[KnownMimeType, str]]]:
+) -> Callable[[Any], tuple[KnownMimeType, str]] | None:
     """
     Get a formatter that uses the object's _repr_ methods.
     """

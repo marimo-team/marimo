@@ -16,14 +16,14 @@ __all__ = [
     "data_editor",
     "data_explorer",
     "dataframe",
-    "date_range",
     "date",
+    "date_range",
     "datetime",
-    "experimental_data_editor",
     "dictionary",
     "dropdown",
-    "file_browser",
+    "experimental_data_editor",
     "file",
+    "file_browser",
     "form",
     "matplotlib",
     "matrix",
@@ -40,8 +40,8 @@ __all__ = [
     "switch",
     "table",
     "tabs",
-    "text_area",
     "text",
+    "text_area",
 ]
 
 from marimo._plugins.ui._impl.altair_chart import altair_chart

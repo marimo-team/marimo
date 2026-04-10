@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
@@ -219,7 +219,7 @@ def test_extended_path_class(tmp_path: Path) -> None:
     assert isinstance(value[0].path, CustomPath)
 
     class CustomPathWithClient(Path):
-        def __init__(self, path: Path, client: Optional[Any] = None) -> None:
+        def __init__(self, path: Path, client: Any | None = None) -> None:
             super().__init__(path)
             self.client = client
 

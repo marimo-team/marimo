@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import signal
-from typing import TYPE_CHECKING, Literal, Union, cast
+from typing import TYPE_CHECKING, Literal, cast
 from unittest import mock
 
 import pytest
@@ -57,7 +57,7 @@ def mock_which():
 class MockLspServer(BaseLspServer):
     id = "mock"
 
-    def validate_requirements(self) -> Union[str, Literal[True]]:
+    def validate_requirements(self) -> str | Literal[True]:
         return True
 
     def get_command(self) -> list[str]:

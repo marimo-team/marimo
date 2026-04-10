@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 import os
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import marimo._output.data.data as mo_data
 from marimo._output.hypertext import Html
@@ -21,8 +21,8 @@ def image_compare(
     after_image: ImageLike,
     value: float = 50,
     direction: Literal["horizontal", "vertical"] = "horizontal",
-    width: Optional[Union[int, str]] = None,
-    height: Optional[Union[int, str]] = None,
+    width: int | str | None = None,
+    height: int | str | None = None,
 ) -> Html:
     """Render an image comparison slider to compare two images side by side.
 
@@ -125,7 +125,7 @@ def _process_image_to_url(src: ImageLike) -> str:
             )
     except Exception as e:
         # return an error message otherwise
-        error_message = f"Error processing image: {str(e)}"
+        error_message = f"Error processing image: {e!s}"
         # Using a comment instead of print for logging
         # print(f"Warning: {error_message}")
         return f"data:text/plain,{error_message}"

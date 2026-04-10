@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Literal, Optional
+from typing import Literal
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -26,7 +26,7 @@ def running_in_notebook() -> bool:
         return isinstance(ctx, KernelRuntimeContext)
 
 
-def get_mode() -> Optional[RunMode]:
+def get_mode() -> RunMode | None:
     """Returns the current mode of the marimo app.
 
     Returns:

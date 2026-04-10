@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -52,7 +52,7 @@ class Delta:
 @dataclass
 class Choice:
     delta: Delta
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
 
 
 # OpenAI

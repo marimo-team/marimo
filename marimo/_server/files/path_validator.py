@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from marimo import _loggers
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -19,7 +18,7 @@ class PathValidator:
     - Symlink resolution and security
     """
 
-    def __init__(self, base_directory: Optional[Path] = None):
+    def __init__(self, base_directory: Path | None = None):
         """Initialize PathValidator.
 
         Args:
@@ -220,7 +219,7 @@ class PathValidator:
                 # Handle errors like permission errors, etc.
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
-                    detail=f"Error resolving path {filepath}: {str(e)}",
+                    detail=f"Error resolving path {filepath}: {e!s}",
                 ) from e
 
         except HTTPException:
@@ -230,7 +229,7 @@ class PathValidator:
             # Catch any other unexpected errors
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail=f"Unexpected error validating path: {str(e)}",
+                detail=f"Unexpected error validating path: {e!s}",
             ) from e
 
     def validate_file_access(self, filepath: Path) -> None:

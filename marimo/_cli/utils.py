@@ -4,7 +4,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from sys import stdout
-from typing import Optional
 
 import click
 
@@ -37,9 +36,9 @@ def prompt_to_overwrite(path: Path) -> bool:
 def resolve_token(
     token: bool,
     *,
-    token_password: Optional[str],
-    token_password_file: Optional[str],
-) -> Optional[AuthToken]:
+    token_password: str | None,
+    token_password_file: str | None,
+) -> AuthToken | None:
     token_password = resolve_token_password(
         token_password=token_password,
         token_password_file=token_password_file,
@@ -54,9 +53,9 @@ def resolve_token(
 
 
 def resolve_token_password(
-    token_password: Optional[str],
-    token_password_file: Optional[str],
-) -> Optional[str]:
+    token_password: str | None,
+    token_password_file: str | None,
+) -> str | None:
     """
     Resolve token password from mutually exclusive sources.
 

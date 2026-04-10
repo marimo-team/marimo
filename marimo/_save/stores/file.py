@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.stores.store import Store
@@ -14,7 +13,7 @@ def _valid_path(path: Path) -> bool:
 
 
 class FileStore(Store):
-    def __init__(self, save_path: Optional[str] = None) -> None:
+    def __init__(self, save_path: str | None = None) -> None:
         # Defer default path resolution until first use so that the runtime
         # context (and __file__) is available.
         self._resolved_save_path: Path | None = (
@@ -37,7 +36,7 @@ class FileStore(Store):
     def _init_save_path(self) -> None:
         self.save_path.mkdir(parents=True, exist_ok=True)
 
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         if not self._initialized:
             self._init_save_path()
         self._initialized = True

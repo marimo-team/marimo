@@ -82,7 +82,7 @@ class TqdmFormatter(FormatterFactory):
     def register(self) -> None:
         if running_in_notebook():
             # Import tqdm.notebook for notebook-specific progress bar implementation
-            import tqdm.notebook  # type: ignore [import-not-found,import-untyped] # noqa: E501
+            import tqdm.notebook  # type: ignore [import-not-found,import-untyped]
 
             tqdm.notebook.tqdm = ProgressBarTqdmPatch
             tqdm.notebook.trange = ProgressBarTrangePatch

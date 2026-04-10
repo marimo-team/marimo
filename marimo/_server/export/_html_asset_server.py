@@ -65,7 +65,7 @@ class HtmlAssetServer(AbstractContextManager["HtmlAssetServer"]):
         with self._server.dynamic_html_lock:
             self._server.dynamic_html = html
 
-    def __enter__(self) -> HtmlAssetServer:  # noqa: PYI034
+    def __enter__(self) -> HtmlAssetServer:
         if not self._directory.is_dir():
             raise RuntimeError(f"Static assets not found at {self._directory}")
 

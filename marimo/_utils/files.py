@@ -5,7 +5,7 @@ import fnmatch
 import os
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from marimo._utils import async_path
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 _SPLIT_NUMBERS = re.compile(r"([0-9]+)").split
 
 
-def natural_sort(filename: str) -> list[Union[int, str]]:
+def natural_sort(filename: str) -> list[int | str]:
     return [
         int(c) if c.isdigit() else c.lower() for c in _SPLIT_NUMBERS(filename)
     ]

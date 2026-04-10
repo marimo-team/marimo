@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Literal, cast
 
 from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
@@ -55,7 +55,7 @@ ExportType = Literal["html", "md", "ipynb", "session"]
 MIMEBUNDLE_TYPE: KnownMimeType = "application/vnd.marimo+mimebundle"
 
 
-BufferPath = tuple[Union[str, int], ...]
+BufferPath = tuple[str | int, ...]
 
 
 @dataclass
@@ -177,7 +177,7 @@ class SessionView:
         ] = {}
 
         # Startup logs for startup command - only one at a time
-        self.startup_logs: Optional[StartupLogsNotification] = None
+        self.startup_logs: StartupLogsNotification | None = None
 
         # Package installation logs - accumulated per package
         self.package_logs: dict[
@@ -630,7 +630,7 @@ def _merge_consecutive_console_outputs(
 
 
 def merge_cell_notification(
-    previous: Optional[CellNotification],
+    previous: CellNotification | None,
     current: CellNotification,
 ) -> CellNotification:
     """Merge two cell notifications."""

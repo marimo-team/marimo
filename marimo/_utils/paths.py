@@ -112,7 +112,7 @@ def is_cloudpath(path: Path) -> bool:
         return False
 
     try:
-        from cloudpathlib import CloudPath  # type: ignore[import-not-found]
+        from cloudpathlib import CloudPath  # type: ignore[import-not-found] # noqa: I001
 
         return isinstance(path, CloudPath)
     except ImportError:

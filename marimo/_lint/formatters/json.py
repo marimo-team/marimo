@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from marimo._lint.formatters.base import DiagnosticFormatter
 from marimo._types.ids import CellId_t
@@ -29,7 +29,7 @@ class DiagnosticJSON(TypedDict, total=False):
     severity: Literal["formatting", "runtime", "breaking"]
     name: str
     code: str
-    fixable: Union[bool, Literal["unsafe"]]
+    fixable: bool | Literal["unsafe"]
     fix: str
     cell_id: list[CellId_t]
 
@@ -53,7 +53,7 @@ class SummaryJSON(TypedDict):
 
 
 # Union type for all issue types
-IssueJSON = Union[DiagnosticJSON, FileErrorJSON]
+IssueJSON = DiagnosticJSON | FileErrorJSON
 
 
 class LintResultJSON(TypedDict):

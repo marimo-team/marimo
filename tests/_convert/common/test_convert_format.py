@@ -11,7 +11,7 @@ from marimo._convert.common import format
 
 def test_markdown_to_marimo():
     markdown = "# Hello, World!\nThis is a test."
-    expected = 'mo.md(r"""\n# Hello, World!\nThis is a test.\n""")'  # noqa: E501
+    expected = 'mo.md(r"""\n# Hello, World!\nThis is a test.\n""")'
     assert format.markdown_to_marimo(markdown) == expected
 
     markdown = 'Here are some quotes: """'
@@ -26,7 +26,7 @@ Here are some quotes: \"\"\"
     expected = '''
 mo.md(r"""
 This has a backslash: \\\\
-""")'''.strip()  # noqa: E501
+""")'''.strip()
     assert format.markdown_to_marimo(markdown) == expected
 
 

@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class Store(ABC):
     @abstractmethod
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         """Get the bytes of a cache from the store"""
 
     @abstractmethod

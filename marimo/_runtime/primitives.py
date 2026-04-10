@@ -5,7 +5,7 @@ import inspect
 import numbers
 import weakref
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import Cell
 from marimo._ast.visitor import Name, VariableData
@@ -19,7 +19,7 @@ PRIMITIVES: tuple[type, ...] = (bytes, str, numbers.Number, type(None))
 # reference.
 CLONE_PRIMITIVES = (weakref.ref,) + PRIMITIVES
 
-FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
+FN_CACHE_TYPE = dict[Callable[..., Any] | type, bool] | None
 
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
@@ -170,7 +170,7 @@ def is_pure_function(
     value: Any,
     defs: dict[str, Any],
     cache: FN_CACHE_TYPE = None,
-    graph: Optional[DirectedGraph] = None,
+    graph: DirectedGraph | None = None,
 ) -> bool:
     if cache is None:
         cache = {}
@@ -250,7 +250,7 @@ def is_pure_function(
 
 def build_ref_predicate_for_primitives(
     glbls: dict[str, Any],
-    primitives: Optional[tuple[type, ...]] = None,
+    primitives: tuple[type, ...] | None = None,
 ) -> Callable[[Name, VariableData], bool]:
     """
     Builds a predicate function to determine if a reference should be included

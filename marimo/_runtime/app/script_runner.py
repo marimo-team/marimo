@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._dependencies.dependencies import DependencyManager
@@ -44,7 +44,7 @@ class AppScriptRunner:
         self,
         app: InternalApp,
         filename: str | None,
-        glbls: Optional[dict[str, Any]] = None,
+        glbls: dict[str, Any] | None = None,
     ) -> None:
         self.app = app
         self.filename = filename
