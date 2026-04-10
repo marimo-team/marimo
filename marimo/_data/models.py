@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta  # noqa: TCH003
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from datetime import date, datetime, time, timedelta  # noqa: TC003
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo._types.ids import VariableName
 from marimo._utils.msgspec_basestruct import BaseStruct
@@ -74,14 +74,14 @@ class DataTable(BaseStruct):
     source_type: DataTableSource
     source: str
     name: str
-    num_rows: Optional[int]
-    num_columns: Optional[int]
-    variable_name: Optional[VariableName]
+    num_rows: int | None
+    num_columns: int | None
+    variable_name: VariableName | None
     columns: list[DataTableColumn]
-    engine: Optional[VariableName] = None
+    engine: VariableName | None = None
     type: DataTableType = "table"
-    primary_keys: Optional[list[str]] = None
-    indexes: Optional[list[str]] = None
+    primary_keys: list[str] | None = None
+    indexes: list[str] | None = None
 
 
 class Schema(BaseStruct):
@@ -103,15 +103,15 @@ class Database(BaseStruct):
     name: str
     dialect: str
     schemas: list[Schema]
-    engine: Optional[VariableName] = None
+    engine: VariableName | None = None
 
 
 if TYPE_CHECKING:
     from decimal import Decimal
 
-    NumericLiteral = Union[int, float, Decimal]
-    TemporalLiteral = Union[date, time, datetime, timedelta]
-    NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
+    NumericLiteral = int | float | Decimal
+    TemporalLiteral = date | time | datetime | timedelta
+    NonNestedLiteral = NumericLiteral | TemporalLiteral | str | bool | bytes
 else:
     # For runtime/msgspec, use Any since msgspec can't handle unions with
     # multiple str-like types (str, datetime, date, time, timedelta)
@@ -123,21 +123,21 @@ class ColumnStats(BaseStruct):
     Represents stats for a column in a data table.
     """
 
-    total: Optional[int] = None
-    nulls: Optional[int] = None
-    unique: Optional[int] = None
-    min: Optional[NonNestedLiteral] = None
-    max: Optional[NonNestedLiteral] = None
-    mean: Optional[NonNestedLiteral] = None
-    median: Optional[NonNestedLiteral] = None
-    std: Optional[NonNestedLiteral] = None
-    true: Optional[int] = None
-    false: Optional[int] = None
-    p5: Optional[NonNestedLiteral] = None
-    p25: Optional[NonNestedLiteral] = None
+    total: int | None = None
+    nulls: int | None = None
+    unique: int | None = None
+    min: NonNestedLiteral | None = None
+    max: NonNestedLiteral | None = None
+    mean: NonNestedLiteral | None = None
+    median: NonNestedLiteral | None = None
+    std: NonNestedLiteral | None = None
+    true: int | None = None
+    false: int | None = None
+    p5: NonNestedLiteral | None = None
+    p25: NonNestedLiteral | None = None
     # p50 is the median
-    p75: Optional[NonNestedLiteral] = None
-    p95: Optional[NonNestedLiteral] = None
+    p75: NonNestedLiteral | None = None
+    p95: NonNestedLiteral | None = None
 
 
 class BinValue(BaseStruct):
@@ -188,5 +188,5 @@ class DataSourceConnection(BaseStruct):
     name: str
     display_name: str
     databases: list[Database]
-    default_database: Optional[str] = None
-    default_schema: Optional[str] = None
+    default_database: str | None = None
+    default_schema: str | None = None

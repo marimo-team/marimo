@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from narwhals.typing import IntoDataFrame
 
@@ -60,17 +60,17 @@ def get_default_csv_encoding() -> str:
 
 
 T = TypeVar("T")
-Numeric = Union[int, float]
-ListOrTuple = Union[list[T], tuple[T, ...]]
+Numeric = int | float
+ListOrTuple = list[T] | tuple[T, ...]
 
 
-TableData = Union[
-    list[JSONType],
-    ListOrTuple[Union[str, int, float, bool, MIME, None]],
-    ListOrTuple[dict[str, JSONType]],
-    dict[str, ListOrTuple[JSONType]],
-    IntoDataFrame,
-]
+TableData = (
+    list[JSONType]
+    | ListOrTuple[str | int | float | bool | MIME | None]
+    | ListOrTuple[dict[str, JSONType]]
+    | dict[str, ListOrTuple[JSONType]]
+    | IntoDataFrame
+)
 
 
 def download_as(

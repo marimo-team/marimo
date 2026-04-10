@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType, build_stateless_plugin
@@ -9,7 +9,7 @@ from marimo._plugins.core.web_component import JSONType, build_stateless_plugin
 
 def json_output(
     json_data: JSONType,
-    name: Optional[str] = None,
+    name: str | None = None,
     *,
     value_types: Literal["python", "json"] = "python",
 ) -> Html:

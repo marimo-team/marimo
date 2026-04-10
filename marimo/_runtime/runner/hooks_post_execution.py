@@ -279,9 +279,9 @@ def _store_reference_to_output(
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
-        if contains_instance(run_result.output, UIElement):
-            cell.set_output(run_result.output)
-        elif callable(getattr(run_result.output, "_repr_mimebundle_", None)):
+        if contains_instance(run_result.output, UIElement) or callable(
+            getattr(run_result.output, "_repr_mimebundle_", None)
+        ):
             cell.set_output(run_result.output)
 
 
@@ -421,15 +421,14 @@ def _broadcast_outputs(
                 ctx.user_config["runtime"].get("show_tracebacks", False)
             )
 
-        if show_tracebacks:
-            if (
-                isinstance(run_result.exception, BaseException)
-                and run_result.exception.__traceback__
-            ):
-                tb_lines = tb.format_exception(run_result.exception)
-                formatted_traceback = _highlight_traceback(
-                    _trim_traceback("".join(tb_lines))
-                )
+        if show_tracebacks and (
+            isinstance(run_result.exception, BaseException)
+            and run_result.exception.__traceback__
+        ):
+            tb_lines = tb.format_exception(run_result.exception)
+            formatted_traceback = _highlight_traceback(
+                _trim_traceback("".join(tb_lines))
+            )
 
         CellNotificationUtils.broadcast_error(
             data=[

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -13,8 +13,8 @@ class ToolExecutionError(Exception):
     code: str = "TOOL_ERROR"
     status: int = 400
     is_retryable: bool = False
-    suggested_fix: Optional[str] = None
-    meta: Optional[dict[str, Any]] = None
+    suggested_fix: str | None = None
+    meta: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         # Initialize base Exception with the structured JSON message

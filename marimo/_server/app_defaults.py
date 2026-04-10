@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._config.config import ExportType, SqlOutputType, WidthType
 
@@ -14,9 +14,9 @@ if TYPE_CHECKING:
 class AppDefaults:
     """Default configuration for app file managers."""
 
-    width: Optional[WidthType] = None
-    auto_download: Optional[list[ExportType]] = None
-    sql_output: Optional[SqlOutputType] = None
+    width: WidthType | None = None
+    auto_download: list[ExportType] | None = None
+    sql_output: SqlOutputType | None = None
 
     @staticmethod
     def from_config_manager(config: MarimoConfigManager) -> AppDefaults:

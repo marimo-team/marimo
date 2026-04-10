@@ -7,8 +7,6 @@ based on session mode.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._session.model import SessionMode
 
@@ -19,8 +17,8 @@ class TokenManager:
     def __init__(
         self,
         mode: SessionMode,
-        auth_token: Optional[AuthToken] = None,
-        source_code: Optional[str] = None,
+        auth_token: AuthToken | None = None,
+        source_code: str | None = None,
     ) -> None:
         """Initialize token manager.
 

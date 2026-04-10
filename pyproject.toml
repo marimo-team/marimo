@@ -394,9 +394,6 @@ extend-select = [
     "UP",  # Upgrades
 ]
 
-# Never try to fix `F401` (unused imports).
-unfixable = ["F401"]
-
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

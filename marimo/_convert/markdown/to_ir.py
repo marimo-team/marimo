@@ -8,7 +8,6 @@ from typing import (
     Any,
     Generic,
     Literal,
-    Optional,
     TypeVar,
     cast,
 )
@@ -58,7 +57,7 @@ def backwards_compatible_sanitization(line: str) -> str:
 
 
 def extract_attribs(
-    line: str, fence_start: Optional[re.Match[str]] = None
+    line: str, fence_start: re.Match[str] | None = None
 ) -> dict[str, str]:
     # Extract attributes from the code block.
     # Blocks are expected to be like this:
@@ -95,7 +94,7 @@ def _get_language(text: str) -> str:
 
 def formatted_code_block(
     code: str,
-    attributes: Optional[dict[str, str]] = None,
+    attributes: dict[str, str] | None = None,
     is_qmd: bool = False,
 ) -> str:
     """Wraps code in a fenced code block with marimo attributes."""
@@ -503,7 +502,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
 
 def convert_from_md_to_marimo_ir(
-    text: str, filepath: Optional[str] = None
+    text: str, filepath: str | None = None
 ) -> NotebookSerializationV1:
     if not text.strip():
         return NotebookSerializationV1(

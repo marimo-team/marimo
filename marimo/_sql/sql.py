@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Literal, Optional, cast
+from typing import Any, Literal, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -22,7 +22,7 @@ from marimo._types.ids import VariableName
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
-def get_default_result_limit() -> Optional[int]:
+def get_default_result_limit() -> int | None:
     limit = os.environ.get("MARIMO_SQL_DEFAULT_LIMIT")
     return int(limit) if limit is not None else None
 
@@ -32,7 +32,7 @@ def sql(
     query: str,
     *,
     output: bool = True,
-    engine: Optional[DBAPIConnection] = None,
+    engine: DBAPIConnection | None = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -108,7 +108,7 @@ def sql(
 
     enforce_own_limit = not has_limit and default_result_limit is not None
 
-    custom_total_count: Optional[Literal["too_many"]] = None
+    custom_total_count: Literal["too_many"] | None = None
     if enforce_own_limit:
         if DependencyManager.polars.has():
             custom_total_count = (

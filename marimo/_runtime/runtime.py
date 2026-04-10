@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     cast,
 )
 from uuid import uuid4
@@ -549,7 +548,7 @@ class Kernel:
         # timestamp at which most recently processed interrupt was seen;
         # the kernel rejects run requests that were issued before that
         # timestamp, to save the user from having to spam the interrupt button
-        self.last_interrupt_timestamp: Optional[float] = None
+        self.last_interrupt_timestamp: float | None = None
 
         # Callbacks
         self.secrets_callbacks = SecretsCallbacks(self)
@@ -655,9 +654,9 @@ class Kernel:
 
         # Lifespans
         lifespan = Lifespans(_KERNEL_LIFESPAN_REGISTRY.get_all())
-        self._lifespan: Optional[
-            contextlib.AbstractAsyncContextManager[None]
-        ] = None
+        self._lifespan: contextlib.AbstractAsyncContextManager[None] | None = (
+            None
+        )
         if lifespan.has_lifespans():
             self._lifespan = lifespan(None)
 
@@ -855,8 +854,8 @@ class Kernel:
 
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
-    ) -> tuple[Optional[CellImpl], Optional[Error]]:
-        error: Optional[Error] = None
+    ) -> tuple[CellImpl | None, Error | None]:
+        error: Error | None = None
         try:
             # In run mode or debugpy, pass the notebook filename so
             # tracebacks reference the real file instead of synthetic
@@ -918,7 +917,7 @@ class Kernel:
         code: str,
         carried_imports: list[ImportData],
         stale: bool,
-    ) -> Optional[Error]:
+    ) -> Error | None:
         """Attempt to register a cell with given id and code.
 
         Precondition: a cell with the supplied id must not already exist in the
@@ -935,7 +934,7 @@ class Kernel:
 
     def _maybe_register_cell(
         self, cell_id: CellId_t, code: str, stale: bool
-    ) -> tuple[set[CellId_t], Optional[Error]]:
+    ) -> tuple[set[CellId_t], Error | None]:
         """Register a cell (given by id, code) if not already registered.
 
         If a cell with id `cell_id` is already registered but with different
@@ -1075,7 +1074,7 @@ class Kernel:
     def _invalidate_cell_state(
         self,
         cell_id: CellId_t,
-        exclude_defs: Optional[set[Name]] = None,
+        exclude_defs: set[Name] | None = None,
         deletion: bool = False,
     ) -> None:
         """Cleanup state associated with this cell.
@@ -2137,7 +2136,7 @@ class Kernel:
                     debug(error_title, error_message)
                 except Exception as e:
                     error_title = "Exception"
-                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
+                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {e!s}"
                     LOGGER.info(error_message, exc_info=True)
                     debug(error_title, error_message)
 
@@ -2397,7 +2396,7 @@ class Kernel:
 
         async def handle_stop(request: StopKernelCommand) -> None:
             del request
-            return None
+            return
 
         handler.register(CreateNotebookCommand, handle_instantiate)
         handler.register(DeleteCellCommand, self.delete_cell)
@@ -2479,7 +2478,7 @@ class Kernel:
 
     def get_sql_connection(
         self, variable_name: str
-    ) -> tuple[Optional[SQLConnectionType], Optional[str]]:
+    ) -> tuple[SQLConnectionType | None, str | None]:
         """
         Fetch the SQL connection associated with the given variable name.
         Returns the connection if it supports query or catalog operations, or an error message if not.
@@ -2512,7 +2511,7 @@ class DatasetCallbacks:
 
     def get_engine_catalog(
         self, variable_name: str
-    ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
+    ) -> tuple[EngineCatalog[Any] | None, str | None]:
         """Get engines that support catalog operations.
         Returns an error if the connection does not support catalog operations."""
         variable_name = cast(VariableName, variable_name)
@@ -3041,7 +3040,7 @@ class SqlCallbacks:
             return
 
         variable_name = cast(VariableName, request.engine)
-        engine: Optional[SQLConnectionType] = None
+        engine: SQLConnectionType | None = None
         if variable_name == INTERNAL_DUCKDB_ENGINE:
             engine = DuckDBEngine(connection=None)
             error = None
@@ -3146,13 +3145,11 @@ class PackagesCallbacks:
         if self.package_manager is None:
             return
 
-        packages = list(
-            sorted(
-                pkg
-                for mod in missing_packages
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
-                )
+        packages = sorted(
+            pkg
+            for mod in missing_packages
+            if not self.package_manager.attempted_to_install(
+                pkg := self.package_manager.module_to_package(mod)
             )
         )
         # Deleting a cell can make the set of missing packages smaller
@@ -3228,7 +3225,7 @@ class PackagesCallbacks:
         if not missing_packages:
             return
 
-        packages = list(sorted(missing_packages))
+        packages = sorted(missing_packages)
         if self.package_manager.should_auto_install():
             version = {pkg: "" for pkg in packages}
             self._kernel.enqueue_control_request(
@@ -3508,7 +3505,7 @@ def launch_kernel(
     virtual_files_supported: bool,
     redirect_console_to_browser: bool,
     interrupt_queue: QueueType[bool] | None = None,
-    profile_path: Optional[str] = None,
+    profile_path: str | None = None,
     log_level: int | None = None,
     is_ipc: bool = False,
 ) -> None:
@@ -3538,7 +3535,7 @@ def launch_kernel(
     use_fd_redirect = is_subprocess
 
     # Create communication channels
-    pipe: Optional[TypedConnection[KernelMessage]] = None
+    pipe: TypedConnection[KernelMessage] | None = None
     if socket_addr is not None:
         n_tries = 0
         while n_tries < 100:

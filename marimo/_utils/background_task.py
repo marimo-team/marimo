@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Optional, final
+from typing import TYPE_CHECKING, Any, final
 
 from marimo import _loggers
 
@@ -15,7 +15,7 @@ LOGGER = _loggers.marimo_logger()
 
 class AsyncBackgroundTask(ABC):
     def __init__(self) -> None:
-        self.task: Optional[asyncio.Task[None]] = None
+        self.task: asyncio.Task[None] | None = None
         self.running: bool = False
         self._startup_event: asyncio.Event = asyncio.Event()
         self._shutdown_event: asyncio.Event = asyncio.Event()
@@ -26,21 +26,20 @@ class AsyncBackgroundTask(ABC):
         The main task routine that should be implemented by subclasses.
         This method contains the actual task logic.
         """
-        pass
 
     async def startup(self) -> None:
         """
         Optional startup routine that can be implemented by subclasses.
         This method is called before the main task starts.
         """
-        return None
+        return
 
     async def shutdown(self) -> None:
         """
         Optional shutdown routine that can be implemented by subclasses.
         This method is called after the main task stops.
         """
-        return None
+        return
 
     async def _task_wrapper(self) -> None:
         """
@@ -71,7 +70,7 @@ class AsyncBackgroundTask(ABC):
             self.task = asyncio.create_task(self._task_wrapper())
 
     @final
-    async def stop(self, timeout: Optional[float] = None) -> None:
+    async def stop(self, timeout: float | None = None) -> None:
         """
         Stops the background task.
 
@@ -93,7 +92,7 @@ class AsyncBackgroundTask(ABC):
                     pass
 
     @final
-    def stop_sync(self, timeout: Optional[float] = None) -> None:
+    def stop_sync(self, timeout: float | None = None) -> None:
         """
         Synchronous version of stop that can be called from non-async code.
         """
@@ -112,7 +111,7 @@ class AsyncBackgroundTask(ABC):
             loop.run_until_complete(self.stop(timeout))
             loop.close()
 
-    async def wait_for_startup(self, timeout: Optional[float] = None) -> None:
+    async def wait_for_startup(self, timeout: float | None = None) -> None:
         """
         Waits for the task to start up.
 

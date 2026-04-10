@@ -4,7 +4,7 @@ from __future__ import annotations
 from asyncio import iscoroutine
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from starlette.responses import (
     FileResponse,
@@ -74,7 +74,7 @@ class APIRouter(Router):
         self,
         path: str,
         include_in_schema: bool = True,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Get method."""
 
@@ -133,7 +133,7 @@ class APIRouter(Router):
         return decorator
 
     def include_router(
-        self, router: APIRouter, prefix: str = "", name: Optional[str] = None
+        self, router: APIRouter, prefix: str = "", name: str | None = None
     ) -> None:
         """Include another router in this one."""
         # Merge Mounts with the same path

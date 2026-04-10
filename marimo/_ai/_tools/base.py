@@ -8,7 +8,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    Optional,
     TypeVar,
     cast,
     get_args,
@@ -59,7 +58,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ToolContext:
-    app: Optional[Starlette] = None
+    app: Starlette | None = None
 
     @property
     def session_manager(self) -> SessionManager:
@@ -179,7 +178,7 @@ class ToolContext:
         self,
         session_id: SessionId,
         cell_id: CellId_t,
-        maybe_cell_notif: Optional[CellNotification] = None,
+        maybe_cell_notif: CellNotification | None = None,
     ) -> list[MarimoErrorDetail]:
         """
         Get all errors for a given cell.
@@ -215,7 +214,7 @@ class ToolContext:
             else:
                 # Fallback for rich error objects
                 err_type: str = getattr(err, "type", type(err).__name__)
-                describe_fn: Optional[Any] = getattr(err, "describe", None)
+                describe_fn: Any | None = getattr(err, "describe", None)
                 message_val = (
                     describe_fn() if callable(describe_fn) else str(err)
                 )
@@ -279,7 +278,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
     # Override in subclass, or rely on fallbacks below
     name: str = ""
     description: str = ""
-    guidelines: Optional[ToolGuidelines] = None
+    guidelines: ToolGuidelines | None = None
     Args: type[ArgsT]
     Output: type[OutT]
     context: ToolContext
@@ -472,7 +471,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
     def _default_is_retryable(self) -> bool:
         return True
 
-    def _default_suggested_fix(self) -> Optional[str]:
+    def _default_suggested_fix(self) -> str | None:
         return None
 
     def _error_context(self, _args: Any) -> dict[str, Any]:
@@ -485,7 +484,7 @@ class ToolBase(Generic[ArgsT, OutT], ABC):
 
         def validation_function(
             arguments: FunctionArgs,
-        ) -> Optional[tuple[bool, str]]:
+        ) -> tuple[bool, str] | None:
             try:
                 # Will raise on bad types/required fields
                 parse_raw(arguments, args_type)

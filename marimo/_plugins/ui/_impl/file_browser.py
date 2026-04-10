@@ -8,9 +8,7 @@ from typing import (
     Any,
     Final,
     Literal,
-    Optional,
     TypedDict,
-    Union,
 )
 
 from marimo import _loggers
@@ -140,17 +138,16 @@ class file_browser(
 
     def __init__(
         self,
-        initial_path: Union[str, Path] = "",
-        filetypes: Optional[Sequence[str]] = None,
+        initial_path: str | Path = "",
+        filetypes: Sequence[str] | None = None,
         selection_mode: Literal["file", "directory"] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileBrowserFileInfo]], None]
-        ] = None,
+        on_change: Callable[[Sequence[FileBrowserFileInfo]], None]
+        | None = None,
         ignore_empty_dirs: bool = False,
     ) -> None:
         validate_one_of(selection_mode, ["file", "directory"])
@@ -366,7 +363,7 @@ class file_browser(
             for file in value
         )
 
-    def name(self, index: int = 0) -> Optional[str]:
+    def name(self, index: int = 0) -> str | None:
         """Get file name at index.
 
         Args:
@@ -382,7 +379,7 @@ class file_browser(
         else:
             return self.value[index].name
 
-    def path(self, index: int = 0) -> Optional[Path]:
+    def path(self, index: int = 0) -> Path | None:
         """Get file path at index.
 
         Args:

@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo._runtime.packages.module_name_to_conda_name import (
     module_name_to_conda_name,
 )
@@ -25,7 +23,7 @@ class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None
+        self, package: str, *, upgrade: bool, group: str | None = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -35,9 +33,7 @@ class PixiPackageManager(CondaPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(
-        self, package: str, group: Optional[str] = None
-    ) -> bool:
+    async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(

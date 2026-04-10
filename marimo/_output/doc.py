@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from marimo._output.hypertext import Html
 from marimo._output.md import md
@@ -10,7 +10,7 @@ from marimo._utils.methods import getcallable
 
 
 @mddoc
-def doc(obj: Any) -> Optional[Html]:
+def doc(obj: Any) -> Html | None:
     """Get documentation about an object.
 
     If the object implements the `RichHelp` protocol, the documentation will be

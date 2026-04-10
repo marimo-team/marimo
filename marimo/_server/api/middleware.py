@@ -10,12 +10,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Final,
-    Optional,
-    Union,
 )
 from urllib.parse import quote, urljoin, urlparse
 
-import starlette.status as status
+from starlette import status
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
@@ -87,7 +85,7 @@ class AuthBackend(AuthenticationBackend):
 
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
+    ) -> tuple[AuthCredentials, BaseUser] | None:
         # We may not need to authenticate. This can be disabled
         # because the user is running in a trusted environment
         # or authentication is handled by a layer above us
@@ -369,7 +367,7 @@ class ProxyMiddleware:
         self,
         app: ASGIApp,
         proxy_path: str,
-        target_url: Union[str, Callable[[str], str]],
+        target_url: str | Callable[[str], str],
         path_rewrite: Callable[[str], str] | None = None,
         connection_error_handler: Callable[
             [ConnectionRefusedError, str], Response
@@ -467,7 +465,7 @@ class ProxyMiddleware:
             content=request.stream(),
         )
 
-        response: Union[StreamingResponse, Response]
+        response: StreamingResponse | Response
         try:
             rp_resp = await client.send(rp_req, stream=True)
             response = StreamingResponse(

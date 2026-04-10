@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
 
@@ -51,12 +51,12 @@ class SqlCatalogCheckResult(msgspec.Struct):
     """
 
     success: bool
-    error_message: Optional[str]
+    error_message: str | None
 
 
 def parse_sql(
     query: str, dialect: str
-) -> tuple[Optional[SqlParseResult], Optional[str]]:
+) -> tuple[SqlParseResult | None, str | None]:
     """Parses an SQL query. Returns syntax errors.
     Does not check for catalog errors (incorrect table names, etc).
     Currently only supports DuckDB.
@@ -81,10 +81,10 @@ def parse_sql(
 
 class DuckDBParseError(msgspec.Struct):
     error: bool
-    error_type: Optional[str] = None
-    error_message: Optional[str] = None
-    error_subtype: Optional[str] = None
-    position: Optional[Union[int, str]] = None
+    error_type: str | None = None
+    error_message: str | None = None
+    error_subtype: str | None = None
+    position: int | str | None = None
 
 
 # skip to reduce the response size
@@ -95,7 +95,7 @@ JSON_SERIALIZE_QUERY = "SELECT JSON_SERIALIZE_SQL(?, skip_null := true, skip_emp
 
 def _parse_sql_duckdb(
     query: str,
-) -> tuple[Optional[SqlParseResult], Optional[str]]:
+) -> tuple[SqlParseResult | None, str | None]:
     """Parse an SQL query using DuckDB. Returns parse result and unexpected errors.
 
     Note:

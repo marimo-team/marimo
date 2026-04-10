@@ -5,7 +5,7 @@ import base64
 import mimetypes
 import re
 from html.parser import HTMLParser
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
@@ -44,7 +44,7 @@ class _HTMLAttributeReplacer(HTMLParser):
         self,
         allowed_tags: set[str],
         allowed_attributes: set[str],
-        replacer_fn: Callable[[str], Optional[str]],
+        replacer_fn: Callable[[str], str | None],
     ) -> None:
         """Initialize the HTML attribute replacer.
 
@@ -61,12 +61,12 @@ class _HTMLAttributeReplacer(HTMLParser):
         self._output: list[str] = []
 
     def handle_starttag(
-        self, tag: str, attrs: list[tuple[str, Optional[str]]]
+        self, tag: str, attrs: list[tuple[str, str | None]]
     ) -> None:
         """Handle opening tags, replacing attributes if applicable."""
         if tag.lower() in self.allowed_tags:
             # Process attributes for allowed tags
-            new_attrs: list[tuple[str, Optional[str]]] = []
+            new_attrs: list[tuple[str, str | None]] = []
             for attr_name, attr_value in attrs:
                 if attr_name.lower() in self.allowed_attributes and attr_value:
                     # Apply the replacer function
@@ -96,12 +96,12 @@ class _HTMLAttributeReplacer(HTMLParser):
         self._output.append(data)
 
     def handle_startendtag(
-        self, tag: str, attrs: list[tuple[str, Optional[str]]]
+        self, tag: str, attrs: list[tuple[str, str | None]]
     ) -> None:
         """Handle self-closing tags (e.g., <img />)."""
         if tag.lower() in self.allowed_tags:
             # Process attributes for allowed tags
-            new_attrs: list[tuple[str, Optional[str]]] = []
+            new_attrs: list[tuple[str, str | None]] = []
             for attr_name, attr_value in attrs:
                 if attr_name.lower() in self.allowed_attributes and attr_value:
                     # Apply the replacer function
@@ -142,7 +142,7 @@ class _HTMLAttributeReplacer(HTMLParser):
         """Preserve entity references like &nbsp;."""
         self._output.append(f"&{name};")
 
-    def _format_attrs(self, attrs: list[tuple[str, Optional[str]]]) -> str:
+    def _format_attrs(self, attrs: list[tuple[str, str | None]]) -> str:
         """Format attributes for output."""
         if not attrs:
             return ""
@@ -167,7 +167,7 @@ def replace_html_attributes(
     *,
     allowed_tags: set[str],
     allowed_attributes: set[str],
-    replacer_fn: Callable[[str], Optional[str]],
+    replacer_fn: Callable[[str], str | None],
 ) -> str:
     """Replace attribute values in HTML using a custom function.
 
@@ -223,7 +223,7 @@ def _is_virtual_file_url(url: str) -> bool:
     return VIRTUAL_FILE_PATTERN.match(url) is not None
 
 
-def _parse_virtual_file_url(url: str) -> Optional[tuple[int, str]]:
+def _parse_virtual_file_url(url: str) -> tuple[int, str] | None:
     """Parse a virtual file URL into its components.
 
     Args:
@@ -239,7 +239,7 @@ def _parse_virtual_file_url(url: str) -> Optional[tuple[int, str]]:
     return int(byte_length_str), filename
 
 
-def _virtual_file_to_data_uri(virtual_file_url: str) -> Optional[str]:
+def _virtual_file_to_data_uri(virtual_file_url: str) -> str | None:
     """Convert a virtual file URL to a data URI.
 
     Args:
@@ -272,8 +272,8 @@ def _virtual_file_to_data_uri(virtual_file_url: str) -> Optional[str]:
 def replace_virtual_files_with_data_uris(
     html: str,
     allowed_tags: set[str],
-    allowed_attributes: Optional[set[str]] = None,
-    max_inline_bytes: Optional[int] = None,
+    allowed_attributes: set[str] | None = None,
+    max_inline_bytes: int | None = None,
 ) -> tuple[str, set[str]]:
     """Replace virtual file URLs with data URIs in HTML.
 
@@ -307,7 +307,7 @@ def replace_virtual_files_with_data_uris(
 
     replaced_files: set[str] = set()
 
-    def replacer(value: str) -> Optional[str]:
+    def replacer(value: str) -> str | None:
         """Replace virtual file URLs with data URIs."""
         if _is_virtual_file_url(value):
             if max_inline_bytes is not None:

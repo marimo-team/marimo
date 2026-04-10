@@ -148,13 +148,13 @@ def collect_messages(
 
 __all__ = [
     "Diagnostic",
-    "LintRule",
-    "Severity",
     "EarlyStoppingConfig",
-    "RuleEngine",
-    "run_check",
-    "resolve_lint_config",
-    "collect_messages",
-    "Linter",
     "FileStatus",
+    "LintRule",
+    "Linter",
+    "RuleEngine",
+    "Severity",
+    "collect_messages",
+    "resolve_lint_config",
+    "run_check",
 ]

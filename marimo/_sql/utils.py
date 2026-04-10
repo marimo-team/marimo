@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._config.config import SqlOutputType
@@ -28,7 +28,7 @@ CHEAP_DISCOVERY_DATABASES = ["duckdb", "sqlite", "mysql", "postgresql"]
 
 def wrapped_sql(
     query: str,
-    connection: Optional[duckdb.DuckDBPyConnection],
+    connection: duckdb.DuckDBPyConnection | None,
 ) -> duckdb.DuckDBPyRelation:
     DependencyManager.duckdb.require("to execute sql")
 
@@ -66,7 +66,7 @@ def wrapped_sql(
 def execute_duckdb_sql(
     query: str,
     params: list[Any],
-    connection: Optional[duckdb.DuckDBPyConnection] = None,
+    connection: duckdb.DuckDBPyConnection | None = None,
 ) -> duckdb.DuckDBPyConnection:
     """Execute a parameterized DuckDB query with kernel globals context.
 
@@ -108,7 +108,7 @@ def try_convert_to_polars(
     query: str,
     connection: ConnectionOrCursor,
     lazy: bool,
-) -> tuple[Optional[pl.DataFrame | pl.LazyFrame], Optional[Exception]]:
+) -> tuple[pl.DataFrame | pl.LazyFrame | None, Exception | None]:
     """Try to convert the query to a polars dataframe.
 
     Returns:
@@ -130,10 +130,10 @@ def try_convert_to_polars(
 def convert_to_output(
     *,
     sql_output_format: SqlOutputType,
-    to_polars: Callable[[], Union[pl.DataFrame, pl.Series]],
+    to_polars: Callable[[], pl.DataFrame | pl.Series],
     to_pandas: Callable[[], pd.DataFrame],
-    to_native: Optional[Callable[[], Any]] = None,
-    to_lazy_polars: Optional[Callable[[], pl.LazyFrame]] = None,
+    to_native: Callable[[], Any] | None = None,
+    to_lazy_polars: Callable[[], pl.LazyFrame] | None = None,
 ) -> Any:
     """Convert a result to the specified output format.
 

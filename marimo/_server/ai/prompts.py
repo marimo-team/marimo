@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, Union
-
 from marimo._config.config import CopilotMode
 from marimo._server.models.completion import (
     AiCompletionContext,
@@ -47,7 +45,7 @@ language_rules_multiple_cells: dict[Language, list[str]] = {
 }
 
 
-def _format_schema_info(tables: Optional[list[SchemaTable]]) -> str:
+def _format_schema_info(tables: list[SchemaTable] | None) -> str:
     """Helper to format schema information from context"""
     if not tables:
         return ""
@@ -71,7 +69,7 @@ def _format_plain_text(plain_text: str) -> str:
 
 
 def _format_variables(
-    variables: Optional[list[Union[VariableContext, str]]],
+    variables: list[VariableContext | str] | None,
 ) -> str:
     if not variables:
         return ""
@@ -102,11 +100,11 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
     language: Language,
     is_insert: bool,
     support_multiple_cells: bool,
-    custom_rules: Optional[str],
-    cell_code: Optional[str],
-    selected_text: Optional[str],
-    other_cell_codes: Optional[str],
-    context: Optional[AiCompletionContext],
+    custom_rules: str | None,
+    cell_code: str | None,
+    selected_text: str | None,
+    other_cell_codes: str | None,
+    context: AiCompletionContext | None,
 ) -> str:
     if cell_code:
         system_prompt = f"Here's a {language} document from a Python notebook that I'm going to ask you to make an edit to.\n\n"
@@ -188,7 +186,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 system_prompt += (
                     f"\n\n## Rules for {lang}:\n{_rules(language_rule)}"
                 )
-    elif language in language_rules and language_rules[language]:
+    elif language_rules.get(language):
         system_prompt += (
             f"\n\n## Rules for {language}\n{_rules(language_rules[language])}"
         )
@@ -276,8 +274,8 @@ def _get_session_info(session_id: SessionId) -> str:
 
 def get_chat_system_prompt(
     *,
-    custom_rules: Optional[str],
-    context: Optional[AiCompletionContext],
+    custom_rules: str | None,
+    context: AiCompletionContext | None,
     include_other_code: str,
     mode: CopilotMode,
     session_id: SessionId,

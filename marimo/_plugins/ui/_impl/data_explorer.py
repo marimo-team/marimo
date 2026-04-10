@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Final, Optional
+from typing import TYPE_CHECKING, Any, Final
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
@@ -47,14 +47,14 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
     def __init__(
         self,
         df: IntoDataFrame,
-        on_change: Optional[Callable[[dict[str, Any]], None]] = None,
-        x: Optional[str] = None,
-        y: Optional[str] = None,
-        row: Optional[str] = None,
-        column: Optional[str] = None,
-        color: Optional[str] = None,
-        size: Optional[str] = None,
-        shape: Optional[str] = None,
+        on_change: Callable[[dict[str, Any]], None] | None = None,
+        x: str | None = None,
+        y: str | None = None,
+        row: str | None = None,
+        column: str | None = None,
+        color: str | None = None,
+        size: str | None = None,
+        shape: str | None = None,
     ) -> None:
         # Drop the index since empty column names break the data explorer
         df_no_idx = _drop_index(df)

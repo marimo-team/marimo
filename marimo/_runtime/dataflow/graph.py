@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
 from marimo._ast.compiler import code_key
@@ -241,7 +241,7 @@ class DirectedGraph(GraphTopology):
         return False
 
     def get_imports(
-        self, cell_id: Optional[CellId_t] = None
+        self, cell_id: CellId_t | None = None
     ) -> dict[Name, ImportData]:
         """Get imports from cell(s)."""
         imports = {}

@@ -6,7 +6,7 @@ import os
 import sys
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Optional, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -148,7 +148,7 @@ def export_as_wasm(
     path: MarimoPath,
     mode: Literal["edit", "run"],
     show_code: bool,
-    asset_url: Optional[str] = None,
+    asset_url: str | None = None,
 ) -> ExportResult:
     _app = load_app(path.absolute_name)
     if _app is None:

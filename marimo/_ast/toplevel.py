@@ -5,7 +5,7 @@ import token as token_types
 from enum import Enum
 from io import BytesIO
 from tokenize import tokenize
-from typing import TYPE_CHECKING, Literal, Optional, Union, get_args
+from typing import TYPE_CHECKING, Literal, get_args
 
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
@@ -51,7 +51,7 @@ TopLevelInvalidHints = Literal[
     HINT_NO_PRIVATES,
 ) = get_args(TopLevelInvalidHints)
 
-TopLevelHints = Union[Literal["Valid"], TopLevelInvalidHints]
+TopLevelHints = Literal["Valid"] | TopLevelInvalidHints
 # Fancy typing caused an issue, so just set the value explicitly.
 HINT_VALID: Literal["Valid"] = "Valid"
 
@@ -96,8 +96,8 @@ class TopLevelStatus:
         self.previous_name = name
         self._type: TopLevelType = TopLevelType.UNPARSABLE
         self.dependencies: set[Name] = set()
-        self._cell: Optional[CellImpl] = None
-        self.hint: Optional[TopLevelHints] = None
+        self._cell: CellImpl | None = None
+        self.hint: TopLevelHints | None = None
 
         self.code = code
         self.cell_config = cell_config
@@ -257,7 +257,7 @@ class TopLevelExtraction:
         defs: set[Name] = set()
         refs: set[Name] = set()
         self.allowed_refs: set[Name] = set(toplevel_defs)
-        self._variables: Optional[dict[Name, VariableData]] = None
+        self._variables: dict[Name, VariableData] | None = None
         # Run through and get defs + refs, and a naive attempt at resolving cell
         # status.
         for idx, (code, name, config) in enumerate(
@@ -411,7 +411,7 @@ class TopLevelExtraction:
 
     @classmethod
     def from_cells(
-        cls, cells: list[CellImpl], setup: Optional[CellImpl] = None
+        cls, cells: list[CellImpl], setup: CellImpl | None = None
     ) -> TopLevelExtraction:
         codes = [cell.code for cell in cells]
         names = ["_" for _ in cells]

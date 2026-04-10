@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from starlette.websockets import WebSocket
@@ -54,7 +54,7 @@ class WebSocketConnectionValidator:
 
     async def extract_connection_params(
         self,
-    ) -> Optional[ConnectionParams]:
+    ) -> ConnectionParams | None:
         """Extract and validate connection parameters.
 
         Returns:
@@ -71,7 +71,7 @@ class WebSocketConnectionValidator:
         session_id = SessionId(raw_session_id)
 
         # Extract file_key
-        file_key: Optional[MarimoFileKey] = (
+        file_key: MarimoFileKey | None = (
             self.app_state.query_params(FILE_QUERY_PARAM_KEY)
             or self.app_state.session_manager.file_router.get_unique_file_key()
         )
@@ -98,13 +98,13 @@ class WebSocketConnectionValidator:
             rtc_enabled=rtc_enabled,
         )
 
-    async def extract_file_key_only(self) -> Optional[MarimoFileKey]:
+    async def extract_file_key_only(self) -> MarimoFileKey | None:
         """Extract only the file_key parameter (for RTC endpoint).
 
         Returns:
             MarimoFileKey if valid, None otherwise.
         """
-        file_key: Optional[MarimoFileKey] = (
+        file_key: MarimoFileKey | None = (
             self.app_state.query_params(FILE_QUERY_PARAM_KEY)
             or self.app_state.session_manager.file_router.get_unique_file_key()
         )

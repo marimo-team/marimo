@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Literal, TypedDict, Union
+from typing import Any, Literal, TypedDict
 
 import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
@@ -22,8 +22,8 @@ from marimo._utils.narwhals_utils import (
 
 LOGGER = _loggers.marimo_logger()
 
-Data = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
-_DataType = Union[dict[Any, Any], IntoDataFrame, nw.DataFrame[Any]]
+Data = dict[Any, Any] | IntoDataFrame | nw.DataFrame[Any]
+_DataType = dict[Any, Any] | IntoDataFrame | nw.DataFrame[Any]
 
 
 class _JsonFormatDict(TypedDict):
@@ -40,7 +40,7 @@ class _ArrowFormatDict(TypedDict):
 
 class _TransformResult(TypedDict):
     url: str
-    format: Union[_CsvFormatDict, _JsonFormatDict, _ArrowFormatDict]
+    format: _CsvFormatDict | _JsonFormatDict | _ArrowFormatDict
 
 
 def _to_marimo_json(data: Data, **kwargs: Any) -> _TransformResult:

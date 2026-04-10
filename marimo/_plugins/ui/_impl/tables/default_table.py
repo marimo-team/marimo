@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
@@ -35,13 +35,13 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
 )
 
-JsonTableData = Union[
-    Sequence[Union[str, int, float, bool, MIME, None]],
-    Sequence[JSONType],
-    list[JSONType],
-    dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
-    dict[str, JSONType],
-]
+JsonTableData = (
+    Sequence[str | int | float | bool | MIME | None]
+    | Sequence[JSONType]
+    | list[JSONType]
+    | dict[str, Sequence[str | int | float | bool | MIME | None]]
+    | dict[str, JSONType]
+)
 
 # For non-column-oriented data, we use "key" and "value" as the column names
 KEY = "key"
@@ -64,7 +64,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def apply_formatting(
-        self, format_mapping: Optional[FormatMapping]
+        self, format_mapping: FormatMapping | None
     ) -> TableManager[JsonTableData]:
         if not format_mapping:
             return self
@@ -92,7 +92,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def to_csv_str(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         separator: str | None = None,
     ) -> str:
         if isinstance(self.data, dict) and not self.is_column_oriented:
@@ -106,7 +106,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def to_json_str(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
@@ -495,7 +495,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
             # we're going to assume that data has the right shape, after
             # having checked just the first entry
-            casted = cast(list[Union[str, int, float, bool, MIME, None]], data)
+            casted = cast(list[str | int | float | bool | MIME | None], data)
             return [{"value": datum} for datum in casted]
         # Sequence of dicts
         return cast(list[dict[str, Any]], data)

@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
-def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
+def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
     """Normalize error to consistent format."""
     if isinstance(error, dict):
         return ErrorOutput(
@@ -106,7 +106,7 @@ def serialize_session_view(
         if cell_notif.output:
             if cell_notif.output.channel == CellChannel.MARIMO_ERROR:
                 for error in cast(
-                    list[Union[MarimoError, dict[str, Any]]],
+                    list[MarimoError | dict[str, Any]],
                     cell_notif.output.data,
                 ):
                     outputs.append(_normalize_error(error))
@@ -353,7 +353,7 @@ def get_session_cache_file(path: Path) -> Path:
     return notebook_output_dir(path) / "session" / f"{path.name}.json"
 
 
-def _hash_code(code: Optional[str]) -> Optional[str]:
+def _hash_code(code: str | None) -> str | None:
     if code is None or code == "":
         return None
     return hash_code(code)
@@ -445,7 +445,7 @@ class SessionCacheManager:
         self,
         session_view: SessionView,
         document: NotebookDocument,
-        path: Optional[str | Path],
+        path: str | Path | None,
         interval: float,
     ):
         self.session_view = session_view

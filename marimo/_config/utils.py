@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 from marimo import _loggers
 from marimo._utils.xdg import marimo_config_path
@@ -24,7 +24,7 @@ def _is_parent(parent_path: str, child_path: str) -> bool:
         return False
 
 
-def _check_directory_for_file(directory: str, filename: str) -> Optional[str]:
+def _check_directory_for_file(directory: str, filename: str) -> str | None:
     config_path = os.path.join(directory, filename)
     if os.path.isfile(config_path):
         return config_path
@@ -65,7 +65,7 @@ def get_or_create_user_config_path() -> str:
 # We cache the result to avoid re-searching. It is ok to expect new
 # config files to only be picked up after a restart.
 @lru_cache(maxsize=1)
-def get_user_config_path() -> Optional[str]:
+def get_user_config_path() -> str | None:
     """Find path of config file (.marimo.toml).
 
     Searches from current directory up through all parent directories,

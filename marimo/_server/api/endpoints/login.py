@@ -112,9 +112,8 @@ async def login_submit(request: Request) -> Response:
     # Reject protocol-relative URLs (e.g. //evil.com) which browsers
     # interpret as absolute URLs, bypassing scheme-based checks.
     parsed = urlparse(redirect_url)
-    if parsed.netloc:
-        if parsed.netloc != request.url.netloc:
-            redirect_url = base_url
+    if parsed.netloc and parsed.netloc != request.url.netloc:
+        redirect_url = base_url
 
     if request.method == "POST":
         body = (await request.body()).decode()

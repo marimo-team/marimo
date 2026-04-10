@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pickle
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import msgspec
 
@@ -28,12 +28,12 @@ class Item(msgspec.Struct):
     Only one of the value fields should be set (oneof semantics).
     """
 
-    primitive: Optional[Any] = None
-    reference: Optional[str] = None
-    module: Optional[str] = None
+    primitive: Any | None = None
+    reference: str | None = None
+    module: str | None = None
     # (code, filename, linenumber)
-    function: Optional[tuple[str, str, int]] = None
-    hash: Optional[str] = None
+    function: tuple[str, str, int] | None = None
+    hash: str | None = None
 
     def __post_init__(self) -> None:
         fields_set = sum(
@@ -52,7 +52,7 @@ class Item(msgspec.Struct):
 
 class Meta(msgspec.Struct):
     version: int
-    return_value: Optional[Item] = None
+    return_value: Item | None = None
 
 
 class Cache(msgspec.Struct):

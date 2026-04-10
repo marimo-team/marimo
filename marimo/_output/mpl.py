@@ -16,7 +16,6 @@ import base64
 import io
 import json
 import struct
-from typing import Optional
 
 import matplotlib.pyplot as plt
 from matplotlib._pylab_helpers import Gcf
@@ -134,7 +133,7 @@ class FigureManager(FigureManagerBase):
         _internal_show(self.canvas)
 
 
-def show(*, block: Optional[bool] = None) -> None:
+def show(*, block: bool | None = None) -> None:
     del block
     for manager in Gcf.get_all_fig_managers():
         _internal_show(manager.canvas)

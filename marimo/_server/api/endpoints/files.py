@@ -114,9 +114,8 @@ async def rename_file(
     directory = app_state.session_manager.file_router.directory
 
     # Resolve relative filenames against the file router's directory
-    if not Path(body.filename).is_absolute():
-        if directory:
-            body.filename = str(Path(directory) / body.filename)
+    if not Path(body.filename).is_absolute() and directory:
+        body.filename = str(Path(directory) / body.filename)
 
     filename = await abspath(body.filename)
 

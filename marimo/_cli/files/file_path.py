@@ -7,12 +7,12 @@ import re
 import urllib.parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Optional, cast
+from typing import Any, cast
 from urllib.error import HTTPError
 
-import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._cli.print import green
+from marimo._utils import requests
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
 
@@ -95,7 +95,6 @@ class FileReader(abc.ABC):
     @abc.abstractmethod
     def read(self, name: str) -> tuple[str, str]:
         """Read the file and return its content and filename."""
-        pass
 
 
 class LocalFileReader(FileReader):
@@ -298,7 +297,7 @@ class FileHandler(abc.ABC):
     @abc.abstractmethod
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, TemporaryDirectory[str] | None]:
         pass
 
 
@@ -312,7 +311,7 @@ class LocalFileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, TemporaryDirectory[str] | None]:
         import click
 
         path = Path(name)
@@ -380,7 +379,7 @@ class RemoteFileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, TemporaryDirectory[str] | None]:
         try:
             content, filename = self.reader.read_file(name)
         except HTTPError as e:
@@ -414,7 +413,7 @@ class RemoteFileHandler(FileHandler):
 
 def validate_name(
     name: str, allow_new_file: bool, allow_directory: bool
-) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+) -> tuple[str, TemporaryDirectory[str] | None]:
     """
     Validate the file name and return the path to the file.
 

@@ -5,7 +5,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Final,
-    Optional,
     TypeVar,
 )
 
@@ -54,7 +53,7 @@ class _batch_base(UIElement[dict[str, JSONType], dict[str, object]]):
         html: Html,
         elements: dict[str, UIElement[JSONType, object]],
         label: str = "",
-        on_change: Optional[Callable[[dict[str, object]], None]] = None,
+        on_change: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         self._elements = elements
         super().__init__(
@@ -209,7 +208,7 @@ class batch(_batch_base):
         self,
         html: Html,
         elements: dict[str, UIElement[Any, Any]],
-        on_change: Optional[Callable[[dict[str, object]], None]] = None,
+        on_change: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         self._html = html
         elements = validate_and_clone(elements)

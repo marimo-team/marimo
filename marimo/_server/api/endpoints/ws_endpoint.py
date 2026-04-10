@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from starlette.websockets import WebSocket, WebSocketState
 
@@ -164,11 +164,11 @@ class WebSocketHandler(SessionConsumer):
         self.params = params
         self.mode = mode
         self.status: ConnectionState
-        self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
+        self.cancel_close_handle: asyncio.TimerHandle | None = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
-        self.ws_future: Optional[asyncio.Task[None]] = None
+        self.ws_future: asyncio.Task[None] | None = None
         self._consumer_id = ConsumerId(params.session_id)
 
     @property
@@ -491,7 +491,7 @@ class WebSocketHandler(SessionConsumer):
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
         del event_bus
-        return None
+        return
 
     def on_detach(self) -> None:
         # If the websocket is open, send a close message
@@ -537,7 +537,7 @@ class WebSocketHandler(SessionConsumer):
             release_url = "https://github.com/marimo-team/marimo/releases"
 
             # Build description with notices if present
-            description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"  # noqa: E501
+            description = f"Check out the <a class='underline' target='_blank' href='{release_url}'>latest release on GitHub.</a>"
 
             if state.notices:
                 notices_text = (

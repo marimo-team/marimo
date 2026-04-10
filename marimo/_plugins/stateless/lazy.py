@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final, Union
+from typing import TYPE_CHECKING, Final
 
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
@@ -65,11 +65,9 @@ class lazy(UIElement[bool, bool]):
 
     def __init__(
         self,
-        element: Union[
-            Callable[[], object],
-            object,
-            Callable[[], Coroutine[None, None, object]],
-        ],
+        element: Callable[[], object]
+        | object
+        | Callable[[], Coroutine[None, None, object]],
         show_loading_indicator: bool = False,
     ) -> None:
         self._element = element

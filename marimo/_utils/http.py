@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import Optional
 
 
 class HTTPStatus(IntEnum):
@@ -22,7 +21,7 @@ class HTTPException(Exception):
     def __init__(
         self,
         status_code: int,
-        detail: Optional[str] = None,
+        detail: str | None = None,
     ) -> None:
         self.status_code = status_code
         self.detail = detail

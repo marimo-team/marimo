@@ -6,7 +6,7 @@ from __future__ import annotations
 import abc
 from typing import Any
 
-__all__ = ["CustomStub", "CUSTOM_STUBS", "register_stub"]
+__all__ = ["CUSTOM_STUBS", "CustomStub", "register_stub"]
 
 
 class CustomStub(abc.ABC):
