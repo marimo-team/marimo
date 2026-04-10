@@ -62,5 +62,6 @@ We would like to acknowledge and thank the following individuals for their respo
  - @W-M-T (Ward Theunisse)
  - @doredry
  - @q1uf3ng from OneKey Anzen Lab
+ - @Fushuling @RacerZ-fighting
 
 Your contributions help keep marimo safe for the entire community. We encourage security researchers to report issues and welcome your help in making marimo more secure.
