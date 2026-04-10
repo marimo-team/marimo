@@ -7,6 +7,7 @@ import type { ICellRendererProps } from "../types";
 import type { SlidesLayout } from "./types";
 import { SlidesMinimap } from "@/components/slides/minimap";
 import { Slide } from "@/components/slides/slide";
+import useEvent from "react-use-event-hook";
 
 type Props = ICellRendererProps<SlidesLayout>;
 
@@ -35,12 +36,12 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
     : 0;
   const resolvedIndex = activeSlideIndex === -1 ? 0 : activeSlideIndex;
 
-  const handleSlideChange = (index: number) => {
+  const handleSlideChange = useEvent((index: number) => {
     const cell = cellsWithOutput[index];
     if (cell) {
       setActiveCellId(cell.id);
     }
-  };
+  });
 
   const slides = (
     <LazySlidesComponent
