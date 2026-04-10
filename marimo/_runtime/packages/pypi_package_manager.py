@@ -449,9 +449,7 @@ class UvPackageManager(PypiPackageManager):
             if " @ " in package:
                 return True
             # URLs (https://, http://, file://)
-            if "://" in package:
-                return True
-            return False
+            return "://" in package
 
         def _is_installed(package: str) -> bool:
             return version_map.has(package)

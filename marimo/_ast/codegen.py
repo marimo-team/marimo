@@ -589,9 +589,9 @@ def recover(filepath: Path) -> str:
 
 def is_multiline_comment(node: ast.stmt) -> bool:
     """Checks if a node is a docstring or a multiline comment."""
-    if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
-        return True
-    return False
+    return bool(
+        isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+    )
 
 
 def get_header_comments(filename: str | Path) -> str | None:

@@ -338,9 +338,7 @@ ignore = [
     "SIM102", # Use a single `if` statement instead of nested `if` statements
     "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SIM118", # Use `key in dict` instead of `key in dict.keys()`
-    "SIM103", # Needless bool
     "PIE810", # Multiple `startswith` / `endswith` calls
-    "C401", # Unnecessary generator set
     "RUF012", # Mutable class default
     "S102", # Use of `exec`
     "TRY201", # Verbose `raise` (use `raise` without exception name)
@@ -363,10 +361,7 @@ ignore = [
     "PLW0602", # Global variable not assigned
     "S112", # `try`-`except`-`continue`
     "TRY203", # Useless `try`-`except`
-    "C409", # Unnecessary list literal passed to `tuple()` (rewrite as a tuple literal)
     "PLC0105", # Type name incorrect variance
-    "C400", # Unnecessary generator list
-    "C411", # Unnecessary list call
     "PLE1205", # Logging too many args
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument

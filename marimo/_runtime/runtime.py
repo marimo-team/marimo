@@ -3372,12 +3372,12 @@ class PackagesCallbacks:
         # This consists of cells that either statically reference the installed
         # module, or that previously failed with a ModuleNotFoundError matching
         # an installed module.
-        cells_to_run = set(
+        cells_to_run = {
             cid
             for module in installed_modules
             if (cid := self._kernel.module_registry.defining_cell(module))
             is not None
-        )
+        }
 
         for cid, cell in self._kernel.graph.cells.items():
             if (

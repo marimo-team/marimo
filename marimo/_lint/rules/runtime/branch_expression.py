@@ -238,9 +238,7 @@ class BranchExpressionRule(LintRule):
             # Direct mo.* calls (mo.md, mo.Html, etc.)
             if isinstance(func.value, ast.Name) and func.value.id == "mo":
                 # Exclude mo.stop()
-                if func.attr == "stop":
-                    return False
-                return True
+                return func.attr != "stop"
 
             # mo.ui.* or other nested mo.* calls
             if isinstance(func.value, ast.Attribute) and (
@@ -248,9 +246,7 @@ class BranchExpressionRule(LintRule):
                 and func.value.value.id == "mo"
             ):
                 # Exclude mo.output.* calls (append, replace, clear)
-                if func.value.attr == "output":
-                    return False
-                return True
+                return func.value.attr != "output"
 
         return False
 

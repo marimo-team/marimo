@@ -78,8 +78,8 @@ def induced_subgraph(
     parents: dict[CellId_t, set[CellId_t]] = {}
     children: dict[CellId_t, set[CellId_t]] = {}
     for cid in cell_ids:
-        parents[cid] = set(p for p in graph.parents[cid] if p in cell_ids)
-        children[cid] = set(c for c in graph.children[cid] if c in cell_ids)
+        parents[cid] = {p for p in graph.parents[cid] if p in cell_ids}
+        children[cid] = {c for c in graph.children[cid] if c in cell_ids}
     return parents, children
 
 

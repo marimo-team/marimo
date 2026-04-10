@@ -274,9 +274,9 @@ class CellImpl:
     @property
     def imported_namespaces(self) -> set[Name]:
         """Return a set of the namespaces imported by this cell."""
-        return set(
+        return {
             import_data.module.split(".")[0] for import_data in self.imports
-        )
+        }
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
         """Returns the variable name corresponding to an imported namespace

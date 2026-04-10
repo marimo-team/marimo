@@ -76,9 +76,9 @@ def _set_imported_defs(
     with ctx.graph.lock:
         LOGGER.debug("Acquired graph lock to update import workspace.")
         if cell.import_workspace.is_import_block:
-            cell.import_workspace.imported_defs = set(
+            cell.import_workspace.imported_defs = {
                 name for name in cell.defs if name in ctx.glbls
-            )
+            }
 
 
 @kernel_tracer.start_as_current_span("set_status_idle")

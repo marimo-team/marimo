@@ -105,9 +105,7 @@ def has_local_conflict(module_name: str, directory: str) -> bool:
 
     # Check for local package directory
     local_pkg = os.path.join(directory, module_name)
-    if os.path.isdir(local_pkg) and os.path.isfile(
-        os.path.join(local_pkg, "__init__.py")
-    ):
-        return True
-
-    return False
+    return bool(
+        os.path.isdir(local_pkg)
+        and os.path.isfile(os.path.join(local_pkg, "__init__.py"))
+    )

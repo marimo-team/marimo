@@ -70,11 +70,11 @@ class AppScriptRunner:
         self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
-        cancelled = set(
+        cancelled = {
             cid
             for cid in dataflow.transitive_closure(self.app.graph, {cell_id})
             if cid in self.cells_to_run
-        )
+        }
         for cid in cancelled:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
         self.cells_cancelled |= cancelled

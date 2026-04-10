@@ -1394,12 +1394,12 @@ def test_is_internal_cell_name() -> None:
 def test_format_tuple_elements() -> None:
     kv_case = codegen.format_tuple_elements(
         "@app.fn(...)",
-        tuple(["a", "b", "c"]),
+        ("a", "b", "c"),
     )
     assert kv_case == "@app.fn(a, b, c)"
 
     indent_case = codegen.format_tuple_elements(
-        "def fn(...):", tuple(["a", "b", "c"]), indent=True
+        "def fn(...):", ("a", "b", "c"), indent=True
     )
     assert indent_case == "    def fn(a, b, c):"
 

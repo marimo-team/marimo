@@ -231,11 +231,11 @@ class _cache_call(CacheContext, Generic[P, R]):
         if graph is not None:
             self.scoped_refs |= graph.cells[cell_id].defs & set(glbls.keys())
             # The defined private variables of this cell, normalized
-            self.scoped_refs |= set(
+            self.scoped_refs |= {
                 unmangle_local(x).name
                 for x in glbls.keys()
                 if is_mangled_local(x, cell_id)
-            )
+            }
 
         # Load global cache from state
         name = self.__name__

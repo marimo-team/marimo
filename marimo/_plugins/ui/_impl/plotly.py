@@ -813,10 +813,7 @@ def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
     if mode is None:
         return False
 
-    if isinstance(mode, str) and "markers" in mode:
-        return False
-
-    return True
+    return not (isinstance(mode, str) and "markers" in mode)
 
 
 def _extract_scatter_points_from_range(
