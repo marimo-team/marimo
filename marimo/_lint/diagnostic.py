@@ -79,5 +79,7 @@ class Diagnostic:
         # mypy seems unable to infer the type
         return cast(
             tuple[tuple[int], tuple[int]],
-            tuple(zip(*sorted(zip(lines, columns)))),
+            tuple(
+                zip(*sorted(zip(lines, columns, strict=False)), strict=False)
+            ),
         )

@@ -1,12 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Final,
     Literal,
     Optional,

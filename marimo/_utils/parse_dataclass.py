@@ -111,7 +111,8 @@ class _DataclassParser:
                 )
             else:
                 return origin_cls(  # type: ignore # noqa: E501
-                    self._build_value(v, t) for v, t in zip(value, arg_types)
+                    self._build_value(v, t)
+                    for v, t in zip(value, arg_types, strict=False)
                 )
         elif origin_cls is dict and isinstance(value, dict):
             key_type, value_type = get_args(cls)

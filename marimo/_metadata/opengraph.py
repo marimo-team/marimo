@@ -6,9 +6,10 @@ import asyncio
 import importlib
 import inspect
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Literal, cast
+from typing import Any, Literal, cast
 from urllib.parse import urlparse
 
 import msgspec

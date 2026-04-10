@@ -149,7 +149,7 @@ class TestTopLevelExtraction:
     @staticmethod
     def test_decorator_reversed(app) -> None:
         with app.setup:
-            from typing import Callable
+            from collections.abc import Callable  # noqa: TC003
 
         @app.cell
         def second(wrap):
@@ -170,7 +170,7 @@ class TestTopLevelExtraction:
     @staticmethod
     def test_decorator(app) -> None:
         with app.setup:
-            from typing import Callable
+            from collections.abc import Callable  # noqa: TC003
 
         @app.cell
         def first():

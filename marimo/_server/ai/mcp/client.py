@@ -164,7 +164,7 @@ class MCPClient:
             )
 
             for server_name, result in zip(
-                servers_to_connect.keys(), connection_results
+                servers_to_connect.keys(), connection_results, strict=False
             ):
                 if isinstance(result, Exception):
                     LOGGER.error(
@@ -428,7 +428,7 @@ class MCPClient:
         )
 
         for server_name, result in zip(
-            self.servers.keys(), connection_results
+            self.servers.keys(), connection_results, strict=False
         ):
             if isinstance(result, Exception):
                 LOGGER.error(f"Failed to connect to {server_name}: {result}")

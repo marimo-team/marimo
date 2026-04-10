@@ -5,9 +5,9 @@ import asyncio
 import os
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Awaitable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager

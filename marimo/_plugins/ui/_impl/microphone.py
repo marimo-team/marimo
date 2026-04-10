@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Callable, Final, Optional
+from typing import TYPE_CHECKING, Final, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc

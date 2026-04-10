@@ -150,7 +150,7 @@ class EditModeReloadStrategy(ReloadStrategy):
             changed_not_deleted = list(changed_cell_ids - deleted)
             session.put_control_request(
                 SyncGraphCommand(
-                    cells=dict(zip(cell_ids, codes)),
+                    cells=dict(zip(cell_ids, codes, strict=False)),
                     run_ids=changed_not_deleted,
                     delete_ids=sorted(deleted),
                 ),
@@ -161,7 +161,7 @@ class EditModeReloadStrategy(ReloadStrategy):
             # cells are cleaned up from the dependency graph.
             session.put_control_request(
                 SyncGraphCommand(
-                    cells=dict(zip(cell_ids, codes)),
+                    cells=dict(zip(cell_ids, codes, strict=False)),
                     run_ids=[],
                     delete_ids=sorted(deleted),
                 ),

@@ -7,7 +7,6 @@ from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
     Optional,
     ParamSpec,
@@ -36,7 +35,7 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     import pandas as pd
     import polars as pl

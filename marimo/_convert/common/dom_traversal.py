@@ -5,12 +5,15 @@ import base64
 import mimetypes
 import re
 from html.parser import HTMLParser
-from typing import Callable, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._utils.data_uri import build_data_url
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from starlette.applications import (
     Starlette,  # noqa: TCH002 - required at runtime
@@ -22,6 +22,8 @@ from marimo._server.ai.tools.types import (
 from marimo._utils.once import once
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mcp.types import (  # type: ignore[import-not-found]
         CallToolResult,
         Tool as MCPRawTool,

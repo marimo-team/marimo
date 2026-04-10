@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from marimo._loggers import marimo_logger
 from marimo._messaging.notification import (

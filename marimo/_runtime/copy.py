@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import inspect
 import weakref
+from collections.abc import Callable
 from copy import copy
 from typing import (
     Any,
-    Callable,
     Generic,
     TypeVar,
     Union,

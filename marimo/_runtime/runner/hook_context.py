@@ -1,8 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, TypeAlias, Union
 
 from marimo._config.config import MarimoConfig, OnCellChangeType
 from marimo._messaging.errors import Error

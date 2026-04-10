@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
-from typing import Any, Callable, Final, Optional
+from collections.abc import Callable, Iterator, Sequence
+from typing import Any, Final, Optional
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.hypertext import Html

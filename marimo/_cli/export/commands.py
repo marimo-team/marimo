@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Callable, Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 import click
 
@@ -38,6 +38,9 @@ from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "

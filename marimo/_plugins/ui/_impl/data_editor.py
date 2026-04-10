@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
     Optional,
@@ -30,6 +29,8 @@ from marimo._utils.deprecated import deprecated
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from narwhals.dtypes import DType
     from typing_extensions import TypeIs
 

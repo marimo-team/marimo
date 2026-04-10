@@ -87,7 +87,7 @@ def test_container_emulation() -> None:
     assert array[0] == array.elements[0]
     assert array[1] == array.elements[1]
     # iter
-    for a, b in zip(array, array.elements):
+    for a, b in zip(array, array.elements, strict=False):
         assert a == b
     # contains
     assert array[0] in array

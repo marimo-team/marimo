@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Condition,
@@ -9,6 +9,9 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
 )
 from marimo._utils.assert_never import assert_never
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def python_print_transforms(

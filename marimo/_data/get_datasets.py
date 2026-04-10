@@ -239,6 +239,7 @@ def _get_databases_from_duckdb_internal(
                 for column_name, column_type in zip(
                     cast(list[str], column_names),
                     cast(list[str], column_types),
+                    strict=False,
                 )
             ]
 

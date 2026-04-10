@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import threading
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from marimo._save.cache import Cache
 from marimo._save.loaders.loader import Loader
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from marimo._save.hash import HashKey

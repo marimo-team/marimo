@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._dependencies.dependencies import DependencyManager
@@ -32,6 +32,8 @@ from marimo._runtime.patches import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.app import InternalApp
 
 

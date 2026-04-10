@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import patch
 
 import pytest
@@ -43,7 +43,7 @@ from marimo._utils.platform import is_windows
 from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 HAS_UV = DependencyManager.which("uv")
 HAS_ZMQ = DependencyManager.zmq.has()

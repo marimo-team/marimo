@@ -72,7 +72,7 @@ class LoroDocManager:
             # Add all cell code to the doc
             doc_codes = doc.get_map("codes")
             doc.get_map("languages")
-            for cell_id, code in zip(cell_ids, codes):
+            for cell_id, code in zip(cell_ids, codes, strict=False):
                 cell_text = LoroText()  # type: ignore[no-untyped-call]
                 cell_text.insert(0, code)
                 doc_codes.insert_container(cell_id, cell_text)

@@ -493,7 +493,9 @@ class SessionCacheManager:
             return False
         if (len(key.codes) != len(notebook_session["cells"])) or any(
             _hash_code(code) != cell["code_hash"]
-            for code, cell in zip(key.codes, notebook_session["cells"])
+            for code, cell in zip(
+                key.codes, notebook_session["cells"], strict=False
+            )
         ):
             return False
         if key.marimo_version != metadata.get("marimo_version"):
@@ -529,7 +531,7 @@ class SessionCacheManager:
         # Build mapping from code_hash to cell_id based on current cell IDs
         # This handles cases where cell_ids have changed even though code matches
         code_hash_to_cell_id: dict[str, CellId_t] = {}
-        for code, cell_id in zip(key.codes, key.cell_ids):
+        for code, cell_id in zip(key.codes, key.cell_ids, strict=False):
             code_hash = _hash_code(code)
             if code_hash is not None:
                 # Map the code_hash to the current cell_id from the key

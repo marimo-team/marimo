@@ -4,7 +4,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import Any, Callable, Generic, Protocol, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, Generic, Protocol, TypeVar, Union
 
 from marimo import _loggers
 from marimo._session.queue import QueueType

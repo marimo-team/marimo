@@ -81,10 +81,10 @@ def test_memory(client: TestClient) -> None:
 def test_connections(client: TestClient) -> None:
     # Unauthorized
     response = client.get("/api/status/connections")
-    assert response.status_code == 401
+    assert response.status_code == 401, response.text
 
     response = client.get("/api/status/connections", headers=token_header())
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert response.json()["active"] == 0
 
 

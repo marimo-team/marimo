@@ -4,7 +4,8 @@ from __future__ import annotations
 import inspect
 import numbers
 import weakref
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo._ast.cell import Cell
 from marimo._ast.visitor import Name, VariableData

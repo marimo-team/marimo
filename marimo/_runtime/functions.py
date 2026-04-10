@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from marimo._loggers import marimo_logger
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
 
 LOGGER = marimo_logger()
 

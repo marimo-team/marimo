@@ -1,13 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Final, Optional
+from typing import TYPE_CHECKING, Final, Optional
 
 from marimo._output.formatting import as_html
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.lazy import lazy as lazy_ui
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc

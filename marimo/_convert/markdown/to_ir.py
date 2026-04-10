@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Literal,
     Optional,
@@ -41,6 +41,9 @@ from marimo._schemas.serialization import (
     Header,
     NotebookSerializationV1,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -241,7 +244,9 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
                 code=source,
                 options=config.asdict(),
             )
-            for name, source, config in zip(names, sources, cell_config)
+            for name, source, config in zip(
+                names, sources, cell_config, strict=False
+            )
         ],
         header=Header(value=header_value) if header_value else None,
     )

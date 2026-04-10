@@ -22,11 +22,14 @@ import weakref
 from dataclasses import dataclass
 from importlib import reload
 from importlib.util import source_from_cache
-from typing import Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._messaging.tracebacks import write_traceback
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

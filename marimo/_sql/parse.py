@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

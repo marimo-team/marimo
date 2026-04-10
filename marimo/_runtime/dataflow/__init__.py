@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -13,7 +13,7 @@ from marimo._runtime.dataflow.types import Edge, EdgeWithVar
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Callable, Collection
 
 
 LOGGER = _loggers.marimo_logger()

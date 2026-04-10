@@ -5,7 +5,7 @@ import inspect
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Any, Callable, Final, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Final, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -23,6 +23,9 @@ from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 

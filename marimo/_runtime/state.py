@@ -4,7 +4,7 @@ from __future__ import annotations
 import types
 import weakref
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import uuid4
 
 from marimo._output.rich_help import mddoc
@@ -14,7 +14,7 @@ T = TypeVar("T")
 Id = int
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
 
 @dataclass

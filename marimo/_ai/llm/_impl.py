@@ -5,7 +5,7 @@ import dataclasses
 import json
 import os
 import re
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id
@@ -13,7 +13,7 @@ from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
 from marimo._utils.dicts import remove_none_values
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Generator
+    from collections.abc import AsyncGenerator, Callable, Generator
 
     from pydantic_ai import Agent
     from pydantic_ai.settings import ModelSettings

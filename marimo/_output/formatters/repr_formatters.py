@@ -1,12 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.iframe import maybe_wrap_in_iframe
 from marimo._plugins.core.media import io_to_data_url
 from marimo._utils.methods import is_callable_method
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _WIDGET_VIEW_KEY = "application/vnd.jupyter.widget-view+json"
 

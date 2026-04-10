@@ -132,7 +132,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         extraction, notebook_indices = self._extract_notebook(ctx.notebook)
 
         for status, notebook_index in zip(
-            extraction.statuses, notebook_indices
+            extraction.statuses, notebook_indices, strict=False
         ):
             if not (
                 status.hint
@@ -180,7 +180,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         sorted_provider_positions = sorted(provider_order)
         reordered_provider_cells = [cells[index] for index in provider_order]
         for provider_position, cell in zip(
-            sorted_provider_positions, reordered_provider_cells
+            sorted_provider_positions, reordered_provider_cells, strict=False
         ):
             cells[provider_position] = cell
 
@@ -192,7 +192,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         provider_indices = {
             self._get_definition_name(status): notebook_index
             for status, notebook_index in zip(
-                extraction.statuses, notebook_indices
+                extraction.statuses, notebook_indices, strict=False
             )
             if status.is_toplevel
             or (
@@ -210,7 +210,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
         indegree = {notebook_index: 0 for notebook_index in graph}
 
         for status, notebook_index in zip(
-            extraction.statuses, notebook_indices
+            extraction.statuses, notebook_indices, strict=False
         ):
             if not (
                 status.is_toplevel

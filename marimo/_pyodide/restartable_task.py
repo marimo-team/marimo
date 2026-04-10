@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class RestartableTask:

@@ -7,7 +7,6 @@ import sys
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
     Optional,
@@ -41,6 +40,8 @@ from marimo._utils.narwhals_utils import (
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import altair
     import altair.vegalite
     from narwhals import Schema
