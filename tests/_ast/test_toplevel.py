@@ -27,6 +27,8 @@ class TestTopLevelStatus:
             def add(a: int, b: int) -> int:
                 return a + b
 
+            _ = 1  # Needed for tests
+
         status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
         assert status.type == TopLevelType.CELL
         assert status.hint == toplevel.HINT_NOT_SINGLE

@@ -100,13 +100,7 @@ def test_named_union() -> None:
     openapi_spec = PythonTypeToOpenAPI(
         name_overrides={}, camel_case=False
     ).convert(Colors, processed_classes={})
-    assert openapi_spec == {
-        "oneOf": [
-            {"enum": ["red"], "type": "string"},
-            {"enum": ["green"], "type": "string"},
-            {"enum": ["blue"], "type": "string"},
-        ]
-    }
+    assert openapi_spec == {"enum": ["red", "green", "blue"], "type": "string"}
 
 
 @dataclasses.dataclass
