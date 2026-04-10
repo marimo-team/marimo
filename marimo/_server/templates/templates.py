@@ -4,6 +4,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -577,10 +578,24 @@ def get_version() -> str:
     )
 
 
+# HTML5 terminates a <style> raw-text element at the first "</style"
+# (case-insensitive, optional whitespace). Neutralize that sequence so
+# notebook-controlled CSS cannot break out of the block and inject HTML.
+_STYLE_END_RE = re.compile(r"</(?=\s*style)", re.IGNORECASE)
+
+
+def _sanitize_css_for_style_block(css_contents: str) -> str:
+    # "\/" is a valid CSS escape for "/", so the CSS tokenizer still sees
+    # a (harmlessly invalid) token, while the HTML parser no longer
+    # matches the end-tag.
+    return _STYLE_END_RE.sub(r"<\\/", css_contents)
+
+
 def _custom_css_block(css_contents: str) -> str:
     # marimo-custom is used by the frontend to identify this stylesheet
     # comes from marimo
-    return f"<style title='marimo-custom'>{css_contents}</style>"
+    safe = _sanitize_css_for_style_block(css_contents)
+    return f"<style title='marimo-custom'>{safe}</style>"
 
 
 def _inject_custom_css_for_config(
