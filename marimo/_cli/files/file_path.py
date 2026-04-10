@@ -277,11 +277,11 @@ class FileContentReader:
         Args:
             name (str): File path or URL
 
-        Raises:
-            ValueError: If the file cannot be read
-
         Returns:
             Tuple[str, str]: File content and filename
+
+        Raises:
+            ValueError: If the file cannot be read
         """
         for reader in self.readers:
             if reader.can_read(name):
@@ -422,11 +422,11 @@ def validate_name(
         allow_new_file (bool): Whether to allow creating a new file
         allow_directory (bool): Whether to allow a directory
 
-    Raises:
-        ValueError: If the file name is invalid
-
     Returns:
         Path to the file and temporary directory
+
+    Raises:
+        ValueError: If the file name is invalid
     """
     from marimo._cli.files.cloudflare import R2FileHandler
 

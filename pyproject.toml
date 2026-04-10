@@ -366,7 +366,6 @@ ignore = [
     "RUF022", # Unsorted `__all__`
     "TRY401", # Verbose log message
     "UP007", # Use `X | Y` for type annotations
-    "D420", # Incorrect docstring section order
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
     "PLW0602", # Global variable not assigned
