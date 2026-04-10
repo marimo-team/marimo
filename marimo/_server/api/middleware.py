@@ -614,8 +614,6 @@ class ProxyMiddleware:
                     await asyncio.gather(*relay_tasks)
                 except asyncio.CancelledError:
                     pass
-                except Exception:
-                    raise
                 finally:
                     for task in relay_tasks:
                         if not task.done():

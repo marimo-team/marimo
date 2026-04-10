@@ -26,25 +26,25 @@ from marimo._server.ai.mcp.transport import (
 )
 from marimo._server.ai.mcp.types import MCPToolArgs
 
-__all__ = [
-    # Config classes
-    "MCP_PRESETS",
+__all__ = [  # noqa: RUF022
     # Client classes
     "MCPClient",
+    "MCPServerConnection",
+    "MCPServerStatus",
+    "get_mcp_client",
+    # Config classes
+    "MCP_PRESETS",
     "MCPConfigComparator",
     "MCPConfigDiff",
-    "MCPServerConnection",
     "MCPServerDefinition",
     "MCPServerDefinitionFactory",
-    "MCPServerStatus",
-    # Types
-    "MCPToolArgs",
+    "append_presets",
     # Transport classes
     "MCPTransportConnector",
     "MCPTransportRegistry",
     "MCPTransportType",
     "StdioTransportConnector",
     "StreamableHTTPTransportConnector",
-    "append_presets",
-    "get_mcp_client",
+    # Types
+    "MCPToolArgs",
 ]

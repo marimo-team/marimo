@@ -14,20 +14,22 @@ marimo is designed to be:
     5. fun
 """
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Core API
     "App",
-    "AppMeta",
     "Cell",
-    "Html",
+    "AppMeta",
+    "create_asgi_app",
     "MarimoIslandGenerator",
     "MarimoStopError",
     "Thread",
-    "__version__",
-    # Application elements
-    "accordion",
+    "current_thread",
     # Other namespaces
     "ai",
+    "ui",
+    "islands",
+    # Application elements
+    "accordion",
     "app_meta",
     "as_html",
     "audio",
@@ -38,18 +40,16 @@ __all__ = [
     "carousel",
     "center",
     "cli_args",
-    "create_asgi_app",
-    "current_thread",
     "defs",
     "doc",
     "download",
     "hstack",
+    "Html",
     "icon",
     "iframe",
     "image",
     "image_compare",
     "inspect",
-    "islands",
     "json",
     "latex",
     "lazy",
@@ -84,10 +84,10 @@ __all__ = [
     "style",
     "tabs",
     "tree",
-    "ui",
     "video",
     "vstack",
     "watch",
+    "__version__",
 ]
 import marimo._ai as ai
 import marimo._islands as islands

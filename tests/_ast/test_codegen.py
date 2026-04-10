@@ -456,7 +456,13 @@ app._unparsable_cell(
 
     @staticmethod
     def test_long_line_in_main() -> None:
-        cell_one = "i_am_a_very_long_name = 0\ni_am_another_very_long_name = 0\nyet_another_very_long_name = 0"
+        cell_one = "\n".join(
+            [
+                "i_am_a_very_long_name = 0",
+                "i_am_another_very_long_name = 0",
+                "yet_another_very_long_name = 0",
+            ]
+        )
         cell_two = (
             "z = i_am_a_very_long_name + "
             + "i_am_another_very_long_name + "
@@ -509,7 +515,14 @@ app._unparsable_cell(
         code = "z = x + 0"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
-        expected = "@app.cell\ndef foo(x):\n    z = x + 0\n    return (z,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_with_types(self) -> None:
@@ -519,8 +532,13 @@ app._unparsable_cell(
         code = "z = x + 0"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
-        expected = (
-            "@app.cell\ndef foo(x: int):\n    z = x + 0\n    return (z,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: int):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
         )
         assert fndef == expected
 
@@ -533,8 +551,13 @@ app._unparsable_cell(
         fndef = codegen.to_functiondef(
             cell, "foo", allowed_refs={"T"}, variable_data=ref_vars
         )
-        expected = (
-            "@app.cell\ndef foo(x: T):\n    z: T = x + 0\n    return (z,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: T):",
+                "    z: T = x + 0",
+                "    return (z,)",
+            ]
         )
         assert fndef == expected
 
@@ -545,8 +568,13 @@ app._unparsable_cell(
         code = "z = x + 0"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
-        expected = (
-            '@app.cell\ndef foo(x: "int"):\n    z = x + 0\n    return (z,)'
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "int"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
         )
         assert fndef == expected
 
@@ -558,7 +586,14 @@ app._unparsable_cell(
         code = "z = x + 0"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
-        expected = "@app.cell\ndef foo(x: 'TT[\"i\"]'):\n    z = x + 0\n    return (z,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: 'TT[\"i\"]'):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_with_unknown_types(self) -> None:
@@ -568,7 +603,14 @@ app._unparsable_cell(
         code = "z = x + 0"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
-        expected = '@app.cell\ndef foo(x: "something"):\n    z = x + 0\n    return (z,)'
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "something"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_literal_quote_standardization(self) -> None:
@@ -585,7 +627,14 @@ app._unparsable_cell(
         fndef = codegen.to_functiondef(
             cell, "foo", allowed_refs={"Literal"}, variable_data=ref_vars
         )
-        expected = '@app.cell\ndef foo(x: Literal["foo", "bar"]):\n    z = x\n    return (z,)'
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: Literal["foo", "bar"]):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_quote_standardization_edge_cases(self) -> None:
@@ -599,7 +648,14 @@ app._unparsable_cell(
         fndef = codegen.to_functiondef(
             cell, "foo", allowed_refs={"Literal"}, variable_data=ref_vars
         )
-        expected = '@app.cell\ndef foo(x: Literal["foo", "bar"]):\n    z = x\n    return (z,)'
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: Literal["foo", "bar"]):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
         # Test nested quotes that should remain single due to containing double quotes
@@ -611,7 +667,14 @@ app._unparsable_cell(
         fndef = codegen.to_functiondef(
             cell, "foo", allowed_refs={"Literal"}, variable_data=ref_vars
         )
-        expected = "@app.cell\ndef foo(x: Literal['say \"hello\"']):\n    z = x\n    return (z,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: Literal['say \"hello\"']):",
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_quote_nested_edge_cases(self) -> None:
@@ -625,7 +688,14 @@ app._unparsable_cell(
         fndef = codegen.to_functiondef(
             cell, "foo", allowed_refs={"tuple"}, variable_data=ref_vars
         )
-        expected = '@app.cell\ndef foo(x: "tuple[tuple[Literal[\\"foo\\", \\"bar\\"]]]"):\n    z = x\n    return (z,)'
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "tuple[tuple[Literal[\\"foo\\", \\"bar\\"]]]"):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_quote_nested_esscaped_edge_cases(self) -> None:
@@ -637,7 +707,14 @@ app._unparsable_cell(
         fndef = codegen.to_functiondef(
             cell, "foo", allowed_refs=set(), variable_data=ref_vars
         )
-        expected = '@app.cell\ndef foo(x: "Literal[\'say \\"hello\\"\']"):\n    z = x\n    return (z,)'
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "Literal[\'say \\"hello\\"\']"):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
         assert fndef == expected
 
     def test_safe_serialize_cell_handles_syntax_error(self) -> None:
@@ -788,21 +865,25 @@ class TestToFunctionDef:
         code = "x = 0"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo():\n    x = 0\n    return (x,)"
+        expected = "\n".join(
+            ["@app.cell", "def foo():", "    x = 0", "    return (x,)"]
+        )
         assert fndef == expected
 
     def test_tofunctiondef_one_ref(self) -> None:
         code = "y + 1"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo(y):\n    y + 1\n    return"
+        expected = "\n".join(
+            ["@app.cell", "def foo(y):", "    y + 1", "    return"]
+        )
         assert fndef == expected
 
     def test_tofunctiondef_empty_cells(self) -> None:
         code = ""
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo():\n    return"
+        expected = "\n".join(["@app.cell", "def foo():", "    return"])
 
         code = "\n #\n"
         cell = compile_cell(code)
@@ -823,11 +904,13 @@ class TestToFunctionDef:
         code = "print(y)"
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo(y):\n    print(y)\n    return"
+        expected = "\n".join(
+            ["@app.cell", "def foo(y):", "    print(y)", "    return"]
+        )
         assert fndef == expected
 
     def test_tofunctiondef_refs_and_defs(self) -> None:
-        code = "y = x\nz = x\nz = w + y"
+        code = "\n".join(["y = x", "z = x", "z = w + y"])
         cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
@@ -842,7 +925,9 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         cell = cell.configure(CellConfig())
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo():\n    x = 0\n    return (x,)"
+        expected = "\n".join(
+            ["@app.cell", "def foo():", "    x = 0", "    return (x,)"]
+        )
         assert fndef == expected
 
     def test_with_some_config(self) -> None:
@@ -850,8 +935,13 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=True))
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = (
-            "@app.cell(disabled=True)\ndef foo():\n    x = 0\n    return (x,)"
+        expected = "\n".join(
+            [
+                "@app.cell(disabled=True)",
+                "def foo():",
+                "    x = 0",
+                "    return (x,)",
+            ]
         )
         assert fndef == expected
 
@@ -860,7 +950,14 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=True, hide_code=True))
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell(disabled=True, hide_code=True)\ndef foo():\n    x = 0\n    return (x,)"
+        expected = "\n".join(
+            [
+                "@app.cell(disabled=True, hide_code=True)",
+                "def foo():",
+                "    x = 0",
+                "    return (x,)",
+            ]
+        )
         assert fndef == expected
 
     def test_dotted_names_filtered_from_signature(self) -> None:
@@ -874,7 +971,14 @@ class TestToFunctionDef:
         cell.refs.add("my_schema.pokemon_db")
 
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo(some_function):\n    result = some_function()\n    return (result,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(some_function):",
+                "    result = some_function()",
+                "    return (result,)",
+            ]
+        )
         assert fndef == expected
 
         # Verify that the dotted name is not in the function signature
@@ -892,7 +996,20 @@ class TestToFunctionDef:
             [code1, code2], ["cell1", "cell2"]
         )
         assert (
-            "@app.cell\ndef cell1(mo):\n    empty = mo.sql('CREATE TABLE cars_df ();')\n    return (empty,)\n\n\n@app.cell\ndef cell2(cars_df, empty):\n    result = cars_df.filter(lambda x: x > 0); empty\n    return"
+            "\n".join(
+                [
+                    "@app.cell",
+                    "def cell1(mo):",
+                    "    empty = mo.sql('CREATE TABLE cars_df ();')",
+                    "    return (empty,)",  # Doesn't return cars_df
+                    "",
+                    "",
+                    "@app.cell",
+                    "def cell2(cars_df, empty):",
+                    "    result = cars_df.filter(lambda x: x > 0); empty",
+                    "    return",
+                ]
+            )
             in expected
         )
 
@@ -901,11 +1018,18 @@ class TestToFunctionDef:
         cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=False, hide_code=False))
         fndef = codegen.to_functiondef(cell, "foo")
-        expected = "@app.cell\ndef foo():\n    x = 0\n    return (x,)"
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo():",
+                "    x = 0",
+                "    return (x,)",
+            ]
+        )
         assert fndef == expected
 
     def test_fn_with_empty_config(self) -> None:
-        code = "def foo():\n    x = 0\n    return (x,)"
+        code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
         cell = compile_cell(code)
         cell = cell.configure(CellConfig())
         fndef = codegen.to_top_functiondef(cell)
@@ -913,7 +1037,7 @@ class TestToFunctionDef:
         assert fndef == expected
 
     def test_fn_with_all_config(self) -> None:
-        code = "def foo():\n    x = 0\n    return (x,)"
+        code = "\n".join(["def foo():", "    x = 0", "    return (x,)"])
         cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=True, hide_code=True))
         fndef = codegen.to_top_functiondef(cell)

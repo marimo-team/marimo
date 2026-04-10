@@ -442,6 +442,8 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
+# Prefer multi-line "\n".join([...]) expected strings in codegen tests.
+"tests/_ast/test_codegen.py" = ["FLY002"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]

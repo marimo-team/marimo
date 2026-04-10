@@ -47,9 +47,7 @@ class EarlyStoppingConfig:
         if self.stop_on_breaking and diagnostic.severity == Severity.BREAKING:
             return True
 
-        return bool(
-            self.stop_on_runtime and diagnostic.severity == Severity.RUNTIME
-        )
+        return self.stop_on_runtime and diagnostic.severity == Severity.RUNTIME
 
 
 class RuleEngine:

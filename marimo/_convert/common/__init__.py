@@ -20,18 +20,18 @@ from marimo._convert.common.format import (
     sql_to_marimo,
 )
 
-__all__ = [
-    # comment_preserver
-    "CommentPreserver",
-    "CommentToken",
+__all__ = [  # noqa: RUF022
     # utils
     "get_download_filename",
     "get_filename",
     "get_markdown_from_cell",
     "make_download_headers",
     "markdown_to_marimo",
+    "sql_to_marimo",
+    # comment_preserver
+    "CommentPreserver",
+    "CommentToken",
     # dom_traversal
     "replace_html_attributes",
     "replace_virtual_files_with_data_uris",
-    "sql_to_marimo",
 ]

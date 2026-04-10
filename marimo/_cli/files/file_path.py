@@ -44,10 +44,7 @@ def is_gist_src(url: str) -> bool:
         return False
 
     hostname = urllib.parse.urlparse(url).hostname
-    return not (
-        hostname != "gist.github.com"
-        and hostname != "gist.githubusercontent.com"
-    )
+    return hostname in ("gist.github.com", "gist.githubusercontent.com")
 
 
 def get_gist_src_url(url: str) -> str:
