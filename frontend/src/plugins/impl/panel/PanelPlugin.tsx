@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
+import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import type { IPluginProps } from "@/plugins/types";
 import { Logger } from "@/utils/Logger";
 import { EventBuffer, extractBuffers, MessageSchema } from "./utils";
@@ -64,7 +65,7 @@ declare global {
 }
 
 interface PanelData {
-  extension: string | null;
+  extensionUrl: string | null;
   docs_json: Record<string, unknown>;
   render_json: {
     roots: Record<string, string>;
@@ -85,7 +86,7 @@ type PluginFunctions = {
 export const PanelPlugin = createPlugin<T>("marimo-panel")
   .withData(
     z.object({
-      extension: z.string().nullable(),
+      extensionUrl: z.string().nullable(),
       docs_json: z.record(z.string(), z.unknown()),
       render_json: z
         .object({
@@ -110,9 +111,34 @@ function isBokehLoaded() {
   return window.Bokeh != null;
 }
 
+/**
+ * Append a `<script src>` for the bokeh/panel extension.
+ *
+ * The URL must be a marimo virtual file path; anything else (e.g. an
+ * attacker-controlled URL injected via a raw `<marimo-panel>` element in a
+ * markdown cell) is refused.
+ */
+export function loadPanelExtension(extensionUrl: string | null): boolean {
+  if (!extensionUrl) {
+    return false;
+  }
+  if (!isTrustedVirtualFileUrl(extensionUrl)) {
+    Logger.error(
+      `Refusing to load Panel extension from untrusted URL: ${String(
+        extensionUrl,
+      )}`,
+    );
+    return false;
+  }
+  const script = document.createElement("script");
+  script.src = extensionUrl;
+  document.head.append(script);
+  return true;
+}
+
 const PanelSlot = (props: Props) => {
   const { data, functions, host } = props;
-  const { extension, docs_json: docsJson, render_json: renderJson } = data;
+  const { extensionUrl, docs_json: docsJson, render_json: renderJson } = data;
   const ref = useRef<HTMLDivElement>(null);
   const rootModelIdRef = useRef<string | null>(null);
   const receiverRef = useRef<InstanceType<
@@ -173,12 +199,7 @@ const PanelSlot = (props: Props) => {
       return;
     }
 
-    // Load the extension
-    if (extension) {
-      const script = document.createElement("script");
-      script.innerHTML = extension;
-      document.head.append(script);
-    }
+    loadPanelExtension(extensionUrl);
 
     // Check if Bokeh is loaded every 10ms
     const checkBokeh = setInterval(() => {
@@ -189,7 +210,7 @@ const PanelSlot = (props: Props) => {
     }, 10);
 
     return () => clearInterval(checkBokeh);
-  }, [extension, setLoaded]);
+  }, [extensionUrl, setLoaded]);
 
   // Listen for incoming messages
   useEventListener(

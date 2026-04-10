@@ -16,6 +16,7 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._runtime.functions import Function
+from marimo._runtime.virtual_file.virtual_file import VirtualFile
 
 if TYPE_CHECKING:
     from panel.viewable import Viewable
@@ -306,12 +307,25 @@ class panel(UIElement[T, T]):
         if loaded_extension == 0:
             loaded_extension = id(self)
 
+        # Serve the extension script as a virtual file rather than passing
+        # the raw JavaScript through the DOM. The frontend refuses to load
+        # scripts that don't come from `./@file/...`, which prevents a
+        # maliciously crafted <marimo-panel> element (embedded via raw HTML
+        # in a markdown cell) from executing attacker-controlled JavaScript
+        # at same origin before any cell has run.
+        extension_url: Optional[str] = None
+        if extension:
+            extension_vfile = VirtualFile.create_and_register(
+                extension.encode("utf-8"), "js"
+            )
+            extension_url = extension_vfile.url
+
         super().__init__(
             component_name="marimo-panel",
             initial_value=cast(T, {}),
             label="",
             args={
-                "extension": extension,
+                "extension-url": extension_url,
                 "render_json": render_json,
                 "docs_json": docs_json,
             },
