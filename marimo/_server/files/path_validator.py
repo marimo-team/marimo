@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from marimo import _loggers
@@ -88,8 +89,6 @@ class PathValidator:
         Returns:
             Normalized absolute path without symlink resolution
         """
-        import os
-
         from marimo._utils.tmpdir import _convert_to_long_pathname
 
         # Make absolute relative to base if needed
@@ -196,18 +195,42 @@ class PathValidator:
                     )
                 )
 
-                # If it was an absolute directory, then the base is that directory
-                # otherwise, the base is the current working directory
+                # Make filepath absolute and collapse any .. components, using
+                # the same base as the directory so both paths are in a
+                # consistent short/long form before we compare them.
                 if directory.is_absolute():
                     filepath_base = directory
+                    # Original-form absolute directory (no long-path conversion)
+                    directory_original = Path(os.path.normpath(str(directory)))
                 else:
                     filepath_base = Path.cwd()
-
-                filepath_normalized = (
-                    self._normalize_path_without_resolving_symlinks(
-                        filepath, filepath_base
+                    directory_original = Path(
+                        os.path.normpath(str(filepath_base / directory))
                     )
-                )
+
+                if not filepath.is_absolute():
+                    abs_filepath = filepath_base / filepath
+                else:
+                    abs_filepath = filepath
+                abs_filepath = Path(os.path.normpath(str(abs_filepath)))
+
+                try:
+                    # Both paths are in the same (possibly short) form, so
+                    # relative_to is reliable. Reuse directory_normalized (which
+                    # already had short→long conversion applied) as the prefix
+                    # so we never call _convert_to_long_pathname on a path that
+                    # may not exist yet (e.g. a copy destination).
+                    relative = abs_filepath.relative_to(directory_original)
+                    filepath_normalized = directory_normalized / relative
+                except ValueError:
+                    # filepath is not inside directory; normalize it
+                    # independently so _check_containment can produce a clear
+                    # error. The security check will reject it either way.
+                    filepath_normalized = (
+                        self._normalize_path_without_resolving_symlinks(
+                            filepath, filepath_base
+                        )
+                    )
                 self._check_containment(
                     directory_normalized,
                     filepath_normalized,
