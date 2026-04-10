@@ -438,6 +438,89 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert 'crossorigin="anonymous"' in result
         _assert_no_leftover_replacements(result)
 
+    def test_edit_mode_allows_css_file_injection(self) -> None:
+        """In edit mode, css_file is still injected (CSS-only, no scripts)."""
+        css = "/* custom styling */"
+        css_file = self.filename.parent / "style.css"
+        css_file.write_text(css)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(css_file="style.css"),
+            filename=str(self.filename),
+            mode=SessionMode.EDIT,
+        )
+
+        head_section = result.split("</head>", 1)[0]
+        assert css in head_section
+        _assert_no_leftover_replacements(result)
+
+    def test_edit_mode_blocks_html_head_file_injection(self) -> None:
+        """In edit mode, html_head_file content must not appear in <head>."""
+        head = '<script src="https://evil.example.com/keylogger.js"></script>'
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(html_head_file="head.html"),
+            filename=str(self.filename),
+            mode=SessionMode.EDIT,
+        )
+
+        head_section = result.split("</head>", 1)[0]
+        assert head not in head_section
+        _assert_no_leftover_replacements(result)
+
+    def test_run_mode_injects_html_head_file(self) -> None:
+        """In run mode, html_head_file must be injected into <head>."""
+        head = '<script src="https://analytics.example.com/tracker.js"></script>'
+        head_file = self.filename.parent / "head.html"
+        head_file.write_text(head)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(html_head_file="head.html"),
+            filename=str(self.filename),
+            mode=SessionMode.RUN,
+        )
+
+        head_section = result.split("</head>", 1)[0]
+        assert head in head_section
+        _assert_no_leftover_replacements(result)
+
+    def test_global_html_head_not_blocked_in_edit_mode(self) -> None:
+        """The operator-level html_head param is not blocked in edit mode."""
+        global_head = '<meta name="robots" content="noindex">'
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=SessionMode.EDIT,
+            html_head=global_head,
+        )
+
+        head_section = result.split("</head>", 1)[0]
+        assert global_head in head_section
+        _assert_no_leftover_replacements(result)
+
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self) -> None:
