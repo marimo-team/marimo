@@ -195,24 +195,13 @@ class PathValidator:
                     )
                 )
 
-                # Make filepath absolute and collapse any .. components, using
-                # the same base as the directory so both paths are in a
-                # consistent short/long form before we compare them.
-                if directory.is_absolute():
-                    filepath_base = directory
-                    # Original-form absolute directory (no long-path conversion)
-                    directory_original = Path(os.path.normpath(str(directory)))
-                else:
-                    filepath_base = Path.cwd()
-                    directory_original = Path(
-                        os.path.normpath(str(filepath_base / directory))
-                    )
+                filepath_base = directory if directory.is_absolute() else Path.cwd()
+                # Original-form absolute directory (no long-path conversion).
+                # filepath_base / directory is a no-op when directory is absolute.
+                directory_original = Path(os.path.normpath(filepath_base / directory))
 
-                if not filepath.is_absolute():
-                    abs_filepath = filepath_base / filepath
-                else:
-                    abs_filepath = filepath
-                abs_filepath = Path(os.path.normpath(str(abs_filepath)))
+                # filepath_base / filepath is a no-op when filepath is absolute.
+                abs_filepath = Path(os.path.normpath(filepath_base / filepath))
 
                 try:
                     # Both paths are in the same (possibly short) form, so
