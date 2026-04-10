@@ -685,6 +685,56 @@ def test_overload_app_settings() -> None:
         os.environ.pop("_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD", None)
 
 
+def test_overload_app_settings_existing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Env overloads should override values set on an existing App(...)."""
+    temp_file = tmp_path / "existing_app.py"
+    temp_file.write_text(
+        """
+import marimo
+__generated_with = "0.0.1"
+app = marimo.App(
+    css_file="custom.css",
+    html_head_file="custom.html",
+    app_title="Custom Title",
+)
+
+@app.cell
+def __():
+    import marimo as mo
+    return mo,
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    # Sanity: without env, the App(...) kwargs are preserved.
+    manager = AppFileManager(filename=str(temp_file))
+    assert manager.app.config.css_file == "custom.css"
+    assert manager.app.config.html_head_file == "custom.html"
+    assert manager.app.config.app_title == "Custom Title"
+
+    # Non-empty overrides replace the existing values.
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_CSS_FILE", "override.css")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_HTML_HEAD_FILE", "override.html")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_APP_TITLE", "Override Title")
+    manager = AppFileManager(filename=str(temp_file))
+    assert manager.app.config.css_file == "override.css"
+    assert manager.app.config.html_head_file == "override.html"
+    assert manager.app.config.app_title == "Override Title"
+
+    # Empty-string overrides also replace the existing values.
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_CSS_FILE", "")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_HTML_HEAD_FILE", "")
+    monkeypatch.setenv("_MARIMO_APP_OVERLOAD_APP_TITLE", "")
+    manager = AppFileManager(filename=str(temp_file))
+    assert manager.app.config.css_file == ""
+    assert manager.app.config.html_head_file == ""
+    assert manager.app.config.app_title == ""
+
+
 def test_reload_detects_deleted_cells(tmp_path: Path) -> None:
     """Test that reload() correctly detects deleted cells."""
     # Create a temporary file with two cells
