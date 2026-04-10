@@ -195,10 +195,14 @@ class PathValidator:
                     )
                 )
 
-                filepath_base = directory if directory.is_absolute() else Path.cwd()
+                filepath_base = (
+                    directory if directory.is_absolute() else Path.cwd()
+                )
                 # Original-form absolute directory (no long-path conversion).
                 # filepath_base / directory is a no-op when directory is absolute.
-                directory_original = Path(os.path.normpath(filepath_base / directory))
+                directory_original = Path(
+                    os.path.normpath(filepath_base / directory)
+                )
 
                 # filepath_base / filepath is a no-op when filepath is absolute.
                 abs_filepath = Path(os.path.normpath(filepath_base / filepath))
