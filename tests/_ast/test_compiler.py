@@ -102,11 +102,11 @@ class TestImportWorkspace:
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
-        assert list(cell.imports)[0].definition == "foo"
-        assert list(cell.imports)[0].imported_symbol is None
-        assert list(cell.imports)[0].module == "foo"
-        assert list(cell.imports)[0].namespace == "foo"
-        assert list(cell.imports)[0].import_level is None
+        assert next(iter(cell.imports)).definition == "foo"
+        assert next(iter(cell.imports)).imported_symbol is None
+        assert next(iter(cell.imports)).module == "foo"
+        assert next(iter(cell.imports)).namespace == "foo"
+        assert next(iter(cell.imports)).import_level is None
 
     @staticmethod
     def test_dotted_import_statement() -> None:
@@ -116,11 +116,11 @@ class TestImportWorkspace:
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
-        assert list(cell.imports)[0].definition == "foo"
-        assert list(cell.imports)[0].imported_symbol is None
-        assert list(cell.imports)[0].module == "foo.bar"
-        assert list(cell.imports)[0].namespace == "foo"
-        assert list(cell.imports)[0].import_level is None
+        assert next(iter(cell.imports)).definition == "foo"
+        assert next(iter(cell.imports)).imported_symbol is None
+        assert next(iter(cell.imports)).module == "foo.bar"
+        assert next(iter(cell.imports)).namespace == "foo"
+        assert next(iter(cell.imports)).import_level is None
 
     @staticmethod
     def test_from_import() -> None:
@@ -130,11 +130,11 @@ class TestImportWorkspace:
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
-        assert list(cell.imports)[0].definition == "baz"
-        assert list(cell.imports)[0].imported_symbol == "foo.bar.baz"
-        assert list(cell.imports)[0].module == "foo.bar"
-        assert list(cell.imports)[0].namespace == "foo"
-        assert list(cell.imports)[0].import_level == 0
+        assert next(iter(cell.imports)).definition == "baz"
+        assert next(iter(cell.imports)).imported_symbol == "foo.bar.baz"
+        assert next(iter(cell.imports)).module == "foo.bar"
+        assert next(iter(cell.imports)).namespace == "foo"
+        assert next(iter(cell.imports)).import_level == 0
 
     @staticmethod
     def test_multiple_imports() -> None:

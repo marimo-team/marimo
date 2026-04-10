@@ -334,7 +334,7 @@ class CellImpl:
         ):
             return None
 
-        return list(variable_data)[0]
+        return next(iter(variable_data))
 
     @property
     def init_variable_data(self) -> dict[Name, VariableData]:

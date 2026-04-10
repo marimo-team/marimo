@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 def is_structures_formatter(
     formatter: formatting.Formatter[object] | None,
 ) -> bool:
-    return formatter is formatting.get_formatter(tuple())
+    return formatter is formatting.get_formatter(())
 
 
 def _leaf_formatter(

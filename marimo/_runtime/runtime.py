@@ -248,7 +248,7 @@ def defs() -> tuple[str, ...]:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return tuple()
+        return ()
 
     if ctx.execution_context is not None:
         return tuple(
@@ -257,7 +257,7 @@ def defs() -> tuple[str, ...]:
                 for defn in ctx.graph.cells[ctx.execution_context.cell_id].defs
             )
         )
-    return tuple()
+    return ()
 
 
 @mddoc
@@ -270,7 +270,7 @@ def refs() -> tuple[str, ...]:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return tuple()
+        return ()
 
     # builtins that have not been shadowed by the user
     unshadowed_builtins = BUILTINS.difference(
@@ -286,7 +286,7 @@ def refs() -> tuple[str, ...]:
                 if defn not in unshadowed_builtins
             )
         )
-    return tuple()
+    return ()
 
 
 @mddoc

@@ -296,7 +296,7 @@ def to_functiondef(
     if allowed_refs is None:
         allowed_refs = BUILTINS
 
-    refs: tuple[str, ...] = tuple()
+    refs: tuple[str, ...] = ()
     sorted_refs = sorted(cell.refs)
     for ref in sorted_refs:
         if ref not in allowed_refs:
@@ -323,7 +323,7 @@ def to_functiondef(
     # external call. We collect them such that we can determine if a variable
     # def is actually ever used. This is a nice little trick such that mypy and
     # other static analysis tools can capture unused variables across cells.
-    defs: tuple[str, ...] = tuple()
+    defs: tuple[str, ...] = ()
     if cell.defs:
         # SQL defs should not be included in the return value.
         sql_defs = (

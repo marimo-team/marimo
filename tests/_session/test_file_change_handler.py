@@ -450,20 +450,20 @@ _BASE_CELL = dedent(
 def test_reload_detects_config_only_changes(tmp_path: Path) -> None:
     modified = _BASE_CELL.replace("@app.cell", "@app.cell(hide_code=True)")
     afm = _assert_reload_detects_change(tmp_path, _BASE_CELL, modified)
-    assert list(afm.app.cell_manager.configs())[0].hide_code is True
+    assert next(iter(afm.app.cell_manager.configs())).hide_code is True
 
 
 def test_reload_detects_disabled_config_change(tmp_path: Path) -> None:
     modified = _BASE_CELL.replace("@app.cell", "@app.cell(disabled=True)")
     afm = _assert_reload_detects_change(tmp_path, _BASE_CELL, modified)
-    assert list(afm.app.cell_manager.configs())[0].disabled is True
+    assert next(iter(afm.app.cell_manager.configs())).disabled is True
 
 
 def test_reload_detects_name_only_changes(tmp_path: Path) -> None:
     initial = _BASE_CELL.replace("my_cell", "old_name")
     modified = _BASE_CELL.replace("my_cell", "new_name")
     afm = _assert_reload_detects_change(tmp_path, initial, modified)
-    assert list(afm.app.cell_manager.names())[0] == "new_name"
+    assert next(iter(afm.app.cell_manager.names())) == "new_name"
 
 
 def test_reload_no_changes_returns_empty(tmp_path: Path) -> None:

@@ -3374,17 +3374,15 @@ class TestStateTransitions:
         stream = MockStream(mocked_kernel.stream)
         cell_notifications = stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_stop(
@@ -3399,17 +3397,15 @@ class TestStateTransitions:
 
         cell_notifications = mocked_kernel.stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_interruption(
@@ -3427,17 +3423,15 @@ class TestStateTransitions:
         stream = MockStream(mocked_kernel.stream)
         cell_notifications = stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_exception(
@@ -3453,17 +3447,15 @@ class TestStateTransitions:
         stream = MockStream(mocked_kernel.stream)
         cell_notifications = stream.cell_notifications
 
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 1
 
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 1
 
     async def test_descendant_status_reset_to_idle_on_error(
@@ -3481,19 +3473,17 @@ class TestStateTransitions:
         cell_notifications = stream.cell_notifications
 
         # er_1 and er_2
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 2
 
         # only er_1 runs
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
         # er_1 and er_2
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 2
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
@@ -3521,19 +3511,17 @@ class TestStateTransitions:
         cell_notifications = stream.cell_notifications
 
         # er_1 and er_2
-        n_queued = sum(
-            [1 for op in cell_notifications if op.status == "queued"]
-        )
+        n_queued = sum(1 for op in cell_notifications if op.status == "queued")
         assert n_queued == 2
 
         # only er_1 runs
         n_running = sum(
-            [1 for op in cell_notifications if op.status == "running"]
+            1 for op in cell_notifications if op.status == "running"
         )
         assert n_running == 1
 
         # er_1 and er_2
-        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
+        n_idle = sum(1 for op in cell_notifications if op.status == "idle")
         assert n_idle == 2
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
