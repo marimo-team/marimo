@@ -3,7 +3,7 @@
 import type { JSX } from "react";
 import { z } from "zod";
 import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Button } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
@@ -69,11 +69,9 @@ export class ButtonPlugin implements IPlugin<number, Data> {
 
     if (tooltipContent) {
       return (
-        <TooltipProvider>
-          <Tooltip content={tooltipContent} delayDuration={200}>
-            {button}
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip content={tooltipContent} delayDuration={200}>
+          {button}
+        </Tooltip>
       );
     }
 

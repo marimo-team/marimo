@@ -4,7 +4,7 @@ import { MousePointerSquareDashedIcon, Upload } from "lucide-react";
 import type { JSX } from "react";
 import { useDropzone } from "react-dropzone";
 import { z } from "zod";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
@@ -184,42 +184,40 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     //   link button to the hidden input element
     const label = props.label ?? "Upload";
     return (
-      <TooltipProvider>
-        <div className="flex flex-row items-center justify-start gap-2">
-          <button
-            data-testid="marimo-plugin-file-upload-button"
-            {...getRootProps({})}
-            className={buttonVariants({
-              variant: "secondary",
-              size: "xs",
-            })}
-          >
-            {renderHTML({ html: label })}
-            <Upload size={14} className="ml-2" />
-          </button>
-          <input {...getInputProps({})} type="file" />
-          {uploaded ? (
-            <>
-              <Tooltip content={uploadedFiles}>
-                <span className="text-xs text-muted-foreground">
-                  Uploaded{" "}
-                  <span className="underline cursor-pointer">
-                    {value.length} {value.length === 1 ? "file" : "files"}.
-                  </span>
+      <div className="flex flex-row items-center justify-start gap-2">
+        <button
+          data-testid="marimo-plugin-file-upload-button"
+          {...getRootProps({})}
+          className={buttonVariants({
+            variant: "secondary",
+            size: "xs",
+          })}
+        >
+          {renderHTML({ html: label })}
+          <Upload size={14} className="ml-2" />
+        </button>
+        <input {...getInputProps({})} type="file" />
+        {uploaded ? (
+          <>
+            <Tooltip content={uploadedFiles}>
+              <span className="text-xs text-muted-foreground">
+                Uploaded{" "}
+                <span className="underline cursor-pointer">
+                  {value.length} {value.length === 1 ? "file" : "files"}.
                 </span>
-              </Tooltip>
+              </span>
+            </Tooltip>
 
-              <button
-                className={cn("text-xs text-destructive hover:underline")}
-                onClick={() => setValue([])}
-                type="button"
-              >
-                Click to clear files.
-              </button>
-            </>
-          ) : null}
-        </div>
-      </TooltipProvider>
+            <button
+              className={cn("text-xs text-destructive hover:underline")}
+              onClick={() => setValue([])}
+              type="button"
+            >
+              Click to clear files.
+            </button>
+          </>
+        ) : null}
+      </div>
     );
   }
 
@@ -274,14 +272,12 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
         {uploaded ? (
           <div className="flex flex-row gap-1">
             <div className="text-xs text-muted-foreground">
-              <TooltipProvider>
-                Uploaded{" "}
-                <Tooltip content={uploadedFiles}>
-                  <span className="underline cursor-pointer">
-                    {value.length} {value.length === 1 ? "file" : "files"}.
-                  </span>
-                </Tooltip>
-              </TooltipProvider>
+              Uploaded{" "}
+              <Tooltip content={uploadedFiles}>
+                <span className="underline cursor-pointer">
+                  {value.length} {value.length === 1 ? "file" : "files"}.
+                </span>
+              </Tooltip>
             </div>
             <span className="text-xs text-destructive hover:underline hover:cursor-pointer">
               <button

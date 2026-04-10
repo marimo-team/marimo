@@ -1,9 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { Tooltip } from "radix-ui";
-
-const TooltipProvider = Tooltip.Provider;
 
 import type {
   ColumnFiltersState,
@@ -1123,9 +1120,7 @@ export const TableProviders: React.FC<{ children: React.ReactNode }> = ({
   return (
     <ErrorBoundary>
       <Provider store={store}>
-        <SlotzProvider controller={slotsController}>
-          <TooltipProvider>{children}</TooltipProvider>
-        </SlotzProvider>
+        <SlotzProvider controller={slotsController}>{children}</SlotzProvider>
       </Provider>
     </ErrorBoundary>
   );
