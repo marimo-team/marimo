@@ -9,8 +9,6 @@ from marimo._utils.platform import is_pyodide
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from typing_extensions import Self
-
 DEFAULT_CHUNK_SIZE = 256 * 1024  # 256KB
 
 if not is_pyodide():
@@ -249,7 +247,7 @@ class VirtualFileStorageManager:
     _instance: VirtualFileStorageManager | None = None
     _storage: VirtualFileStorage | None = None
 
-    def __new__(cls) -> Self:
+    def __new__(cls) -> VirtualFileStorageManager:  # noqa: PYI034
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance

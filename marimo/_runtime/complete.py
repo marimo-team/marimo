@@ -416,10 +416,6 @@ def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
     return isinstance(obj, target_class)
 
 
-class HasKeysMethod(Protocol):
-    def keys(self) -> Collection[Any]: ...
-
-
 class HasColumnsProperty(Protocol):
     @property
     def columns(self) -> Collection[Any]: ...
@@ -430,7 +426,7 @@ def _key_options_from_ipython_method(obj: Any) -> list[str]:
     return [str(key) for key in obj._ipython_key_completions_()]
 
 
-def _key_options_via_keys_method(obj: HasKeysMethod) -> list[str]:
+def _key_options_via_keys_method(obj: Mapping[Any, Any]) -> list[str]:
     return [str(key) for key in obj]
 
 
