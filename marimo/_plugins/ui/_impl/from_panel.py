@@ -313,7 +313,7 @@ class panel(UIElement[T, T]):
         # maliciously crafted <marimo-panel> element (embedded via raw HTML
         # in a markdown cell) from executing attacker-controlled JavaScript
         # at same origin before any cell has run.
-        extension_url: Optional[str] = None
+        extension_url: str | None = None
         if extension:
             extension_vfile = VirtualFile.create_and_register(
                 extension.encode("utf-8"), "js"
