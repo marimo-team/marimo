@@ -129,7 +129,7 @@ dev = [
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
-    "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
+    "ruff>=0.15.10",
     # For AI
     "pydantic-ai-slim[openai]>=1.71.0",
 ]
@@ -252,7 +252,7 @@ typecheck = [
 
 docs = [
     "marimo_docs",
-    "ruff>=0.14.0,<0.15.2", # TODO: remove upper bound once we fix the ruff issues
+    "ruff>=0.15.10",
     "mkdocs>=1.6.1",
     # Live reloading broken in >= 9.6.21: https://github.com/squidfunk/mkdocs-material/issues/8478
     "mkdocs-material==9.6.20",
@@ -326,8 +326,7 @@ ignore = [
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
-    "UP007", # Use X | Y for type annotations, wasn't supported in 3.9
-    "UP045", # Use X | None for optional type annotations, wasn't supported in 3.9
+    "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
 ]
 extend-select = [
     # pyflakes
