@@ -93,7 +93,14 @@ export const FilterConditionSchema = z
   .describe(FieldOptions.of({ direction: "row", special: "column_filter" }));
 export type FilterConditionType = z.infer<typeof FilterConditionSchema>;
 
-export const FilterGroupSchema: z.ZodType = z.lazy(() =>
+export interface FilterGroupType {
+  type: "group";
+  operator: "and" | "or";
+  children: (FilterConditionType | FilterGroupType)[];
+  negate: boolean;
+}
+
+export const FilterGroupSchema: z.ZodType<FilterGroupType> = z.lazy(() =>
   z.object({
     type: z.literal("group").default("group"),
     operator: z.enum(["and", "or"]).default("and"),
@@ -103,7 +110,6 @@ export const FilterGroupSchema: z.ZodType = z.lazy(() =>
     negate: z.boolean().default(false),
   }),
 );
-export type FilterGroupType = z.infer<typeof FilterGroupSchema>;
 
 const FilterRowsTransformSchema = z.object({
   type: z.literal("filter_rows"),
@@ -115,6 +121,15 @@ const FilterRowsTransformSchema = z.object({
     .array(FilterConditionSchema)
     .min(1)
     .describe(FieldOptions.of({ label: "Value", minLength: 1 }))
+    .default(() => [
+      {
+        column_id: "" as ColumnId,
+        operator: "==" as const,
+        value: "",
+        type: "condition" as const,
+        negate: false,
+      },
+    ])
     .transform((value): FilterGroupType => {
       const validConditions = value.filter((condition) => {
         return isConditionValueValid(condition.operator, condition.value);
@@ -125,16 +140,7 @@ const FilterRowsTransformSchema = z.object({
         children: validConditions,
         negate: false,
       };
-    })
-    .default(() => [
-      {
-        column_id: "" as ColumnId,
-        operator: "==" as const,
-        value: "",
-        type: "condition" as const,
-        negate: false,
-      },
-    ]),
+    }),
 });
 
 const GroupByTransformSchema = z
