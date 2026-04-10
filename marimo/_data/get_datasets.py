@@ -565,11 +565,9 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         return "string"
 
     # Nested types
-    if (
-        db_type.startswith(("union", "map", "struct", "list", "array", "json"))
-        or "[" in db_type
-        and "]" in db_type
-    ):
+    if db_type.startswith(
+        ("union", "map", "struct", "list", "array", "json")
+    ) or ("[" in db_type and "]" in db_type):
         return "unknown"
 
     # Other special types
