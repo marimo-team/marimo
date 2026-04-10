@@ -73,13 +73,6 @@ const SortColumnTransformSchema = z.object({
     .default("last"),
 });
 
-export function createRangeSchema<T extends z.ZodTypeAny>(itemSchema: T) {
-  return z.object({
-    min: itemSchema,
-    max: itemSchema,
-  });
-}
-
 export const FilterConditionSchema = z
   .object({
     column_id: column_id,
