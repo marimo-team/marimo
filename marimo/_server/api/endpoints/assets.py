@@ -529,14 +529,26 @@ async def serve_public_file(request: Request) -> Response:
         public_dir = notebook_dir / "public"
         file_path = public_dir / filepath
 
-        # Security check: ensure file is inside public directory
+        # Security check: ensure file is inside public directory.
+        # validate_inside_directory preserves symlinks, so also verify the
+        # resolved target stays within public_dir to avoid symlinks in
+        # public/ pointing at files outside the notebook's public directory.
         try:
             PathValidator().validate_inside_directory(public_dir, file_path)
         except HTTPException:
             return Response(status_code=403, content="Access denied")
 
-        if file_path.is_file():
-            return FileResponse(file_path)
+        try:
+            resolved_file = file_path.resolve(strict=True)
+            resolved_public = public_dir.resolve(strict=True)
+            resolved_file.relative_to(resolved_public)
+        except (OSError, ValueError):
+            raise HTTPException(
+                status_code=404, detail="File not found"
+            ) from None
+
+        if resolved_file.is_file():
+            return FileResponse(resolved_file)
 
     raise HTTPException(status_code=404, detail="File not found")
 
