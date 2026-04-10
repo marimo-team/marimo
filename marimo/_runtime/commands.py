@@ -11,6 +11,7 @@ from typing import (
     Any,
     Literal,
     TypeVar,
+    Union,
 )
 from uuid import uuid4
 
@@ -62,7 +63,8 @@ class Command(
 
 
 T = TypeVar("T")
-ListOrValue = T | list[T]
+# Union required: mypy rejects `T | list[T]` as a generic type alias target.
+ListOrValue = Union[T, list[T]]
 SerializedQueryParams = dict[str, ListOrValue[str]]
 Primitive = str | bool | int | float
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
