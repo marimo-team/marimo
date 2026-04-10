@@ -73,16 +73,37 @@ const SortColumnTransformSchema = z.object({
     .default("last"),
 });
 
-export const ConditionSchema = z
+export function createRangeSchema<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z.object({
+    min: itemSchema,
+    max: itemSchema,
+  });
+}
+
+export const FilterConditionSchema = z
   .object({
     column_id: column_id,
     operator: z
       .enum(Object.keys(ALL_OPERATORS) as [OperatorType, ...OperatorType[]])
       .describe(FieldOptions.of({ label: " " })),
+    type: z.literal("condition").default("condition"),
     value: z.any().describe(FieldOptions.of({ label: "Value" })),
+    negate: z.boolean().default(false),
   })
   .describe(FieldOptions.of({ direction: "row", special: "column_filter" }));
-export type ConditionType = z.infer<typeof ConditionSchema>;
+export type FilterConditionType = z.infer<typeof FilterConditionSchema>;
+
+export const FilterGroupSchema: z.ZodType = z.lazy(() =>
+  z.object({
+    type: z.literal("group").default("group"),
+    operator: z.enum(["and", "or"]).default("and"),
+    children: z
+      .array(z.union([FilterConditionSchema, FilterGroupSchema]))
+      .default([]),
+    negate: z.boolean().default(false),
+  }),
+);
+export type FilterGroupType = z.infer<typeof FilterGroupSchema>;
 
 const FilterRowsTransformSchema = z.object({
   type: z.literal("filter_rows"),
@@ -91,16 +112,28 @@ const FilterRowsTransformSchema = z.object({
     .default("keep_rows")
     .describe(FieldOptions.of({ special: "radio_group" })),
   where: z
-    .array(ConditionSchema)
+    .array(FilterConditionSchema)
     .min(1)
     .describe(FieldOptions.of({ label: "Value", minLength: 1 }))
-    .transform((value) => {
-      return value.filter((condition) => {
+    .transform((value): FilterGroupType => {
+      const validConditions = value.filter((condition) => {
         return isConditionValueValid(condition.operator, condition.value);
       });
+      return {
+        type: "group",
+        operator: "and",
+        children: validConditions,
+        negate: false,
+      };
     })
     .default(() => [
-      { column_id: "" as ColumnId, operator: "==" as const, value: "" },
+      {
+        column_id: "" as ColumnId,
+        operator: "==" as const,
+        value: "",
+        type: "condition" as const,
+        negate: false,
+      },
     ]),
 });
 

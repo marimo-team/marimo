@@ -2,6 +2,7 @@
 import { z } from "zod";
 import type { DataType } from "@/core/kernel/messages";
 import { FieldOptions } from "../../../../components/forms/options";
+import { createRangeSchema } from "../schema";
 
 const Schema = {
   number: z.coerce.number().describe(FieldOptions.of({ label: "Value" })),
@@ -41,6 +42,7 @@ const createComparisonOperators = (schema: z.ZodType) => ({
   ">=": [schema],
   "<": [schema],
   "<=": [schema],
+  between: [createRangeSchema(schema)],
   is_null: [],
   is_not_null: [],
 });
@@ -59,6 +61,7 @@ export const STRING_OPERATORS = {
   ends_with: [Schema.string],
   in: [Schema.stringMultiColumnValues],
   not_in: [Schema.stringMultiColumnValues],
+  is_empty: [],
   is_null: [],
   is_not_null: [],
 };

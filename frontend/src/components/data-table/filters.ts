@@ -1,9 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
-import type { RowData } from "@tanstack/react-table";
+import type { ColumnFiltersState, RowData } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
-import type { ConditionType } from "@/plugins/impl/data-frames/schema";
+import type {
+  FilterConditionType,
+  FilterGroupType,
+} from "@/plugins/impl/data-frames/schema";
 import type { ColumnId } from "@/plugins/impl/data-frames/types";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { assertNever } from "@/utils/assertNever";
@@ -84,28 +87,34 @@ export type ColumnFilterForType<T extends FilterType> = T extends FilterType
 export function filterToFilterCondition(
   columnIdString: string,
   filter: ColumnFilterValue | undefined,
-): ConditionType[] | ConditionType {
+): FilterConditionType[] {
   if (!filter) {
     return [];
   }
   const columnId = columnIdString as ColumnId;
 
   if (filter.operator === "is_null" || filter.operator === "is_not_null") {
-    return {
-      column_id: columnId,
-      operator: filter.operator,
-      value: undefined,
-    };
+    return [
+      {
+        column_id: columnId,
+        operator: filter.operator,
+        value: undefined,
+        type: "condition",
+        negate: false,
+      },
+    ];
   }
 
   switch (filter.type) {
     case "number": {
-      const conditions: ConditionType[] = [];
+      const conditions: FilterConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
           column_id: columnId,
           operator: ">=",
           value: filter.min,
+          type: "condition",
+          negate: false,
         });
       }
       if (filter.max !== undefined) {
@@ -113,23 +122,31 @@ export function filterToFilterCondition(
           column_id: columnId,
           operator: "<=",
           value: filter.max,
+          type: "condition",
+          negate: false,
         });
       }
       return conditions;
     }
     case "text":
-      return {
-        column_id: columnId,
-        operator: filter.operator,
-        value: filter.text,
-      };
+      return [
+        {
+          column_id: columnId,
+          operator: filter.operator,
+          value: filter.text,
+          type: "condition",
+          negate: false,
+        },
+      ];
     case "datetime": {
-      const conditions: ConditionType[] = [];
+      const conditions: FilterConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
           column_id: columnId,
           operator: ">=",
           value: filter.min.toISOString(),
+          type: "condition",
+          negate: false,
         });
       }
       if (filter.max !== undefined) {
@@ -137,17 +154,21 @@ export function filterToFilterCondition(
           column_id: columnId,
           operator: "<=",
           value: filter.max.toISOString(),
+          type: "condition",
+          negate: false,
         });
       }
       return conditions;
     }
     case "date": {
-      const conditions: ConditionType[] = [];
+      const conditions: FilterConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
           column_id: columnId,
           operator: ">=",
           value: filter.min.toISOString(),
+          type: "condition",
+          negate: false,
         });
       }
       if (filter.max !== undefined) {
@@ -155,17 +176,21 @@ export function filterToFilterCondition(
           column_id: columnId,
           operator: "<=",
           value: filter.max.toISOString(),
+          type: "condition",
+          negate: false,
         });
       }
       return conditions;
     }
     case "time": {
-      const conditions: ConditionType[] = [];
+      const conditions: FilterConditionType[] = [];
       if (filter.min !== undefined) {
         conditions.push({
           column_id: columnId,
           operator: ">=",
           value: filter.min.toISOString(),
+          type: "condition",
+          negate: false,
         });
       }
       if (filter.max !== undefined) {
@@ -173,24 +198,34 @@ export function filterToFilterCondition(
           column_id: columnId,
           operator: "<=",
           value: filter.max.toISOString(),
+          type: "condition",
+          negate: false,
         });
       }
       return conditions;
     }
     case "boolean":
       if (filter.value) {
-        return {
-          column_id: columnId,
-          operator: "is_true",
-          value: undefined,
-        };
+        return [
+          {
+            column_id: columnId,
+            operator: "is_true",
+            value: undefined,
+            type: "condition",
+            negate: false,
+          },
+        ];
       }
       if (!filter.value) {
-        return {
-          column_id: columnId,
-          operator: "is_false",
-          value: undefined,
-        };
+        return [
+          {
+            column_id: columnId,
+            operator: "is_false",
+            value: undefined,
+            type: "condition",
+            negate: false,
+          },
+        ];
       }
 
       return [];
@@ -200,16 +235,35 @@ export function filterToFilterCondition(
         Logger.warn("Invalid operator for select filter", {
           operator: filter.operator,
         });
-        operator = "in"; // default to in operator
+        operator = "in";
       }
-      return {
-        column_id: columnId,
-        operator,
-        value: filter.options,
-      };
+      return [
+        {
+          column_id: columnId,
+          operator,
+          value: filter.options,
+          type: "condition",
+          negate: false,
+        },
+      ];
     }
 
     default:
       assertNever(filter);
   }
+}
+
+export function filtersToFilterGroup(
+  columnFilters: ColumnFiltersState,
+): FilterGroupType {
+  const conditions = columnFilters.flatMap((filter) =>
+    filterToFilterCondition(filter.id, filter.value as ColumnFilterValue),
+  );
+  // To maintain existing behavior "and" all the conditions
+  return {
+    type: "group",
+    operator: "and",
+    children: conditions,
+    negate: false,
+  };
 }

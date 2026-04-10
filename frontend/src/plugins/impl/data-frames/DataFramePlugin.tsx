@@ -29,8 +29,8 @@ import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
 import type { DataType } from "../vega/vega-loader";
 import { TransformPanel, type TransformPanelHandle } from "./panel";
 import {
-  ConditionSchema,
-  type ConditionType,
+  FilterGroupSchema,
+  type FilterGroupType,
   columnToFieldTypesSchema,
   type Transformations,
 } from "./schema";
@@ -75,7 +75,7 @@ type PluginFunctions = {
       descending: boolean;
     }[];
     query?: string;
-    filters?: ConditionType[];
+    filters?: FilterGroupType;
     page_number: number;
     page_size: number;
   }) => Promise<{
@@ -138,7 +138,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
             )
             .optional(),
           query: z.string().optional(),
-          filters: z.array(ConditionSchema).optional(),
+          filters: FilterGroupSchema.optional(),
           page_number: z.number(),
           page_size: z.number(),
         }),
