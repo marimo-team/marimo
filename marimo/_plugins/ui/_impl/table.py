@@ -12,6 +12,9 @@ from typing import (
     cast,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
@@ -220,11 +223,11 @@ _DATATYPE_TO_CATEGORY: dict[str, str] = {
 
 def _filter_valid_columns(
     group: FilterGroup,
-    column_dtypes: dict[str, str],
+    column_dtypes: Mapping[str, str],
 ) -> FilterGroup:
     """Recursively remove conditions on non-existent columns
     or with invalid operators for the column dtype."""
-    valid_children = []
+    valid_children: list[FilterCondition | FilterGroup] = []
     for child in group.children:
         if isinstance(child, FilterCondition):
             if child.column_id not in column_dtypes:
