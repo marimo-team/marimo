@@ -177,6 +177,45 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert css in result
         _assert_no_leftover_replacements(result)
 
+    def test_notebook_page_template_custom_css_escapes_style_breakout(
+        self,
+    ) -> None:
+        # Regression: a notebook-controlled css_file must not be able to
+        # break out of the <style> block and inject script/html. See the
+        # pre-execution XSS originally reported against marimo 0.23.0.
+        payload = "</style><script>window.__xss__ = 1;</script><style>"
+        css_file = self.filename.parent / "custom.css"
+        css_file.write_text(payload)
+
+        result = templates.notebook_page_template(
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(css_file="custom.css"),
+            filename=str(self.filename),
+            mode=SessionMode.EDIT,
+        )
+
+        # The escaped form must be present — proving the sanitizer ran
+        # rather than the attacker's payload having been silently dropped.
+        assert "<\\/style>" in result
+        # And the raw breakout sequence from the payload must not survive.
+        # The only literal "</style" the HTML parser should see inside our
+        # injected block is the legitimate closer emitted by
+        # _custom_css_block itself.
+        marker = "<style title='marimo-custom'>"
+        assert marker in result
+        body_after_marker = result.split(marker, 1)[1]
+        # Up to the first real closer, the content is our sanitized CSS;
+        # the attacker's payload should be present only in escaped form
+        # (so the browser stays in <style> raw-text mode the whole time).
+        injected = body_after_marker.split("</style>", 1)[0]
+        assert "<\\/style>" in injected
+        assert "</style" not in injected  # case-sensitive: no raw end-tag
+        _assert_no_leftover_replacements(result)
+
     def test_notebook_page_template_custom_css_workspace_relative(
         self,
     ) -> None:
