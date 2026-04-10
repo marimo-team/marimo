@@ -11,7 +11,7 @@ import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { LocaleProvider } from "@/core/i18n/locale-provider";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { invariant } from "@/utils/invariant";
-import type { CellId } from "../../cells/ids";
+import type { CellId, UIElementId } from "../../cells/ids";
 import { store } from "../../state/jotai";
 import {
   ISLAND_CSS_CLASSES,
@@ -132,12 +132,21 @@ export class MarimoIslandElement extends HTMLElement {
     const code = this.code;
     const cellId = this.cellId;
 
-    const codeCallback: () => string = optionalEditor
-      ? () =>
-          `${UI_ELEMENT_REGISTRY.lookupValue(
-            optionalEditor.props[OBJECT_ID_ATTR],
-          )}`
-      : () => code;
+    // Read objectId directly from the DOM before createRoot clears children.
+    // optionalEditor is a <RenderHTML> wrapper, so its .props don't carry the
+    // underlying element's attributes — we must grab objectId here instead.
+    const editorElement = this.querySelector(MarimoIslandElement.editorTagName);
+    const editorObjectId = (
+      editorElement?.parentElement as Element | null
+    )?.getAttribute(OBJECT_ID_ATTR) as UIElementId | null;
+
+    const codeCallback: () => string =
+      optionalEditor && editorObjectId
+        ? () => {
+            const val = UI_ELEMENT_REGISTRY.lookupValue(editorObjectId);
+            return val !== undefined ? String(val) : code;
+          }
+        : () => code;
 
     return {
       html: initialOutput,
