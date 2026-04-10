@@ -79,9 +79,7 @@ def module_exists_in_site_packages(module_name: str) -> bool:
             for entry in os.listdir(site_dir):
                 module = entry.split("-", 1)[0]
                 if module == module_name and (
-                    entry.endswith(".egg-info")
-                    or entry.endswith(".dist-info")
-                    or entry.endswith(".egg")
+                    entry.endswith((".egg-info", ".dist-info", ".egg"))
                 ):
                     return True
 

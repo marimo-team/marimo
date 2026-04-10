@@ -186,7 +186,7 @@ def watch_modules(
             )
             with graph.lock:
                 LOGGER.debug("Acquired graph lock.")
-                for modname in stale_modules.keys():
+                for modname in stale_modules:
                     # prune definitions that are derived from stale modules
                     cell_id = modname_to_cell_id[modname]
                     cell = graph.cells[cell_id]

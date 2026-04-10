@@ -84,7 +84,7 @@ async def test_matplotlib_boxplot_dict_special_case(
         formatter = executing_kernel.globals["formatter"]
         boxplot_result = executing_kernel.globals["boxplot_result"]
         assert formatter is not None
-        mimetype, data = formatter(boxplot_result)
+        mimetype, _data = formatter(boxplot_result)
         # Should be a single image, not JSON with multiple formatted artists
         assert (
             mimetype.startswith("image")
@@ -119,7 +119,7 @@ async def test_matplotlib_violinplot_dict_special_case(
         formatter = executing_kernel.globals["formatter"]
         violinplot_result = executing_kernel.globals["violinplot_result"]
         assert formatter is not None
-        mimetype, data = formatter(violinplot_result)
+        mimetype, _data = formatter(violinplot_result)
         # Should be a single image, not JSON with multiple formatted artists
         assert (
             mimetype.startswith("image")

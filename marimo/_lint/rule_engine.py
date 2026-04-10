@@ -85,7 +85,7 @@ class RuleEngine:
         # Process rules as they complete
         while pending_tasks:
             # Wait for at least one task to complete
-            done, pending = await asyncio.wait(
+            done, _pending = await asyncio.wait(
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
 

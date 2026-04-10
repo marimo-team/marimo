@@ -25,17 +25,17 @@ from marimo._runtime.virtual_file.virtual_file import (
 )
 
 __all__ = [
-    # Storage
-    "VirtualFileStorage",
-    "SharedMemoryStorage",
+    "EMPTY_VIRTUAL_FILE",
     "InMemoryStorage",
-    "VirtualFileStorageManager",
+    "SharedMemoryStorage",
     # Virtual files
     "VirtualFile",
-    "EMPTY_VIRTUAL_FILE",
     "VirtualFileLifecycleItem",
-    "VirtualFileRegistryItem",
     "VirtualFileRegistry",
+    "VirtualFileRegistryItem",
+    # Storage
+    "VirtualFileStorage",
+    "VirtualFileStorageManager",
     "random_filename",
     "read_virtual_file",
     "read_virtual_file_chunked",

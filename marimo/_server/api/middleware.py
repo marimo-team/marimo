@@ -557,7 +557,7 @@ class ProxyMiddleware:
                             LOGGER.error(
                                 f"Failed to connect to {ws_url} after {max_retries} attempts. Final error: {e}"
                             )
-                            raise e
+                            raise
 
                 raise ValueError("Failed to connect to LSP server")
 
@@ -614,8 +614,8 @@ class ProxyMiddleware:
                     await asyncio.gather(*relay_tasks)
                 except asyncio.CancelledError:
                     pass
-                except Exception as e:
-                    raise e
+                except Exception:
+                    raise
                 finally:
                     for task in relay_tasks:
                         if not task.done():

@@ -17,19 +17,17 @@ marimo is designed to be:
 __all__ = [
     # Core API
     "App",
-    "Cell",
     "AppMeta",
-    "create_asgi_app",
+    "Cell",
+    "Html",
     "MarimoIslandGenerator",
     "MarimoStopError",
     "Thread",
-    "current_thread",
-    # Other namespaces
-    "ai",
-    "ui",
-    "islands",
+    "__version__",
     # Application elements
     "accordion",
+    # Other namespaces
+    "ai",
     "app_meta",
     "as_html",
     "audio",
@@ -40,16 +38,18 @@ __all__ = [
     "carousel",
     "center",
     "cli_args",
+    "create_asgi_app",
+    "current_thread",
     "defs",
     "doc",
     "download",
     "hstack",
-    "Html",
     "icon",
     "iframe",
     "image",
     "image_compare",
     "inspect",
+    "islands",
     "json",
     "latex",
     "lazy",
@@ -84,10 +84,10 @@ __all__ = [
     "style",
     "tabs",
     "tree",
+    "ui",
     "video",
     "vstack",
     "watch",
-    "__version__",
 ]
 import marimo._ai as ai
 import marimo._islands as islands

@@ -322,7 +322,7 @@ class CellImpl:
         # Check that def matches the single definition
         name = tree.body[0].name
         ast_name = unmangle_local(variables.pop()).name
-        if not (name == ast_name):
+        if name != ast_name:
             return None
 
         if name.startswith("_"):

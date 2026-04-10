@@ -507,9 +507,7 @@ def _strip_trailing_return(body_lines: list[str]) -> None:
         line_stripped = line.strip()
         if line_indent == body_indent and (
             line_stripped == "return"
-            or line_stripped.startswith("return ")
-            or line_stripped.startswith("return\t")
-            or line_stripped.startswith("return(")
+            or line_stripped.startswith(("return ", "return\t", "return("))
         ):
             # Remove the return line and any trailing blank lines after it
             del body_lines[idx:]

@@ -118,7 +118,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()
@@ -164,7 +164,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()

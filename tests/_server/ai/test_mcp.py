@@ -1384,7 +1384,7 @@ class TestMCPClientConnectionManagement:
         mock_read, mock_write, mock_stdio_context = mock_stdio_setup()
         mock_stdio_client.return_value = mock_stdio_context
 
-        mock_session, mock_session_context = mock_session_setup()
+        _mock_session, mock_session_context = mock_session_setup()
         mock_session_class.return_value = mock_session_context
 
         # Mock AsyncExitStack

@@ -131,7 +131,7 @@ def _broadcast_variables(
     values = [
         create_variable_value(
             name=variable,
-            value=(ctx.glbls[variable] if variable in ctx.glbls else None),
+            value=(ctx.glbls.get(variable, None)),
         )
         for variable in cell.defs
     ]

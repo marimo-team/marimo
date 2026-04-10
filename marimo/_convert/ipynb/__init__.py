@@ -16,11 +16,11 @@ from marimo._convert.ipynb.to_ir import (
 )
 
 __all__ = [
-    # Export (IR → ipynb)
-    "convert_from_ir_to_ipynb",
-    # Import (ipynb → IR)
-    "convert_from_ipynb_to_notebook_ir",
     # Types
     "CodeCell",
     "ExclamationMarkResult",
+    # Import (ipynb → IR)
+    "convert_from_ipynb_to_notebook_ir",
+    # Export (IR → ipynb)
+    "convert_from_ir_to_ipynb",
 ]

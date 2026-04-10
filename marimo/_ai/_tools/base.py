@@ -263,7 +263,7 @@ class ToolContext:
         )
 
 
-class ToolBase(Generic[ArgsT, OutT], ABC):
+class ToolBase(ABC, Generic[ArgsT, OutT]):
     """
     Minimal base class for dual-registered tools.
 

@@ -799,11 +799,7 @@ class table(
             self._has_any_selection = len(coordinates) > 0
             return self._searched_manager.select_cells(coordinates)  # type: ignore
         else:
-            indices = [
-                int(v)
-                for v in value
-                if isinstance(v, int) or isinstance(v, str)
-            ]
+            indices = [int(v) for v in value if isinstance(v, (int, str))]
             self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
@@ -1533,7 +1529,7 @@ class table(
             )
 
         # For dictionary or list data, return sequential indices
-        if isinstance(self.data, dict) or isinstance(self.data, list):
+        if isinstance(self.data, (dict, list)):
             return GetRowIdsResponse(
                 row_ids=list(range(num_rows_searched)),
                 all_rows=False,

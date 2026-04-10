@@ -204,7 +204,7 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
         def is_in_import_line(line: str) -> bool:
             if line.startswith("import marimo as mo"):
                 return True
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 return "import marimo as mo" in line
             return False
 

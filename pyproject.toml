@@ -332,28 +332,20 @@ ignore = [
     "BLE001", # Do not catch blind exception: `Exception`
     "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
     "PLW1510", # `subprocess.run` without explicit `check`
-    "RUF059", # Unused unpacked variable
     "S110", # `try`-`except`-`pass`
     "TRY004", # Type check without `TypeError`
     "SIM102", # Use a single `if` statement instead of nested `if` statements
     "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
-    "SIM118", # Use `key in dict` instead of `key in dict.keys()`
-    "PIE810", # Multiple `startswith` / `endswith` calls
     "RUF012", # Mutable class default
     "S102", # Use of `exec`
-    "TRY201", # Verbose `raise` (use `raise` without exception name)
     "PYI036", # Bad `sys.exit` annotation
     "DTZ005", # `datetime.now()` called without `tzinfo`
     "PLC0206", # Dict index without `.items()`
     "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
     "SIM115", # Open file without context handler
-    "SIM101", # Duplicate `isinstance` call
-    "SIM401", # Use `dict.get` instead of if-else block
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
     "DTZ007", # `datetime.strptime()` called without zone
     "DTZ011", # `date.today()` used
-    "PYI034", # Non-self return type
-    "RUF022", # Unsorted `__all__`
     "TRY401", # Verbose log message
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
@@ -365,27 +357,19 @@ ignore = [
     "PLE1205", # Logging too many args
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
-    "PYI059", # Generic not last base class
     "PYI063", # PEP 484-style positional-only parameter
-    "SIM201", # Negate equal op
     "DTZ002", # `datetime.today()` called without tz
-    "FURB132", # Check and remove from set
-    "PERF102", # Incorrect dict iterator
-    "PIE794", # Duplicate class field definition
     "PLC0205", # Single string `__slots__`
-    "PLC0414", # Useless import alias
     "PLE0704", # Misplaced bare `raise`
     "PLR1704", # Redefined argument from local
     "PLW0129", # Assert on string literal
-    "PLW0133", # Useless exception statement
     "PLW0642", # Self or cls assignment
     "PYI006", # Bad `sys.version_info` comparison
     "SIM113", # `enumerate` for loop
-    "SIM210", # If expression with `True`/`False`
     "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
-
 ]
+
 extend-select = [
     # pyflakes
     "F",

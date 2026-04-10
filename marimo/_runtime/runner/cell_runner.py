@@ -287,11 +287,7 @@ class Runner:
 
     def _get_run_position(self, cell_id: CellId_t) -> int | None:
         """Position in the original run queue"""
-        return (
-            self._run_position[cell_id]
-            if cell_id in self._run_position
-            else None
-        )
+        return self._run_position.get(cell_id, None)
 
     def _runs_after(self, source: CellId_t, target: CellId_t) -> bool | None:
         """Compare run positions.

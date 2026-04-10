@@ -1317,7 +1317,7 @@ class Kernel:
 
         self.errors = all_errors
         for cid in self.errors:
-            cell = self.graph.cells[cid] if cid in self.graph.cells else None
+            cell = self.graph.cells.get(cid, None)
             if (
                 cell is not None
                 and not cell.config.disabled
@@ -3076,7 +3076,7 @@ class SqlCallbacks:
             request.query, self._kernel.globals
         )
         validate_result = SqlCatalogCheckResult(
-            success=True if error_message is None else False,
+            success=error_message is None,
             error_message=error_message,
         )
         broadcast_notification(
@@ -3263,7 +3263,7 @@ class PackagesCallbacks:
             return
 
         resolved_packages: dict[str, PackageRequirement] = {}
-        for pkg in request.versions.keys():
+        for pkg in request.versions:
             pkg_req = PackageRequirement.parse(pkg)
             resolved_packages[pkg_req.name] = pkg_req
 
