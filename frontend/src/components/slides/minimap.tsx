@@ -178,6 +178,7 @@ export const SlidesMinimap = ({
     );
     el?.scrollIntoView({ block: "nearest", behavior: "instant" });
   }, [activeCellId]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -232,6 +233,7 @@ export const SlidesMinimap = ({
       resetDragState();
     }
   };
+
   if (!canReorder) {
     return (
       <SlideThumbnailsContainer ref={containerRef}>
@@ -527,4 +529,6 @@ function asCellId(id: UniqueIdentifier): CellId | null {
 
 export const exportedForTesting = {
   useVisibleCellIds,
+  projectDropTarget,
+  resolveDropTarget,
 };
