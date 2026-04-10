@@ -388,7 +388,10 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
             f"Jedi did not suggest {param_name} in {call}. It suggested {param_completions.keys()}"
         )
         jedi_param = param_completions[param_name]
-        docstring = jedi_param.docstring()
+        # raw=True: Jedi otherwise prepends inferred signature strings for
+        # annotated unions like str|None / int|None (builtin ctor docs + NoneType),
+        # which is noise for dataclass field comments served by py__doc__.
+        docstring = jedi_param.docstring(raw=True)
         assert docstring != "", f"Empty docstring result: {call}{param_name}"
         assert "NoneType" not in docstring, (
             f"NoneType found in docstring: {call}{param_name}"
