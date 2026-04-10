@@ -62,7 +62,7 @@ def check_for_multiple_definitions(
                 errors[cid].append(
                     MultipleDefinitionError(
                         name=str(name),
-                        cells=tuple(sorted(defining_cells - set([cid]))),
+                        cells=tuple(sorted(defining_cells - {cid})),
                     )
                 )
     return errors

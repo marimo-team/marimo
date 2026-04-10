@@ -273,7 +273,7 @@ class Runner:
         """Mark a cell (and its descendants) as cancelled."""
         descendants = set(
             cid
-            for cid in dataflow.transitive_closure(self.graph, set([cell_id]))
+            for cid in dataflow.transitive_closure(self.graph, {cell_id})
             if cid in self.cells_to_run
         )
         self.cancelled_cells.add(cell_id, descendants)

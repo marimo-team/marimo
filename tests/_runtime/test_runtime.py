@@ -1119,7 +1119,7 @@ except NameError:
         assert "1" in k.graph.cells
         assert "x" not in k.globals
         if k.lazy():
-            assert k.graph.get_stale() == set([er.cell_id])
+            assert k.graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert not k.graph.get_stale()
         assert "y" not in k.globals
@@ -1131,7 +1131,7 @@ except NameError:
         assert "1" in k.graph.cells
         assert not k.errors
         if k.lazy():
-            assert k.graph.get_stale() == set([er.cell_id])
+            assert k.graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert not k.graph.get_stale()
         assert k.globals["y"] == 1
@@ -1156,7 +1156,7 @@ except NameError:
             [ExecuteCellCommand(er_1.cell_id, "x = 0; raise RuntimeError")]
         )
         if k.lazy():
-            assert graph.get_stale() == set([er_2.cell_id])
+            assert graph.get_stale() == {er_2.cell_id}
             # running er_2 will redefine y; this is different from the
             # behavior of a non-lazy kernel, which doesn't run er_2
             # but instead invalidates it on exception raised
@@ -1203,7 +1203,7 @@ except NameError:
         )
         assert k.globals["defs"]["slider"].value == 5
         if k.lazy():
-            assert graph.get_stale() == set([er.cell_id])
+            assert graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert not graph.get_stale()
         assert k.globals["slider_value"] == 6
@@ -1778,7 +1778,7 @@ except NameError:
         await k.rename_file("foo")
         if k.lazy():
             assert "pytest" in k.globals["x"]
-            assert k.graph.get_stale() == set([er.cell_id])
+            assert k.graph.get_stale() == {er.cell_id}
             await k.run([er])
         assert k.globals["x"] == "foo"
 
@@ -2736,7 +2736,7 @@ class TestDisable:
         )
 
         assert k.globals["ns"].count == 10
-        assert k.graph.get_stale() == set([er_2.cell_id])
+        assert k.graph.get_stale() == {er_2.cell_id}
 
         # re-enable cell 2
         await k.set_cell_config(
@@ -2745,7 +2745,7 @@ class TestDisable:
             )
         )
         if k.lazy():
-            assert k.graph.get_stale() == set([er_2.cell_id])
+            assert k.graph.get_stale() == {er_2.cell_id}
             await k.run([er_2])
         assert not k.graph.get_stale()
         # cell 2 should have re-run
@@ -2783,13 +2783,14 @@ class TestDisable:
         await k.run([ExecuteCellCommand(cell_id=er_1.cell_id, code="x = 2")])
         assert k.globals["x"] == 2
         if k.lazy():
-            assert graph.get_stale() == set(
-                [er_2.cell_id, er_3.cell_id, er_4.cell_id, er_5.cell_id]
-            )
+            assert graph.get_stale() == {
+                er_2.cell_id,
+                er_3.cell_id,
+                er_4.cell_id,
+                er_5.cell_id,
+            }
             await k.run([er_5])
-        assert graph.get_stale() == set(
-            [er_2.cell_id, er_3.cell_id, er_4.cell_id]
-        )
+        assert graph.get_stale() == {er_2.cell_id, er_3.cell_id, er_4.cell_id}
         assert k.globals["zzz"] == 3
 
         # enable cell 2: should run stale cells as a side-effect
@@ -2801,9 +2802,11 @@ class TestDisable:
         assert k.globals["x"] == 2
         assert k.globals["zzz"] == 3
         if k.lazy():
-            assert graph.get_stale() == set(
-                [er_2.cell_id, er_3.cell_id, er_4.cell_id]
-            )
+            assert graph.get_stale() == {
+                er_2.cell_id,
+                er_3.cell_id,
+                er_4.cell_id,
+            }
             # runs er_3 and er_2, which are stale ancestors
             await k.run([er_4])
         # stale cells **should have** updated
@@ -2836,7 +2839,7 @@ class TestDisable:
         )
         # update the code of cell 1 -- both cells stale
         await k.run([er_1 := exec_req.get_with_id(er_1.cell_id, "x = 2")])
-        assert graph.get_stale() == set([er_1.cell_id, er_2.cell_id])
+        assert graph.get_stale() == {er_1.cell_id, er_2.cell_id}
 
         # enable cell 1, but 2 still disabled
         await k.set_cell_config(
@@ -2845,11 +2848,11 @@ class TestDisable:
             )
         )
         if k.lazy():
-            assert graph.get_stale() == set([er_1.cell_id, er_2.cell_id])
+            assert graph.get_stale() == {er_1.cell_id, er_2.cell_id}
             await k.run([er_1])
 
         assert k.globals["x"] == 2
-        assert graph.get_stale() == set([er_2.cell_id])
+        assert graph.get_stale() == {er_2.cell_id}
 
         # enable cell 2
         await k.set_cell_config(
@@ -2858,7 +2861,7 @@ class TestDisable:
             )
         )
         if k.lazy():
-            assert graph.get_stale() == set([er_2.cell_id])
+            assert graph.get_stale() == {er_2.cell_id}
             await k.run([er_2])
 
         assert not graph.get_stale()

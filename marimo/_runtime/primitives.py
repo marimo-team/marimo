@@ -28,15 +28,13 @@ UNCLONABLE_TYPES = [
     "marimo._runtime.watch._directory.DirectoryState",
 ]
 
-UNCLONABLE_MODULES = set(
-    [
-        "_asyncio",
-        "_io",
-        "marimo._ast",
-        "marimo._plugins.ui",
-        "numpy.lib.npyio",
-    ]
-)
+UNCLONABLE_MODULES = {
+    "_asyncio",
+    "_io",
+    "marimo._ast",
+    "marimo._plugins.ui",
+    "numpy.lib.npyio",
+}
 
 
 def is_external(value: Any) -> bool:

@@ -129,10 +129,10 @@ class TestModuleDependencyFinder:
         c_deps = set(list(finder.find_dependencies(c, excludes=set()).keys()))
         d_deps = set(list(finder.find_dependencies(d, excludes=set()).keys()))
 
-        assert a_deps == set(["__main__", "reload_data", "reload_data.c"])
-        assert b_deps == set(["__main__", "reload_data", "reload_data.d"])
-        assert c_deps == set(["__main__"])
-        assert d_deps == set(["__main__"])
+        assert a_deps == {"__main__", "reload_data", "reload_data.c"}
+        assert b_deps == {"__main__", "reload_data", "reload_data.d"}
+        assert c_deps == {"__main__"}
+        assert d_deps == {"__main__"}
 
     def test_dependencies_cached(self):
         from tests._runtime.reload.reload_data import a

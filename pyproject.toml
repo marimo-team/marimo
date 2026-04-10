@@ -330,7 +330,6 @@ ignore = [
 
     # From new version of Ruff: We should fix these, but it raises too many errors
     "BLE001", # Do not catch blind exception: `Exception`
-    "C405", # Unnecessary literal set
     "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
     "PLW1510", # `subprocess.run` without explicit `check`
     "FLY002", # Static join to f-string

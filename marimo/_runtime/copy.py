@@ -74,22 +74,20 @@ def shadow_wrap(ref_cls: type[_Copy[T]], base: T) -> T:
 
     # Apply attributes as slots reflection, but remove the attributes that are
     # set explicitly by the wrapper class (or not allowed like __dict__).
-    slots = set(dir(base)) - set(
-        [
-            "__new__",
-            "__setattr__",
-            "__setitem__",
-            "__doc__",
-            "__class__",
-            "__dict__",
-            "__module__",
-            "__slots__",
-            "__dir__",
-            "__init__",
-            "__weakref__",
-            "__ref__",
-        ]
-    )
+    slots = set(dir(base)) - {
+        "__new__",
+        "__setattr__",
+        "__setitem__",
+        "__doc__",
+        "__class__",
+        "__dict__",
+        "__module__",
+        "__slots__",
+        "__dir__",
+        "__init__",
+        "__weakref__",
+        "__ref__",
+    }
     # pointer off the class to lock attributes / items.
     _fixed = [False]
 

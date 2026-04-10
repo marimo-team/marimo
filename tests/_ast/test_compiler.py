@@ -25,8 +25,8 @@ class TestParseCell:
         cell = compile_cell(code)
         assert cell.key == hash(code)
         assert cell.code == code
-        assert cell.defs == set(["x", "z"])
-        assert cell.refs == set(["y"])
+        assert cell.defs == {"x", "z"}
+        assert cell.refs == {"y"}
 
     @staticmethod
     def test_local_variables() -> None:
@@ -98,7 +98,7 @@ class TestImportWorkspace:
     def test_simple_import_statement() -> None:
         code = "import foo"
         cell = compile_cell(code)
-        assert cell.defs == set(["foo"])
+        assert cell.defs == {"foo"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
@@ -112,7 +112,7 @@ class TestImportWorkspace:
     def test_dotted_import_statement() -> None:
         code = "import foo.bar"
         cell = compile_cell(code)
-        assert cell.defs == set(["foo"])
+        assert cell.defs == {"foo"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
@@ -126,7 +126,7 @@ class TestImportWorkspace:
     def test_from_import() -> None:
         code = "from foo.bar import baz"
         cell = compile_cell(code)
-        assert cell.defs == set(["baz"])
+        assert cell.defs == {"baz"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 1
@@ -140,7 +140,7 @@ class TestImportWorkspace:
     def test_multiple_imports() -> None:
         code = "import foo; import foo.bar; from foo.bar import baz"
         cell = compile_cell(code)
-        assert cell.defs == set(["foo", "baz"])
+        assert cell.defs == {"foo", "baz"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
         assert len(list(cell.imports)) == 3
@@ -202,9 +202,9 @@ class TestImportWorkspace:
 
         code = "import foo; import foo.bar; from foo.bar import baz"
         cell = compile_cell(code, carried_imports=[foo])
-        assert cell.defs == set(["foo", "baz"])
+        assert cell.defs == {"foo", "baz"}
         assert cell.import_workspace.is_import_block
-        assert cell.import_workspace.imported_defs == set(["foo"])
+        assert cell.import_workspace.imported_defs == {"foo"}
 
         assert len(list(cell.imports)) == 3
         assert foo in cell.imports
@@ -234,9 +234,9 @@ class TestImportWorkspace:
 
         code = "import foo; import foo.bar; from foo.bar import baz"
         cell = compile_cell(code, carried_imports=[foo, foo_bar, foo_bar_baz])
-        assert cell.defs == set(["foo", "baz"])
+        assert cell.defs == {"foo", "baz"}
         assert cell.import_workspace.is_import_block
-        assert cell.import_workspace.imported_defs == set(["foo", "baz"])
+        assert cell.import_workspace.imported_defs == {"foo", "baz"}
 
         assert len(list(cell.imports)) == 3
         assert foo in cell.imports
@@ -255,7 +255,7 @@ class TestImportWorkspace:
         )
         code = "import foo.bar"
         cell = compile_cell(code, carried_imports=[foo])
-        assert cell.defs == set(["foo"])
+        assert cell.defs == {"foo"}
         assert cell.import_workspace.is_import_block
         assert not cell.import_workspace.imported_defs
 
@@ -268,8 +268,8 @@ class TestParseSQLCell:
         cell = compile_cell(code)
         assert cell.key == hash(code)
         assert cell.code == code
-        assert cell.defs == set(["t1"])
-        assert cell.refs == set(["mo"])
+        assert cell.defs == {"t1"}
+        assert cell.refs == {"mo"}
         assert cell.language == "sql"
         assert cell.variable_data == {
             "t1": [VariableData("table", qualified_name="t1")]
@@ -282,7 +282,7 @@ class TestParseSQLCell:
         assert cell.key == hash(code)
         assert cell.code == code
         assert not cell.defs
-        assert cell.refs == set(["mo", "t1"])
+        assert cell.refs == {"mo", "t1"}
         assert cell.language == "sql"
         assert not cell.variable_data
 
@@ -298,8 +298,8 @@ class TestParseSQLCell:
         cell = compile_cell(code)
         assert cell.key == hash(code)
         assert cell.code == code
-        assert cell.defs == set(["t1"])
-        assert cell.refs == set(["duckdb"])
+        assert cell.defs == {"t1"}
+        assert cell.refs == {"duckdb"}
         assert cell.language == "sql"
         assert cell.variable_data == {
             "t1": [VariableData("table", qualified_name="t1")]
@@ -318,7 +318,7 @@ class TestParseSQLCell:
         assert cell.key == hash(code)
         assert cell.code == code
         assert not cell.defs
-        assert cell.refs == set(["duckdb", "t1"])
+        assert cell.refs == {"duckdb", "t1"}
         assert cell.language == "sql"
         assert not cell.variable_data
 

@@ -631,7 +631,7 @@ def complete(
             graph.cells[cid].code
             for cid in dataflow.topological_sort(
                 graph,
-                set(graph.cells.keys()) - set([request.cell_id]),
+                set(graph.cells.keys()) - {request.cell_id},
             )
         ]
 

@@ -847,7 +847,7 @@ class Kernel:
             module_reloader is not None
             and module_reloader.cell_uses_stale_modules(cell)
         ):
-            self.graph.set_stale(set([cell.cell_id]), prune_imports=True)
+            self.graph.set_stale({cell.cell_id}, prune_imports=True)
         LOGGER.debug("registered cell %s", cell_id)
         LOGGER.debug("parents: %s", self.graph.parents[cell_id])
         LOGGER.debug("children: %s", self.graph.children[cell_id])
