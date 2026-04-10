@@ -353,8 +353,6 @@ ignore = [
     "PLC0206", # Dict index without `.items()`
     "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
     "SIM115", # Open file without context handler
-    "C403", # Unnecessary list comprehension set
-    "C414", # Unnecessary double cast or process
     "SIM101", # Duplicate `isinstance` call
     "SIM401", # Use `dict.get` instead of if-else block
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`

@@ -993,7 +993,7 @@ class Kernel:
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
-                        set([im.namespace for im in previous_cell.imports])
+                        {im.namespace for im in previous_cell.imports}
                         if previous_cell
                         else set()
                     )

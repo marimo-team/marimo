@@ -124,10 +124,10 @@ class TestModuleDependencyFinder:
         from tests._runtime.reload.reload_data import a, b, c, d
 
         finder = ModuleDependencyFinder()
-        a_deps = set(list(finder.find_dependencies(a, excludes=set()).keys()))
-        b_deps = set(list(finder.find_dependencies(b, excludes=set()).keys()))
-        c_deps = set(list(finder.find_dependencies(c, excludes=set()).keys()))
-        d_deps = set(list(finder.find_dependencies(d, excludes=set()).keys()))
+        a_deps = set(finder.find_dependencies(a, excludes=set()).keys())
+        b_deps = set(finder.find_dependencies(b, excludes=set()).keys())
+        c_deps = set(finder.find_dependencies(c, excludes=set()).keys())
+        d_deps = set(finder.find_dependencies(d, excludes=set()).keys())
 
         assert a_deps == {"__main__", "reload_data", "reload_data.c"}
         assert b_deps == {"__main__", "reload_data", "reload_data.d"}

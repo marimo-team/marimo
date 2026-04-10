@@ -946,13 +946,11 @@ class BlockHasher:
         ref_cells = set().union(
             *[self.graph.definitions.get(ref, set()) for ref in refs]
         )
-        ref_cells |= set(
-            [
-                cell
-                for ref in refs
-                if (cell := get_cell_from_local(ref, self.cell_id))
-            ]
-        )
+        ref_cells |= {
+            cell
+            for ref in refs
+            if (cell := get_cell_from_local(ref, self.cell_id))
+        }
         assert len(ref_cells) == 1, (
             "Inconsistent references, cannot determine execution path. "
             f"Got {ref_cells} expected set({self.cell_id}). "
