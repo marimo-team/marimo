@@ -348,7 +348,6 @@ ignore = [
     "S102", # Use of `exec`
     "TRY201", # Verbose `raise` (use `raise` without exception name)
     "PYI036", # Bad `sys.exit` annotation
-    "RUF013", # Implicit optional
     "DTZ005", # `datetime.now()` called without `tzinfo`
     "PLC0206", # Dict index without `.items()`
     "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
