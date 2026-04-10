@@ -63,7 +63,7 @@ def _wait_for_http_up(url: str, timeout_s: float = 10.0) -> None:
             with urlopen(url, timeout=0.5) as r:
                 if 200 <= r.status < 500:
                     return
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             last_err = e
         time.sleep(0.05)
     raise RuntimeError(

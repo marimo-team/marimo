@@ -257,7 +257,7 @@ class NotificationListenerExtension(SessionExtension):
                 notif = NotebookDocumentTransactionNotification(
                     transaction=applied
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 LOGGER.warning(
                     "Failed to decode/apply kernel document transaction"
                 )
