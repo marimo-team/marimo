@@ -133,8 +133,14 @@ class PandasTableManagerFactory(TableManagerFactory):
                 for col in columns:
                     if col in mixed_cols:
                         temp = f"__sort_{col}"
+                        # Preserve nulls so nulls_last=True works.
+                        # On pandas <3.0, cast(String) turns None
+                        # into the string "None" instead of null.
                         df = df.with_columns(
-                            nw.col(col).cast(nw.String).alias(temp)
+                            nw.when(nw.col(col).is_null())
+                            .then(None)
+                            .otherwise(nw.col(col).cast(nw.String))
+                            .alias(temp)
                         )
                         temp_cols.append(temp)
                         sort_cols.append(temp)
