@@ -482,7 +482,9 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
     def test_run_mode_injects_html_head_file(self) -> None:
         """In run mode, html_head_file must be injected into <head>."""
-        head = '<script src="https://analytics.example.com/tracker.js"></script>'
+        head = (
+            '<script src="https://analytics.example.com/tracker.js"></script>'
+        )
         head_file = self.filename.parent / "head.html"
         head_file.write_text(head)
 
