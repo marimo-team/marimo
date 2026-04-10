@@ -50,7 +50,7 @@ def _should_include_name(name: str, prefix: str) -> bool:
     """Exclude names starting with an underscore, except dunder names."""
     is_dunder_name = _is_dunder_name(name)
     if name.startswith("_"):
-        if is_dunder_name:
+        if not is_dunder_name:
             # Never include names that start with a single underscore
             return False
         elif not prefix.startswith("_"):
