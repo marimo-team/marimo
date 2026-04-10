@@ -68,6 +68,7 @@ import {
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { isIslands } from "@/core/islands/utils";
 import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
@@ -1006,6 +1007,7 @@ const DataTableComponent = ({
   const canShowColumnExplorer = showColumnExplorer && !!preview_column;
 
   const isInVscode = isInVscodeExtension();
+  const isIslandsMode = isIslands();
 
   return (
     <>
@@ -1091,13 +1093,15 @@ const DataTableComponent = ({
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
-            showChartBuilder={showChartBuilder}
+            showChartBuilder={showChartBuilder && !isIslandsMode}
             isChartBuilderOpen={isChartBuilderOpen}
             showPageSizeSelector={showPageSizeSelector}
-            // Hidden in VSCode (for now) because we don't have a panel to show
+            // Hidden in VSCode and islands because there's no panel to show
             // the table explorer.
             showTableExplorer={
-              (showRowExplorer || canShowColumnExplorer) && !isInVscode
+              (showRowExplorer || canShowColumnExplorer) &&
+              !isInVscode &&
+              !isIslandsMode
             }
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}

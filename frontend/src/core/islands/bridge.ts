@@ -8,99 +8,153 @@ import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import type { CommandMessage, NotificationPayload } from "../kernel/messages";
-import { getMarimoVersion } from "../meta/globals";
 import type { EditRequests, RunRequests } from "../network/types";
-import { store } from "../state/jotai";
-
+import { store as defaultStore } from "../state/jotai";
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 import { islandsInitializedAtom } from "./state";
 import type { WorkerSchema } from "./worker/worker";
-import workerUrl from "./worker/worker.tsx?worker&url";
+import type { WorkerFactory } from "./worker-factory";
+import { DefaultWorkerFactory } from "./worker-factory";
 
-export class IslandsPyodideBridge implements RunRequests, EditRequests {
+/**
+ * Configuration for creating an IslandsPyodideBridge
+ */
+export interface IslandsBridgeConfig {
   /**
-   * Lazy singleton instance of the IslandsPyodideBridge.
+   * Optional worker factory for creating workers (for testing)
    */
-  static get INSTANCE(): IslandsPyodideBridge {
-    const KEY = "_marimo_private_IslandsPyodideBridge";
-    if (!window[KEY]) {
-      window[KEY] = new IslandsPyodideBridge();
-    }
-    return window[KEY] as IslandsPyodideBridge;
-  }
+  workerFactory?: WorkerFactory;
 
+  /**
+   * Optional Jotai store (for testing)
+   */
+  store?: typeof defaultStore;
+
+  /**
+   * Optional root element for parsing islands (for testing)
+   */
+  root?: Document | Element;
+
+  /**
+   * Whether to auto-start sessions on worker ready (default: true)
+   */
+  autoStartSessions?: boolean;
+}
+
+/**
+ * Bridge between the browser and Pyodide worker for islands mode.
+ *
+ * This class manages communication with a Web Worker that runs Python code
+ * via Pyodide, enabling interactive marimo islands.
+ *
+ * @example
+ * ```ts
+ * const bridge = new IslandsPyodideBridge();
+ * await bridge.initialized;
+ * bridge.consumeMessages(message => console.log(message));
+ * ```
+ */
+export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private messageConsumer:
     | ((message: JsonString<NotificationPayload>) => void)
     | undefined;
+  private readonly store: typeof defaultStore;
+  private readonly root: Document | Element;
+  private readonly autoStartSessions: boolean;
 
   public initialized = new Deferred<void>();
 
-  private constructor() {
-    // TODO: abstract out into a worker constructor
+  constructor(config: IslandsBridgeConfig = {}) {
+    this.store = config.store || defaultStore;
+    this.root = config.root || document;
+    this.autoStartSessions = config.autoStartSessions ?? true;
 
-    // . in front of workerUrl is necessary to make it a relative import
-    const url = import.meta.env.DEV
-      ? workerUrl
-      : makeRelativeWorkerUrl(workerUrl);
-    const js = `import ${JSON.stringify(new URL(url, import.meta.url))}`;
-    const blob = new Blob([js], { type: "application/javascript" });
-    const objURL = URL.createObjectURL(blob);
-    const worker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      objURL,
-      {
-        type: "module",
-        // Pass the version to the worker
-        /* @vite-ignore */
-        name: getMarimoVersion(),
+    try {
+      const factory = config.workerFactory || new DefaultWorkerFactory();
+      const worker = factory.create();
+      this.rpc = getWorkerRPC<WorkerSchema>(worker);
+      this.setupMessageListeners();
+    } catch (error) {
+      Logger.error("Failed to initialize IslandsPyodideBridge:", error);
+      this.initialized.reject(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sets up message listeners for worker communication
+   */
+  private setupMessageListeners(): void {
+    this.rpc.addMessageListener("ready", () => {
+      if (this.autoStartSessions) {
+        this.startSessionsForAllApps();
+      }
+    });
+
+    this.rpc.addMessageListener("initialized", () => {
+      this.store.set(islandsInitializedAtom, true);
+      this.initialized.resolve();
+    });
+
+    this.rpc.addMessageListener(
+      "initializedError",
+      ({ error }: { error: string }) => {
+        Logger.error("Islands initialization error:", error);
+        this.store.set(islandsInitializedAtom, error);
+        this.initialized.reject(new Error(error));
       },
     );
 
-    worker.addEventListener("error", (e) => {
-      // Fallback to cleaning up created object URL
-      URL.revokeObjectURL(objURL);
-    });
-
-    // Create the RPC
-    this.rpc = getWorkerRPC<WorkerSchema>(worker);
-
-    // Listeners
-    const apps = parseMarimoIslandApps();
-    this.rpc.addMessageListener("ready", () => {
-      for (const app of apps) {
-        Logger.debug("Starting session for app", app.id);
-        const file = createMarimoFile(app);
-        Logger.debug(file);
-        this.startSession({
-          code: file,
-          appId: app.id,
-        });
-      }
-    });
-    this.rpc.addMessageListener("initialized", () => {
-      store.set(islandsInitializedAtom, true);
-      this.initialized.resolve();
-    });
-    this.rpc.addMessageListener("initializedError", ({ error }) => {
-      store.set(islandsInitializedAtom, error);
-      this.initialized.reject(new Error(error));
-    });
-    this.rpc.addMessageListener("kernelMessage", ({ message }) => {
-      this.messageConsumer?.(message);
-    });
+    this.rpc.addMessageListener(
+      "kernelMessage",
+      ({ message }: { message: JsonString<NotificationPayload> }) => {
+        this.messageConsumer?.(message);
+      },
+    );
   }
 
-  async startSession(opts: { code: string; appId: string }) {
+  /**
+   * Starts sessions for all apps found in the DOM
+   */
+  private startSessionsForAllApps(): void {
+    const apps = parseMarimoIslandApps(this.root);
+    Logger.debug(
+      `Starting sessions for ${apps.length} app(s):`,
+      apps.map((a) => `${a.id} (${a.cells.length} cells)`),
+    );
+    for (const app of apps) {
+      const file = createMarimoFile(app);
+      Logger.debug(`App ${app.id} marimo file:\n`, file);
+      this.startSession({
+        code: file,
+        appId: app.id,
+      }).catch((error) => {
+        Logger.error(`Failed to start session for app ${app.id}:`, error);
+      });
+    }
+  }
+
+  /**
+   * Starts a new Python session for an app
+   */
+  async startSession(opts: { code: string; appId: string }): Promise<void> {
     await this.rpc.proxy.request.startSession(opts);
   }
 
+  /**
+   * Sets up a consumer for kernel messages
+   */
   consumeMessages(
     consumer: (message: JsonString<NotificationPayload>) => void,
-  ) {
+  ): void {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
   }
+
+  // ============================================================================
+  // RunRequests Implementation
+  // ============================================================================
 
   sendComponentValues: RunRequests["sendComponentValues"] = async (
     request,
@@ -113,9 +167,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendInstantiate: RunRequests["sendInstantiate"] = async (
-    request,
-  ): Promise<null> => {
+  sendInstantiate: RunRequests["sendInstantiate"] = async (): Promise<null> => {
     return null;
   };
 
@@ -129,6 +181,18 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+    await this.putControlRequest({
+      type: "model",
+      ...request,
+    });
+    return null;
+  };
+
+  // ============================================================================
+  // EditRequests Implementation
+  // ============================================================================
+
   sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
     await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
     await this.putControlRequest({
@@ -138,13 +202,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
-    await this.putControlRequest({
-      type: "model",
-      ...request,
-    });
-    return null;
-  };
+  // ============================================================================
+  // Not Implemented (Read-Only Mode)
+  // ============================================================================
 
   getUsageStats = throwNotImplemented;
   sendRename = throwNotImplemented;
@@ -207,18 +267,37 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
   // The kernel uses msgspec to parse control requests, which requires a 'type'
   // field for discriminated union deserialization.
-  private async putControlRequest(operation: CommandMessage) {
+  private async putControlRequest(operation: CommandMessage): Promise<void> {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
     });
   }
+
+  /**
+   * Cleans up resources (for testing)
+   */
+  destroy(): void {
+    // Future: terminate worker if we own it
+  }
 }
 
-function makeRelativeWorkerUrl(url: string) {
-  return url.startsWith("./")
-    ? url
-    : url.startsWith("/")
-      ? `.${url}`
-      : `./${url}`;
+/**
+ * Global singleton instance.
+ * Use `new IslandsPyodideBridge(config)` in tests for better isolation.
+ */
+let globalBridgeInstance: IslandsPyodideBridge | null = null;
+
+export function getGlobalBridge(): IslandsPyodideBridge {
+  if (!globalBridgeInstance) {
+    globalBridgeInstance = new IslandsPyodideBridge();
+  }
+  return globalBridgeInstance;
+}
+
+/**
+ * Resets the global bridge instance (for testing)
+ */
+export function resetGlobalBridge(): void {
+  globalBridgeInstance = null;
 }
