@@ -44,7 +44,7 @@ async def test_image_filename(k: Kernel, exec_req: ExecReqProvider) -> None:
     )
 
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -67,7 +67,7 @@ async def test_image_path(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -85,7 +85,7 @@ async def test_image_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -103,7 +103,7 @@ async def test_image_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -135,7 +135,7 @@ async def test_image_array(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 
@@ -154,7 +154,7 @@ async def test_image_numpy(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".png")
 
 

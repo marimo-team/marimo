@@ -84,6 +84,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from types import TracebackType
 
+    from typing_extensions import Self
+
     from marimo._ast.cell_manager import CellManager
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
@@ -591,7 +593,7 @@ class AsyncCodeModeContext:
     # Async context manager
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> AsyncCodeModeContext:
+    async def __aenter__(self) -> Self:
         self._ops = []
         self._pending_adds = {}
         self._packages_to_install = []

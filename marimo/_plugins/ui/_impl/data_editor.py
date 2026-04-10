@@ -450,7 +450,7 @@ def _apply_positional_edit_row_oriented(
     """Apply a positional edit to row-oriented data."""
     if edit["rowIdx"] >= len(data):
         # Create a new row with None values for all columns
-        new_row = {col: None for col in data[0].keys()}
+        new_row = {col: None for col in data[0]}
         data.append(new_row)
     original_value = data[0][edit["columnId"]] if data else None
     dtype = schema.get(edit["columnId"]) if schema else None
@@ -616,7 +616,7 @@ def _apply_column_edit_row_oriented(
 
         for row in data:
             new_row = {}
-            for key in row.keys():
+            for key in row:
                 if key == column_name:
                     new_row[new_column_name] = row[key]
                 else:

@@ -103,7 +103,7 @@ def _process_image_to_url(src: ImageLike) -> str:
         src = _normalize_image(src)
 
         # different types handling
-        if isinstance(src, io.BufferedReader) or isinstance(src, io.BytesIO):
+        if isinstance(src, (io.BufferedReader, io.BytesIO)):
             src.seek(0)
             return mo_data.image(src.read()).url
         elif isinstance(src, bytes):

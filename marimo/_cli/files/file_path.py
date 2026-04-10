@@ -29,9 +29,7 @@ def is_github_src(url: str, ext: str) -> bool:
     if hostname != "github.com" and hostname != "raw.githubusercontent.com":
         return False
     path: str = urllib.parse.urlparse(url).path
-    if not path.endswith(ext):
-        return False
-    return True
+    return path.endswith(ext)
 
 
 def get_github_src_url(url: str) -> str:
@@ -46,12 +44,7 @@ def is_gist_src(url: str) -> bool:
         return False
 
     hostname = urllib.parse.urlparse(url).hostname
-    if (
-        hostname != "gist.github.com"
-        and hostname != "gist.githubusercontent.com"
-    ):
-        return False
-    return True
+    return hostname in ("gist.github.com", "gist.githubusercontent.com")
 
 
 def get_gist_src_url(url: str) -> str:
@@ -277,11 +270,11 @@ class FileContentReader:
         Args:
             name (str): File path or URL
 
-        Raises:
-            ValueError: If the file cannot be read
-
         Returns:
             Tuple[str, str]: File content and filename
+
+        Raises:
+            ValueError: If the file cannot be read
         """
         for reader in self.readers:
             if reader.can_read(name):
@@ -422,11 +415,11 @@ def validate_name(
         allow_new_file (bool): Whether to allow creating a new file
         allow_directory (bool): Whether to allow a directory
 
-    Raises:
-        ValueError: If the file name is invalid
-
     Returns:
         Path to the file and temporary directory
+
+    Raises:
+        ValueError: If the file name is invalid
     """
     from marimo._cli.files.cloudflare import R2FileHandler
 

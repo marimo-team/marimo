@@ -89,7 +89,7 @@ class run_button(UIElement[Any, Any]):
         )
 
     def _convert_value(self, value: Any) -> Any:
-        if value == 0:
+        if value == 0:  # noqa: SIM103
             # frontend's value == 0 only during initialization; first value
             # frontend will send is 1
             return False

@@ -35,10 +35,7 @@ def _is_api_request(request: Request) -> bool:
 
     # Check Accept header for application/json (case-insensitive)
     accept = request.headers.get("accept", "")
-    if "application/json" in accept.lower():
-        return True
-
-    return False
+    return "application/json" in accept.lower()
 
 
 # Convert exceptions to JSON responses

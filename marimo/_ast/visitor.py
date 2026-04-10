@@ -248,11 +248,11 @@ class ScopedVisitor(ast.NodeVisitor):
         # so marking it as a deleted ref is in practice a big deal. For 100%
         # correctness we would prune unbound locals from refs, not here but
         # when variables added as defs and refs.
-        return set(
+        return {
             name
             for name in self._refs
             if any(ref.deleted for ref in self._refs[name])
-        )
+        }
 
     def _if_local_then_mangle(
         self, name: str, ignore_scope: bool = False

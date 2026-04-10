@@ -302,7 +302,7 @@ class file_browser(
 
         # Sort based on natural sort (alpha, then num)
         all_file_paths = sorted(
-            list(path.iterdir()), key=lambda f: natural_sort(f.name)
+            path.iterdir(), key=lambda f: natural_sort(f.name)
         )
         is_truncated = False
 

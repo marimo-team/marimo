@@ -79,9 +79,7 @@ def module_exists_in_site_packages(module_name: str) -> bool:
             for entry in os.listdir(site_dir):
                 module = entry.split("-", 1)[0]
                 if module == module_name and (
-                    entry.endswith(".egg-info")
-                    or entry.endswith(".dist-info")
-                    or entry.endswith(".egg")
+                    entry.endswith((".egg-info", ".dist-info", ".egg"))
                 ):
                     return True
 
@@ -105,9 +103,7 @@ def has_local_conflict(module_name: str, directory: str) -> bool:
 
     # Check for local package directory
     local_pkg = os.path.join(directory, module_name)
-    if os.path.isdir(local_pkg) and os.path.isfile(
-        os.path.join(local_pkg, "__init__.py")
-    ):
-        return True
-
-    return False
+    return bool(
+        os.path.isdir(local_pkg)
+        and os.path.isfile(os.path.join(local_pkg, "__init__.py"))
+    )

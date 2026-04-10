@@ -6,11 +6,15 @@ import weakref
 from collections.abc import Callable
 from copy import copy
 from typing import (
+    TYPE_CHECKING,
     Any,
     Generic,
     TypeVar,
     cast,
 )
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 T = TypeVar("T")
 Ref = weakref.ReferenceType[T] | Callable[[], T]
@@ -74,22 +78,20 @@ def shadow_wrap(ref_cls: type[_Copy[T]], base: T) -> T:
 
     # Apply attributes as slots reflection, but remove the attributes that are
     # set explicitly by the wrapper class (or not allowed like __dict__).
-    slots = set(dir(base)) - set(
-        [
-            "__new__",
-            "__setattr__",
-            "__setitem__",
-            "__doc__",
-            "__class__",
-            "__dict__",
-            "__module__",
-            "__slots__",
-            "__dir__",
-            "__init__",
-            "__weakref__",
-            "__ref__",
-        ]
-    )
+    slots = set(dir(base)) - {
+        "__new__",
+        "__setattr__",
+        "__setitem__",
+        "__doc__",
+        "__class__",
+        "__dict__",
+        "__module__",
+        "__slots__",
+        "__dir__",
+        "__init__",
+        "__weakref__",
+        "__ref__",
+    }
     # pointer off the class to lock attributes / items.
     _fixed = [False]
 
@@ -118,7 +120,7 @@ def shadow_wrap(ref_cls: type[_Copy[T]], base: T) -> T:
         def __setitem__(self, name: str, value: Any) -> None:
             _ro_fail()
 
-        def __new__(cls) -> ReadOnly_try_marimo_unwrap_copy:
+        def __new__(cls) -> Self:
             instance = ref_cls.__new__(cls)
             for n, m in inspect.getmembers(base):
                 if n != "__weakref__":

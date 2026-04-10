@@ -389,7 +389,7 @@ if __name__ == "__main__":
 
     # Initialize AppFileManager with the temp file
     manager = AppFileManager(filename=str(temp_file))
-    original_code = list(manager.app.cell_manager.codes())[0]
+    original_code = next(iter(manager.app.cell_manager.codes()))
     assert "x = 1" in original_code
 
     # Modify the file content
@@ -412,7 +412,7 @@ if __name__ == "__main__":
     changed_cell_ids = manager.reload()
 
     # Check that the code was updated
-    reloaded_code = list(manager.app.cell_manager.codes())[0]
+    reloaded_code = next(iter(manager.app.cell_manager.codes()))
     assert "x = 42" in reloaded_code
     assert "x = 1" not in reloaded_code
     assert changed_cell_ids == {"Hbol"}

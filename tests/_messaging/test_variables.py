@@ -76,7 +76,7 @@ def test_get_variable_preview() -> None:
     assert get_variable_preview([]) == "[]"
     assert get_variable_preview({}) == "{}"
     assert get_variable_preview(set()) == "{}"
-    assert get_variable_preview(tuple()) == "()"
+    assert get_variable_preview(()) == "()"
 
     # Test single-element containers
     assert get_variable_preview([1]) == "[1]"
