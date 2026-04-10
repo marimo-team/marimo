@@ -172,6 +172,21 @@ def test_markdown_just_frontmatter() -> None:
     assert app.cell_manager.cell_data_at(ids[0]).code == ""
 
 
+def test_non_dict_frontmatter_does_not_crash() -> None:
+    """Non-dict YAML frontmatter (e.g. a list) should be ignored, not crash."""
+    from marimo._convert.markdown.to_ir import extract_frontmatter
+
+    # YAML list — was raising AssertionError before the fix
+    meta, body = extract_frontmatter("---\n- one\n- two\n---\n\nhello\n")
+    assert meta == {}
+    assert body == "hello\n"
+
+    # YAML scalar — also non-dict
+    meta, body = extract_frontmatter("---\njust a string\n---\n\nbody\n")
+    assert meta == {}
+    assert body == "body\n"
+
+
 def test_markdown_frontmatter_metadata_roundtrip() -> None:
     """Frontmatter metadata should survive md -> IR -> md roundtrip."""
     script = dedent(

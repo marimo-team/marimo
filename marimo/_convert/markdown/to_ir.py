@@ -533,7 +533,7 @@ def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
         try:
             return yaml.load(yaml_content), body
         # If there's an error in parsing YAML, ignore the meta and proceed.
-        except yaml.YAMLError:
+        except (yaml.YAMLError, AssertionError):
             LOGGER.warning(
                 "Error parsing frontmatter YAML. Ignoring frontmatter."
             )
