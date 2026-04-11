@@ -63,7 +63,7 @@ class FullFormatter(DiagnosticFormatter):
 
         context_lines = []
         previous_line = -1
-        for line, column in zip(lines, columns):
+        for line, column in zip(lines, columns, strict=False):
             line += 1  # Convert to 1-based index
             # Show context: 1 line above, current line, 1 line below
             start_line = max(1, line - 1)

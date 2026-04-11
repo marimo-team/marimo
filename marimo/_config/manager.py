@@ -5,7 +5,7 @@ import os
 from abc import abstractmethod
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -45,7 +45,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def get_default_config_manager(
-    *, current_path: Optional[str]
+    *, current_path: str | None
 ) -> MarimoConfigManager:
     """
     Get the default config manager
@@ -72,7 +72,6 @@ class MarimoConfigReader:
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, optionally hiding secrets"""
-        pass
 
     # Convenience methods for common access patterns
 
@@ -157,7 +156,7 @@ class MarimoConfigManager(MarimoConfigReader):
         )
 
     def save_config(
-        self, config: Union[MarimoConfig, PartialMarimoConfig]
+        self, config: MarimoConfig | PartialMarimoConfig
     ) -> MarimoConfig:
         """Save the configuration"""
         return self.user_config_mgr.save_config(config)
@@ -178,7 +177,6 @@ class PartialMarimoConfigReader:
     @abstractmethod
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""
-        pass
 
 
 class ProjectConfigManager(PartialMarimoConfigReader):
@@ -312,7 +310,7 @@ class EnvConfigManager(PartialMarimoConfigReader):
     ) -> None:
         loaded_value = env_to_value(key)
         if not isinstance(loaded_value, tuple):
-            return None
+            return
         value = loaded_value[0]
 
         current = cast(dict[str, Any], config)
@@ -321,7 +319,7 @@ class EnvConfigManager(PartialMarimoConfigReader):
                 current[p] = {}
             current = current[p]
         current[path[-1]] = value
-        return None
+        return
 
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""
@@ -345,7 +343,7 @@ class ScriptConfigManager(PartialMarimoConfigReader):
     of the script.
     """
 
-    def __init__(self, filename: Optional[str]) -> None:
+    def __init__(self, filename: str | None) -> None:
         self.filename = filename
 
     # It is safe to cache this config, as we only read from the script
@@ -391,7 +389,7 @@ class UserConfigManager(MarimoConfigReader):
     """Read and write the user configuration"""
 
     def save_config(
-        self, config: Union[MarimoConfig, PartialMarimoConfig]
+        self, config: MarimoConfig | PartialMarimoConfig
     ) -> MarimoConfig:
         import tomlkit
 

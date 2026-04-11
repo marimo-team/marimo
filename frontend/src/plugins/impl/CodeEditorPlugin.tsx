@@ -4,7 +4,6 @@ import { EditorView } from "@codemirror/view";
 import { type JSX, useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import type { IPlugin, IPluginProps, Setter } from "../types";
@@ -98,22 +97,20 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   }, [props.debounce, onBlur]);
 
   return (
-    <TooltipProvider>
-      <Labeled label={props.label} align="top" fullWidth={true}>
-        <LazyAnyLanguageCodeMirror
-          className={`cm *:outline-hidden border rounded overflow-hidden ${finalTheme}`}
-          theme={finalTheme === "dark" ? "dark" : "light"}
-          minHeight={minHeight}
-          maxHeight={maxHeight}
-          placeholder={props.placeholder}
-          editable={!props.disabled}
-          value={localValue}
-          language={props.language}
-          onChange={handleChange}
-          showCopyButton={props.showCopyButton}
-          extensions={extensions}
-        />
-      </Labeled>
-    </TooltipProvider>
+    <Labeled label={props.label} align="top" fullWidth={true}>
+      <LazyAnyLanguageCodeMirror
+        className={`cm *:outline-hidden border rounded overflow-hidden ${finalTheme}`}
+        theme={finalTheme === "dark" ? "dark" : "light"}
+        minHeight={minHeight}
+        maxHeight={maxHeight}
+        placeholder={props.placeholder}
+        editable={!props.disabled}
+        value={localValue}
+        language={props.language}
+        onChange={handleChange}
+        showCopyButton={props.showCopyButton}
+        extensions={extensions}
+      />
+    </Labeled>
   );
 };

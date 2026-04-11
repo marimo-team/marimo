@@ -1,19 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, Union
-
 
 class _HTMLBuilder:
     @staticmethod
-    def div(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def div(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -27,11 +23,11 @@ class _HTMLBuilder:
     @staticmethod
     def img(
         *,
-        src: Optional[str] = None,
-        alt: Optional[str] = None,
-        style: Optional[str] = None,
+        src: str | None = None,
+        alt: str | None = None,
+        style: str | None = None,
     ) -> str:
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if src:
             params.append(("src", src))
         if alt:
@@ -47,14 +43,14 @@ class _HTMLBuilder:
     @staticmethod
     def video(
         *,
-        src: Optional[str] = None,
+        src: str | None = None,
         controls: bool = True,
         muted: bool = False,
         autoplay: bool = False,
         loop: bool = False,
-        style: Optional[str] = None,
+        style: str | None = None,
     ) -> str:
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if src:
             params.append(("src", src))
         if controls:
@@ -76,10 +72,10 @@ class _HTMLBuilder:
     @staticmethod
     def audio(
         *,
-        src: Optional[str] = None,
+        src: str | None = None,
         controls: bool = True,
     ) -> str:
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if src:
             params.append(("src", src))
         if controls:
@@ -93,17 +89,17 @@ class _HTMLBuilder:
     @staticmethod
     def iframe(
         *,
-        src: Optional[str] = None,
-        srcdoc: Optional[str] = None,
-        width: Optional[str] = None,
-        height: Optional[str] = None,
-        style: Optional[str] = None,
-        onload: Optional[str] = None,
+        src: str | None = None,
+        srcdoc: str | None = None,
+        width: str | None = None,
+        height: str | None = None,
+        style: str | None = None,
+        onload: str | None = None,
         # Opinionated defaults
-        frameborder: Optional[str] = "0",
+        frameborder: str | None = "0",
         **kwargs: str,
     ) -> str:
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if src:
             params.append(("src", src))
         if srcdoc:
@@ -129,10 +125,10 @@ class _HTMLBuilder:
     @staticmethod
     def pre(
         child: str,
-        style: Optional[str] = None,
-        class_: Optional[str] = None,
+        style: str | None = None,
+        class_: str | None = None,
     ) -> str:
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style is not None:
             params.append(("style", style))
         if class_ is not None:
@@ -146,7 +142,7 @@ class _HTMLBuilder:
     @staticmethod
     def component(
         component_name: str,
-        params: list[tuple[str, Union[str, None]]],
+        params: list[tuple[str, str | None]],
     ) -> str:
         if len(params) == 0:
             return f"<{component_name}></{component_name}>"
@@ -156,14 +152,12 @@ class _HTMLBuilder:
             )
 
     @staticmethod
-    def figure(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def figure(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -176,13 +170,13 @@ class _HTMLBuilder:
 
     @staticmethod
     def figcaption(
-        children: Union[str, list[str]], *, style: Optional[str] = None
+        children: str | list[str], *, style: str | None = None
     ) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -194,14 +188,12 @@ class _HTMLBuilder:
             return f"<figcaption {_join_params(params)}>{children_html}</figcaption>"
 
     @staticmethod
-    def h3(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def h3(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -213,14 +205,12 @@ class _HTMLBuilder:
             return f"<h3 {_join_params(params)}>{children_html}</h3>"
 
     @staticmethod
-    def span(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def span(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -232,14 +222,12 @@ class _HTMLBuilder:
             return f"<span {_join_params(params)}>{children_html}</span>"
 
     @staticmethod
-    def table(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def table(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -251,14 +239,12 @@ class _HTMLBuilder:
             return f"<table {_join_params(params)}>{children_html}</table>"
 
     @staticmethod
-    def tbody(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def tbody(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -270,14 +256,12 @@ class _HTMLBuilder:
             return f"<tbody {_join_params(params)}>{children_html}</tbody>"
 
     @staticmethod
-    def tr(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def tr(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -289,14 +273,12 @@ class _HTMLBuilder:
             return f"<tr {_join_params(params)}>{children_html}</tr>"
 
     @staticmethod
-    def td(
-        children: Union[str, list[str]], *, style: Optional[str] = None
-    ) -> str:
+    def td(children: str | list[str], *, style: str | None = None) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
         )
 
-        params: list[tuple[str, Union[str, None]]] = []
+        params: list[tuple[str, str | None]] = []
         if style:
             params.append(("style", style))
 
@@ -308,7 +290,7 @@ class _HTMLBuilder:
             return f"<td {_join_params(params)}>{children_html}</td>"
 
 
-def _join_params(params: list[tuple[str, Union[str, None]]]) -> str:
+def _join_params(params: list[tuple[str, str | None]]) -> str:
     # Filter None
     params = [(k, v) for k, v in params if v is not None]
 

@@ -133,6 +133,8 @@ For general questions about marimo, see our [FAQ](faq.md) or join us on [Discord
 <ul>
   <li><strong><a href="https://github.com/marimo-team/marimo/security/advisories/GHSA-xjv7-6w92-42r7">[GHSA-xjv7-6w92-42r7]</a></strong>: Unauthenticated proxy vulnerability in matplotlib endpoint. The <code>/mpl/[port]/[route]</code> endpoint allowed external attackers to reach internal services. Affected versions 0.9.20 through 0.16.3. Fixed in 0.16.4. </li>
 
+  <li><strong><a href="https://github.com/marimo-team/marimo/security/advisories/GHSA-2679-6mx9-h9xc">[GHSA-2679-6mx9-h9xc]</a></strong>: Remote code execution via unauthenticated terminal access in edit mode. The terminal panel did not require authentication, allowing unauthenticated users to execute arbitrary commands on instances of <code>marimo edit</code> exposed to the internet. <strong>Run mode (<code>marimo run</code>) is not affected.</strong> Affected versions 0.7.10 through 0.22.x. Fixed in 0.23.0. See <a href="https://links.marimo.app/cwe-306-terminal-ws-auth-bypass">our advisory</a> for more information.</li>
+
   <li><strong>[molab-0]</strong>: iframe sandbox escape via markdown render. In molab, an attacker could exploit a vulnerability in the iframe sandboxing to escape the iframe and execute code in the parent context. Fixed in molab deployment on 2025-10-19.</li>
 </ul>
 

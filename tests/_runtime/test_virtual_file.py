@@ -31,7 +31,7 @@ async def test_virtual_file_creation(
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".pdf")
 
 
@@ -52,7 +52,7 @@ async def test_virtual_file_deletion(
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    for fname in get_context().virtual_file_registry.registry.keys():
+    for fname in get_context().virtual_file_registry.registry:
         assert fname.endswith(".pdf")
 
     await k.delete_cell(DeleteCellCommand(cell_id=er.cell_id))
@@ -161,7 +161,7 @@ async def test_vfile_refcount_incremented(
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 1
-    vfile = list(get_context().virtual_file_registry.filenames())[0]
+    vfile = next(iter(get_context().virtual_file_registry.filenames()))
 
     #   1 reference for the cached `mo.pdf`
     # + 1 reference for the markdown
@@ -197,7 +197,7 @@ async def test_vfile_refcount_decremented(
     )
     ctx = get_context()
     assert len(ctx.virtual_file_registry.registry) == 1
-    vfile = list(ctx.virtual_file_registry.filenames())[0]
+    vfile = next(iter(ctx.virtual_file_registry.filenames()))
 
     # 0 references because HTML not bound to a variable
     # NB: this test may be flaky! refcount decremented when `__del__` is called
@@ -248,7 +248,7 @@ async def test_cached_vfile_disposal(
     )
     ctx = get_context()
     assert len(ctx.virtual_file_registry.registry) == 1
-    vfile = list(ctx.virtual_file_registry.filenames())[0]
+    vfile = next(iter(ctx.virtual_file_registry.filenames()))
 
     # 1 reference, in the list
     assert ctx.virtual_file_registry.refcount(vfile) == 1

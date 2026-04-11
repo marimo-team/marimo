@@ -8,9 +8,9 @@ from marimo._runtime.watch._path import PathState
 # marimo/_server/sessions.py captures notebook level changes.
 
 __all__ = [
-    "file",
-    "directory",
-    "FileState",
     "DirectoryState",
+    "FileState",
     "PathState",
+    "directory",
+    "file",
 ]

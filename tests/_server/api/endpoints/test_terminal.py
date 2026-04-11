@@ -24,6 +24,8 @@ from marimo._server.session_manager import SessionManager
 from marimo._session.model import SessionMode
 from tests._server.mocks import get_session_manager
 
+TERMINAL_WS_URL = "/terminal/ws?access_token=fake-token"
+
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
@@ -33,7 +35,7 @@ is_mac = sys.platform == "darwin"
 
 @pytest.mark.skipif(is_windows, reason="Skip on Windows")
 def test_terminal_ws(client: TestClient) -> None:
-    with client.websocket_connect("/terminal/ws") as websocket:
+    with client.websocket_connect(TERMINAL_WS_URL) as websocket:
         # Send echo message
         websocket.send_text("echo hello")
         data = websocket.receive_text()
@@ -44,9 +46,25 @@ def test_terminal_ws_not_allowed_in_run(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
     with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect("/terminal/ws") as websocket:
+        with client.websocket_connect(TERMINAL_WS_URL) as websocket:
             websocket.send_text("echo hello")
     session_manager.mode = SessionMode.EDIT
+
+
+def test_terminal_ws_unauthorized(client: TestClient) -> None:
+    """Test terminal websocket rejects unauthenticated connections."""
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/terminal/ws"):
+            pass
+    assert exc_info.value.code == 3000
+
+
+def test_terminal_ws_wrong_token(client: TestClient) -> None:
+    """Test terminal websocket rejects wrong token."""
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/terminal/ws?access_token=wrong-token"):
+            pass
+    assert exc_info.value.code == 3000
 
 
 # Unit tests for terminal utility functions
@@ -404,7 +422,7 @@ class TestCommandBufferEdgeCases:
 @pytest.mark.skipif(is_windows, reason="Skip on Windows")
 def test_terminal_ws_unicode_input(client: TestClient) -> None:
     """Test terminal websocket with unicode input."""
-    with client.websocket_connect("/terminal/ws") as websocket:
+    with client.websocket_connect(TERMINAL_WS_URL) as websocket:
         # Send unicode command
         websocket.send_text("echo 'Hello 🌍'")
         websocket.send_text("\r")
@@ -423,7 +441,7 @@ def test_terminal_ws_invalid_session_mode(client: TestClient) -> None:
         # Test with RUN mode
         session_manager.mode = SessionMode.RUN
         with pytest.raises(WebSocketDisconnect):
-            with client.websocket_connect("/terminal/ws"):
+            with client.websocket_connect(TERMINAL_WS_URL):
                 pass  # Should fail immediately
 
     finally:

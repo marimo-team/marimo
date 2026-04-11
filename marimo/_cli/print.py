@@ -168,7 +168,7 @@ def echo(*args: Any, **kwargs: Any) -> None:
         return
 
     try:
-        _echo_or_print(*args, **kwargs)  # noqa: T201
+        _echo_or_print(*args, **kwargs)
     except UnicodeEncodeError:
         # Handle non-UTF-8 terminals (such as CP-1252, Windows) by replacing
         # common Unicode characters with ASCII equivalents for non-UTF-8

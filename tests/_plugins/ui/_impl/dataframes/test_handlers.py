@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -56,8 +56,8 @@ def apply(df: DataFrameType, transform: Transform) -> DataFrameType:
 def create_test_dataframes(
     data: dict[str, list[Any]],
     *,
-    include: Optional[list[str]] = None,
-    exclude: Optional[list[str]] = None,
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
     strict: bool = True,
 ) -> list[DataFrameType]:
     """Create test dataframes including ibis if available."""
@@ -112,7 +112,9 @@ def assert_frame_equal_with_nans(
         assert len(values_a) == len(values_b), (
             f"Length mismatch in column {col}"
         )
-        for idx, (val_a, val_b) in enumerate(zip(values_a, values_b)):
+        for idx, (val_a, val_b) in enumerate(
+            zip(values_a, values_b, strict=False)
+        ):
             both_nan = (
                 isinstance(val_a, float)
                 and isinstance(val_b, float)
@@ -157,6 +159,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": ["1", "2", "3"]}),
                 create_test_dataframes({"A": [1, 2, 3]}),
+                strict=False,
             )
         ),
     )
@@ -179,6 +182,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1.1, 2.2, 3.3]}),
                 create_test_dataframes({"A": ["1.1", "2.2", "3.3"]}),
+                strict=False,
             )
         ),
     )
@@ -204,6 +208,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": ["1", "2", "3", "a"]}),
                 create_test_dataframes({"A": [1, 2, 3, None]}),
+                strict=False,
             )
         ),
     )
@@ -226,6 +231,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3]}),
                 create_test_dataframes({"B": [1, 2, 3]}),
+                strict=False,
             )
         ),
     )
@@ -246,6 +252,7 @@ class TestTransformHandler:
                 create_test_dataframes({"A": [3, 1, 2]}),
                 create_test_dataframes({"A": [1, 2, 3]}),
                 create_test_dataframes({"A": [3, 2, 1]}),
+                strict=False,
             )
         ),
     )
@@ -279,6 +286,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3]}),
                 create_test_dataframes({"A": [2, 3]}),
+                strict=False,
             )
         ),
     )
@@ -318,6 +326,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [2], "B": [5]}),
+                strict=False,
             )
         ),
     )
@@ -339,6 +348,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3, 4, 5]}),
                 create_test_dataframes({"A": [1, 2, 3]}),
+                strict=False,
             )
         ),
     )
@@ -360,6 +370,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3]}),
                 create_test_dataframes({"A": [1, 3]}),
+                strict=False,
             )
         ),
     )
@@ -381,6 +392,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [2, 3], "B": [5, 6]}),
+                strict=False,
             )
         ),
     )
@@ -402,6 +414,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [3], "B": [6]}),
+                strict=False,
             )
         ),
     )
@@ -428,6 +441,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"date": [date(2001, 1, 1)]}, exclude=["pandas"]
                 ),
+                strict=False,
             )
         ),
     )
@@ -453,6 +467,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [1, 2], "B": [4, 5]}),
+                strict=False,
             )
         ),
     )
@@ -479,6 +494,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"date": [date(2001, 1, 1)]}, exclude=["polars"]
                 ),
+                strict=False,
             ),
         ],
     )
@@ -512,6 +528,7 @@ class TestTransformHandler:
                     {"A": [Decimal("1.99"), Decimal("3.25")]},
                     exclude=["pandas"],
                 ),
+                strict=False,
             )
         ),
     )
@@ -551,6 +568,7 @@ class TestTransformHandler:
                     {"A": [Decimal("0.10")]},
                     exclude=["pandas"],
                 ),
+                strict=False,
             )
         ),
     )
@@ -751,6 +769,7 @@ class TestTransformHandler:
                     {"A": [[1, 2], [3, 4]]}, exclude=["pyarrow"]
                 ),
                 create_test_dataframes({"A": [[1, 2]]}, exclude=["pyarrow"]),
+                strict=False,
             )
         ),
     )
@@ -777,6 +796,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"A": [{"a": 1, "b": 2}]}, exclude=["ibis", "pyarrow"]
                 ),
+                strict=False,
             )
         ),
     )
@@ -809,6 +829,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"A": [{"a": 1, "b": None}]},
                 ),
+                strict=False,
             )
         ),
     )
@@ -838,6 +859,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"A": [None], "B": [6]}, exclude=["pandas"]
                 ),
+                strict=False,
             ),
         ],
     )
@@ -859,6 +881,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [3], "B": [6]}),
+                strict=False,
             )
         ),
     )
@@ -882,6 +905,7 @@ class TestTransformHandler:
                     {"A": ["foo", "bar", "baz"], "B": [1, 2, 3]}
                 ),
                 create_test_dataframes({"A": ["baz"], "B": [3]}),
+                strict=False,
             )
         ),
     )
@@ -910,6 +934,7 @@ class TestTransformHandler:
                     exclude=["ibis"],
                 ),
                 create_test_dataframes({"A": [3], "B": [6]}, exclude=["ibis"]),
+                strict=False,
             ),
         ],
     )
@@ -939,6 +964,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"A": [3, None], "B": [6, 7]}, exclude=["ibis"]
                 ),
+                strict=False,
             ),
         ],
     )
@@ -966,6 +992,7 @@ class TestTransformHandler:
                     {"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}
                 ),
                 create_test_dataframes({"A": [3, 4, 5], "B": [3, 2, 1]}),
+                strict=False,
             )
         ),
     )
@@ -992,6 +1019,7 @@ class TestTransformHandler:
                     {"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}
                 ),
                 create_test_dataframes({"A": [1, 3, 4, 5], "B": [5, 3, 2, 1]}),
+                strict=False,
             )
         ),
     )
@@ -1016,6 +1044,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [True, False, True, False]}),
                 create_test_dataframes({"A": [True, True]}),
+                strict=False,
             )
         ),
     )
@@ -1045,6 +1074,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3]}),
                 [KeyError],
+                strict=False,
             )
         ),
     )
@@ -1070,6 +1100,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {1: [2, 3], 2: [5, 6]}, include=["pandas"]
                 ),
+                strict=False,
             ),
         ],
     )
@@ -1177,12 +1208,14 @@ class TestTransformHandler:
                     {"A": ["foo", "foo", "bar"], "B": [1, 2, 4]}
                 ),
                 create_test_dataframes({"A": ["foo", "bar"], "B_sum": [3, 4]}),
+                strict=False,
             ),
             *zip(
                 create_test_dataframes(
                     {"A": ["foo", "foo", "bar", "bar"], "B": [1, 2, 3, 4]},
                 ),
                 create_test_dataframes({"A": ["foo", "bar"], "B_sum": [3, 7]}),
+                strict=False,
             ),
         ],
     )
@@ -1214,6 +1247,7 @@ class TestTransformHandler:
             *zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A_sum": [6], "B_sum": [15]}),
+                strict=False,
             ),
         ],
     )
@@ -1237,6 +1271,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"A_min": [1], "B_min": [4], "A_max": [3], "B_max": [6]},
                 ),
+                strict=False,
             ),
         ),
     )
@@ -1258,6 +1293,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [1, 2, 3]}),
+                strict=False,
             )
         ),
     )
@@ -1277,6 +1313,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                strict=False,
             )
         ),
     )
@@ -1296,6 +1333,7 @@ class TestTransformHandler:
             zip(
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
                 create_test_dataframes({"A": [2, 3, 1], "B": [5, 6, 4]}),
+                strict=False,
             )
         ),
     )
@@ -1365,6 +1403,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"B": [1], "foo": [1], "bar": ["hello"]}
                 ),
+                strict=False,
             )
         ),
     )
@@ -1411,6 +1450,7 @@ class TestTransformHandler:
                     create_test_dataframes(
                         {"A": ["a", "b", "c"], "B": [1, 3, 5]},
                     ),
+                    strict=False,
                 )
             ],
         ],
@@ -1511,6 +1551,7 @@ class TestTransformHandler:
                         aggregation="sum",
                     )
                 ],
+                strict=False,
             ),
             *zip(
                 create_test_dataframes(
@@ -1568,6 +1609,7 @@ class TestTransformHandler:
                         aggregation="sum",
                     )
                 ],
+                strict=False,
             ),
             *zip(
                 create_test_dataframes(
@@ -1610,6 +1652,7 @@ class TestTransformHandler:
                         aggregation="sum",
                     )
                 ],
+                strict=False,
             ),
             *zip(
                 create_test_dataframes(
@@ -1645,6 +1688,7 @@ class TestTransformHandler:
                         aggregation="sum",
                     )
                 ],
+                strict=False,
             ),
         ],
     )
@@ -1692,6 +1736,7 @@ class TestTransformHandler:
                 create_test_dataframes({"A": [1, 2, 3], "B": [4, 6, 5]}),
                 create_test_dataframes({"A": [3, 2], "B": [5, 6]}),
                 create_test_dataframes({"A": [2], "B": [6]}),
+                strict=False,
             )
         ),
     )
@@ -1855,6 +1900,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"date": [date(2001, 1, 1)]}, exclude=["pyarrow"]
                 ),
+                strict=False,
             )
         ),
     )
@@ -1900,6 +1946,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"nulls": [float("nan")]}, include=["pandas"]
                 ),
+                strict=False,
             )
         ),
     )
@@ -1929,6 +1976,7 @@ class TestTransformHandler:
                     {"nulls": [1, 2, 3, None, "hello"]}, include=["pandas"]
                 ),
                 create_test_dataframes({"nulls": [None]}, include=["pandas"]),
+                strict=False,
             )
         ),
     )
@@ -1962,6 +2010,7 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"nulls": [float("nan")]}, exclude=["pandas", "ibis"]
                 ),
+                strict=False,
             )
         ),
     )
@@ -1992,6 +2041,7 @@ class TestTransformHandler:
                     strict=False,
                 ),
                 create_test_dataframes({"nulls": [float("inf")]}),
+                strict=False,
             )
         ),
     )
@@ -2022,6 +2072,7 @@ class TestTransformHandler:
                     strict=False,
                 ),
                 create_test_dataframes({"nulls": [float("-inf")]}),
+                strict=False,
             )
         ),
     )
@@ -2063,6 +2114,7 @@ class TestTransformHandler:
                     {"nulls": [float("nan"), float("inf"), None]},
                     include=["pandas"],
                 ),
+                strict=False,
             )
         ),
     )
@@ -2105,6 +2157,7 @@ class TestTransformHandler:
                     {"nulls": [float("nan"), float("inf"), None]},
                     exclude=["pandas", "ibis"],
                 ),
+                strict=False,
             )
         ),
     )

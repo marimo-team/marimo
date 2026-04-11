@@ -7,7 +7,7 @@ import json
 import re
 import signal
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -76,6 +76,8 @@ from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
     from marimo._session.notebook.file_manager import AppFileManager

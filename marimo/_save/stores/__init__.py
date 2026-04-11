@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Optional, cast
+from typing import cast
 
 from marimo import _loggers
 from marimo._config.config import CacheConfig, StoreKey
@@ -30,10 +30,10 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 )
 
 
-def get_store(current_path: Optional[str] = None) -> Store:
+def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: Optional[CacheConfig] = (
+    cache_config: CacheConfig | None = (
         get_default_config_manager(current_path=current_path)
         .get_config()
         .get("experimental", {})
@@ -44,7 +44,7 @@ def get_store(current_path: Optional[str] = None) -> Store:
 
 
 def _get_store_from_config(
-    config: Optional[CacheConfig],
+    config: CacheConfig | None,
     registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
     if config is None:
@@ -84,9 +84,9 @@ __all__ = [
     "FileStore",
     "RedisStore",
     "RestStore",
-    "TieredStore",
     "Store",
     "StoreKey",
     "StoreType",
+    "TieredStore",
     "get_store",
 ]

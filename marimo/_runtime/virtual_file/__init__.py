@@ -24,7 +24,7 @@ from marimo._runtime.virtual_file.virtual_file import (
     read_virtual_file_chunked,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Storage
     "VirtualFileStorage",
     "SharedMemoryStorage",

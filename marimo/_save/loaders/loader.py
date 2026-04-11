@@ -5,7 +5,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
@@ -34,7 +34,7 @@ class LoaderError(BaseException):
     """Base exception such that it can be raised as context for other errors."""
 
     def __init__(self, message: str) -> None:
-        self.message = "\n".join([message, INCONSISTENT_CACHE_BOILER_PLATE])
+        self.message = f"{message}\n{INCONSISTENT_CACHE_BOILER_PLATE}"
         super().__init__(message)
 
 
@@ -180,7 +180,7 @@ class Loader(ABC):
         """
 
     @abstractmethod
-    def load_cache(self, key: HashKey) -> Optional[Cache]:
+    def load_cache(self, key: HashKey) -> Cache | None:
         """Load Cache"""
 
     @abstractmethod
@@ -200,7 +200,7 @@ class BasePersistenceLoader(Loader):
         self,
         name: str,
         suffix: str,
-        store: Optional[Store] = None,
+        store: Store | None = None,
     ) -> None:
         super().__init__(name)
 
@@ -229,9 +229,9 @@ class BasePersistenceLoader(Loader):
             return False
         return self.store.put(str(self.build_path(cache.key)), blob)
 
-    def load_cache(self, key: HashKey) -> Optional[Cache]:
+    def load_cache(self, key: HashKey) -> Cache | None:
         try:
-            blob: Optional[bytes] = self.store.get(str(self.build_path(key)))
+            blob: bytes | None = self.store.get(str(self.build_path(key)))
             if not blob:
                 return None
             return self.restore_cache(key, blob)
@@ -260,7 +260,7 @@ class BasePersistenceLoader(Loader):
         """May throw FileNotFoundError"""
 
     @abstractmethod
-    def to_blob(self, cache: Cache) -> Optional[bytes]:
+    def to_blob(self, cache: Cache) -> bytes | None:
         """Convert cache to bytes"""
 
 

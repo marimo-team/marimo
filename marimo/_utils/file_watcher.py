@@ -5,9 +5,8 @@ import asyncio
 import os
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Awaitable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from pathlib import Path
-from typing import Callable, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -67,7 +66,7 @@ class PollingFileWatcher(FileWatcher):
         super().__init__(path, callback)
         self._running = False
         self.loop = loop
-        self.last_modified: Optional[float] = self._get_modified()
+        self.last_modified: float | None = self._get_modified()
         self._missing_count = 0
 
     def start(self) -> None:
@@ -77,7 +76,7 @@ class PollingFileWatcher(FileWatcher):
     def stop(self) -> None:
         self._running = False
 
-    def _get_modified(self) -> Optional[float]:
+    def _get_modified(self) -> float | None:
         try:
             return os.path.getmtime(self.path)
         except FileNotFoundError:
@@ -120,8 +119,8 @@ class PollingFileWatcher(FileWatcher):
 def _create_watchdog(
     path: Path, callback: Callback, loop: asyncio.AbstractEventLoop
 ) -> FileWatcher:
-    import watchdog.events  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    import watchdog.observers  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import watchdog.events  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import watchdog.observers  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
     class WatchdogFileWatcher(FileWatcher):
         def __init__(
@@ -161,7 +160,7 @@ def _create_watchdog(
                 )
 
         def start(self) -> None:
-            event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore # noqa: E501
+            event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore
                 patterns=[str(self.path)]
             )
             event_handler.on_modified = self.on_modified  # type: ignore

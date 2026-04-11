@@ -4,15 +4,12 @@ from __future__ import annotations
 import abc
 import logging
 from asyncio import iscoroutine
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
-    Callable,
-    Optional,
     Protocol,
-    Union,
     cast,
 )
 
@@ -39,7 +36,7 @@ class ASGIAppBuilder(abc.ABC):
         *,
         path: str,
         root: str,
-        middleware: Optional[list[MiddlewareFactory]] = None,
+        middleware: list[MiddlewareFactory] | None = None,
     ) -> ASGIAppBuilder:
         """
         Adds a static application to the ASGI app at the specified path.
@@ -52,7 +49,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
         """
-        pass
 
     @abc.abstractmethod
     def with_dynamic_directory(
@@ -60,8 +56,8 @@ class ASGIAppBuilder(abc.ABC):
         *,
         path: str,
         directory: str,
-        validate_callback: Optional[ValidateCallback] = None,
-        middleware: Optional[list[MiddlewareFactory]] = None,
+        validate_callback: ValidateCallback | None = None,
+        middleware: list[MiddlewareFactory] | None = None,
     ) -> ASGIAppBuilder:
         """
         Adds a dynamic directory to the ASGI app, allowing for dynamic loading of applications from the specified directory.
@@ -80,7 +76,6 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIAppBuilder: The builder instance for chaining.
         """
-        pass
 
     @abc.abstractmethod
     def build(self) -> ASGIApp:
@@ -90,12 +85,9 @@ class ASGIAppBuilder(abc.ABC):
         Returns:
             ASGIApp: The built ASGI application.
         """
-        pass
 
 
-ValidateCallback: TypeAlias = Callable[
-    [str, "Scope"], Union[Awaitable[bool], bool]
-]
+ValidateCallback: TypeAlias = Callable[[str, "Scope"], Awaitable[bool] | bool]
 
 
 class DynamicDirectoryMiddleware:
@@ -105,7 +97,7 @@ class DynamicDirectoryMiddleware:
         base_path: str,
         directory: str,
         app_builder: Callable[[str, str], ASGIApp],
-        validate_callback: Optional[ValidateCallback] = None,
+        validate_callback: ValidateCallback | None = None,
     ) -> None:
         self.app = app
         self.base_path = base_path.rstrip("/")
@@ -145,7 +137,7 @@ class DynamicDirectoryMiddleware:
 
     def _find_matching_file(
         self, relative_path: str
-    ) -> Optional[tuple[Path, str]]:
+    ) -> tuple[Path, str] | None:
         """Find a matching Python file in the directory structure.
         Returns tuple of (matching file, remaining path) if found, None otherwise.
         """
@@ -336,13 +328,13 @@ def create_asgi_app(
     *,
     quiet: bool = False,
     include_code: bool = False,
-    token: Optional[str] = None,
+    token: str | None = None,
     skew_protection: bool = False,
     session_ttl: int = 120,
-    asset_url: Optional[str] = None,
+    asset_url: str | None = None,
     redirect_console_to_browser: bool = False,
     show_tracebacks: bool = False,
-    html_head: Optional[str] = None,
+    html_head: str | None = None,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -440,9 +432,9 @@ def create_asgi_app(
     from starlette.applications import Starlette
     from starlette.responses import RedirectResponse
 
-    import marimo._server.api.lifespans as lifespans
     from marimo._config.config import PartialMarimoConfig
     from marimo._config.manager import get_default_config_manager
+    from marimo._server.api import lifespans
     from marimo._server.file_router import AppFileRouter
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
@@ -478,14 +470,14 @@ def create_asgi_app(
     class Builder(ASGIAppBuilder):
         def __init__(self) -> None:
             self._mount_configs: list[
-                tuple[str, str, Optional[list[MiddlewareFactory]]]
+                tuple[str, str, list[MiddlewareFactory] | None]
             ] = []
             self._dynamic_directory_configs: list[
                 tuple[
                     str,
                     str,
-                    Optional[ValidateCallback],
-                    Optional[list[MiddlewareFactory]],
+                    ValidateCallback | None,
+                    list[MiddlewareFactory] | None,
                 ]
             ] = []
             self._app_cache: dict[str, ASGIApp] = {}
@@ -495,7 +487,7 @@ def create_asgi_app(
             *,
             path: str,
             root: str,
-            middleware: Optional[list[MiddlewareFactory]] = None,
+            middleware: list[MiddlewareFactory] | None = None,
         ) -> ASGIAppBuilder:
             self._mount_configs.append((path, root, middleware))
             return self
@@ -505,8 +497,8 @@ def create_asgi_app(
             *,
             path: str,
             directory: str,
-            validate_callback: Optional[ValidateCallback] = None,
-            middleware: Optional[list[MiddlewareFactory]] = None,
+            validate_callback: ValidateCallback | None = None,
+            middleware: list[MiddlewareFactory] | None = None,
         ) -> ASGIAppBuilder:
             self._dynamic_directory_configs.append(
                 (path, directory, validate_callback, middleware)

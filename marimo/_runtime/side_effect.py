@@ -33,7 +33,7 @@ class SideEffect(CellLifecycleItem):
         """
         del context
 
-    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:  # noqa: ARG002
+    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         """Clean up and mark the object for deletion"""
         # Side effects can always be disposed since they are just a cell level
         # marker that some event has occurred.

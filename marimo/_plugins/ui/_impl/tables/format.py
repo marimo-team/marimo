@@ -1,14 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Union
+from collections.abc import Callable
 
 from marimo import _loggers
 from marimo._plugins.core.web_component import JSONType
 
 LOGGER = _loggers.marimo_logger()
 
-FormatMapping = dict[str, Union[str, Callable[..., JSONType]]]
+FormatMapping = dict[str, str | Callable[..., JSONType]]
 
 
 def format_value(
@@ -42,7 +42,7 @@ def format_value(
             return formatter(value)
     except Exception as e:
         LOGGER.warning(
-            f"Error formatting for value {value} in column {col}: {str(e)}"
+            f"Error formatting for value {value} in column {col}: {e!s}"
         )
         return value
 

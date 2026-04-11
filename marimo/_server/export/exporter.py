@@ -6,7 +6,7 @@ import base64
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -74,7 +74,7 @@ class Exporter:
     def export_as_html(
         self,
         *,
-        filename: Optional[str],
+        filename: str | None,
         app: InternalApp,
         session_view: SessionView,
         display_config: DisplayConfig,
@@ -209,7 +209,7 @@ class Exporter:
         self,
         file_urls: list[str],
         replaced_files: set[str],
-        max_inline_bytes: Optional[int] = None,
+        max_inline_bytes: int | None = None,
     ) -> dict[str, str]:
         """Build dict of virtual files not already inlined in HTML.
 
@@ -249,8 +249,8 @@ class Exporter:
     def _read_virtual_file_as_data_uri(
         self,
         file_url: str,
-        max_inline_bytes: Optional[int] = None,
-    ) -> Optional[str]:
+        max_inline_bytes: int | None = None,
+    ) -> str | None:
         """Read a virtual file and convert it to a data URI.
 
         Args:
@@ -306,7 +306,7 @@ class Exporter:
         app: InternalApp,
         *,
         sort_mode: Literal["top-down", "topological"],
-        session_view: Optional[SessionView] = None,
+        session_view: SessionView | None = None,
     ) -> str:
         """Export notebook as .ipynb, optionally including outputs if session_view provided."""
         return convert_from_ir_to_ipynb(
@@ -317,12 +317,12 @@ class Exporter:
         self,
         *,
         app: InternalApp,
-        filename: Optional[str],
+        filename: str | None,
         display_config: DisplayConfig,
         code: str,
         mode: Literal["edit", "run"],
         show_code: bool,
-        asset_url: Optional[str] = None,
+        asset_url: str | None = None,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
@@ -669,7 +669,7 @@ class AutoExporter:
         )
 
     async def _save_file(
-        self, filename: Optional[str], content: str, extension: str
+        self, filename: str | None, content: str, extension: str
     ) -> None:
         notebook_path = get_filename(filename)
         download_name = get_download_filename(filename, extension)
@@ -684,13 +684,13 @@ class AutoExporter:
             self._executor, self._write_file_sync, filepath, content
         )
 
-    async def save_html(self, filename: Optional[str], html: str) -> None:
+    async def save_html(self, filename: str | None, html: str) -> None:
         await self._save_file(filename, html, "html")
 
-    async def save_md(self, filename: Optional[str], markdown: str) -> None:
+    async def save_md(self, filename: str | None, markdown: str) -> None:
         await self._save_file(filename, markdown, "md")
 
-    async def save_ipynb(self, filename: Optional[str], ipynb: str) -> None:
+    async def save_ipynb(self, filename: str | None, ipynb: str) -> None:
         await self._save_file(filename, ipynb, "ipynb")
 
     def _write_file_sync(self, filepath: Path, content: str) -> None:
@@ -717,7 +717,7 @@ class AutoExporter:
 
 def get_html_contents() -> str:
     if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
-        import marimo._utils.requests as requests
+        from marimo._utils import requests
 
         # Fetch from a CDN
         LOGGER.info(

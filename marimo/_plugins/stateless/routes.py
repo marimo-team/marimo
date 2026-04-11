@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Final, Union
+from typing import TYPE_CHECKING, Any, Final
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -10,7 +10,7 @@ from marimo._plugins.stateless import lazy
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
 
 
 @mddoc
@@ -57,11 +57,9 @@ class routes(UIElement[str, str]):
         self,
         routes: dict[
             str,
-            Union[
-                Callable[[], object],
-                Callable[[], Coroutine[None, None, object]],
-                object,
-            ],
+            Callable[[], object]
+            | Callable[[], Coroutine[None, None, object]]
+            | object,
         ],
     ) -> None:
         # For functions, wrap in lazy

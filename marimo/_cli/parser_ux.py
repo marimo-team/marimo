@@ -11,8 +11,7 @@ from marimo._cli.print import red
 def _normalize_usage_message(message: str) -> str:
     """Normalize usage text for concise lowercase error output."""
     message = message.strip()
-    if message.endswith("."):
-        message = message[:-1]
+    message = message.removesuffix(".")
     if message and message[0].isupper():
         return message[0].lower() + message[1:]
     return message

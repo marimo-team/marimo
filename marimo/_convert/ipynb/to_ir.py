@@ -7,8 +7,9 @@ import logging
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Union
+from typing import Any
 
 from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 
@@ -203,15 +204,13 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
         def is_in_import_line(line: str) -> bool:
             if line.startswith("import marimo as mo"):
                 return True
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 return "import marimo as mo" in line
             return False
 
         # Slow check
         lines = cell.strip().split("\n")
-        if any(is_in_import_line(line) for line in lines):
-            return True
-        return False
+        return any(is_in_import_line(line) for line in lines)
 
     already_has_marimo_import = any(
         has_marimo_import(cell.source) for cell in sources
@@ -242,15 +241,11 @@ def transform_add_subprocess_import(
 
         def is_in_import_line(line: str) -> bool:
             stripped = line.strip()
-            if stripped.startswith("import subprocess"):
-                return True
-            return False
+            return stripped.startswith("import subprocess")
 
         # Slow check
         lines = cell.strip().split("\n")
-        if any(is_in_import_line(line) for line in lines):
-            return True
-        return False
+        return any(is_in_import_line(line) for line in lines)
 
     already_has_subprocess_import = any(
         has_subprocess_import(cell.source) for cell in sources
@@ -313,13 +308,13 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         if not double:
             return "\n".join(
                 [
-                    "# magic command not supported in marimo; please file an issue to add support",  # noqa: E501
+                    "# magic command not supported in marimo; please file an issue to add support",
                     f"# {command + ' ' + source}",
                 ]
             )
 
         result = [
-            "# magic command not supported in marimo; please file an issue to add support",  # noqa: E501
+            "# magic command not supported in marimo; please file an issue to add support",
             f"# {command}",
         ]
         if source:
@@ -546,8 +541,7 @@ def _normalize_git_url_package(package: str) -> str:
         repo_name = path.rstrip("/").split("/")[-1]
 
         # Remove .git extension if present
-        if repo_name.endswith(".git"):
-            repo_name = repo_name[:-4]
+        repo_name = repo_name.removesuffix(".git")
 
         # If we couldn't extract a name, use a placeholder
         if not repo_name:
@@ -1274,7 +1268,9 @@ def bind_cell_metadata(
     - If marimo-specific metadata is present, it is used to restore cell config.
     """
     cells: list[CodeCell] = []
-    for source, meta, hide_code in zip(sources, metadata, hide_flags):
+    for source, meta, hide_code in zip(
+        sources, metadata, hide_flags, strict=False
+    ):
         tags: set[str] = set(meta.get("tags", []))
 
         # Extract marimo-specific cell config if present
@@ -1526,7 +1522,7 @@ def convert_from_ipynb_to_notebook_ir(
     sources: list[str] = []
     metadata: list[dict[str, Any]] = []
     hide_flags: list[bool] = []
-    inline_meta: Union[str, None] = None
+    inline_meta: str | None = None
 
     for cell in notebook["cells"]:
         source = (

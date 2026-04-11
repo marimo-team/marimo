@@ -4,8 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import (
     Any,
-    Optional,
-    Union,
     cast,
 )
 
@@ -31,14 +29,14 @@ GITHUB_COPILOT_BASE_URL = "https://models.github.ai/inference"
 class AnyProviderConfig:
     """Normalized config for any AI provider."""
 
-    base_url: Optional[str]
+    base_url: str | None
     api_key: str
-    project: Optional[str] = None
-    ssl_verify: Optional[bool] = None
-    ca_bundle_path: Optional[str] = None
-    client_pem: Optional[str] = None
-    extra_headers: Optional[dict[str, str]] = None
-    tools: Optional[list[ToolDefinition]] = None
+    project: str | None = None
+    ssl_verify: bool | None = None
+    ca_bundle_path: str | None = None
+    client_pem: str | None = None
+    extra_headers: dict[str, str] | None = None
+    tools: list[ToolDefinition] | None = None
 
     def __post_init__(self) -> None:
         # Only include tools if they are available
@@ -171,8 +169,8 @@ class AnyProviderConfig:
         key: str,
         name: str,
         *,
-        fallback_key: Optional[str] = None,
-        fallback_base_url: Optional[str] = None,
+        fallback_key: str | None = None,
+        fallback_base_url: str | None = None,
         require_key: bool = False,
         ai_config: dict[str, Any] | None = None,
     ) -> AnyProviderConfig:
@@ -283,7 +281,7 @@ class AnyProviderConfig:
                 return cls.for_openai(config)
 
     @classmethod
-    def os_key(cls, key: str) -> Optional[str]:
+    def os_key(cls, key: str) -> str | None:
         import os
 
         return os.environ.get(key)
@@ -321,7 +319,7 @@ def get_edit_model(config: AiConfig) -> str:
 
 
 def get_autocomplete_model(
-    config: Union[MarimoConfig, PartialMarimoConfig],
+    config: MarimoConfig | PartialMarimoConfig,
 ) -> str:
     """Get the autocomplete model from the config."""
     return (
@@ -345,7 +343,7 @@ def _get_key(
     config: Any,
     name: str,
     *,
-    fallback_key: Optional[str] = None,
+    fallback_key: str | None = None,
     require_key: bool = False,
 ) -> str:
     """Get the API key for a given provider."""
@@ -390,7 +388,7 @@ def _get_key(
     return ""
 
 
-def _get_base_url(config: Any, name: str = "") -> Optional[str]:
+def _get_base_url(config: Any, name: str = "") -> str | None:
     """Get the base URL for a given provider."""
     if not isinstance(config, dict):
         if name:

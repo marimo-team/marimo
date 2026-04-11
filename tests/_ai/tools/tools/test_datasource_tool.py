@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import pytest
 
@@ -25,8 +24,8 @@ class MockDataSourceConnection:
     name: str
     dialect: str
     databases: list[Database]
-    default_database: Optional[str] = None
-    default_schema: Optional[str] = None
+    default_database: str | None = None
+    default_schema: str | None = None
 
 
 @pytest.fixture

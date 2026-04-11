@@ -443,7 +443,7 @@ def app() -> Generator[App, None, None]:
 class TestableModuleStub(ModuleStub):
     __test__ = False
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         # Used for testing, equality otherwise not useful.
         if not isinstance(other, ModuleStub):
             return False
@@ -498,14 +498,13 @@ def pytest_make_collect_report(collector):
     }[collector.path.stem]
 
     # Just a quick check to make sure the class is actually exported.
-    if app == app_pytest:
-        if len(classes) == 0:
-            report.outcome = "failed"
-            report.longrepr = (
-                f"Expected class in {collector.path}, found none "
-                " (tests/conftest.py)."
-            )
-            return report
+    if app == app_pytest and len(classes) == 0:
+        report.outcome = "failed"
+        report.longrepr = (
+            f"Expected class in {collector.path}, found none "
+            " (tests/conftest.py)."
+        )
+        return report
     for cls in classes:
         if not (
             cls.startswith("MarimoTestBlock")

@@ -11,8 +11,8 @@ from collections.abc import Collection, Mapping
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-import jedi  # type: ignore # noqa: F401
-import jedi.api  # type: ignore # noqa: F401
+import jedi  # type: ignore
+import jedi.api  # type: ignore
 
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -55,9 +55,8 @@ def _should_include_name(name: str, prefix: str) -> bool:
             return False
         elif not prefix.startswith("_"):
             return False
-        else:
-            # Only include dunder names when prefix starts with an underscore
-            return True
+        # Only include dunder names when prefix starts with an underscore
+        return True
     else:
         return True
 
@@ -417,10 +416,6 @@ def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
     return isinstance(obj, target_class)
 
 
-class HasKeysMethod(Protocol):
-    def keys(self) -> Collection[Any]: ...
-
-
 class HasColumnsProperty(Protocol):
     @property
     def columns(self) -> Collection[Any]: ...
@@ -431,8 +426,9 @@ def _key_options_from_ipython_method(obj: Any) -> list[str]:
     return [str(key) for key in obj._ipython_key_completions_()]
 
 
-def _key_options_via_keys_method(obj: HasKeysMethod) -> list[str]:
-    return [str(key) for key in obj.keys()]
+def _key_options_via_keys_method(obj: Mapping[Any, Any]) -> list[str]:
+    """Completion keys from a mapping. Only used after ``isinstance(obj, Mapping)``."""
+    return [str(key) for key in obj]
 
 
 # TODO refactor to customize the `CompletionOption.info` with `"columns"`
@@ -450,9 +446,9 @@ def _key_options_dispatcher(obj: Any) -> list[str]:
         return _key_options_from_ipython_method(obj)
     elif isinstance(obj, Mapping):
         return _key_options_via_keys_method(obj)
-    elif _isinstance_external(obj, class_ref="pandas.DataFrame"):
-        return _key_options_via_columns_method(obj)
-    elif _isinstance_external(obj, class_ref="polars.DataFrame"):
+    elif _isinstance_external(
+        obj, class_ref="pandas.DataFrame"
+    ) or _isinstance_external(obj, class_ref="polars.DataFrame"):
         return _key_options_via_columns_method(obj)
 
     LOGGER.debug(
@@ -497,7 +493,7 @@ def _resolve_chained_key_path(obj_name: str, document: str) -> list[list[str]]:
 
         # if nodes directly after `obj_name` node are not key accessor `[""]`, exit
         # we expect to never hit this condition
-        if not node.type == "trailer":
+        if node.type != "trailer":
             break
 
         key_path.append(ast.literal_eval(node.get_code()))
@@ -631,7 +627,7 @@ def complete(
             graph.cells[cid].code
             for cid in dataflow.topological_sort(
                 graph,
-                set(graph.cells.keys()) - set([request.cell_id]),
+                set(graph.cells.keys()) - {request.cell_id},
             )
         ]
 

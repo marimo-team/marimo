@@ -6,9 +6,7 @@ import numbers
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
-    Optional,
     cast,
 )
 
@@ -23,6 +21,8 @@ from marimo._plugins.ui._core.ui_element import UIElement
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import plotly.graph_objects as go  # type:ignore
 
 # Selection is a dictionary of the form:
@@ -133,7 +133,7 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
     return False
 
 
-def _to_numeric_coord(value: Any) -> Optional[float]:
+def _to_numeric_coord(value: Any) -> float | None:
     """Convert a numeric/datetime-like value to a float for geometry tests."""
     import datetime
 
@@ -264,11 +264,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def __init__(
         self,
         figure: go.Figure,
-        config: Optional[dict[str, Any]] = None,
-        renderer_name: Optional[str] = None,
+        config: dict[str, Any] | None = None,
+        renderer_name: str | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[JSONType], None]] = None,
+        on_change: Callable[[JSONType], None] | None = None,
     ) -> None:
         DependencyManager.plotly.require("for `mo.ui.plotly`")
 
@@ -343,7 +343,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 y_data = getattr(trace, "y", None)
                 if x_data is None or y_data is None:
                     continue
-                for point_idx, (x, y) in enumerate(zip(x_data, y_data)):
+                for point_idx, (x, y) in enumerate(
+                    zip(x_data, y_data, strict=False)
+                ):
                     # Early exit if x is not in range
                     if not (selection.x0 <= x <= selection.x1):
                         continue
@@ -846,16 +848,13 @@ def _trace_needs_scatter_range_fallback(trace: Any) -> bool:
     if mode is None:
         return False
 
-    if isinstance(mode, str) and "markers" in mode:
-        return False
-
-    return True
+    return not (isinstance(mode, str) and "markers" in mode)
 
 
 def _extract_scatter_points_from_range(
     figure: go.Figure,
     range_data: dict[str, Any],
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points in a selection range.
 
@@ -900,7 +899,7 @@ def _extract_scatter_points_numpy(
     x_max: float,
     y_min: Any = None,
     y_max: Any = None,
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points from selection bounds using numpy."""
     import numpy as np
@@ -1029,7 +1028,7 @@ def _extract_scatter_points_fallback(
     x_max: float,
     y_min: Any = None,
     y_max: Any = None,
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points with pure Python."""
     selected_points: list[dict[str, Any]] = []
@@ -1070,7 +1069,9 @@ def _extract_scatter_points_fallback(
         y_category_positions = _category_position_map(y_data)
 
         # First pass: include points directly inside current selection bounds.
-        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+        for point_idx, (x_val, y_val) in enumerate(
+            zip(x_data, y_data, strict=False)
+        ):
             x_in_range = False
 
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
@@ -1186,7 +1187,7 @@ def _point_in_polygon(
 def _extract_scatter_points_from_lasso(
     figure: go.Figure,
     lasso_data: dict[str, Any],
-    trace_filter: Optional[Callable[[int, Any], bool]] = None,
+    trace_filter: Callable[[int, Any], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Extract scatter/scattergl/line points that fall inside a lasso polygon."""
     lasso_x = lasso_data.get("x")
@@ -1230,7 +1231,7 @@ def _extract_scatter_points_from_lasso(
 
         polygon_x: list[float] = []
         polygon_y: list[float] = []
-        for raw_x, raw_y in zip(lasso_x, lasso_y):
+        for raw_x, raw_y in zip(lasso_x, lasso_y, strict=False):
             x_coord = _to_numeric_coord(raw_x)
             if x_coord is None:
                 x_coord = _safe_category_get(x_category_to_index, raw_x, -1)
@@ -1254,7 +1255,9 @@ def _extract_scatter_points_from_lasso(
         if not polygon_x:
             continue
 
-        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+        for point_idx, (x_val, y_val) in enumerate(
+            zip(x_data, y_data, strict=False)
+        ):
             x_coord = _to_numeric_coord(x_val)
             if x_coord is None:
                 try:
@@ -1589,7 +1592,7 @@ def _extract_histogram_points_from_bins(
 
 def _build_histogram_sample_point(
     trace: Any, trace_idx: int, point_idx: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Build a row-level selection payload point from a histogram trace."""
     orientation = getattr(trace, "orientation", "v")
     if orientation is None:
@@ -2132,7 +2135,7 @@ def _append_waterfall_bars_to_selection(
             return
         incoming_index_map = {
             id(p): idx
-            for idx, p in zip(all_indices, all_points)
+            for idx, p in zip(all_indices, all_points, strict=False)
             if p and isinstance(idx, int)
         }
         clean_indices: list[int] = []
@@ -2420,7 +2423,7 @@ def _append_violin_points_to_selection(
         ]
         existing_non_violin_indices = [
             idx
-            for idx, p in zip(all_indices, all_points)
+            for idx, p in zip(all_indices, all_points, strict=False)
             if p and p.get("curveNumber") not in violin_curve_numbers
         ]
 
@@ -2434,7 +2437,9 @@ def _append_violin_points_to_selection(
             # recomputing from pointIndex only — Plotly may send pointNumber
             # instead. Map each point object to its original index by identity.
             incoming_index_map = {
-                id(p): idx for idx, p in zip(all_indices, all_points) if p
+                id(p): idx
+                for idx, p in zip(all_indices, all_points, strict=False)
+                if p
             }
             clean_indices: list[int] = []
             for p in clean_points:
@@ -2464,7 +2469,7 @@ def _append_violin_points_to_selection(
             merged_indices: list[int] = []
 
             for idx, point in zip(
-                existing_non_violin_indices, existing_non_violin
+                existing_non_violin_indices, existing_non_violin, strict=False
             ):
                 point_id = _get_selection_point_id(point)
                 if point_id is not None:
@@ -2773,7 +2778,7 @@ def _append_box_points_to_selection(
         ]
         existing_non_box_indices = [
             idx
-            for idx, p in zip(all_indices, all_points)
+            for idx, p in zip(all_indices, all_points, strict=False)
             if p and p.get("curveNumber") not in box_curve_numbers
         ]
 
@@ -2787,7 +2792,9 @@ def _append_box_points_to_selection(
             # recomputing from pointIndex only — Plotly may send pointNumber
             # instead. Map each point object to its original index by identity.
             incoming_index_map = {
-                id(p): idx for idx, p in zip(all_indices, all_points) if p
+                id(p): idx
+                for idx, p in zip(all_indices, all_points, strict=False)
+                if p
             }
             clean_indices: list[int] = []
             for p in clean_points:
@@ -2816,7 +2823,9 @@ def _append_box_points_to_selection(
             merged_points: list[dict[str, Any]] = []
             merged_indices: list[int] = []
 
-            for idx, point in zip(existing_non_box_indices, existing_non_box):
+            for idx, point in zip(
+                existing_non_box_indices, existing_non_box, strict=False
+            ):
                 point_id = _get_selection_point_id(point)
                 if point_id is not None:
                     if point_id in seen:
@@ -2825,6 +2834,8 @@ def _append_box_points_to_selection(
                 merged_points.append(point)
                 if isinstance(idx, int):
                     merged_indices.append(idx)
+                elif point_id is not None:
+                    merged_indices.append(point_id[1])
 
             for point in box_points:
                 point_id = _get_selection_point_id(point)
@@ -2919,7 +2930,7 @@ def _build_global_category_order(
     are consistent with the axis-global ordering Plotly uses for range values.
     """
     order: dict[Any, float] = {}
-    for trace in figure.data:
+    for trace_idx, trace in enumerate(figure.data):
         if getattr(trace, "type", None) != trace_type:
             continue
         orientation = getattr(trace, "orientation", "v") or "v"
@@ -2931,7 +2942,7 @@ def _build_global_category_order(
         if n == 0:
             continue
         if cat_data is None:
-            cats: list[Any] = [getattr(trace, "name", None)]
+            cats: list[Any] = [getattr(trace, "name", None) or trace_idx]
         elif isinstance(cat_data, (str, bytes)):
             cats = [cat_data]
         elif hasattr(cat_data, "__len__") and len(cat_data) == n:
@@ -3065,10 +3076,12 @@ def _extract_box_points_numpy(
             val_max_p = _parse_datetime_bound(max(val_range))
             val_mask = np.array(
                 [
-                    val_min_p <= v <= val_max_p
-                    if _is_orderable_value(v)
+                    val_min_p <= parsed_v <= val_max_p
+                    if _is_orderable_value(parsed_v)
                     else False
-                    for v in val_arr.tolist()
+                    for parsed_v in (
+                        _parse_datetime_bound(v) for v in val_arr.tolist()
+                    )
                 ]
             )
             cat_mask = cat_mask & val_mask
@@ -3161,9 +3174,10 @@ def _extract_box_points_fallback(
                 val_v = (
                     val_data[i] if hasattr(val_data, "__getitem__") else None
                 )
+                val_v_p = _parse_datetime_bound(val_v)
                 if val_v is None or not (
-                    _is_orderable_value(val_v)
-                    and val_min_p <= val_v <= val_max_p
+                    _is_orderable_value(val_v_p)
+                    and val_min_p <= val_v_p <= val_max_p
                 ):
                     continue
 
@@ -3176,7 +3190,7 @@ def _extract_box_points_fallback(
 
 def _build_box_sample_point(
     trace: Any, trace_idx: int, point_idx: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Build a row-level selection payload for a single box plot data point."""
     orientation = getattr(trace, "orientation", "v") or "v"
     if orientation == "h":
@@ -3322,7 +3336,7 @@ def _extract_violin_points_fallback(
 
 def _build_violin_sample_point(
     trace: Any, trace_idx: int, point_idx: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Build a row-level selection payload for a single violin plot data point."""
     orientation = getattr(trace, "orientation", "v") or "v"
     if orientation == "h":
@@ -3441,7 +3455,7 @@ def _append_funnel_points_to_selection(
         # Re-sync indices: prefer what the frontend sent, fall back to pointIndex.
         incoming_index_map = {
             id(p): idx
-            for idx, p in zip(all_indices, all_points)
+            for idx, p in zip(all_indices, all_points, strict=False)
             if p and isinstance(idx, int)
         }
         clean_indices: list[int] = []
@@ -3676,7 +3690,7 @@ def _append_funnelarea_points_to_selection(
 
     incoming_index_map = {
         id(p): idx
-        for idx, p in zip(all_indices, all_points)
+        for idx, p in zip(all_indices, all_points, strict=False)
         if p and isinstance(idx, int)
     }
     clean_indices: list[int] = []

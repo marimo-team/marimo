@@ -5,15 +5,7 @@ import abc
 import mimetypes
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    Optional,
-    TypedDict,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 import msgspec
 
@@ -27,8 +19,8 @@ LOGGER = _loggers.marimo_logger()
 
 class ChatAttachmentDict(TypedDict):
     url: str
-    content_type: Optional[str]
-    name: Optional[str]
+    content_type: str | None
+    name: str | None
 
 
 class TextPartDict(TypedDict):
@@ -39,7 +31,7 @@ class TextPartDict(TypedDict):
 class FilePartDict(TypedDict):
     type: Literal["file"]
     media_type: str
-    filename: Optional[str]
+    filename: str | None
     url: str
 
 
@@ -52,7 +44,7 @@ class ReasoningPartDict(TypedDict):
 class ReasoningDetailsDict(TypedDict):
     type: Literal["text"]
     text: str
-    signature: Optional[str]
+    signature: str | None
 
 
 class ToolInvocationPartDict(TypedDict):
@@ -60,30 +52,30 @@ class ToolInvocationPartDict(TypedDict):
     tool_call_id: str
     state: str
     input: dict[str, Any]
-    output: Optional[Any]
+    output: Any | None
 
 
-ChatPartDict = Union[
-    TextPartDict, ReasoningPartDict, ToolInvocationPartDict, FilePartDict
-]
+ChatPartDict = (
+    TextPartDict | ReasoningPartDict | ToolInvocationPartDict | FilePartDict
+)
 
 
 class ChatMessageDict(TypedDict):
     id: str
     role: Literal["user", "assistant", "system"]
-    content: Optional[str]
-    attachments: Optional[list[ChatAttachmentDict]]
+    content: str | None
+    attachments: list[ChatAttachmentDict] | None
     parts: list[ChatPartDict]
-    metadata: Optional[Any]
+    metadata: Any | None
 
 
 class ChatModelConfigDict(TypedDict, total=False):
-    max_tokens: Optional[int]
-    temperature: Optional[float]
-    top_p: Optional[float]
-    top_k: Optional[int]
-    frequency_penalty: Optional[float]
-    presence_penalty: Optional[float]
+    max_tokens: int | None
+    temperature: float | None
+    top_p: float | None
+    top_k: int | None
+    frequency_penalty: float | None
+    presence_penalty: float | None
 
 
 # NOTE: The following classes are public API.
@@ -101,7 +93,7 @@ class ChatAttachment:
 
     # A string indicating the [media type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type).
     # By default, it's extracted from the pathname's extension.
-    content_type: Optional[str] = None
+    content_type: str | None = None
 
     def __post_init__(self) -> None:
         if self.content_type is None:
@@ -123,14 +115,14 @@ class ReasoningPart:
 
     type: Literal["reasoning"]
     text: str
-    details: Optional[list[ReasoningDetails]] = None
+    details: list[ReasoningDetails] | None = None
 
 
 @dataclass
 class ReasoningDetails:
     type: Literal["text"]
     text: str
-    signature: Optional[str] = None
+    signature: str | None = None
 
 
 @dataclass
@@ -139,9 +131,9 @@ class ToolInvocationPart:
 
     type: str  # Starts with "tool-"
     tool_call_id: str
-    state: Union[str, Literal["output-available"]]
+    state: str | Literal["output-available"]
     input: dict[str, Any]
-    output: Optional[Any] = None
+    output: Any | None = None
 
     @property
     def tool_name(self) -> str:
@@ -155,7 +147,7 @@ class FilePart:
     type: Literal["file"]
     media_type: str
     url: str
-    filename: Optional[str] = None
+    filename: str | None = None
 
 
 @dataclass
@@ -177,14 +169,14 @@ class StepStartPart:
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    ChatPart = Union[
-        TextPart,
-        ReasoningPart,
-        ToolInvocationPart,
-        FilePart,
-        DataReasoningPart,
-        StepStartPart,
-    ]
+    ChatPart = (
+        TextPart
+        | ReasoningPart
+        | ToolInvocationPart
+        | FilePart
+        | DataReasoningPart
+        | StepStartPart
+    )
 else:
     ChatPart = dict[str, Any]
 
@@ -218,7 +210,7 @@ class ChatMessage(msgspec.Struct):
 
     # Optional attachments to the message.
     # TODO: Deprecate in favour of parts
-    attachments: Optional[list[ChatAttachment]] = None
+    attachments: list[ChatAttachment] | None = None
 
     metadata: Any | None = None
 
@@ -232,7 +224,7 @@ class ChatMessage(msgspec.Struct):
                     parts.append(converted)
             self.parts = parts
 
-    def _convert_part(self, part: Any) -> Optional[ChatPart]:
+    def _convert_part(self, part: Any) -> ChatPart | None:
         # If we receive a Vercel AI SDK part (through pydantic-ai), return it as is.
         if DependencyManager.pydantic_ai.imported():
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
@@ -276,7 +268,7 @@ class ChatMessage(msgspec.Struct):
         *,
         role: Literal["user", "assistant", "system"],
         message_id: str,
-        content: Optional[str],
+        content: str | None,
         parts: list[ChatPart],
         part_validator_class: Any | None = None,
     ) -> ChatMessage:
@@ -321,22 +313,22 @@ class ChatMessage(msgspec.Struct):
 @dataclass
 class ChatModelConfig:
     # Maximum number of tokens.
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
 
     # Temperature for the model (randomness).
-    temperature: Optional[float] = None
+    temperature: float | None = None
 
     # Restriction on the cumulative probability of prediction candidates.
-    top_p: Optional[float] = None
+    top_p: float | None = None
 
     # Number of top prediction candidates to consider.
-    top_k: Optional[int] = None
+    top_k: int | None = None
 
     # Penalty for tokens which appear frequently.
-    frequency_penalty: Optional[float] = None
+    frequency_penalty: float | None = None
 
     # Penalty for tokens which already appeared at least once.
-    presence_penalty: Optional[float] = None
+    presence_penalty: float | None = None
 
 
 class ChatModel(abc.ABC):

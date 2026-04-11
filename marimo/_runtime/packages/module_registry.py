@@ -43,15 +43,14 @@ class ModuleRegistry:
 
     def modules(self) -> set[str]:
         """Modules imported by cells."""
-        return set(
+        return {
             mod
             for cell in self.graph.cells.values()
             for mod in cell.imported_namespaces
-        )
+        }
 
     def missing_modules(self) -> set[str]:
         """Modules that will fail to import."""
-        return (
-            set(mod for mod in self.modules() if not _is_module_installed(mod))
-            - self.excluded_modules
-        )
+        return {
+            mod for mod in self.modules() if not _is_module_installed(mod)
+        } - self.excluded_modules

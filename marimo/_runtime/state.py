@@ -4,7 +4,7 @@ from __future__ import annotations
 import types
 import weakref
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from uuid import uuid4
 
 from marimo._output.rich_help import mddoc
@@ -14,7 +14,7 @@ T = TypeVar("T")
 Id = int
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
 
 @dataclass
@@ -30,7 +30,7 @@ def extract_name(key: str) -> str:
     return key.split(":")[-1]
 
 
-def contextualize_name(key: str, context: Optional[str]) -> str:
+def contextualize_name(key: str, context: str | None) -> str:
     if context is None:
         return key
     return f"{context}:{key}"
@@ -49,8 +49,8 @@ class StateRegistry:
     def register(
         self,
         state: State[T],
-        name: Optional[str] = None,
-        context: Optional[str] = None,
+        name: str | None = None,
+        context: str | None = None,
     ) -> None:
         if name is None:
             name = str(uuid4())
@@ -75,7 +75,7 @@ class StateRegistry:
         finalizer.atexit = False
 
     def register_scope(
-        self, glbls: Mapping[str, Any], defs: Optional[set[str]] = None
+        self, glbls: Mapping[str, Any], defs: set[str] | None = None
     ) -> None:
         """Finds instances of state and scope, and adds them to registry if not
         already present."""
@@ -92,8 +92,8 @@ class StateRegistry:
     def delete(
         self,
         name: str,
-        state: Optional[State[T]] = None,
-        context: Optional[str] = None,
+        state: State[T] | None = None,
+        context: str | None = None,
     ) -> None:
         name = contextualize_name(name, context)
         saved_state = self._states.pop(name, None)
@@ -126,9 +126,7 @@ class StateRegistry:
             if state_id not in active_state_ids:
                 del self._inv_states[state_id]
 
-    def lookup(
-        self, name: str, context: Optional[str] = None
-    ) -> Optional[State[T]]:
+    def lookup(self, name: str, context: str | None = None) -> State[T] | None:
         name = contextualize_name(name, context)
         if name in self._states:
             return self._states[name].ref()
@@ -147,9 +145,9 @@ class State(Generic[T]):
         self,
         value: T,
         allow_self_loops: bool = False,
-        _registry: Optional[StateRegistry] = None,
-        _name: Optional[str] = None,
-        _context: Optional[str] = None,
+        _registry: StateRegistry | None = None,
+        _name: str | None = None,
+        _context: str | None = None,
     ) -> None:
         self._value = value
         self.allow_self_loops = allow_self_loops

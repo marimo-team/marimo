@@ -22,11 +22,14 @@ import weakref
 from dataclasses import dataclass
 from importlib import reload
 from importlib.util import source_from_cache
-from typing import Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._messaging.tracebacks import write_traceback
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -340,7 +343,7 @@ def update_class(old: object, new: object) -> None:
             pass  # skip non-writable attributes
 
     old_dict_keys = set(old.__dict__.keys())
-    for key in new.__dict__.keys():
+    for key in new.__dict__:
         if key not in old_dict_keys:
             try:
                 setattr(old, key, getattr(new, key))
@@ -373,7 +376,7 @@ UPDATE_RULES.extend(
     [
         (
             lambda a, b: isinstance2(a, b, types.MethodType),
-            lambda a, b: update_function(a.__func__, b.__func__),  # type: ignore[attr-defined]  # noqa: E501
+            lambda a, b: update_function(a.__func__, b.__func__),  # type: ignore[attr-defined]
         ),
     ]
 )
@@ -457,7 +460,7 @@ def superreload(
         # It's possible that the module fails to reload for some other reason.
         # In this case, too, the failure shouldn't be silent!
         sys.stderr.write(
-            f"Error trying to reload module {module.__name__}: {str(e)} \n"
+            f"Error trying to reload module {module.__name__}: {e!s} \n"
         )
         tmpio = io.StringIO()
         traceback.print_exc(file=tmpio)

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.sql_utils import classify_sql_statement
@@ -44,8 +44,8 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
 
     def __init__(
         self,
-        connection: Optional[ChdbConnection] = None,
-        engine_name: Optional[VariableName] = None,
+        connection: ChdbConnection | None = None,
+        engine_name: VariableName | None = None,
     ) -> None:
         super().__init__(connection, engine_name)
         self._cursor = None if connection is None else connection.cursor()
@@ -143,7 +143,7 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -155,9 +155,9 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         _, _, _ = include_schemas, include_tables, include_table_details
         return []
@@ -171,15 +171,15 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get a single table from the engine."""
         _, _, _ = table_name, schema_name, database_name
         return None
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         return None
 
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         return None
 
     @staticmethod
@@ -206,8 +206,8 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
     def __init__(
         self,
-        connection: Optional[ClickhouseClient] = None,
-        engine_name: Optional[VariableName] = None,
+        connection: ClickhouseClient | None = None,
+        engine_name: VariableName | None = None,
     ) -> None:
         super().__init__(connection, engine_name)
         self._meta_dbs = ["system", "information_schema"]
@@ -234,7 +234,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
         sql_output_format = self.sql_output_format()
 
-        def convert_to_polars() -> Union[pl.DataFrame, pl.Series]:
+        def convert_to_polars() -> pl.DataFrame | pl.Series:
             if self._connection is None:
                 raise ValueError("Connection is not set")
 
@@ -277,7 +277,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
@@ -288,9 +288,9 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """
         Get all databases from the ClickHouse server.
@@ -323,7 +323,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
         if not isinstance(db_df, pd.DataFrame):
             LOGGER.warning(
-                f"Failed to convert database result to DataFrame, result: {str(db_df)}"
+                f"Failed to convert database result to DataFrame, result: {db_df!s}"
             )
             return databases
 
@@ -359,7 +359,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         return databases
 
     def _resolve_should_auto_discover(
-        self, value: Union[bool, Literal["auto"]]
+        self, value: bool | Literal["auto"]
     ) -> bool:
         if value == "auto":
             # TODO: Smartly determine if we should auto-discover
@@ -437,7 +437,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """
         Get detailed metadata for a given table in a database.
 
@@ -554,7 +554,7 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             indexes=[],  # TODO
         )
 
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         if self._connection is None:
             return None
 
@@ -577,6 +577,6 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             return None
         return str(db_name.iloc[0, 0])
 
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         # ClickHouse does not have schemas
         return None

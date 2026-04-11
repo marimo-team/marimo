@@ -9,7 +9,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import click
 from click.core import ParameterSource
@@ -438,30 +438,30 @@ class _OptionalValueOption(click.Option):
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
-    port: Optional[int],
+    port: int | None,
     host: str,
-    proxy: Optional[str],
+    proxy: str | None,
     headless: bool,
     token: bool,
-    token_password: Optional[str],
-    token_password_file: Optional[str],
+    token_password: str | None,
+    token_password_file: str | None,
     base_url: str,
-    allow_origins: Optional[tuple[str, ...]],
+    allow_origins: tuple[str, ...] | None,
     skip_update_check: bool,
-    sandbox: Optional[bool],
-    trusted: Optional[bool],
-    profile_dir: Optional[str],
+    sandbox: bool | None,
+    trusted: bool | None,
+    profile_dir: str | None,
     watch: bool,
     skew_protection: bool,
-    remote_url: Optional[str],
+    remote_url: str | None,
     convert: bool,
-    mcp: Optional[McpType],
+    mcp: McpType | None,
     mcp_allow_remote: bool,
-    server_startup_command: Optional[str],
-    asset_url: Optional[str],
-    timeout: Optional[float],
-    session_ttl: Optional[int],
-    name: Optional[str],
+    server_startup_command: str | None,
+    asset_url: str | None,
+    timeout: float | None,
+    session_ttl: int | None,
+    name: str | None,
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
@@ -715,18 +715,18 @@ new_help_msg = "\n".join(
 )
 @click.argument("prompt", required=False)
 def new(
-    port: Optional[int],
+    port: int | None,
     host: str,
-    proxy: Optional[str],
+    proxy: str | None,
     headless: bool,
     token: bool,
-    token_password: Optional[str],
-    token_password_file: Optional[str],
+    token_password: str | None,
+    token_password_file: str | None,
     base_url: str,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     skew_protection: bool,
-    timeout: Optional[float],
-    prompt: Optional[str],
+    timeout: float | None,
+    prompt: str | None,
 ) -> None:
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -735,7 +735,7 @@ def new(
         run_in_sandbox(sys.argv[1:], name=None, additional_features=["lsp"])
         return
 
-    file_router: Optional[AppFileRouter] = None
+    file_router: AppFileRouter | None = None
 
     if prompt is None:
         # We support unix-style prompting, cat prompt.txt | marimo new
@@ -780,7 +780,7 @@ def new(
                     pass
 
             raise click.ClickException(
-                f"Failed to generate notebook: {str(e)}"
+                f"Failed to generate notebook: {e!s}"
             ) from e
 
     if file_router is None:
@@ -1090,13 +1090,13 @@ Example:
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     ctx: click.Context,
-    port: Optional[int],
+    port: int | None,
     host: str,
-    proxy: Optional[str],
+    proxy: str | None,
     headless: bool,
     token: bool,
-    token_password: Optional[str],
-    token_password_file: Optional[str],
+    token_password: str | None,
+    token_password_file: str | None,
     include_code: bool,
     session_ttl: int,
     watch: bool,
@@ -1104,12 +1104,12 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
-    sandbox: Optional[bool],
+    sandbox: bool | None,
     check: bool,
-    trusted: Optional[bool],
-    server_startup_command: Optional[str],
-    asset_url: Optional[str],
-    show_tracebacks: Optional[bool],
+    trusted: bool | None,
+    server_startup_command: str | None,
+    asset_url: str | None,
+    show_tracebacks: bool | None,
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -1328,13 +1328,13 @@ Recommended sequence:
     type=click.Choice(tutorial_order),
 )
 def tutorial(
-    port: Optional[int],
+    port: int | None,
     host: str,
-    proxy: Optional[str],
+    proxy: str | None,
     headless: bool,
     token: bool,
-    token_password: Optional[str],
-    token_password_file: Optional[str],
+    token_password: str | None,
+    token_password_file: str | None,
     skew_protection: bool,
     name: Tutorial,
 ) -> None:

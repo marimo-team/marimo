@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import click
 
 
-def base_url(ctx: Any, param: Any, value: Optional[str]) -> str:
+def base_url(ctx: Any, param: Any, value: str | None) -> str:
     del ctx
     del param
     if value is None or value == "":
@@ -24,7 +24,7 @@ def base_url(ctx: Any, param: Any, value: Optional[str]) -> str:
     return value
 
 
-def is_file_path(ctx: Any, param: Any, value: Optional[str]) -> str:
+def is_file_path(ctx: Any, param: Any, value: str | None) -> str:
     del ctx
     del param
     if not value:

@@ -6,7 +6,7 @@ Provides an event bus and listeners for session creation, closure, and resumptio
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._messaging.types import KernelMessage
@@ -30,12 +30,12 @@ class SessionEventListener:
     async def on_session_created(self, session: Session) -> None:
         """Called when a session is created."""
         del session
-        return None
+        return
 
     async def on_session_closed(self, session: Session) -> None:
         """Called when a session is closed."""
         del session
-        return None
+        return
 
     async def on_session_resumed(
         self, session: Session, old_id: SessionId
@@ -43,7 +43,7 @@ class SessionEventListener:
         """Called when a session is resumed with a new ID."""
         del session
         del old_id
-        return None
+        return
 
     async def on_session_notebook_renamed(
         self, session: Session, old_path: str | None
@@ -51,7 +51,7 @@ class SessionEventListener:
         """Called when a session notebook is renamed."""
         del session
         del old_path
-        return None
+        return
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
@@ -59,25 +59,25 @@ class SessionEventListener:
         """Called when a notification is emitted by a session."""
         del session
         del notification
-        return None
+        return
 
     def on_received_command(
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         del session
         del request
         del from_consumer_id
-        return None
+        return
 
     def on_received_stdin(self, session: Session, stdin: str) -> None:
         """Called when stdin is received."""
         del session
         del stdin
-        return None
+        return
 
 
 class SessionEventBus:
@@ -181,7 +181,7 @@ class SessionEventBus:
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Emit a received command event."""
         self._emit(

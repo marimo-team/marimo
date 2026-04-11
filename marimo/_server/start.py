@@ -5,7 +5,7 @@ import os
 import re
 import subprocess
 import threading
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 import uvicorn
 
@@ -67,9 +67,8 @@ def _execute_startup_command(
                         content="", status="start"
                     )
                 session.notify(content, from_consumer_id=None)
-            else:
-                buffer.content += content.content
-                buffer.status = content.status
+            buffer.content += content.content
+            buffer.status = content.status
 
         try:
             # Broadcast start message to all sessions
@@ -111,7 +110,7 @@ def _execute_startup_command(
 
         except Exception as e:
             # Broadcast error message
-            error_message = f"\nError executing startup command: {str(e)}\n"
+            error_message = f"\nError executing startup command: {e!s}\n"
             write_to_all_sessions(
                 StartupLogsNotification(content=error_message, status="done"),
                 buffer,
@@ -123,9 +122,7 @@ def _execute_startup_command(
     thread.start()
 
 
-def _resolve_proxy(
-    port: int, host: str, proxy: Optional[str]
-) -> tuple[int, str]:
+def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
     """Provided that there is a proxy, utilize the host and port of the proxy.
 
     -----------------         Communication has to be consistent
@@ -167,28 +164,28 @@ def start(
     development_mode: bool,
     quiet: bool,
     include_code: bool,
-    ttl_seconds: Optional[int],
+    ttl_seconds: int | None,
     headless: bool,
-    port: Optional[int],
+    port: int | None,
     host: str,
-    proxy: Optional[str],
+    proxy: str | None,
     watch: bool,
     cli_args: SerializedCLIArgs,
     argv: list[str],
     base_url: str = "",
-    allow_origins: Optional[tuple[str, ...]] = None,
-    auth_token: Optional[AuthToken],
+    allow_origins: tuple[str, ...] | None = None,
+    auth_token: AuthToken | None,
     redirect_console_to_browser: bool,
     skew_protection: bool,
-    remote_url: Optional[str] = None,
+    remote_url: str | None = None,
     mcp: McpType | None = None,
     mcp_allow_remote: bool = False,
-    server_startup_command: Optional[str] = None,
-    asset_url: Optional[str] = None,
-    timeout: Optional[float] = None,
+    server_startup_command: str | None = None,
+    asset_url: str | None = None,
+    timeout: float | None = None,
     sandbox_mode: SandboxMode | None = None,
     startup_tip: CliTip | None = None,
-    show_tracebacks: Optional[bool] = None,
+    show_tracebacks: bool | None = None,
 ) -> None:
     """
     Start the server.
@@ -210,7 +207,7 @@ def start(
     port = port or find_free_port(DEFAULT_PORT, addr=host)
 
     # This is the path that will be used to read the project configuration
-    start_path: Optional[str] = None
+    start_path: str | None = None
     if (single_file := file_router.maybe_get_single_file()) is not None:
         start_path = single_file.path
     elif (directory := file_router.directory) is not None:
@@ -220,7 +217,7 @@ def start(
 
     config_reader = get_default_config_manager(current_path=start_path)
 
-    lsp_composite_server: Optional[CompositeLspServer] = None
+    lsp_composite_server: CompositeLspServer | None = None
     if mode == SessionMode.EDIT:
         lsp_composite_server = CompositeLspServer(
             config_reader=config_reader,

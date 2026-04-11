@@ -15,7 +15,6 @@ import re
 import token as token_types
 import tokenize as tokenize_mod
 from dataclasses import dataclass
-from typing import Optional
 
 # Cell boundary types
 CELL_TYPES = frozenset({"cell", "function", "class_definition"})
@@ -201,7 +200,7 @@ class _BoundaryDetector:
 
 def _try_tokenize(
     source: str,
-) -> tuple[list[tokenize_mod.TokenInfo], Optional[tuple[int, Exception]]]:
+) -> tuple[list[tokenize_mod.TokenInfo], tuple[int, Exception] | None]:
     """Tokenize source, returning tokens produced + optional error info."""
     tokens: list[tokenize_mod.TokenInfo] = []
     readline = io.StringIO(source).readline
@@ -508,9 +507,7 @@ def _strip_trailing_return(body_lines: list[str]) -> None:
         line_stripped = line.strip()
         if line_indent == body_indent and (
             line_stripped == "return"
-            or line_stripped.startswith("return ")
-            or line_stripped.startswith("return\t")
-            or line_stripped.startswith("return(")
+            or line_stripped.startswith(("return ", "return\t", "return("))
         ):
             # Remove the return line and any trailing blank lines after it
             del body_lines[idx:]

@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._output.rich_help import mddoc
 from marimo._runtime.commands import HTTPRequest
@@ -54,7 +52,7 @@ class AppMeta:
         return theme
 
     @property
-    def mode(self) -> Optional[RunMode]:
+    def mode(self) -> RunMode | None:
         """
         The execution mode of the app.
 
@@ -78,7 +76,7 @@ class AppMeta:
         return get_mode()
 
     @property
-    def request(self) -> Optional[HTTPRequest]:
+    def request(self) -> HTTPRequest | None:
         """
         The current HTTP request if any. The shape of the request object depends on the ASGI framework used,
         but typically includes:

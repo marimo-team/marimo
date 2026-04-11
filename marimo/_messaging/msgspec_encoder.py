@@ -209,10 +209,10 @@ def enc_hook(obj: Any) -> Any:
 
     # Handle collections types
     if isinstance(obj, (list, tuple, set, frozenset)):
-        return list([enc_hook(item) for item in obj])
+        return [enc_hook(item) for item in obj]
 
     if isinstance(obj, collections.deque):
-        return list([enc_hook(item) for item in obj])
+        return [enc_hook(item) for item in obj]
 
     # Handle dict and dict-like types
     if isinstance(

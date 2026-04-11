@@ -12,7 +12,7 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._cli.sandbox import (
@@ -99,16 +99,16 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def stream_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[Union[KernelMessage, None]]:
+    ) -> QueueType[KernelMessage | None]:
         return cast(
-            QueueType[Union[KernelMessage, None]],
+            QueueType[KernelMessage | None],
             self._ipc.stream_queue,
         )
 
     @property
     def win32_interrupt_queue(  # type: ignore[override]
         self,
-    ) -> Optional[QueueType[bool]]:
+    ) -> QueueType[bool] | None:
         return self._ipc.win32_interrupt_queue
 
     def close_queues(self) -> None:
@@ -438,5 +438,5 @@ class _SubprocessWrapper(ProcessLike):
     def kill(self) -> None:
         self._process.kill()
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         self._process.wait(timeout=timeout)

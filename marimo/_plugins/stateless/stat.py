@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 from marimo._loggers import marimo_logger
 from marimo._output.formatting import as_html
@@ -15,13 +15,13 @@ Logger = marimo_logger()
 
 @mddoc
 def stat(
-    value: Union[str, int, float],
-    label: Optional[str] = None,
-    caption: Optional[str] = None,
-    direction: Optional[Literal["increase", "decrease"]] = None,
+    value: str | float,
+    label: str | None = None,
+    caption: str | None = None,
+    direction: Literal["increase", "decrease"] | None = None,
     bordered: bool = False,
-    target_direction: Optional[Literal["increase", "decrease"]] = "increase",
-    slot: Optional[Html] = None,
+    target_direction: Literal["increase", "decrease"] | None = "increase",
+    slot: Html | None = None,
 ) -> Html:
     """Display a statistic.
 
@@ -63,7 +63,7 @@ def stat(
     )
 
 
-def try_convert_to_html(slot: Any) -> Optional[Html]:
+def try_convert_to_html(slot: Any) -> Html | None:
     if slot is None:
         return None
 

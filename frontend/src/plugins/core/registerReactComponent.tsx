@@ -23,6 +23,7 @@ import React, {
 import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
 import { type ZodSchema, z } from "zod";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells.ts";
 import { HTMLCellId } from "@/core/cells/ids.ts";
 import { isUninstantiated } from "@/core/cells/utils";
@@ -250,14 +251,16 @@ function PluginSlotInternal<T>(
     <StyleNamespace>
       <div className={`contents ${theme}`}>
         <Suspense fallback={<div />}>
-          {plugin.render({
-            setValue: setValueAndSendInput,
-            value,
-            data: parsedResult.data,
-            children: childNodes,
-            host: hostElement,
-            functions: functionMethods,
-          })}
+          <TooltipProvider>
+            {plugin.render({
+              setValue: setValueAndSendInput,
+              value,
+              data: parsedResult.data,
+              children: childNodes,
+              host: hostElement,
+              functions: functionMethods,
+            })}
+          </TooltipProvider>
         </Suspense>
       </div>
     </StyleNamespace>

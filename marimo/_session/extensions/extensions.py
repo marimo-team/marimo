@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import msgspec
 
@@ -67,7 +67,7 @@ class HeartbeatExtension(SessionExtension):
     """
 
     def __init__(self) -> None:
-        self.heartbeat_task: Optional[asyncio.Task[None]] = None
+        self.heartbeat_task: asyncio.Task[None] | None = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
@@ -139,7 +139,7 @@ class CachingExtension(EventAwareExtension):
         self.interval = interval
         self.enabled = enabled
         self.mode = mode
-        self.session_cache_manager: Optional[SessionCacheManager] = None
+        self.session_cache_manager: SessionCacheManager | None = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Initialize cache manager when attached to session."""
@@ -196,11 +196,11 @@ class CachingExtension(EventAwareExtension):
         """Rename the path for the cache manager."""
         del old_path
         if self.mode is not CacheMode.READ_WRITE:
-            return None
+            return
         path = session.app_file_manager.path
         if self.session_cache_manager and path:
             self.session_cache_manager.rename_path(path)
-        return None
+        return
 
     def _stop(self) -> None:
         """Stop the cache manager."""
@@ -217,7 +217,7 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         self.kernel_manager = kernel_manager
         self.queue_manager = queue_manager
-        self.distributor: Optional[Distributor[KernelMessage]] = None
+        self.distributor: Distributor[KernelMessage] | None = None
 
     def _create_distributor(
         self,
@@ -257,7 +257,7 @@ class NotificationListenerExtension(SessionExtension):
                 notif = NotebookDocumentTransactionNotification(
                     transaction=applied
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 LOGGER.warning(
                     "Failed to decode/apply kernel document transaction"
                 )
@@ -333,7 +333,7 @@ class SessionViewExtension(EventAwareExtension):
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         del from_consumer_id
@@ -363,7 +363,7 @@ class QueueExtension(EventAwareExtension):
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         del session
@@ -383,7 +383,7 @@ class ReplayExtension(EventAwareExtension):
         self,
         session: Session,
         request: commands.CommandMessage,
-        from_consumer_id: Optional[ConsumerId],
+        from_consumer_id: ConsumerId | None,
     ) -> None:
         """Called when a command is received."""
         from marimo._messaging.notification import (

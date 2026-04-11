@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 import sys
 from pdb import Pdb, Restart as pdbRestart
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._messaging.types import Stdin, Stdout
@@ -75,7 +75,7 @@ class MarimoPdb(Pdb):
         # Some custom attributes to hold on to exception data from cell
         # evaluation.
         self._last_tracebacks: dict[CellId_t, TracebackType] = {}
-        self._last_traceback: Optional[TracebackType] = None
+        self._last_traceback: TracebackType | None = None
 
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
@@ -84,7 +84,7 @@ class MarimoPdb(Pdb):
             sys.stdout.write(header)
         return super().set_trace(frame)
 
-    def cmdloop(self, intro: Optional[str] = None) -> None:
+    def cmdloop(self, intro: str | None = None) -> None:
         """Override to gracefully handle restarts."""
         try:
             super().cmdloop(intro)
@@ -102,7 +102,7 @@ class MarimoPdb(Pdb):
     def post_mortem_by_cell_id(self, cell_id: CellId_t) -> None:
         return self.post_mortem(t=self._last_tracebacks.get(cell_id))
 
-    def post_mortem(self, t: Optional[TracebackType] = None) -> None:
+    def post_mortem(self, t: TracebackType | None = None) -> None:
         if t is None:
             t = self._last_traceback
 

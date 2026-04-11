@@ -1,12 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Final, Literal, Optional
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.input import button
 from marimo._runtime.context.types import ContextNotInitializedError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc
@@ -62,12 +65,12 @@ class run_button(UIElement[Any, Any]):
         self,
         kind: Literal["neutral", "success", "warn", "danger"] = "neutral",
         disabled: bool = False,
-        tooltip: Optional[str] = None,
+        tooltip: str | None = None,
         *,
         label: str = "click to run",
-        on_change: Optional[Callable[[Any], None]] = None,
+        on_change: Callable[[Any], None] | None = None,
         full_width: bool = False,
-        keyboard_shortcut: Optional[str] = None,
+        keyboard_shortcut: str | None = None,
     ) -> None:
         self._initial_value = False
         super().__init__(
@@ -86,7 +89,7 @@ class run_button(UIElement[Any, Any]):
         )
 
     def _convert_value(self, value: Any) -> Any:
-        if value == 0:
+        if value == 0:  # noqa: SIM103
             # frontend's value == 0 only during initialization; first value
             # frontend will send is 1
             return False

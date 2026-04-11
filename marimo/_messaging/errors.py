@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import msgspec
 
 from marimo._runtime.dataflow import EdgeWithVar
@@ -33,7 +31,7 @@ class MultipleDefinitionError(msgspec.Struct, tag="multiple-defs"):
 
 class ImportStarError(msgspec.Struct, tag="import-star"):
     msg: str
-    lineno: Optional[int] = None
+    lineno: int | None = None
 
     def describe(self) -> str:
         return self.msg
@@ -47,7 +45,7 @@ class MarimoInterruptionError(msgspec.Struct, tag="interruption"):
 class MarimoAncestorPreventedError(msgspec.Struct, tag="ancestor-prevented"):
     msg: str
     raising_cell: CellId_t
-    blamed_cell: Optional[CellId_t]
+    blamed_cell: CellId_t | None
 
     def describe(self) -> str:
         return self.msg
@@ -65,9 +63,9 @@ class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
     msg: str
     exception_type: str
     # None for if raising_cell is the current cell
-    raising_cell: Optional[CellId_t]
+    raising_cell: CellId_t | None
     # Formatted traceback HTML (optional, for displaying full stacktrace)
-    traceback: Optional[str] = None
+    traceback: str | None = None
 
     def describe(self) -> str:
         return self.msg
@@ -75,7 +73,7 @@ class MarimoExceptionRaisedError(msgspec.Struct, tag="exception"):
 
 class MarimoSyntaxError(msgspec.Struct, tag="syntax"):
     msg: str
-    lineno: Optional[int] = None
+    lineno: int | None = None
 
     def describe(self) -> str:
         return self.msg
@@ -83,7 +81,7 @@ class MarimoSyntaxError(msgspec.Struct, tag="syntax"):
 
 class UnknownError(msgspec.Struct, tag="unknown"):
     msg: str
-    error_type: Optional[str] = None
+    error_type: str | None = None
 
     def describe(self) -> str:
         return self.msg
@@ -92,7 +90,7 @@ class UnknownError(msgspec.Struct, tag="unknown"):
 class MarimoStrictExecutionError(msgspec.Struct, tag="strict-exception"):
     msg: str
     ref: str
-    blamed_cell: Optional[CellId_t]
+    blamed_cell: CellId_t | None
 
     def describe(self) -> str:
         return self.msg
@@ -124,11 +122,11 @@ class MarimoSQLError(msgspec.Struct, tag="sql-error"):
 
     msg: str
     sql_statement: str
-    hint: Optional[str] = (
+    hint: str | None = (
         None  # Helpful hints like "Did you mean?" or "Candidate bindings"
     )
-    sql_line: Optional[int] = None  # 0-based line within SQL
-    sql_col: Optional[int] = None  # 0-based column within SQL
+    sql_line: int | None = None  # 0-based line within SQL
+    sql_col: int | None = None  # 0-based column within SQL
     node_lineno: int = 0
     node_col_offset: int = 0
 
@@ -165,18 +163,18 @@ def is_sensitive_error(error: Error) -> bool:
     )
 
 
-Error = Union[
-    SetupRootError,
-    CycleError,
-    MultipleDefinitionError,
-    ImportStarError,
-    MarimoAncestorStoppedError,
-    MarimoAncestorPreventedError,
-    MarimoExceptionRaisedError,
-    MarimoStrictExecutionError,
-    MarimoInterruptionError,
-    MarimoSyntaxError,
-    MarimoInternalError,
-    MarimoSQLError,
-    UnknownError,
-]
+Error = (
+    SetupRootError
+    | CycleError
+    | MultipleDefinitionError
+    | ImportStarError
+    | MarimoAncestorStoppedError
+    | MarimoAncestorPreventedError
+    | MarimoExceptionRaisedError
+    | MarimoStrictExecutionError
+    | MarimoInterruptionError
+    | MarimoSyntaxError
+    | MarimoInternalError
+    | MarimoSQLError
+    | UnknownError
+)

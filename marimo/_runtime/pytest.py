@@ -5,7 +5,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import Cell
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
@@ -19,6 +19,7 @@ MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     import _pytest.Item  # type: ignore
@@ -32,7 +33,7 @@ class MarimoPytestResult:
     skipped: int = 0
     xfailed: int = 0
     xpassed: int = 0
-    output: Optional[str] = None
+    output: str | None = None
 
     @property
     def total(self) -> int:
@@ -153,8 +154,8 @@ class ReplaceStubPlugin:
 
     def __init__(
         self,
-        defs: Optional[set[str]] = None,
-        lcls: Optional[dict[str, Any]] = None,
+        defs: set[str] | None = None,
+        lcls: dict[str, Any] | None = None,
     ) -> None:
         if lcls is None:
             lcls = globals()

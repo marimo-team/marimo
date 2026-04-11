@@ -84,6 +84,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from types import TracebackType
 
+    from typing_extensions import Self
+
     from marimo._ast.cell_manager import CellManager
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runtime import Kernel
@@ -171,7 +173,7 @@ def get_context(*, skip_validation: bool = False) -> AsyncCodeModeContext:
     """
     runtime_ctx = _get_runtime_context()
     if not isinstance(runtime_ctx, KernelRuntimeContext):
-        raise RuntimeError("code mode requires a running kernel context")  # noqa: TRY004
+        raise RuntimeError("code mode requires a running kernel context")
     cell_manager = runtime_ctx._app.cell_manager if runtime_ctx._app else None
     return AsyncCodeModeContext(
         runtime_ctx._kernel,
@@ -591,7 +593,7 @@ class AsyncCodeModeContext:
     # Async context manager
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> AsyncCodeModeContext:
+    async def __aenter__(self) -> Self:
         self._ops = []
         self._pending_adds = {}
         self._packages_to_install = []
@@ -647,7 +649,7 @@ class AsyncCodeModeContext:
 
         # Flush queued UI updates as a single batch.
         if ui_updates:
-            object_ids, values = zip(*ui_updates)
+            object_ids, values = zip(*ui_updates, strict=False)
             await self._kernel.set_ui_element_value(
                 UpdateUIElementCommand(
                     object_ids=list(object_ids),

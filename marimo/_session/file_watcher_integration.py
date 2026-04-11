@@ -8,7 +8,7 @@ without leaking implementation details or monkey-patching.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._session.extensions.types import EventAwareExtension
@@ -19,7 +19,7 @@ from marimo._utils.paths import normalize_path
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Callable
 
     from marimo._session.events import SessionEventBus
 

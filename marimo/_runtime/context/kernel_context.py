@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._config.config import MarimoConfig
@@ -38,9 +38,9 @@ class KernelRuntimeContext(RuntimeContext):
     _kernel: Kernel
     _session_mode: SessionMode
     # app that owns this context; None for top-level contexts
-    _app: Optional[InternalApp] = None
-    _id_provider: Optional[IDProvider] = None
-    _execution_context: Optional[ExecutionContext] = None
+    _app: InternalApp | None = None
+    _id_provider: IDProvider | None = None
+    _execution_context: ExecutionContext | None = None
 
     @property
     def graph(self) -> DirectedGraph:
@@ -69,7 +69,7 @@ class KernelRuntimeContext(RuntimeContext):
         return self._kernel.lazy()
 
     @property
-    def cell_id(self) -> Optional[CellId_t]:
+    def cell_id(self) -> CellId_t | None:
         """Get the cell id of the currently executing cell, if any."""
         if self.execution_context is not None:
             return self.execution_context.cell_id

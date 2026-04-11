@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._config.config import Theme
@@ -44,7 +44,7 @@ from marimo._utils.site_packages import is_local_module
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 # Map from formatter factory's package name to formatter, for third-party
 # modules. These formatters will be registered if and when their associated
@@ -167,7 +167,7 @@ def patch_finder(
     if module_name != find_spec.__module__:
         # Use the __get__ descriptor to bind find_spec to this finder object,
         # to make sure self/cls gets passed
-        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
+        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]
 
 
 def register_formatters(theme: Theme = "light") -> None:

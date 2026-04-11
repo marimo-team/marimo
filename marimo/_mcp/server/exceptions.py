@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -13,8 +13,8 @@ class ToolErrorDetails:
     code: str = "TOOL_ERROR"
     status: int = 400
     is_retryable: bool = False
-    suggested_fix: Optional[str] = None
-    meta: Optional[dict[str, Any]] = None
+    suggested_fix: str | None = None
+    meta: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a dictionary representation of the error details."""
@@ -38,8 +38,8 @@ class ToolExecutionError(Exception):
         code: str = "TOOL_ERROR",
         status: int = 400,
         is_retryable: bool = False,
-        suggested_fix: Optional[str] = None,
-        meta: Optional[dict[str, Any]] = None,
+        suggested_fix: str | None = None,
+        meta: dict[str, Any] | None = None,
     ):
         # Create the structured error details using the dataclass
         self.details = ToolErrorDetails(
@@ -76,7 +76,7 @@ class ToolExecutionError(Exception):
         return self.details.is_retryable
 
     @property
-    def suggested_fix(self) -> Optional[str]:
+    def suggested_fix(self) -> str | None:
         """Access the suggested fix through the details dataclass."""
         return self.details.suggested_fix
 

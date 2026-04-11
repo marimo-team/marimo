@@ -14,7 +14,7 @@ import token as token_types
 import warnings
 from tokenize import TokenError, tokenize
 from types import CodeType, FrameType
-from typing import Any, Callable, Optional, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -32,6 +32,9 @@ from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
@@ -63,7 +66,7 @@ def code_key(code: str) -> int:
     return hash(code)
 
 
-def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
+def cell_id_from_filename(filename: str) -> CellId_t | None:
     """Parse cell id from filename."""
     matches = re.findall(r"__marimo__cell_(.*?)_", filename)
     if matches:
@@ -190,7 +193,7 @@ def const_or_id(args: ast.stmt) -> str:
     return f"{args.id}"  # type: ignore[attr-defined]
 
 
-def _extract_markdown(tree: ast.Module) -> Optional[str]:
+def _extract_markdown(tree: ast.Module) -> str | None:
     # Attribute Error handled by the outer try/except block.
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
     try:
@@ -227,7 +230,7 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
     return md
 
 
-def extract_markdown(code: str) -> Optional[str]:
+def extract_markdown(code: str) -> str | None:
     code = code.strip()
     count = 0
     # Early quitting for markdown extraction.
@@ -248,10 +251,10 @@ def extract_markdown(code: str) -> Optional[str]:
 def compile_cell(
     code: str,
     cell_id: CellId_t,
-    source_position: Optional[SourcePosition] = None,
+    source_position: SourcePosition | None = None,
     carried_imports: list[ImportData] | None = None,
     test_rewrite: bool = False,
-    filename: Optional[str] = None,
+    filename: str | None = None,
 ) -> CellImpl:
     if filename is not None and source_position is None:
         source_position = solve_source_position(
@@ -433,9 +436,7 @@ def _build_source_position_map(
     )
 
 
-def solve_source_position(
-    code: str, filename: str
-) -> Optional[SourcePosition]:
+def solve_source_position(code: str, filename: str) -> SourcePosition | None:
     entries = _build_source_position_map(filename)
 
     if not entries:
@@ -462,7 +463,7 @@ def solve_source_position(
 
 def get_source_position(
     f: Cls | Callable[..., Any], lineno: int, col_offset: int
-) -> Optional[SourcePosition]:
+) -> SourcePosition | None:
     # Fallback won't capture embedded scripts
     if inspect.isclass(f):
         is_script = f.__module__ == "__main__"
@@ -594,19 +595,18 @@ def toplevel_cell_factory(
 
 
 def ir_cell_factory(
-    cell_def: CellDef, cell_id: CellId_t, filename: Optional[str] = None
+    cell_def: CellDef, cell_id: CellId_t, filename: str | None = None
 ) -> Cell:
     # NB. no need for test rewrite, anonymous file, etc.
     # Because this is never invoked in script mode.
     source_position = None
     # EXCEPT in the case of debugpy, where we need to preserve source position.
-    if os.environ.get("DEBUGPY_RUNNING"):
-        if filename and cell_def.lineno:
-            source_position = SourcePosition(
-                filename=filename,
-                lineno=cell_def.lineno,
-                col_offset=cell_def.col_offset,
-            )
+    if os.environ.get("DEBUGPY_RUNNING") and filename and cell_def.lineno:
+        source_position = SourcePosition(
+            filename=filename,
+            lineno=cell_def.lineno,
+            col_offset=cell_def.col_offset,
+        )
 
     prefix = ""
     if isinstance(cell_def, (FunctionCell, ClassCell)):

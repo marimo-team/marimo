@@ -22,6 +22,8 @@ interface SlidesComponentProps {
   index?: string | null;
   height?: string | number | null;
   wrapAround?: boolean;
+  activeIndex?: number | null;
+  onActiveIndexChange?: (index: number) => void;
 }
 
 const SlidesComponent = ({
@@ -30,10 +32,22 @@ const SlidesComponent = ({
   height,
   forceKeyboardNavigation = false,
   wrapAround = false,
+  activeIndex,
+  onActiveIndexChange,
 }: PropsWithChildren<SlidesComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const { hasFullscreen } = useIframeCapabilities();
+
+  useEffect(() => {
+    if (activeIndex != null && el.current?.swiper.realIndex !== activeIndex) {
+      if (wrapAround) {
+        el.current?.swiper.slideToLoop(activeIndex);
+      } else {
+        el.current?.swiper.slideTo(activeIndex);
+      }
+    }
+  }, [activeIndex, wrapAround]);
 
   useEventListener(document, "fullscreenchange", () => {
     if (document.fullscreenElement) {
@@ -63,7 +77,7 @@ const SlidesComponent = ({
       )}
       spaceBetween={50}
       style={{
-        height: isFullscreen ? "100%" : height || "550px",
+        height: isFullscreen ? "100%" : height || "650px",
       }}
       slidesPerView={1}
       modules={modules}
@@ -85,6 +99,7 @@ const SlidesComponent = ({
       // that overlay content more legible
       speed={1}
       loop={wrapAround}
+      onSlideChange={(swiper) => onActiveIndexChange?.(swiper.realIndex)}
     >
       {React.Children.map(children, (child, index) => {
         if (child == null) {

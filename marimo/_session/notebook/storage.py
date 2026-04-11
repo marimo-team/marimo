@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Protocol
 
 from marimo import _loggers
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -89,7 +89,7 @@ class StorageInterface(Protocol):
 
     def read_related_file(
         self, base_path: Path, relative_path: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Read a file relative to a base path.
 
         Used for reading CSS files, layout configs, etc.
@@ -188,7 +188,7 @@ class FilesystemStorage(StorageInterface):
 
     def read_related_file(
         self, base_path: Path, relative_path: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Read a file relative to the base path.
 
         Args:

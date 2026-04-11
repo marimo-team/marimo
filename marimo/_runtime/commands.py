@@ -10,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    Optional,
     TypeVar,
     Union,
 )
@@ -40,8 +39,7 @@ def kebab_case(name: str) -> str:
     Removes 'Command' suffix and converts to kebab-case for discriminated union tags.
     Handles acronyms by keeping consecutive uppercase letters together.
     """
-    if name.endswith("Command"):
-        name = name[:-7]  # Remove 'Command' (7 characters)
+    name = name.removesuffix("Command")  # Remove 'Command' (7 characters)
     if not name:
         return name
     # Insert hyphens before uppercase letters that follow lowercase letters
@@ -63,13 +61,12 @@ class Command(
     deserialization for type-safe routing.
     """
 
-    pass
-
 
 T = TypeVar("T")
+# Union required: mypy rejects `T | list[T]` as a generic type alias target.
 ListOrValue = Union[T, list[T]]
 SerializedQueryParams = dict[str, ListOrValue[str]]
-Primitive = Union[str, bool, int, float]
+Primitive = str | bool | int | float
 SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
@@ -162,8 +159,8 @@ class HTTPRequest(Mapping[str, Any]):
             query_params=query_params,
             path_params=request.path_params,
             cookies=request.cookies,
-            user=request["user"] if "user" in request else {},
-            meta=request["meta"] if "meta" in request else {},
+            user=request.get("user", {}),
+            meta=request.get("meta", {}),
             # Left out for now. This may contain information that the app author
             # does not want to expose.
             # session=request.session if "session" in request else {},
@@ -183,7 +180,7 @@ class DebugCellCommand(Command):
 
     cell_id: CellId_t
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
 
     def __repr__(self) -> str:
         return f"DebugCellCommand(cell={self.cell_id})"
@@ -205,7 +202,7 @@ class ExecuteCellCommand(Command):
     cell_id: CellId_t
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
     timestamp: float = msgspec.field(default_factory=time.time)
 
     def __repr__(self) -> str:
@@ -225,7 +222,7 @@ class ExecuteStaleCellsCommand(Command):
         request: HTTP request context if available.
     """
 
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
 
 
 class ExecuteCellsCommand(Command):
@@ -246,7 +243,7 @@ class ExecuteCellsCommand(Command):
     # code to register/run for each cell
     codes: list[str]
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
     # time at which the request was received
     timestamp: float = msgspec.field(default_factory=time.time)
 
@@ -267,7 +264,7 @@ class ExecuteCellsCommand(Command):
                 request=self.request,
                 timestamp=self.timestamp,
             )
-            for cell_id, code in zip(self.cell_ids, self.codes)
+            for cell_id, code in zip(self.cell_ids, self.codes, strict=False)
         ]
 
     def __post_init__(self) -> None:
@@ -333,9 +330,9 @@ class ExecuteScratchpadCommand(Command):
 
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
     # Document snapshot — set by the execution endpoint from session.document.
-    notebook_cells: Optional[tuple[NotebookCell, ...]] = None
+    notebook_cells: tuple[NotebookCell, ...] | None = None
 
 
 class RenameNotebookCommand(Command):
@@ -366,7 +363,7 @@ class UpdateUIElementCommand(Command):
     object_ids: list[UIElementId]
     values: list[Any]
     # Incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
     # uniquely identifies the request
     token: str = msgspec.field(default_factory=lambda: str(uuid4()))
 
@@ -386,7 +383,7 @@ class UpdateUIElementCommand(Command):
     @staticmethod
     def from_ids_and_values(
         ids_and_values: list[tuple[UIElementId, Any]],
-        request: Optional[HTTPRequest] = None,
+        request: HTTPRequest | None = None,
     ) -> UpdateUIElementCommand:
         """Create command from list of (id, value) tuples.
 
@@ -401,7 +398,7 @@ class UpdateUIElementCommand(Command):
             return UpdateUIElementCommand(
                 object_ids=[], values=[], request=request
             )
-        object_ids, values = zip(*ids_and_values)
+        object_ids, values = zip(*ids_and_values, strict=False)
         return UpdateUIElementCommand(
             object_ids=list(object_ids),
             values=list(values),
@@ -415,7 +412,7 @@ class UpdateUIElementCommand(Command):
         Returns:
             List of (id, value) tuples.
         """
-        return list(zip(self.object_ids, self.values))
+        return list(zip(self.object_ids, self.values, strict=False))
 
 
 class InvokeFunctionCommand(Command):
@@ -454,10 +451,10 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
     app_config: _AppConfig
-    argv: Union[list[str], None] = None
+    argv: list[str] | None = None
 
-    filename: Optional[str] = None
-    docstring: Optional[str] = None
+    filename: str | None = None
+    docstring: str | None = None
 
 
 class UpdateCellConfigCommand(Command):
@@ -507,7 +504,7 @@ class CreateNotebookCommand(Command):
     cell_ids: tuple[CellId_t, ...]
     set_ui_element_value_request: UpdateUIElementCommand
     auto_run: bool
-    request: Optional[HTTPRequest] = None
+    request: HTTPRequest | None = None
 
 
 class DeleteCellCommand(Command):
@@ -529,8 +526,6 @@ class StopKernelCommand(Command):
     Signals the kernel to stop processing and shut down gracefully.
     Used when closing a notebook or terminating a session.
     """
-
-    pass
 
 
 class CodeCompletionCommand(Command):
@@ -607,7 +602,7 @@ class PreviewDatasetColumnCommand(Command):
     column_name: str
     # The fully qualified name of the table
     # This is the database.schema.table name
-    fully_qualified_table_name: Optional[str] = None
+    fully_qualified_table_name: str | None = None
 
 
 class PreviewSQLTableCommand(Command):
@@ -698,8 +693,8 @@ class ValidateSQLCommand(Command):
     # Whether to only parse the query or validate against the database
     # Parsing is done without a DB connection and uses dialect, whereas validation requires a connection
     only_parse: bool
-    engine: Optional[str] = None
-    dialect: Optional[str] = None
+    engine: str | None = None
+    dialect: str | None = None
 
 
 class StorageListEntriesCommand(Command):
@@ -718,7 +713,7 @@ class StorageListEntriesCommand(Command):
     request_id: RequestId
     namespace: str
     limit: int
-    prefix: Optional[str] = None
+    prefix: str | None = None
 
 
 class StorageDownloadCommand(Command):
@@ -764,7 +759,7 @@ class ModelUpdateMessage(
     """
 
     state: dict[str, Any]
-    buffer_paths: list[list[Union[str, int]]]
+    buffer_paths: list[list[str | int]]
 
     def into_comm_payload_content(self) -> dict[str, Any]:
         return {
@@ -796,7 +791,7 @@ class ModelCustomMessage(
         }
 
 
-ModelMessage = Union[ModelUpdateMessage, ModelCustomMessage]
+ModelMessage = ModelUpdateMessage | ModelCustomMessage
 
 
 class ModelCommand(Command):
@@ -825,7 +820,7 @@ class ModelCommand(Command):
 
 # Commands that can be batched and merged (last-write-wins) by the
 # SetUIElementRequestManager to avoid redundant cell re-executions.
-BatchableCommand = Union[UpdateUIElementCommand, ModelCommand]
+BatchableCommand = UpdateUIElementCommand | ModelCommand
 
 
 class RefreshSecretsCommand(Command):
@@ -833,8 +828,6 @@ class RefreshSecretsCommand(Command):
 
     Reloads secrets from the provider without restarting the kernel.
     """
-
-    pass
 
 
 class ClearCacheCommand(Command):
@@ -844,8 +837,6 @@ class ClearCacheCommand(Command):
     Affects all cells using the @cache decorator.
     """
 
-    pass
-
 
 class GetCacheInfoCommand(Command):
     """Retrieve cache statistics.
@@ -853,49 +844,47 @@ class GetCacheInfoCommand(Command):
     Collects cache usage info across all contexts (hit/miss rates, time saved, disk usage).
     """
 
-    pass
 
-
-CommandMessage = Union[
+CommandMessage = (
     # Notebook operations
-    CreateNotebookCommand,
-    RenameNotebookCommand,
-    CodeCompletionCommand,
+    CreateNotebookCommand
+    | RenameNotebookCommand
+    | CodeCompletionCommand
     # Cell execution and management
-    ExecuteCellsCommand,
-    ExecuteScratchpadCommand,
-    ExecuteStaleCellsCommand,
-    DebugCellCommand,
-    DeleteCellCommand,
-    SyncGraphCommand,
-    UpdateCellConfigCommand,
+    | ExecuteCellsCommand
+    | ExecuteScratchpadCommand
+    | ExecuteStaleCellsCommand
+    | DebugCellCommand
+    | DeleteCellCommand
+    | SyncGraphCommand
+    | UpdateCellConfigCommand
     # Package management
-    InstallPackagesCommand,
+    | InstallPackagesCommand
     # UI element and widget model operations
-    UpdateUIElementCommand,
-    ModelCommand,
-    InvokeFunctionCommand,
+    | UpdateUIElementCommand
+    | ModelCommand
+    | InvokeFunctionCommand
     # User/configuration operations
-    UpdateUserConfigCommand,
+    | UpdateUserConfigCommand
     # Data SQL operations
-    PreviewDatasetColumnCommand,
-    PreviewSQLTableCommand,
-    ListSQLTablesCommand,
-    ListSQLSchemasCommand,
-    ValidateSQLCommand,
-    ListDataSourceConnectionCommand,
+    | PreviewDatasetColumnCommand
+    | PreviewSQLTableCommand
+    | ListSQLTablesCommand
+    | ListSQLSchemasCommand
+    | ValidateSQLCommand
+    | ListDataSourceConnectionCommand
     # Storage operations
-    StorageListEntriesCommand,
-    StorageDownloadCommand,
+    | StorageListEntriesCommand
+    | StorageDownloadCommand
     # Secrets management
-    ListSecretKeysCommand,
-    RefreshSecretsCommand,
+    | ListSecretKeysCommand
+    | RefreshSecretsCommand
     # Cache management
-    ClearCacheCommand,
-    GetCacheInfoCommand,
+    | ClearCacheCommand
+    | GetCacheInfoCommand
     # Kernel operations
-    StopKernelCommand,
-]
+    | StopKernelCommand
+)
 """Union of all command messages.
 
 All commands that can be sent to the kernel.

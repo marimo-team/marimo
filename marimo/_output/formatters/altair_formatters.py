@@ -108,7 +108,6 @@ class AltairFormatter(FormatterFactory):
         del theme
         # We don't need to apply this here because the theme is set in the
         # vega-lite component
-        pass
 
 
 def _format_png_mimebundle(

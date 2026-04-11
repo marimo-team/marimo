@@ -59,12 +59,38 @@ describe("WidgetDefRegistry", () => {
 
   it("should remove from cache on import failure so retry creates new promise", async () => {
     const promise1 = registry.getModule("http://localhost/a.js", "fail-hash");
-    // The import will fail in Node (http: scheme not supported)
+    // The URL is rejected by the trusted-URL validator.
     await expect(promise1).rejects.toThrow();
     // After failure, cache should be cleared, so next call creates a new promise
     const promise2 = registry.getModule("http://localhost/a.js", "fail-hash");
     expect(promise1).not.toBe(promise2);
     promise2.catch(() => undefined);
+  });
+
+  describe("URL validation", () => {
+    it.each([
+      // Attack vector: raw <marimo-anywidget data-js-url=...> in markdown
+      "http://127.0.0.1:8820/poc.mjs",
+      "https://evil.example.com/widget.mjs",
+      "//evil.example.com/widget.mjs",
+      "javascript:alert(1)",
+      "data:text/javascript;base64,YWxlcnQoMSk=",
+      "./@file/x.js?redirect=http://evil.com",
+      "",
+    ])("rejects untrusted URL: %s", async (url) => {
+      await expect(registry.getModule(url, `hash-${url}`)).rejects.toThrow(
+        /untrusted/i,
+      );
+    });
+
+    it("accepts virtual file paths (fails later at import time)", async () => {
+      // The URL passes validation but the import still fails because this
+      // is a Node test environment with no server. We only assert that
+      // the rejection reason is NOT the "untrusted URL" refusal.
+      await expect(
+        registry.getModule("./@file/123-widget.js", "trusted-hash"),
+      ).rejects.not.toThrow(/untrusted/i);
+    });
   });
 });
 
