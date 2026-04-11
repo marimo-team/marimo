@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class IPythonFormatter(FormatterFactory):
@@ -43,7 +46,7 @@ class IPythonFormatter(FormatterFactory):
         # Monkey patch IPython.display.display, which imperatively writes
         # outputs to the frontend
         @functools.wraps(old_display)
-        def display(*objs: Any, **kwargs: Any) -> Optional[DisplayHandle]:
+        def display(*objs: Any, **kwargs: Any) -> DisplayHandle | None:
             # If clear is True, clear the output before displaying
             if kwargs.pop("clear", False):
                 _output.clear()
@@ -117,7 +120,7 @@ class IPythonFormatter(FormatterFactory):
             if old_update_display is not None:
                 IPython.display.update_display = old_update_display  # type: ignore
             else:
-                delattr(IPython.display, "update_display")
+                del IPython.display.update_display
 
             try:
                 IPython.core.display_functions.display = old_display  # type: ignore
@@ -126,7 +129,7 @@ class IPythonFormatter(FormatterFactory):
                         old_update_display  # type: ignore
                     )
                 else:
-                    delattr(IPython.core.display_functions, "update_display")
+                    del IPython.core.display_functions.update_display
             except AttributeError:
                 pass
 

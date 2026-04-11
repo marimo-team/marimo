@@ -7,7 +7,8 @@ import functools
 import sys
 import textwrap
 import types
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.parse import ast_parse
 from marimo._dependencies.dependencies import DependencyManager
@@ -300,9 +301,7 @@ def patch_jedi_parameter_completion() -> None:
             lines = [
                 line.strip().lstrip("#") for line in maybe_comment.splitlines()
             ]
-            min_indent = min(
-                [len(line) - len(line.lstrip()) for line in lines]
-            )
+            min_indent = min(len(line) - len(line.lstrip()) for line in lines)
             return "\n".join(
                 line.strip().lstrip("#")[min_indent:]
                 for line in maybe_comment.splitlines()
@@ -507,7 +506,7 @@ def patch_polars_write_json() -> Unpatch:
                 headers: list[str] = lines[0].split(",")
                 for line in lines[1:]:
                     values: list[str] = line.split(",")
-                    json_data.append(dict(zip(headers, values)))
+                    json_data.append(dict(zip(headers, values, strict=False)))
 
             if file is None:
                 return json.dumps(json_data)

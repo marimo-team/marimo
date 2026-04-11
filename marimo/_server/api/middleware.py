@@ -3,20 +3,17 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
-    Optional,
-    Union,
 )
 from urllib.parse import quote, urljoin, urlparse
 
-import starlette.status as status
+from starlette import status
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
@@ -88,7 +85,7 @@ class AuthBackend(AuthenticationBackend):
 
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
+    ) -> tuple[AuthCredentials, BaseUser] | None:
         # We may not need to authenticate. This can be disabled
         # because the user is running in a trusted environment
         # or authentication is handled by a layer above us
@@ -370,7 +367,7 @@ class ProxyMiddleware:
         self,
         app: ASGIApp,
         proxy_path: str,
-        target_url: Union[str, Callable[[str], str]],
+        target_url: str | Callable[[str], str],
         path_rewrite: Callable[[str], str] | None = None,
         connection_error_handler: Callable[
             [ConnectionRefusedError, str], Response
@@ -468,7 +465,7 @@ class ProxyMiddleware:
             content=request.stream(),
         )
 
-        response: Union[StreamingResponse, Response]
+        response: StreamingResponse | Response
         try:
             rp_resp = await client.send(rp_req, stream=True)
             response = StreamingResponse(
@@ -560,7 +557,7 @@ class ProxyMiddleware:
                             LOGGER.error(
                                 f"Failed to connect to {ws_url} after {max_retries} attempts. Final error: {e}"
                             )
-                            raise e
+                            raise
 
                 raise ValueError("Failed to connect to LSP server")
 
@@ -617,8 +614,6 @@ class ProxyMiddleware:
                     await asyncio.gather(*relay_tasks)
                 except asyncio.CancelledError:
                     pass
-                except Exception as e:
-                    raise e
                 finally:
                     for task in relay_tasks:
                         if not task.done():

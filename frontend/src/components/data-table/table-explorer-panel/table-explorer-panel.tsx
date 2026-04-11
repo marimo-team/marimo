@@ -139,7 +139,7 @@ export const TableExplorerPanel: React.FC<TableExplorerPanelProps> = ({
                 : inactiveClassName,
             )}
           >
-            Explorer
+            Columns
           </Button>
         </div>
       </Fill>

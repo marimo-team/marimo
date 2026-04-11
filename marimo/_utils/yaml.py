@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, TypeAlias
+from collections.abc import Callable
+from typing import Any, TypeAlias
 
 import yaml
 from yaml.representer import SafeRepresenter, ScalarNode

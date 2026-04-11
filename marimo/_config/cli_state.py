@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from marimo._utils.config.config import ConfigReader
 
 
 @dataclass
 class MarimoCLIState:
-    latest_version: Optional[str] = None
-    last_checked_at: Optional[str] = None
-    accepted_text_to_notebook_terms_at: Optional[str] = None
-    notices: Optional[list[str]] = None
+    latest_version: str | None = None
+    last_checked_at: str | None = None
+    accepted_text_to_notebook_terms_at: str | None = None
+    notices: list[str] | None = None
 
 
 FILE_NAME = "state.toml"

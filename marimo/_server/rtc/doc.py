@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._server.file_router import MarimoFileKey
@@ -22,7 +22,7 @@ class LoroDocManager:
             MarimoFileKey, set[asyncio.Queue[bytes]]
         ] = {}
         self.loro_docs_cleaners: dict[
-            MarimoFileKey, Optional[asyncio.Task[None]]
+            MarimoFileKey, asyncio.Task[None] | None
         ] = {}
 
     async def _clean_loro_doc(
@@ -46,7 +46,6 @@ class LoroDocManager:
             LOGGER.debug(
                 f"RTC: clean_loro_doc task cancelled for file {file_key} - likely due to reconnection"
             )
-            pass
 
     async def create_doc(
         self,
@@ -72,7 +71,7 @@ class LoroDocManager:
             # Add all cell code to the doc
             doc_codes = doc.get_map("codes")
             doc.get_map("languages")
-            for cell_id, code in zip(cell_ids, codes):
+            for cell_id, code in zip(cell_ids, codes, strict=False):
                 cell_text = LoroText()  # type: ignore[no-untyped-call]
                 cell_text.insert(0, code)
                 doc_codes.insert_container(cell_id, cell_text)
@@ -115,7 +114,7 @@ class LoroDocManager:
         self,
         file_key: MarimoFileKey,
         message: bytes,
-        exclude_queue: Optional[asyncio.Queue[bytes]] = None,
+        exclude_queue: asyncio.Queue[bytes] | None = None,
     ) -> None:
         """Broadcast an update to all clients except the excluded queue."""
         clients = self.loro_docs_clients[file_key]

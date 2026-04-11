@@ -22,7 +22,11 @@ import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import {
+  type CollapsibleTree,
+  MultiColumn,
+  type CellColumnId,
+} from "@/utils/id-tree";
 import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
@@ -493,6 +497,106 @@ describe("cell reducer", () => {
       [2] ''
       "
     `);
+  });
+
+  it("can move a cell to an exact index within a column", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+    });
+
+    const columnId = state.cellIds.atOrThrow(0).id;
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId,
+      index: 3,
+    });
+
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [1] ''
+
+      [2] ''
+
+      [0] ''
+      "
+    `);
+  });
+
+  it("can move a cell to an exact index across columns", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+    });
+    actions.addColumnBreakpoint({ cellId: cellId("1") });
+
+    const secondColumnId = state.cellIds.atOrThrow(1).id;
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId: secondColumnId,
+      index: 1,
+    });
+
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      > col 0
+
+
+      > col 1
+      [1] ''
+
+      [0] ''
+
+      [2] ''
+      "
+    `);
+  });
+
+  it("moveCellToIndex is a no-op when moving to the same position", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: cellId("1"),
+      before: false,
+    });
+
+    const columnId = state.cellIds.atOrThrow(0).id;
+    const before = formatCells(state);
+
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId,
+      index: 0,
+    });
+
+    expect(formatCells(state)).toBe(before);
+  });
+
+  it("moveCellToIndex is a no-op for an invalid columnId", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+
+    const before = formatCells(state);
+
+    actions.moveCellToIndex({
+      cellId: firstCellId,
+      columnId: "nonexistent-column" as CellColumnId,
+      index: 0,
+    });
+
+    expect(formatCells(state)).toBe(before);
   });
 
   it("can run cell and receive cell messages", () => {

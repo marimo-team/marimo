@@ -145,6 +145,16 @@ def test_login_submit_with_external_redirect(client: TestClient):
     assert response.headers["location"] == "/"
 
 
+def test_login_submit_with_protocol_relative_redirect(client: TestClient):
+    """Protocol-relative URLs (//evil.com) must not bypass open redirect protection."""
+    response = client.post(
+        "/login?next=//evil.com",
+        data={"password": str(AUTH_TOKEN)},
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "/"
+
+
 def test_login_submit_with_malformed_data(client: TestClient):
     response = client.post(
         "/login",

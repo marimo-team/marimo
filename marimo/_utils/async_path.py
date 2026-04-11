@@ -8,12 +8,14 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-from typing import IO, TYPE_CHECKING, Any, Optional, Union
+from typing import IO, TYPE_CHECKING, Any
 
-StrPath = Union[str, os.PathLike[str]]
+StrPath = str | os.PathLike[str]
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
+
+    from typing_extensions import Self
 
 
 class AsyncPath(PurePath):
@@ -23,11 +25,14 @@ class AsyncPath(PurePath):
     This class inherits from PurePath for path manipulation and adds async filesystem methods.
     """
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> AsyncPath:
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         # Create the path using the same logic as PurePath
+        path_cls: type[AsyncPath]
         if cls is AsyncPath:
-            cls = AsyncWindowsPath if os.name == "nt" else AsyncPosixPath
-        return super().__new__(cls, *args, **kwargs)  # type: ignore
+            path_cls = AsyncWindowsPath if os.name == "nt" else AsyncPosixPath
+        else:
+            path_cls = cls
+        return super().__new__(path_cls, *args, **kwargs)  # type: ignore
 
     def __truediv__(self, other: StrPath) -> AsyncPath:
         # Override to return AsyncPath instance
@@ -90,25 +95,25 @@ class AsyncPath(PurePath):
             self._path.mkdir, mode, parents, exist_ok
         )
 
-    async def rename(self, target: Union[str, AsyncPath, Path]) -> AsyncPath:
+    async def rename(self, target: str | AsyncPath | Path) -> AsyncPath:
         """Rename the path to target."""
         result = await asyncio.to_thread(self._path.rename, target)
         return self.__class__(result)
 
-    async def replace(self, target: Union[str, AsyncPath, Path]) -> AsyncPath:
+    async def replace(self, target: str | AsyncPath | Path) -> AsyncPath:
         """Replace the path with target."""
         result = await asyncio.to_thread(self._path.replace, target)
         return self.__class__(result)
 
     async def symlink_to(
-        self, target: Union[str, Path], target_is_directory: bool = False
+        self, target: str | Path, target_is_directory: bool = False
     ) -> None:
         """Create a symbolic link to target."""
         return await asyncio.to_thread(
             self._path.symlink_to, target, target_is_directory
         )
 
-    async def hardlink_to(self, target: Union[str, Path]) -> None:
+    async def hardlink_to(self, target: str | Path) -> None:
         """Create a hard link to target."""
         return await asyncio.to_thread(self._path.hardlink_to, target)
 
@@ -120,7 +125,7 @@ class AsyncPath(PurePath):
     # File I/O operations
 
     async def read_text(
-        self, encoding: Optional[str] = None, errors: Optional[str] = None
+        self, encoding: str | None = None, errors: str | None = None
     ) -> str:
         """Read and return the file contents as text."""
         return await asyncio.to_thread(self._path.read_text, encoding, errors)
@@ -132,9 +137,9 @@ class AsyncPath(PurePath):
     async def write_text(
         self,
         data: str,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
     ) -> int:
         """Write text data to the file."""
         return await asyncio.to_thread(
@@ -200,9 +205,9 @@ class AsyncPath(PurePath):
         self,
         mode: str = "r",
         buffering: int = -1,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
     ) -> IO[Any]:
         """
         Open the file.

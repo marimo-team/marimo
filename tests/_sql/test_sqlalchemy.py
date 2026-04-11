@@ -807,7 +807,6 @@ def test_preserves_function_metadata():
     @safe_execute(fallback=None)
     def my_func():
         """My docstring."""
-        pass
 
     assert my_func.__name__ == "my_func"
     assert my_func.__doc__ == "My docstring."
@@ -948,34 +947,40 @@ def test_get_inspector_executes_use_database():
 
     engine = SQLAlchemyEngine(mock_sa_engine, engine_name=VariableName("test"))
 
-    with mock.patch(
-        "sqlalchemy.inspect", return_value=mock_command
-    ) as patched_inspect:
-        with engine._get_inspector("my_db") as inspector:
-            assert inspector is mock_command
-            patched_inspect.assert_called_once_with(mock_conn)
+    with (
+        mock.patch(
+            "sqlalchemy.inspect", return_value=mock_command
+        ) as patched_inspect,
+        engine._get_inspector("my_db") as inspector,
+    ):
+        assert inspector is mock_command
+        patched_inspect.assert_called_once_with(mock_conn)
 
     # Verify USE DATABASE was executed
     executed = mock_conn.execute.call_args[0][0]
     assert str(executed) == "USE DATABASE my_db"
 
-    with mock.patch(
-        "sqlalchemy.inspect", return_value=mock_command
-    ) as patched_inspect:
-        with engine._get_inspector("MY_DB@MYDB") as inspector:
-            assert inspector is mock_command
-            patched_inspect.assert_called_once_with(mock_conn)
+    with (
+        mock.patch(
+            "sqlalchemy.inspect", return_value=mock_command
+        ) as patched_inspect,
+        engine._get_inspector("MY_DB@MYDB") as inspector,
+    ):
+        assert inspector is mock_command
+        patched_inspect.assert_called_once_with(mock_conn)
 
     # Verify USE DATABASE was executed
     executed = mock_conn.execute.call_args[0][0]
     assert str(executed) == 'USE DATABASE "MY_DB@MYDB"'
 
-    with mock.patch(
-        "sqlalchemy.inspect", return_value=mock_command
-    ) as patched_inspect:
-        with engine._get_inspector("MY_db") as inspector:
-            assert inspector is mock_command
-            patched_inspect.assert_called_once_with(mock_conn)
+    with (
+        mock.patch(
+            "sqlalchemy.inspect", return_value=mock_command
+        ) as patched_inspect,
+        engine._get_inspector("MY_db") as inspector,
+    ):
+        assert inspector is mock_command
+        patched_inspect.assert_called_once_with(mock_conn)
 
     # Verify USE DATABASE was executed
     executed = mock_conn.execute.call_args[0][0]

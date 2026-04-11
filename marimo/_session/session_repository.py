@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo._session.model import ConnectionState
 from marimo._session.session import Session
@@ -36,23 +36,23 @@ class SessionRepository:
         self._sessions[session_id] = session
         self._session_to_id[session] = session_id
 
-    async def get(self, session_id: SessionId) -> Optional[Session]:
+    async def get(self, session_id: SessionId) -> Session | None:
         """Get a session by its ID."""
         async with self._lock:
             return self._sessions.get(session_id)
 
-    def get_sync(self, session_id: SessionId) -> Optional[Session]:
+    def get_sync(self, session_id: SessionId) -> Session | None:
         """Get a session synchronously."""
         return self._sessions.get(session_id)
 
-    def get_by_consumer_id(self, consumer_id: ConsumerId) -> Optional[Session]:
+    def get_by_consumer_id(self, consumer_id: ConsumerId) -> Session | None:
         """Find a session by consumer ID (for kiosk mode)."""
         for session in self._sessions.values():
             if consumer_id in session.consumers.values():
                 return session
         return None
 
-    def get_by_file_key(self, file_key: MarimoFileKey) -> Optional[Session]:
+    def get_by_file_key(self, file_key: MarimoFileKey) -> Session | None:
         """Get a session by file key."""
         import os
 
@@ -96,7 +96,7 @@ class SessionRepository:
             if session.connection_state() == ConnectionState.OPEN
         ]
 
-    async def remove(self, session_id: SessionId) -> Optional[Session]:
+    async def remove(self, session_id: SessionId) -> Session | None:
         """Remove and return a session."""
         async with self._lock:
             session = self._sessions.pop(session_id, None)
@@ -104,14 +104,14 @@ class SessionRepository:
                 del self._session_to_id[session]
             return session
 
-    def remove_sync(self, session_id: SessionId) -> Optional[Session]:
+    def remove_sync(self, session_id: SessionId) -> Session | None:
         """Remove a session synchronously."""
         session = self._sessions.pop(session_id, None)
         if session and session in self._session_to_id:
             del self._session_to_id[session]
         return session
 
-    def get_session_id(self, session: Session) -> Optional[SessionId]:
+    def get_session_id(self, session: Session) -> SessionId | None:
         """Get the session ID for a session object."""
         return self._session_to_id.get(session)
 

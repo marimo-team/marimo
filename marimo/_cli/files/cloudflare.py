@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import click
 
@@ -86,7 +86,7 @@ class R2FileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, TemporaryDirectory[str] | None]:
         bucket, key = parse_r2_path(name)
         filename = os.path.basename(key)
         local_path = str(Path(temp_dir.name) / filename)

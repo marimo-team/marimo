@@ -20,7 +20,7 @@ _cached_token_dir: Path | None = None
 def _token_dir() -> Path:
     import tempfile
 
-    global _cached_token_dir  # noqa: PLW0603
+    global _cached_token_dir
     if _cached_token_dir is None:
         _cached_token_dir = Path(tempfile.mkdtemp(prefix="marimo-pair-"))
     return _cached_token_dir

@@ -7,12 +7,9 @@ import sys
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Final,
     Literal,
-    Optional,
     TypeAlias,
-    Union,
     cast,
 )
 
@@ -41,6 +38,8 @@ from marimo._utils.narwhals_utils import (
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import altair
     import altair.vegalite
     from narwhals import Schema
@@ -51,15 +50,15 @@ if TYPE_CHECKING:
 #     "field": ["value1", "value2", ...]
 #   }
 # }
-ChartSelectionField = dict[str, Union[list[int], list[float], list[str]]]
+ChartSelectionField = dict[str, list[int] | list[float] | list[str]]
 ChartSelection = dict[str, ChartSelectionField]
 VegaSpec = dict[str, Any]
 RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 
-ChartDataType = Union[
-    IntoDataFrame, IntoLazyFrame, RowOrientedData, ColumnOrientedData
-]
+ChartDataType = (
+    IntoDataFrame | IntoLazyFrame | RowOrientedData | ColumnOrientedData
+)
 
 # Union of all possible chart types
 AltairChartType: TypeAlias = "altair.vegalite.v6.api.ChartType"
@@ -86,7 +85,7 @@ def _get_binned_fields(spec: VegaSpec) -> dict[str, Any]:
         return binned_fields
 
     for encoding in spec["encoding"].values():
-        if "bin" in encoding and encoding["bin"]:
+        if encoding.get("bin"):
             # Get the field name
             field = encoding.get("field")
             if field:
@@ -122,7 +121,7 @@ def _using_vegafusion() -> bool:
 
 def _combine_conditions_with_and(
     conditions: list[nw.Expr],
-) -> Optional[nw.Expr]:
+) -> nw.Expr | None:
     """Combine multiple narwhals expressions with AND logic."""
     if not conditions:
         return None
@@ -137,7 +136,7 @@ def _combine_conditions_with_and(
 
 def _combine_conditions_with_or(
     conditions: list[nw.Expr],
-) -> Optional[nw.Expr]:
+) -> nw.Expr | None:
     """Combine multiple narwhals expressions with OR logic."""
     if not conditions:
         return None
@@ -152,7 +151,7 @@ def _combine_conditions_with_or(
 
 def _build_point_filter(
     point: dict[str, Any], schema: Schema
-) -> Optional[nw.Expr]:
+) -> nw.Expr | None:
     """Build a filter expression for a single point selection."""
     field_conditions: list[nw.Expr] = []
     names = schema.names()
@@ -171,7 +170,7 @@ def _try_apply_multipoint_filter(
     df: nw.LazyFrame[Any],
     fields: ChartSelectionField,
     schema: Schema,
-) -> Optional[nw.LazyFrame[Any]]:
+) -> nw.LazyFrame[Any] | None:
     """Try to apply multi-point selection filter using vlPoint.or structure.
 
     This handles the case where multiple points are selected, avoiding
@@ -217,11 +216,11 @@ def _try_apply_multipoint_filter(
 
 
 def _filter_dataframe(
-    native_df: Union[IntoDataFrame, IntoLazyFrame],
+    native_df: IntoDataFrame | IntoLazyFrame,
     *,
     selection: ChartSelection,
-    binned_fields: Optional[dict[str, Any]] = None,
-) -> Union[IntoDataFrame, IntoLazyFrame]:
+    binned_fields: dict[str, Any] | None = None,
+) -> IntoDataFrame | IntoLazyFrame:
     # Use lazy evaluation for efficient chained filtering
     df, undo_df = make_lazy(native_df)
 
@@ -523,11 +522,11 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     def __init__(
         self,
         chart: AltairChartType,
-        chart_selection: Literal["point"] | Literal["interval"] | bool = True,
+        chart_selection: Literal["point", "interval"] | bool = True,
         legend_selection: list[str] | bool = True,
         *,
         label: str = "",
-        on_change: Optional[Callable[[ChartDataType], None]] = None,
+        on_change: Callable[[ChartDataType], None] | None = None,
     ) -> None:
         DependencyManager.altair.require(why="to use `mo.ui.altair_chart`")
 
@@ -622,8 +621,8 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 "https://github.com/marimo-team/marimo/issues/4601"
             )
 
-        self.dataframe: Optional[ChartDataType] = (
-            self._get_dataframe_from_chart(chart)
+        self.dataframe: ChartDataType | None = self._get_dataframe_from_chart(
+            chart
         )
 
         self._spec = vega_spec
@@ -658,7 +657,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     @staticmethod
     def _get_dataframe_from_chart(
         chart: AltairChartType,
-    ) -> Optional[ChartDataType]:
+    ) -> ChartDataType | None:
         if not isinstance(chart.data, str):
             return cast(ChartDataType, chart.data)
 
@@ -865,12 +864,17 @@ def _has_selection_param(chart: AltairChartType) -> bool:
     try:
         for param in chart.params:  # type: ignore
             try:
-                if isinstance(
-                    param,
-                    (alt.SelectionParameter, alt.TopLevelSelectionParameter),
+                if (
+                    isinstance(
+                        param,
+                        (
+                            alt.SelectionParameter,
+                            alt.TopLevelSelectionParameter,
+                        ),
+                    )
+                    and param.bind is alt.Undefined
                 ):
-                    if param.bind is alt.Undefined:
-                        return True
+                    return True
             except Exception:
                 pass
     except Exception:
@@ -887,12 +891,17 @@ def _has_legend_param(chart: AltairChartType) -> bool:
     try:
         for param in chart.params:  # type: ignore
             try:
-                if isinstance(
-                    param,
-                    (alt.SelectionParameter, alt.TopLevelSelectionParameter),
+                if (
+                    isinstance(
+                        param,
+                        (
+                            alt.SelectionParameter,
+                            alt.TopLevelSelectionParameter,
+                        ),
+                    )
+                    and param.bind == "legend"
                 ):
-                    if param.bind == "legend":
-                        return True
+                    return True
             except Exception:
                 pass
     except Exception:

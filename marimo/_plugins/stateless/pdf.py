@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import marimo._output.data.data as mo_data
 from marimo._output.builder import h
@@ -16,11 +16,11 @@ if TYPE_CHECKING:
 
 @mddoc
 def pdf(
-    src: Union[Path, str, io.IOBase],
-    initial_page: Optional[int] = None,
-    width: Optional[Union[int, str]] = "100%",
-    height: Optional[Union[int, str]] = "70vh",  # arbitrary, but good default
-    style: Optional[dict[str, Any]] = None,
+    src: Path | str | io.IOBase,
+    initial_page: int | None = None,
+    width: int | str | None = "100%",
+    height: int | str | None = "70vh",  # arbitrary, but good default
+    style: dict[str, Any] | None = None,
 ) -> Html:
     """Render a PDF.
 

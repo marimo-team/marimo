@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
@@ -52,7 +52,7 @@ async def add_package(request: Request) -> PackageOperationResponse:
         package_manager.alert_not_installed()
         return PackageOperationResponse.of_failure(
             f"{package_manager.name} is not available. "
-            f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
+            f"Check out the docs for installation instructions: {package_manager.docs_url}"
         )
 
     upgrade = body.upgrade or False
@@ -104,7 +104,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
         package_manager.alert_not_installed()
         return PackageOperationResponse.of_failure(
             f"{package_manager.name} is not available. "
-            f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
+            f"Check out the docs for installation instructions: {package_manager.docs_url}"
         )
 
     group = body.group or None
@@ -203,7 +203,7 @@ def _get_package_manager(request: Request) -> PackageManager:
     )
 
 
-def _get_filename(request: Request) -> Optional[str]:
+def _get_filename(request: Request) -> str | None:
     session = AppState(request).get_current_session()
     if session is None:
         return None

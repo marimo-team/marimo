@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class RestartableTask:
     def __init__(self, coro: Callable[[], Any]):
         self.coro = coro
-        self.task: Optional[asyncio.Task[Any]] = None
+        self.task: asyncio.Task[Any] | None = None
         self.stopped = False
 
     async def start(self) -> None:

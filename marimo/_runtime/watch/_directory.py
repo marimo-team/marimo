@@ -6,7 +6,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.watch._path import (
@@ -17,7 +17,7 @@ from marimo._runtime.watch._path import (
 
 if TYPE_CHECKING:
     import threading
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 
 # For testing only - do not use in production
@@ -35,7 +35,7 @@ def _hashable_walk(
 ) -> set[tuple[Path, tuple[str], tuple[str]]]:
     return cast(
         set[tuple[Path, tuple[str], tuple[str]]],
-        set((p, *map(tuple, r)) for p, *r in walked),
+        {(p, *map(tuple, r)) for p, *r in walked},
     )
 
 

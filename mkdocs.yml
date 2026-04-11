@@ -205,10 +205,10 @@ nav:
               - Parse stdout: guides/lint_rules/rules/parse_stdout.md
               - Parse stderr: guides/lint_rules/rules/parse_stderr.md
               - Empty cells: guides/lint_rules/rules/empty_cells.md
-              - Markdown Dedent: guides/lint_rules/rules/markdown_dedent.md
-              - Markdown Indentation: guides/lint_rules/rules/markdown_indentation.md
+              - Markdown indentation: guides/lint_rules/rules/markdown_indentation.md
               - SQL parse error: guides/lint_rules/rules/sql_parse_error.md
               - Misc parse log: guides/lint_rules/rules/misc_log_capture.md
+              - Reusable ordering: guides/lint_rules/rules/reusable_definition_order.md
       - Testing:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md

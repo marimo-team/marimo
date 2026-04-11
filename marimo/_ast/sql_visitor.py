@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -24,7 +24,7 @@ COMMON_FILE_EXTENSIONS = (
 
 SQLKind = Literal["table", "view", "schema", "catalog"]
 
-SQLTypes = Union[SQLKind, Literal["any"]]
+SQLTypes = SQLKind | Literal["any"]
 
 
 class SQLVisitor(ast.NodeVisitor):
@@ -49,7 +49,7 @@ class SQLVisitor(ast.NodeVisitor):
             # string or f-string
             if node.args:
                 first_arg = node.args[0]
-                sql: Optional[str] = None
+                sql: str | None = None
                 if isinstance(first_arg, ast.Constant):
                     sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
@@ -337,8 +337,8 @@ class SQLRef:
     # Tables are synonymous with views,
     # since we can't know the difference in queries
     table: str
-    schema: Optional[str] = None
-    catalog: Optional[str] = None
+    schema: str | None = None
+    catalog: str | None = None
 
     @classmethod
     def from_parts(
@@ -507,7 +507,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     from sqlglot.errors import OptimizeError
     from sqlglot.optimizer.scope import build_scope
 
-    def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
+    def get_ref_from_table(table: exp.Table) -> SQLRef | None:
         # The variables might be empty strings, if they are, we set them to None
         try:
             table_name = table.name or None

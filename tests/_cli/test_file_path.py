@@ -283,7 +283,7 @@ def test_static_notebook_reader_url_formats():
         ) as mock_is_static:
             mock_is_static.return_value = (
                 True,
-                "<marimo-code hidden=''>print('Hello')</marimo-code><marimo-filename hidden=''>test.py</marimo-filename>",  # noqa: E501
+                "<marimo-code hidden=''>print('Hello')</marimo-code><marimo-filename hidden=''>test.py</marimo-filename>",
             )
             assert reader.can_read(url) is True
             content, filename = reader.read(url)
@@ -293,7 +293,7 @@ def test_static_notebook_reader_url_formats():
 
 def test_github_issue_reader_nonexistent_issue():
     reader = GitHubIssueReader()
-    url = "https://github.com/marimo-team/marimo/issues/999999"  # noqa: E501
+    url = "https://github.com/marimo-team/marimo/issues/999999"
     with patch("marimo._utils.requests.get") as mock_get:
         mock_get.side_effect = urllib.error.HTTPError(
             url,

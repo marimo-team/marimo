@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import urllib.error
 import urllib.request
-from typing import Optional
 
 from marimo import _loggers
 from marimo._save.stores.store import Store
@@ -14,7 +13,7 @@ LOGGER = _loggers.marimo_logger()
 
 class RestStore(Store):
     def __init__(
-        self, *, base_url: str, api_key: str, project_id: Optional[str] = None
+        self, *, base_url: str, api_key: str, project_id: str | None = None
     ) -> None:
         super().__init__()
         assert api_key, "api_key is required"
@@ -31,7 +30,7 @@ class RestStore(Store):
 
         self.context = ssl.create_default_context()
 
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         url = self._get_url(key)
         req = urllib.request.Request(url, headers=self.headers)
         try:

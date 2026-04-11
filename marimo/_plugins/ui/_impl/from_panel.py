@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     TypeVar,
     cast,
 )
@@ -16,13 +15,14 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._runtime.functions import Function
+from marimo._runtime.virtual_file.virtual_file import VirtualFile
 
 if TYPE_CHECKING:
     from panel.viewable import Viewable
 
 LOGGER = _loggers.marimo_logger()
 
-comm_class: Optional[type[Any]] = None
+comm_class: type[Any] | None = None
 loaded_extension: int = 0
 loaded_extensions: list[str] = []
 
@@ -32,7 +32,7 @@ T = TypeVar("T", bound=dict[str, Any])
 @dataclass
 class SendToWidgetArgs:
     message: Any
-    buffers: Optional[list[Any]] = None
+    buffers: list[Any] | None = None
 
 
 # Singleton, we only create one instance of this class
@@ -55,7 +55,7 @@ def _get_comm_class() -> type[Any]:
     class MarimoPanelComm(Comm):  # type: ignore
         def __init__(self, *args: Any, **kwargs: Any):
             super().__init__(*args, **kwargs)
-            self._ui_element_id: Optional[str] = None
+            self._ui_element_id: str | None = None
             # Panel's push() checks `comm._comm` before sending
             # document updates to the frontend. Without a truthy
             # value, backend changes (e.g. DynamicMap overlays) are
@@ -77,7 +77,7 @@ def _get_comm_class() -> type[Any]:
             self,
             data: Any = None,
             metadata: Any = None,
-            buffers: Any = None,  # noqa: ARG002
+            buffers: Any = None,
         ) -> None:
             del metadata
             if self._ui_element_id is None:
@@ -195,7 +195,7 @@ def _extract_holoviews_settings(obj: Any) -> dict[str, Any]:
     are respected when rendering holoviews objects through Panel.
     """
     try:
-        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import holoviews as hv  # type: ignore[import-not-found,import-untyped,unused-ignore]
 
         # Check if the object is a holoviews object
         if not isinstance(
@@ -306,12 +306,25 @@ class panel(UIElement[T, T]):
         if loaded_extension == 0:
             loaded_extension = id(self)
 
+        # Serve the extension script as a virtual file rather than passing
+        # the raw JavaScript through the DOM. The frontend refuses to load
+        # scripts that don't come from `./@file/...`, which prevents a
+        # maliciously crafted <marimo-panel> element (embedded via raw HTML
+        # in a markdown cell) from executing attacker-controlled JavaScript
+        # at same origin before any cell has run.
+        extension_url: str | None = None
+        if extension:
+            extension_vfile = VirtualFile.create_and_register(
+                extension.encode("utf-8"), "js"
+            )
+            extension_url = extension_vfile.url
+
         super().__init__(
             component_name="marimo-panel",
             initial_value=cast(T, {}),
             label="",
             args={
-                "extension": extension,
+                "extension-url": extension_url,
                 "render_json": render_json,
                 "docs_json": docs_json,
             },

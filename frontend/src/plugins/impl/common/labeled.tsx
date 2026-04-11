@@ -44,9 +44,11 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
   }
 
   const labelElement = (
-    <Label htmlFor={id} className={cn("font-prose", labelClassName)}>
-      {renderHTML({ html: label })}
-    </Label>
+    <div part="label" className="m-0 p-0">
+      <Label htmlFor={id} className={cn("font-prose", labelClassName)}>
+        {renderHTML({ html: label })}
+      </Label>
+    </div>
   );
 
   return (

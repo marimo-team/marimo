@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 @dataclass
 class GetDatabaseTablesArgs:
     session_id: SessionId
-    query: Optional[str] = None
+    query: str | None = None
 
 
 @dataclass
@@ -75,7 +75,7 @@ class GetDatabaseTables(
         return self._get_tables(session, args.query)
 
     def _get_tables(
-        self, session: Session, query: Optional[str]
+        self, session: Session, query: str | None
     ) -> GetDatabaseTablesOutput:
         session_view = session.session_view
         data_connectors = session_view.data_connectors

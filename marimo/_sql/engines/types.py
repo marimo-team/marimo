@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, Optional, TypeVar, Union
+from typing import Any, Generic, Literal, TypeVar
 
 from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable, Schema
@@ -29,9 +29,9 @@ NO_SCHEMA_NAME = ""
 
 @dataclass
 class InferenceConfig(ABC):
-    auto_discover_schemas: Union[bool, Literal["auto"]]
-    auto_discover_tables: Union[bool, Literal["auto"]]
-    auto_discover_columns: Union[bool, Literal["auto"]]
+    auto_discover_schemas: bool | Literal["auto"]
+    auto_discover_tables: bool | Literal["auto"]
+    auto_discover_columns: bool | Literal["auto"]
 
 
 def _validate_sql_output_format(sql_output: SqlOutputType) -> SqlOutputType:
@@ -53,28 +53,25 @@ class BaseEngine(ABC, Generic[CONN]):
     """Base fields for all engines and catalogs."""
 
     def __init__(
-        self, connection: CONN, engine_name: Optional[VariableName] = None
+        self, connection: CONN, engine_name: VariableName | None = None
     ) -> None:
         self._connection: CONN = connection
-        self._engine_name: Optional[VariableName] = engine_name
+        self._engine_name: VariableName | None = engine_name
 
     @property
     @abstractmethod
     def source(self) -> str:
         """Return the source of the engine. Usually the name of the library used to connect to the database."""
-        pass
 
     @property
     @abstractmethod
     def dialect(self) -> str:
         """Return the sqlglot dialect for this engine."""
-        pass
 
     @staticmethod
     @abstractmethod
     def is_compatible(var: Any) -> bool:
         """Check if a variable is a compatible engine."""
-        pass
 
 
 T = TypeVar("T", bound=BaseEngine[Any])
@@ -87,53 +84,46 @@ class EngineCatalog(BaseEngine[CONN], ABC):
     @abstractmethod
     def inference_config(self) -> InferenceConfig:
         """Return the inference config for the engine."""
-        pass
 
     @abstractmethod
-    def get_default_database(self) -> Optional[str]:
+    def get_default_database(self) -> str | None:
         """Return the default database for the engine."""
-        pass
 
     @abstractmethod
-    def get_default_schema(self) -> Optional[str]:
+    def get_default_schema(self) -> str | None:
         """Return the default schema for the engine."""
-        pass
 
     @abstractmethod
     def get_databases(
         self,
         *,
-        include_schemas: Union[bool, Literal["auto"]],
-        include_tables: Union[bool, Literal["auto"]],
-        include_table_details: Union[bool, Literal["auto"]],
+        include_schemas: bool | Literal["auto"],
+        include_tables: bool | Literal["auto"],
+        include_table_details: bool | Literal["auto"],
     ) -> list[Database]:
         """Return the databases for the engine."""
-        pass
 
     @abstractmethod
     def get_schemas(
         self,
         *,
-        database: Optional[str],
+        database: str | None,
         include_tables: bool,
         include_table_details: bool,
     ) -> list[Schema]:
         """Return the schemas for a database in the engine."""
-        pass
 
     @abstractmethod
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        pass
 
     @abstractmethod
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
-    ) -> Optional[DataTable]:
+    ) -> DataTable | None:
         """Get a single table from the engine."""
-        pass
 
 
 class QueryEngine(BaseEngine[CONN], ABC):
@@ -142,7 +132,6 @@ class QueryEngine(BaseEngine[CONN], ABC):
     @abstractmethod
     def execute(self, query: str) -> Any:
         """Execute a SQL query and return a dataframe."""
-        pass
 
     def sql_output_format(self) -> SqlOutputType:
         if runtime_context_installed():
@@ -155,7 +144,7 @@ class QueryEngine(BaseEngine[CONN], ABC):
 
     def execute_in_explain_mode(
         self, query: str, globals_dict: dict[str, Any] | None = None
-    ) -> tuple[Any, Optional[str]]:
+    ) -> tuple[Any, str | None]:
         """Execute a query in explain mode. Returns a tuple of the result and an error if there is one."""
 
         if globals_dict is None:
@@ -180,7 +169,5 @@ class QueryEngine(BaseEngine[CONN], ABC):
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
     """Combines the catalog and query interfaces for an SQL engine."""
 
-    pass
 
-
-SQLConnectionType = Union[EngineCatalog[Any], QueryEngine[Any]]
+SQLConnectionType = EngineCatalog[Any] | QueryEngine[Any]

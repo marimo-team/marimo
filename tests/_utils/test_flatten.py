@@ -65,7 +65,7 @@ def test_flat_empty_list() -> None:
 
 
 def test_flat_empty_tuple() -> None:
-    x: T = tuple()
+    x: T = ()
     v, u = flatten(x)
     assert v == []
     assert u(v) == x
@@ -111,14 +111,14 @@ def test_nested_list() -> None:
 
 
 def test_nested_tuple() -> None:
-    x: T = (0, 1, tuple(), 2, (3, (4, 5)), (6,))
+    x: T = (0, 1, (), 2, (3, (4, 5)), (6,))
     v, u = flatten(x)
     assert v == [0, 1, 2, 3, 4, 5, 6]
     assert u(v) == x
     assert u([7, 8, 9, 10, 11, 12, 13]) == (
         7,
         8,
-        tuple(),
+        (),
         9,
         (10, (11, 12)),
         (13,),
@@ -129,7 +129,7 @@ def test_nested_dict() -> None:
     x = {
         "a": 0,
         "b": 1,
-        "c": dict(),
+        "c": {},
         "d": 2,
         "e": {"f": 3, "g": {"h": 4, "i": 5}},
         "j": {"k": 6},
@@ -140,7 +140,7 @@ def test_nested_dict() -> None:
     assert u([7, 8, 9, 10, 11, 12, 13]) == {
         "a": 7,
         "b": 8,
-        "c": dict(),
+        "c": {},
         "d": 9,
         "e": {"f": 10, "g": {"h": 11, "i": 12}},
         "j": {"k": 13},
@@ -181,13 +181,13 @@ def test_nested_mix_repack_objects() -> None:
     v, u = flatten(x)
     assert v == [0, 1, 2, 3, 4, 5, 6, 7, 8]
     assert u(v) == x
-    assert u([[], [], [], [], [], [], [], {}, tuple()]) == [
+    assert u([[], [], [], [], [], [], [], {}, ()]) == [
         [],
         [],
         {"c": []},
         ([],),
         {"d": [], "e": [[], []]},
-        [[], ({}, tuple())],
+        [[], ({}, ())],
     ]
 
 

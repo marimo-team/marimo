@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import tempfile
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._config.manager import (
     MarimoConfigManager,
@@ -20,7 +20,7 @@ from marimo._session.model import SessionMode
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from starlette.testclient import TestClient
 
@@ -31,7 +31,7 @@ def get_session_manager(client: TestClient) -> SessionManager:
 
 def get_starlette_server_state_init(
     *,
-    session_manager: Optional[SessionManager] = None,
+    session_manager: SessionManager | None = None,
     base_url: str = "",
 ) -> StarletteServerStateInit:
     return StarletteServerStateInit(
@@ -134,7 +134,7 @@ def with_session(
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(
             client: TestClient,
-            temp_marimo_file: Optional[str],
+            temp_marimo_file: str | None,
         ) -> None:
             auth_token = get_session_manager(client).auth_token
             headers = token_header(auth_token)
@@ -243,7 +243,7 @@ def with_read_session(
 def token_header(
     token: str | AuthToken = "fake-token", skew_id: str = "skew-id-1"
 ) -> dict[str, str]:
-    encoded = base64.b64encode(f"marimo:{str(token)}".encode()).decode()
+    encoded = base64.b64encode(f"marimo:{token!s}".encode()).decode()
     return {
         "Authorization": f"Basic {encoded}",
         "Marimo-Server-Token": skew_id,

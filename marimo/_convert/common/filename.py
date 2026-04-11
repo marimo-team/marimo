@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 from urllib.parse import quote
 
 
-def get_filename(filename: Optional[str], default: str = "notebook.py") -> str:
+def get_filename(filename: str | None, default: str = "notebook.py") -> str:
     if not filename:
         filename = default
     return filename
 
 
-def get_download_filename(filename: Optional[str], extension: str) -> str:
+def get_download_filename(filename: str | None, extension: str) -> str:
     filename = filename or f"notebook.{extension}"
     basename = os.path.basename(filename)
     if basename.endswith(f".{extension}"):

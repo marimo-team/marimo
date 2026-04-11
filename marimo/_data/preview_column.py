@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import narwhals.stable.v2 as nw
 
@@ -166,7 +166,7 @@ def get_column_preview_for_duckdb(
     *,
     fully_qualified_table_name: str,
     column_name: str,
-) -> Optional[DataColumnPreviewNotification]:
+) -> DataColumnPreviewNotification | None:
     DependencyManager.duckdb.require(why="previewing DuckDB columns")
 
     column_type = get_column_type(fully_qualified_table_name, column_name)
@@ -201,7 +201,7 @@ def get_column_preview_for_duckdb(
                     VEGAFUSION_MISSING_PACKAGES,
                 )
         except Exception as e:
-            LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
+            LOGGER.warning(f"Failed to generate Altair chart: {e!s}")
 
     return DataColumnPreviewNotification(
         table_name=fully_qualified_table_name,
@@ -219,8 +219,8 @@ def _get_altair_chart(
     column_name: str,
     table: TableManager[Any],
     stats: ColumnStats,
-    table_rows: Optional[int],
-) -> tuple[Optional[str], Optional[str], Optional[str], Optional[list[str]]]:
+    table_rows: int | None,
+) -> tuple[str | None, str | None, str | None, list[str] | None]:
     """
     Get an Altair chart for a column.
 
@@ -270,8 +270,8 @@ def _get_altair_chart(
     if isinstance(column_data, nw.LazyFrame):
         column_data = column_data.collect()
 
-    error: Optional[str] = None
-    missing_packages: Optional[list[str]] = None
+    error: str | None = None
+    missing_packages: list[str] | None = None
 
     # We may not know number of rows, so we can check for max rows error
     try:

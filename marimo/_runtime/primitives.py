@@ -4,7 +4,8 @@ from __future__ import annotations
 import inspect
 import numbers
 import weakref
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import Cell
 from marimo._ast.visitor import Name, VariableData
@@ -18,7 +19,7 @@ PRIMITIVES: tuple[type, ...] = (bytes, str, numbers.Number, type(None))
 # reference.
 CLONE_PRIMITIVES = (weakref.ref,) + PRIMITIVES
 
-FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
+FN_CACHE_TYPE = dict[Callable[..., Any] | type, bool] | None
 
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
@@ -27,15 +28,13 @@ UNCLONABLE_TYPES = [
     "marimo._runtime.watch._directory.DirectoryState",
 ]
 
-UNCLONABLE_MODULES = set(
-    [
-        "_asyncio",
-        "_io",
-        "marimo._ast",
-        "marimo._plugins.ui",
-        "numpy.lib.npyio",
-    ]
-)
+UNCLONABLE_MODULES = {
+    "_asyncio",
+    "_io",
+    "marimo._ast",
+    "marimo._plugins.ui",
+    "numpy.lib.npyio",
+}
 
 
 def is_external(value: Any) -> bool:
@@ -144,13 +143,13 @@ def is_unclonable_type(obj: object) -> bool:
     # Cell objects in particular are hidden by functools.wraps.
     if isinstance(obj, Cell):
         return True
-    return any([is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES])
+    return any(is_instance_by_name(obj, name) for name in UNCLONABLE_TYPES)
 
 
 def from_unclonable_module(obj: object) -> bool:
     obj = obj if hasattr(obj, "__module__") else obj.__class__
     return hasattr(obj, "__module__") and any(
-        [obj.__module__.startswith(name) for name in UNCLONABLE_MODULES]
+        obj.__module__.startswith(name) for name in UNCLONABLE_MODULES
     )
 
 
@@ -169,7 +168,7 @@ def is_pure_function(
     value: Any,
     defs: dict[str, Any],
     cache: FN_CACHE_TYPE = None,
-    graph: Optional[DirectedGraph] = None,
+    graph: DirectedGraph | None = None,
 ) -> bool:
     if cache is None:
         cache = {}
@@ -249,7 +248,7 @@ def is_pure_function(
 
 def build_ref_predicate_for_primitives(
     glbls: dict[str, Any],
-    primitives: Optional[tuple[type, ...]] = None,
+    primitives: tuple[type, ...] | None = None,
 ) -> Callable[[Name, VariableData], bool]:
     """
     Builds a predicate function to determine if a reference should be included

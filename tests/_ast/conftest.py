@@ -6,7 +6,6 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -14,7 +13,7 @@ from marimo._ast.app import App
 from marimo._ast.parse import MarimoFileError
 
 
-def _dynamic_load(filename: str | Path) -> Optional[App]:
+def _dynamic_load(filename: str | Path) -> App | None:
     """Create and execute a module with the provided filename.
 
     Test utility for backward compatibility testing. Not for production use.

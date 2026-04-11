@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import sys
-from typing import IO, TYPE_CHECKING, Any, Callable, Union
+from typing import IO, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 # tomllib is available in python 3.11+ and is much faster than tomlkit
@@ -33,7 +34,7 @@ class TomlReader:
             self._loads = lambda s: tomlkit.loads(s).unwrap()
             self.decode_error = tomlkit.exceptions.TOMLKitError
 
-    def read(self, file_path: Union[str, Path]) -> dict[str, Any]:
+    def read(self, file_path: str | Path) -> dict[str, Any]:
         """Read and parse a TOML file."""
         with open(file_path, "rb") as file:
             return self._load(file)

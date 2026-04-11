@@ -6,9 +6,9 @@ import copy
 import functools
 import inspect
 import itertools
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 
 from marimo._ast.cell import Cell
 from marimo._ast.fast_stack import fast_stack
@@ -53,7 +53,7 @@ def build_stub_fn(
 
     args = {arg.arg: arg for arg in func_body.args.args}
     if allowed is None:
-        allowed = [arg for arg in args.keys()]
+        allowed = [arg for arg in args]
     name = func_body.name
 
     # Typing checks for mypy - template structure is known
@@ -117,7 +117,7 @@ def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
         )
 
     args = {arg.arg: arg for arg in func_body.args.args}
-    fixtures = [arg for arg in args.keys() if arg.endswith("_fixture")]
+    fixtures = [arg for arg in args if arg.endswith("_fixture")]
     reserved = set(args.keys()) - set(fixtures)
     # The remaining expected attributes are needed to ensure attribute count
     # matches.
@@ -147,12 +147,11 @@ def is_pytest_decorator(decorator: ast.AST) -> tuple[bool, str | None]:
         ):
             return True, None  # Nested attr, use eval
     # @pytest.fixture (no call)
-    if isinstance(decorator, ast.Attribute):
-        if (
-            isinstance(decorator.value, ast.Name)
-            and decorator.value.id == "pytest"
-        ):
-            return True, decorator.attr
+    if isinstance(decorator, ast.Attribute) and (
+        isinstance(decorator.value, ast.Name)
+        and decorator.value.id == "pytest"
+    ):
+        return True, decorator.attr
     return False, None
 
 

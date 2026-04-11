@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -50,11 +50,11 @@ class LoadResult:
     status: Literal[
         "empty", "has_warnings", "has_errors", "invalid", "valid"
     ] = "empty"
-    notebook: Optional[NotebookSerialization] = None
-    contents: Optional[str] = None
+    notebook: NotebookSerialization | None = None
+    contents: str | None = None
 
 
-def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
+def _maybe_contents(filename: str | Path | None) -> str | None:
     if filename is None:
         return None
 
@@ -80,7 +80,7 @@ def find_cell(filename: str, lineno: int) -> CellDef | None:
 
 
 def load_notebook_ir(
-    notebook: NotebookSerialization, filepath: Optional[str] = None
+    notebook: NotebookSerialization, filepath: str | None = None
 ) -> App:
     """Load a notebook IR into an App."""
     # Use filepath from notebook if not explicitly provided
@@ -122,7 +122,7 @@ def get_notebook_status(filename: str) -> LoadResult:
     if not contents:
         return LoadResult(status="empty", contents=contents)
 
-    notebook: Optional[NotebookSerialization] = None
+    notebook: NotebookSerialization | None = None
     handler = get_notebook_serializer(path)
     notebook = handler.deserialize(contents, filepath=filename)
 
@@ -158,7 +158,7 @@ FAILED_LOAD_NOTEBOOK_MESSAGE = (
 )
 
 
-def load_app(filename: Optional[str | Path]) -> Optional[App]:
+def load_app(filename: str | Path | None) -> App | None:
     """Load and return app from a marimo-generated module.
 
     Args:

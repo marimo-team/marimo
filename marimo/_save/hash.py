@@ -8,7 +8,7 @@ import hashlib
 import inspect
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from marimo._ast.transformers import DeprivateVisitor, get_hashable_ast
 from marimo._ast.variables import (
@@ -46,6 +46,7 @@ from marimo._save.stubs import maybe_get_custom_stub
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from types import CodeType
 
     from marimo._ast.cell import CellImpl
@@ -67,9 +68,7 @@ class SerialRefs(NamedTuple):
     stateful_refs: set[Name]
 
 
-def hash_module(
-    code: Optional[CodeType], hash_type: str = DEFAULT_HASH
-) -> bytes:
+def hash_module(code: CodeType | None, hash_type: str = DEFAULT_HASH) -> bytes:
     hash_alg = hashlib.new(hash_type, usedforsecurity=False)
     if not code:
         # Hash of zeros, in the case of no code object as a recognizable noop.
@@ -171,8 +170,8 @@ def hash_cell_execution(
 
 def get_and_update_context_from_scope(
     scope: dict[str, Any],
-    scope_refs: Optional[set[Name]] = None,
-) -> Optional[RuntimeContext]:
+    scope_refs: set[Name] | None = None,
+) -> RuntimeContext | None:
     """Get stateful registers"""
 
     # Remove non-global references
@@ -180,8 +179,7 @@ def get_and_update_context_from_scope(
     if scope_refs is None:
         scope_refs = set()
     for ref in scope_refs:
-        if ref in ctx_scope:
-            ctx_scope.remove(ref)
+        ctx_scope.discard(ref)
 
     # This is typically done in post execution hook, but it will not be
     # called in script mode.
@@ -210,11 +208,11 @@ class BlockHasher:
         cell_id: CellId_t,
         scope: dict[str, Any],
         *,
-        context: Optional[ast.Module] = None,
+        context: ast.Module | None = None,
         pin_modules: bool = False,
         hash_type: str = DEFAULT_HASH,
         apply_content_hash: bool = True,
-        scoped_refs: Optional[set[Name]] = None,
+        scoped_refs: set[Name] | None = None,
         external: bool = False,
     ) -> None:
         """Hash the context of the module, and return a cache object.
@@ -276,8 +274,8 @@ class BlockHasher:
                 "scoped_refs should only be used with deferred hashing."
             )
 
-        self._hash: Optional[str] = None
-        self._exe_hash: Optional[str] = None
+        self._hash: str | None = None
+        self._exe_hash: str | None = None
         self.graph = graph
         self.cell_id = cell_id
         self.pin_modules = pin_modules
@@ -463,7 +461,7 @@ class BlockHasher:
         self,
         refs: set[Name],
         scope: dict[str, Any],
-        ctx: Optional[RuntimeContext],
+        ctx: RuntimeContext | None,
         scoped_refs: set[Name],
         apply_hash: bool = True,
     ) -> SerialRefs:
@@ -517,8 +515,8 @@ class BlockHasher:
 
                 ref_list = ", ".join(
                     [
-                        f"{ref}: {get_type(ref)} ({str(e)})"
-                        for ref, e in zip(failed, exceptions)
+                        f"{ref}: {get_type(ref)} ({e!s})"
+                        for ref, e in zip(failed, exceptions, strict=False)
                     ]
                 )
                 # Note ExceptionGroup nicest here, but only available in 3.11
@@ -568,7 +566,7 @@ class BlockHasher:
         self,
         refs: set[Name],
         scope: dict[str, Any],
-        ctx: Optional[RuntimeContext] = None,
+        ctx: RuntimeContext | None = None,
     ) -> SerialRefs:
         """
         Preprocess the scope and references, and extract state references.
@@ -603,7 +601,7 @@ class BlockHasher:
 
             # State relevant to the context, should be dependent on it's value-
             # not the object.
-            value: Optional[State[Any]] = None
+            value: State[Any] | None = None
             # Prefer actual object over reference.
             # Skip if the reference has already been subbed in, or if it is
             # a shadowed reference.
@@ -628,7 +626,7 @@ class BlockHasher:
                         scope[state_name] = scope[ref]
 
             # Likewise, UI objects should be dependent on their value.
-            ui: Optional[UIElement[Any, Any]] = None
+            ui: UIElement[Any, Any] | None = None
             if ref in scope and isinstance(scope[ref], UIElement):
                 ui = scope[ref]
             elif ctx:
@@ -658,7 +656,7 @@ class BlockHasher:
         self,
         refs: set[Name],
         scope: dict[Name, Any],
-        ctx: Optional[RuntimeContext] = None,
+        ctx: RuntimeContext | None = None,
     ) -> SerialRefs:
         """Use hashable references to update the hash object and dequeue them.
 
@@ -858,7 +856,7 @@ class BlockHasher:
         refs: set[Name],
         parents: set[CellId_t],
         scope: dict[str, Any],
-        ctx: Optional[RuntimeContext] = None,
+        ctx: RuntimeContext | None = None,
     ) -> set[Name]:
         """Determines and uses the hash of refs' cells to update the hash.
 
@@ -918,7 +916,7 @@ class BlockHasher:
         return refs
 
     def hash_and_verify_context_refs(
-        self, refs: set[Name], context: Optional[ast.Module]
+        self, refs: set[Name], context: ast.Module | None
     ) -> None:
         """Utilizes the provided context to update the hash with sanity check.
 
@@ -947,13 +945,11 @@ class BlockHasher:
         ref_cells = set().union(
             *[self.graph.definitions.get(ref, set()) for ref in refs]
         )
-        ref_cells |= set(
-            [
-                cell
-                for ref in refs
-                if (cell := get_cell_from_local(ref, self.cell_id))
-            ]
-        )
+        ref_cells |= {
+            cell
+            for ref in refs
+            if (cell := get_cell_from_local(ref, self.cell_id))
+        }
         assert len(ref_cells) == 1, (
             "Inconsistent references, cannot determine execution path. "
             f"Got {ref_cells} expected set({self.cell_id}). "
@@ -1038,10 +1034,10 @@ def cache_attempt_from_hash(
     cell_id: CellId_t,
     scope: dict[str, Any],
     *,
-    context: Optional[ast.Module] = None,
+    context: ast.Module | None = None,
     pin_modules: bool = False,
     hash_type: str = DEFAULT_HASH,
-    scoped_refs: Optional[set[Name]] = None,
+    scoped_refs: set[Name] | None = None,
     loader: Loader,
     as_fn: bool = False,
 ) -> Cache:
@@ -1081,8 +1077,8 @@ def content_cache_attempt_from_base(
     previous_block: BlockHasher,
     scope: dict[str, Any],
     loader: Loader,
-    scoped_refs: Optional[set[Name]] = None,
-    required_refs: Optional[set[Name]] = None,
+    scoped_refs: set[Name] | None = None,
+    required_refs: set[Name] | None = None,
     *,
     as_fn: bool = False,
     sensitive: bool = False,

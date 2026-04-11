@@ -459,6 +459,7 @@ class TestModelReplayState:
             zip(
                 [tuple(p) for p in msg.buffer_paths],
                 msg.buffers,
+                strict=False,
             )
         )
         assert path_buf == {("img",): b"png", ("data",): b"csv"}

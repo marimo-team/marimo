@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.notification import VariableValue
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
@@ -54,7 +54,7 @@ def get_variable_preview(
         return s if len(s) <= max_len else s[:max_len]
 
     def preview_sequence(
-        seq: Union[Sequence[Any], set[Any], frozenset[Any]],
+        seq: Sequence[Any] | set[Any] | frozenset[Any],
     ) -> str:
         # Convert set-like objects to list for indexing
         if isinstance(seq, (set, frozenset)):
@@ -167,7 +167,7 @@ def get_variable_preview(
                 return f"<unprintable {type_name} object>"
 
     except Exception as e:
-        return f"<error previewing {type_name}: {str(e)}>"
+        return f"<error previewing {type_name}: {e!s}>"
 
 
 def _stringify_variable_value(value: object) -> str:

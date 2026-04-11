@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from starlette.authentication import requires
@@ -46,6 +46,7 @@ router = APIRouter()
 
 
 @router.post("/set_ui_element_value")
+@requires("read")
 async def set_ui_element_values(
     *,
     request: Request,
@@ -86,6 +87,7 @@ async def set_ui_element_values(
 
 
 @router.post("/set_model_value")
+@requires("read")
 async def set_model_values(
     *,
     request: Request,
@@ -151,6 +153,7 @@ async def instantiate(
 
 
 @router.post("/function_call")
+@requires("read")
 async def function_call(
     *,
     request: Request,
@@ -230,7 +233,7 @@ async def run_cell(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteCellsRequest)
     body.request = HTTPRequest.from_request(request)
@@ -261,7 +264,7 @@ async def execute_code(
                 text/event-stream:
                     schema:
                         type: string
-    """  # noqa: E501
+    """
     from marimo._runtime.commands import ExecuteScratchpadCommand
     from marimo._server.scratchpad import (
         ScratchCellListener,
@@ -343,7 +346,7 @@ async def run_scratchpad(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     return await dispatch_control_request(request, ExecuteScratchpadRequest)
 
 
@@ -372,7 +375,7 @@ async def run_post_mortem(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     return await dispatch_control_request(request, DebugCellRequest)
 
 
@@ -396,7 +399,7 @@ async def restart_session(
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
-    """  # noqa: E501
+    """
     app_state = AppState(request)
     session_manager = app_state.session_manager
 
@@ -407,7 +410,7 @@ async def restart_session(
     session_manager.close_session(session_id)
 
     # Close RTC doc if it exists
-    file_key: Optional[MarimoFileKey] = (
+    file_key: MarimoFileKey | None = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
         or session_manager.file_router.get_unique_file_key()
         or session.app_file_manager.path
@@ -497,7 +500,7 @@ async def takeover_endpoint(
     """
     app_state = AppState(request)
 
-    file_key: Optional[MarimoFileKey] = (
+    file_key: MarimoFileKey | None = (
         app_state.query_params(FILE_QUERY_PARAM_KEY)
         or app_state.session_manager.file_router.get_unique_file_key()
     )

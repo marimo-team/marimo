@@ -90,7 +90,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "category": pl.Series(
                     ["cat", "dog", "mouse"], dtype=pl.Categorical
                 ),
-                "set": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "set": [{1, 2}, {3, 4}, {5, 6}],
                 "imaginary": [1 + 2j, 3 + 4j, 5 + 6j],
                 "time": [
                     datetime.time(12, 30),
@@ -305,7 +305,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "D": [True, False, True],
                 "E": [1 + 2j, 3 + 4j, 5 + 6j],
                 "F": [None, None, None],
-                "G": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "G": [{1, 2}, {3, 4}, {5, 6}],
                 "H": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),

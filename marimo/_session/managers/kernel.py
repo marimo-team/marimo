@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 from multiprocessing import connection, get_context
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from marimo import _loggers
@@ -50,7 +50,7 @@ class KernelManagerImpl(KernelManager):
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[Union[ProcessLike, threading.Thread]] = None
+        self.kernel_task: ProcessLike | threading.Thread | None = None
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -59,7 +59,7 @@ class KernelManagerImpl(KernelManager):
         self.redirect_console_to_browser = redirect_console_to_browser
 
         # Only used in edit mode
-        self._read_conn: Optional[TypedConnection[KernelMessage]] = None
+        self._read_conn: TypedConnection[KernelMessage] | None = None
         self._virtual_files_supported = virtual_files_supported
 
     def start_kernel(self) -> None:
@@ -93,7 +93,7 @@ class KernelManagerImpl(KernelManager):
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
-                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
+                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon
                 daemon=False,
             )
         else:

@@ -56,7 +56,7 @@ def test_sympy_formatters_power() -> None:
 
     from sympy import symbols
 
-    x, y, z = symbols("x y z")
+    x, _y, _z = symbols("x y z")
     x_squared = x**2
 
     # x^2
@@ -86,7 +86,7 @@ def test_sympy_formatters_matrix() -> None:
     assert mime == "text/html"
     assert (
         content.find(
-            "||[\n\\left[\\begin{matrix}1 &amp; 2\\\\3 &amp; 4\\end{matrix}\\right]\n||]"  # noqa: E501
+            "||[\n\\left[\\begin{matrix}1 &amp; 2\\\\3 &amp; 4\\end{matrix}\\right]\n||]"
         )
         > 0
     )
@@ -97,7 +97,7 @@ def test_sympy_formatters_matrix() -> None:
     assert mime == "text/html"
     assert (
         content.find(
-            "||[\n\\left[\\begin{matrix}x &amp; 2 y\\\\z &amp; 4\\end{matrix}\\right]\n||]"  # noqa: E501
+            "||[\n\\left[\\begin{matrix}x &amp; 2 y\\\\z &amp; 4\\end{matrix}\\right]\n||]"
         )
         > 0
     )
@@ -109,7 +109,7 @@ def test_sympy_formatters_Integral() -> None:
 
     from sympy import Integral, sqrt, symbols
 
-    x, y, z = symbols("x y z")
+    x, _y, _z = symbols("x y z")
     out_exp = Integral(sqrt(1 / x), x)
 
     # symbolic integral

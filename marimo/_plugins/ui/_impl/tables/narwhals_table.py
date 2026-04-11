@@ -6,7 +6,7 @@ import functools
 import io
 import math
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
@@ -54,15 +54,13 @@ NEGATIVE_INF = str(float("-inf"))
 
 
 class NarwhalsTableManager(
-    TableManager[
-        Union[nw.DataFrame[IntoDataFrameT], nw.LazyFrame[IntoLazyFrameT]]
-    ]
+    TableManager[nw.DataFrame[IntoDataFrameT] | nw.LazyFrame[IntoLazyFrameT]]
 ):
     type = "narwhals"
 
     @staticmethod
     def from_dataframe(
-        data: Union[IntoDataFrameT, IntoLazyFrameT],
+        data: IntoDataFrameT | IntoLazyFrameT,
     ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
         return NarwhalsTableManager(nw.from_native(data, pass_through=False))
 
@@ -91,7 +89,7 @@ class NarwhalsTableManager(
 
     def to_csv_str(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         separator: str | None = None,
     ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
@@ -99,7 +97,7 @@ class NarwhalsTableManager(
 
     def to_json_str(
         self,
-        format_mapping: Optional[FormatMapping] = None,
+        format_mapping: FormatMapping | None = None,
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
@@ -115,14 +113,14 @@ class NarwhalsTableManager(
         return stream.getvalue()
 
     def apply_formatting(
-        self, format_mapping: Optional[FormatMapping]
+        self, format_mapping: FormatMapping | None
     ) -> NarwhalsTableManager[IntoDataFrameT, IntoLazyFrameT]:
         if not format_mapping:
             return self
 
         frame = self.as_frame()
         _data = frame.to_dict(as_series=False).copy()
-        for col in _data.keys():
+        for col in _data:
             if col in format_mapping:
                 _data[col] = [
                     format_value(col, x, format_mapping) for x in _data[col]
@@ -136,7 +134,7 @@ class NarwhalsTableManager(
 
     def select_rows(
         self, indices: list[int]
-    ) -> TableManager[Union[IntoDataFrameT, IntoLazyFrameT]]:
+    ) -> TableManager[IntoDataFrameT | IntoLazyFrameT]:
         if not indices:
             return self.with_new_data(self.data.head(0))
 
@@ -655,7 +653,7 @@ class NarwhalsTableManager(
             return list(range(total))
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
 
-    def get_num_rows(self, force: bool = True) -> Optional[int]:
+    def get_num_rows(self, force: bool = True) -> int | None:
         # If force is true, collect the data and get the number of rows
         if force:
             return self.as_frame().shape[0]

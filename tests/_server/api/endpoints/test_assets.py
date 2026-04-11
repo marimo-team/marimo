@@ -264,9 +264,19 @@ def test_public_file_security(client: TestClient) -> None:
         )
         assert response.status_code == 404
 
-        # Test symlink attempt
+        # Symlinks in public/ that point outside public/ are rejected,
+        # even though the symlink itself lives inside public/.
         response = client.get("/public/symlink.txt", headers=headers)
+        assert response.status_code == 404
+
+        # A symlink whose target is still inside public/ is allowed.
+        os.symlink(
+            str(public_dir / "safe.txt"),
+            str(public_dir / "inside_link.txt"),
+        )
+        response = client.get("/public/inside_link.txt", headers=headers)
         assert response.status_code == 200
+        assert response.text == "public content"
 
     finally:
         # Cleanup

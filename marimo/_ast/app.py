@@ -7,10 +7,11 @@ import os
 import sys
 import threading
 from collections.abc import (
+    Callable,
     Iterable,
     Iterator,
     Mapping,
-    Sequence,  # noqa: TC003
+    Sequence,
 )
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,13 +19,10 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
-    Optional,
     ParamSpec,
     TypeAlias,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -69,8 +67,9 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import FrameType, TracebackType
+    from typing import TypeGuard
 
-    from typing_extensions import TypeGuard, TypeIs
+    from typing_extensions import TypeIs
 
     from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
@@ -122,7 +121,7 @@ class _SetupContext:
         self._cell = cell
         self._hide_code = hide_code
         self._glbls: dict[str, Any] = {}
-        self._frame: Optional[FrameType] = None
+        self._frame: FrameType | None = None
         self._previous: dict[str, Any] = {}
 
     def __enter__(self) -> None:
@@ -150,9 +149,9 @@ class _SetupContext:
 
     def __exit__(
         self,
-        exception: Optional[type[BaseException]],
-        instance: Optional[BaseException],
-        _traceback: Optional[TracebackType],
+        exception: type[BaseException] | None,
+        instance: BaseException | None,
+        _traceback: TracebackType | None,
     ) -> Literal[False]:
         if exception is not None:
             # Always should fail, since static loading still allows bad apps to
@@ -258,7 +257,7 @@ class App:
         # injection hook to rewrite cells for pytest
         self._pytest_rewrite = False
         # setup context for script mode and module imports
-        self._setup: Optional[_SetupContext] = None
+        self._setup: _SetupContext | None = None
 
         # Filename is derived from the callsite of the app
         # unless explicitly set (e.g. for static loading case)
@@ -292,6 +291,7 @@ class App:
             self._cell_manager.codes(),
             self._cell_manager.names(),
             self._cell_manager.configs(),
+            strict=False,
         ):
             cell = None
             cell_data = self._cell_manager._cell_data.get(cell_id)
@@ -349,7 +349,7 @@ class App:
         self,
         func: Fn[P, R] | None = None,
         *,
-        column: Optional[int] = None,
+        column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
@@ -383,7 +383,7 @@ class App:
         del kwargs
 
         return cast(
-            Union[Cell, Callable[[Fn[P, R]], Cell]],
+            Cell | Callable[[Fn[P, R]], Cell],
             self._cell_manager.cell_decorator(
                 func, column, disabled, hide_code, app=InternalApp(self)
             ),
@@ -409,7 +409,7 @@ class App:
         self,
         func: Fn[P, R] | None = None,
         *,
-        column: Optional[int] = None,
+        column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
@@ -445,7 +445,7 @@ class App:
         del kwargs
 
         return cast(
-            Union[Fn[P, R], Callable[[Fn[P, R]], Fn[P, R]]],
+            Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]],
             self._cell_manager.cell_decorator(
                 func,
                 column,
@@ -466,7 +466,7 @@ class App:
         self,
         cls: Cls | None = None,
         *,
-        column: Optional[int] = None,
+        column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
@@ -500,7 +500,7 @@ class App:
         del kwargs
 
         return cast(
-            Union[Cls, Callable[[Cls], Cls]],
+            Cls | Callable[[Cls], Cls],
             self._cell_manager.cell_decorator(
                 cls,
                 column,
@@ -549,7 +549,7 @@ class App:
     def _unparsable_cell(
         self,
         code: str,
-        name: Optional[str] = None,
+        name: str | None = None,
         **config: Any,
     ) -> None:
         self._cell_manager.register_unparsable_cell(
@@ -735,7 +735,7 @@ class App:
 
             if self._filename is not None:
                 # Run linting checks to provide better error messages for breaking errors.
-                linter, messages = collect_messages(self._filename)
+                _linter, messages = collect_messages(self._filename)
                 if messages:
                     sys.stderr.write(messages)
                 # Re-raise the original exception but without trace
@@ -1011,7 +1011,7 @@ class InternalApp:
     ) -> InternalApp:
         new_cell_manager = CellManager()
         for cell_id, code, name, config in zip(
-            cell_ids, codes, names, configs
+            cell_ids, codes, names, configs, strict=False
         ):
             cell = None
             # If the cell exists, the cell data should be set.

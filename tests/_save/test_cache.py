@@ -294,7 +294,7 @@ class TestScriptCache:
             app.run()
         except Exception as e:
             if "--cov=marimo" not in sys.argv:
-                raise e
+                raise
             pytest.mark.xfail(
                 reason="Coverage conflict with cache introspection"
             )
@@ -343,7 +343,7 @@ class TestScriptCache:
             with persistent_cache(name="one",
                                   _loader=MockLoader(
                                     data={"X": 7, "Y": 8})
-                                  ) as cache:  # noqa: E501
+                                  ) as cache:
                 Y = 9
                 X = 10
             # fmt: on

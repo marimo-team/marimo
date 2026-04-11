@@ -470,7 +470,7 @@ def _render_value_inline(value: object) -> str:
     try:
         value_str = repr(value)
     except Exception as e:
-        value_str = f"<repr-error {str(e)}>"
+        value_str = f"<repr-error {e!s}>"
 
     if len(value_str) > 200:
         value_str = value_str[:197] + "..."

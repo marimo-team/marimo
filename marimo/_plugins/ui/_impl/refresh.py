@@ -1,10 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Final, Optional, Union
+from typing import TYPE_CHECKING, Final
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc
@@ -52,11 +55,11 @@ class refresh(UIElement[int, int]):
 
     def __init__(
         self,
-        options: Optional[list[Union[int, float, str]]] = None,
-        default_interval: Optional[Union[int, float, str]] = None,
+        options: list[int | float | str] | None = None,
+        default_interval: float | str | None = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[int], None]] = None,
+        on_change: Callable[[int], None] | None = None,
     ) -> None:
         if default_interval and not isinstance(
             default_interval, (int, float, str)

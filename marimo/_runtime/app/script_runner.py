@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._dependencies.dependencies import DependencyManager
@@ -32,6 +32,8 @@ from marimo._runtime.patches import (
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.app import InternalApp
 
 
@@ -42,7 +44,7 @@ class AppScriptRunner:
         self,
         app: InternalApp,
         filename: str | None,
-        glbls: Optional[dict[str, Any]] = None,
+        glbls: dict[str, Any] | None = None,
     ) -> None:
         self.app = app
         self.filename = filename
@@ -68,13 +70,11 @@ class AppScriptRunner:
         self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
-        cancelled = set(
+        cancelled = {
             cid
-            for cid in dataflow.transitive_closure(
-                self.app.graph, set([cell_id])
-            )
+            for cid in dataflow.transitive_closure(self.app.graph, {cell_id})
             if cid in self.cells_to_run
-        )
+        }
         for cid in cancelled:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
         self.cells_cancelled |= cancelled
@@ -118,7 +118,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()
@@ -164,7 +164,7 @@ class AppScriptRunner:
                         if isinstance(unwrapped_exception, MarimoStopError):
                             self._cancel(cid)
                         else:
-                            raise e
+                            raise
                     finally:
                         for hook in post_execute_hooks:
                             hook()

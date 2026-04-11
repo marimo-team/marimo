@@ -4,9 +4,10 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
@@ -49,19 +50,19 @@ def json_script(data: Any) -> str:
 
 def _get_mount_config(
     *,
-    filename: Optional[str],
-    cwd: Optional[str] = None,
-    lsp_workspace: Optional[LspWorkspace] = None,
+    filename: str | None,
+    cwd: str | None = None,
+    lsp_workspace: LspWorkspace | None = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
-    app_config: Optional[_AppConfig],
-    version: Optional[str] = None,
+    app_config: _AppConfig | None,
+    version: str | None = None,
     show_app_code: bool = True,
-    session_snapshot: Optional[NotebookSessionV1] = None,
-    notebook_snapshot: Optional[NotebookV1] = None,
-    runtime_config: Optional[list[dict[str, Any]]] = None,
+    session_snapshot: NotebookSessionV1 | None = None,
+    notebook_snapshot: NotebookV1 | None = None,
+    runtime_config: list[dict[str, Any]] | None = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -112,7 +113,7 @@ def home_page_template(
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     mode: SessionMode,
-    asset_url: Optional[str] = None,
+    asset_url: str | None = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ title }}", "marimo")
@@ -153,8 +154,8 @@ def opengraph_metadata_template(
     base_url: str,
     mode: SessionMode,
     app_config: _AppConfig,
-    filename: Optional[str],
-    filepath: Optional[str],
+    filename: str | None,
+    filepath: str | None,
 ) -> str:
     """Return OpenGraph `<meta>` tags for a notebook, or an empty string."""
     if not filepath:
@@ -226,15 +227,15 @@ def notebook_page_template(
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
-    filename: Optional[str],
-    filepath: Optional[str] = None,
-    lsp_workspace: Optional[LspWorkspace] = None,
+    filename: str | None,
+    filepath: str | None = None,
+    lsp_workspace: LspWorkspace | None = None,
     mode: SessionMode,
-    session_snapshot: Optional[NotebookSessionV1] = None,
-    notebook_snapshot: Optional[NotebookV1] = None,
-    runtime_config: Optional[list[dict[str, Any]]] = None,
-    asset_url: Optional[str] = None,
-    html_head: Optional[str] = None,
+    session_snapshot: NotebookSessionV1 | None = None,
+    notebook_snapshot: NotebookV1 | None = None,
+    runtime_config: list[dict[str, Any]] | None = None,
+    asset_url: str | None = None,
+    html_head: str | None = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
@@ -323,8 +324,10 @@ def notebook_page_template(
     if html_head:
         html = html.replace("</head>", f"{html_head}</head>")
 
-    # Add per-notebook HTML head file contents if specified
-    if app_config.html_head_file:
+    # html_head_file is blocked in edit mode: it can contain arbitrary scripts
+    # and markup that could exfiltrate data or redress the UI. CSS-only styling
+    # (css_file) is permitted. Run mode is unaffected.
+    if mode == SessionMode.RUN and app_config.html_head_file:
         head_contents = read_html_head_file(
             app_config.html_head_file, filename=filepath or filename
         )
@@ -341,14 +344,14 @@ def static_notebook_template(
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
-    filepath: Optional[str],
+    filepath: str | None,
     code: str,
     code_hash: str,
     session_snapshot: NotebookSessionV1,
     notebook_snapshot: NotebookV1,
     files: dict[str, str],
-    model_notifications: Optional[list[ModelLifecycleNotification]] = None,
-    asset_url: Optional[str] = None,
+    model_notifications: list[ModelLifecycleNotification] | None = None,
+    asset_url: str | None = None,
 ) -> str:
     if asset_url is None:
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
@@ -461,7 +464,7 @@ def wasm_notebook_template(
     mode: Literal["edit", "run"],
     code: str,
     show_code: bool,
-    asset_url: Optional[str] = None,
+    asset_url: str | None = None,
 ) -> str:
     """Template for WASM notebooks."""
     import re
@@ -577,16 +580,30 @@ def get_version() -> str:
     )
 
 
+# HTML5 terminates a <style> raw-text element at the first "</style"
+# (case-insensitive, optional whitespace). Neutralize that sequence so
+# notebook-controlled CSS cannot break out of the block and inject HTML.
+_STYLE_END_RE = re.compile(r"</(?=\s*style)", re.IGNORECASE)
+
+
+def _sanitize_css_for_style_block(css_contents: str) -> str:
+    # "\/" is a valid CSS escape for "/", so the CSS tokenizer still sees
+    # a (harmlessly invalid) token, while the HTML parser no longer
+    # matches the end-tag.
+    return _STYLE_END_RE.sub(r"<\\/", css_contents)
+
+
 def _custom_css_block(css_contents: str) -> str:
     # marimo-custom is used by the frontend to identify this stylesheet
     # comes from marimo
-    return f"<style title='marimo-custom'>{css_contents}</style>"
+    safe = _sanitize_css_for_style_block(css_contents)
+    return f"<style title='marimo-custom'>{safe}</style>"
 
 
 def _inject_custom_css_for_config(
     html: str,
-    config: Union[MarimoConfig, PartialMarimoConfig],
-    filename: Optional[str] = None,
+    config: MarimoConfig | PartialMarimoConfig,
+    filename: str | None = None,
 ) -> str:
     """Inject custom CSS from display config into HTML."""
     custom_css = config.get("display", {}).get("custom_css", [])
@@ -606,7 +623,7 @@ def _inject_custom_css_for_config(
     return html.replace("</head>", f"{css_block}</head>")
 
 
-def _replace_asset_urls(html: str, asset_url: Optional[str]) -> str:
+def _replace_asset_urls(html: str, asset_url: str | None) -> str:
     """Replace asset URLs with the given asset URL.
 
     These are naturally relative URLs. This can be used to load assets

@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Callable, Optional, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
     import ast
+    from collections.abc import Callable
 
     from marimo._messaging.errors import MarimoSQLError
 
@@ -23,9 +24,9 @@ class MarimoSQLException(Exception):
         self,
         message: str,
         sql_statement: str = "",
-        sql_line: Optional[int] = None,
-        sql_col: Optional[int] = None,
-        hint: Optional[str] = None,
+        sql_line: int | None = None,
+        sql_col: int | None = None,
+        hint: str | None = None,
     ):
         super().__init__(message)
         self.sql_statement = sql_statement
@@ -40,12 +41,12 @@ class SQLErrorMetadata(TypedDict):
     lint_rule: str
     error_type: str
     clean_message: str
-    hint: Optional[str]
+    hint: str | None
     node_lineno: int
     node_col_offset: int
     sql_statement: str
-    sql_line: Optional[int]
-    sql_col: Optional[int]
+    sql_line: int | None
+    sql_col: int | None
     context: str
 
 
@@ -103,7 +104,7 @@ def is_sql_parse_error(exception: BaseException) -> bool:
 
 def _extract_sql_position(
     exception_msg: str,
-) -> tuple[Optional[int], Optional[int]]:
+) -> tuple[int | None, int | None]:
     """Extract line and column position from SQL exception message."""
     # SqlGlot format: "Line 1, Col: 15"
     line_col_match = re.search(r"Line (\d+), Col: (\d+)", exception_msg)
@@ -138,7 +139,7 @@ def create_sql_error_metadata(
     exception: BaseException,
     *,
     rule_code: str,
-    node: Optional[ast.expr] = None,
+    node: ast.expr | None = None,
     sql_content: str = "",
     context: str = "",
 ) -> SQLErrorMetadata:
@@ -203,7 +204,7 @@ def log_sql_error(
     message: str,
     exception: BaseException,
     rule_code: str,
-    node: Optional[ast.expr] = None,
+    node: ast.expr | None = None,
     sql_content: str = "",
     context: str = "",
 ) -> None:

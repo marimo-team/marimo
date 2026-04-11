@@ -127,7 +127,7 @@ export const TableTopBar: React.FC<TableTopBarProps> = ({
             onClick={() => togglePanel(PANEL_TYPES.ROW_VIEWER)}
           >
             <PanelRightIcon className="w-3.5 h-3.5" />
-            Explorer
+            Explore
           </Button>
         )}
         {downloadAs && <ExportMenu downloadAs={downloadAs} />}

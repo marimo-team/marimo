@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 
 @dataclass(kw_only=True)
 class SuccessResult:
     status: Literal["success", "error", "warning"] = "success"
     auth_required: bool = False
-    next_steps: Optional[list[str]] = None
-    action_url: Optional[str] = None
-    message: Optional[str] = None
-    meta: Optional[dict[str, Any]] = None
+    next_steps: list[str] | None = None
+    action_url: str | None = None
+    message: str | None = None
+    meta: dict[str, Any] | None = None

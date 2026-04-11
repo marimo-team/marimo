@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Callable, Final, Optional
+from typing import TYPE_CHECKING, Final
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @mddoc
@@ -41,7 +44,7 @@ class microphone(UIElement[str, io.BytesIO]):
         self,
         *,
         label: str = "",
-        on_change: Optional[Callable[[io.BytesIO], None]] = None,
+        on_change: Callable[[io.BytesIO], None] | None = None,
     ) -> None:
         super().__init__(
             component_name=microphone.name,

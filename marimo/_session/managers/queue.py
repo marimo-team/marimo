@@ -7,7 +7,6 @@ import queue
 import sys
 from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
-from typing import Optional, Union
 
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
@@ -23,28 +22,26 @@ class QueueManagerImpl(QueueManager):
 
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
-        self.control_queue: Union[
-            MPQueue[commands.CommandMessage],
-            queue.Queue[commands.CommandMessage],
-        ] = context.Queue() if context is not None else queue.Queue()
+        self.control_queue: (
+            MPQueue[commands.CommandMessage]
+            | queue.Queue[commands.CommandMessage]
+        ) = context.Queue() if context is not None else queue.Queue()
 
         # UI element updates and model commands are stored in both the
         # control queue and this queue, so that the backend can
         # merge/batch requests (last-write-wins per element/model ID).
-        self.set_ui_element_queue: Union[
-            MPQueue[commands.BatchableCommand],
-            queue.Queue[commands.BatchableCommand],
-        ] = context.Queue() if context is not None else queue.Queue()
+        self.set_ui_element_queue: (
+            MPQueue[commands.BatchableCommand]
+            | queue.Queue[commands.BatchableCommand]
+        ) = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
-        self.completion_queue: Union[
-            MPQueue[commands.CodeCompletionCommand],
-            queue.Queue[commands.CodeCompletionCommand],
-        ] = context.Queue() if context is not None else queue.Queue()
+        self.completion_queue: (
+            MPQueue[commands.CodeCompletionCommand]
+            | queue.Queue[commands.CodeCompletionCommand]
+        ) = context.Queue() if context is not None else queue.Queue()
 
-        self.win32_interrupt_queue: (
-            Union[MPQueue[bool], queue.Queue[bool]] | None
-        )
+        self.win32_interrupt_queue: MPQueue[bool] | queue.Queue[bool] | None
         if sys.platform == "win32":
             self.win32_interrupt_queue = (
                 context.Queue() if context is not None else queue.Queue()
@@ -54,14 +51,12 @@ class QueueManagerImpl(QueueManager):
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue: Union[MPQueue[str], queue.Queue[str]] = (
+        self.input_queue: MPQueue[str] | queue.Queue[str] = (
             context.Queue(maxsize=1)
             if context is not None
             else queue.Queue(maxsize=1)
         )
-        self.stream_queue: Optional[
-            queue.Queue[Union[KernelMessage, None]]
-        ] = None
+        self.stream_queue: queue.Queue[KernelMessage | None] | None = None
         if not use_multiprocessing:
             self.stream_queue = queue.Queue()
 

@@ -79,9 +79,9 @@ def mock_stdio_setup():
 def create_test_server_definition(
     name: str = "test_server",
     command: str = "test",
-    args: list = None,
-    env: dict = None,
-    timeout: float = None,
+    args: list | None = None,
+    env: dict | None = None,
+    timeout: float | None = None,
 ) -> MCPServerDefinition:
     """Create a test server definition with sensible defaults."""
     if args is None:
@@ -101,11 +101,11 @@ def create_test_server_definition(
 def create_test_server_connection(
     name: str = "test_server",
     command: str = "test",
-    args: list = None,
-    env: dict = None,
+    args: list | None = None,
+    env: dict | None = None,
     status: MCPServerStatus = MCPServerStatus.DISCONNECTED,
     session=None,
-    timeout: float = None,
+    timeout: float | None = None,
 ) -> MCPServerConnection:
     """Create a test server connection with sensible defaults."""
     server_def = create_test_server_definition(
@@ -121,8 +121,8 @@ def create_test_tool(
     name: str = "test_tool",
     description: str = "Test tool",
     server_name: str = "test_server",
-    namespaced_name: str = None,
-    input_schema: dict = None,
+    namespaced_name: str | None = None,
+    input_schema: dict | None = None,
 ):
     """Create a test tool with sensible defaults."""
     if DependencyManager.mcp.has():
@@ -1384,7 +1384,7 @@ class TestMCPClientConnectionManagement:
         mock_read, mock_write, mock_stdio_context = mock_stdio_setup()
         mock_stdio_client.return_value = mock_stdio_context
 
-        mock_session, mock_session_context = mock_session_setup()
+        _mock_session, mock_session_context = mock_session_setup()
         mock_session_class.return_value = mock_session_context
 
         # Mock AsyncExitStack

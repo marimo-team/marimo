@@ -5,10 +5,10 @@ import base64
 import hmac
 import secrets
 import typing
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import starlette
-import starlette.status as status
+from starlette import status
 from starlette.datastructures import Secret
 from starlette.exceptions import HTTPException
 from starlette.middleware.authentication import AuthenticationMiddleware
@@ -33,7 +33,7 @@ TOKEN_QUERY_PARAM = "access_token"
 # - Or authenticates by access_token in query params
 # - Or authenticates by basic auth
 def validate_auth(
-    conn: HTTPConnection, form_dict: Optional[dict[str, str]] = None
+    conn: HTTPConnection, form_dict: dict[str, str] | None = None
 ) -> bool:
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
@@ -100,7 +100,7 @@ def validate_auth(
 
 def _parse_basic_auth_credentials(
     credentials: str,
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     try:
         decoded = base64.b64decode(credentials).decode("utf-8")
     except Exception:
@@ -174,16 +174,13 @@ class CustomSessionMiddleware(SessionMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        secret_key: typing.Union[str, Secret],
+        secret_key: str | Secret,
         session_cookie: str = "session",
-        max_age: typing.Optional[int] = 14
-        * 24
-        * 60
-        * 60,  # 14 days, in seconds
+        max_age: int | None = 14 * 24 * 60 * 60,  # 14 days, in seconds
         path: str = "/",
         same_site: typing.Literal["lax", "strict", "none"] = "lax",
         https_only: bool = False,
-        domain: typing.Optional[str] = None,
+        domain: str | None = None,
     ) -> None:
         from packaging import version
 
