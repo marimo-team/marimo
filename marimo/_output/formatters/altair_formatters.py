@@ -120,8 +120,8 @@ def _format_png_mimebundle(
         "image/png": data_url or "",
         METADATA_KEY: {
             "image/png": {
-                "width": metadata["width"],
-                "height": metadata["height"],
+                "width": int(metadata["width"]),
+                "height": int(metadata["height"]),
             }
         },
     }
