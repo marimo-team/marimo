@@ -148,7 +148,7 @@ class OSFileSystem(FileSystem):
             raise ValueError("Cannot create file or directory with empty name")
 
         full_path = Path(path) / name
-        full_path = generate_unique_path(full_path)
+        full_path = _generate_unique_path(full_path)
 
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
@@ -187,7 +187,7 @@ class OSFileSystem(FileSystem):
         return True
 
     def copy_file_or_directory(self, path: str, new_path: str) -> FileInfo:
-        new_path = str(generate_unique_path(new_path))
+        new_path = str(_generate_unique_path(new_path))
         if Path(path).is_dir():
             shutil.copytree(path, new_path)
         else:
@@ -458,7 +458,7 @@ def safe_move(src: str, dst: str) -> None:
             src_path.unlink()
 
 
-def generate_unique_path(new_path: str | Path) -> Path:
+def _generate_unique_path(new_path: str | Path) -> Path:
     # If the file already exists, generate a new name
     new_path = Path(new_path)
     if not new_path.exists():
