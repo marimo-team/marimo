@@ -125,8 +125,8 @@ class FileUpdateResponse(BaseResponse):
 
 class FileCopyResponse(BaseResponse):
     # Additional information, e.g., error message
-    message: Optional[str] = None
-    info: Optional[FileInfo] = None
+    message: str | None = None
+    info: FileInfo | None = None
 
 
 class FileMoveResponse(BaseResponse):
