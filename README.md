@@ -47,7 +47,7 @@ and deployable as apps.
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](https://docs.marimo.io/guides/interactivity.html) to Python — no callbacks required
 - 🐍 **git-friendly:** stored as `.py` files
 - 🛢️ **designed for data**: query dataframes, databases, warehouses, or lakehouses [with SQL](https://docs.marimo.io/guides/working_with_data/sql.html), filter and search [dataframes](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-- 🤖 **AI-native**: [connect agent CLIs](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/) like Claude Code to notebooks, or use our editor's built-in AI features
+- 🤖 **AI-native**: [connect agent CLIs](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/) like Claude Code to notebooks, or use our editor's [built-in AI features](https://docs.marimo.io/guides/editor_features/ai_completion/)
 - 🔬 **reproducible:** [no hidden state](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), deterministic execution, [built-in package management](https://docs.marimo.io/guides/package_management/)
 - 🏃 **executable:** [execute as a Python script](https://docs.marimo.io/guides/scripts.html), parameterized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](https://docs.marimo.io/guides/apps.html) or [slides](https://docs.marimo.io/guides/apps.html#slides-layout), [run in the browser via WASM](https://docs.marimo.io/guides/wasm.html)
