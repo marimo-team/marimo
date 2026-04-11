@@ -3,7 +3,7 @@
 import type * as LSP from "vscode-languageserver-protocol";
 import { Objects } from "@/utils/objects";
 import type { ILanguageServerClient } from "./types";
-import { getLSPDocument } from "./utils";
+import { getLspDocumentUri } from "./utils";
 
 function removeFalseyValues<T extends object>(obj: T): T {
   return Objects.filter(obj, (value) => value !== false && value !== null) as T;
@@ -20,7 +20,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
 
   constructor(clients: ILanguageServerClient[]) {
     this.clients = clients;
-    this.documentUri = getLSPDocument();
+    this.documentUri = getLspDocumentUri();
   }
 
   onNotification(

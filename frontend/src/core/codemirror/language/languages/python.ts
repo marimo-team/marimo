@@ -36,7 +36,7 @@ import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
 import { createTransport } from "../../lsp/transports";
 import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
-import { getLSPDocumentRootUri } from "../../lsp/utils";
+import { getLspRootUri, getLspWorkspaceFolders } from "../../lsp/utils";
 import {
   clickablePlaceholderExtension,
   smartPlaceholderExtension,
@@ -54,8 +54,8 @@ const pylspClient = once((lspConfig: LSPConfig) => {
 
   const lspClientOpts = {
     transport,
-    rootUri: getLSPDocumentRootUri(),
-    workspaceFolders: [],
+    rootUri: getLspRootUri(),
+    workspaceFolders: getLspWorkspaceFolders(),
   };
   const config = lspConfig?.pylsp;
 
@@ -161,8 +161,8 @@ const tyLspClient = once((_: LSPConfig) => {
 
   const lspClientOpts = {
     transport,
-    rootUri: getLSPDocumentRootUri(),
-    workspaceFolders: [],
+    rootUri: getLspRootUri(),
+    workspaceFolders: getLspWorkspaceFolders(),
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
@@ -192,8 +192,8 @@ const pyreflyClient = once(
 
     const lspClientOpts = {
       transport,
-      rootUri: getLSPDocumentRootUri(),
-      workspaceFolders: [],
+      rootUri: getLspRootUri(),
+      workspaceFolders: getLspWorkspaceFolders(),
     };
 
     // We wrap the client in a NotebookLanguageServerClient to add some
@@ -230,8 +230,8 @@ const pyrightClient = once((_: LSPConfig) => {
 
   const lspClientOpts = {
     transport,
-    rootUri: getLSPDocumentRootUri(),
-    workspaceFolders: [],
+    rootUri: getLspRootUri(),
+    workspaceFolders: getLspWorkspaceFolders(),
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
