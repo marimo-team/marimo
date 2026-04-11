@@ -481,12 +481,18 @@ def test_cell_config_asdict_without_defaults():
     config = CellConfig(hide_code=True)
     assert config.asdict_without_defaults() == {"hide_code": True}
 
+    config = CellConfig(expand_output=True)
+    assert config.asdict_without_defaults() == {"expand_output": True}
+
     config = CellConfig(hide_code=False)
     assert config.asdict_without_defaults() == {}
 
 
 def test_is_different_from_default():
     config = CellConfig(hide_code=True)
+    assert config.is_different_from_default()
+
+    config = CellConfig(expand_output=True)
     assert config.is_different_from_default()
 
     config = CellConfig(hide_code=False)

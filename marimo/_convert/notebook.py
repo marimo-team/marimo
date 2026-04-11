@@ -50,6 +50,7 @@ def convert_from_ir_to_notebook_v1(
                     column=data.options.get("column", None),
                     disabled=data.options.get("disabled", False),
                     hide_code=data.options.get("hide_code", False),
+                    expand_output=data.options.get("expand_output", False),
                 ),
             )
         )
@@ -85,6 +86,9 @@ def convert_from_notebook_v1_to_ir(
                     "disabled": cell.get("config", {}).get("disabled", False),
                     "hide_code": cell.get("config", {}).get(
                         "hide_code", False
+                    ),
+                    "expand_output": cell.get("config", {}).get(
+                        "expand_output", False
                     ),
                 },
             )

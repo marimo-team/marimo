@@ -45,6 +45,10 @@ components:
           anyOf:
           - type: boolean
           - type: 'null'
+        expand_output:
+          anyOf:
+          - type: boolean
+          - type: 'null'
       required: []
       title: NotebookCellConfig
       type: object

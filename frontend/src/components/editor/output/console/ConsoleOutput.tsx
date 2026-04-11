@@ -86,6 +86,7 @@ interface Props {
   consoleOutputs: WithResponse<OutputMessage>[];
   stale: boolean;
   debuggerActive: boolean;
+  defaultExpanded?: boolean;
   onRefactorWithAI?: OnRefactorWithAI;
   onClear?: () => void;
   onSubmitDebugger: (text: string, index: number) => void;
@@ -102,7 +103,10 @@ export const ConsoleOutput = (props: Props) => {
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const { wrapText, setWrapText } = useWrapText();
-  const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
+  const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(
+    props.cellId,
+    props.defaultExpanded,
+  );
   const [stdinValue, setStdinValue] = React.useState("");
   const inputHistory = useInputHistory({
     value: stdinValue,

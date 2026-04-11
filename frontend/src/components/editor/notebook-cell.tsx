@@ -519,6 +519,7 @@ const EditableCellComponent = ({
       <OutputArea
         // Only allow expanding in edit mode
         allowExpand={true}
+        defaultExpanded={cellData.config.expand_output === true}
         // Force expand when markdown is hidden
         forceExpand={isMarkdownCodeHidden}
         className={CSSClasses.outputArea}
@@ -731,6 +732,7 @@ const EditableCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
+              defaultExpanded={cellData.config.expand_output === true}
               // Empty name if serialization triggered
               cellName={cellRuntime.serialization ? "_" : cellData.name}
               onRefactorWithAI={handleRefactorWithAI}
@@ -1191,6 +1193,7 @@ const SetupCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
+              defaultExpanded={cellData.config.expand_output === true}
               // Don't show name
               cellName={"_"}
               onRefactorWithAI={handleRefactorWithAI}

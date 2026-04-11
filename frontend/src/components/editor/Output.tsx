@@ -344,6 +344,7 @@ interface OutputAreaProps {
   cellId: CellId;
   stale: boolean;
   loading: boolean;
+  defaultExpanded?: boolean;
   /**
    * Whether to allow expanding the output
    * This shows the expand button and allows the user to expand the output
@@ -363,6 +364,7 @@ export const OutputArea = React.memo(
     cellId,
     stale,
     loading,
+    defaultExpanded,
     allowExpand,
     forceExpand,
     className,
@@ -379,23 +381,32 @@ export const OutputArea = React.memo(
     // 2. This output is stale (this cell is queued to run)
     // 3. This output is stale (its inputs have changed)
     const title = stale ? "This output is stale" : undefined;
-    const Container = allowExpand ? ExpandableOutput : Div;
+    const sharedProps = {
+      title,
+      id: CellOutputId.create(cellId),
+      className: cn(
+        stale && "marimo-output-stale",
+        loading && "marimo-output-loading",
+        className,
+      ),
+    };
 
     return (
       <ErrorBoundary>
-        <Container
-          title={title}
-          cellId={cellId}
-          forceExpand={forceExpand}
-          id={CellOutputId.create(cellId)}
-          className={cn(
-            stale && "marimo-output-stale",
-            loading && "marimo-output-loading",
-            className,
-          )}
-        >
-          <OutputRenderer cellId={cellId} message={output} />
-        </Container>
+        {allowExpand ? (
+          <ExpandableOutput
+            {...sharedProps}
+            cellId={cellId}
+            defaultExpanded={defaultExpanded}
+            forceExpand={forceExpand}
+          >
+            <OutputRenderer cellId={cellId} message={output} />
+          </ExpandableOutput>
+        ) : (
+          <Div {...sharedProps}>
+            <OutputRenderer cellId={cellId} message={output} />
+          </Div>
+        )}
       </ErrorBoundary>
     );
   },
@@ -415,14 +426,19 @@ const ExpandableOutput = React.memo(
   ({
     cellId,
     children,
+    defaultExpanded,
     forceExpand,
     ...props
   }: React.HTMLProps<HTMLDivElement> & {
     cellId: CellId;
+    defaultExpanded?: boolean;
     forceExpand?: boolean;
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
+    const [isExpanded, setIsExpanded] = useExpandedOutput(
+      cellId,
+      defaultExpanded,
+    );
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
 

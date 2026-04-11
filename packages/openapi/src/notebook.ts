@@ -26,6 +26,7 @@ export interface components {
       column?: number | null;
       disabled?: boolean | null;
       hide_code?: boolean | null;
+      expand_output?: boolean | null;
     };
     /**
      * NotebookMetadata

@@ -123,6 +123,7 @@ class EditModeReloadStrategy(ReloadStrategy):
                             column=cd.config.column,
                             disabled=cd.config.disabled,
                             hide_code=cd.config.hide_code,
+                            expand_output=cd.config.expand_output,
                         )
                     )
 

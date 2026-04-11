@@ -172,7 +172,7 @@ def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
         **{
             k: v == "true"
             for k, v in tag.attrib.items()
-            if k in ["hide_code", "disabled"]
+            if k in ["hide_code", "disabled", "expand_output"]
         },
     }
     # "Column" is not a boolean attribute.

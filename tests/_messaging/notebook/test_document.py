@@ -283,6 +283,14 @@ class TestSetConfig:
         cfg = doc.get_cell(CellId_t("a")).config
         assert cfg.hide_code is True
         assert cfg.disabled is False  # unchanged default
+        assert cfg.expand_output is False  # unchanged default
+
+    def test_partial_expand_output(self) -> None:
+        doc = _doc("a")
+        doc.apply(_tx(SetConfig(cell_id=CellId_t("a"), expand_output=True)))
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg.expand_output is True
+        assert cfg.hide_code is False  # unchanged default
 
     def test_partial_disabled(self) -> None:
         doc = _doc("a")
@@ -316,7 +324,9 @@ class TestSetConfig:
                     id=CellId_t("a"),
                     code="",
                     name="__",
-                    config=CellConfig(hide_code=True, column=2),
+                    config=CellConfig(
+                        hide_code=True, expand_output=True, column=2
+                    ),
                 )
             ]
         )
@@ -324,6 +334,7 @@ class TestSetConfig:
         cfg = doc.get_cell(CellId_t("a")).config
         assert cfg.disabled is True
         assert cfg.hide_code is True  # preserved
+        assert cfg.expand_output is True  # preserved
         assert cfg.column == 2  # preserved
 
 
