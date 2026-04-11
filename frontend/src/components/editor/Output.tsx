@@ -263,7 +263,7 @@ const MimeBundleOutputRenderer: React.FC<{
   const { mode } = useAtomValue(viewStateAtom);
   const appView = mode === "present" || mode === "read";
 
-  // Extract metadata if present (e.g., for retina image rendering)
+  // Extract metadata if present (e.g., to maintain a constant display size regardless of DPI/PPI)
   const metadata = mimebundle[METADATA_KEY];
 
   // Filter out metadata from the mime entries and type narrow

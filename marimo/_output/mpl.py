@@ -83,11 +83,8 @@ def _render_figure_mimebundle(
         data_url = build_data_url(mimetype="image/svg+xml", data=plot_bytes)
         return "image/svg+xml", data_url
 
-    # Get current DPI and double it for retina display (like Jupyter)
-    original_dpi = fig.figure.dpi  # type: ignore[attr-defined]
-    retina_dpi = original_dpi * 2
-
-    fig.figure.savefig(buf, format="png", bbox_inches="tight", dpi=retina_dpi)  # type: ignore[attr-defined]
+    dpi = fig.figure.dpi
+    fig.figure.savefig(buf, format="png", bbox_inches="tight", dpi=dpi)  # type: ignore[attr-defined]
 
     png_bytes = buf.getvalue()
     plot_bytes = base64.b64encode(png_bytes)
@@ -98,12 +95,14 @@ def _render_figure_mimebundle(
     try:
         # Extract dimensions from the PNG
         width, height = _extract_png_dimensions(png_bytes)
+        # Normalize to Matplotlib's default 100 DPI for consistent display size
+        factor = dpi / 100
         mimebundle = {
             "image/png": data_url,
             METADATA_KEY: {
                 "image/png": {
-                    "width": width // 2,
-                    "height": height // 2,
+                    "width": int(width / factor),
+                    "height": int(height / factor),
                 }
             },
         }
