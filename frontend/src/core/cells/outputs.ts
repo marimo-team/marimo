@@ -11,10 +11,7 @@ const expandedConsoleOutputs: Record<CellId, boolean> = {};
 const userExpandedOutputs: Record<CellId, boolean> = {};
 const userExpandedConsoleOutputs: Record<CellId, boolean> = {};
 
-export function useExpandedOutput(
-  cellId: CellId,
-  defaultExpanded = false,
-) {
+export function useExpandedOutput(cellId: CellId, defaultExpanded = false) {
   const [state, setState] = useState(
     expandedOutputs[cellId] ?? defaultExpanded,
   );
